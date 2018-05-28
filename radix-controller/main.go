@@ -19,7 +19,7 @@ import (
 
 func main() {
 	client, radixClient := getKubernetesClient()
-	informer := radixInformer.NewRadixApplicationInformer(
+	informer := radixinformer.NewRadixApplicationInformer(
 		radixClient,
 		meta_v1.NamespaceAll,
 		0,
