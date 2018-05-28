@@ -1,4 +1,4 @@
-apiVersion: radix.statoil.com/v1
+apiVersion: radix.equinor.com/v1
 kind: RadixApplication
 metadata:
   name: sampleapp

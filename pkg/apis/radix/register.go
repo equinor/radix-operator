@@ -1,3 +1,3 @@
 package radix
 
-const GroupName = "radix.statoil.com"
+const GroupName = "radix.equinor.com"

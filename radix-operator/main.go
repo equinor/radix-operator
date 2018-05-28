@@ -35,14 +35,14 @@ func main() {
 				queue.Add(key)
 			}
 		},
-		UpdateFunc: func(oldObj, newObj interface{}){
+		UpdateFunc: func(oldObj, newObj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(oldObj)
 			log.Infof("Updated radix application: %s", key)
 			if err == nil {
 				queue.Add(key)
 			}
 		},
-		DeleteFunc: func(obj interface{}){
+		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			log.Infof("Deleted radix application: %s", key)
 			if err == nil {

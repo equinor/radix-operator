@@ -22,7 +22,7 @@ type RadixApplicationSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//RadixApplicationList is a list of Firefly applications
+//RadixApplicationList is a list of Radix applications
 type RadixApplicationList struct {
 	meta_v1.TypeMeta `json:",inline"`
 	meta_v1.ListMeta `json:"metadata"`

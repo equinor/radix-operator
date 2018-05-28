@@ -30,7 +30,7 @@ type RadixV1Interface interface {
 	RadixApplicationsGetter
 }
 
-// RadixV1Client is used to interact with features provided by the radix.statoil.com group.
+// RadixV1Client is used to interact with features provided by the radix.equinor.com group.
 type RadixV1Client struct {
 	restClient rest.Interface
 }
