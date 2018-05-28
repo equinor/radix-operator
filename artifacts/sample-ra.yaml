@@ -1,0 +1,7 @@
+apiVersion: radix.statoil.com/v1
+kind: RadixApplication
+metadata:
+  name: sampleapp
+spec:
+  image: sampleapp:latest
+  registry: frodehus
