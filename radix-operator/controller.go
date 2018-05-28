@@ -5,6 +5,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	radixclient "github.com/statoil/radix/pkg/client/clientset/versioned"
+	radixinformer "github.com/statoil/radix/pkg/client/informers/externalversions/radix/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -18,6 +21,51 @@ type Controller struct {
 	queue     workqueue.RateLimitingInterface
 	informer  cache.SharedIndexInformer
 	handler   Handler
+}
+
+func NewController(client kubernetes.Interface, radixClient radixclient.Interface) *Controller {
+	informer := radixinformer.NewRadixApplicationInformer(
+		radixClient,
+		meta_v1.NamespaceAll,
+		0,
+		cache.Indexers{},
+	)
+	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			log.Infof("Added radix application: %s", key)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(oldObj)
+			log.Infof("Updated radix application: %s", key)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			log.Infof("Deleted radix application: %s", key)
+			if err == nil {
+				queue.Add(key)
+			}
+		},
+	})
+
+	controller := &Controller{
+		logger:    log.NewEntry(log.New()),
+		clientset: client,
+		informer:  informer,
+		queue:     queue,
+		handler: &RadixAppHandler{
+			clientset: client,
+		},
+	}
+	return controller
 }
 
 func (c *Controller) Run(stop <-chan struct{}) {
