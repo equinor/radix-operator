@@ -1,4 +1,4 @@
 // +k8s:deepcopy-gen=package
-// +groupName=radix.statoil.com
+// +groupName=radix.equinor.com
 
 package v1

@@ -34,9 +34,9 @@ type FakeRadixApplications struct {
 	ns   string
 }
 
-var radixapplicationsResource = schema.GroupVersionResource{Group: "radix.statoil.com", Version: "v1", Resource: "radixapplications"}
+var radixapplicationsResource = schema.GroupVersionResource{Group: "radix.equinor.com", Version: "v1", Resource: "radixapplications"}
 
-var radixapplicationsKind = schema.GroupVersionKind{Group: "radix.statoil.com", Version: "v1", Kind: "RadixApplication"}
+var radixapplicationsKind = schema.GroupVersionKind{Group: "radix.equinor.com", Version: "v1", Kind: "RadixApplication"}
 
 // Get takes name of the radixApplication, and returns the corresponding radixApplication object, and an error if there is any.
 func (c *FakeRadixApplications) Get(name string, options v1.GetOptions) (result *radix_v1.RadixApplication, err error) {
