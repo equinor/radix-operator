@@ -1,12 +1,14 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -19,6 +21,7 @@ func main() {
 	stop := make(chan struct{})
 	defer close(stop)
 
+	go startMetricsServer(stop)
 	controller := NewController(client, radixClient)
 
 	go controller.Run(stop)
@@ -27,6 +30,20 @@ func main() {
 	signal.Notify(sigTerm, syscall.SIGTERM)
 	signal.Notify(sigTerm, syscall.SIGINT)
 	<-sigTerm
+}
+
+func startMetricsServer(stop <-chan struct{}) {
+	srv := &http.Server{Addr: ":9000"}
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Printf("MetricServer: ListenAndServe() error: %s", err)
+		}
+	}()
+	<-stop
+	if err := srv.Shutdown(nil); err != nil {
+		panic(err)
+	}
 }
 
 func getKubernetesClient() (kubernetes.Interface, radixclient.Interface) {

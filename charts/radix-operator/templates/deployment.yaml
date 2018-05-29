@@ -21,22 +21,22 @@ spec:
     spec:
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.privateRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: http
+            - name: metrics
               containerPort: {{ .Values.service.internalPort }}
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /
-              port: http
+              path: /metrics
+              port: metrics
           readinessProbe:
             httpGet:
-              path: /
-              port: http
-      {{ if .Values.privateRegistry }}imagePullSecrets:
-        - name: {{.Values.privateRegistry}}{{end}}
+              path: /metrics
+              port: metrics
+      {{ if .Values.privateRegistrySecret }}imagePullSecrets:
+        - name: {{.Values.privateRegistrySecret}}{{end}}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
     {{- with .Values.nodeSelector }}
