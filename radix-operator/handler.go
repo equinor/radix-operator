@@ -2,8 +2,8 @@ package main
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix/pkg/apis/brigade"
-	"github.com/statoil/radix/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/brigade"
+	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"k8s.io/client-go/kubernetes"
 )
 

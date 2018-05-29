@@ -19,8 +19,8 @@ limitations under the License.
 package radix
 
 import (
-	internalinterfaces "github.com/statoil/radix/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/statoil/radix/pkg/client/informers/externalversions/radix/v1"
+	internalinterfaces "github.com/statoil/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix/v1"
 )
 
 // Interface provides access to each of this group's versions.

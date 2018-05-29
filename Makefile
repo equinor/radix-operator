@@ -6,7 +6,7 @@ IMAGES	= radix-operator
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
 VERSION		?= ${GIT_TAG}
 IMAGE_TAG 	?= ${VERSION}
-LDFLAGS		+= -X github.com/equinor/radix/pkg/version.Version=$(VERSION)
+LDFLAGS		+= -X github.com/statoil/radix-operator/pkg/version.Version=$(VERSION)
 
 CX_OSES		= linux windows
 CX_ARCHS	= amd64
@@ -34,6 +34,10 @@ docker-push: $(addsuffix -push,$(IMAGES))
 
 %-push:
 	docker push $(DOCKER_REGISTRY)/$*:$(IMAGE_TAG)
+
+HAS_GOMETALINTER := $(shell command -v gometalinter;)
+HAS_DEP          := $(shell command -v dep;)
+HAS_GIT          := $(shell command -v git;)
 
 vendor:
 ifndef HAS_GIT

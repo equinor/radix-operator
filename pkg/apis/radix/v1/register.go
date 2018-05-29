@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/statoil/radix/pkg/apis/radix"
+	"github.com/statoil/radix-operator/pkg/apis/radix"
 )
 
 var SchemeGroupVersion = schema.GroupVersion{

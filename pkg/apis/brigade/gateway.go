@@ -2,7 +2,7 @@ package brigade
 
 import (
 	log "github.com/Sirupsen/logrus"
-	radix_v1 "github.com/statoil/radix/pkg/apis/radix/v1"
+	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
