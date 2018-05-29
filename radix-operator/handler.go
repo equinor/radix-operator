@@ -39,7 +39,12 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) {
 // ObjectDeleted is called when an object is deleted
 func (t *RadixAppHandler) ObjectDeleted(obj interface{}) {
 	log.Info("RadixAppHandler.ObjectDeleted")
-	t.brigade.DeleteProject(obj.(*v1.RadixApplication))
+	radixApp, ok := obj.(*v1.RadixApplication)
+	if ok {
+		t.brigade.DeleteProject(radixApp)
+	} else {
+		t.brigade.DeleteProject(&v1.RadixApplication{})
+	}
 }
 
 // ObjectUpdated is called when an object is updated
