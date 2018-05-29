@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "radix-operator.fullname" . }}
+  labels:
+    app: {{ template "radix-operator.name" . }}
+    chart: {{ template "radix-operator.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ template "radix-operator.name" . }}
+    release: {{ .Release.Name }}
