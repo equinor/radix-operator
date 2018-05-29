@@ -6,8 +6,8 @@ rbac:
 replicaCount: 1
 
 image:
-  repository: equinor.azurecr.io
-  tag: radix-operator:stable
+  repository: radix-operator
+  tag: 8f33bc1
   pullPolicy: IfNotPresent
 
 service:
@@ -32,4 +32,5 @@ tolerations: []
 
 affinity: {}
 
-privateRegistry: staas-docker
+privateRegistrySecret: staas-docker
+privateRegistry: staas.azurecr.io
