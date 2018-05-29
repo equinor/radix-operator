@@ -5,8 +5,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	radixclient "github.com/statoil/radix/pkg/client/clientset/versioned"
-	radixinformer "github.com/statoil/radix/pkg/client/informers/externalversions/radix/v1"
+	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	radixinformer "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"

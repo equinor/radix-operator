@@ -21,10 +21,10 @@ package v1
 import (
 	time "time"
 
-	radix_v1 "github.com/statoil/radix/pkg/apis/radix/v1"
-	versioned "github.com/statoil/radix/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/statoil/radix/pkg/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/statoil/radix/pkg/client/listers/radix/v1"
+	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	versioned "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/statoil/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1 "github.com/statoil/radix-operator/pkg/client/listers/radix/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

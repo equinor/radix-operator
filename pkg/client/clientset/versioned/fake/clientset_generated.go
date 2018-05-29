@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/statoil/radix/pkg/client/clientset/versioned"
-	radixv1 "github.com/statoil/radix/pkg/client/clientset/versioned/typed/radix/v1"
-	fakeradixv1 "github.com/statoil/radix/pkg/client/clientset/versioned/typed/radix/v1/fake"
+	clientset "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	radixv1 "github.com/statoil/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
+	fakeradixv1 "github.com/statoil/radix-operator/pkg/client/clientset/versioned/typed/radix/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

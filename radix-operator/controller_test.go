@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	radix_v1 "github.com/statoil/radix/pkg/apis/radix/v1"
-	fakeradix "github.com/statoil/radix/pkg/client/clientset/versioned/fake"
+	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
