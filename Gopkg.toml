@@ -3,7 +3,7 @@
 # Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
 # for detailed Gopkg.toml documentation.
 #
-# required = ["github.com/user/thing/cmd/thing"]
+required = ["k8s.io/code-generator/cmd/client-gen"]
 # ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
 #
 # [[constraint]]
@@ -37,10 +37,18 @@
   name = "k8s.io/client-go"
   version = "7.0.0"
 
-[prune]
-  go-tests = true
-  unused-packages = true
+# [prune]
+#   go-tests = true
+#   unused-packages = true
 
 [[constraint]]
   name = "github.com/prometheus/client_golang"
   version = "0.8.0"
+
+[[constraint]]
+  name = "k8s.io/code-generator"
+  branch = "release-1.10"
+
+[[override]]
+  name = "k8s.io/gengo"
+  revision = "01a732e01d00cb9a81bb0ca050d3e6d2b947927b"
