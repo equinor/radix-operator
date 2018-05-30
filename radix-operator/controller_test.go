@@ -6,17 +6,20 @@ import (
 
 	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	core "k8s.io/client-go/testing"
 )
 
 func TestController(t *testing.T) {
+	appCreated := false
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
-	radixClient.AddWatchReactor("radixapplication", func(action core.Action) (bool, watch.Interface, error) {
+	radixClient.PrependReactor("create", "radixapplications", func(action core.Action) (bool, runtime.Object, error) {
+		appCreated = true
 		return false, nil, nil
 	})
 	radixApp := &radix_v1.RadixApplication{
@@ -33,9 +36,10 @@ func TestController(t *testing.T) {
 	defer close(stop)
 
 	go controller.Run(stop)
-	radixClient.RadixV1().RadixApplications("DefaultNS").Create(radixApp)
+	createdApp, err := radixClient.RadixV1().RadixApplications("DefaultNS").Create(radixApp)
 	wait.Poll(200*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
-		return true, nil
+		return appCreated, nil
 	})
-
+	assert.NoError(t, err)
+	assert.NotNil(t, createdApp)
 }

@@ -12,5 +12,6 @@
 *.out
 
 vendor/
+vendor.orig/
 bin/
 rootfs/
