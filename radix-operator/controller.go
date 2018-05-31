@@ -5,6 +5,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,11 +17,12 @@ import (
 )
 
 type Controller struct {
-	logger    *log.Entry
-	clientset kubernetes.Interface
-	queue     workqueue.RateLimitingInterface
-	informer  cache.SharedIndexInformer
-	handler   Handler
+	logger      *log.Entry
+	clientset   kubernetes.Interface
+	radixclient radixclient.Interface
+	queue       workqueue.RateLimitingInterface
+	informer    cache.SharedIndexInformer
+	handler     Handler
 }
 
 func NewController(client kubernetes.Interface, radixClient radixclient.Interface) *Controller {
@@ -57,10 +59,11 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 	})
 
 	controller := &Controller{
-		logger:    log.NewEntry(log.New()),
-		clientset: client,
-		informer:  informer,
-		queue:     queue,
+		logger:      log.NewEntry(log.New()),
+		clientset:   client,
+		radixclient: radixClient,
+		informer:    informer,
+		queue:       queue,
 		handler: &RadixAppHandler{
 			clientset: client,
 		},
@@ -121,13 +124,28 @@ func (c *Controller) processNextItem() bool {
 	}
 
 	if !exists {
-		c.logger.Infof("Controller.processNextItem: object deleted detected: %s", keyRaw)
-		c.handler.ObjectDeleted(item)
-		c.queue.Forget(key)
+		c.logger.Infof("Controller.processNextItem: object deletion detected: %s", keyRaw)
+		c.handler.ObjectDeleted(keyRaw)
+	} else if isUpdated, oldApp := c.isItemUpdated(item); isUpdated {
+		c.logger.Infof("Controller.processNextItem: object update detected: %s", keyRaw)
+		c.handler.ObjectUpdated(oldApp, item)
 	} else {
-		c.logger.Infof("Controller.processNextItem: object created detected: %s", keyRaw)
+		c.logger.Infof("Controller.processNextItem: object creation detected: %s", keyRaw)
 		c.handler.ObjectCreated(item)
-		c.queue.Forget(key)
 	}
+	c.queue.Forget(key)
 	return true
+}
+
+func (c *Controller) isItemUpdated(item interface{}) (bool, interface{}) {
+	switch app := item.(type) {
+	case *v1.RadixApplication:
+		oldApp, _ := c.radixclient.RadixV1().RadixApplications(app.Namespace).Get(app.Name, meta_v1.GetOptions{})
+		if oldApp != nil && oldApp.ObjectMeta.ResourceVersion != app.ObjectMeta.ResourceVersion {
+			return true, oldApp
+		}
+		return false, nil
+	default:
+		return false, nil
+	}
 }

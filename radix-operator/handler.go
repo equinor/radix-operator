@@ -10,7 +10,7 @@ import (
 type Handler interface {
 	Init() error
 	ObjectCreated(obj interface{})
-	ObjectDeleted(obj interface{})
+	ObjectDeleted(key string)
 	ObjectUpdated(objOld, objNew interface{})
 }
 
@@ -37,9 +37,10 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) {
 }
 
 // ObjectDeleted is called when an object is deleted
-func (t *RadixAppHandler) ObjectDeleted(obj interface{}) {
+func (t *RadixAppHandler) ObjectDeleted(key string) {
 	log.Info("RadixAppHandler.ObjectDeleted")
-	t.brigade.DeleteProject(obj.(*v1.RadixApplication))
+	
+	t.brigade.DeleteProject(key)
 }
 
 // ObjectUpdated is called when an object is updated

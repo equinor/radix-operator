@@ -14,6 +14,6 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) {
 	log.Infof("Creating/Updating application %s", app.ObjectMeta.Name)
 }
 
-func (b *BrigadeGateway) DeleteProject(app *radix_v1.RadixApplication) {
-	log.Infof("Removing project %s", app.ObjectMeta.Name)
+func (b *BrigadeGateway) DeleteProject(key string) {
+	log.Infof("Removing project %s", key)
 }
