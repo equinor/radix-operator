@@ -46,7 +46,14 @@ func TestController(t *testing.T) {
 	})
 
 	t.Run("Update app", func(t *testing.T) {
-		radixClient.RadixV1().RadixApplications("DefaultNS").Update(createdApp)
+		createdApp.ObjectMeta.Annotations = map[string]string{
+			"update": "test",
+		}
+		updatedApp, err := radixClient.RadixV1().RadixApplications("DefaultNS").Update(createdApp)
+		assert.NoError(t, err)
+		assert.NotNil(t, updatedApp)
+		assert.NotNil(t, updatedApp.Annotations)
+		assert.Equal(t, "test", updatedApp.Annotations["update"])
 	})
 
 	t.Run("Delete app", func(t *testing.T) {
