@@ -2,44 +2,21 @@ package main
 
 import (
 	"testing"
-	"time"
 
 	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/fake"
-	core "k8s.io/client-go/testing"
 )
 
 type FakeHandler struct {
-	WasUpdated bool
-	WasCreated bool
-	WasDeleted bool
+	operation chan string
 }
 
 func TestController(t *testing.T) {
-	appCreated := false
-	appUpdated := false
-	appDeleted := false
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
-	radixClient.PrependReactor("create", "radixapplications", func(action core.Action) (bool, runtime.Object, error) {
-		appCreated = true
-		return false, nil, nil
-	})
-
-	radixClient.PrependReactor("update", "radixapplications", func(action core.Action) (bool, runtime.Object, error) {
-		appUpdated = true
-		return false, nil, nil
-	})
-
-	radixClient.PrependReactor("delete", "radixapplications", func(action core.Action) (bool, runtime.Object, error) {
-		appDeleted = true
-		return false, nil, nil
-	})
 
 	radixApp := &radix_v1.RadixApplication{
 		ObjectMeta: meta.ObjectMeta{
@@ -51,39 +28,44 @@ func TestController(t *testing.T) {
 	}
 
 	controller := NewController(client, radixClient)
-	fakeHandler := &FakeHandler{}
+	fakeHandler := &FakeHandler{
+		operation: make(chan string),
+	}
 	controller.handler = fakeHandler
 	stop := make(chan struct{})
 	defer close(stop)
-
 	go controller.Run(stop)
-	createdApp, err := radixClient.RadixV1().RadixApplications("DefaultNS").Create(radixApp)
-	assert.NoError(t, err)
-	wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
-		return appCreated, nil
-	})
-	radixClient.RadixV1().RadixApplications("DefaultNS").Update(createdApp)
-	wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
-		return appUpdated, nil
-	})
-	radixClient.RadixV1().RadixApplications("DefaultNS").Delete(createdApp.Name, &meta.DeleteOptions{})
 
-	wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
-		return appDeleted, nil
+	var createdApp *radix_v1.RadixApplication
+
+	t.Run("Create app", func(t *testing.T) {
+		var err error
+		createdApp, err = radixClient.RadixV1().RadixApplications("DefaultNS").Create(radixApp)
+		assert.NoError(t, err)
+		assert.Equal(t, "created", <-fakeHandler.operation)
 	})
 
-	assert.True(t, fakeHandler.WasCreated)
+	t.Run("Update app", func(t *testing.T) {
+		radixClient.RadixV1().RadixApplications("DefaultNS").Update(createdApp)
+	})
+
+	t.Run("Delete app", func(t *testing.T) {
+		err := radixClient.RadixV1().RadixApplications("DefaultNS").Delete(createdApp.Name, &meta.DeleteOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, "deleted", <-fakeHandler.operation)
+	})
+
 }
 
 func (h *FakeHandler) Init() error {
 	return nil
 }
 func (h *FakeHandler) ObjectCreated(obj interface{}) {
-	h.WasCreated = true
+	h.operation <- "created"
 }
 func (h *FakeHandler) ObjectDeleted(key string) {
-	h.WasDeleted = true
+	h.operation <- "deleted"
 }
 func (h *FakeHandler) ObjectUpdated(objOld, objNew interface{}) {
-	h.WasUpdated = true
+	h.operation <- "updated"
 }
