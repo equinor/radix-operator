@@ -4,4 +4,6 @@ metadata:
   name: sampleapp
 spec:
   image: sampleapp:latest
-  registry: frodehus
+  secrets:
+    test: "test"
+    testing: "test2"

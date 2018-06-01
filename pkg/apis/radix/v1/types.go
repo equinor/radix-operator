@@ -17,7 +17,7 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Image string `json:"image"`
+	Secrets SecretsMap `json:"secrets,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -28,3 +28,5 @@ type RadixApplicationList struct {
 	meta_v1.ListMeta `json:"metadata"`
 	Items            []RadixApplication `json:"items"`
 }
+
+type SecretsMap map[string]string
