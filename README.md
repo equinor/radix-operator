@@ -23,8 +23,9 @@
 
 ## Updating RadixApplication CRD
 
-The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new field to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
+The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
+Make sure you `dep ensure` before doing this (you probably did this already to build the operator) as that will pull down the `code-generator` package.
 This will auto-generate some code and implement certain interfaces.
 
         make code-gen
