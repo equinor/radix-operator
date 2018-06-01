@@ -52,18 +52,18 @@ func getKubernetesClient() (kubernetes.Interface, radixclient.Interface) {
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			log.Fatalf("getClusterConfig: %v", err)
+			log.Fatalf("getClusterConfig InClusterConfig: %v", err)
 		}
 	}
 
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("getClusterConfig: %v", err)
+		log.Fatalf("getClusterConfig k8s client: %v", err)
 	}
 
 	radixClient, err := radixclient.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("getClusterConfig: %v", err)
+		log.Fatalf("getClusterConfig radix client: %v", err)
 	}
 
 	log.Print("Successfully constructed k8s client")
