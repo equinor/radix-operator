@@ -85,6 +85,10 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 
 func (b *BrigadeGateway) DeleteProject(appName, namespace string) error {
 	log.Infof("Removing project %s", appName)
+	if appName == "" || namespace == ""{
+		return fmt.Errorf("Missing name or namespace")
+	}
+	
 	name := fmt.Sprintf("brigade-%x", sha256.Sum256([]byte(appName)))
 	err := b.client.CoreV1().Secrets(namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {

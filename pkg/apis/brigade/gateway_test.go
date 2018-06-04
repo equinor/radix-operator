@@ -11,6 +11,7 @@ import (
 
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -32,28 +33,58 @@ var radixApp = &radixv1.RadixApplication{
 func init() {
 	log.SetOutput(ioutil.Discard)
 }
-func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
+func Test_BrigadeGateway_Can_Create_And_Delete_Projects(t *testing.T) {
 	secretCreated := false
+	secretDeleted := false
+	nameHash := fmt.Sprintf("brigade-%x", sha256.Sum256([]byte(radixApp.Name)))
 	fakeClient := fake.NewSimpleClientset()
-	fakeClient.PrependReactor("create", "secrets", func(action core.Action) (bool, runtime.Object, error) {
-		secretCreated = true
+
+	reactorFunc := func(action core.Action) (bool, runtime.Object, error) {
+		switch a := action.(type) {
+		case core.CreateAction:
+			createdApp, ok := a.GetObject().(*corev1.Secret)
+			if ok && createdApp.Name == nameHash {
+				secretCreated = true
+			}
+		case core.DeleteAction:
+			if a.GetName() == nameHash {
+				secretDeleted = true
+			}
+		default:
+			return false, nil, nil
+		}
+
 		return false, nil, nil
-	})
+	}
+
+	fakeClient.PrependReactor("create", "secrets", reactorFunc)
+	fakeClient.PrependReactor("delete", "secrets", reactorFunc)
 
 	gateway := BrigadeGateway{
 		client: fakeClient,
 	}
+	t.Run("Create project", func(t *testing.T) {
+		err := gateway.EnsureProject(radixApp)
+		assert.NoError(t, err)
 
-	err := gateway.EnsureProject(radixApp)
-	assert.NoError(t, err)
+		wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
+			return secretCreated, nil
+		})
 
-	wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
-		return secretCreated, nil
+		brigadeProject, err := fakeClient.CoreV1().Secrets("default").Get(nameHash, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, brigadeProject)
 	})
 
-	brigadeProject, err := fakeClient.CoreV1().Secrets("default").Get(fmt.Sprintf("brigade-%x", sha256.Sum256([]byte(radixApp.Name))), metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, brigadeProject)
+	t.Run("Delete project", func(t *testing.T) {
+		err := gateway.DeleteProject(radixApp.Name, "default")
+		assert.NoError(t, err)
+		wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
+			return secretDeleted, nil
+		})
+
+		assert.True(t, secretDeleted)
+	})
 }
 
 func Test_BrigadeGateway_Fails_Without_Client(t *testing.T) {
