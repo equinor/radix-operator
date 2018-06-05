@@ -1,7 +1,10 @@
 package main
 
 import (
+	"io/ioutil"
 	"testing"
+
+	log "github.com/Sirupsen/logrus"
 
 	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
@@ -26,8 +29,11 @@ func (h *FakeHandler) ObjectDeleted(key string) {
 func (h *FakeHandler) ObjectUpdated(objOld, objNew interface{}) {
 	h.operation <- "updated"
 }
+func init() {
+	log.SetOutput(ioutil.Discard)
+}
 
-func TestControllerCreate(t *testing.T) {
+func Test_Controller_Calls_Handler(t *testing.T) {
 	radixApp, controller, radixClient, fakeHandler := initializeTest()
 
 	stop := make(chan struct{})
@@ -95,15 +101,14 @@ func initializeTest() (*radix_v1.RadixApplication, *Controller, *fakeradix.Clien
 			Name: "testapp",
 		},
 		Spec: radix_v1.RadixApplicationSpec{
-			Image: "testing:0.1",
+			Secrets: nil,
 		},
 	}
 
-	controller := NewController(client, radixClient)
 	fakeHandler := &FakeHandler{
 		operation: make(chan string),
 	}
-	controller.handler = fakeHandler
+	controller := NewController(client, radixClient, fakeHandler)
 
 	return radixApp, controller, radixClient, fakeHandler
 }

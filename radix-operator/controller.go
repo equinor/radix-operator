@@ -16,7 +16,6 @@ import (
 )
 
 type Controller struct {
-	logger      *log.Entry
 	clientset   kubernetes.Interface
 	radixclient radixclient.Interface
 	queue       workqueue.RateLimitingInterface
@@ -24,7 +23,7 @@ type Controller struct {
 	handler     Handler
 }
 
-func NewController(client kubernetes.Interface, radixClient radixclient.Interface) *Controller {
+func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler) *Controller {
 	informer := radixinformer.NewRadixApplicationInformer(
 		radixClient,
 		meta_v1.NamespaceAll,
@@ -58,14 +57,11 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 	})
 
 	controller := &Controller{
-		logger:      log.NewEntry(log.New()),
 		clientset:   client,
 		radixclient: radixClient,
 		informer:    informer,
 		queue:       queue,
-		handler: &RadixAppHandler{
-			clientset: client,
-		},
+		handler:     handler,
 	}
 	return controller
 }
@@ -74,7 +70,7 @@ func (c *Controller) Run(stop <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 	defer c.queue.ShutDown()
 
-	c.logger.Info("Controller.Run: initiating")
+	log.Info("Controller.Run: initiating")
 
 	go c.informer.Run(stop)
 
@@ -82,7 +78,7 @@ func (c *Controller) Run(stop <-chan struct{}) {
 		utilruntime.HandleError(fmt.Errorf("Error syncing cache"))
 		return
 	}
-	c.logger.Info("Controller.Run: cache sync complete")
+	log.Info("Controller.Run: cache sync complete")
 
 	wait.Until(c.runWorker, time.Second, stop)
 }
@@ -113,20 +109,20 @@ func (c *Controller) processNextItem() bool {
 	item, exists, err := c.informer.GetIndexer().GetByKey(keyRaw)
 	if err != nil {
 		if c.queue.NumRequeues(key) < 5 {
-			c.logger.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
+			log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
 			c.queue.AddRateLimited(key)
 		} else {
-			c.logger.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, no more retries", key, err)
+			log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, no more retries", key, err)
 			c.queue.Forget(key)
 			utilruntime.HandleError(err)
 		}
 	}
 
 	if !exists {
-		c.logger.Infof("Controller.processNextItem: object deletion detected: %s", keyRaw)
+		log.Infof("Controller.processNextItem: object deletion detected: %s", keyRaw)
 		c.handler.ObjectDeleted(keyRaw)
 	} else {
-		c.logger.Infof("Controller.processNextItem: object creation detected: %s", keyRaw)
+		log.Infof("Controller.processNextItem: object creation detected: %s", keyRaw)
 		c.handler.ObjectCreated(item)
 	}
 	c.queue.Forget(key)
