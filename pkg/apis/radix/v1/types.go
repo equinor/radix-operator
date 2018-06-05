@@ -17,7 +17,13 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Secrets SecretsMap `json:"secrets,omitempty"`
+	Secrets       SecretsMap `json:"secrets,omitempty"`
+	Project       string     `json:"project"`
+	Repository    string     `json:"repository"`
+	CloneURL      string     `json:"cloneURL"`
+	SharedSecret  string     `json:"sharedSecret"`
+	SshKey        string     `json:"sshKey"`
+	DefaultScript string     `json:"defaultScript"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -3,7 +3,11 @@ kind: RadixApplication
 metadata:
   name: sampleapp
 spec:
-  image: sampleapp:latest
+  repository:
+  cloneURL:
+  sharedSecret:
+  sshKey:
+  defaultScript:
   secrets:
     test: "test"
     testing: "test2"
