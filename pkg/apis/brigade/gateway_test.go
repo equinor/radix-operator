@@ -33,9 +33,8 @@ func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
-func Test_BrigadeGateway_Can_Create_And_Delete_Projects(t *testing.T) {
+func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
 	secretCreated := false
-	secretDeleted := false
 	nameHash := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+radixApp.Name))
 	fakeClient := fake.NewSimpleClientset()
 
@@ -46,10 +45,6 @@ func Test_BrigadeGateway_Can_Create_And_Delete_Projects(t *testing.T) {
 			if ok && createdApp.Name == nameHash {
 				secretCreated = true
 			}
-		case core.DeleteAction:
-			if a.GetName() == nameHash {
-				secretDeleted = true
-			}
 		default:
 			return false, nil, nil
 		}
@@ -58,11 +53,11 @@ func Test_BrigadeGateway_Can_Create_And_Delete_Projects(t *testing.T) {
 	}
 
 	fakeClient.PrependReactor("create", "secrets", reactorFunc)
-	fakeClient.PrependReactor("delete", "secrets", reactorFunc)
 
 	gateway := BrigadeGateway{
 		client: fakeClient,
 	}
+
 	t.Run("Create project", func(t *testing.T) {
 		err := gateway.EnsureProject(radixApp)
 		assert.NoError(t, err)
@@ -74,16 +69,6 @@ func Test_BrigadeGateway_Can_Create_And_Delete_Projects(t *testing.T) {
 		brigadeProject, err := fakeClient.CoreV1().Secrets("default").Get(nameHash, metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, brigadeProject)
-	})
-
-	t.Run("Delete project", func(t *testing.T) {
-		err := gateway.DeleteProject(radixApp.Name, "default")
-		assert.NoError(t, err)
-		wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
-			return secretDeleted, nil
-		})
-
-		assert.True(t, secretDeleted)
 	})
 }
 
