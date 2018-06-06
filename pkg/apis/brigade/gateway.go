@@ -46,6 +46,7 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 	}
 
 	log.Infof("Creating/Updating application %s", app.ObjectMeta.Name)
+	trueVar := true
 	secretsJson, _ := json.Marshal(app.Spec.Secrets)
 	project := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -61,6 +62,15 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 			},
 			Annotations: map[string]string{
 				"projectName": projectPrefix + app.Name,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				metav1.OwnerReference{
+					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+					Kind:       "RadixApplication",
+					Name:       app.Name,
+					UID:        app.UID,
+					Controller: &trueVar,
+				},
 			},
 		},
 		Type: "brigade.sh/project",
@@ -88,17 +98,6 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 }
 
 func (b *BrigadeGateway) DeleteProject(appName, namespace string) error {
-	log.Infof("Removing project %s", projectPrefix+appName)
-	if appName == "" || namespace == ""{
-		return fmt.Errorf("Missing name or namespace")
-	}
-
-	name := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+appName))
-	err := b.client.CoreV1().Secrets(namespace).Delete(name, &metav1.DeleteOptions{})
-	if err != nil {
-		return fmt.Errorf("Failed to delete Brigade project: %v", err)
-	}
-	log.Infof("Deleted: %s", projectPrefix+appName)
 	return nil
 }
 

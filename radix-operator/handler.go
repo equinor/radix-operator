@@ -34,7 +34,10 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) {
 		log.Errorf("Provided object was not a valid Radix Application; instead was %v", obj)
 		return
 	}
-	t.brigade.EnsureProject(radixApp)
+	err := t.brigade.EnsureProject(radixApp)
+	if err != nil{
+		log.Errorf("Failed to create project: %v", err)
+	}
 }
 
 // ObjectDeleted is called when an object is deleted
