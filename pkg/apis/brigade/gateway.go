@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
@@ -12,6 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+var projectPrefix = "Statoil/"
 
 var projectCounter = prometheus.NewCounter(prometheus.CounterOpts{
 	Name: "project_created",
@@ -50,23 +53,24 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("brigade-%x", sha256.Sum256([]byte(app.Name))),
+			Name: fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+app.Name)),
 			Labels: map[string]string{
 				"app":       "brigade",
 				"component": "project",
-				"radixApp": app.Name,
+				"radixApp":  app.Name,
 			},
 			Annotations: map[string]string{
-				"projectName": app.Name,
+				"projectName": projectPrefix + app.Name,
 			},
 		},
 		Type: "brigade.sh/project",
 		StringData: map[string]string{
-			"repository":        "",
-			"sharedSecret":      "",
-			"cloneURL":          "",
+			"repository":        app.Spec.Repository,
+			"sharedSecret":      app.Spec.SharedSecret,
+			"cloneURL":          app.Spec.CloneURL,
+			"sshKey":            strings.Replace(app.Spec.SshKey, "\n", "$", -1),
 			"initGitSubmodules": "false",
-			"defaultScript":     "",
+			"defaultScript":     app.Spec.DefaultScript,
 			"defaultScriptName": "",
 			"secrets":           string(secretsJson),
 		},
@@ -84,16 +88,21 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 }
 
 func (b *BrigadeGateway) DeleteProject(appName, namespace string) error {
-	log.Infof("Removing project %s", appName)
+	log.Infof("Removing project %s", projectPrefix+appName)
 	if appName == "" || namespace == ""{
 		return fmt.Errorf("Missing name or namespace")
 	}
-	
-	name := fmt.Sprintf("brigade-%x", sha256.Sum256([]byte(appName)))
+
+	name := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+appName))
 	err := b.client.CoreV1().Secrets(namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to delete Brigade project: %v", err)
 	}
-	log.Infof("Deleted: %s", appName)
+	log.Infof("Deleted: %s", projectPrefix+appName)
 	return nil
+}
+
+func shortSHA(input string) string {
+	sum := sha256.Sum256([]byte(input))
+	return fmt.Sprintf("%x", sum)[0:54]
 }

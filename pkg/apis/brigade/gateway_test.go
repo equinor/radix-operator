@@ -1,7 +1,6 @@
 package brigade
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -33,10 +32,11 @@ var radixApp = &radixv1.RadixApplication{
 func init() {
 	log.SetOutput(ioutil.Discard)
 }
+
 func Test_BrigadeGateway_Can_Create_And_Delete_Projects(t *testing.T) {
 	secretCreated := false
 	secretDeleted := false
-	nameHash := fmt.Sprintf("brigade-%x", sha256.Sum256([]byte(radixApp.Name)))
+	nameHash := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+radixApp.Name))
 	fakeClient := fake.NewSimpleClientset()
 
 	reactorFunc := func(action core.Action) (bool, runtime.Object, error) {
