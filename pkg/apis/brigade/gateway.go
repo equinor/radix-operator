@@ -78,7 +78,7 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 			"repository":        app.Spec.Repository,
 			"sharedSecret":      app.Spec.SharedSecret,
 			"cloneURL":          app.Spec.CloneURL,
-			"sshKey":            strings.Replace(app.Spec.SshKey, "\n", "$", -1),
+			"sshKey":            strings.Replace(app.Spec.SSHKey, "\n", "$", -1),
 			"initGitSubmodules": "false",
 			"defaultScript":     app.Spec.DefaultScript,
 			"defaultScriptName": "",

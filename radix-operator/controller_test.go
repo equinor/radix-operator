@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 
 	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
@@ -96,19 +97,29 @@ func initializeTest() (*radix_v1.RadixApplication, *Controller, *fakeradix.Clien
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 
-	radixApp := &radix_v1.RadixApplication{
-		ObjectMeta: meta.ObjectMeta{
-			Name: "testapp",
-		},
-		Spec: radix_v1.RadixApplicationSpec{
-			Secrets: nil,
-		},
+	radixApp, err := getRadixAppFromFile("testdata/radixconfig.yaml")
+	if err != nil {
+		log.Fatalf("Could not read configuration data: %v", err)
 	}
 
 	fakeHandler := &FakeHandler{
 		operation: make(chan string),
 	}
+
 	controller := NewController(client, radixClient, fakeHandler)
 
 	return radixApp, controller, radixClient, fakeHandler
+}
+
+func getRadixAppFromFile(file string) (*radix_v1.RadixApplication, error) {
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	app := &radix_v1.RadixApplication{}
+	err = yaml.Unmarshal(raw, app)
+	if err != nil {
+		return nil, err
+	}
+	return app, nil
 }
