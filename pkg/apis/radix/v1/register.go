@@ -8,20 +8,24 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/radix"
 )
 
+//SchemeGroupVersion provides the group version
 var SchemeGroupVersion = schema.GroupVersion{
 	Group:   radix.GroupName,
 	Version: "v1",
 }
 var (
+	//SchemeBuilder builds a scheme
 	SchemeBuilder      runtime.SchemeBuilder
 	localSchemeBuilder = &SchemeBuilder
-	AddToScheme        = localSchemeBuilder.AddToScheme
+	//AddToScheme adds to scheme
+	AddToScheme = localSchemeBuilder.AddToScheme
 )
 
 func init() {
 	localSchemeBuilder.Register(addKnownTypes)
 }
 
+//Resource does things to resource
 func Resource(resource string) schema.GroupResource {
 	return SchemeGroupVersion.WithResource(resource).GroupResource()
 }

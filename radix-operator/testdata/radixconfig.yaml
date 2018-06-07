@@ -1,0 +1,13 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: "sampleapp"
+spec:
+  repository: ""
+  cloneURL: ""
+  sharedSecret: ""
+  sshKey: ""
+  defaultScript: ""
+  secrets:
+    test: "test"
+    testing: "test2"
