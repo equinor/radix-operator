@@ -1,0 +1,29 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: RadixReader
+  labels:
+    app: {{ template "radix-operator.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+rules:
+- apiGroups: ["*"]
+  resources: ["deployments", "pods", "configmaps"]
+  verbs: ["get", "list", "watch"]
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: RadixSecretReader
+  labels:a
+    app: {{ template "radix-operator.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+rules:
+- apiGroups: ["*"]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+---

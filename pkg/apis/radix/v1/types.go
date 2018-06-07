@@ -17,13 +17,14 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Secrets       SecretsMap `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	Project       string     `json:"project" yaml:"project"`
-	Repository    string     `json:"repository" yaml:"repository"`
-	CloneURL      string     `json:"cloneURL" yaml:"cloneURL"`
-	SharedSecret  string     `json:"sharedSecret" yaml:"sharedSecret"`
-	SSHKey        string     `json:"sshKey" yaml:"sshKey"`
-	DefaultScript string     `json:"defaultScript" yaml:"defaultScript"`
+	Secrets       SecretsMap    `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Project       string        `json:"project" yaml:"project"`
+	Repository    string        `json:"repository" yaml:"repository"`
+	CloneURL      string        `json:"cloneURL" yaml:"cloneURL"`
+	SharedSecret  string        `json:"sharedSecret" yaml:"sharedSecret"`
+	SSHKey        string        `json:"sshKey" yaml:"sshKey"`
+	DefaultScript string        `json:"defaultScript" yaml:"defaultScript"`
+	Environment   []Environment `json:"environment"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -37,3 +38,13 @@ type RadixApplicationList struct {
 
 //SecretsMap is a map of secrets (weird)
 type SecretsMap map[string]string
+
+type Environment struct {
+	Name          string              `json:"name"`
+	Authorization []AuthorizationSpec `json:"authorization"`
+}
+
+type AuthorizationSpec struct {
+	Role   string   `json:"role"`
+	Groups []string `json:"groups"`
+}
