@@ -23,19 +23,26 @@ func main() {
 	defer close(stop)
 
 	go startMetricsServer(stop)
+
 	brigadeGateway, err := brigade.New(client)
 	if err != nil {
 		log.Fatalf("Could not create Brigade gateway: %v", err)
 	}
 
-	handler := &RadixAppHandler{
+	appHandler := &RadixAppHandler{
 		clientset: client,
 		brigade:   brigadeGateway,
 	}
 
-	controller := NewController(client, radixClient, handler)
+	appController := NewAppController(client, radixClient, appHandler)
+	go appController.Run(stop)
 
-	go controller.Run(stop)
+	deployHandler := &RadixDeployHandler{
+		clientset: client,
+	}
+
+	deployController := NewDeployController(client, radixClient, deployHandler)
+	go deployController.Run(stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)

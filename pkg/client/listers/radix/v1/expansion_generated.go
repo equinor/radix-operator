@@ -25,3 +25,11 @@ type RadixApplicationListerExpansion interface{}
 // RadixApplicationNamespaceListerExpansion allows custom methods to be added to
 // RadixApplicationNamespaceLister.
 type RadixApplicationNamespaceListerExpansion interface{}
+
+// RadixDeploymentListerExpansion allows custom methods to be added to
+// RadixDeploymentLister.
+type RadixDeploymentListerExpansion interface{}
+
+// RadixDeploymentNamespaceListerExpansion allows custom methods to be added to
+// RadixDeploymentNamespaceLister.
+type RadixDeploymentNamespaceListerExpansion interface{}

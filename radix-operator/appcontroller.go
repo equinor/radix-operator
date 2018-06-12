@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-type Controller struct {
+type AppController struct {
 	clientset   kubernetes.Interface
 	radixclient radixclient.Interface
 	queue       workqueue.RateLimitingInterface
@@ -23,7 +23,7 @@ type Controller struct {
 	handler     Handler
 }
 
-func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler) *Controller {
+func NewAppController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler) *AppController {
 	informer := radixinformer.NewRadixApplicationInformer(
 		radixClient,
 		meta_v1.NamespaceAll,
@@ -56,7 +56,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		},
 	})
 
-	controller := &Controller{
+	controller := &AppController{
 		clientset:   client,
 		radixclient: radixClient,
 		informer:    informer,
@@ -66,11 +66,11 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 	return controller
 }
 
-func (c *Controller) Run(stop <-chan struct{}) {
+func (c *AppController) Run(stop <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 	defer c.queue.ShutDown()
 
-	log.Info("Controller.Run: initiating")
+	log.Info("AppController.Run: initiating")
 
 	go c.informer.Run(stop)
 
@@ -78,25 +78,25 @@ func (c *Controller) Run(stop <-chan struct{}) {
 		utilruntime.HandleError(fmt.Errorf("Error syncing cache"))
 		return
 	}
-	log.Info("Controller.Run: cache sync complete")
+	log.Info("AppController.Run: cache sync complete")
 
 	wait.Until(c.runWorker, time.Second, stop)
 }
 
-func (c *Controller) HasSynced() bool {
+func (c *AppController) HasSynced() bool {
 	return c.informer.HasSynced()
 }
 
-func (c *Controller) runWorker() {
-	log.Info("Controller.runWorker: starting")
+func (c *AppController) runWorker() {
+	log.Info("AppController.runWorker: starting")
 	for c.processNextItem() {
-		log.Info("Controller.runWorker: processing next item")
+		log.Info("AppController.runWorker: processing next item")
 	}
-	log.Info("Controller.runWorker: completed")
+	log.Info("AppController.runWorker: completed")
 }
 
-func (c *Controller) processNextItem() bool {
-	log.Info("Controller.processNextItem: start")
+func (c *AppController) processNextItem() bool {
+	log.Info("AppController.processNextItem: start")
 	key, quit := c.queue.Get()
 
 	if quit {
@@ -109,20 +109,20 @@ func (c *Controller) processNextItem() bool {
 	item, exists, err := c.informer.GetIndexer().GetByKey(keyRaw)
 	if err != nil {
 		if c.queue.NumRequeues(key) < 5 {
-			log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
+			log.Errorf("AppController.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
 			c.queue.AddRateLimited(key)
 		} else {
-			log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, no more retries", key, err)
+			log.Errorf("AppController.processNextItem: Failed processing item with key %s with error %v, no more retries", key, err)
 			c.queue.Forget(key)
 			utilruntime.HandleError(err)
 		}
 	}
 
 	if !exists {
-		log.Infof("Controller.processNextItem: object deletion detected: %s", keyRaw)
+		log.Infof("AppController.processNextItem: object deletion detected: %s", keyRaw)
 		c.handler.ObjectDeleted(keyRaw)
 	} else {
-		log.Infof("Controller.processNextItem: object creation detected: %s", keyRaw)
+		log.Infof("AppController.processNextItem: object creation detected: %s", keyRaw)
 		c.handler.ObjectCreated(item)
 	}
 	c.queue.Forget(key)

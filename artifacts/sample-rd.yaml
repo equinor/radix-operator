@@ -1,0 +1,6 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixDeployment
+metadata:
+  name: sampledeploy
+spec:
+  image: staas.azurecr.io/radix-demo-hello-nodejs

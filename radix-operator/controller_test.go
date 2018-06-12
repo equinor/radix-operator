@@ -35,11 +35,11 @@ func init() {
 }
 
 func Test_Controller_Calls_Handler(t *testing.T) {
-	radixApp, controller, radixClient, fakeHandler := initializeTest()
+	radixApp, appController, radixClient, fakeHandler := initializeTest()
 
 	stop := make(chan struct{})
 	defer close(stop)
-	go controller.Run(stop)
+	go appController.Run(stop)
 
 	var createdApp *radix_v1.RadixApplication
 
@@ -52,11 +52,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 }
 
 func TestControllerUpdate(t *testing.T) {
-	radixApp, controller, radixClient, _ := initializeTest()
+	radixApp, appController, radixClient, _ := initializeTest()
 
 	stop := make(chan struct{})
 	defer close(stop)
-	go controller.Run(stop)
+	go appController.Run(stop)
 
 	var createdApp *radix_v1.RadixApplication
 
@@ -75,11 +75,11 @@ func TestControllerUpdate(t *testing.T) {
 }
 
 func TestControllerDelete(t *testing.T) {
-	radixApp, controller, radixClient, fakeHandler := initializeTest()
+	radixApp, appController, radixClient, fakeHandler := initializeTest()
 
 	stop := make(chan struct{})
 	defer close(stop)
-	go controller.Run(stop)
+	go appController.Run(stop)
 
 	var createdApp *radix_v1.RadixApplication
 
@@ -93,7 +93,7 @@ func TestControllerDelete(t *testing.T) {
 	})
 }
 
-func initializeTest() (*radix_v1.RadixApplication, *Controller, *fakeradix.Clientset, *FakeHandler) {
+func initializeTest() (*radix_v1.RadixApplication, *AppController, *fakeradix.Clientset, *FakeHandler) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 
@@ -106,9 +106,9 @@ func initializeTest() (*radix_v1.RadixApplication, *Controller, *fakeradix.Clien
 		operation: make(chan string),
 	}
 
-	controller := NewController(client, radixClient, fakeHandler)
+	appController := NewAppController(client, radixClient, fakeHandler)
 
-	return radixApp, controller, radixClient, fakeHandler
+	return radixApp, appController, radixClient, fakeHandler
 }
 
 func getRadixAppFromFile(file string) (*radix_v1.RadixApplication, error) {
