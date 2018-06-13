@@ -55,6 +55,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=radix.equinor.com, Version=v1
 	case v1.SchemeGroupVersion.WithResource("radixapplications"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixApplications().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("radixregistrations"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixRegistrations().Informer()}, nil
 
 	}
 

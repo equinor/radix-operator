@@ -28,6 +28,7 @@ import (
 type RadixV1Interface interface {
 	RESTClient() rest.Interface
 	RadixApplicationsGetter
+	RadixRegistrationsGetter
 }
 
 // RadixV1Client is used to interact with features provided by the radix.equinor.com group.
@@ -37,6 +38,10 @@ type RadixV1Client struct {
 
 func (c *RadixV1Client) RadixApplications(namespace string) RadixApplicationInterface {
 	return newRadixApplications(c, namespace)
+}
+
+func (c *RadixV1Client) RadixRegistrations(namespace string) RadixRegistrationInterface {
+	return newRadixRegistrations(c, namespace)
 }
 
 // NewForConfig creates a new RadixV1Client for the given config.

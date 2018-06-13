@@ -3,27 +3,23 @@ kind: RadixApplication
 metadata:
   name: sampleapp
 spec:
-  environment:
+  environments:
     - name: dev
-      authorization:
-        - role: RadixReader
-          groups:
-          - "c6da402e-9426-4b27-ae22-a7432c3db31f"
-    - name: qa
       authorization:
       - role: RadixReader
         groups:
         - "c6da402e-9426-4b27-ae22-a7432c3db31f"
-    - name: prod
-      authorization:
-        - role: RadixReader
-          groups:
-          - "c6da402e-9426-4b27-ae22-a7432c3db31f"
-  repository:
-  cloneURL:
-  sharedSecret:
-  sshKey:
-  defaultScript:
+  components:
+    - name: frontend
+      src: src/frontend
+      ports:
+        - 80
+        - 443
+      public: true
+    - name: backend
+      src: src/backend
+      ports:
+        - 5000
   secrets:
-    test: "test"
-    testing: "test2"
+    deployKey: "sample-sshKey"
+    sharedSecret: "sample-GithubSecret"

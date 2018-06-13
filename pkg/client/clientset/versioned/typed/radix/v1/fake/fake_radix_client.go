@@ -32,6 +32,10 @@ func (c *FakeRadixV1) RadixApplications(namespace string) v1.RadixApplicationInt
 	return &FakeRadixApplications{c, namespace}
 }
 
+func (c *FakeRadixV1) RadixRegistrations(namespace string) v1.RadixRegistrationInterface {
+	return &FakeRadixRegistrations{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeRadixV1) RESTClient() rest.Interface {
