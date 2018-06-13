@@ -9,8 +9,8 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/statoil/radix-operator/pkg/apis/brigade"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	"github.com/statoil/radix-operator/radix-operator/application"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -23,19 +23,10 @@ func main() {
 	defer close(stop)
 
 	go startMetricsServer(stop)
-	brigadeGateway, err := brigade.New(client)
-	if err != nil {
-		log.Fatalf("Could not create Brigade gateway: %v", err)
-	}
 
-	handler := &RadixAppHandler{
-		clientset: client,
-		brigade:   brigadeGateway,
-	}
+	applicationController := application.NewController(client, radixClient)
 
-	controller := NewController(client, radixClient, handler)
-
-	go controller.Run(stop)
+	go applicationController.Run(stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)

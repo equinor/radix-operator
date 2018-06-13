@@ -17,11 +17,13 @@ type RadixRegistration struct {
 
 //RadixRegistrationSpec is the spec for an application
 type RadixRegistrationSpec struct {
-	Secrets      SecretsMap `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	Repository   string     `json:"repository" yaml:"repository"`
-	CloneURL     string     `json:"cloneURL" yaml:"cloneURL"`
-	SharedSecret string     `json:"sharedSecret" yaml:"sharedSecret"`
-	DeployKey    string     `json:"deployKey" yaml:"deployKey"`
+	Secrets           SecretsMap `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Repository        string     `json:"repository" yaml:"repository"`
+	CloneURL          string     `json:"cloneURL" yaml:"cloneURL"`
+	SharedSecret      string     `json:"sharedSecret" yaml:"sharedSecret"`
+	DeployKey         string     `json:"deployKey" yaml:"deployKey"`
+	DefaultScriptName string     `json:"defaultScriptName" yaml:"defaultScriptName"`
+	DefaultScript     string     `json:"defaultScript" yaml:"defaultScript"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

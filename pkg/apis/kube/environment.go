@@ -9,22 +9,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (k *Kube) CreateEnvironment(app *radixv1.RadixApplication, envName string) error {
+//CreateEnvironment creates a namespace with RadixRegistration as owner
+func (k *Kube) CreateEnvironment(registration *radixv1.RadixRegistration, envName string) error {
 	trueVar := true
-	name := fmt.Sprintf("%s-%s", app.Name, envName)
+	name := fmt.Sprintf("%s-%s", registration.Name, envName)
 	ns := &v1.Namespace{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
-				"radixApp": app.Name,
+				"radixApp": registration.Name,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
 					APIVersion: "radix.equinor.com/v1",
-					Kind:       "RadixApplication",
-					Name:       app.Name,
-					UID:        app.UID,
+					Kind:       "RadixRegistration",
+					Name:       registration.Name,
+					UID:        registration.UID,
 					Controller: &trueVar,
 				},
 			},
