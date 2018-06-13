@@ -19,13 +19,13 @@ type Controller struct {
 	Queue       workqueue.RateLimitingInterface
 	Informer    cache.SharedIndexInformer
 	Handler     Handler
+	Log         *log.Entry
 }
 
 func (c *Controller) Run(stop <-chan struct{}) {
+	c.Log.Info("Starting controller")
 	defer utilruntime.HandleCrash()
 	defer c.Queue.ShutDown()
-
-	log.Info("Controller.Run: initiating")
 
 	go c.Informer.Run(stop)
 
@@ -33,7 +33,6 @@ func (c *Controller) Run(stop <-chan struct{}) {
 		utilruntime.HandleError(fmt.Errorf("Error syncing cache"))
 		return
 	}
-	log.Info("Controller.Run: cache sync complete")
 
 	wait.Until(c.runWorker, time.Second, stop)
 }
@@ -43,15 +42,12 @@ func (c *Controller) HasSynced() bool {
 }
 
 func (c *Controller) runWorker() {
-	log.Info("Controller.runWorker: starting")
 	for c.processNextItem() {
-		log.Info("Controller.runWorker: processing next item")
+		c.Log.Info("Controller.runWorker: processing next item")
 	}
-	log.Info("Controller.runWorker: completed")
 }
 
 func (c *Controller) processNextItem() bool {
-	log.Info("Controller.processNextItem: start")
 	key, quit := c.Queue.Get()
 
 	if quit {
@@ -64,20 +60,20 @@ func (c *Controller) processNextItem() bool {
 	item, exists, err := c.Informer.GetIndexer().GetByKey(keyRaw)
 	if err != nil {
 		if c.Queue.NumRequeues(key) < 5 {
-			log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
+			c.Log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
 			c.Queue.AddRateLimited(key)
 		} else {
-			log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, no more retries", key, err)
+			c.Log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, no more retries", key, err)
 			c.Queue.Forget(key)
 			utilruntime.HandleError(err)
 		}
 	}
 
 	if !exists {
-		log.Infof("Controller.processNextItem: object deletion detected: %s", keyRaw)
+		c.Log.Infof("Controller.processNextItem: object deletion detected: %s", keyRaw)
 		c.Handler.ObjectDeleted(keyRaw)
 	} else {
-		log.Infof("Controller.processNextItem: object creation detected: %s", keyRaw)
+		c.Log.Infof("Controller.processNextItem: object creation detected: %s", keyRaw)
 		c.Handler.ObjectCreated(item)
 	}
 	c.Queue.Forget(key)

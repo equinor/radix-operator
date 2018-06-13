@@ -13,7 +13,7 @@ import (
 )
 
 func NewController(client kubernetes.Interface, radixClient radixclient.Interface) *common.Controller {
-	handler := NewApplicationHandler(client)
+	handler := NewApplicationHandler(client, radixClient)
 
 	informer := radixinformer.NewRadixApplicationInformer(
 		radixClient,
@@ -53,6 +53,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		Informer:    informer,
 		Queue:       queue,
 		Handler:     &handler,
+		Log:         log.WithField("controller", "application"),
 	}
 	return controller
 }

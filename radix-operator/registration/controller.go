@@ -51,6 +51,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		Informer:    informer,
 		Queue:       queue,
 		Handler:     handler,
+		Log:         log.WithField("controller", "registration"),
 	}
 	return controller
 }
