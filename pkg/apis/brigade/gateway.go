@@ -40,7 +40,7 @@ func New(clientset kubernetes.Interface) (*BrigadeGateway, error) {
 	return gw, nil
 }
 
-func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
+func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixRegistration) error {
 	if b.client == nil {
 		return fmt.Errorf("No k8s client available")
 	}
@@ -66,7 +66,7 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
 					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-					Kind:       "RadixApplication",
+					Kind:       "RadixRegistration",
 					Name:       app.Name,
 					UID:        app.UID,
 					Controller: &trueVar,
@@ -78,7 +78,7 @@ func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixApplication) error {
 			"repository":        app.Spec.Repository,
 			"sharedSecret":      app.Spec.SharedSecret,
 			"cloneURL":          app.Spec.CloneURL,
-			"sshKey":            strings.Replace(app.Spec.SSHKey, "\n", "$", -1),
+			"sshKey":            strings.Replace(app.Spec.DeployKey, "\n", "$", -1),
 			"initGitSubmodules": "false",
 			"defaultScript":     app.Spec.DefaultScript,
 			"defaultScriptName": "",

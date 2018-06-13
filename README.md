@@ -30,7 +30,7 @@ This will auto-generate some code and implement certain interfaces.
 
         make code-gen
 
-This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/apis/client` directory.
+This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client` directory.
 
 This file/directory should NOT be edited.
 
