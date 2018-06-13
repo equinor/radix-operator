@@ -31,12 +31,16 @@ func Resource(resource string) schema.GroupResource {
 }
 
 // addKnownTypes adds our types to the API scheme by registering
-// RadixApplication and RadixApplicationList
+// RadixApplication, RadixApplicationList, RadixDeployment and RadixDeploymentList
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(
 		SchemeGroupVersion,
 		&RadixApplication{},
 		&RadixApplicationList{},
+		&RadixDeployment{},
+		&RadixDeploymentList{},
+		&RadixRegistration{},
+		&RadixRegistrationList{},
 	)
 
 	// register the type in the scheme

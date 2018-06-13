@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// RadixApplications returns a RadixApplicationInformer.
 	RadixApplications() RadixApplicationInformer
+	// RadixDeployments returns a RadixDeploymentInformer.
+	RadixDeployments() RadixDeploymentInformer
 	// RadixRegistrations returns a RadixRegistrationInformer.
 	RadixRegistrations() RadixRegistrationInformer
 }
@@ -44,6 +46,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // RadixApplications returns a RadixApplicationInformer.
 func (v *version) RadixApplications() RadixApplicationInformer {
 	return &radixApplicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// RadixDeployments returns a RadixDeploymentInformer.
+func (v *version) RadixDeployments() RadixDeploymentInformer {
+	return &radixDeploymentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // RadixRegistrations returns a RadixRegistrationInformer.

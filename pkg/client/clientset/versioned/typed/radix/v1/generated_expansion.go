@@ -20,4 +20,6 @@ package v1
 
 type RadixApplicationExpansion interface{}
 
+type RadixDeploymentExpansion interface{}
+
 type RadixRegistrationExpansion interface{}

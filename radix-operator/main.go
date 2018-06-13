@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	"github.com/statoil/radix-operator/radix-operator/application"
+	"github.com/statoil/radix-operator/radix-operator/deployment"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,6 +28,11 @@ func main() {
 	applicationController := application.NewController(client, radixClient)
 
 	go applicationController.Run(stop)
+
+	deployHandler := deployment.NewDeployHandler(client)
+
+	deployController := deployment.NewDeployController(client, radixClient, &deployHandler)
+	go deployController.Run(stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
