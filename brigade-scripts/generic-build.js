@@ -3,11 +3,17 @@ const { events, Job, Group } = require('brigadier')
 events.on("exec", (e, p) => {
     var app = p.secrets.app.replace(new RegExp("'", 'g'), "\"")
     var components = JSON.parse(app);
+    var radixDeploy = "apiVersion: radix.equinor.com/v1......."
     components.forEach(component => {
-        console.log("Component: " + component.name);
-        console.log("Building from: " + component.src)
-        console.log("Public: " + component.public)
+         let imageName = "staas.azurecr.io/prodcom-pilot:" + buildId
+
+        const build = new Job("build-"+component.name)
+        const push = new Job()
+        //add component to radixDeploy
     });
+
+    const deploy = new Job()
+    //use radixDeploy and kubectl apply
 });
 
 events.on("push", (e, p) => {
