@@ -11,7 +11,7 @@ import (
 )
 
 func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) {
-	for _, env := range app.Spec.Environment {
+	for _, env := range app.Spec.Environments {
 		for _, auth := range env.Authorization {
 			k.CreateRoleBinding(app.Name, fmt.Sprintf("%s-%s", app.Name, env.Name), auth.Role, auth.Groups)
 		}

@@ -17,9 +17,9 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Secrets     SecretsMap       `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	Environment []Environment    `json:"environment"`
-	Components  []RadixComponent `json:"components"`
+	Secrets      SecretsMap       `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Environments []Environment    `json:"environments"`
+	Components   []RadixComponent `json:"components"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
