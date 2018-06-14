@@ -10,8 +10,8 @@ metadata:
     heritage: "{{ .Release.Service }}"
 {{ if .Values.rbac.enabled }}
 ---
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ template "radix-operator.fullname" . }}
   labels:
@@ -24,14 +24,14 @@ rules:
   resources: ["*"]
   verbs: ["*"]
 - apiGroups: [""]
-  resources: ["secrets", "configmaps", "pods", "namespaces"]
+  resources: ["secrets", "configmaps", "pods", "namespaces", "rolebindings", "deployments"]
   verbs: ["*"]
 - apiGroups: ["apps"]
   resources: ["deployments"]
   verbs: ["*"]
 ---
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ template "radix-operator.fullname" . }}
   labels:
@@ -41,9 +41,11 @@ metadata:
     heritage: "{{ .Release.Service }}"
 subjects:
 - kind: ServiceAccount
+  namespace: default
   name: {{ template "radix-operator.fullname" . }}
 roleRef:
-  kind: Role
-  name: {{ template "radix-operator.fullname"  .}}
+  kind: ClusterRole
+#  name: {{ template "radix-operator.fullname"  .}}
+  name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
 {{ end }}

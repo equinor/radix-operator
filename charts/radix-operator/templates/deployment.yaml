@@ -19,6 +19,7 @@ spec:
         app: {{ template "radix-operator.name" . }}
         release: {{ .Release.Name }}
     spec:
+      serviceAccount: {{ template "radix-operator.fullname" . }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.privateRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"

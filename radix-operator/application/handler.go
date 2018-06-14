@@ -2,6 +2,7 @@ package application
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/statoil/radix-operator/pkg/apis/brigade"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -45,7 +46,7 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) {
 
 	kube, _ := kube.New(t.kubeclient)
 
-	for _, e := range radixApp.Spec.Environment {
+	for _, e := range radixApp.Spec.Environments {
 		err := kube.CreateEnvironment(registration, e.Name)
 		if err != nil {
 			log.Errorf("Failed to create environment: %v", err)
@@ -53,6 +54,14 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) {
 	}
 
 	kube.CreateRoleBindings(radixApp)
+
+	brigade, err := brigade.New(t.kubeclient)
+	if err != nil {
+		log.Errorf("Failed to create Brigade gateway: %v", err)
+		return
+	}
+
+	brigade.AddAppConfigToProject(radixApp)
 }
 
 // ObjectDeleted is called when an object is deleted

@@ -138,8 +138,8 @@ func (in *RadixApplicationSpec) DeepCopyInto(out *RadixApplicationSpec) {
 			(*out)[key] = val
 		}
 	}
-	if in.Environment != nil {
-		in, out := &in.Environment, &out.Environment
+	if in.Environments != nil {
+		in, out := &in.Environments, &out.Environments
 		*out = make([]Environment, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
