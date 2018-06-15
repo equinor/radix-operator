@@ -3,12 +3,15 @@ const { events, Job, Group } = require('brigadier')
 events.on("exec", (e, p) => {
     // let buildId = e.revision.commit
     let buildId = "12e34"
-    let app = p.secrets.app.replace(new RegExp("'", 'g'), "\"")
-    let components = JSON.parse(app);
-
+    
     let updateConfig = applyRadixConfig()
     updateConfig.run()
+    if(!p.secrets.app){
+        return new Promise()
+    }    
 
+    let app = p.secrets.app.replace(new RegExp("'", 'g'), "\"")
+    let components = JSON.parse(app);
     let pipeline = new Group()
     components.forEach(component => {
         let name = component.name
@@ -24,7 +27,7 @@ function applyRadixConfig() {
     job.serviceAccount = "radix-deploy"
     job.tasks = [
         "cd /src",
-        "kubectl apply -f radixconfig.yaml"
+        "kubectl apply -f radixconfig.yaml -ncomplete-app"
     ];
 
     return job;

@@ -6,6 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,6 +35,10 @@ func (k *Kube) CreateEnvironment(registration *radixv1.RadixRegistration, envNam
 	}
 
 	_, err := k.kubeClient.CoreV1().Namespaces().Create(ns)
+	if errors.IsAlreadyExists(err) {
+		log.Infof("Namespace %s already exists", name)
+		return nil
+	}
 
 	if err != nil {
 		log.Errorf("Failed to create namespace %s: %v", name, err)
