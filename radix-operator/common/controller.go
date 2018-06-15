@@ -48,34 +48,38 @@ func (c *Controller) runWorker() {
 }
 
 func (c *Controller) processNextItem() bool {
-	key, quit := c.Queue.Get()
-
+	o, quit := c.Queue.Get()
+	queueItem := o.(QueueItem)
 	if quit {
 		return false
 	}
 
-	defer c.Queue.Done(key)
-	keyRaw := key.(string)
+	defer c.Queue.Done(o)
 
-	item, exists, err := c.Informer.GetIndexer().GetByKey(keyRaw)
+	item, exists, err := c.Informer.GetIndexer().GetByKey(queueItem.Key)
 	if err != nil {
-		if c.Queue.NumRequeues(key) < 5 {
-			c.Log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", key, err)
-			c.Queue.AddRateLimited(key)
+		if c.Queue.NumRequeues(o) < 5 {
+			c.Log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, retrying", o, err)
+			c.Queue.AddRateLimited(o)
 		} else {
-			c.Log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, no more retries", key, err)
-			c.Queue.Forget(key)
+			c.Log.Errorf("Controller.processNextItem: Failed processing item with key %s with error %v, no more retries", o, err)
+			c.Queue.Forget(o)
 			utilruntime.HandleError(err)
 		}
 	}
 
 	if !exists {
-		c.Log.Infof("Controller.processNextItem: object deletion detected: %s", keyRaw)
-		c.Handler.ObjectDeleted(keyRaw)
-	} else {
-		c.Log.Infof("Controller.processNextItem: object creation detected: %s", keyRaw)
+		c.Log.Infof("Controller.processNextItem: object deletion detected: %s", queueItem.Key)
+		c.Handler.ObjectDeleted(queueItem.Key)
+	} else if queueItem.Operation == Add {
+		c.Log.Infof("Controller.processNextItem: object creation detected: %s", queueItem.Key)
 		c.Handler.ObjectCreated(item)
+	} else if queueItem.Operation == Update {
+		c.Log.Infof("Controller.processNextItem: object update detected: %s", queueItem.Key)
+		c.Handler.ObjectUpdated(nil, item)
+	} else {
+		c.Log.Infof("Controller.processNextItem: unknown operation")
 	}
-	c.Queue.Forget(key)
+	c.Queue.Forget(o)
 	return true
 }

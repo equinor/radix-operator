@@ -28,21 +28,21 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			log.Infof("Added radix application: %s", key)
 			if err == nil {
-				queue.Add(key)
+				queue.Add(common.QueueItem{Key: key, Operation: common.Add})
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(oldObj)
 			log.Infof("Updated radix application: %s", key)
 			if err == nil {
-				queue.Add(key)
+				queue.Add(common.QueueItem{Key: key, Operation: common.Update})
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			log.Infof("Deleted radix application: %s", key)
 			if err == nil {
-				queue.Add(key)
+				queue.Add(common.QueueItem{Key: key, Operation: common.Delete})
 			}
 		},
 	})

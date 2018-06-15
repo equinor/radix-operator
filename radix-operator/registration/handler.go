@@ -55,5 +55,14 @@ func (t *RadixRegistrationHandler) ObjectDeleted(key string) {
 
 // ObjectUpdated is called when an object is updated
 func (t *RadixRegistrationHandler) ObjectUpdated(objOld, objNew interface{}) {
+	radixRegistration, ok := objNew.(*v1.RadixRegistration)
+	if !ok {
+		log.Errorf("Provided object was not a valid Radix Registration; instead was %v", objNew)
+		return
+	}
 
+	err := t.brigade.EnsureProject(radixRegistration)
+	if err != nil {
+		log.Errorf("Failed to update Brigade project: %v", err)
+	}
 }

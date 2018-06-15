@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -48,10 +48,16 @@ func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups 
 	}
 
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
+	if errors.IsAlreadyExists(err) {
+		log.Infof("Rolebinding %s already exists", rolebinding.Name)
+		return nil
+	}
+
 	if err != nil {
 		log.Errorf("Failed to create rolebinding in [%s] for %s: %v", namespace, appName, err)
 		return err
 	}
+
 	log.Infof("Created rolebinding %s in %s", rolebinding.Name, namespace)
 	return nil
 }
