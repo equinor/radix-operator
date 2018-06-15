@@ -52,7 +52,7 @@ func startApplicationController(client kubernetes.Interface, radixClient radixcl
 }
 
 func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	deployHandler := deployment.NewDeployHandler(client)
+	deployHandler := deployment.NewDeployHandler(client, radixClient)
 
 	deployController := deployment.NewDeployController(client, radixClient, &deployHandler)
 	go deployController.Run(stop)

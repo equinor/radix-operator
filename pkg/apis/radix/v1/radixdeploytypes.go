@@ -17,7 +17,8 @@ type RadixDeployment struct {
 
 //RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	Image string `json:"image" yaml:"image"`
+	AppName    string                 `json:"appname" yaml:"appname"`
+	Components []RadixDeployComponent `json:"components"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -27,4 +28,10 @@ type RadixDeploymentList struct {
 	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
 	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
 	Items            []RadixDeployment `json:"items" yaml:"items"`
+}
+
+//RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
+type RadixDeployComponent struct {
+	Name  string `json:"name" yaml:"name"`
+	Image string `json:"image" yaml:"image"`
 }
