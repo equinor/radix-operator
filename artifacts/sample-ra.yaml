@@ -20,6 +20,3 @@ spec:
       src: src/backend
       ports:
         - 5000
-  secrets:
-    deployKey: "sample-sshKey"
-    sharedSecret: "sample-GithubSecret"

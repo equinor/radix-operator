@@ -59,3 +59,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "gopkg.in/yaml.v2"
   version = "2.2.1"
+
+[[constraint]]
+  name = "github.com/Azure/go-autorest"
+  version = "10.11.1"
