@@ -2,6 +2,23 @@
 
 
 [[projects]]
+  name = "cloud.google.com/go"
+  packages = ["compute/metadata"]
+  revision = "0fd7230b2a7505833d5f69b75cbd6c9582401479"
+  version = "v0.23.0"
+
+[[projects]]
+  name = "github.com/Azure/go-autorest"
+  packages = [
+    "autorest",
+    "autorest/adal",
+    "autorest/azure",
+    "autorest/date"
+  ]
+  revision = "76796dcb80ab6491bf22e344402023c081a7a282"
+  version = "v10.11.1"
+
+[[projects]]
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
   revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
@@ -18,6 +35,12 @@
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -70,6 +93,20 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/gophercloud/gophercloud"
+  packages = [
+    ".",
+    "openstack",
+    "openstack/identity/v2/tenants",
+    "openstack/identity/v2/tokens",
+    "openstack/identity/v3/tokens",
+    "openstack/utils",
+    "pagination"
+  ]
+  revision = "47c3c30bf85ec19977636ed6715f47ec0b4f5977"
+
+[[projects]]
+  branch = "master"
   name = "github.com/hashicorp/golang-lru"
   packages = [
     ".",
@@ -88,6 +125,12 @@
   packages = ["."]
   revision = "9d5f1277e9a8ed20c3684bda8fde67c05628518c"
   version = "v0.3.4"
+
+[[projects]]
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   name = "github.com/json-iterator/go"
@@ -156,6 +199,12 @@
   revision = "fe93d378a6b03758a2c1b65e86cf630bf78681c0"
 
 [[projects]]
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
+  version = "v0.0.3"
+
+[[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
   revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
@@ -178,12 +227,25 @@
   name = "golang.org/x/net"
   packages = [
     "context",
+    "context/ctxhttp",
     "http/httpguts",
     "http2",
     "http2/hpack",
     "idna"
   ]
   revision = "89e543239a64caf31d3a6865872ea120b41446df"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/oauth2"
+  packages = [
+    ".",
+    "google",
+    "internal",
+    "jws",
+    "jwt"
+  ]
+  revision = "1e0a3fa8ba9a5c9eb35c271780101fdaf1b205d7"
 
 [[projects]]
   branch = "master"
@@ -230,6 +292,23 @@
     "internal/fastwalk"
   ]
   revision = "a5b4c53f6e8bdcafa95a94671bf2d1203365858b"
+
+[[projects]]
+  name = "google.golang.org/appengine"
+  packages = [
+    ".",
+    "internal",
+    "internal/app_identity",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/modules",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
+  version = "v1.0.0"
 
 [[projects]]
   name = "gopkg.in/inf.v0"
@@ -389,10 +468,16 @@
     "pkg/apis/clientauthentication",
     "pkg/apis/clientauthentication/v1alpha1",
     "pkg/version",
+    "plugin/pkg/client/auth",
+    "plugin/pkg/client/auth/azure",
     "plugin/pkg/client/auth/exec",
+    "plugin/pkg/client/auth/gcp",
+    "plugin/pkg/client/auth/oidc",
+    "plugin/pkg/client/auth/openstack",
     "rest",
     "rest/watch",
     "testing",
+    "third_party/forked/golang/template",
     "tools/auth",
     "tools/cache",
     "tools/clientcmd",
@@ -408,6 +493,7 @@
     "util/flowcontrol",
     "util/homedir",
     "util/integer",
+    "util/jsonpath",
     "util/retry",
     "util/workqueue"
   ]
@@ -444,6 +530,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ebef63390faef102c99d73de364a52c25eb0deb5c996287f54c9dbb669a0b99a"
+  inputs-digest = "16d4fc5f601b4d4728e3704f402f8f3559374b1c85531c0fe1b20db4d01c9459"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -53,4 +53,5 @@ type RadixComponent struct {
 	Ports                []int             `json:"ports" yaml:"ports"`
 	Public               bool              `json:"public" yaml:"public"`
 	EnvironmentVariables map[string]string `json:"env" yaml:"env"`
+	Replicas             int               `json:"replicas" yaml:"replicas"`
 }
