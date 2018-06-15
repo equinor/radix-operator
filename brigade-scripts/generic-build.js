@@ -1,5 +1,6 @@
 const { events, Job, Group } = require('brigadier')
 
+<<<<<<< HEAD
 events.on("push", (e, p) => {
     let buildId = e.revision.commit
 
@@ -14,6 +15,21 @@ function runBuild(config, buildId, project) {
     let components = config.spec.components;
     let buildPipeline = new Group()
     let deployPipeline = new Group()
+=======
+events.on("exec", (e, p) => {
+    // let buildId = e.revision.commit
+    let buildId = "12e34"
+    
+    let updateConfig = applyRadixConfig()
+    updateConfig.run()
+    if(!p.secrets.app){
+        return new Promise()
+    }    
+    
+    let app = p.secrets.app.replace(new RegExp("'", 'g'), "\"")
+    let components = JSON.parse(app);
+    let pipeline = new Group()
+>>>>>>> check for existing app props
     components.forEach(component => {
         let name = component.name
         let imageName = project.secrets.DOCKER_REGISTRY + "/" + repo + "-" + name + ":" + buildId
