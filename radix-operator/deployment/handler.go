@@ -5,20 +5,24 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
 
 type RadixDeployHandler struct {
-	kubeclient kubernetes.Interface
+	kubeclient  kubernetes.Interface
+	radixclient radixclient.Interface
 }
 
-func NewDeployHandler(kubeclient kubernetes.Interface) RadixDeployHandler {
+func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixDeployHandler {
 	handler := RadixDeployHandler{
-		kubeclient: kubeclient,
+		kubeclient:  kubeclient,
+		radixclient: radixclient,
 	}
 
 	return handler
@@ -38,9 +42,46 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) {
 		log.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 		return
 	}
-	err := t.createDeployment(radixDeploy)
+
+	log.Infof("Deploy name: %s", radixDeploy.Name)
+	log.Infof("Application name: %s", radixDeploy.Spec.AppName)
+
+	radixApplication, err := t.radixclient.RadixV1().RadixApplications("default").Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Failed to create deployment: %v", err)
+		log.Errorf("Failed to get RadixApplication object: %v", err)
+		return
+	} else {
+		log.Infof("RadixApplication: %s", radixApplication)
+	}
+
+	appComponents := radixApplication.Spec.Components
+	for i, v := range radixDeploy.Spec.Components {
+		log.Infof("Deploy component %d:", i)
+		log.Infof("Name: %s, Image: %s", v.Name, v.Image)
+		for j, w := range appComponents {
+			if v.Name != w.Name {
+				continue
+			}
+			log.Infof("App component %d:", j)
+			log.Infof("Name: %s, Public: %t", w.Name, w.Public)
+			for k, x := range w.Ports {
+				log.Infof("Port %d: %d", k, x)
+			}
+			err := t.createDeployment(radixDeploy, v, w)
+			if err != nil {
+				log.Errorf("Failed to create deployment: %v", err)
+			}
+			err = t.createService(radixDeploy, w)
+			if err != nil {
+				log.Errorf("Failed to create service: %v", err)
+			}
+			if w.Public {
+				err = t.createIngress(radixDeploy, w)
+				if err != nil {
+					log.Errorf("Failed to create ingress: %v", err)
+				}
+			}
+		}
 	}
 }
 
@@ -54,20 +95,53 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) {
 	log.Info("Deploy object updated received.")
 }
 
-func (t *RadixDeployHandler) createDeployment(app *v1.RadixDeployment) error {
+func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent) error {
+	deployment := getDeploymentConfig(radixDeploy.Name, radixDeploy.UID, deployComponent.Image, appComponent.Ports)
+	log.Infof("Creating Deployment object %s", radixDeploy.ObjectMeta.Name)
+	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments("default").Create(deployment)
+	if err != nil {
+		return fmt.Errorf("Failed to create Deployment object: %v", err)
+	}
+	log.Infof("Created Deployment: %s", createdDeployment.Name)
+	return nil
+}
+
+func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
+	service := getServiceConfig(radixDeploy.Name, radixDeploy.UID, appComponent.Ports)
+	log.Infof("Creating Service object %s", radixDeploy.ObjectMeta.Name)
+	createdService, err := t.kubeclient.CoreV1().Services("default").Create(service)
+	if err != nil {
+		return fmt.Errorf("Failed to create Service object: %v", err)
+	}
+	log.Infof("Created Service: %s", createdService.Name)
+	return nil
+}
+
+func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
+	ingress := getIngressConfig(radixDeploy.Name, radixDeploy.UID, appComponent.Ports, appComponent.Name)
+	log.Infof("Creating Ingress object %s", radixDeploy.ObjectMeta.Name)
+	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses("default").Create(ingress)
+	if err != nil {
+		return fmt.Errorf("Failed to create Ingress object: %v", err)
+	}
+	log.Infof("Created Ingress: %s", createdIngress.Name)
+	return nil
+}
+
+func getDeploymentConfig(name string, uid types.UID, image string, componentPorts []int) *v1beta1.Deployment {
 	trueVar := true
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Name,
+			Name: name,
 			Labels: map[string]string{
-				"radixApp": app.Name,
+				"radixApp": name,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
 					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
 					Kind:       "RadixDeployment",
-					Name:       app.Name,
-					UID:        app.UID,
+					Name:       name,
+					UID:        uid,
 					Controller: &trueVar,
 				},
 			},
@@ -76,25 +150,20 @@ func (t *RadixDeployHandler) createDeployment(app *v1.RadixDeployment) error {
 			Replicas: int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"radixApp": app.Name,
+					"radixApp": name,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radixApp": app.Name,
+						"radixApp": name,
 					},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  app.Name,
-							Image: app.Spec.Image,
-							Ports: []corev1.ContainerPort{
-								{
-									ContainerPort: 3000,
-								},
-							},
+							Name:  name,
+							Image: image,
 						},
 					},
 				},
@@ -102,38 +171,61 @@ func (t *RadixDeployHandler) createDeployment(app *v1.RadixDeployment) error {
 		},
 	}
 
+	var ports []corev1.ContainerPort
+	for _, v := range componentPorts {
+		containerPort := corev1.ContainerPort{
+			ContainerPort: int32(v),
+		}
+		ports = append(ports, containerPort)
+	}
+	deployment.Spec.Template.Spec.Containers[0].Ports = ports
+
+	return deployment
+}
+
+func getServiceConfig(name string, uid types.UID, componentPorts []int) *corev1.Service {
+	trueVar := true
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Name,
+			Name: name,
 			Labels: map[string]string{
-				"radixApp": app.Name,
+				"radixApp": name,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
 					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
 					Kind:       "RadixDeployment",
-					Name:       app.Name,
-					UID:        app.UID,
+					Name:       name,
+					UID:        uid,
 					Controller: &trueVar,
 				},
 			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
-			Ports: []corev1.ServicePort{
-				{
-					Port: 3000,
-				},
-			},
 			Selector: map[string]string{
-				"radixApp": app.Name,
+				"radixApp": name,
 			},
 		},
 	}
 
+	var ports []corev1.ServicePort
+	for _, v := range componentPorts {
+		servicePort := corev1.ServicePort{
+			Port: int32(v),
+		}
+		ports = append(ports, servicePort)
+	}
+	service.Spec.Ports = ports
+
+	return service
+}
+
+func getIngressConfig(name string, uid types.UID, componentPorts []int, componentName string) *v1beta1.Ingress {
+	trueVar := true
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Name,
+			Name: name,
 			Annotations: map[string]string{
 				"kubernetes.io/tls-acme":         "true",
 				"traefik.frontend.rule.type":     "PathPrefixStrip",
@@ -143,8 +235,8 @@ func (t *RadixDeployHandler) createDeployment(app *v1.RadixDeployment) error {
 				metav1.OwnerReference{
 					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
 					Kind:       "RadixDeployment",
-					Name:       app.Name,
-					UID:        app.UID,
+					Name:       name,
+					UID:        uid,
 					Controller: &trueVar,
 				},
 			},
@@ -162,11 +254,11 @@ func (t *RadixDeployHandler) createDeployment(app *v1.RadixDeployment) error {
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
 								{
-									Path: "/" + app.Name,
+									Path: "/" + componentName,
 									Backend: v1beta1.IngressBackend{
-										ServiceName: app.Name,
+										ServiceName: name,
 										ServicePort: intstr.IntOrString{
-											IntVal: 3000,
+											IntVal: int32(componentPorts[0]),
 										},
 									},
 								},
@@ -178,28 +270,7 @@ func (t *RadixDeployHandler) createDeployment(app *v1.RadixDeployment) error {
 		},
 	}
 
-	log.Infof("Creating Deployment object %s", app.ObjectMeta.Name)
-	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments("default").Create(deployment)
-	if err != nil {
-		return fmt.Errorf("Failed to create Deployment object: %v", err)
-	}
-	log.Infof("Created Deployment: %s", createdDeployment.Name)
-
-	log.Infof("Creating Service object %s", app.ObjectMeta.Name)
-	createdService, err := t.kubeclient.CoreV1().Services("default").Create(service)
-	if err != nil {
-		return fmt.Errorf("Failed to create Service object: %v", err)
-	}
-	log.Infof("Created Service: %s", createdService.Name)
-
-	log.Infof("Creating Ingress object %s", app.ObjectMeta.Name)
-	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses("default").Create(ingress)
-	if err != nil {
-		return fmt.Errorf("Failed to create Ingress object: %v", err)
-	}
-	log.Infof("Created Ingress: %s", createdIngress.Name)
-
-	return nil
+	return ingress
 }
 
 func int32Ptr(i int32) *int32 {

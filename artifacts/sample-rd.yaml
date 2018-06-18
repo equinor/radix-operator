@@ -3,4 +3,7 @@ kind: RadixDeployment
 metadata:
   name: sampledeploy
 spec:
-  image: staas.azurecr.io/radix-demo-hello-nodejs
+  appname: sampleapp
+  components:
+    - name: web
+      image: staas.azurecr.io/radix-demo-hello-nodejs
