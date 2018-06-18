@@ -1,7 +1,7 @@
-DOCKER_REGISTRY	?= staas.azurecr.io
+DOCKER_REGISTRY	?= radixdev.azurecr.io
 
-BINS	= radix-operator
-IMAGES	= radix-operator
+BINS	= radix-operator rx
+IMAGES	= radix-operator rx
 
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
 VERSION		?= ${GIT_TAG}

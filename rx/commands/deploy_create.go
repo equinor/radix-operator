@@ -2,7 +2,9 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -15,13 +17,25 @@ const deployCreateUsage = `Creates a deployment named DEPLOYMENT
 `
 
 var (
-	app        string
-	components map[string]string
+	app          string
+	image        []string
+	environments []string
 )
 
-func init() {
-	deployCreate.Flags().StringVarP(&app, "app", "a", "", "The application name")
+type ComponentDeploy struct {
+	Name  string
+	Image string
+}
 
+func init() {
+	defaultEnv := []string{
+		"dev",
+		"prod",
+	}
+
+	deployCreate.Flags().StringVarP(&app, "app", "a", "", "The application name")
+	deployCreate.Flags().StringArrayVarP(&image, "image", "i", nil, "Docker image to be deployed (component=image)")
+	deployCreate.Flags().StringArrayVarP(&environments, "environments", "e", defaultEnv, "Environments to deploy to (dev,qa,prod)")
 	deploy.AddCommand(deployCreate)
 }
 
@@ -37,25 +51,57 @@ var deployCreate = &cobra.Command{
 	},
 }
 
+func getComponents() ([]ComponentDeploy, error) {
+	components := []ComponentDeploy{}
+	if image == nil {
+		return nil, errors.New("no image(s) specified")
+	}
+	for _, c := range image {
+		imageData := strings.Split(c, "=")
+		component := ComponentDeploy{
+			Name:  imageData[0],
+			Image: imageData[1],
+		}
+		components = append(components, component)
+	}
+	return components, nil
+}
+
 func createDeployment(out io.Writer, name string) error {
-	deployment := &v1.RadixDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: v1.RadixDeploymentSpec{
-			Image: "test",
-		},
-	}
-
-	c, err := radixClient()
+	components, err := getComponents()
 	if err != nil {
 		return err
 	}
+	for _, env := range environments {
+		deploys := []v1.RadixDeployComponent{}
+		for _, component := range components {
+			deploy := v1.RadixDeployComponent{
+				Name:  component.Name,
+				Image: component.Image,
+			}
+			deploys = append(deploys, deploy)
+		}
 
-	_, err = c.RadixV1().RadixDeployments("default").Create(deployment)
-	if err != nil {
-		log.Errorf("Failed to create deployment: %v", err)
-		return err
+		deployment := &v1.RadixDeployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+			Spec: v1.RadixDeploymentSpec{
+				AppName:    app,
+				Components: deploys,
+			},
+		}
+
+		c, err := radixClient()
+		if err != nil {
+			return err
+		}
+
+		_, err = c.RadixV1().RadixDeployments(fmt.Sprintf("%s-%s", app, env)).Create(deployment)
+		if err != nil {
+			log.Errorf("Failed to create deployment: %v", err)
+			return err
+		}
 	}
 	return nil
 }

@@ -1,68 +1,55 @@
 const { events, Job, Group } = require('brigadier')
 
-<<<<<<< HEAD
-events.on("push", (e, p) => {
+events.on("exec", (e, p) => {
     let buildId = e.revision.commit
-
-    let updateConfig = applyRadixConfig()
+    let appName = p.name.substring(p.name.lastIndexOf("/") + 1);
+    let updateConfig = applyRadixConfig(appName)
     updateConfig.run().then(res => {
         runBuild(res.data, buildId, p)
     });
 });
 
-function runBuild(config, buildId, project) {
-    console.log(config)
+function runBuild(config, buildId, project) {    
     let components = config.spec.components;
+    let environments = config.spec.environments
     let buildPipeline = new Group()
     let deployPipeline = new Group()
-=======
-events.on("exec", (e, p) => {
-    // let buildId = e.revision.commit
-    let buildId = "12e34"
-    
-    let updateConfig = applyRadixConfig()
-    updateConfig.run()
-    if(!p.secrets.app){
-        return new Promise()
-    }    
-    
-    let app = p.secrets.app.replace(new RegExp("'", 'g'), "\"")
-    let components = JSON.parse(app);
-    let pipeline = new Group()
->>>>>>> check for existing app props
     components.forEach(component => {
         let name = component.name
-        let imageName = project.secrets.DOCKER_REGISTRY + "/" + repo + "-" + name + ":" + buildId
+        let imageName = `${project.secrets.DOCKER_REGISTRY}/${config.metadata.name}-${name}:${buildId}`
 
         let buildJob = buildComponent(name, imageName, component.src, project);
         buildPipeline.add(buildJob);
-
-        let deployJob = deployComponent(name, imageName, project);
-        deployPipeline.add(deployJob);
+        environments.forEach(env => {
+            let deployJob = deployComponent(name, imageName, `${config.metadata.name}-${buildId}`, env, project);
+            deployPipeline.add(deployJob);
+        })
     });
 
     buildPipeline.runAll().then(() => deployPipeline.runAll());
 }
 
-function applyRadixConfig() {
-    let job = new Job("config", "frodehus/kubectl:latest");
+function applyRadixConfig(appName) {
+    let job = new Job("config", "radixdev.azurecr.io/rx:6c835aa");
+    job.imagePullSecrets = ["radixdev-docker"]
     job.serviceAccount = "radix-deploy"
     job.tasks = [
         "cd /src",
-        "kubectl apply -f radixconfig.yaml -ncomplete-app > /dev/null",
+        `kubectl apply -f radixconfig.yaml -n${appName}-app > /dev/null`,
         "sleep 5",
-        "kubectl get ra complete -ncomplete-app -ojson"
+        `kubectl get ra ${appName} -n${appName}-app -ojson`
     ];
 
     return job;
 }
 
-function deployComponent(name, imageName, project){
-    let job = new Job("deploy-"+name, "frodehus/kubectl:latest");
+function deployComponent(name, imageName, buildId, environment, project){
+    let job = new Job("deploy-"+buildId, "radixdev.azurecr.io/rx:6c835aa");
+    job.imagePullSecrets = ["radixdev-docker"]
     job.serviceAccount = "radix-deploy"
     job.tasks = [
         "cd /src",
-        "kubectl apply -f asdf"
+        `rx deploy create ${buildId} -i ${name}=${imageName}`
     ];
      
     return job;
