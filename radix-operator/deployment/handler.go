@@ -46,7 +46,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) {
 	log.Infof("Deploy name: %s", radixDeploy.Name)
 	log.Infof("Application name: %s", radixDeploy.Spec.AppName)
 
-	radixApplication, err := t.radixclient.RadixV1().RadixApplications("default").Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
+	radixApplication, err := t.radixclient.RadixV1().RadixApplications(fmt.Sprintf("%s-app", radixDeploy.Spec.AppName)).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RadixApplication object: %v", err)
 		return

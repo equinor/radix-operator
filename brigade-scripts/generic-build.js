@@ -1,6 +1,6 @@
 const { events, Job, Group } = require('brigadier')
 
-events.on("exec", (e, p) => {
+events.on("push", (e, p) => {
     let buildId = e.revision.commit
     let appName = p.name.substring(p.name.lastIndexOf("/") + 1);
     let updateConfig = applyRadixConfig(appName)
@@ -21,7 +21,8 @@ function runBuild(config, buildId, project) {
         let buildJob = buildComponent(name, imageName, component.src, project);
         buildPipeline.add(buildJob);
         environments.forEach(env => {
-            let deployJob = deployComponent(name, imageName, `${config.metadata.name}-${buildId}`, env, project);
+            let deployName = `${config.metadata.name}-${name}-${env.name}-${buildId}`
+            let deployJob = deployComponent(name, imageName, deployName, env.name, config);
             deployPipeline.add(deployJob);
         })
     });
@@ -30,7 +31,7 @@ function runBuild(config, buildId, project) {
 }
 
 function applyRadixConfig(appName) {
-    let job = new Job("config", "radixdev.azurecr.io/rx:6c835aa");
+    let job = new Job("config", "radixdev.azurecr.io/rx:0f4ae48");
     job.imagePullSecrets = ["radixdev-docker"]
     job.serviceAccount = "radix-deploy"
     job.tasks = [
@@ -43,21 +44,19 @@ function applyRadixConfig(appName) {
     return job;
 }
 
-function deployComponent(name, imageName, buildId, environment, project){
-    let job = new Job("deploy-"+buildId, "radixdev.azurecr.io/rx:6c835aa");
+function deployComponent(name, imageName, deployName, environment, config){
+    let job = new Job("deploy-"+name, "radixdev.azurecr.io/rx:0f4ae48");
     job.imagePullSecrets = ["radixdev-docker"]
     job.serviceAccount = "radix-deploy"
     job.tasks = [
         "cd /src",
-        `rx deploy create ${buildId} -i ${name}=${imageName}`
+        `rx deploy create ${deployName} -a ${config.metadata.name} -i ${name}=${imageName} -e ${environment}`
     ];
      
     return job;
 }
 
 function buildComponent(name, imageName, src, project) {
-    console.log("building: " + imageName)
-
     let driver = project.secrets.DOCKER_DRIVER || "overlay"
 
     let docker = new Job("build-" + name, "docker:stable-dind")
