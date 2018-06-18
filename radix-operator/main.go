@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -59,6 +61,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 func startMetricsServer(stop <-chan struct{}) {
 	srv := &http.Server{Addr: ":9000"}
 	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/healthz", http.HandlerFunc(Healthz))
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
 			log.Printf("MetricServer: ListenAndServe() error: %s", err)
@@ -68,6 +71,26 @@ func startMetricsServer(stop <-chan struct{}) {
 	if err := srv.Shutdown(nil); err != nil {
 		panic(err)
 	}
+}
+
+type HealthStatus struct {
+	Status int
+}
+
+func Healthz(writer http.ResponseWriter, r *http.Request) {
+	health := HealthStatus{
+		Status: http.StatusOK,
+	}
+
+	response, err := json.Marshal(health)
+
+	if err != nil {
+		http.Error(writer, "Error while retrieving HealthStatus", http.StatusInternalServerError)
+		log.Errorf("Could not serialize HealthStatus: %v", err)
+		return
+	}
+
+	fmt.Fprintf(writer, "%s", response)
 }
 
 func getKubernetesClient() (kubernetes.Interface, radixclient.Interface) {

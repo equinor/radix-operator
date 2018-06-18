@@ -30,11 +30,11 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /metrics
+              path: /healthz
               port: metrics
           readinessProbe:
             httpGet:
-              path: /metrics
+              path: /healthz
               port: metrics
       {{ if .Values.privateRegistrySecret }}imagePullSecrets:
         - name: {{.Values.privateRegistrySecret}}{{end}}
