@@ -3,6 +3,7 @@
 In order for Omnia Radix to configure your application it needs the RadixConfig file. 
 
 This file needs to live in the root of your repository and be named `radixconfig.yaml`.
+The name of the application needs to match its corresponding [RadixRegistration](radixregistration.md).
 
 ## Sample configuration
 

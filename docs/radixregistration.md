@@ -8,11 +8,11 @@ The purpose of this CRD is to register an application with Radix and bootstrap t
 apiVersion: radix.equinor.com/v1
 kind: RadixRegistration
   metadata:
-    name: complete
+    name: myapp
 spec:
   repository: "https://github.com/Statoil/myapp"
   cloneURL: "git@github.com:Statoil/myapp"
   sharedSecret: "ThisIsASecret"
-  defaultScript: "" 
+  defaultScript: ""
   deployKey: ""
 ```

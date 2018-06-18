@@ -93,23 +93,6 @@ func (b *BrigadeGateway) DeleteProject(appName, namespace string) error {
 	return nil
 }
 
-func (b *BrigadeGateway) AddAppConfigToProject(app *radix_v1.RadixApplication) {
-	log.Infof("Updating Brigade project with recent values from RadixApplication %s", app.Name)
-	secret, err := b.client.CoreV1().Secrets(namespace).Get(fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+app.Name)), metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("Failed to retrieve Brigade project: %v", err)
-		return
-	}
-
-	spec, _ := json.Marshal(app.Spec.Components)
-	specJson := strings.Replace(string(spec), "\"", "'", -1)
-	secret.Data["secrets"] = []byte(fmt.Sprintf("{\"app\": \"%s\"}", specJson))
-	_, err = b.client.CoreV1().Secrets(namespace).Update(secret)
-	if err != nil {
-		log.Errorf("Failed to update Brigade project: %v", err)
-	}
-}
-
 func shortSHA(input string) string {
 	sum := sha256.Sum256([]byte(input))
 	return fmt.Sprintf("%x", sum)[0:54]
