@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/statoil/radix-operator/radix-operator/common"
+
 	log "github.com/Sirupsen/logrus"
 
-	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,24 +19,19 @@ import (
 	core "k8s.io/client-go/testing"
 )
 
-var radixApp = &radixv1.RadixApplication{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "testapp",
-	},
-	Spec: radixv1.RadixApplicationSpec{
-		Secrets: radixv1.SecretsMap{
-			"test": "123",
-		},
-	},
-}
+const (
+	sampleRegistration = "../../../radix-operator/registration/testdata/sampleregistration.yaml"
+)
 
 func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
 func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
-	secretCreated := false
-	nameHash := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+radixApp.Name))
+	radixRegistration, _ := common.GetRadixRegistrationFromFile(sampleRegistration)
+	secretCreated, secretUpdated := false, false
+
+	nameHash := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+radixRegistration.Name))
 	fakeClient := fake.NewSimpleClientset()
 
 	reactorFunc := func(action core.Action) (bool, runtime.Object, error) {
@@ -43,7 +39,11 @@ func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
 		case core.CreateAction:
 			createdApp, ok := a.GetObject().(*corev1.Secret)
 			if ok && createdApp.Name == nameHash {
-				secretCreated = true
+				if a.GetVerb() == "create" {
+					secretCreated = true
+				} else if a.GetVerb() == "update" {
+					secretUpdated = true
+				}
 			}
 		default:
 			return false, nil, nil
@@ -53,13 +53,12 @@ func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
 	}
 
 	fakeClient.PrependReactor("create", "secrets", reactorFunc)
+	fakeClient.PrependReactor("update", "secrets", reactorFunc)
 
-	gateway := BrigadeGateway{
-		client: fakeClient,
-	}
+	gateway, _ := New(fakeClient)
 
-	t.Run("Create project", func(t *testing.T) {
-		err := gateway.EnsureProject(radixApp)
+	t.Run("It creates a project", func(t *testing.T) {
+		err := gateway.EnsureProject(radixRegistration)
 		assert.NoError(t, err)
 
 		wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
@@ -70,13 +69,18 @@ func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, brigadeProject)
 	})
-}
 
-func Test_BrigadeGateway_Fails_Without_Client(t *testing.T) {
-	gateway := BrigadeGateway{
-		client: nil,
-	}
+	t.Run("It updates a project", func(t *testing.T) {
+		radixRegistration.Spec.DefaultScriptName = "testScript"
+		err := gateway.EnsureProject(radixRegistration)
+		assert.NoError(t, err)
 
-	err := gateway.EnsureProject(radixApp)
-	assert.Error(t, err)
+		wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
+			return secretUpdated, nil
+		})
+
+		brigadeProject, err := fakeClient.CoreV1().Secrets("default").Get(nameHash, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.EqualValues(t, "testScript", brigadeProject.StringData["defaultScriptName"])
+	})
 }

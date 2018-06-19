@@ -10,12 +10,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) {
+func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) error {
 	for _, env := range app.Spec.Environments {
 		for _, auth := range env.Authorization {
-			k.CreateRoleBinding(app.Name, fmt.Sprintf("%s-%s", app.Name, env.Name), auth.Role, auth.Groups)
+			err := k.CreateRoleBinding(app.Name, fmt.Sprintf("%s-%s", app.Name, env.Name), auth.Role, auth.Groups)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups []string) error {

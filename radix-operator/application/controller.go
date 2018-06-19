@@ -12,9 +12,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-func NewController(client kubernetes.Interface, radixClient radixclient.Interface) *common.Controller {
-	handler := NewApplicationHandler(client, radixClient)
-
+func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler) *common.Controller {
 	informer := radixinformer.NewRadixApplicationInformer(
 		radixClient,
 		meta_v1.NamespaceAll,
@@ -52,7 +50,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		RadixClient: radixClient,
 		Informer:    informer,
 		Queue:       queue,
-		Handler:     &handler,
+		Handler:     handler,
 		Log:         log.WithField("controller", "application"),
 	}
 	return controller

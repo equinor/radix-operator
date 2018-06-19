@@ -14,6 +14,10 @@ CX_ARCHS	= amd64
 .PHONY: build
 build: $(BINS)
 
+.PHONY: test
+test:
+	go test -cover `go list ./... | grep -v 'pkg/client\|apis/radix'`
+
 .PHONY: $(BINS)
 $(BINS): vendor
 	go build -ldflags '$(LDFLAGS)' -o bin/$@ ./$@

@@ -18,7 +18,7 @@ spec:
       authorization:
       - role: RadixReader
         groups:
-        - "<Azure AD group ID>"
+        - "<Azure AD group display name>"
     - name: prod
       authorization:
       - role: RadixReader
