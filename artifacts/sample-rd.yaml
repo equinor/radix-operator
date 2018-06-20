@@ -6,4 +6,4 @@ spec:
   appname: sampleapp
   components:
     - name: web
-      image: staas.azurecr.io/radix-demo-hello-nodejs
+      image: radixdev.azurecr.io/radix-demo-hello-nodejs

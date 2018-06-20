@@ -56,13 +56,6 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		log.Infof("RadixApplication %s exists", radixApplication.Name)
 	}
 
-	appName := radixApplication.Name
-	appEnvironments := radixApplication.Spec.Environments
-	var namespaces []string
-	for _, v := range appEnvironments {
-		namespaces = append(namespaces, appName+"-"+v.Name)
-	}
-
 	appComponents := radixApplication.Spec.Components
 	for _, v := range radixDeploy.Spec.Components {
 		for _, w := range appComponents {
@@ -70,21 +63,20 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 				continue
 			}
 
-			// Deploy to each namespace
-			for _, x := range namespaces {
-				err := t.createDeployment(radixDeploy, v, w, x)
+			// Deploy to current radixDeploy object's namespace
+			radixDeployNamespace := radixDeploy.Namespace
+			err := t.createDeployment(radixDeploy, v, w, radixDeployNamespace)
+			if err != nil {
+				return fmt.Errorf("Failed to create deployment: %v", err)
+			}
+			err = t.createService(radixDeploy, w, radixDeployNamespace)
+			if err != nil {
+				return fmt.Errorf("Failed to create service: %v", err)
+			}
+			if w.Public {
+				err = t.createIngress(radixDeploy, w, radixDeployNamespace)
 				if err != nil {
-					return fmt.Errorf("Failed to create deployment: %v", err)
-				}
-				err = t.createService(radixDeploy, w, x)
-				if err != nil {
-					return fmt.Errorf("Failed to create service: %v", err)
-				}
-				if w.Public {
-					err = t.createIngress(radixDeploy, w, x)
-					if err != nil {
-						return fmt.Errorf("Failed to create ingress: %v", err)
-					}
+					return fmt.Errorf("Failed to create ingress: %v", err)
 				}
 			}
 		}
@@ -105,7 +97,7 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 }
 
 func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent, namespace string) error {
-	deployment := getDeploymentConfig(appComponent.Name, radixDeploy.UID, deployComponent.Image, appComponent.Ports)
+	deployment := getDeploymentConfig(appComponent.Name, radixDeploy.UID, deployComponent.Image, appComponent.Ports, appComponent.Replicas)
 	log.Infof("Creating Deployment object %s in namespace %s", appComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
@@ -187,7 +179,7 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appC
 	return nil
 }
 
-func getDeploymentConfig(componentName string, uid types.UID, image string, componentPorts []int) *v1beta1.Deployment {
+func getDeploymentConfig(componentName string, uid types.UID, image string, componentPorts []int, replicas int) *v1beta1.Deployment {
 	trueVar := true
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -225,6 +217,11 @@ func getDeploymentConfig(componentName string, uid types.UID, image string, comp
 							Image: image,
 						},
 					},
+					ImagePullSecrets: []corev1.LocalObjectReference{
+						{
+							Name: "radix-docker",
+						},
+					},
 				},
 			},
 		},
@@ -238,6 +235,10 @@ func getDeploymentConfig(componentName string, uid types.UID, image string, comp
 		ports = append(ports, containerPort)
 	}
 	deployment.Spec.Template.Spec.Containers[0].Ports = ports
+
+	if replicas > 0 {
+		deployment.Spec.Replicas = int32Ptr(int32(replicas))
+	}
 
 	return deployment
 }
