@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: radix-operator
-  tag: "7be3d6f"
+  tag: "2b2ef1a"
   pullPolicy: IfNotPresent
 
 service:

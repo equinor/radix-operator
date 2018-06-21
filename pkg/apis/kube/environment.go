@@ -10,6 +10,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+//CreateSecrets should provision required secrets in the specified environment
+func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName string) error {
+	dockerSecret, err := k.kubeClient.CoreV1().Secrets("default").Get("radix-docker", metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Could not find container registry credentials: %v", err)
+	}
+	ns := fmt.Sprintf("%s-%s", registration.Name, envName)
+	dockerSecret.ResourceVersion = ""
+	dockerSecret.Namespace = ns
+	_, err = k.kubeClient.CoreV1().Secrets(ns).Create(dockerSecret)
+	if err != nil {
+		return fmt.Errorf("Failed to create secret in %s: %v", ns, err)
+	}
+	return nil
+}
+
 //CreateEnvironment creates a namespace with RadixRegistration as owner
 func (k *Kube) CreateEnvironment(registration *radixv1.RadixRegistration, envName string) error {
 	trueVar := true

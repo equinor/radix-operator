@@ -48,6 +48,11 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) error {
 		if err != nil {
 			return fmt.Errorf("Failed to create environment: %v", err)
 		}
+
+		err = t.kubeutil.CreateSecrets(registration, e.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to provision secrets: %v", err)
+		}
 	}
 
 	t.kubeutil.CreateRoleBindings(radixApp)
