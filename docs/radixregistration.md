@@ -7,8 +7,8 @@ The purpose of this CRD is to register an application with Radix and bootstrap t
 ```yaml
 apiVersion: radix.equinor.com/v1
 kind: RadixRegistration
-  metadata:
-    name: myapp
+metadata:
+  name: myapp
 spec:
   repository: "https://github.com/Statoil/myapp"
   cloneURL: "git@github.com:Statoil/myapp"
