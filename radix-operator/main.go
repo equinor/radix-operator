@@ -16,6 +16,7 @@ import (
 	"github.com/statoil/radix-operator/radix-operator/deployment"
 	"github.com/statoil/radix-operator/radix-operator/registration"
 	"k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -46,7 +47,8 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 }
 
 func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	applicationController := application.NewController(client, radixClient)
+	handler := application.NewApplicationHandler(client, radixClient)
+	applicationController := application.NewController(client, radixClient, &handler)
 
 	go applicationController.Run(stop)
 }

@@ -27,3 +27,16 @@ rules:
   resources: ["secrets"]
   verbs: ["get", "list", "watch"]
 ---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: RadixAppAdmin
+  labels:
+    app: {{ template "radix-operator.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+rules:
+- apiGroups: ["*"]
+  resources: ["configmaps", "deployments", "radixapplications", "pods"]
+  verbs: ["get", "list", "watch", "create", "update"]

@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	log "github.com/Sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 
 	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/statoil/radix-operator/radix-operator/common"
 	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -21,14 +21,17 @@ type FakeHandler struct {
 func (h *FakeHandler) Init() error {
 	return nil
 }
-func (h *FakeHandler) ObjectCreated(obj interface{}) {
+func (h *FakeHandler) ObjectCreated(obj interface{}) error{
 	h.operation <- "created"
+	return nil
 }
-func (h *FakeHandler) ObjectDeleted(key string) {
+func (h *FakeHandler) ObjectDeleted(key string) error{
 	h.operation <- "deleted"
+	return nil
 }
-func (h *FakeHandler) ObjectUpdated(objOld, objNew interface{}) {
+func (h *FakeHandler) ObjectUpdated(objOld, objNew interface{}) error{
 	h.operation <- "updated"
+	return nil
 }
 func init() {
 	log.SetOutput(ioutil.Discard)
@@ -41,12 +44,10 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(stop)
 	go controller.Run(stop)
 
-	var createdApp *radix_v1.RadixApplication
-
 	t.Run("Create app", func(t *testing.T) {
-		var err error
-		createdApp, err = radixClient.RadixV1().RadixApplications("DefaultNS").Create(radixApp)
+		createdApp, err := radixClient.RadixV1().RadixApplications("DefaultNS").Create(radixApp)
 		assert.NoError(t, err)
+		assert.NotNil(t, createdApp)
 		assert.Equal(t, "created", <-fakeHandler.operation)
 	})
 }
@@ -93,11 +94,11 @@ func TestControllerDelete(t *testing.T) {
 	})
 }
 
-func initializeTest() (*radix_v1.RadixApplication, *Controller, *fakeradix.Clientset, *FakeHandler) {
+func initializeTest() (*radix_v1.RadixApplication, *common.Controller, *fakeradix.Clientset, *FakeHandler) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 
-	radixApp, err := getRadixAppFromFile("testdata/radixconfig.yaml")
+	radixApp, err := common.GetRadixAppFromFile("testdata/radixconfig.yaml")
 	if err != nil {
 		log.Fatalf("Could not read configuration data: %v", err)
 	}
@@ -109,17 +110,4 @@ func initializeTest() (*radix_v1.RadixApplication, *Controller, *fakeradix.Clien
 	controller := NewController(client, radixClient, fakeHandler)
 
 	return radixApp, controller, radixClient, fakeHandler
-}
-
-func getRadixAppFromFile(file string) (*radix_v1.RadixApplication, error) {
-	raw, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	app := &radix_v1.RadixApplication{}
-	err = yaml.Unmarshal(raw, app)
-	if err != nil {
-		return nil, err
-	}
-	return app, nil
 }

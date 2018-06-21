@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: radix-operator
-  tag: 0264739
+  tag: "0f4ae48"
   pullPolicy: IfNotPresent
 
 service:
@@ -32,5 +32,5 @@ tolerations: []
 
 affinity: {}
 
-privateRegistrySecret: staas-docker
-privateRegistry: staas.azurecr.io
+privateRegistrySecret: radix-docker
+privateRegistry: radixdev.azurecr.io

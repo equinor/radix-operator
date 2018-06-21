@@ -1,0 +1,8 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixRegistration
+metadata:
+  name: testapp
+spec:
+  repository: "https://github.com/Statoil/testapp"
+  cloneURL: "git@github.com:Statoil/testapp"
+  sharedSecret: "NotSoSecret"

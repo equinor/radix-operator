@@ -39,12 +39,11 @@ func (t *RadixDeployHandler) Init() error {
 }
 
 // ObjectCreated is called when an object is created
-func (t *RadixDeployHandler) ObjectCreated(obj interface{}) {
+func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 	log.Info("Deploy object created received.")
 	radixDeploy, ok := obj.(*v1.RadixDeployment)
 	if !ok {
-		log.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
-		return
+		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 	}
 
 	log.Infof("Deploy name: %s", radixDeploy.Name)
@@ -52,8 +51,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) {
 
 	radixApplication, err := t.radixclient.RadixV1().RadixApplications(fmt.Sprintf("%s-app", radixDeploy.Spec.AppName)).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Failed to get RadixApplication object: %v", err)
-		return
+		return fmt.Errorf("Failed to get RadixApplication object: %v", err)
 	} else {
 		log.Infof("RadixApplication %s exists", radixApplication.Name)
 	}
@@ -76,31 +74,34 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) {
 			for _, x := range namespaces {
 				err := t.createDeployment(radixDeploy, v, w, x)
 				if err != nil {
-					log.Errorf("Failed to create deployment: %v", err)
+					return fmt.Errorf("Failed to create deployment: %v", err)
 				}
 				err = t.createService(radixDeploy, w, x)
 				if err != nil {
-					log.Errorf("Failed to create service: %v", err)
+					return fmt.Errorf("Failed to create service: %v", err)
 				}
 				if w.Public {
 					err = t.createIngress(radixDeploy, w, x)
 					if err != nil {
-						log.Errorf("Failed to create ingress: %v", err)
+						return fmt.Errorf("Failed to create ingress: %v", err)
 					}
 				}
 			}
 		}
 	}
+	return nil
 }
 
 // ObjectDeleted is called when an object is deleted
-func (t *RadixDeployHandler) ObjectDeleted(key string) {
+func (t *RadixDeployHandler) ObjectDeleted(key string) error {
 	log.Info("RadixDeployment object deleted.")
+	return nil
 }
 
 // ObjectUpdated is called when an object is updated
-func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) {
+func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	log.Info("Deploy object updated received.")
+	return nil
 }
 
 func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent, namespace string) error {

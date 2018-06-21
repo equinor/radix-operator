@@ -26,14 +26,12 @@ func (c *Controller) Run(stop <-chan struct{}) {
 	c.Log.Info("Starting controller")
 	defer utilruntime.HandleCrash()
 	defer c.Queue.ShutDown()
-
 	go c.Informer.Run(stop)
 
 	if !cache.WaitForCacheSync(stop, c.HasSynced) {
 		utilruntime.HandleError(fmt.Errorf("Error syncing cache"))
 		return
 	}
-
 	wait.Until(c.runWorker, time.Second, stop)
 }
 

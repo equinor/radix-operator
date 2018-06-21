@@ -44,29 +44,30 @@ func New(clientset kubernetes.Interface) (*BrigadeGateway, error) {
 	return gw, nil
 }
 
-func (b *BrigadeGateway) EnsureProject(app *radix_v1.RadixRegistration) error {
+//EnsureProject will create a Brigade project if it doesn't exist or update existing one
+func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistration) error {
 	create := false
 	if b.client == nil {
 		return fmt.Errorf("No k8s client available")
 	}
 
-	secretName := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+app.Name))
-	log.Infof("Creating/Updating application %s", app.ObjectMeta.Name)
+	secretName := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+appRegistration.Name))
+	log.Infof("Creating/Updating application %s", appRegistration.ObjectMeta.Name)
 	project, _ := b.getExistingBrigadeProject(secretName)
 	if project == nil {
-		project = createNewProject(secretName, app.Name, app.UID)
+		project = createNewProject(secretName, appRegistration.Name, appRegistration.UID)
 		create = true
 	}
 
-	secretsJSON, _ := json.Marshal(app.Spec.Secrets)
+	secretsJSON, _ := json.Marshal(appRegistration.Spec.Secrets)
 	project.StringData = map[string]string{
-		"repository":        app.Spec.Repository,
-		"sharedSecret":      app.Spec.SharedSecret,
-		"cloneURL":          app.Spec.CloneURL,
-		"sshKey":            strings.Replace(app.Spec.DeployKey, "\n", "$", -1),
+		"repository":        appRegistration.Spec.Repository,
+		"sharedSecret":      appRegistration.Spec.SharedSecret,
+		"cloneURL":          appRegistration.Spec.CloneURL,
+		"sshKey":            strings.Replace(appRegistration.Spec.DeployKey, "\n", "$", -1),
 		"initGitSubmodules": "false",
-		"defaultScript":     app.Spec.DefaultScript,
-		"defaultScriptName": "",
+		"defaultScript":     appRegistration.Spec.DefaultScript,
+		"defaultScriptName": appRegistration.Spec.DefaultScriptName,
 		"secrets":           string(secretsJSON),
 	}
 

@@ -2,7 +2,7 @@ package common
 
 type Handler interface {
 	Init() error
-	ObjectCreated(obj interface{})
-	ObjectDeleted(key string)
-	ObjectUpdated(objOld, objNew interface{})
+	ObjectCreated(obj interface{}) error
+	ObjectDeleted(key string) error
+	ObjectUpdated(objOld, objNew interface{}) error
 }
