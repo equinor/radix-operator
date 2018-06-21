@@ -9,6 +9,16 @@ metadata:
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
 {{ if .Values.rbac.enabled }}
+# ---
+# apiVersion: v1
+# kind: ServiceAccount
+# metadata:
+#   name: radix-deploy
+#   labels:
+#     app: {{ template "radix-operator.name" . }}
+#     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+#     release: "{{ .Release.Name }}"
+#     heritage: "{{ .Release.Service }}"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1

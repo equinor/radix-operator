@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
 	"github.com/statoil/radix-operator/rx/commands"
 )
 
