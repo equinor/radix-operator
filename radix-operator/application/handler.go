@@ -84,7 +84,7 @@ func (t *RadixAppHandler) ObjectUpdated(objOld, objNew interface{}) error {
 			return fmt.Errorf("Failed to create environment: %v", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -92,6 +92,11 @@ func (t *RadixAppHandler) removeDeletedEnvironments(existingNamespaces *corev1.N
 	for _, ns := range existingNamespaces.Items {
 		exists := false
 		for _, env := range radixApp.Spec.Environments {
+			if ns.Name == fmt.Sprintf("%s-app", radixApp.Name) {
+				exists = true
+				continue
+			}
+
 			if ns.Name == fmt.Sprintf("%s-%s", radixApp.Name, env.Name) {
 				exists = true
 			}

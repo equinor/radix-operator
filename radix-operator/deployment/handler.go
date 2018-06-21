@@ -284,6 +284,7 @@ func getIngressConfig(componentName string, uid types.UID, componentPorts []int)
 				// "kubernetes.io/tls-acme":         "true",
 				"traefik.frontend.rule.type":     "PathPrefixStrip",
 				"traefik.backend.circuitbreaker": "NetworkErrorRatio() > 0.5",
+				"kubernetes.io/ingress.class":    "nginx",
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
@@ -303,7 +304,7 @@ func getIngressConfig(componentName string, uid types.UID, componentPorts []int)
 			// },
 			Rules: []v1beta1.IngressRule{
 				{
-					Host: "staas.ukwest.cloudapp.azure.com",
+					Host: "appname.dev.radix.equinor.com",
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
