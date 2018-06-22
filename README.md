@@ -35,3 +35,14 @@ This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client`
 This file/directory should NOT be edited.
 
 If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
+
+## Installing Helm Chart
+
+Installing Radix Operator using the Helm Chart you need to do the following:
+
+- Clone this repository
+- Run: `helm inspect values ./charts/radix-operator > radix-operator.yaml`
+- Edit the `radix-operator.yaml` and fill in the credentials for the Container Registry you wish to use
+- Install: `helm install -f radix-operator.values ./charts/radix-operator`
+
+If you wish to use a different image version, update the `image.tag` property in `radix-operator.yaml` you created above.
