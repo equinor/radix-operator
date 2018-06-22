@@ -9,16 +9,16 @@ metadata:
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
 {{ if .Values.rbac.enabled }}
-# ---
-# apiVersion: v1
-# kind: ServiceAccount
-# metadata:
-#   name: radix-deploy
-#   labels:
-#     app: {{ template "radix-operator.name" . }}
-#     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-#     release: "{{ .Release.Name }}"
-#     heritage: "{{ .Release.Service }}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: radix-deploy
+  labels:
+    app: {{ template "radix-operator.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -31,14 +31,26 @@ metadata:
     heritage: "{{ .Release.Service }}"
 rules:
 - apiGroups: ["radix.equinor.com"]
-  resources: ["*"]
+  resources: ["radixapplications", "radixdeployments"]
   verbs: ["*"]
-- apiGroups: [""]
-  resources: ["secrets", "configmaps", "pods", "namespaces", "rolebindings", "deployments"]
-  verbs: ["*"]
-- apiGroups: ["apps"]
-  resources: ["deployments"]
-  verbs: ["*"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: radix-deploy
+  labels:
+    app: {{ template "radix-operator.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+subjects:
+- kind: ServiceAccount
+  namespace: default
+  name: radix-deploy
+roleRef:
+  kind: ClusterRole
+  name: {{ template "radix-operator.fullname" . }}
+  apiGroup: rbac.authorization.k8s.io
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
