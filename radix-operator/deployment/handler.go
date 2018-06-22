@@ -160,7 +160,7 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appC
 }
 
 func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent, namespace string) error {
-	ingress := getIngressConfig(appComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, appComponent.Ports)
+	ingress := getIngressConfig(appComponent.Name, radixDeploy.Spec.AppName, namespace, radixDeploy.UID, appComponent.Ports)
 	log.Infof("Creating Ingress object %s in namespace %s", appComponent.Name, namespace)
 	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
 	if errors.IsAlreadyExists(err) {
@@ -275,7 +275,7 @@ func getServiceConfig(componentName string, uid types.UID, componentPorts []int)
 	return service
 }
 
-func getIngressConfig(componentName, appName string, uid types.UID, componentPorts []int) *v1beta1.Ingress {
+func getIngressConfig(componentName, appName, namespace string, uid types.UID, componentPorts []int) *v1beta1.Ingress {
 	trueVar := true
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -305,7 +305,7 @@ func getIngressConfig(componentName, appName string, uid types.UID, componentPor
 			// },
 			Rules: []v1beta1.IngressRule{
 				{
-					Host: fmt.Sprintf("%s-%s.dev.radix.equinor.com", componentName, appName),
+					Host: fmt.Sprintf("%s-%s.dev.radix.equinor.com", componentName, namespace),
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{

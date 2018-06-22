@@ -7,8 +7,13 @@ replicaCount: 1
 
 image:
   repository: radix-operator
-  tag: "2b2ef1a"
+  tag: "22ff59b"
   pullPolicy: IfNotPresent
+
+imageCredentials:
+  registry: dummy.azurecr.io
+  username: someone
+  password: sillyness
 
 service:
   type: ClusterIP

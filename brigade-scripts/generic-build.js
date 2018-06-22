@@ -45,7 +45,7 @@ function applyRadixConfig(appName) {
 }
 
 function deployComponent(name, imageName, deployName, environment, config){
-    let job = new Job("deploy-"+name, "radixdev.azurecr.io/rx:0f4ae48");
+    let job = new Job(`deploy-${environment}-${name}`, "radixdev.azurecr.io/rx:0f4ae48");
     job.imagePullSecrets = ["radixdev-docker"]
     job.serviceAccount = "radix-deploy"
     job.tasks = [
