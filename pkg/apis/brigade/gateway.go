@@ -8,6 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/statoil/radix-operator/pkg/apis/kube"
 	radix_v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -58,6 +59,20 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 		project = createNewProject(secretName, appRegistration.Name, appRegistration.UID)
 		create = true
 	}
+
+	kubeutil, err := kube.New(b.client)
+	if err != nil {
+		return fmt.Errorf("Failed to get k8s util: %v", err)
+	}
+
+	var creds *kube.ContainerRegistryCredentials
+	if creds, err = kubeutil.RetrieveContainerRegistryCredentials(); err != nil {
+		return err
+	}
+
+	appRegistration.Spec.Secrets["DOCKER_USER"] = creds.User
+	appRegistration.Spec.Secrets["DOCKER_PASS"] = creds.Password
+	appRegistration.Spec.Secrets["DOCKER_REGISTRY"] = creds.Server
 
 	secretsJSON, _ := json.Marshal(appRegistration.Spec.Secrets)
 	project.StringData = map[string]string{
