@@ -21,8 +21,20 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName st
 	dockerSecret.Namespace = ns
 	_, err = k.kubeClient.CoreV1().Secrets(ns).Create(dockerSecret)
 	if err != nil {
-		return fmt.Errorf("Failed to create secret in %s: %v", ns, err)
+		return fmt.Errorf("Failed to create container registry credentials secret in %s: %v", ns, err)
 	}
+
+	tlsSecret, err := k.kubeClient.CoreV1().Secrets("default").Get("domain-ssl-cert-key", metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Could not find TLS certificate and key: %v", err)
+	}
+	tlsSecret.ResourceVersion = ""
+	tlsSecret.Namespace = ns
+	_, err = k.kubeClient.CoreV1().Secrets(ns).Create(tlsSecret)
+	if err != nil {
+		return fmt.Errorf("Failed to create TLS certificate and key secret in %s: %v", ns, err)
+	}
+
 	return nil
 }
 

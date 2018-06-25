@@ -285,7 +285,7 @@ func getIngressConfig(componentName, appName, namespace string, uid types.UID, c
 				"kubernetes.io/ingress.class": "nginx",
 			},
 			Labels: map[string]string{
-				"radixApp":  appName,
+				"radixApp": appName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
@@ -300,9 +300,17 @@ func getIngressConfig(componentName, appName, namespace string, uid types.UID, c
 		Spec: v1beta1.IngressSpec{
 			// TLS: []v1beta1.IngressTLS{
 			// 	{
-			// 		SecretName: "staas-tls",
+			// 		SecretName: "domain-ssl-cert-key",
 			// 	},
 			// },
+			TLS: []v1beta1.IngressTLS{
+				{
+					Hosts: []string{
+						fmt.Sprintf("%s-%s.dev.radix.equinor.com", componentName, namespace),
+					},
+					SecretName: "domain-ssl-cert-key",
+				},
+			},
 			Rules: []v1beta1.IngressRule{
 				{
 					Host: fmt.Sprintf("%s-%s.dev.radix.equinor.com", componentName, namespace),
