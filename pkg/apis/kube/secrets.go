@@ -1,8 +1,10 @@
 package kube
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,9 +40,24 @@ func (k *Kube) RetrieveContainerRegistryCredentials() (*ContainerRegistryCredent
 	for key := range config.Authentication {
 		creds.Server = key
 		values := config.Authentication[key].(map[string]interface{})
-		creds.User = values["username"].(string)
-		creds.Password = values["password"].(string)
+		auth := values["auth"].(string)
+		decoded, err := getDecodedCredentials(auth)
+		if err != nil {
+			return nil, err
+		}
+
+		credentials := strings.Split(decoded, ":")
+		creds.User = credentials[0]
+		creds.Password = credentials[1]
 	}
 
 	return creds, nil
+}
+
+func getDecodedCredentials(encodedCredentials string) (string, error) {
+	creds, err := base64.StdEncoding.DecodeString(encodedCredentials)
+	if err != nil {
+		return "", fmt.Errorf("Failed to decode credentials: %v", err)
+	}
+	return string(creds), nil
 }
