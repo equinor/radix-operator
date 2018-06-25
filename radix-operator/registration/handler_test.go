@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -23,7 +24,17 @@ func init() {
 }
 
 func Test_RadixRegistrationHandler(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "radix-docker",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			".dockerconfigjson": []byte("{\"auths\":{\"radixdev.azurecr.io\":{\"username\":\"testuser\",\"password\":\"mysecretpassword\",\"email\":\"frode.hus@outlook.com\",\"auth\":\"asdKJfdfTlU=\"}}}"),
+		},
+	}
+
+	client := fake.NewSimpleClientset(secret)
 	radixClient := fakeradix.NewSimpleClientset()
 	registration, _ := common.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
 	handler := NewRegistrationHandler(client)
@@ -38,7 +49,7 @@ func Test_RadixRegistrationHandler(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, ns)
 	})
-	t.Run("It updates a registration", func(t *testing.T){
+	t.Run("It updates a registration", func(t *testing.T) {
 		err := handler.ObjectUpdated(nil, registration)
 		assert.NoError(t, err)
 	})

@@ -28,11 +28,20 @@ func init() {
 }
 
 func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "radix-docker",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			".dockerconfigjson": []byte("{\"auths\":{\"radixdev.azurecr.io\":{\"username\":\"testuser\",\"password\":\"mysecretpassword\",\"email\":\"frode.hus@outlook.com\",\"auth\":\"asdKJfdfTlU=\"}}}"),
+		},
+	}
 	radixRegistration, _ := common.GetRadixRegistrationFromFile(sampleRegistration)
 	secretCreated, secretUpdated := false, false
 
 	nameHash := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+radixRegistration.Name))
-	fakeClient := fake.NewSimpleClientset()
+	fakeClient := fake.NewSimpleClientset(secret)
 
 	reactorFunc := func(action core.Action) (bool, runtime.Object, error) {
 		switch a := action.(type) {

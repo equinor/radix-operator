@@ -6,3 +6,5 @@ spec:
   repository: "https://github.com/Statoil/testapp"
   cloneURL: "git@github.com:Statoil/testapp"
   sharedSecret: "NotSoSecret"
+  secrets:
+    test: test
