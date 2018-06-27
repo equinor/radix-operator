@@ -30,7 +30,7 @@ func Test_RadixRegistrationHandler(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			".dockerconfigjson": []byte("{\"auths\":{\"radixdev.azurecr.io\":{\"username\":\"testuser\",\"password\":\"mysecretpassword\",\"email\":\"frode.hus@outlook.com\",\"auth\":\"asdKJfdfTlU=\"}}}"),
+			".dockerconfigjson": []byte("{\"auths\":{\"radixdev.azurecr.io\":{\"username\":\"testuser\",\"password\":\"mysecretpassword\",\"email\":\"frode.hus@outlook.com\",\"auth\":\"YXNkZjpxd2VydHk=\"}}}"),
 		},
 	}
 
