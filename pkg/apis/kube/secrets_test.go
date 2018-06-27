@@ -16,7 +16,7 @@ func Test_RetrieveDockerConfig(t *testing.T) {
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			".dockerconfigjson": []byte("{\"auths\":{\"radixdev.azurecr.io\":{\"username\":\"testuser\",\"password\":\"mysecretpassword\",\"email\":\"frode.hus@outlook.com\",\"auth\":\"asdKJfdfTlU=\"}}}"),
+			".dockerconfigjson": []byte("{\"auths\":{\"radixdev.azurecr.io\":{\"username\":\"testuser\",\"password\":\"mysecretpassword\",\"email\":\"frode.hus@outlook.com\",\"auth\":\"YXNkZjpxd2VydHk=\"}}}"),
 		},
 	}
 
@@ -26,6 +26,6 @@ func Test_RetrieveDockerConfig(t *testing.T) {
 	creds, err := kubeutil.RetrieveContainerRegistryCredentials()
 	assert.NoError(t, err)
 	assert.Equal(t, "radixdev.azurecr.io", creds.Server)
-	assert.Equal(t, "testuser", creds.User)
-	assert.Equal(t, "mysecretpassword", creds.Password)
+	assert.Equal(t, "asdf", creds.User)
+	assert.Equal(t, "qwerty", creds.Password)
 }
