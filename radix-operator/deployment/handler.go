@@ -64,17 +64,16 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 			}
 
 			// Deploy to current radixDeploy object's namespace
-			radixDeployNamespace := radixDeploy.Namespace
-			err := t.createDeployment(radixDeploy, v, w, radixDeployNamespace)
+			err := t.createDeployment(radixDeploy, v, w)
 			if err != nil {
 				return fmt.Errorf("Failed to create deployment: %v", err)
 			}
-			err = t.createService(radixDeploy, w, radixDeployNamespace)
+			err = t.createService(radixDeploy, w)
 			if err != nil {
 				return fmt.Errorf("Failed to create service: %v", err)
 			}
 			if w.Public {
-				err = t.createIngress(radixDeploy, w, radixDeployNamespace)
+				err = t.createIngress(radixDeploy, w)
 				if err != nil {
 					return fmt.Errorf("Failed to create ingress: %v", err)
 				}
@@ -96,7 +95,8 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	return nil
 }
 
-func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent, namespace string) error {
+func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent) error {
+	namespace := radixDeploy.Namespace
 	deployment := getDeploymentConfig(appComponent.Name, radixDeploy.UID, deployComponent.Image, appComponent.Ports, appComponent.Replicas)
 	log.Infof("Creating Deployment object %s in namespace %s", appComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
@@ -116,7 +116,8 @@ func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, d
 	return nil
 }
 
-func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent, namespace string) error {
+func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
+	namespace := radixDeploy.Namespace
 	service := getServiceConfig(appComponent.Name, radixDeploy.UID, appComponent.Ports)
 	log.Infof("Creating Service object %s in namespace %s", appComponent.Name, namespace)
 	createdService, err := t.kubeclient.CoreV1().Services(namespace).Create(service)
@@ -159,8 +160,15 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appC
 	return nil
 }
 
-func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent, namespace string) error {
-	ingress := getIngressConfig(appComponent.Name, radixDeploy.Spec.AppName, namespace, radixDeploy.UID, appComponent.Ports)
+func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
+	namespace := radixDeploy.Namespace
+	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps("default").Get("radix-config", metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to get radix config map: %v", err)
+	}
+	clustername := radixconfigmap.Data["clustername"]
+	log.Infof("Cluster name: %s", clustername)
+	ingress := getIngressConfig(appComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, appComponent.Ports)
 	log.Infof("Creating Ingress object %s in namespace %s", appComponent.Name, namespace)
 	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
 	if errors.IsAlreadyExists(err) {
@@ -275,7 +283,7 @@ func getServiceConfig(componentName string, uid types.UID, componentPorts []int)
 	return service
 }
 
-func getIngressConfig(componentName, appName, namespace string, uid types.UID, componentPorts []int) *v1beta1.Ingress {
+func getIngressConfig(componentName, appName, clustername string, namespace string, uid types.UID, componentPorts []int) *v1beta1.Ingress {
 	trueVar := true
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -298,22 +306,17 @@ func getIngressConfig(componentName, appName, namespace string, uid types.UID, c
 			},
 		},
 		Spec: v1beta1.IngressSpec{
-			// TLS: []v1beta1.IngressTLS{
-			// 	{
-			// 		SecretName: "domain-ssl-cert-key",
-			// 	},
-			// },
 			TLS: []v1beta1.IngressTLS{
 				{
 					Hosts: []string{
-						fmt.Sprintf("%s-%s.dev.radix.equinor.com", componentName, namespace),
+						fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername),
 					},
 					SecretName: "domain-ssl-cert-key",
 				},
 			},
 			Rules: []v1beta1.IngressRule{
 				{
-					Host: fmt.Sprintf("%s-%s.dev.radix.equinor.com", componentName, namespace),
+					Host: fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername),
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
