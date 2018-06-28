@@ -70,6 +70,10 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 		return err
 	}
 
+	if appRegistration.Spec.Secrets == nil {
+		appRegistration.Spec.Secrets = radix_v1.SecretsMap{}
+	}
+
 	appRegistration.Spec.Secrets["DOCKER_USER"] = creds.User
 	appRegistration.Spec.Secrets["DOCKER_PASS"] = creds.Password
 	appRegistration.Spec.Secrets["DOCKER_REGISTRY"] = creds.Server
