@@ -19,6 +19,7 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName st
 	ns := fmt.Sprintf("%s-%s", registration.Name, envName)
 	dockerSecret.ResourceVersion = ""
 	dockerSecret.Namespace = ns
+	dockerSecret.UID = ""
 	createdDockerSecret, err := k.kubeClient.CoreV1().Secrets(ns).Create(dockerSecret)
 	if errors.IsAlreadyExists(err) {
 		log.Infof("Secret object %s already exists in namespace %s, updating the object now", dockerSecret.Name, ns)

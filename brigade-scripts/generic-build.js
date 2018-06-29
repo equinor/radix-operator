@@ -2,7 +2,7 @@ const { events, Job, Group } = require('brigadier')
 
 events.on("push", (e, p) => {
     let buildId = e.revision.commit
-    let appName = p.name.substring(p.name.lastIndexOf("/") + 1);
+    let appName = p.secrets.APP_NAME;
     let updateConfig = applyRadixConfig(appName)
     updateConfig.run().then(res => {
         runBuild(res.data, buildId, p)
@@ -61,7 +61,11 @@ function buildComponent(name, imageName, src, project) {
 
     let docker = new Job("build-" + name, "docker:stable-dind")
     docker.privileged = true;
-    docker.timeout = 9000000
+    // docker.cache.enabled = true;
+    // docker.cache.path = "/var/lib/docker";
+    // docker.cache.size ="10Gi";
+    // project.kubernetes.cacheStorageClass = "azure-file";
+    docker.timeout = 9000000;
     docker.env = {
         DOCKER_DRIVER: driver
     }

@@ -17,8 +17,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var projectPrefix = "Statoil/"
-
 const namespace = "default"
 
 var projectCounter = prometheus.NewCounter(prometheus.CounterOpts{
@@ -52,11 +50,16 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 		return fmt.Errorf("No k8s client available")
 	}
 
-	secretName := fmt.Sprintf("brigade-%s", shortSHA(projectPrefix+appRegistration.Name))
+	user, repo, err := getProjectName(appRegistration)
+	brigadeProjectName := fmt.Sprintf("%s/%s", user, repo)
+	if err != nil {
+		return err
+	}
+	secretName := fmt.Sprintf("brigade-%s", shortSHA(brigadeProjectName))
 	log.Infof("Creating/Updating application %s", appRegistration.ObjectMeta.Name)
 	project, _ := b.getExistingBrigadeProject(secretName)
 	if project == nil {
-		project = createNewProject(secretName, appRegistration.Name, appRegistration.UID)
+		project = createNewProject(secretName, appRegistration.Name, brigadeProjectName, appRegistration.UID)
 		create = true
 	}
 
@@ -73,7 +76,7 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 	if appRegistration.Spec.Secrets == nil {
 		appRegistration.Spec.Secrets = radix_v1.SecretsMap{}
 	}
-
+	appRegistration.Spec.Secrets["APP_NAME"] = appRegistration.Name
 	appRegistration.Spec.Secrets["DOCKER_USER"] = creds.User
 	appRegistration.Spec.Secrets["DOCKER_PASS"] = creds.Password
 	appRegistration.Spec.Secrets["DOCKER_REGISTRY"] = creds.Server
@@ -113,6 +116,17 @@ func (b *BrigadeGateway) DeleteProject(appName, namespace string) error {
 	return nil
 }
 
+func getProjectName(registration *radix_v1.RadixRegistration) (user string, repo string, err error) {
+	if registration.Spec.Repository == "" {
+		return "", "", fmt.Errorf("No repository defined")
+	}
+
+	segments := strings.Split(registration.Spec.Repository, "/")
+	user = segments[3]
+	repo = segments[4]
+	return user, repo, nil
+}
+
 func shortSHA(input string) string {
 	sum := sha256.Sum256([]byte(input))
 	return fmt.Sprintf("%x", sum)[0:54]
@@ -131,7 +145,7 @@ func (b *BrigadeGateway) getExistingBrigadeProject(name string) (*v1.Secret, err
 	return secret, err
 }
 
-func createNewProject(name, appName string, ownerID types.UID) *v1.Secret {
+func createNewProject(name, appName, brigadeProjectName string, ownerID types.UID) *v1.Secret {
 	trueVar := true
 
 	project := &v1.Secret{
@@ -147,7 +161,7 @@ func createNewProject(name, appName string, ownerID types.UID) *v1.Secret {
 				"radixApp":  appName,
 			},
 			Annotations: map[string]string{
-				"projectName": projectPrefix + appName,
+				"projectName": brigadeProjectName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
