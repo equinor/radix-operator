@@ -15,4 +15,5 @@ spec:
   sharedSecret: "ThisIsASecret"
   defaultScript: ""
   deployKey: ""
+  defaultScriptName: "radix-script"
 ```
