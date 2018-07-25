@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -13,8 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const deployCreateUsage = `Creates a deployment named DEPLOYMENT
-`
+const deployCreateUsage = `Creates a deployment named DEPLOYMENT`
+const retrySecond = 30
+const maxRetry = 120
 
 var (
 	app          string
@@ -97,10 +99,25 @@ func createDeployment(out io.Writer, name string) error {
 			return err
 		}
 
-		_, err = c.RadixV1().RadixDeployments(fmt.Sprintf("%s-%s", app, env)).Create(deployment)
-		if err != nil {
-			log.Errorf("Failed to create deployment: %v", err)
-			return err
+		created := false
+		retry := 0
+		for !created {
+			log.Infof("Creating RadixDeployment object %s in environment %s", name, env)
+			_, err = c.RadixV1().RadixDeployments(fmt.Sprintf("%s-%s", app, env)).Create(deployment)
+			if err != nil {
+				log.Errorf("Failed to create deployment: %v", err)
+				if retry >= maxRetry {
+					log.Info("No more retry")
+					return err
+				}
+				log.Info("Retrying in 30 seconds")
+				log.Infof("Retry %d of %d", retry, maxRetry)
+				retry++
+				time.Sleep(time.Duration(retrySecond) * time.Second)
+			} else {
+				log.Infof("Succeed creating RadixDeployment object %s in environment %s", name, env)
+				created = true
+			}
 		}
 	}
 	return nil
