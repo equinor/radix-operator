@@ -4,7 +4,8 @@ BINS	= radix-operator rx
 IMAGES	= radix-operator rx
 
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
-VERSION		?= ${GIT_TAG}
+# VERSION		?= ${GIT_TAG}
+VERSION		?= "rbac-v2"
 IMAGE_TAG 	?= ${VERSION}
 LDFLAGS		+= -X github.com/statoil/radix-operator/pkg/version.Version=$(VERSION)
 

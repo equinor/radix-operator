@@ -65,3 +65,93 @@ func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups 
 	log.Infof("Created rolebinding %s in %s", rolebinding.Name, namespace)
 	return nil
 }
+
+// TODO
+func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistration) error {
+	appName := registration.Name
+	groups := registration.Spec.AdGroups
+	trueVar := true
+
+	subjects := []auth.Subject{}
+	for _, group := range groups {
+		subjects = append(subjects, auth.Subject{
+			Kind:     "Group",
+			Name:     group,
+			APIGroup: "rbac.authorization.k8s.io",
+		})
+	}
+
+	role := &auth.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("operator-%s", appName),
+			Labels: map[string]string{
+				"radixReg": appName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				metav1.OwnerReference{
+					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+					Kind:       "RadixRegistration",
+					Name:       fmt.Sprintf("operator-%s", appName),
+					UID:        registration.UID,
+					Controller: &trueVar,
+				},
+			},
+		},
+		Rules: []auth.PolicyRule{
+			{
+				APIGroups:     []string{"radix.equinor.com"},
+				Resources:     []string{"radixregistrations"},
+				ResourceNames: []string{appName},
+				Verbs:         []string{"get", "update", "patch", "delete"},
+			},
+		},
+	}
+
+	rolebinding := &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("operator-%s-binding", appName),
+			Labels: map[string]string{
+				"radixReg": appName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				metav1.OwnerReference{
+					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+					Kind:       "RadixRegistration",
+					Name:       fmt.Sprintf("operator-%s-binding", appName),
+					UID:        registration.UID,
+					Controller: &trueVar,
+				},
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     fmt.Sprintf("operator-%s", appName),
+		},
+		Subjects: subjects,
+	}
+
+	log.Infof("Creating role %s", role.Name)
+	_, err := k.kubeClient.RbacV1().Roles("default").Create(role)
+	if err != nil {
+		log.Infof("Creating role %s failed: %v", role.Name, err)
+		return nil
+	}
+
+	log.Infof("Creating rolebinding %s", rolebinding.Name)
+	_, err = k.kubeClient.RbacV1().RoleBindings("default").Create(rolebinding)
+	if err != nil {
+		log.Infof("Creating rolebinding %s failed: %v", rolebinding.Name, err)
+		return nil
+	}
+
+	return nil
+}

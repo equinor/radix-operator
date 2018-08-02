@@ -360,6 +360,11 @@ func (in *RadixRegistrationSpec) DeepCopyInto(out *RadixRegistrationSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.AdGroups != nil {
+		in, out := &in.AdGroups, &out.AdGroups
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
