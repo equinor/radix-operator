@@ -8,6 +8,7 @@ import (
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) error {
@@ -23,14 +24,7 @@ func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) error {
 }
 
 func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups []string) error {
-	subjects := []auth.Subject{}
-	for _, group := range groups {
-		subjects = append(subjects, auth.Subject{
-			Kind:     "Group",
-			Name:     group,
-			APIGroup: "rbac.authorization.k8s.io",
-		})
-	}
+	subjects := getRoleBindingGroups(groups)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -51,6 +45,41 @@ func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups 
 		Subjects: subjects,
 	}
 
+	return k.applyRoleBinding(appName, namespace, rolebinding)
+}
+
+func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistration) error {
+	namespace := "default"
+
+	role := getRoleFor(registration)
+	rolebinding := getRoleBindingFor(registration, role)
+
+	err := k.applyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	return k.applyRoleBinding(registration.Name, namespace, rolebinding)
+}
+
+func (k *Kube) applyRole(namespace string, role *auth.Role) error {
+	log.Infof("Creating role %s", role.Name)
+	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
+	if errors.IsAlreadyExists(err) {
+		log.Infof("Role %s already exists", role.Name)
+		return nil
+	}
+
+	if err != nil {
+		log.Infof("Creating role %s failed: %v", role.Name, err)
+		return err
+	}
+	log.Infof("Created role %s in %s", role.Name, namespace)
+	return nil
+}
+
+func (k *Kube) applyRoleBinding(appName, namespace string, rolebinding *auth.RoleBinding) error {
+	log.Infof("Creating rolebinding %s", rolebinding.Name)
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
 		log.Infof("Rolebinding %s already exists", rolebinding.Name)
@@ -66,20 +95,10 @@ func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups 
 	return nil
 }
 
-// TODO
-func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistration) error {
+func getRoleFor(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
-	groups := registration.Spec.AdGroups
-	trueVar := true
-
-	subjects := []auth.Subject{}
-	for _, group := range groups {
-		subjects = append(subjects, auth.Subject{
-			Kind:     "Group",
-			Name:     group,
-			APIGroup: "rbac.authorization.k8s.io",
-		})
-	}
+	roleName := fmt.Sprintf("operator-%s", appName)
+	ownerRef := getOwnerReference(roleName, "RadixRegistration", registration.UID)
 
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -87,18 +106,12 @@ func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistrat
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("operator-%s", appName),
+			Name: roleName,
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-					Kind:       "RadixRegistration",
-					Name:       fmt.Sprintf("operator-%s", appName),
-					UID:        registration.UID,
-					Controller: &trueVar,
-				},
+				ownerRef,
 			},
 		},
 		Rules: []auth.PolicyRule{
@@ -111,47 +124,61 @@ func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistrat
 		},
 	}
 
+	return role
+}
+
+func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+	appName := registration.Name
+	roleBindingName := fmt.Sprintf("%s-binding", role.Name)
+
+	ownerReference := getOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
+	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
+
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("operator-%s-binding", appName),
+			Name: roleBindingName,
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-					Kind:       "RadixRegistration",
-					Name:       fmt.Sprintf("operator-%s-binding", appName),
-					UID:        registration.UID,
-					Controller: &trueVar,
-				},
+				ownerReference,
 			},
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",
-			Name:     fmt.Sprintf("operator-%s", appName),
+			Name:     role.Name,
 		},
 		Subjects: subjects,
 	}
 
-	log.Infof("Creating role %s", role.Name)
-	_, err := k.kubeClient.RbacV1().Roles("default").Create(role)
-	if err != nil {
-		log.Infof("Creating role %s failed: %v", role.Name, err)
-		return nil
-	}
+	return rolebinding
+}
 
-	log.Infof("Creating rolebinding %s", rolebinding.Name)
-	_, err = k.kubeClient.RbacV1().RoleBindings("default").Create(rolebinding)
-	if err != nil {
-		log.Infof("Creating rolebinding %s failed: %v", rolebinding.Name, err)
-		return nil
+func getOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
+	trueVar := true
+	ownerRef := metav1.OwnerReference{
+		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+		Kind:       kind,
+		Name:       name,
+		UID:        uid,
+		Controller: &trueVar,
 	}
+	return ownerRef
+}
 
-	return nil
+func getRoleBindingGroups(groups []string) []auth.Subject {
+	subjects := []auth.Subject{}
+	for _, group := range groups {
+		subjects = append(subjects, auth.Subject{
+			Kind:     "Group",
+			Name:     group,
+			APIGroup: "rbac.authorization.k8s.io",
+		})
+	}
+	return subjects
 }
