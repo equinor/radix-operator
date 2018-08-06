@@ -63,7 +63,7 @@ func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistrat
 }
 
 func (k *Kube) applyRole(namespace string, role *auth.Role) error {
-	log.Infof("Creating role %s", role.Name)
+	log.Infof("Apply role %s", role.Name)
 	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
 	if errors.IsAlreadyExists(err) {
 		log.Infof("Role %s already exists", role.Name)
@@ -79,7 +79,7 @@ func (k *Kube) applyRole(namespace string, role *auth.Role) error {
 }
 
 func (k *Kube) applyRoleBinding(appName, namespace string, rolebinding *auth.RoleBinding) error {
-	log.Infof("Creating rolebinding %s", rolebinding.Name)
+	log.Infof("Apply rolebinding %s", rolebinding.Name)
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
 		log.Infof("Rolebinding %s already exists", rolebinding.Name)
@@ -99,6 +99,8 @@ func getRoleFor(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-%s", appName)
 	ownerRef := getOwnerReference(roleName, "RadixRegistration", registration.UID)
+
+	log.Infof("Creating role config %s", roleName)
 
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -123,6 +125,7 @@ func getRoleFor(registration *radixv1.RadixRegistration) *auth.Role {
 			},
 		},
 	}
+	log.Infof("Done - creating role config %s", roleName)
 
 	return role
 }
@@ -130,6 +133,7 @@ func getRoleFor(registration *radixv1.RadixRegistration) *auth.Role {
 func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	appName := registration.Name
 	roleBindingName := fmt.Sprintf("%s-binding", role.Name)
+	log.Infof("Create rolebinding config %s", roleBindingName)
 
 	ownerReference := getOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
 	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
@@ -155,6 +159,8 @@ func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role)
 		},
 		Subjects: subjects,
 	}
+
+	log.Infof("Done - create rolebinding config %s", roleBindingName)
 
 	return rolebinding
 }
