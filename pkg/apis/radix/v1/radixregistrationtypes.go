@@ -24,6 +24,7 @@ type RadixRegistrationSpec struct {
 	DeployKey         string     `json:"deployKey" yaml:"deployKey"`
 	DefaultScriptName string     `json:"defaultScriptName" yaml:"defaultScriptName"`
 	DefaultScript     string     `json:"defaultScript" yaml:"defaultScript"`
+	AdGroups          []string   `json:"adGroups" yaml:"adGroups"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

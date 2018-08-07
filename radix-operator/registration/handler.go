@@ -48,6 +48,13 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 		log.Errorf("Failed to create Brigade project: %v", err)
 		return fmt.Errorf("Failed to create Brigade project: %v", err)
 	}
+
+	// TODO
+	err = kube.SetAccessOnRadixRegistration(radixRegistration)
+	if err != nil {
+		log.Errorf("Failed to set access on RadixRegistration: %v", err)
+	}
+
 	return nil
 }
 
