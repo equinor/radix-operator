@@ -4,8 +4,7 @@ BINS	= radix-operator rx
 IMAGES	= radix-operator rx
 
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
-# VERSION		?= ${GIT_TAG}
-VERSION		?= "rbac-v2"
+VERSION		?= ${GIT_TAG}
 IMAGE_TAG 	?= ${VERSION}
 LDFLAGS		+= -X github.com/statoil/radix-operator/pkg/version.Version=$(VERSION)
 
@@ -67,3 +66,17 @@ CUSTOM_RESOURCE_VERSION=v1
 .PHONY: code-gen
 code-gen: 
 	vendor/k8s.io/code-generator/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION)
+
+# make deploy VERSION=keaaa-v1
+# need to connect to container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
+make deploy:
+	dep ensure
+	# fixes error in dependency
+	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
+	make docker-build
+	make docker-push
+	# update docker image version in deploy file - file name should be a variable
+	# kubectl get deploy tiller-deploy -n kube-system -o yaml > temp.yaml 
+	# sed -i "s/version1/version2/g" temp.yaml  
+	# kubectl apply -f temp.yaml
+	# rm temp.yaml
