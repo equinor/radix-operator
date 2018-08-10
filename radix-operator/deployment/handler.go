@@ -97,7 +97,7 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 
 func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent) error {
 	namespace := radixDeploy.Namespace
-	deployment := getDeploymentConfig(appComponent.Name, radixDeploy.UID, deployComponent.Image, appComponent.Ports, appComponent.Replicas)
+	deployment := getDeploymentConfig(appComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, deployComponent.Image, appComponent.Ports, appComponent.Replicas)
 	log.Infof("Creating Deployment object %s in namespace %s", appComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
@@ -187,13 +187,14 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appC
 	return nil
 }
 
-func getDeploymentConfig(componentName string, uid types.UID, image string, componentPorts []int, replicas int) *v1beta1.Deployment {
+func getDeploymentConfig(componentName string, appName string, uid types.UID, image string, componentPorts []int, replicas int) *v1beta1.Deployment {
 	trueVar := true
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp": componentName,
+				"radixApp":       appName,
+				"radixComponent": componentName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
