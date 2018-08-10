@@ -3,15 +3,20 @@ package commands
 import (
 	"os"
 
+	"io/ioutil"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 
 	// Kube client doesn't support all auth providers by default.
 	// this ensures we include all backends supported by the client.
 	"k8s.io/client-go/kubernetes"
 	// auth is a side-effect import for Client-Go
 	// _ "k8s.io/client-go/plugin/pkg/client/auth"
+	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	rxv1 "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -73,14 +78,29 @@ func getKubeConfig() (*rest.Config, error) {
 		}
 	}
 	return config, nil
-	// rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	// rules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	// rules.ExplicitPath = globalKubeConfig
+}
 
-	// overrides := &clientcmd.ConfigOverrides{
-	// 	ClusterDefaults: clientcmd.ClusterDefaults,
-	// 	CurrentContext:  globalKubeContext,
-	// }
+func getRadixRegistration(namespace, appName string) (*v1.RadixRegistration, error) {
+	radix, _ := radixClient()
+	radixRegistartion, err := radix.RadixV1().RadixRegistrations(namespace).Get(appName, metav1.GetOptions{})
 
-	// return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, overrides).ClientConfig()
+	if err != nil {
+		log.Error("failed to get radix registration %a: %e", appName, err)
+		return nil, err
+	}
+	return radixRegistartion, nil
+}
+
+func getRadixApplication(filename string) *v1.RadixApplication {
+	var radixApp v1.RadixApplication
+	yamlFile, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Printf("% . Get err   #%v ", filename, err)
+	}
+	err = yaml.Unmarshal(yamlFile, radixApp)
+	if err != nil {
+		log.Fatalf("Unmarshal: %v", err)
+	}
+
+	return &radixApp
 }

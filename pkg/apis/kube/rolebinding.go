@@ -24,7 +24,7 @@ func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) error {
 }
 
 func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups []string) error {
-	subjects := getRoleBindingGroups(groups)
+	subjects := GetRoleBindingGroups(groups)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -45,7 +45,7 @@ func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups 
 		Subjects: subjects,
 	}
 
-	return k.applyRoleBinding(appName, namespace, rolebinding)
+	return k.ApplyRoleBinding(namespace, rolebinding)
 }
 
 func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistration) error {
@@ -54,15 +54,27 @@ func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistrat
 	role := getRoleFor(registration)
 	rolebinding := getRoleBindingFor(registration, role)
 
-	err := k.applyRole(namespace, role)
+	err := k.ApplyRole(namespace, role)
 	if err != nil {
 		return err
 	}
 
-	return k.applyRoleBinding(registration.Name, namespace, rolebinding)
+	return k.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (k *Kube) applyRole(namespace string, role *auth.Role) error {
+func GetRoleBindingGroups(groups []string) []auth.Subject {
+	subjects := []auth.Subject{}
+	for _, group := range groups {
+		subjects = append(subjects, auth.Subject{
+			Kind:     "Group",
+			Name:     group,
+			APIGroup: "rbac.authorization.k8s.io",
+		})
+	}
+	return subjects
+}
+
+func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	log.Infof("Apply role %s", role.Name)
 	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
 	if errors.IsAlreadyExists(err) {
@@ -78,7 +90,7 @@ func (k *Kube) applyRole(namespace string, role *auth.Role) error {
 	return nil
 }
 
-func (k *Kube) applyRoleBinding(appName, namespace string, rolebinding *auth.RoleBinding) error {
+func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
 	log.Infof("Apply rolebinding %s", rolebinding.Name)
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
@@ -87,7 +99,7 @@ func (k *Kube) applyRoleBinding(appName, namespace string, rolebinding *auth.Rol
 	}
 
 	if err != nil {
-		log.Errorf("Failed to create rolebinding in [%s] for %s: %v", namespace, appName, err)
+		log.Errorf("Failed to create rolebinding in [%s]: %v", namespace, err)
 		return err
 	}
 
@@ -136,7 +148,7 @@ func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role)
 	log.Infof("Create rolebinding config %s", roleBindingName)
 
 	ownerReference := getOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
-	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
+	subjects := GetRoleBindingGroups(registration.Spec.AdGroups)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -175,16 +187,4 @@ func getOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
 		Controller: &trueVar,
 	}
 	return ownerRef
-}
-
-func getRoleBindingGroups(groups []string) []auth.Subject {
-	subjects := []auth.Subject{}
-	for _, group := range groups {
-		subjects = append(subjects, auth.Subject{
-			Kind:     "Group",
-			Name:     group,
-			APIGroup: "rbac.authorization.k8s.io",
-		})
-	}
-	return subjects
 }
