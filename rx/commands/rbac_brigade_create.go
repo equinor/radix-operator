@@ -36,7 +36,7 @@ var rbacCreate = &cobra.Command{
 }
 
 func applyRbacForBrigadeDeployment() error {
-	log.Infof("Start creating rbac for brigade objects - ns:%n, buildId: %i, filename: %f", namespace, brigadeBuildId, fileName)
+	log.Infof("Start creating rbac for brigade objects - ns: %s, buildId: %s, filename: %s", namespace, brigadeBuildId, fileName)
 	kubeClient, _ := kubeClient()
 	kubeutil, _ := kube.New(kubeClient)
 
@@ -56,13 +56,13 @@ func applyRbacForBrigadeDeployment() error {
 	// apply rolebinding
 	kubeutil.ApplyRoleBinding(namespace, rolebinding)
 
-	log.Infof("Done creating rbac for brigade objects - ns:%n, buildId: %i, filename: %f", namespace, brigadeBuildId, fileName)
+	log.Infof("Done creating rbac for brigade objects - ns: %s, buildId: %s, filename: %s", namespace, brigadeBuildId, fileName)
 	return nil
 }
 
 func createRole(brigadeBuildId string, radixAppliation *v1.RadixApplication) *auth.Role {
 	appName := radixAppliation.Name
-	roleName := fmt.Sprintf("radix-brigade-%n-%i", appName, brigadeBuildId)
+	roleName := fmt.Sprintf("radix-brigade-%s-%s", appName, brigadeBuildId)
 	resourceNames := getResourceNames(brigadeBuildId, radixAppliation.Spec.Components, radixAppliation.Spec.Environments)
 
 	log.Infof("Creating role config %s", roleName)
@@ -127,9 +127,9 @@ func getResourceNames(brigadeBuildId string, components []v1.RadixComponent, env
 	}
 
 	for _, env := range environments {
-		resourceNames = append(resourceNames, fmt.Sprintf("build-%s-%i", env.Name, brigadeBuildId))
+		resourceNames = append(resourceNames, fmt.Sprintf("build-%s-%s", env.Name, brigadeBuildId))
 		for _, component := range components {
-			resourceNames = append(resourceNames, fmt.Sprintf("deploy-%e-%s-%i", env.Name, component.Name, brigadeBuildId))
+			resourceNames = append(resourceNames, fmt.Sprintf("deploy-%s-%s-%s", env.Name, component.Name, brigadeBuildId))
 		}
 	}
 	return resourceNames
