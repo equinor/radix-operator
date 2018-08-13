@@ -46,11 +46,18 @@ type AuthorizationSpec struct {
 	Groups []string `json:"groups" yaml:"groups"`
 }
 
+// ServicePort defines the port number, protocol and port for a service
+type ServicePort struct {
+	Name     string `json:"name,omitempty"`
+	Protocol string `json:"protocol,omitempty"`
+	Port     int32  `json:"port"`
+}
+
 //RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
 type RadixComponent struct {
 	Name                 string            `json:"name" yaml:"name"`
 	SourceFolder         string            `json:"src" yaml:"src"`
-	Ports                []int             `json:"ports" yaml:"ports"`
+	Ports                []ServicePort     `json:"ports" yaml:"ports"`
 	Public               bool              `json:"public" yaml:"public"`
 	EnvironmentVariables map[string]string `json:"env" yaml:"env"`
 	Replicas             int               `json:"replicas" yaml:"replicas"`
