@@ -118,7 +118,7 @@ func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, d
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
 	namespace := radixDeploy.Namespace
-	service := getServiceConfig(appComponent.Name, radixDeploy.UID, appComponent.Ports)
+	service := getServiceConfig(appComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, appComponent.Ports)
 	log.Infof("Creating Service object %s in namespace %s", appComponent.Name, namespace)
 	createdService, err := t.kubeclient.CoreV1().Services(namespace).Create(service)
 	if errors.IsAlreadyExists(err) {
@@ -210,13 +210,14 @@ func getDeploymentConfig(componentName string, appName string, uid types.UID, im
 			Replicas: int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"radixApp": componentName,
+					"radixComponent": componentName,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radixApp": componentName,
+						"radixApp":       appName,
+						"radixComponent": componentName,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -252,13 +253,14 @@ func getDeploymentConfig(componentName string, appName string, uid types.UID, im
 	return deployment
 }
 
-func getServiceConfig(componentName string, uid types.UID, componentPorts []int) *corev1.Service {
+func getServiceConfig(componentName string, appName string, uid types.UID, componentPorts []int) *corev1.Service {
 	trueVar := true
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp": componentName,
+				"radixApp":       appName,
+				"radixComponent": componentName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
@@ -273,7 +275,7 @@ func getServiceConfig(componentName string, uid types.UID, componentPorts []int)
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				"radixApp": componentName,
+				"radixComponent": componentName,
 			},
 		},
 	}
