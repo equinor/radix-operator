@@ -223,7 +223,7 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appC
 	return nil
 }
 
-func getDeploymentConfig(componentName string, appName string, uid types.UID, image string, componentPorts []int, replicas int) *v1beta1.Deployment {
+func getDeploymentConfig(componentName string, appName string, uid types.UID, image string, componentPorts []v1.ComponentPort, replicas int) *v1beta1.Deployment {
 	trueVar := true
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -276,7 +276,8 @@ func getDeploymentConfig(componentName string, appName string, uid types.UID, im
 	var ports []corev1.ContainerPort
 	for _, v := range componentPorts {
 		containerPort := corev1.ContainerPort{
-			ContainerPort: int32(v),
+			Name:          v.Name,
+			ContainerPort: int32(v.Port),
 		}
 		ports = append(ports, containerPort)
 	}
@@ -289,7 +290,7 @@ func getDeploymentConfig(componentName string, appName string, uid types.UID, im
 	return deployment
 }
 
-func getServiceConfig(componentName string, appName string, uid types.UID, componentPorts []int) *corev1.Service {
+func getServiceConfig(componentName string, appName string, uid types.UID, componentPorts []v1.ComponentPort) *corev1.Service {
 	trueVar := true
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -322,7 +323,7 @@ func getServiceConfig(componentName string, appName string, uid types.UID, compo
 	return service
 }
 
-func getIngressConfig(componentName, appName, clustername string, namespace string, uid types.UID, componentPorts []int) *v1beta1.Ingress {
+func getIngressConfig(componentName, appName, clustername string, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	trueVar := true
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -364,7 +365,7 @@ func getIngressConfig(componentName, appName, clustername string, namespace stri
 									Backend: v1beta1.IngressBackend{
 										ServiceName: componentName,
 										ServicePort: intstr.IntOrString{
-											IntVal: int32(componentPorts[0]),
+											IntVal: int32(componentPorts[0].Port),
 										},
 									},
 								},
@@ -379,11 +380,12 @@ func getIngressConfig(componentName, appName, clustername string, namespace stri
 	return ingress
 }
 
-func buildServicePorts(componentPorts []int) []corev1.ServicePort {
+func buildServicePorts(componentPorts []v1.ComponentPort) []corev1.ServicePort {
 	var ports []corev1.ServicePort
 	for _, v := range componentPorts {
 		servicePort := corev1.ServicePort{
-			Port: int32(v),
+			Name: v.Name,
+			Port: int32(v.Port),
 		}
 		ports = append(ports, servicePort)
 	}
