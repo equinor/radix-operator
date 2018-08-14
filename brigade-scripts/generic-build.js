@@ -4,8 +4,10 @@ events.on("push", (e, p) => {
     let buildId = e.revision.commit
     let appName = p.secrets.APP_NAME;
     let updateConfig = applyRadixConfig(appName)
+    const applyRbac = applyRbacOnBrigadeObj(e.buildID);
     updateConfig.run().then(res => {
-        runBuild(res.data, buildId, p)
+        runBuild(res.data, buildId, p);
+        applyRbac.run();
     });
 });
 
@@ -30,6 +32,18 @@ function runBuild(config, buildId, project) {
     buildPipeline.runAll().then(() => deployPipeline.runAll());
 }
 
+function applyRbacOnBrigadeObj(brigadeId){
+    let job = new Job("rbac", "radixdev.azurecr.io/rx:0f4ae48");
+    job.imagePullSecrets = ["radixdev-docker"]
+    job.serviceAccount = "radix-operator"
+    job.tasks = [
+        "cd /src",
+        `rx rbac apply -b ${brigadeId} -f radixconfig.yaml`
+    ];
+
+    return job;
+}
+
 function applyRadixConfig(appName) {
     let job = new Job("config", "radixdev.azurecr.io/rx:0f4ae48");
     job.imagePullSecrets = ["radixdev-docker"]
@@ -38,6 +52,7 @@ function applyRadixConfig(appName) {
         "cd /src",
         `kubectl apply -f radixconfig.yaml -n${appName}-app > /dev/null`,
         "sleep 5",
+
         `kubectl get ra ${appName} -n${appName}-app -ojson`
     ];
 

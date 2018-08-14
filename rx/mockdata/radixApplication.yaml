@@ -1,0 +1,22 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixApplication
+metadata:
+  name: a_name
+spec:
+  environments:
+    - name: dev
+      authorization:
+      - role: RadixAppAdmin
+        groups:
+        - "group_uid"
+    - name: prod
+      authorization:
+      - role: RadixAppAdmin
+        groups:
+        - "group_uid"
+  components:
+    - name: frontend
+      src: .
+      ports:
+       - 80
+      public: true

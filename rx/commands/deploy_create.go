@@ -53,22 +53,6 @@ var deployCreate = &cobra.Command{
 	},
 }
 
-func getComponents() ([]ComponentDeploy, error) {
-	components := []ComponentDeploy{}
-	if image == nil {
-		return nil, errors.New("no image(s) specified")
-	}
-	for _, c := range image {
-		imageData := strings.Split(c, "=")
-		component := ComponentDeploy{
-			Name:  imageData[0],
-			Image: imageData[1],
-		}
-		components = append(components, component)
-	}
-	return components, nil
-}
-
 func createDeployment(out io.Writer, name string) error {
 	components, err := getComponents()
 	if err != nil {
@@ -121,4 +105,20 @@ func createDeployment(out io.Writer, name string) error {
 		}
 	}
 	return nil
+}
+
+func getComponents() ([]ComponentDeploy, error) {
+	components := []ComponentDeploy{}
+	if image == nil {
+		return nil, errors.New("no image(s) specified")
+	}
+	for _, c := range image {
+		imageData := strings.Split(c, "=")
+		component := ComponentDeploy{
+			Name:  imageData[0],
+			Image: imageData[1],
+		}
+		components = append(components, component)
+	}
+	return components, nil
 }
