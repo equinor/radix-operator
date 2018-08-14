@@ -85,7 +85,7 @@ deploy-operator:
 	kubectl get deploy radix-operator -o yaml > oldRadixOperatorDef.yaml 
 	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
 
-	# kubectl apply -f newRadixOperatorDef.yaml
+	kubectl apply -f newRadixOperatorDef.yaml
 
 	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
 
@@ -102,6 +102,6 @@ deploy-brigade:
 	sed -E 's/"brigade.js":.*/"brigade.js":"<inputscript>"/g' ./oldRadixScript.json > newRadixScript.json
 	perl -pe 's/<inputscript>/`cat minifiedBuildScript.js`/ge' newRadixScript.json > finalRadixScript.json
 	
-	# kubectl apply -f finalRadixScript.json
+	kubectl apply -f finalRadixScript.json
 
 	rm oldRadixScript.json oldBuildScript.js newRadixScript.json newBuildScript.js minifiedBuildScript.js finalRadixScript.json
