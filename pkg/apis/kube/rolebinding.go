@@ -74,6 +74,18 @@ func GetRoleBindingGroups(groups []string) []auth.Subject {
 	return subjects
 }
 
+func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
+	trueVar := true
+	ownerRef := metav1.OwnerReference{
+		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+		Kind:       kind,
+		Name:       name,
+		UID:        uid,
+		Controller: &trueVar,
+	}
+	return ownerRef
+}
+
 func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	log.Infof("Apply role %s", role.Name)
 	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
@@ -110,7 +122,7 @@ func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding)
 func getRoleFor(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-%s", appName)
-	ownerRef := getOwnerReference(roleName, "RadixRegistration", registration.UID)
+	ownerRef := GetOwnerReference(roleName, "RadixRegistration", registration.UID)
 
 	log.Infof("Creating role config %s", roleName)
 
@@ -147,7 +159,7 @@ func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role)
 	roleBindingName := fmt.Sprintf("%s-binding", role.Name)
 	log.Infof("Create rolebinding config %s", roleBindingName)
 
-	ownerReference := getOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
+	ownerReference := GetOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
 	subjects := GetRoleBindingGroups(registration.Spec.AdGroups)
 
 	rolebinding := &auth.RoleBinding{
@@ -175,16 +187,4 @@ func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role)
 	log.Infof("Done - create rolebinding config %s", roleBindingName)
 
 	return rolebinding
-}
-
-func getOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
-	trueVar := true
-	ownerRef := metav1.OwnerReference{
-		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-		Kind:       kind,
-		Name:       name,
-		UID:        uid,
-		Controller: &trueVar,
-	}
-	return ownerRef
 }

@@ -93,12 +93,12 @@ func getRadixRegistration(namespace, appName string) (*v1.RadixRegistration, err
 
 func getRadixApplication(filename string) *v1.RadixApplication {
 	log.Infof("get radix application yaml from %s", filename)
-	var radixApp v1.RadixApplication
+	radixApp := v1.RadixApplication{}
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Errorf("Failed to read file v% Error:  #%v ", filename, err)
 	}
-	err = yaml.Unmarshal(yamlFile, radixApp)
+	err = yaml.Unmarshal(yamlFile, &radixApp)
 	if err != nil {
 		log.Errorf("Unmarshal: %v", err)
 	}

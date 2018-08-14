@@ -6,9 +6,9 @@ events.on("push", (e, p) => {
     let updateConfig = applyRadixConfig(appName)
     const applyRbac = applyRbacOnBrigadeObj(e.buildID);
     updateConfig.run().then(res => {
-        runBuild(res.data, buildId, p)
+        runBuild(res.data, buildId, p);
+        applyRbac.run();
     });
-    applyRbac.run();
 });
 
 function runBuild(config, buildId, project) {    
@@ -33,9 +33,9 @@ function runBuild(config, buildId, project) {
 }
 
 function applyRbacOnBrigadeObj(brigadeId){
-    let job = new Job("config", "radixdev.azurecr.io/rx:0f4ae48");
+    let job = new Job("rbac", "radixdev.azurecr.io/rx:0f4ae48");
     job.imagePullSecrets = ["radixdev-docker"]
-    job.serviceAccount = "radix-deploy"
+    job.serviceAccount = "radix-operator"
     job.tasks = [
         "cd /src",
         `rx rbac apply -b ${brigadeId} -f radixconfig.yaml`

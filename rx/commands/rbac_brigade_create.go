@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 
+	"k8s.io/client-go/kubernetes"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
@@ -40,27 +42,30 @@ func applyRbacForBrigadeDeployment() error {
 	kubeClient, _ := kubeClient()
 	kubeutil, _ := kube.New(kubeClient)
 
-	// read radix application yaml file - to get components and environment
 	radixApplication := getRadixApplication(fileName)
-	// read radix registration yaml from kubectl to get adGroups
 	appName := radixApplication.Name
 	radixRegistration, _ := getRadixRegistration(namespace, appName)
 
-	// create role
-	role := createRole(brigadeBuildId, radixApplication)
-	// create rolbinding
-	rolebinding := createRolebinding(brigadeBuildId, appName, role.Name, radixRegistration.Spec.AdGroups)
+	ownerReference := getBrigadeWorkerAsOwnerReference(kubeClient, brigadeBuildId, namespace)
+	role := createRole(brigadeBuildId, radixApplication, ownerReference)
+	rolebinding := createRolebinding(appName, role.Name, radixRegistration.Spec.AdGroups, ownerReference)
 
-	// apply role
 	kubeutil.ApplyRole(namespace, role)
-	// apply rolebinding
 	kubeutil.ApplyRoleBinding(namespace, rolebinding)
 
 	log.Infof("Done creating rbac for brigade objects - ns: %s, buildId: %s, filename: %s", namespace, brigadeBuildId, fileName)
 	return nil
 }
 
-func createRole(brigadeBuildId string, radixAppliation *v1.RadixApplication) *auth.Role {
+func getBrigadeWorkerAsOwnerReference(kubeClient *kubernetes.Clientset, brigadeBuildId, namespace string) metav1.OwnerReference {
+	brigadeWorkerId := fmt.Sprintf("brigade-worker-%s", brigadeBuildId)
+	brigadeWorkerPod, _ := kubeClient.CoreV1().Pods(namespace).Get(brigadeWorkerId, metav1.GetOptions{})
+	ownerReferene := kube.GetOwnerReference(brigadeWorkerId, "pod", brigadeWorkerPod.UID)
+
+	return ownerReferene
+}
+
+func createRole(brigadeBuildId string, radixAppliation *v1.RadixApplication, owner metav1.OwnerReference) *auth.Role {
 	appName := radixAppliation.Name
 	roleName := fmt.Sprintf("radix-brigade-%s-%s", appName, brigadeBuildId)
 	resourceNames := getResourceNames(brigadeBuildId, radixAppliation.Spec.Components, radixAppliation.Spec.Environments)
@@ -77,6 +82,9 @@ func createRole(brigadeBuildId string, radixAppliation *v1.RadixApplication) *au
 			Labels: map[string]string{
 				"radixBrigade": appName,
 			},
+			OwnerReferences: []metav1.OwnerReference{
+				owner,
+			},
 		},
 		Rules: []auth.PolicyRule{
 			{
@@ -92,9 +100,9 @@ func createRole(brigadeBuildId string, radixAppliation *v1.RadixApplication) *au
 	return role
 }
 
-func createRolebinding(brigadeBuildId, appName, roleName string, adGroups []string) *auth.RoleBinding {
+func createRolebinding(appName, roleName string, adGroups []string, owner metav1.OwnerReference) *auth.RoleBinding {
 	subjects := kube.GetRoleBindingGroups(adGroups)
-	roleBindingName := fmt.Sprintf("%r-binding", roleName)
+	roleBindingName := fmt.Sprintf("%s-binding", roleName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -105,6 +113,9 @@ func createRolebinding(brigadeBuildId, appName, roleName string, adGroups []stri
 			Name: roleBindingName,
 			Labels: map[string]string{
 				"radixBrigade": appName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				owner,
 			},
 		},
 		RoleRef: auth.RoleRef{
