@@ -11,10 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) error {
+func (k *Kube) ApplyRbacRadixApplication(app *radixv1.RadixApplication) error {
 	for _, env := range app.Spec.Environments {
 		for _, auth := range env.Authorization {
-			err := k.CreateRoleBinding(app.Name, fmt.Sprintf("%s-%s", app.Name, env.Name), auth.Role, auth.Groups)
+			namespace := fmt.Sprintf("%s-%s", app.Name, env.Name)
+			rolebinding := appRoleBinding(app.Name, auth.Role, auth.Groups)
+			err := k.ApplyRoleBinding(namespace, rolebinding)
 			if err != nil {
 				return err
 			}
@@ -23,8 +25,112 @@ func (k *Kube) CreateRoleBindings(app *radixv1.RadixApplication) error {
 	return nil
 }
 
-func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups []string) error {
-	subjects := GetRoleBindingGroups(groups)
+func (k *Kube) ApplyRbacRadixRegistration(registration *radixv1.RadixRegistration) error {
+	namespace := "default"
+
+	role := RrRole(registration)
+	rolebinding := rrRoleBinding(registration, role)
+
+	err := k.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	return k.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
+	log.Infof("Apply rolebinding %s", rolebinding.Name)
+	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
+	if errors.IsAlreadyExists(err) {
+		log.Infof("Rolebinding %s already exists", rolebinding.Name)
+		return nil
+	}
+
+	if err != nil {
+		log.Errorf("Failed to create rolebinding in [%s]: %v", namespace, err)
+		return err
+	}
+
+	log.Infof("Created rolebinding %s in %s", rolebinding.Name, namespace)
+	return nil
+}
+
+func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
+	trueVar := true
+	ownerRef := metav1.OwnerReference{
+		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+		Kind:       kind,
+		Name:       name,
+		UID:        uid,
+		Controller: &trueVar,
+	}
+	return ownerRef
+}
+
+func BrigadeRoleBinding(appName, roleName string, adGroups []string, owner metav1.OwnerReference) *auth.RoleBinding {
+	subjects := getRoleBindingGroups(adGroups)
+	roleBindingName := fmt.Sprintf("%s-binding", roleName)
+
+	rolebinding := &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: roleBindingName,
+			Labels: map[string]string{
+				"radixBrigade": appName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				owner,
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     roleName,
+		},
+		Subjects: subjects,
+	}
+
+	log.Infof("Done - create rolebinding config %s", roleBindingName)
+
+	return rolebinding
+}
+
+func RdRoleBinding(radixDeploy *radixv1.RadixDeployment, roleName string, adGroups []string) *auth.RoleBinding {
+	appName := radixDeploy.Name
+	roleBindingName := fmt.Sprintf("%s-binding", roleName)
+	ownerReference := GetOwnerReference(appName, radixDeploy.Kind, radixDeploy.UID)
+	subjects := getRoleBindingGroups(adGroups)
+
+	rolebinding := &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: roleBindingName,
+			Labels: map[string]string{
+				"radixDeploy": appName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				ownerReference,
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     roleName,
+		},
+		Subjects: subjects,
+	}
+	return rolebinding
+}
+
+func appRoleBinding(appName, clusterrole string, groups []string) *auth.RoleBinding {
+	subjects := getRoleBindingGroups(groups)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -45,122 +151,16 @@ func (k *Kube) CreateRoleBinding(appName, namespace, clusterrole string, groups 
 		Subjects: subjects,
 	}
 
-	return k.ApplyRoleBinding(namespace, rolebinding)
+	return rolebinding
 }
 
-func (k *Kube) SetAccessOnRadixRegistration(registration *radixv1.RadixRegistration) error {
-	namespace := "default"
-
-	role := getRoleFor(registration)
-	rolebinding := getRoleBindingFor(registration, role)
-
-	err := k.ApplyRole(namespace, role)
-	if err != nil {
-		return err
-	}
-
-	return k.ApplyRoleBinding(namespace, rolebinding)
-}
-
-func GetRoleBindingGroups(groups []string) []auth.Subject {
-	subjects := []auth.Subject{}
-	for _, group := range groups {
-		subjects = append(subjects, auth.Subject{
-			Kind:     "Group",
-			Name:     group,
-			APIGroup: "rbac.authorization.k8s.io",
-		})
-	}
-	return subjects
-}
-
-func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
-	trueVar := true
-	ownerRef := metav1.OwnerReference{
-		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-		Kind:       kind,
-		Name:       name,
-		UID:        uid,
-		Controller: &trueVar,
-	}
-	return ownerRef
-}
-
-func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
-	log.Infof("Apply role %s", role.Name)
-	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
-	if errors.IsAlreadyExists(err) {
-		log.Infof("Role %s already exists", role.Name)
-		return nil
-	}
-
-	if err != nil {
-		log.Infof("Creating role %s failed: %v", role.Name, err)
-		return err
-	}
-	log.Infof("Created role %s in %s", role.Name, namespace)
-	return nil
-}
-
-func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
-	log.Infof("Apply rolebinding %s", rolebinding.Name)
-	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
-	if errors.IsAlreadyExists(err) {
-		log.Infof("Rolebinding %s already exists", rolebinding.Name)
-		return nil
-	}
-
-	if err != nil {
-		log.Errorf("Failed to create rolebinding in [%s]: %v", namespace, err)
-		return err
-	}
-
-	log.Infof("Created rolebinding %s in %s", rolebinding.Name, namespace)
-	return nil
-}
-
-func getRoleFor(registration *radixv1.RadixRegistration) *auth.Role {
-	appName := registration.Name
-	roleName := fmt.Sprintf("operator-%s", appName)
-	ownerRef := GetOwnerReference(roleName, "RadixRegistration", registration.UID)
-
-	log.Infof("Creating role config %s", roleName)
-
-	role := &auth.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				"radixReg": appName,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerRef,
-			},
-		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups:     []string{"radix.equinor.com"},
-				Resources:     []string{"radixregistrations"},
-				ResourceNames: []string{appName},
-				Verbs:         []string{"get", "update", "patch", "delete"},
-			},
-		},
-	}
-	log.Infof("Done - creating role config %s", roleName)
-
-	return role
-}
-
-func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+func rrRoleBinding(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	appName := registration.Name
 	roleBindingName := fmt.Sprintf("%s-binding", role.Name)
 	log.Infof("Create rolebinding config %s", roleBindingName)
 
 	ownerReference := GetOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
-	subjects := GetRoleBindingGroups(registration.Spec.AdGroups)
+	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -187,4 +187,16 @@ func getRoleBindingFor(registration *radixv1.RadixRegistration, role *auth.Role)
 	log.Infof("Done - create rolebinding config %s", roleBindingName)
 
 	return rolebinding
+}
+
+func getRoleBindingGroups(groups []string) []auth.Subject {
+	subjects := []auth.Subject{}
+	for _, group := range groups {
+		subjects = append(subjects, auth.Subject{
+			Kind:     "Group",
+			Name:     group,
+			APIGroup: "rbac.authorization.k8s.io",
+		})
+	}
+	return subjects
 }

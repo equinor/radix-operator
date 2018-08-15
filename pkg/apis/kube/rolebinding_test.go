@@ -28,13 +28,13 @@ func Test_Create_Rolebindings(t *testing.T) {
 	kubeutil, _ := New(kubeclient)
 
 	t.Run("It creates rolebindings", func(t *testing.T) {
-		err := kubeutil.CreateRoleBindings(radixApp)
+		err := kubeutil.ApplyRbacRadixApplication(radixApp)
 		assert.NoError(t, err)
 		assertRoleBindings(t, radixApp, kubeutil)
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := kubeutil.CreateRoleBindings(radixApp)
+		err := kubeutil.ApplyRbacRadixApplication(radixApp)
 		assert.NoError(t, err)
 		assertRoleBindings(t, radixApp, kubeutil)
 	})
@@ -64,4 +64,11 @@ func assertGroups(t *testing.T, configuredGroups []string, actualGroups []auth.S
 		}
 		assert.True(t, matchingGroup, group)
 	}
+}
+
+func TestCreateBrigadeRolebinding(t *testing.T) {
+	rolebinding := BrigadeRoleBinding("app_name", "role_name", []string{"1g", "2g"}, metav1.OwnerReference{})
+
+	assert.Equal(t, "role_name-binding", rolebinding.Name)
+	assert.Equal(t, "RoleBinding", rolebinding.Kind)
 }

@@ -55,7 +55,7 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) error {
 		}
 	}
 
-	t.kubeutil.CreateRoleBindings(radixApp)
+	t.kubeutil.ApplyRbacRadixApplication(radixApp)
 	return nil
 }
 

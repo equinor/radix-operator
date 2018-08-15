@@ -87,7 +87,7 @@ func createDeployment(out io.Writer, name string) error {
 		retry := 0
 		for !created {
 			log.Infof("Creating RadixDeployment object %s in environment %s", name, env)
-			_, err = c.RadixV1().RadixDeployments(fmt.Sprintf("%s-%s", app, env)).Create(deployment)
+			_, err := c.RadixV1().RadixDeployments(fmt.Sprintf("%s-%s", app, env)).Create(deployment)
 			if err != nil {
 				log.Errorf("Failed to create deployment: %v", err)
 				if retry >= maxRetry {
