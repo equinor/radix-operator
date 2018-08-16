@@ -50,7 +50,7 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 	}
 
 	// TODO
-	err = kube.SetAccessOnRadixRegistration(radixRegistration)
+	err = kube.ApplyRbacRadixRegistration(radixRegistration)
 	if err != nil {
 		log.Errorf("Failed to set access on RadixRegistration: %v", err)
 	}

@@ -5,18 +5,26 @@ metadata:
 spec:
   environments:
     - name: dev
-      authorization:
-      - role: RadixAppAdmin
-        groups:
-        - "group_uid"
+      env_variable:
+        - name: 3rdVariable
+          value: "not the same as prod"
     - name: prod
-      authorization:
-      - role: RadixAppAdmin
-        groups:
-        - "group_uid"
+      env_variable:
+        - name: otherVariable
+          value: "not the same as in dev"
   components:
     - name: frontend
       src: .
       ports:
        - 80
       public: true
+  env_variable:
+    - name: someValue
+      value: "same for all env"
+    - name: otherVariable
+      value: "overwritten in prod"
+    - name: 3rdVariable
+      value: "overwritten in dev"
+    - name: dbConnection
+      secret: true
+      # creates a kubernetes secret under defined env namespaces, that the users need to update manually using kubectl

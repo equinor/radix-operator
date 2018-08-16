@@ -69,6 +69,7 @@ code-gen:
 	vendor/k8s.io/code-generator/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION)
 
 # make deploy VERSION=keaaa-v1
+# VERSION variable is mandatory 
 # need to connect to container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
 deploy:
 	make deploy-operator
