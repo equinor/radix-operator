@@ -16,7 +16,7 @@ import (
 
 const deployCreateUsage = `Creates a deployment named DEPLOYMENT`
 const retrySecond = 30
-const maxRetry = 120
+const maxRetry = 1
 
 var (
 	app          string

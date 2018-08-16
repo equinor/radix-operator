@@ -65,12 +65,13 @@ func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
 		UID:        uid,
 		Controller: &trueVar,
 	}
+	log.Infof("owner reference uid: %v, name: %s, kind: %s", uid, name, kind)
 	return ownerRef
 }
 
 func BrigadeRoleBinding(appName, roleName string, adGroups []string, owner metav1.OwnerReference) *auth.RoleBinding {
 	subjects := getRoleBindingGroups(adGroups)
-	roleBindingName := fmt.Sprintf("%s-binding", roleName)
+	roleBindingName := roleName
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -100,9 +101,9 @@ func BrigadeRoleBinding(appName, roleName string, adGroups []string, owner metav
 }
 
 func RdRoleBinding(radixDeploy *radixv1.RadixDeployment, roleName string, adGroups []string) *auth.RoleBinding {
-	appName := radixDeploy.Name
-	roleBindingName := fmt.Sprintf("%s-binding", roleName)
-	ownerReference := GetOwnerReference(appName, radixDeploy.Kind, radixDeploy.UID)
+	appName := radixDeploy.Spec.AppName
+	roleBindingName := roleName
+	ownerReference := GetOwnerReference(radixDeploy.Name, radixDeploy.Kind, radixDeploy.UID)
 	subjects := getRoleBindingGroups(adGroups)
 
 	rolebinding := &auth.RoleBinding{
@@ -138,7 +139,7 @@ func appRoleBinding(appName, clusterrole string, groups []string) *auth.RoleBind
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", appName, clusterrole),
+			Name: fmt.Sprintf("operator-%s-%s", appName, clusterrole),
 			Labels: map[string]string{
 				"radixApp": appName,
 			},
@@ -156,7 +157,7 @@ func appRoleBinding(appName, clusterrole string, groups []string) *auth.RoleBind
 
 func rrRoleBinding(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	appName := registration.Name
-	roleBindingName := fmt.Sprintf("%s-binding", role.Name)
+	roleBindingName := role.Name
 	log.Infof("Create rolebinding config %s", roleBindingName)
 
 	ownerReference := GetOwnerReference(roleBindingName, "RadixRegistration", registration.UID)

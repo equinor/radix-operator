@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -21,12 +22,16 @@ import (
 type RadixDeployHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
+	kubeutil    *kube.Kube
 }
 
 func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixDeployHandler {
+	kube, _ := kube.New(kubeclient)
+
 	handler := RadixDeployHandler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
+		kubeutil:    kube,
 	}
 
 	return handler
@@ -56,6 +61,13 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		log.Infof("RadixApplication %s exists", radixApplication.Name)
 	}
 
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations("default").Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
+	} else {
+		log.Infof("RadixRegistartion %s exists", radixApplication.Name)
+	}
+
 	appComponents := radixApplication.Spec.Components
 	for _, v := range radixDeploy.Spec.Components {
 		for _, w := range appComponents {
@@ -80,6 +92,12 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 			}
 		}
 	}
+
+	err = t.applyRbacOnRd(radixDeploy, radixRegistration.Spec.AdGroups)
+	if err != nil {
+		return fmt.Errorf("Failed to apply RBAC on RD: %v", err)
+	}
+
 	return nil
 }
 
@@ -92,6 +110,24 @@ func (t *RadixDeployHandler) ObjectDeleted(key string) error {
 // ObjectUpdated is called when an object is updated
 func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	log.Info("Deploy object updated received.")
+	return nil
+}
+
+func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGroups []string) error {
+	log.Infof("Applies rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
+	role := kube.RdRole(radixDeploy, adGroups)
+	rolebinding := kube.RdRoleBinding(radixDeploy, role.Name, adGroups)
+
+	err := t.kubeutil.ApplyRole(radixDeploy.Namespace, role)
+	if err != nil {
+		return err
+	}
+
+	err = t.kubeutil.ApplyRoleBinding(radixDeploy.Namespace, rolebinding)
+	if err != nil {
+		return err
+	}
+	log.Infof("Applied rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
 	return nil
 }
 

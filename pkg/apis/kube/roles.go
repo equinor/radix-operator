@@ -29,9 +29,9 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 }
 
 func RdRole(radixDeploy *v1.RadixDeployment, adGroups []string) *auth.Role {
-	appName := radixDeploy.Name
-	roleName := fmt.Sprintf("operator-%s", appName)
-	ownerReference := GetOwnerReference(appName, radixDeploy.Kind, radixDeploy.UID)
+	appName := radixDeploy.Spec.AppName
+	roleName := fmt.Sprintf("operator-rd-%s", appName)
+	ownerReference := GetOwnerReference(radixDeploy.Name, radixDeploy.Kind, radixDeploy.UID)
 
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -61,7 +61,7 @@ func RdRole(radixDeploy *v1.RadixDeployment, adGroups []string) *auth.Role {
 
 func RrRole(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
-	roleName := fmt.Sprintf("operator-%s", appName)
+	roleName := fmt.Sprintf("operator-rr-%s", appName)
 	ownerRef := GetOwnerReference(roleName, "RadixRegistration", registration.UID)
 
 	log.Infof("Creating role config %s", roleName)
