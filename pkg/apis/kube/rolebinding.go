@@ -104,7 +104,7 @@ func BrigadeRoleBinding(appName, roleName string, adGroups []string, owner metav
 func RdRoleBinding(radixDeploy *radixv1.RadixDeployment, roleName string, adGroups []string) *auth.RoleBinding {
 	appName := radixDeploy.Spec.AppName
 	roleBindingName := roleName
-	ownerReference := GetOwnerReference(radixDeploy.Name, radixDeploy.Kind, radixDeploy.UID)
+	ownerReference := GetOwnerReference(radixDeploy.Name, "RadixDeployment", radixDeploy.UID)
 	subjects := getRoleBindingGroups(adGroups)
 
 	rolebinding := &auth.RoleBinding{
