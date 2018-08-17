@@ -5,6 +5,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	core "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,10 +26,10 @@ func (k *Kube) ApplyRbacRadixApplication(app *radixv1.RadixApplication) error {
 	return nil
 }
 
-func (k *Kube) ApplyRbacRadixRegistration(registration *radixv1.RadixRegistration) error {
+func (k *Kube) ApplyRbacRadixRegistration(registration *radixv1.RadixRegistration, brigadeProject *core.Secret) error {
 	namespace := "default"
 
-	role := RrRole(registration)
+	role := RrRole(registration, brigadeProject)
 	rolebinding := rrRoleBinding(registration, role)
 
 	err := k.ApplyRole(namespace, role)
