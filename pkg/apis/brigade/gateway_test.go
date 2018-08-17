@@ -28,6 +28,7 @@ func init() {
 }
 
 func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
+	projectPrefix := "somesapp"
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "radix-docker",
@@ -67,7 +68,7 @@ func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
 	gateway, _ := New(fakeClient)
 
 	t.Run("It creates a project", func(t *testing.T) {
-		err := gateway.EnsureProject(radixRegistration)
+		_, err := gateway.EnsureProject(radixRegistration)
 		assert.NoError(t, err)
 
 		wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {
@@ -81,7 +82,7 @@ func Test_BrigadeGateway_Can_Create_Projects(t *testing.T) {
 
 	t.Run("It updates a project", func(t *testing.T) {
 		radixRegistration.Spec.DefaultScriptName = "testScript"
-		err := gateway.EnsureProject(radixRegistration)
+		_, err := gateway.EnsureProject(radixRegistration)
 		assert.NoError(t, err)
 
 		wait.Poll(100*time.Millisecond, wait.ForeverTestTimeout, func() (bool, error) {

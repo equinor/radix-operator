@@ -43,14 +43,14 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 
 	kube.CreateEnvironment(radixRegistration, "app")
 
-	err := t.brigade.EnsureProject(radixRegistration)
+	brigadeProject, err := t.brigade.EnsureProject(radixRegistration)
 	if err != nil {
 		log.Errorf("Failed to create Brigade project: %v", err)
 		return fmt.Errorf("Failed to create Brigade project: %v", err)
 	}
 
 	// TODO
-	err = kube.ApplyRbacRadixRegistration(radixRegistration)
+	err = kube.ApplyRbacRadixRegistration(radixRegistration, brigadeProject)
 	if err != nil {
 		log.Errorf("Failed to set access on RadixRegistration: %v", err)
 	}
@@ -70,7 +70,7 @@ func (t *RadixRegistrationHandler) ObjectUpdated(objOld, objNew interface{}) err
 		return fmt.Errorf("Provided object was not a valid Radix Registration; instead was %v", objNew)
 	}
 
-	err := t.brigade.EnsureProject(radixRegistration)
+	_, err := t.brigade.EnsureProject(radixRegistration)
 	if err != nil {
 		return fmt.Errorf("Failed to update Brigade project: %v", err)
 	}

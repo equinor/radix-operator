@@ -7,6 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	core "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,7 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 func RdRole(radixDeploy *v1.RadixDeployment, adGroups []string) *auth.Role {
 	appName := radixDeploy.Spec.AppName
 	roleName := fmt.Sprintf("operator-rd-%s", appName)
-	ownerReference := GetOwnerReference(radixDeploy.Name, radixDeploy.Kind, radixDeploy.UID)
+	ownerReference := GetOwnerReference(radixDeploy.Name, "RadixDeployment", radixDeploy.UID)
 
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -59,7 +60,7 @@ func RdRole(radixDeploy *v1.RadixDeployment, adGroups []string) *auth.Role {
 	return role
 }
 
-func RrRole(registration *radixv1.RadixRegistration) *auth.Role {
+func RrRole(registration *radixv1.RadixRegistration, brigadeProject *core.Secret) *auth.Role {
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-rr-%s", appName)
 	ownerRef := GetOwnerReference(roleName, "RadixRegistration", registration.UID)
@@ -86,6 +87,12 @@ func RrRole(registration *radixv1.RadixRegistration) *auth.Role {
 				Resources:     []string{"radixregistrations"},
 				ResourceNames: []string{appName},
 				Verbs:         []string{"get", "update", "patch", "delete"},
+			},
+			{
+				APIGroups:     []string{"*"},
+				Resources:     []string{"secrets"},
+				ResourceNames: []string{brigadeProject.Name},
+				Verbs:         []string{"get", "watch"},
 			},
 		},
 	}
@@ -136,9 +143,9 @@ func getResourceNames(brigadeBuildId string, components []v1.RadixComponent, env
 		fmt.Sprintf("rbac-%s", brigadeBuildId),
 	}
 
-	for _, env := range environments {
-		resourceNames = append(resourceNames, fmt.Sprintf("build-%s-%s", env.Name, brigadeBuildId))
-		for _, component := range components {
+	for _, component := range components {
+		resourceNames = append(resourceNames, fmt.Sprintf("build-%s-%s", component.Name, brigadeBuildId))
+		for _, env := range environments {
 			resourceNames = append(resourceNames, fmt.Sprintf("deploy-%s-%s-%s", env.Name, component.Name, brigadeBuildId))
 		}
 	}

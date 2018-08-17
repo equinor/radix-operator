@@ -44,16 +44,16 @@ func New(clientset kubernetes.Interface) (*BrigadeGateway, error) {
 }
 
 //EnsureProject will create a Brigade project if it doesn't exist or update existing one
-func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistration) error {
+func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistration) (*v1.Secret, error) {
 	create := false
 	if b.client == nil {
-		return fmt.Errorf("No k8s client available")
+		return nil, fmt.Errorf("No k8s client available")
 	}
 
 	user, repo, err := getProjectName(appRegistration)
 	brigadeProjectName := fmt.Sprintf("%s/%s", user, repo)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	secretName := fmt.Sprintf("brigade-%s", shortSHA(brigadeProjectName))
 	log.Infof("Creating/Updating application %s", appRegistration.ObjectMeta.Name)
@@ -65,12 +65,12 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 
 	kubeutil, err := kube.New(b.client)
 	if err != nil {
-		return fmt.Errorf("Failed to get k8s util: %v", err)
+		return project, fmt.Errorf("Failed to get k8s util: %v", err)
 	}
 
 	var creds *kube.ContainerRegistryCredentials
 	if creds, err = kubeutil.RetrieveContainerRegistryCredentials(); err != nil {
-		return err
+		return project, err
 	}
 
 	if appRegistration.Spec.Secrets == nil {
@@ -96,20 +96,21 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 	if create {
 		createdSecret, err := b.client.CoreV1().Secrets(namespace).Create(project)
 		if err != nil {
-			return fmt.Errorf("Failed to create Brigade project: %v", err)
+			return project, fmt.Errorf("Failed to create Brigade project: %v", err)
 		}
+		project = createdSecret
 
-		log.Infof("Created: %s", createdSecret.Name)
+		log.Infof("Created: %s", project.Name)
 		projectCounter.Inc()
 	} else {
 		_, err := b.client.CoreV1().Secrets(namespace).Update(project)
 		if err != nil {
 			log.Errorf("Failed to update registration: %v", err)
-			return err
+			return project, err
 		}
 	}
 
-	return nil
+	return project, err
 }
 
 func (b *BrigadeGateway) DeleteProject(appName, namespace string) error {
