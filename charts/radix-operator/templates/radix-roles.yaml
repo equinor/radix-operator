@@ -10,7 +10,7 @@ metadata:
     heritage: "{{ .Release.Service }}"
 rules:
 - apiGroups: ["*"]
-  resources: ["configmaps", "deployments", "radixapplications", "pods", "service", "ingress"]
+  resources: ["configmaps", "deployments", "radixapplications", "pods", "service", "ingress", "pods/log"]
   verbs: ["get", "list", "watch"]
 ---
 kind: ClusterRole
@@ -38,5 +38,5 @@ metadata:
     heritage: "{{ .Release.Service }}"
 rules:
 - apiGroups: ["*"]
-  resources: ["configmaps", "deployments", "radixapplications", "pods", "service", "ingress"]
+  resources: ["configmaps", "deployments", "radixapplications", "pods", "service", "ingress", "pods/log"]
   verbs: ["get", "list", "watch", "create", "update"]
