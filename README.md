@@ -1,5 +1,37 @@
 # radix-operator
 
+## Development on Windows with Windows Subsystem for Linux (WSL)
+
+Follow this tutorial to get Docker working from inside WSL: https://nickjanetakis.com/blog/setting-up-docker-for-windows-and-wsl-to-work-flawlessly
+
+Also handy if you have problems removing docker.io: https://github.com/docker/for-linux/issues/52
+
+The repo also has to be cloned to the correct path under GOPATH. So for example
+
+  export GOPATH=/home/stian/whereIkeepMycode
+  mkdir -p $GOPATH/src/github.com/Statoil/
+  cd $GOPATH/src/github.com/Statoil/
+  git clone git@github.com:Statoil/radix-operator.git
+
+Create a link so that make can find GoMetaLinter
+
+  ln -s /root/go/bin/gometalinter /usr/bin/gometalinter
+
+Also, in vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go:300
+
+Change
+ token:       spt.Token,
+To
+ token:       spt.Token(),
+
+This because we cannot use latest version of client-go because reasons.
+
+If the build complains about missing a git tag, add a tag manually with
+
+  git tag v1.0.0
+
+Then do `make docker-build` and after that completes `go run radix-operator/main.go` should also work locally.
+
 ## Deployment  to Kubernetes
 
 1. Make Docker image.
