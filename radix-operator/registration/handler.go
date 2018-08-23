@@ -28,7 +28,7 @@ func NewRegistrationHandler(kubeclient kubernetes.Interface) RadixRegistrationHa
 
 // Init handles any handler initialization
 func (t *RadixRegistrationHandler) Init() error {
-	log.Info("RadixRegistrationHandler.Init")
+	logger.Info("RadixRegistrationHandler.Init")
 	return nil
 }
 
@@ -39,20 +39,26 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 		return fmt.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
 	}
 
+	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
+
 	kube, _ := kube.New(t.kubeclient)
 
 	kube.CreateEnvironment(radixRegistration, "app")
 
 	brigadeProject, err := t.brigade.EnsureProject(radixRegistration)
 	if err != nil {
-		log.Errorf("Failed to create Brigade project: %v", err)
+		logger.Errorf("Failed to create Brigade project: %v", err)
 		return fmt.Errorf("Failed to create Brigade project: %v", err)
 	}
+
+	logger.Infof("Ensured Brigade project exists")
 
 	// TODO
 	err = kube.ApplyRbacRadixRegistration(radixRegistration, brigadeProject)
 	if err != nil {
-		log.Errorf("Failed to set access on RadixRegistration: %v", err)
+		logger.Errorf("Failed to set access on RadixRegistration: %v", err)
+	} else {
+		logger.Infof("Applied access permissions to RadixRegistration")
 	}
 
 	return nil
@@ -69,6 +75,8 @@ func (t *RadixRegistrationHandler) ObjectUpdated(objOld, objNew interface{}) err
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Registration; instead was %v", objNew)
 	}
+
+	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
 
 	_, err := t.brigade.EnsureProject(radixRegistration)
 	if err != nil {

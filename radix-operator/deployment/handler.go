@@ -5,7 +5,6 @@ import (
 
 	"encoding/json"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -39,33 +38,32 @@ func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.I
 
 // Init handles any handler initialization
 func (t *RadixDeployHandler) Init() error {
-	log.Info("RadixDeployHandler.Init")
+	logger.Info("RadixDeployHandler.Init")
 	return nil
 }
 
 // ObjectCreated is called when an object is created
 func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
-	log.Info("Deploy object created received.")
+	logger.Info("Deploy object created received.")
 	radixDeploy, ok := obj.(*v1.RadixDeployment)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 	}
 
-	log.Infof("Deploy name: %s", radixDeploy.Name)
-	log.Infof("Application name: %s", radixDeploy.Spec.AppName)
-
 	radixApplication, err := t.radixclient.RadixV1().RadixApplications(fmt.Sprintf("%s-app", radixDeploy.Spec.AppName)).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
+		logger.Infof("Failed to get RadixApplication object: %v", err)
 		return fmt.Errorf("Failed to get RadixApplication object: %v", err)
 	} else {
-		log.Infof("RadixApplication %s exists", radixApplication.Name)
+		logger.Infof("RadixApplication %s exists", radixApplication.Name)
 	}
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations("default").Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
+		logger.Infof("Failed to get RadixRegistartion object: %v", err)
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
 	} else {
-		log.Infof("RadixRegistartion %s exists", radixApplication.Name)
+		logger.Infof("RadixRegistartion %s exists", radixApplication.Name)
 	}
 
 	appComponents := radixApplication.Spec.Components
@@ -78,15 +76,18 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 			// Deploy to current radixDeploy object's namespace
 			err := t.createDeployment(radixDeploy, v, w)
 			if err != nil {
+				logger.Infof("Failed to create deployment: %v", err)
 				return fmt.Errorf("Failed to create deployment: %v", err)
 			}
 			err = t.createService(radixDeploy, w)
 			if err != nil {
+				logger.Infof("Failed to create service: %v", err)
 				return fmt.Errorf("Failed to create service: %v", err)
 			}
 			if w.Public {
 				err = t.createIngress(radixDeploy, w)
 				if err != nil {
+					logger.Infof("Failed to create ingress: %v", err)
 					return fmt.Errorf("Failed to create ingress: %v", err)
 				}
 			}
@@ -95,6 +96,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 
 	err = t.applyRbacOnRd(radixDeploy, radixRegistration.Spec.AdGroups)
 	if err != nil {
+		logger.Infof("Failed to apply RBAC on RD: %v", err)
 		return fmt.Errorf("Failed to apply RBAC on RD: %v", err)
 	}
 
@@ -103,18 +105,18 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 
 // ObjectDeleted is called when an object is deleted
 func (t *RadixDeployHandler) ObjectDeleted(key string) error {
-	log.Info("RadixDeployment object deleted.")
+	logger.Info("RadixDeployment object deleted.")
 	return nil
 }
 
 // ObjectUpdated is called when an object is updated
 func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	log.Info("Deploy object updated received.")
+	logger.Info("Deploy object updated received.")
 	return nil
 }
 
 func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGroups []string) error {
-	log.Infof("Applies rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
+	logger.Infof("Applies rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
 	role := kube.RdRole(radixDeploy, adGroups)
 	rolebinding := kube.RdRoleBinding(radixDeploy, role.Name, adGroups)
 
@@ -127,38 +129,38 @@ func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGr
 	if err != nil {
 		return err
 	}
-	log.Infof("Applied rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
+	logger.Infof("Applied rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
 	return nil
 }
 
 func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent) error {
 	namespace := radixDeploy.Namespace
 	deployment := getDeploymentConfig(appComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, deployComponent.Image, appComponent.Ports, appComponent.Replicas)
-	log.Infof("Creating Deployment object %s in namespace %s", appComponent.Name, namespace)
+	logger.Infof("Creating Deployment object %s in namespace %s", appComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Deployment object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
+		logger.Infof("Deployment object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
 		updatedDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 		if err != nil {
 			return fmt.Errorf("Failed to update Deployment object: %v", err)
 		}
-		log.Infof("Updated Deployment: %s in namespace %s", updatedDeployment.Name, namespace)
+		logger.Infof("Updated Deployment: %s in namespace %s", updatedDeployment.Name, namespace)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to create Deployment object: %v", err)
 	}
-	log.Infof("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
+	logger.Infof("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
 	return nil
 }
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
 	namespace := radixDeploy.Namespace
 	service := getServiceConfig(appComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, appComponent.Ports)
-	log.Infof("Creating Service object %s in namespace %s", appComponent.Name, namespace)
+	logger.Infof("Creating Service object %s in namespace %s", appComponent.Name, namespace)
 	createdService, err := t.kubeclient.CoreV1().Services(namespace).Create(service)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Service object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
+		logger.Infof("Service object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
 		oldService, err := t.kubeclient.CoreV1().Services(namespace).Get(appComponent.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to get old Service object: %v", err)
@@ -186,13 +188,13 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appC
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
 		}
-		log.Infof("Patched Service: %s in namespace %s", patchedService.Name, namespace)
+		logger.Infof("Patched Service: %s in namespace %s", patchedService.Name, namespace)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to create Service object: %v", err)
 	}
-	log.Infof("Created Service: %s in namespace %s", createdService.Name, namespace)
+	logger.Infof("Created Service: %s in namespace %s", createdService.Name, namespace)
 	return nil
 }
 
@@ -203,23 +205,23 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appC
 		return fmt.Errorf("Failed to get radix config map: %v", err)
 	}
 	clustername := radixconfigmap.Data["clustername"]
-	log.Infof("Cluster name: %s", clustername)
+	logger.Infof("Cluster name: %s", clustername)
 	ingress := getIngressConfig(appComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, appComponent.Ports)
-	log.Infof("Creating Ingress object %s in namespace %s", appComponent.Name, namespace)
+	logger.Infof("Creating Ingress object %s in namespace %s", appComponent.Name, namespace)
 	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Ingress object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
+		logger.Infof("Ingress object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
 		updatedIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Update(ingress)
 		if err != nil {
 			return fmt.Errorf("Failed to update Ingress object: %v", err)
 		}
-		log.Infof("Updated Ingress: %s in namespace %s", updatedIngress.Name, namespace)
+		logger.Infof("Updated Ingress: %s in namespace %s", updatedIngress.Name, namespace)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to create Ingress object: %v", err)
 	}
-	log.Infof("Created Ingress: %s in namespace %s", createdIngress.Name, namespace)
+	logger.Infof("Created Ingress: %s in namespace %s", createdIngress.Name, namespace)
 	return nil
 }
 

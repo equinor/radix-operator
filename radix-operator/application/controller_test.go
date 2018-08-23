@@ -21,15 +21,15 @@ type FakeHandler struct {
 func (h *FakeHandler) Init() error {
 	return nil
 }
-func (h *FakeHandler) ObjectCreated(obj interface{}) error{
+func (h *FakeHandler) ObjectCreated(obj interface{}) error {
 	h.operation <- "created"
 	return nil
 }
-func (h *FakeHandler) ObjectDeleted(key string) error{
+func (h *FakeHandler) ObjectDeleted(key string) error {
 	h.operation <- "deleted"
 	return nil
 }
-func (h *FakeHandler) ObjectUpdated(objOld, objNew interface{}) error{
+func (h *FakeHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	h.operation <- "updated"
 	return nil
 }

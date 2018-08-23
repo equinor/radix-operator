@@ -20,9 +20,11 @@ import (
 const namespace = "default"
 
 var projectCounter = prometheus.NewCounter(prometheus.CounterOpts{
-	Name: "project_created",
+	Name: "projects_created",
 	Help: "Number of projects created by the Radix Operator",
 })
+
+var logger *log.Entry
 
 type BrigadeGateway struct {
 	client kubernetes.Interface
@@ -30,6 +32,8 @@ type BrigadeGateway struct {
 
 func init() {
 	prometheus.MustRegister(projectCounter)
+
+	logger = log.WithFields(log.Fields{"radixOperatorComponent": "brigade-gw"})
 }
 
 func New(clientset kubernetes.Interface) (*BrigadeGateway, error) {
@@ -45,6 +49,8 @@ func New(clientset kubernetes.Interface) (*BrigadeGateway, error) {
 
 //EnsureProject will create a Brigade project if it doesn't exist or update existing one
 func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistration) (*v1.Secret, error) {
+	logger = logger.WithFields(log.Fields{"registrationName": appRegistration.ObjectMeta.Name, "registrationNamespace": appRegistration.ObjectMeta.Namespace})
+
 	create := false
 	if b.client == nil {
 		return nil, fmt.Errorf("No k8s client available")
@@ -56,7 +62,7 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 		return nil, err
 	}
 	secretName := fmt.Sprintf("brigade-%s", shortSHA(brigadeProjectName))
-	log.Infof("Creating/Updating application %s", appRegistration.ObjectMeta.Name)
+	logger.Infof("Creating/Updating application")
 	project, _ := b.getExistingBrigadeProject(secretName)
 	if project == nil {
 		project = createNewProject(secretName, appRegistration.Name, brigadeProjectName, appRegistration.UID)
@@ -65,6 +71,7 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 
 	kubeutil, err := kube.New(b.client)
 	if err != nil {
+		logger.Errorf("Failed to get k8s util: %v", err)
 		return project, fmt.Errorf("Failed to get k8s util: %v", err)
 	}
 
@@ -96,16 +103,17 @@ func (b *BrigadeGateway) EnsureProject(appRegistration *radix_v1.RadixRegistrati
 	if create {
 		createdSecret, err := b.client.CoreV1().Secrets(namespace).Create(project)
 		if err != nil {
+			logger.Errorf("Failed to create Brigade project: %v", err)
 			return project, fmt.Errorf("Failed to create Brigade project: %v", err)
 		}
 		project = createdSecret
 
-		log.Infof("Created: %s", project.Name)
+		logger.Infof("Created: %s", project.Name)
 		projectCounter.Inc()
 	} else {
 		_, err := b.client.CoreV1().Secrets(namespace).Update(project)
 		if err != nil {
-			log.Errorf("Failed to update registration: %v", err)
+			logger.Errorf("Failed to update registration: %v", err)
 			return project, err
 		}
 	}
@@ -119,6 +127,7 @@ func (b *BrigadeGateway) DeleteProject(appName, namespace string) error {
 
 func getProjectName(registration *radix_v1.RadixRegistration) (user string, repo string, err error) {
 	if registration.Spec.Repository == "" {
+		logger.Errorf("No repository defined")
 		return "", "", fmt.Errorf("No repository defined")
 	}
 
