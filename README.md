@@ -17,20 +17,23 @@ PS: The local organization path (statoil) HAS to be lowercase. If it is capitali
 
 Create a link so that make can find GoMetaLinter
 
-  ln -s /root/go/bin/gometalinter /usr/bin/gometalinter
+    ln -s /root/go/bin/gometalinter /usr/bin/gometalinter
 
 Also, in vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go:300
 
 Change
- token:       spt.Token,
+
+    token:       spt.Token,
+
 To
- token:       spt.Token(),
+
+    token:       spt.Token(),
 
 This because we cannot use latest version of client-go because reasons.
 
 If the build complains about missing a git tag, add a tag manually with
 
-  git tag v1.0.0
+    git tag v1.0.0
 
 Then do `make docker-build` and after that completes `go run radix-operator/main.go` should also work locally.
 
