@@ -28,12 +28,14 @@ spec:
     - name: frontend
       src: frontend
       ports:
-       - 80
+       - name: http
+         port: 80
       public: true
     - name: backend
       src: backend
       ports:
-        - 5000
+        - name: http
+          port: 5000
       env:
         DB_HOST: "db"
         DB_PORT: "1234"
