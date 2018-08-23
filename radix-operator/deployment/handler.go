@@ -135,7 +135,7 @@ func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGr
 
 func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent) error {
 	namespace := radixDeploy.Namespace
-	deployment := getDeploymentConfig(appComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, deployComponent.Image, appComponent.Ports, appComponent.Replicas)
+	deployment := getDeploymentConfig(radixDeploy, deployComponent.Image, appComponent)
 	logger.Infof("Creating Deployment object %s in namespace %s", appComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
@@ -225,8 +225,14 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appC
 	return nil
 }
 
-func getDeploymentConfig(componentName string, appName string, uid types.UID, image string, componentPorts []v1.ComponentPort, replicas int) *v1beta1.Deployment {
+func getDeploymentConfig(radixDeploy *v1.RadixDeployment, image string, appComponent v1.RadixComponent) *v1beta1.Deployment {
 	trueVar := true
+	appName := radixDeploy.Spec.AppName
+	uid := radixDeploy.UID
+	environment := radixDeploy.Spec.Environment
+	componentName := appComponent.Name
+	componentPorts := appComponent.Ports
+	replicas := appComponent.Replicas
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
@@ -289,7 +295,51 @@ func getDeploymentConfig(componentName string, appName string, uid types.UID, im
 		deployment.Spec.Replicas = int32Ptr(int32(replicas))
 	}
 
+	environmentVariables := getEnvironmentVariables(appComponent.EnvironmentVariables, appComponent.Secrets, radixDeploy.Name, environment, componentName)
+	if environmentVariables != nil {
+		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
+	}
+
 	return deployment
+}
+
+func getEnvironmentVariables(radixEnvVars []v1.EnvVars, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
+	if radixEnvVars == nil && radixSecrets == nil {
+		log.Infof("No environment variable and secret is set for this RadixDeployment %s", radixDeployName)
+		return nil
+	}
+	var environmentVariables []corev1.EnvVar
+	// environmentVariables
+	for _, v := range radixEnvVars {
+		if v.Environment != currentEnvironment {
+			continue
+		}
+		for key, value := range v.Variables {
+			envVar := corev1.EnvVar{
+				Name:  key,
+				Value: value,
+			}
+			environmentVariables = append(environmentVariables, envVar)
+		}
+	}
+	// secrets
+	for _, v := range radixSecrets {
+		secretKeySelector := corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: componentName,
+			},
+			Key: v,
+		}
+		envVarSource := corev1.EnvVarSource{
+			SecretKeyRef: &secretKeySelector,
+		}
+		secretEnvVar := corev1.EnvVar{
+			Name:      v,
+			ValueFrom: &envVarSource,
+		}
+		environmentVariables = append(environmentVariables, secretEnvVar)
+	}
+	return environmentVariables
 }
 
 func getServiceConfig(componentName string, appName string, uid types.UID, componentPorts []v1.ComponentPort) *corev1.Service {

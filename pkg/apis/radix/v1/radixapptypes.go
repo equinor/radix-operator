@@ -34,6 +34,15 @@ type RadixApplicationList struct {
 //SecretsMap is a map of secrets (weird)
 type SecretsMap map[string]string
 
+// EnvVarsMap maps environment variable keys to their values
+type EnvVarsMap map[string]string
+
+// EnvVars defines environment and their environment variable values
+type EnvVars struct {
+	Environment string     `json:"environment" yaml:"environment"`
+	Variables   EnvVarsMap `json:"variables" yaml:"variables"`
+}
+
 //Environment defines a Radix application environment
 type Environment struct {
 	Name          string              `json:"name" yaml:"name"`
@@ -54,10 +63,11 @@ type ComponentPort struct {
 
 //RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
 type RadixComponent struct {
-	Name                 string            `json:"name" yaml:"name"`
-	SourceFolder         string            `json:"src" yaml:"src"`
-	Ports                []ComponentPort   `json:"ports" yaml:"ports"`
-	Public               bool              `json:"public" yaml:"public"`
-	EnvironmentVariables map[string]string `json:"env" yaml:"env"`
-	Replicas             int               `json:"replicas" yaml:"replicas"`
+	Name                 string          `json:"name" yaml:"name"`
+	SourceFolder         string          `json:"src" yaml:"src"`
+	Ports                []ComponentPort `json:"ports" yaml:"ports"`
+	Public               bool            `json:"public" yaml:"public"`
+	Replicas             int             `json:"replicas" yaml:"replicas"`
+	EnvironmentVariables []EnvVars       `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
+	Secrets              []string        `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
