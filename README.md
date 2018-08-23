@@ -8,10 +8,12 @@ Also handy if you have problems removing docker.io: https://github.com/docker/fo
 
 The repo also has to be cloned to the correct path under GOPATH. So for example
 
-  export GOPATH=/home/stian/whereIkeepMycode
-  mkdir -p $GOPATH/src/github.com/Statoil/
-  cd $GOPATH/src/github.com/Statoil/
-  git clone git@github.com:Statoil/radix-operator.git
+    export GOPATH=/home/stian/whereIkeepMycode
+    mkdir -p $GOPATH/src/github.com/statoil/
+    cd $GOPATH/src/github.com/statoil/
+    git clone git@github.com:Statoil/radix-operator.git
+
+PS: The local organization path (statoil) HAS to be lowercase. If it is capitalized `dep ensure` will download a copy of `statoil/radix-operator` and put it in your `vendor/` folder as an external dependency and any code changes won't have any effect. It's not possible to use proper capitalization in the Go imports since Kubernetes code-generator will lowercase stuff in the process and fail.
 
 Create a link so that make can find GoMetaLinter
 
