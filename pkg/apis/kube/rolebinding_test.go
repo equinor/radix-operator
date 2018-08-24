@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/Statoil/radix-operator/radix-operator/common"
+	"github.com/statoil/radix-operator/radix-operator/common"
 	"github.com/stretchr/testify/assert"
 	auth "k8s.io/api/rbac/v1"
 
