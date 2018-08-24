@@ -6,7 +6,7 @@ IMAGES	= radix-operator rx
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
 VERSION		?= ${GIT_TAG}
 IMAGE_TAG 	?= ${VERSION}
-LDFLAGS		+= -X github.com/statoil/radix-operator/pkg/version.Version=$(VERSION)
+LDFLAGS		+= "-ldflags -X github.com/statoil/radix-operator/pkg/version.Version=$(shell cat VERSION)"
 
 
 CX_OSES		= linux windows

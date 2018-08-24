@@ -72,13 +72,13 @@ func (c *Controller) processNextItem() bool {
 	} else if queueItem.Operation == Add {
 		c.Log.Infof("Controller.processNextItem: object creation detected: %s", queueItem.Key)
 		err := c.Handler.ObjectCreated(item)
-		if err != nil{
+		if err != nil {
 			log.Errorf("Failed to create object: %v", err)
 		}
 	} else if queueItem.Operation == Update {
 		c.Log.Infof("Controller.processNextItem: object update detected: %s", queueItem.Key)
 		err := c.Handler.ObjectUpdated(nil, item)
-		if err != nil{
+		if err != nil {
 			log.Errorf("Failed to create object: %v", err)
 		}
 	} else {

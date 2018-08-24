@@ -41,19 +41,21 @@ func (k *Kube) ApplyRbacRadixRegistration(registration *radixv1.RadixRegistratio
 }
 
 func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
-	log.Infof("Apply rolebinding %s", rolebinding.Name)
+	logger = logger.WithFields(log.Fields{"roleBinding": rolebinding.ObjectMeta.Name})
+
+	logger.Infof("Apply rolebinding %s", rolebinding.Name)
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Rolebinding %s already exists", rolebinding.Name)
+		logger.Infof("Rolebinding %s already exists", rolebinding.Name)
 		return nil
 	}
 
 	if err != nil {
-		log.Errorf("Failed to create rolebinding in [%s]: %v", namespace, err)
+		logger.Errorf("Failed to create roleBinding in [%s]: %v", namespace, err)
 		return err
 	}
 
-	log.Infof("Created rolebinding %s in %s", rolebinding.Name, namespace)
+	logger.Infof("Created roleBinding %s in %s", rolebinding.Name, namespace)
 	return nil
 }
 
@@ -66,7 +68,7 @@ func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
 		UID:        uid,
 		Controller: &trueVar,
 	}
-	log.Infof("owner reference uid: %v, name: %s, kind: %s", uid, name, kind)
+	logger.Infof("owner reference uid: %v, name: %s, kind: %s", uid, name, kind)
 	return ownerRef
 }
 
@@ -96,7 +98,9 @@ func BrigadeRoleBinding(appName, roleName string, adGroups []string, owner metav
 		Subjects: subjects,
 	}
 
-	log.Infof("Done - create rolebinding config %s", roleBindingName)
+	logger = logger.WithFields(log.Fields{"rolebinding": rolebinding.ObjectMeta.Name})
+
+	logger.Infof("Done - create rolebinding config %s", roleBindingName)
 
 	return rolebinding
 }
@@ -159,7 +163,7 @@ func appRoleBinding(appName, clusterrole string, groups []string) *auth.RoleBind
 func rrRoleBinding(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	appName := registration.Name
 	roleBindingName := role.Name
-	log.Infof("Create rolebinding config %s", roleBindingName)
+	logger.Infof("Create roleBinding config %s", roleBindingName)
 
 	ownerReference := GetOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
 	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
@@ -186,7 +190,7 @@ func rrRoleBinding(registration *radixv1.RadixRegistration, role *auth.Role) *au
 		Subjects: subjects,
 	}
 
-	log.Infof("Done - create rolebinding config %s", roleBindingName)
+	logger.Infof("Done - create rolebinding config %s", roleBindingName)
 
 	return rolebinding
 }

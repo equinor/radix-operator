@@ -22,12 +22,18 @@ type DeployController struct {
 	handler     common.Handler
 }
 
+var logger *log.Entry
+
+func init() {
+	logger = log.WithFields(log.Fields{"radixOperatorComponent": "deployment-controller"})
+}
+
 func NewDeployController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler) *common.Controller {
 	latestResourceVersion, err := getLatestRadixDeploymentResourceVersion(radixClient)
 	if err != nil {
-		log.Infof("Error getting latest radix deployment resource version: %v", err)
+		logger.Infof("Error getting latest radix deployment resource version: %v", err)
 	} else {
-		log.Infof("Latest RadixDeployment resource version: %s", latestResourceVersion)
+		logger.Infof("Latest RadixDeployment resource version: %s", latestResourceVersion)
 	}
 
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -41,25 +47,49 @@ func NewDeployController(client kubernetes.Interface, radixClient radixclient.In
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
+			radixDeployment, ok := obj.(*v1.RadixDeployment)
+			if !ok {
+				logger.Error("Provided object was not a valid Radix Deployment; instead was %v", obj)
+				return
+			}
+
+			logger = logger.WithFields(log.Fields{"deploymentName": radixDeployment.ObjectMeta.Name, "deploymentNamespace": radixDeployment.ObjectMeta.Namespace})
+
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
 				if shouldAddToQueue(obj, key, latestResourceVersion) {
-					log.Infof("Added radix deployment: %s", key)
+					logger.Infof("Added radix deployment: %s", key)
 					queue.Add(common.QueueItem{Key: key, Operation: common.Add})
 				}
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
+			radixDeployment, ok := newObj.(*v1.RadixDeployment)
+			if !ok {
+				logger.Error("Provided object was not a valid Radix Deployment; instead was %v", newObj)
+				return
+			}
+
+			logger = logger.WithFields(log.Fields{"deploymentName": radixDeployment.ObjectMeta.Name, "deploymentNamespace": radixDeployment.ObjectMeta.Namespace})
+
 			key, err := cache.MetaNamespaceKeyFunc(oldObj)
 			if err == nil {
-				log.Infof("Updated radix deployment: %s", key)
+				logger.Infof("Updated radix deployment: %s", key)
 				queue.Add(common.QueueItem{Key: key, Operation: common.Update})
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
+			radixDeployment, ok := obj.(*v1.RadixDeployment)
+			if !ok {
+				logger.Error("Provided object was not a valid Radix Deployment; instead was %v", obj)
+				return
+			}
+
+			logger = logger.WithFields(log.Fields{"deploymentName": radixDeployment.ObjectMeta.Name, "deploymentNamespace": radixDeployment.ObjectMeta.Namespace})
+
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				log.Infof("Deleted radix deployment: %s", key)
+				logger.Infof("Deleted radix deployment: %s", key)
 				queue.Add(common.QueueItem{Key: key, Operation: common.Delete})
 			}
 		},
@@ -71,20 +101,26 @@ func NewDeployController(client kubernetes.Interface, radixClient radixclient.In
 		Informer:    informer,
 		Queue:       queue,
 		Handler:     handler,
-		Log:         log.WithField("controller", "deployment"),
+		Log:         logger,
 	}
 	return controller
 }
 
 func shouldAddToQueue(obj interface{}, key, latestResourceVersion string) bool {
 	radixDeployment, ok := obj.(*v1.RadixDeployment)
-	if ok {
-		radixDeploymentResourceVersion := radixDeployment.ResourceVersion
-		if comp := strings.Compare(radixDeploymentResourceVersion, latestResourceVersion); comp <= 0 {
-			log.Infof("Not added radix deployment: %s. The object's resource version is smaller than the last resource version.", key)
-			return false
-		}
+	if !ok {
+		logger.Error("Provided object was not a valid Radix Deployment; instead was %v", obj)
+		return true
 	}
+
+	logger = logger.WithFields(log.Fields{"deploymentName": radixDeployment.ObjectMeta.Name, "deploymentNamespace": radixDeployment.ObjectMeta.Namespace})
+
+	radixDeploymentResourceVersion := radixDeployment.ResourceVersion
+	if comp := strings.Compare(radixDeploymentResourceVersion, latestResourceVersion); comp <= 0 {
+		logger.Infof("Not added radix deployment: %s. The object's resource version is smaller than the last resource version.", key)
+		return false
+	}
+
 	return true
 }
 
@@ -100,8 +136,8 @@ func getLatestRadixDeploymentResourceVersion(radixClient radixclient.Interface) 
 				maxResourceVersion = radixDeployment.ResourceVersion
 			}
 		}
-		log.Infof("Max RadixDeployment timestamp: %v", maxTime)
-		log.Infof("Max RadixDeployment resource version: %s", maxResourceVersion)
+		logger.Infof("Max RadixDeployment timestamp: %v", maxTime)
+		logger.Infof("Max RadixDeployment resource version: %s", maxResourceVersion)
 		return maxResourceVersion, nil
 	}
 	return "", err

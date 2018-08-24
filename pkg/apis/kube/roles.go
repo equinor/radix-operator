@@ -3,9 +3,9 @@ package kube
 import (
 	"fmt"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 
-	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	core "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -14,18 +14,18 @@ import (
 )
 
 func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
-	log.Infof("Apply role %s", role.Name)
+	logger.Infof("Apply role %s", role.Name)
 	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Role %s already exists", role.Name)
+		logger.Infof("Role %s already exists", role.Name)
 		return nil
 	}
 
 	if err != nil {
-		log.Infof("Creating role %s failed: %v", role.Name, err)
+		logger.Infof("Creating role %s failed: %v", role.Name, err)
 		return err
 	}
-	log.Infof("Created role %s in %s", role.Name, namespace)
+	logger.Infof("Created role %s in %s", role.Name, namespace)
 	return nil
 }
 
@@ -61,11 +61,13 @@ func RdRole(radixDeploy *v1.RadixDeployment, adGroups []string) *auth.Role {
 }
 
 func RrRole(registration *radixv1.RadixRegistration, brigadeProject *core.Secret) *auth.Role {
+	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
+
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-rr-%s", appName)
 	ownerRef := GetOwnerReference(roleName, "RadixRegistration", registration.UID)
 
-	log.Infof("Creating role config %s", roleName)
+	logger.Infof("Creating role config %s", roleName)
 
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -96,17 +98,17 @@ func RrRole(registration *radixv1.RadixRegistration, brigadeProject *core.Secret
 			},
 		},
 	}
-	log.Infof("Done - creating role config %s", roleName)
+	logger.Infof("Done - creating role config %s", roleName)
 
 	return role
 }
 
-func BrigadeRole(brigadeBuildId string, radixAppliation *v1.RadixApplication, owner metav1.OwnerReference) *auth.Role {
-	appName := radixAppliation.Name
+func BrigadeRole(brigadeBuildId string, radixApplication *v1.RadixApplication, owner metav1.OwnerReference) *auth.Role {
+	appName := radixApplication.Name
 	roleName := fmt.Sprintf("radix-brigade-%s-%s", appName, brigadeBuildId)
-	resourceNames := getResourceNames(brigadeBuildId, radixAppliation.Spec.Components, radixAppliation.Spec.Environments)
+	resourceNames := getResourceNames(brigadeBuildId, radixApplication.Spec.Components, radixApplication.Spec.Environments)
 
-	log.Infof("Creating role config %s", roleName)
+	logger.Infof("Creating role config %s", roleName)
 
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -131,7 +133,7 @@ func BrigadeRole(brigadeBuildId string, radixAppliation *v1.RadixApplication, ow
 			},
 		},
 	}
-	log.Infof("Done - creating role config %s", roleName)
+	logger.Infof("Done - creating role config %s", roleName)
 
 	return role
 }
