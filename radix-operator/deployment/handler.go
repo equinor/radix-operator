@@ -305,7 +305,7 @@ func getDeploymentConfig(radixDeploy *v1.RadixDeployment, image string, appCompo
 
 func getEnvironmentVariables(radixEnvVars []v1.EnvVars, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
 	if radixEnvVars == nil && radixSecrets == nil {
-		log.Infof("No environment variable and secret is set for this RadixDeployment %s", radixDeployName)
+		logger.Infof("No environment variable and secret is set for this RadixDeployment %s", radixDeployName)
 		return nil
 	}
 	var environmentVariables []corev1.EnvVar
