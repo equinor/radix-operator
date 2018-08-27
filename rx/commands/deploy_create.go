@@ -73,8 +73,9 @@ func createDeployment(out io.Writer, name string) error {
 				Name: name,
 			},
 			Spec: v1.RadixDeploymentSpec{
-				AppName:    app,
-				Components: deploys,
+				AppName:     app,
+				Components:  deploys,
+				Environment: env,
 			},
 		}
 
