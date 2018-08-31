@@ -1,7 +1,7 @@
 DOCKER_REGISTRY	?= radixdev.azurecr.io
 
-BINS	= radix-operator rx
-IMAGES	= radix-operator rx
+BINS	= radix-operator rx pipeline-runner
+IMAGES	= radix-operator rx pipeline-runner
 
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
 VERSION		?= ${GIT_TAG}
