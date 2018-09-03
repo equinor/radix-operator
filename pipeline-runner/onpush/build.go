@@ -1,7 +1,6 @@
 package onpush
 
 import (
-	"errors"
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
@@ -11,12 +10,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, branch string) (string, error) {
+func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, imageTag string) error {
 	appName := radixRegistration.Name
 	namespace := fmt.Sprintf("%s-app", appName)
-	job, imagePath, err := createBuildJob(appName, radixRegistration.Spec.CloneURL, branch)
+	job, err := createBuildJob(appName, radixApplication.Spec.Components, radixRegistration.Spec.CloneURL, branch, imageTag)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	// should we only build if the git commit hash differ from what exist earlier?
@@ -24,42 +23,41 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, br
 	// do we need to also query ACR and see if image exist?
 	job, err = cli.kubeclient.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	// wait for it to finish
-	watcher, _ := cli.kubeclient.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%", appName),
+	watcher, err := cli.kubeclient.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app=%s", appName),
 	})
+	if err != nil {
+		return err
+	}
 	channel := watcher.ResultChan()
 
 	for event := range channel {
 		if event.Type == "ADDED" || event.Type == "MODIFIED" {
 			jobModified, _ := event.Object.(*batchv1.Job)
 			if jobModified.Status.Succeeded == 1 {
-				return imagePath, nil
+				return nil
 			}
 			if jobModified.Status.Failed == 1 {
-				return "", errors.New("Build job failed!")
+				return fmt.Errorf("Build job failed")
 			}
 		}
-		log.Info(event)
 	}
-	// return imagePath
-	return imagePath, nil
+	return nil
 }
 
-func createBuildJob(appName, cloneURL, branch string) (*batchv1.Job, string, error) {
-	containerRegistryURL := "radixdev.azurecr.io" // const
-	imagePath := fmt.Sprintf("%s/%s:kaniko", containerRegistryURL, appName)
+func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, branch, imageTag string) (*batchv1.Job, error) {
 	gitCloneCommand := fmt.Sprintf("git clone %s -b %s .", cloneURL, branch) // TODO - MUST ensure commands are not injected
-	defaultMode := int32(256)
-	backOffLimit := int32(1)
-	log.Infof("cloning from (%s): %s", branch, cloneURL)
+	buildContainers := createBuildContainers(appName, imageTag, components)
 
+	defaultMode, backOffLimit := int32(256), int32(1)
+
+	log.Infof("cloning from (%s): %s", branch, cloneURL)
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: appName,
+			Name: fmt.Sprintf("%s-%s", appName, imageTag), // todo - job name - bind it to version?
 			Labels: map[string]string{
 				"app": appName,
 			},
@@ -88,33 +86,7 @@ func createBuildJob(appName, cloneURL, branch string) (*batchv1.Job, string, err
 							},
 						},
 					},
-					Containers: []corev1.Container{
-						{
-							Name:  "build",
-							Image: "gcr.io/kaniko-project/executor:latest",
-							Args: []string{
-								"--context=/workspace/",
-								"--destination=" + imagePath,
-							},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "DOCKER_CONFIG",
-									Value: "/kaniko/secrets",
-								},
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "build-context",
-									MountPath: "/workspace",
-								},
-								{
-									Name:      "docker-config",
-									MountPath: "/kaniko/secrets",
-									ReadOnly:  true,
-								},
-							},
-						},
-					},
+					Containers: buildContainers,
 					Volumes: []corev1.Volume{
 						{
 							Name: "build-context",
@@ -141,5 +113,42 @@ func createBuildJob(appName, cloneURL, branch string) (*batchv1.Job, string, err
 			},
 		},
 	}
-	return &job, imagePath, nil
+	return &job, nil
+}
+
+func createBuildContainers(appName, imageTag string, components []v1.RadixComponent) []corev1.Container {
+	containers := []corev1.Container{}
+
+	for _, c := range components {
+		imagePath := getImagePath(appName, c.Name, imageTag)
+		dockerFile := fmt.Sprintf("/workspace/%s", c.SourceFolder)
+		container := corev1.Container{
+			Name:  fmt.Sprintf("build-%s", c.Name),
+			Image: "gcr.io/kaniko-project/executor:latest", // todo - version?
+			Args: []string{
+				fmt.Sprintf("--dockerfile=%s/Dockerfile", dockerFile),
+				fmt.Sprintf("--context=%s", dockerFile),
+				fmt.Sprintf("--destination=%s", imagePath),
+			},
+			Env: []corev1.EnvVar{
+				{
+					Name:  "DOCKER_CONFIG",
+					Value: "/kaniko/secrets",
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      "build-context",
+					MountPath: "/workspace",
+				},
+				{
+					Name:      "docker-config",
+					MountPath: "/kaniko/secrets",
+					ReadOnly:  true,
+				},
+			},
+		}
+		containers = append(containers, container)
+	}
+	return containers
 }

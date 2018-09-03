@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	logger "github.com/Sirupsen/logrus"
@@ -14,21 +15,37 @@ import (
 	pipe "github.com/statoil/radix-operator/pipeline-runner/onpush"
 )
 
+// should we have different pipeline types? if yes, should each be a small go script?
+// should run in app namespace, where users has access to read pods, jobs, logs (not secrets)
+// pipeline runner should be registered as a job running in app namespace,
+// pointing to pipeline-runner image, with labels to identify runned pipelines
 func main() {
 	args := getArgs()
-	appName := args["APP_NAME"]
 	branch := args["BRANCH"]
+	fileName := args["RADIX_FILE_NAME"]
+	imageTag := args["IMAGE_TAG"]
 
-	if appName == "" {
-		appName = "radix-static-html"
-	}
 	if branch == "" {
 		branch = "master"
 	}
+	if fileName == "" {
+		fileName, _ = filepath.Abs("./onpush/testdata/radixconfig.yaml")
+	}
+	if imageTag == "" {
+		imageTag = "latest"
+	}
 
 	client, radixClient := getKubernetesClient()
-	pushHandler := pipe.Init(client, radixClient)
-	pushHandler.Run(appName, branch)
+	pushHandler, err := pipe.Init(client, radixClient)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	err = pushHandler.Run(branch, imageTag, fileName)
+	if err != nil {
+		os.Exit(2)
+	}
+	os.Exit(0)
 }
 
 func getArgs() map[string]string {
