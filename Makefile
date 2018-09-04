@@ -6,7 +6,8 @@ IMAGES	= radix-operator rx
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
 VERSION		?= ${GIT_TAG}
 IMAGE_TAG 	?= ${VERSION}
-LDFLAGS		+= -X github.com/statoil/radix-operator/pkg/version.Version=$(VERSION)
+LDFLAGS		+= "-ldflags -X github.com/statoil/radix-operator/pkg/version.Version=$(shell cat VERSION)"
+
 
 CX_OSES		= linux windows
 CX_ARCHS	= amd64
@@ -66,3 +67,42 @@ CUSTOM_RESOURCE_VERSION=v1
 .PHONY: code-gen
 code-gen: 
 	vendor/k8s.io/code-generator/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION)
+
+# make deploy VERSION=keaaa-v1
+# VERSION variable is mandatory 
+# need to connect to container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
+deploy:
+	make deploy-operator
+	make deploy-brigade
+
+deploy-operator:
+	dep ensure
+	# fixes error in dependency
+	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
+	make docker-build
+	make docker-push
+	
+	# update docker image version in deploy file - file name should be a variable
+	kubectl get deploy radix-operator -o yaml > oldRadixOperatorDef.yaml 
+	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
+
+	kubectl apply -f newRadixOperatorDef.yaml
+
+	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
+
+deploy-brigade:
+	# update script based on the generic-build.js and put it into radix-script cm
+	cp ./brigade-scripts/generic-build.js ./oldBuildScript.js
+	sed -E "s/(radixdev.azurecr.io\/rx:).[a-z0-9]*/\1$(VERSION)/g" ./oldBuildScript.js > newBuildScript.js
+	minify newBuildScript.js > minifiedBuildScript.js
+	sed -i "" 's/"/\\"/g' minifiedBuildScript.js
+	perl -pi -e 'chomp if eof' minifiedBuildScript.js
+	
+	# update kc cm
+	kubectl get cm radix-script -o json > oldRadixScript.json
+	sed -E 's/"brigade.js":.*/"brigade.js":"<inputscript>"/g' ./oldRadixScript.json > newRadixScript.json
+	perl -pe 's/<inputscript>/`cat minifiedBuildScript.js`/ge' newRadixScript.json > finalRadixScript.json
+	
+	kubectl apply -f finalRadixScript.json
+
+	rm oldRadixScript.json oldBuildScript.js newRadixScript.json newBuildScript.js minifiedBuildScript.js finalRadixScript.json

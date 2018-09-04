@@ -16,7 +16,7 @@ import (
 
 const deployCreateUsage = `Creates a deployment named DEPLOYMENT`
 const retrySecond = 30
-const maxRetry = 120
+const maxRetry = 1
 
 var (
 	app          string
@@ -53,22 +53,6 @@ var deployCreate = &cobra.Command{
 	},
 }
 
-func getComponents() ([]ComponentDeploy, error) {
-	components := []ComponentDeploy{}
-	if image == nil {
-		return nil, errors.New("no image(s) specified")
-	}
-	for _, c := range image {
-		imageData := strings.Split(c, "=")
-		component := ComponentDeploy{
-			Name:  imageData[0],
-			Image: imageData[1],
-		}
-		components = append(components, component)
-	}
-	return components, nil
-}
-
 func createDeployment(out io.Writer, name string) error {
 	components, err := getComponents()
 	if err != nil {
@@ -89,8 +73,9 @@ func createDeployment(out io.Writer, name string) error {
 				Name: name,
 			},
 			Spec: v1.RadixDeploymentSpec{
-				AppName:    app,
-				Components: deploys,
+				AppName:     app,
+				Components:  deploys,
+				Environment: env,
 			},
 		}
 
@@ -103,7 +88,7 @@ func createDeployment(out io.Writer, name string) error {
 		retry := 0
 		for !created {
 			log.Infof("Creating RadixDeployment object %s in environment %s", name, env)
-			_, err = c.RadixV1().RadixDeployments(fmt.Sprintf("%s-%s", app, env)).Create(deployment)
+			_, err := c.RadixV1().RadixDeployments(fmt.Sprintf("%s-%s", app, env)).Create(deployment)
 			if err != nil {
 				log.Errorf("Failed to create deployment: %v", err)
 				if retry >= maxRetry {
@@ -121,4 +106,20 @@ func createDeployment(out io.Writer, name string) error {
 		}
 	}
 	return nil
+}
+
+func getComponents() ([]ComponentDeploy, error) {
+	components := []ComponentDeploy{}
+	if image == nil {
+		return nil, errors.New("no image(s) specified")
+	}
+	for _, c := range image {
+		imageData := strings.Split(c, "=")
+		component := ComponentDeploy{
+			Name:  imageData[0],
+			Image: imageData[1],
+		}
+		components = append(components, component)
+	}
+	return components, nil
 }

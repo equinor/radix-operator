@@ -17,8 +17,9 @@ type RadixDeployment struct {
 
 //RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
-	AppName    string                 `json:"appname" yaml:"appname"`
-	Components []RadixDeployComponent `json:"components"`
+	AppName     string                 `json:"appname" yaml:"appname"`
+	Components  []RadixDeployComponent `json:"components"`
+	Environment string                 `json:"environment" yaml:"environment"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

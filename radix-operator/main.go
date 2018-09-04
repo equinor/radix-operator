@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/statoil/radix-operator/pkg/version"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -21,7 +22,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var logger *log.Entry
+
 func main() {
+	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
+
+	logger.Infof("Starting Radix Operator version '%v'", version.Version)
+
 	client, radixClient := getKubernetesClient()
 
 	stop := make(chan struct{})
@@ -88,7 +95,7 @@ func Healthz(writer http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(writer, "Error while retrieving HealthStatus", http.StatusInternalServerError)
-		log.Errorf("Could not serialize HealthStatus: %v", err)
+		logger.Errorf("Could not serialize HealthStatus: %v", err)
 		return
 	}
 
@@ -101,20 +108,20 @@ func getKubernetesClient() (kubernetes.Interface, radixclient.Interface) {
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			log.Fatalf("getClusterConfig InClusterConfig: %v", err)
+			logger.Fatalf("getClusterConfig InClusterConfig: %v", err)
 		}
 	}
 
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("getClusterConfig k8s client: %v", err)
+		logger.Fatalf("getClusterConfig k8s client: %v", err)
 	}
 
 	radixClient, err := radixclient.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("getClusterConfig radix client: %v", err)
+		logger.Fatalf("getClusterConfig radix client: %v", err)
 	}
 
-	log.Print("Successfully constructed k8s client")
+	logger.Printf("Successfully constructed k8s client to API server %v", config.Host)
 	return client, radixClient
 }

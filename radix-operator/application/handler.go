@@ -32,7 +32,7 @@ func NewApplicationHandler(kubeclient kubernetes.Interface, radixclient radixcli
 
 // Init handles any handler initialization
 func (t *RadixAppHandler) Init() error {
-	log.Info("RadixAppHandler.Init")
+	logger.Info("RadixAppHandler.Init")
 	return nil
 }
 
@@ -43,19 +43,23 @@ func (t *RadixAppHandler) ObjectCreated(obj interface{}) error {
 		return fmt.Errorf("Failed to create application: %v", err)
 	}
 
+	logger = logger.WithFields(log.Fields{"name": radixApp.ObjectMeta.Name, "namespace": radixApp.ObjectMeta.Namespace})
+
 	for _, e := range radixApp.Spec.Environments {
 		err := t.kubeutil.CreateEnvironment(registration, e.Name)
 		if err != nil {
+			logger.Errorf("Failed to create environment: %v", err)
 			return fmt.Errorf("Failed to create environment: %v", err)
 		}
 
 		err = t.kubeutil.CreateSecrets(registration, e.Name)
 		if err != nil {
+			logger.Errorf("Failed to provision secrets: %v", err)
 			return fmt.Errorf("Failed to provision secrets: %v", err)
 		}
 	}
 
-	t.kubeutil.CreateRoleBindings(radixApp)
+	t.kubeutil.ApplyRbacRadixApplication(radixApp)
 	return nil
 }
 
@@ -68,24 +72,31 @@ func (t *RadixAppHandler) ObjectDeleted(key string) error {
 func (t *RadixAppHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	radixApp, registration, err := t.ensureCorrectlyRegisteredApp(objNew)
 	if err != nil {
+		logger.Errorf("Failed to update application: %v", err)
 		return fmt.Errorf("Failed to update application: %v", err)
 	}
+
+	logger = logger.WithFields(log.Fields{"name": radixApp.ObjectMeta.Name, "namespace": radixApp.ObjectMeta.Namespace})
+
 	radixAppSelector := fmt.Sprintf("radixApp=%s", radixApp.Name)
 
 	existingEnvironments, err := t.kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
 		LabelSelector: radixAppSelector,
 	})
 	if err != nil {
+		logger.Errorf("Failed to retrieve existing environments: %v", err)
 		return fmt.Errorf("Failed to retrieve existing environments: %v", err)
 	}
 
 	err = t.removeDeletedEnvironments(existingEnvironments, radixApp)
 	if err != nil {
+		logger.Errorf("Failed to clean up deleted environments: %v", err)
 		return fmt.Errorf("Failed to clean up deleted environments: %v", err)
 	}
 	for _, e := range radixApp.Spec.Environments {
 		err := t.kubeutil.CreateEnvironment(registration, e.Name)
 		if err != nil {
+			logger.Errorf("Failed to create environment: %v", err)
 			return fmt.Errorf("Failed to create environment: %v", err)
 		}
 	}
@@ -119,11 +130,13 @@ func (t *RadixAppHandler) removeDeletedEnvironments(existingNamespaces *corev1.N
 func (t *RadixAppHandler) ensureCorrectlyRegisteredApp(obj interface{}) (*v1.RadixApplication, *v1.RadixRegistration, error) {
 	radixApp, ok := obj.(*v1.RadixApplication)
 	if !ok {
+		logger.Errorf("Provided object was not a valid Radix Application; instead was %v", obj)
 		return nil, nil, fmt.Errorf("Provided object was not a valid Radix Application; instead was %v", obj)
 	}
 
 	registration, err := t.radixclient.RadixV1().RadixRegistrations("default").Get(radixApp.Name, metav1.GetOptions{})
 	if err != nil {
+		logger.Errorf("Could not find Radix Registration for %s", radixApp.Name)
 		return radixApp, nil, fmt.Errorf("Could not find Radix Registration for %s", radixApp.Name)
 	}
 
