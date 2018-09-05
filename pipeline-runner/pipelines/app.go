@@ -46,7 +46,7 @@ func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
 
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("failed to get rr for app %s. Error: %v", appName, err)
+		log.Errorf("failed to get RR for app %s. Error: %v", appName, err)
 		return err
 	}
 

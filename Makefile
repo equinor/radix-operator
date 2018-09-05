@@ -75,6 +75,14 @@ deploy:
 	make deploy-operator
 	make deploy-brigade
 
+# make deploy-pipeline VERSION=latest BINS=pipeline-runner IMAGES=pipeline-runner
+deploy-pipeline:
+	dep ensure
+	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
+	make docker-build
+	make docker-push
+
+
 deploy-operator:
 	dep ensure
 	# fixes error in dependency

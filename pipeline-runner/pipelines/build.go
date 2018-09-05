@@ -12,8 +12,10 @@ import (
 
 func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, imageTag string) error {
 	appName := radixRegistration.Name
+	cloneURL := radixRegistration.Spec.CloneURL
 	namespace := fmt.Sprintf("%s-app", appName)
-	job, err := createBuildJob(appName, radixApplication.Spec.Components, radixRegistration.Spec.CloneURL, branch, imageTag)
+	// TODO - what about build secrets, e.g. credentials for private npm repository?
+	job, err := createBuildJob(appName, radixApplication.Spec.Components, cloneURL, branch, imageTag)
 	if err != nil {
 		return err
 	}
@@ -43,6 +45,10 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 			if jobModified.Status.Failed == 1 {
 				return fmt.Errorf("Build job failed")
 			}
+			if event.Type == "ADDED" {
+				log.Infof("Spawned job (%s) to build components for app %s", job.Name, appName)
+				log.Infof("Describe job: kubectl describe jobs %s -n %s", job.Name, job.Namespace)
+			}
 		}
 	}
 	return nil
@@ -54,7 +60,6 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 
 	defaultMode, backOffLimit := int32(256), int32(1)
 
-	log.Infof("cloning from (%s): %s", branch, cloneURL)
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", appName, imageTag), // todo - job name - bind it to version?

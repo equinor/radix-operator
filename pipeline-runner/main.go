@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	pipe "github.com/statoil/radix-operator/pipeline-runner/onpush"
+	pipe "github.com/statoil/radix-operator/pipeline-runner/pipelines"
 )
 
 // should we have different pipeline types? if yes, should each be a small go script?
@@ -29,7 +29,7 @@ func main() {
 		branch = "master"
 	}
 	if fileName == "" {
-		fileName, _ = filepath.Abs("./onpush/testdata/radixconfig.yaml")
+		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")
 	}
 	if imageTag == "" {
 		imageTag = "latest"
