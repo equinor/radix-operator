@@ -267,33 +267,6 @@
   version = "v1.0.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:1893d97b848cedb5b82dc93ddc7128b9f4e6939adcbde032c1ac2fba82158955"
-  name = "github.com/statoil/radix-operator"
-  packages = [
-    "pkg/apis/brigade",
-    "pkg/apis/kube",
-    "pkg/apis/radix",
-    "pkg/apis/radix/v1",
-    "pkg/client/clientset/versioned",
-    "pkg/client/clientset/versioned/fake",
-    "pkg/client/clientset/versioned/scheme",
-    "pkg/client/clientset/versioned/typed/radix/v1",
-    "pkg/client/clientset/versioned/typed/radix/v1/fake",
-    "pkg/client/informers/externalversions/internalinterfaces",
-    "pkg/client/informers/externalversions/radix",
-    "pkg/client/informers/externalversions/radix/v1",
-    "pkg/client/listers/radix/v1",
-    "radix-operator/application",
-    "radix-operator/common",
-    "radix-operator/deployment",
-    "radix-operator/registration",
-    "rx/commands",
-  ]
-  pruneopts = ""
-  revision = "b34435976c8a259501efbb359a512ecd7c749934"
-
-[[projects]]
   digest = "1:a30066593578732a356dc7e5d7f78d69184ca65aeeff5939241a3ab10559bb06"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
@@ -662,26 +635,9 @@
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/spf13/cobra",
-    "github.com/statoil/radix-operator/pkg/apis/brigade",
-    "github.com/statoil/radix-operator/pkg/apis/kube",
-    "github.com/statoil/radix-operator/pkg/apis/radix",
-    "github.com/statoil/radix-operator/pkg/apis/radix/v1",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/scheme",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/typed/radix/v1",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/typed/radix/v1/fake",
-    "github.com/statoil/radix-operator/pkg/client/informers/externalversions/internalinterfaces",
-    "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix",
-    "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix/v1",
-    "github.com/statoil/radix-operator/pkg/client/listers/radix/v1",
-    "github.com/statoil/radix-operator/radix-operator/application",
-    "github.com/statoil/radix-operator/radix-operator/common",
-    "github.com/statoil/radix-operator/radix-operator/deployment",
-    "github.com/statoil/radix-operator/radix-operator/registration",
-    "github.com/statoil/radix-operator/rx/commands",
     "github.com/stretchr/testify/assert",
     "gopkg.in/yaml.v2",
+    "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",

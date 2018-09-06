@@ -1,7 +1,7 @@
 DOCKER_REGISTRY	?= radixdev.azurecr.io
 
-BINS	= radix-operator rx
-IMAGES	= radix-operator rx
+BINS	= radix-operator rx pipeline-runner
+IMAGES	= radix-operator rx pipeline-runner
 
 GIT_TAG		= $(shell git describe --tags --always 2>/dev/null)
 VERSION		?= ${GIT_TAG}
@@ -74,6 +74,14 @@ code-gen:
 deploy:
 	make deploy-operator
 	make deploy-brigade
+
+# make deploy-pipeline VERSION=latest BINS=pipeline-runner IMAGES=pipeline-runner
+deploy-pipeline:
+	dep ensure
+	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
+	make docker-build
+	make docker-push
+
 
 deploy-operator:
 	dep ensure
