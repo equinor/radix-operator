@@ -55,7 +55,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
 	} else {
-		logger.Infof("RadixRegistartion %s exists", radixApplication.Name)
+		logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	}
 
 	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy.Spec.Environment)
@@ -76,7 +76,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 			logger.Infof("Failed to create service: %v", err)
 			return fmt.Errorf("Failed to create service: %v", err)
 		}
-		if w.Public {
+		if v.Public {
 			err = t.createIngress(radixDeploy, v)
 			if err != nil {
 				logger.Infof("Failed to create ingress: %v", err)
@@ -216,7 +216,7 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, depl
 	return nil
 }
 
-func getDeploymentConfig(radixDeploy *v1.RadixDeployment, image string, deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
+func getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
 	trueVar := true
 	appName := radixDeploy.Spec.AppName
 	uid := radixDeploy.UID
