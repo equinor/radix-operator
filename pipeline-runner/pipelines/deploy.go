@@ -17,12 +17,12 @@ func (cli *RadixOnPushHandler) deploy(radixRegistration *v1.RadixRegistration, r
 
 	radixDeployments, err := createRadixDeployments(radixApplication, imageTag)
 	if err != nil {
-		return fmt.Errorf("Failed to create radix deployments objects for app %s", appName)
+		return fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
 	}
 
 	err = cli.applyRadixDeployments(radixRegistration, radixDeployments)
 	if err != nil {
-		return fmt.Errorf("Failed to apply radix deployments for app %s", appName)
+		return fmt.Errorf("Failed to apply radix deployments for app %s. %v", appName, err)
 	}
 	log.Infof("App deployed %s", appName)
 
@@ -33,7 +33,7 @@ func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.Radix
 	for _, rd := range radixDeployments {
 		err := applyEnvNamespace(cli.kubeclient, radixRegistration, rd)
 		if err != nil {
-			log.Warnf("Failed to create namespace: %s", rd.ObjectMeta.Namespace)
+			log.Errorf("Failed to create namespace %s. %v", rd.ObjectMeta.Namespace, err)
 			return err
 		}
 
@@ -135,7 +135,7 @@ func getOwnerRef(radixRegistration *v1.RadixRegistration) []metav1.OwnerReferenc
 	return []metav1.OwnerReference{
 		metav1.OwnerReference{
 			APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-			Kind:       "RadixDeployment",
+			Kind:       "RadixRegistration",
 			Name:       radixRegistration.Name,
 			UID:        radixRegistration.UID,
 			Controller: &trueVar,
