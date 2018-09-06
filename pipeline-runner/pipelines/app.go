@@ -42,7 +42,7 @@ func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
 	}
 
 	appName := radixApplication.Name
-	log.Infof("start pipeline push for %s and branch %s", appName, branch)
+	log.Infof("start pipeline build and deploy for %s and branch %s", appName, branch)
 
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
 	if err != nil {
@@ -56,7 +56,11 @@ func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
 		return err
 	}
 
-	// depoly
+	err = cli.deploy(radixRegistration, radixApplication, imageTag)
+	if err != nil {
+		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
+		return err
+	}
 	return nil
 }
 

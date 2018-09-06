@@ -14,6 +14,7 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
 	namespace := fmt.Sprintf("%s-app", appName)
+	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createBuildJob(appName, radixApplication.Spec.Components, cloneURL, branch, imageTag)
 	if err != nil {
@@ -23,6 +24,7 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 	// should we only build if the git commit hash differ from what exist earlier?
 	// include git commit hash as label on job (registered in app namespace), check if it exist and is completeded earlier
 	// do we need to also query ACR and see if image exist?
+	log.Infof("Apply job (%s) to build components for app %s", job.Name, appName)
 	job, err = cli.kubeclient.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
@@ -44,10 +46,6 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 			}
 			if jobModified.Status.Failed == 1 {
 				return fmt.Errorf("Build job failed")
-			}
-			if event.Type == "ADDED" {
-				log.Infof("Spawned job (%s) to build components for app %s", job.Name, appName)
-				log.Infof("Describe job: kubectl describe jobs %s -n %s", job.Name, job.Namespace)
 			}
 		}
 	}
