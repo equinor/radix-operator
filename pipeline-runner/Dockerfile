@@ -1,7 +1,6 @@
 # radix-pipeline service account need access to app namespace + read on default
 FROM golang:alpine as builder
 RUN apk update && apk add git && apk add ca-certificates
-# RUN adduser -D -g '' appuser
 RUN adduser -D -g '' radix-pipeline
 
 FROM scratch

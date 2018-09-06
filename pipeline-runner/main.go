@@ -5,12 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	logger "github.com/Sirupsen/logrus"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	"k8s.io/client-go/kubernetes"
+	"github.com/statoil/radix-operator/pkg/apis/kube"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 
 	pipe "github.com/statoil/radix-operator/pipeline-runner/pipelines"
 )
@@ -35,7 +31,7 @@ func main() {
 		imageTag = "latest"
 	}
 
-	client, radixClient := getKubernetesClient()
+	client, radixClient := kube.GetKubernetesClient()
 	pushHandler, err := pipe.Init(client, radixClient)
 	if err != nil {
 		os.Exit(1)
@@ -58,28 +54,4 @@ func getArgs() map[string]string {
 		args[key] = value
 	}
 	return args
-}
-
-func getKubernetesClient() (kubernetes.Interface, radixclient.Interface) {
-	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			logger.Fatalf("getClusterConfig InClusterConfig: %v", err)
-		}
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		logger.Fatalf("getClusterConfig k8s client: %v", err)
-	}
-
-	radixClient, err := radixclient.NewForConfig(config)
-	if err != nil {
-		logger.Fatalf("getClusterConfig radix client: %v", err)
-	}
-
-	logger.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient
 }
