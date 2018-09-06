@@ -107,8 +107,13 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageT
 		_ = getEnvironmentSecrets(appComponent)
 
 		deployComponent := v1.RadixDeployComponent{
-			Name:  componentName,
-			Image: getImagePath(appName, componentName, imageTag),
+			Name:                 componentName,
+			Image:                getImagePath(appName, componentName, imageTag),
+			Replicas:             appComponent.Replicas,
+			Public:               appComponent.Public,
+			Ports:                appComponent.Ports,
+			Secrets:              appComponent.Secrets,
+			EnvironmentVariables: appComponent.EnvironmentVariables,
 		}
 		components = append(components, deployComponent)
 	}
