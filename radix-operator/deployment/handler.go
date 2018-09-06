@@ -58,6 +58,12 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		logger.Infof("RadixRegistartion %s exists", radixApplication.Name)
 	}
 
+	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy.Spec.Environment)
+	if err != nil {
+		logger.Errorf("Failed to provision secrets: %v", err)
+		return fmt.Errorf("Failed to provision secrets: %v", err)
+	}
+
 	for _, v := range radixDeploy.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
 		err := t.createDeployment(radixDeploy, v)

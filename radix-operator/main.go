@@ -13,7 +13,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	"github.com/statoil/radix-operator/radix-operator/application"
 	"github.com/statoil/radix-operator/radix-operator/deployment"
 	"github.com/statoil/radix-operator/radix-operator/registration"
 	"k8s.io/client-go/kubernetes"
@@ -37,7 +36,6 @@ func main() {
 	go startMetricsServer(stop)
 
 	startRegistrationController(client, radixClient, stop)
-	startApplicationController(client, radixClient, stop)
 	startDeploymentController(client, radixClient, stop)
 
 	sigTerm := make(chan os.Signal, 1)
@@ -51,13 +49,6 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	registrationController := registration.NewController(client, radixClient, &handler)
 
 	go registrationController.Run(stop)
-}
-
-func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	handler := application.NewApplicationHandler(client, radixClient)
-	applicationController := application.NewController(client, radixClient, &handler)
-
-	go applicationController.Run(stop)
 }
 
 func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
