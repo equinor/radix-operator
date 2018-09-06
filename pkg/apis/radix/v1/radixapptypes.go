@@ -17,7 +17,6 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Secrets      SecretsMap       `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	Environments []Environment    `json:"environments"`
 	Components   []RadixComponent `json:"components"`
 }
