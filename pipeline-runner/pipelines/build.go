@@ -107,7 +107,7 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 							Name: "docker-config",
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName: "docker-config",
+									SecretName: "radix-docker",
 								},
 							},
 						},

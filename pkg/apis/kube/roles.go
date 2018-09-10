@@ -7,7 +7,6 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	core "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,11 +59,22 @@ func RdRole(radixDeploy *v1.RadixDeployment, adGroups []string) *auth.Role {
 	return role
 }
 
-func RrRole(registration *radixv1.RadixRegistration, brigadeProject *core.Secret) *auth.Role {
-	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
-
+func RrUserRole(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-rr-%s", appName)
+	return RrRole(registration, roleName, []string{"get", "update", "patch", "delete"})
+}
+
+func RrPipelineRole(registration *radixv1.RadixRegistration) *auth.Role {
+	appName := registration.Name
+	roleName := fmt.Sprintf("radix-pipeline-%s", appName)
+	return RrRole(registration, roleName, []string{"get"})
+}
+
+func RrRole(registration *radixv1.RadixRegistration, roleName string, verbs []string) *auth.Role {
+	appName := registration.Name
+	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
+
 	ownerRef := GetOwnerReference(roleName, "RadixRegistration", registration.UID)
 
 	logger.Infof("Creating role config %s", roleName)
@@ -88,13 +98,7 @@ func RrRole(registration *radixv1.RadixRegistration, brigadeProject *core.Secret
 				APIGroups:     []string{"radix.equinor.com"},
 				Resources:     []string{"radixregistrations"},
 				ResourceNames: []string{appName},
-				Verbs:         []string{"get", "update", "patch", "delete"},
-			},
-			{
-				APIGroups:     []string{"*"},
-				Resources:     []string{"secrets"},
-				ResourceNames: []string{brigadeProject.Name},
-				Verbs:         []string{"get", "watch"},
+				Verbs:         verbs,
 			},
 		},
 	}
