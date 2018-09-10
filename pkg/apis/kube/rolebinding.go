@@ -227,6 +227,7 @@ func appRoleBinding(appName, clusterrole string, groups []string) *auth.RoleBind
 func pipelineClusterRolebinding(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) *auth.ClusterRoleBinding {
 	appName := registration.Name
 	roleName := "radix-pipeline-runner"
+	ownerReference := GetOwnerReference(registration.Name, "RadixRegistration", registration.UID)
 	logger.Infof("Create cluster rolebinding config %s", roleName)
 
 	rolebinding := &auth.ClusterRoleBinding{
@@ -238,6 +239,9 @@ func pipelineClusterRolebinding(registration *radixv1.RadixRegistration, service
 			Name: fmt.Sprintf("%s-%s", roleName, appName),
 			Labels: map[string]string{
 				"radixReg": appName,
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				ownerReference,
 			},
 		},
 		RoleRef: auth.RoleRef{
@@ -291,7 +295,7 @@ func pipelineRoleBinding(registration *radixv1.RadixRegistration, serviceAccount
 func rrPipelineRoleBinding(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount, role *auth.Role) *auth.RoleBinding {
 	appName := registration.Name
 	roleBindingName := role.Name
-	ownerReference := GetOwnerReference(serviceAccount.Name, "ServiceAccount", serviceAccount.UID)
+	ownerReference := GetOwnerReference(registration.Name, "RadixRegistration", registration.UID)
 	logger.Infof("Create rolebinding config %s", roleBindingName)
 
 	rolebinding := &auth.RoleBinding{
