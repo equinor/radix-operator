@@ -72,18 +72,6 @@ code-gen:
 # VERSION variable is mandatory 
 # need to connect to container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
 deploy:
-	make deploy-operator
-	make deploy-brigade
-
-# make deploy-pipeline VERSION=latest BINS=pipeline-runner IMAGES=pipeline-runner
-deploy-pipeline:
-	dep ensure
-	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
-	make docker-build
-	make docker-push
-
-
-deploy-operator:
 	dep ensure
 	# fixes error in dependency
 	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
@@ -98,19 +86,9 @@ deploy-operator:
 
 	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
 
-deploy-brigade:
-	# update script based on the generic-build.js and put it into radix-script cm
-	cp ./brigade-scripts/generic-build.js ./oldBuildScript.js
-	sed -E "s/(radixdev.azurecr.io\/rx:).[a-z0-9]*/\1$(VERSION)/g" ./oldBuildScript.js > newBuildScript.js
-	minify newBuildScript.js > minifiedBuildScript.js
-	sed -i "" 's/"/\\"/g' minifiedBuildScript.js
-	perl -pi -e 'chomp if eof' minifiedBuildScript.js
-	
-	# update kc cm
-	kubectl get cm radix-script -o json > oldRadixScript.json
-	sed -E 's/"brigade.js":.*/"brigade.js":"<inputscript>"/g' ./oldRadixScript.json > newRadixScript.json
-	perl -pe 's/<inputscript>/`cat minifiedBuildScript.js`/ge' newRadixScript.json > finalRadixScript.json
-	
-	kubectl apply -f finalRadixScript.json
-
-	rm oldRadixScript.json oldBuildScript.js newRadixScript.json newBuildScript.js minifiedBuildScript.js finalRadixScript.json
+# make deploy-pipeline VERSION=latest BINS=pipeline-runner IMAGES=pipeline-runner
+deploy-pipeline:
+	dep ensure
+	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
+	make docker-build
+	make docker-push

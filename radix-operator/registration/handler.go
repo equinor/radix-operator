@@ -40,25 +40,41 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 	}
 
 	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
-
 	kube, _ := kube.New(t.kubeclient)
 
-	kube.CreateEnvironment(radixRegistration, "app")
-
-	brigadeProject, err := t.brigade.EnsureProject(radixRegistration)
+	err := kube.CreateEnvironment(radixRegistration, "app")
 	if err != nil {
-		logger.Errorf("Failed to create Brigade project: %v", err)
-		return fmt.Errorf("Failed to create Brigade project: %v", err)
+		logger.Errorf("Failed to create app namespace. %v", err)
+	} else {
+		logger.Infof("App namespace created")
 	}
 
-	logger.Infof("Ensured Brigade project exists")
+	err = kube.ApplySecretsForPipelines(radixRegistration)
+	if err != nil {
+		logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
+	} else {
+		logger.Infof("Applied secrets needed by pipelines")
+	}
 
-	// TODO
-	err = kube.ApplyRbacRadixRegistration(radixRegistration, brigadeProject)
+	pipelineServiceAccount, err := kube.ApplyPipelineServiceAccount(radixRegistration)
+	if err != nil {
+		logger.Errorf("Failed to apply service account needed by pipeline. %v", err)
+	} else {
+		logger.Infof("Applied service account needed by pipelines")
+	}
+
+	err = kube.ApplyRbacRadixRegistration(radixRegistration)
 	if err != nil {
 		logger.Errorf("Failed to set access on RadixRegistration: %v", err)
 	} else {
 		logger.Infof("Applied access permissions to RadixRegistration")
+	}
+
+	err = kube.ApplyRbacOnPipelineRunner(radixRegistration, pipelineServiceAccount)
+	if err != nil {
+		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
+	} else {
+		logger.Infof("Applied access permissions needed by pipeline")
 	}
 
 	return nil
