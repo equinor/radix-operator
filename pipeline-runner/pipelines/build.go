@@ -60,7 +60,7 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", appName, imageTag), // todo - job name - bind it to version?
+			Name: fmt.Sprintf("%s-%s", appName, imageTag),
 			Labels: map[string]string{
 				"app": appName,
 			},

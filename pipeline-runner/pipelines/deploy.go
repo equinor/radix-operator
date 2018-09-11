@@ -104,7 +104,6 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageT
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
 		_ = getEnvironmentVariables(appComponent, env)
-		_ = getEnvironmentSecrets(appComponent)
 
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
@@ -113,33 +112,27 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageT
 			Public:               appComponent.Public,
 			Ports:                appComponent.Ports,
 			Secrets:              appComponent.Secrets,
-			EnvironmentVariables: appComponent.EnvironmentVariables,
+			EnvironmentVariables: appComponent.EnvironmentVariables, // todo: use single EnvVars instead
 		}
 		components = append(components, deployComponent)
 	}
 	return components
 }
 
-func getEnvironmentVariables(component v1.RadixComponent, env string) error {
+func getEnvironmentVariables(component v1.RadixComponent, env string) v1.EnvVars {
 	for _, variable := range component.EnvironmentVariables {
-		if variable.Environment != env {
-			continue
+		if variable.Environment == env {
+			return variable
 		}
-
-		// add env variable to result
 	}
-	return nil
-}
-
-func getEnvironmentSecrets(component v1.RadixComponent) error {
-	return nil
+	return v1.EnvVars{}
 }
 
 func getOwnerRef(radixRegistration *v1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		metav1.OwnerReference{
-			APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+			APIVersion: "radix.equinor.com/v1",
 			Kind:       "RadixRegistration",
 			Name:       radixRegistration.Name,
 			UID:        radixRegistration.UID,

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/apis/brigade"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"k8s.io/client-go/kubernetes"
@@ -12,15 +11,12 @@ import (
 
 type RadixRegistrationHandler struct {
 	kubeclient kubernetes.Interface
-	brigade    *brigade.BrigadeGateway
 }
 
 //NewRegistrationHandler creates a handler which deals with RadixRegistration resources
 func NewRegistrationHandler(kubeclient kubernetes.Interface) RadixRegistrationHandler {
-	brigadeGw, _ := brigade.New(kubeclient)
 	handler := RadixRegistrationHandler{
 		kubeclient: kubeclient,
-		brigade:    brigadeGw,
 	}
 
 	return handler
@@ -94,9 +90,6 @@ func (t *RadixRegistrationHandler) ObjectUpdated(objOld, objNew interface{}) err
 
 	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
 
-	_, err := t.brigade.EnsureProject(radixRegistration)
-	if err != nil {
-		return fmt.Errorf("Failed to update Brigade project: %v", err)
-	}
+	// todo, ensure update is handled correctly
 	return nil
 }
