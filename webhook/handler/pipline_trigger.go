@@ -35,8 +35,8 @@ func (p *PipelineTrigger) ProcessPullRequestEvent(rr *v1.RadixRegistration, prEv
 }
 
 func (p *PipelineTrigger) ProcessPushEvent(rr *v1.RadixRegistration, pushEvent *github.PushEvent, req *http.Request) error {
-	jobName := getUniqueJobName(p.config.WorkerImage)
-	job := p.createPipelineJob(jobName, *pushEvent.Repo.SSHURL)
+	jobName, randomNr := getUniqueJobName(p.config.WorkerImage)
+	job := p.createPipelineJob(jobName, randomNr, *pushEvent.Repo.SSHURL)
 
 	logrus.Infof("Starting pipeline: %s, %s", jobName, p.config.WorkerImage)
 	appNamespace := fmt.Sprintf("%s-app", rr.Name)
@@ -73,7 +73,7 @@ func NewPipelineTrigger(kubeclient kubernetes.Interface, config *Config) *Pipeli
 	}
 }
 
-func (p *PipelineTrigger) createPipelineJob(jobName, sshUrl string) *batchv1.Job {
+func (p *PipelineTrigger) createPipelineJob(jobName, randomStr, sshUrl string) *batchv1.Job {
 	gitCloneCommand := fmt.Sprintf("git clone %s -b %s .", sshUrl, p.config.RadixConfigBranch)
 	imageTag := fmt.Sprintf("%s/%s:%s", p.config.DockerRegistryPath, p.config.WorkerImage, "latest")
 	logrus.Infof("Using image: %s, %s", imageTag)
@@ -119,7 +119,7 @@ func (p *PipelineTrigger) createPipelineJob(jobName, sshUrl string) *batchv1.Job
 							Args: []string{
 								fmt.Sprintf("BRANCH=%s", "master"),
 								fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"),
-								fmt.Sprintf("IMAGE_TAG=%s", ""),
+								fmt.Sprintf("IMAGE_TAG=%s", randomStr),
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
@@ -158,14 +158,15 @@ func (p *PipelineTrigger) createPipelineJob(jobName, sshUrl string) *batchv1.Job
 	return &job
 }
 
-func getUniqueJobName(image string) string {
+func getUniqueJobName(image string) (string, string) {
 	var jobName []string
+	randomStr := strings.ToLower(randStringBytesMaskImprSrc(5))
 	jobName = append(jobName, image)
 	jobName = append(jobName, "-")
 	jobName = append(jobName, getCurrentTimestamp())
 	jobName = append(jobName, "-")
-	jobName = append(jobName, strings.ToLower(randStringBytesMaskImprSrc(5)))
-	return strings.Join(jobName, "")
+	jobName = append(jobName, randomStr)
+	return strings.Join(jobName, ""), randomStr
 }
 
 func getCurrentTimestamp() string {
