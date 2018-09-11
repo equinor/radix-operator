@@ -106,39 +106,6 @@ func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
 	return ownerRef
 }
 
-func BrigadeRoleBinding(appName, roleName string, adGroups []string, owner metav1.OwnerReference) *auth.RoleBinding {
-	subjects := getRoleBindingGroups(adGroups)
-	roleBindingName := roleName
-
-	rolebinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleBindingName,
-			Labels: map[string]string{
-				"radixBrigade": appName,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				owner,
-			},
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     roleName,
-		},
-		Subjects: subjects,
-	}
-
-	logger = logger.WithFields(log.Fields{"rolebinding": rolebinding.ObjectMeta.Name})
-
-	logger.Infof("Done - create rolebinding config %s", roleBindingName)
-
-	return rolebinding
-}
-
 func RdRoleBinding(radixDeploy *radixv1.RadixDeployment, roleName string, adGroups []string) *auth.RoleBinding {
 	appName := radixDeploy.Spec.AppName
 	roleBindingName := roleName
