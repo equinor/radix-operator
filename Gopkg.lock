@@ -96,6 +96,22 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:21d39f826459b6b8452a6dfb59b4956b38ce24703a17342711668d1b7b80ddc8"
+  name = "github.com/google/go-github"
+  packages = ["github"]
+  pruneopts = ""
+  revision = "08dbadce1a0514f79ea9a9aa91b2f12ba656d5a7"
+  version = "v18.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:9abc49f39e3e23e262594bb4fb70abf74c0c99e94f99153f43b143805e850719"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  pruneopts = ""
+  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+
+[[projects]]
   branch = "master"
   digest = "1:754f77e9c839b24778a4b64422236d38515301d2baeb63113aa3edc42e6af692"
   name = "github.com/google/gofuzz"
@@ -189,6 +205,14 @@
   pruneopts = ""
   revision = "1df9eeb2bb81f327b96228865c5687bc2194af3f"
   version = "1.0.0"
+
+[[projects]]
+  digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = ""
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
 
 [[projects]]
   digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
@@ -616,7 +640,10 @@
   input-imports = [
     "github.com/Sirupsen/logrus",
     "github.com/golang/glog",
+    "github.com/google/go-github/github",
+    "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus/promhttp",
+    "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
     "gopkg.in/yaml.v2",
     "k8s.io/api/batch/v1",

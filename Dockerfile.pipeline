@@ -10,7 +10,6 @@ COPY ./pipeline-runner ./pipeline-runner
 COPY ./pkg ./pkg
 WORKDIR /go/src/github.com/statoil/radix-operator/pipeline-runner/
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/pipeline-runner
-RUN ls -a -l && pwd
 RUN adduser -D -g '' radix-pipeline
 
 FROM scratch
