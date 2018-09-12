@@ -1,0 +1,25 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: radix-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      radixApp: radix-webhook
+  template:
+    metadata:
+      labels:
+        radixApp: radix-webhook
+    spec:
+      serviceAccount: {{ .Values.serviceAccount }}
+      containers:
+        - name: radix-webhook
+          image: "{{ .Values.privateRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.internalPort }}
+              protocol: TCP
+      {{ if .Values.privateRegistrySecret }}imagePullSecrets:
+        - name: {{.Values.privateRegistrySecret}}{{end}}

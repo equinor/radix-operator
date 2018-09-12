@@ -1,0 +1,16 @@
+# Default values for radix-webhook.
+
+image:
+  repository: radix-webhook
+  tag: "latest"
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  internalPort: 3001
+
+serviceAccount: radix-operator
+privateRegistrySecret: radix-docker
+privateRegistry: radixdev.azurecr.io
+tlsSecret: domain-ssl-cert-key
+clustername: clusterz
