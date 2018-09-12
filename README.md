@@ -83,3 +83,15 @@ Installing Radix Operator using the Helm Chart you need to do the following:
 - Install: `helm install -f radix-operator.values ./charts/radix-operator`
 
 If you wish to use a different image version, update the `image.tag` property in `radix-operator.yaml` you created above.
+
+
+# radix-webhook
+
+## Installing Helm Chart
+
+Installing Radix Webhook using the Helm Chart you need to do the following:
+
+- Clone this repository
+- Run: `helm inspect values charts/radix-webhook > radix-webhook.yaml`
+- Edit the `radix-webhook.yaml` accordingly
+- Install: `helm install -n radix-webhook -f radix-webhook.yaml ./charts/radix-webhook`
