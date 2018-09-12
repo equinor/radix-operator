@@ -43,3 +43,60 @@ rules:
 - apiGroups: ["extensions"]
   resources: ["ingresses"]
   verbs: ["get", "list", "watch"]
+---
+# used to grant pipeline access to create jobs in its app namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: radix-pipeline
+  labels:
+    app: {{ template "radix-operator.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+rules:
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixapplications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+---
+# used to grant pipeline access to create new namespaces and deployments
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: radix-pipeline-runner
+  labels:
+    app: {{ template "radix-operator.name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixdeployments
+  verbs:
+  - get
+  - create

@@ -11,10 +11,13 @@ import (
 	pipe "github.com/statoil/radix-operator/pipeline-runner/pipelines"
 )
 
-// should we have different pipeline types? if yes, should each be a small go script?
-// should run in app namespace, where users has access to read pods, jobs, logs (not secrets)
-// pipeline runner should be registered as a job running in app namespace,
-// pointing to pipeline-runner image, with labels to identify runned pipelines
+// Requirements to run, pipeline must have:
+// - access to read RR of the app mention in "RADIX_FILE_NAME"
+// - access to create Jobs in "app" namespace it runs under
+// - access to create RD in all namespaces
+// - access to create new namespaces
+// - a secret git-ssh-keys containing deployment key to git repo provided in RR
+// - a secret radix-docker with credentials to access our private ACR
 func main() {
 	args := getArgs()
 	branch := args["BRANCH"]
