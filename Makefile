@@ -11,13 +11,13 @@ test:
 define make-docker-build
   	build-$1:
 		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(IMAGE_TAG) -f Dockerfile.$1 .
-  	build:: docker-build-$1
+  	build:: build-$1
 endef
 
 define make-docker-push
   	push-$1:
 		docker push $(DOCKER_REGISTRY)/radix-$1:$(IMAGE_TAG)
-  	push:: docker-push-$1
+  	push:: push-$1
 endef
 
 define make-docker-deploy
