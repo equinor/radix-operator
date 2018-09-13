@@ -1,0 +1,9 @@
+.vscode
+charts
+docs
+hack
+vendor
+.git
+*/rootfs
+bin
+Makefile
