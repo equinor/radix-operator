@@ -9,13 +9,15 @@ RUN sed -i 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/clie
 COPY ./webhook ./webhook
 COPY ./pkg ./pkg
 WORKDIR /go/src/github.com/statoil/radix-operator/webhook/
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-webhook
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o /usr/local/bin/radix-webhook
+WORKDIR /
+RUN rm -f -r go/
 RUN adduser -D -g '' radix-operator
 
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /go/src/github.com/statoil/radix-operator/webhook/rootfs/radix-webhook /usr/local/bin/radix-webhook
+COPY --from=builder /usr/local/bin/radix-webhook /usr/local/bin/radix-webhook
 USER radix-operator
 EXPOSE 3001
 ENTRYPOINT ["/usr/local/bin/radix-webhook"]
