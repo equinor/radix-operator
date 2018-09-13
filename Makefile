@@ -9,21 +9,21 @@ test:
 	go test -cover `go list ./... | grep -v 'pkg/client\|apis/radix'`
 
 define make-docker-build
-  	docker-build-$1:
+  	build-$1:
 		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(IMAGE_TAG) -f Dockerfile.$1 .
-  	docker-build:: docker-build-$1
+  	build:: docker-build-$1
 endef
 
 define make-docker-push
-  	docker-push-$1:
+  	push-$1:
 		docker push $(DOCKER_REGISTRY)/radix-$1:$(IMAGE_TAG)
-  	docker-push:: docker-push-$1
+  	push:: docker-push-$1
 endef
 
 define make-docker-deploy
-  	docker-deploy-$1:
-		make docker-build-$1
-		make docker-push-$1
+  	deploy-$1:
+		make build-$1
+		make push-$1
 endef
 
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-build,$(element))))
@@ -31,12 +31,12 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-push,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
 # need to connect to kubernetes and container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
-deploy-operator:
-	make docker-build-operator
-	make docker-push-operator
+deploy-operator-kc:
+	make build-operator
+	make push-operator
 	# update docker image version in deploy file - file name should be a variable
 	kubectl get deploy radix-operator -o yaml > oldRadixOperatorDef.yaml 
-	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
+	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(IMAGE_TAG)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
 	kubectl apply -f newRadixOperatorDef.yaml
 	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
 
@@ -67,3 +67,6 @@ endif
 
 .PHONY: bootstrap
 bootstrap: vendor
+
+fix: 
+	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go

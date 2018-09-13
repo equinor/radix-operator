@@ -69,7 +69,7 @@ func getRadixApplication(filename string) (*v1.RadixApplication, error) {
 	radixApp := v1.RadixApplication{}
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read file v% Error:  #%v ", filename, err)
+		return nil, fmt.Errorf("Failed to read file %v Error:  %v ", filename, err)
 	}
 	err = yaml.Unmarshal(yamlFile, &radixApp)
 	if err != nil {

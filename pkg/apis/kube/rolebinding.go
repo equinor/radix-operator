@@ -93,6 +93,36 @@ func (k *Kube) ApplyClusterRoleBinding(rolebinding *auth.ClusterRoleBinding) err
 	return nil
 }
 
+func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
+	ownerReference := GetOwnerReference(registration.Name, "RadixRegistration", registration.UID)
+
+	rolebinding := &auth.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "radix-webhook",
+			OwnerReferences: []metav1.OwnerReference{
+				ownerReference,
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     roleName,
+		},
+		Subjects: []auth.Subject{
+			auth.Subject{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccount.Name,
+				Namespace: serviceAccount.Namespace,
+			},
+		},
+	}
+	return k.ApplyClusterRoleBinding(rolebinding)
+}
+
 func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
 	trueVar := true
 	ownerRef := metav1.OwnerReference{

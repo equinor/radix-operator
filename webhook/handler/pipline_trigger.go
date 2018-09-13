@@ -14,9 +14,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 type Config struct {
@@ -44,25 +42,8 @@ func (p *PipelineTrigger) ProcessPushEvent(rr *v1.RadixRegistration, pushEvent *
 	if err != nil {
 		return err
 	}
+	logrus.Infof("Started pipeline: %s, %s", jobName, p.config.WorkerImage)
 
-	jobsSelector := labels.SelectorFromSet(labels.Set(map[string]string{"job_label": jobName})).String()
-	optionsModifer := func(options *metav1.ListOptions) {
-		options.LabelSelector = jobsSelector
-	}
-
-	watchList := cache.NewFilteredListWatchFromClient(p.kubeclient.BatchV1().RESTClient(), "jobs", appNamespace,
-		optionsModifer)
-	_, controller := cache.NewInformer(
-		watchList,
-		&batchv1.Job{},
-		time.Second*30,
-		cache.ResourceEventHandlerFuncs{
-			UpdateFunc: handleJobUpdate,
-		},
-	)
-
-	stop := make(chan struct{})
-	go controller.Run(stop)
 	return nil
 }
 
@@ -172,21 +153,6 @@ func getUniqueJobName(image string) (string, string) {
 func getCurrentTimestamp() string {
 	t := time.Now()
 	return t.Format("20060102150405") // YYYYMMDDHHMISS in Go
-}
-
-func handleJobUpdate(old, current interface{}) {
-	oldJob := old.(*batchv1.Job)
-	currentJob := current.(*batchv1.Job)
-
-	// Only when old job differs from current job, will we have a state change
-	if oldJob != currentJob {
-		if currentJob.Status.Succeeded == 1 {
-			logrus.Infof("Pipeline job [%s] succeeded", currentJob.Name)
-		}
-		if currentJob.Status.Failed == 1 {
-			logrus.Infof("Pipeline job [%s] failed", currentJob.Name)
-		}
-	}
 }
 
 var src = rand.NewSource(time.Now().UnixNano())

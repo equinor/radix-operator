@@ -10,9 +10,13 @@ import (
 
 func (kube *Kube) ApplyPipelineServiceAccount(radixRegistration *v1.RadixRegistration) (*corev1.ServiceAccount, error) {
 	namespace := GetCiCdNamespace(radixRegistration)
+	return kube.ApplyServiceAccount("radix-pipeline", namespace)
+}
+
+func (kube *Kube) ApplyServiceAccount(serviceAccountName, namespace string) (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-pipeline",
+			Name:      serviceAccountName,
 			Namespace: namespace,
 		},
 	}

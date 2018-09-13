@@ -66,7 +66,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 
 	for _, v := range radixDeploy.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
-		err := t.createDeployment(radixDeploy, v)
+		err := t.createDeployment(radixRegistration, radixDeploy, v)
 		if err != nil {
 			logger.Infof("Failed to create deployment: %v", err)
 			return fmt.Errorf("Failed to create deployment: %v", err)
@@ -124,9 +124,22 @@ func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGr
 	return nil
 }
 
-func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
+func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistration, radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
+	appName := radixDeploy.Spec.AppName
 	deployment := getDeploymentConfig(radixDeploy, deployComponent)
+
+	if isRadixWebHook(appName) {
+		serviceAccountName := "radix-webhook"
+		serviceAccount, err := t.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
+		if err != nil {
+			logger.Warnf("Service account for running radix webhook not made. %v", err)
+		} else {
+			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
+			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+		}
+	}
+
 	logger.Infof("Creating Deployment object %s in namespace %s", deployComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
@@ -143,6 +156,10 @@ func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, d
 	}
 	logger.Infof("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
 	return nil
+}
+
+func isRadixWebHook(appName string) bool {
+	return appName == "radix-webhook"
 }
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
