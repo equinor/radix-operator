@@ -32,11 +32,11 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
 # need to connect to kubernetes and container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
 deploy-operator-kc:
-	make docker-build-operator
-	make docker-push-operator
+	make build-operator
+	make push-operator
 	# update docker image version in deploy file - file name should be a variable
 	kubectl get deploy radix-operator -o yaml > oldRadixOperatorDef.yaml 
-	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
+	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(IMAGE_TAG)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
 	kubectl apply -f newRadixOperatorDef.yaml
 	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
 

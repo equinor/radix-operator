@@ -33,6 +33,12 @@ rules:
 - apiGroups: ["radix.equinor.com"]
   resources: ["radixapplications", "radixdeployments"]
   verbs: ["*"]
+- apiGroups: ["radix.equinor.com"]
+  resources: ["radixregistrations"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
