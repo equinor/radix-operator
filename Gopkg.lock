@@ -23,6 +23,22 @@
   version = "v10.11.1"
 
 [[projects]]
+  digest = "1:8e47871087b94913898333f37af26732faaab30cdb41571136cf7aec9921dae7"
+  name = "github.com/PuerkitoBio/purell"
+  packages = ["."]
+  pruneopts = ""
+  revision = "0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4"
+  version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:331a419049c2be691e5ba1d24342fc77c7e767a80c666a18fd8a9f7b82419c1c"
+  name = "github.com/PuerkitoBio/urlesc"
+  packages = ["."]
+  pruneopts = ""
+  revision = "de5bf2ad457846296e2031421a34e2568e304e35"
+
+[[projects]]
   digest = "1:8cf46b6c18a91068d446e26b67512cf16f1540b45d90b28b9533706a127f0ca6"
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
@@ -37,6 +53,14 @@
   packages = ["quantile"]
   pruneopts = ""
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
+  digest = "1:79421244ba5848aae4b0a5c41e633a04e4894cb0b164a219dc8c15ec7facb7f1"
+  name = "github.com/blang/semver"
+  packages = ["."]
+  pruneopts = ""
+  revision = "2ee87856327ba09384cabd113bc6b5d174e9ec0f"
+  version = "v3.5.1"
 
 [[projects]]
   digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
@@ -55,12 +79,66 @@
   version = "v3.2.0"
 
 [[projects]]
+  digest = "1:a9e4ff75555e4500e409dc87c1d708b090bb8dd77f889bbf266773f3dc23af70"
+  name = "github.com/docker/distribution"
+  packages = [
+    "digest",
+    "reference",
+  ]
+  pruneopts = ""
+  revision = "48294d928ced5dd9b378f7fd7c6f5da3ff3f2c89"
+  version = "v2.6.2"
+
+[[projects]]
+  digest = "1:8a34d7a37b8f07239487752e14a5faafcbbc718fc385ad429a2c4ac6f27a207f"
+  name = "github.com/emicklei/go-restful"
+  packages = [
+    ".",
+    "log",
+  ]
+  pruneopts = ""
+  revision = "3eb9738c1697594ea6e71a7156a9bb32ed216cf0"
+  version = "v2.8.0"
+
+[[projects]]
   digest = "1:b13707423743d41665fd23f0c36b2f37bb49c30e94adb813319c44188a51ba22"
   name = "github.com/ghodss/yaml"
   packages = ["."]
   pruneopts = ""
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:e116a4866bffeec941056a1fcfd37e520fad1ee60e4e3579719f19a43c392e10"
+  name = "github.com/go-openapi/jsonpointer"
+  packages = ["."]
+  pruneopts = ""
+  revision = "3a0015ad55fa9873f41605d3e8f28cd279c32ab2"
+  version = "0.16.0"
+
+[[projects]]
+  digest = "1:3830527ef0f4f9b268d9286661c0f52f9115f8aefd9f45ee7352516f93489ac9"
+  name = "github.com/go-openapi/jsonreference"
+  packages = ["."]
+  pruneopts = ""
+  revision = "3fb327e6747da3043567ee86abd02bb6376b6be2"
+  version = "0.16.0"
+
+[[projects]]
+  digest = "1:222a38a6f9a0bac95fa14fb97b0bf4734dd652a3341306aa79dda33980d91f42"
+  name = "github.com/go-openapi/spec"
+  packages = ["."]
+  pruneopts = ""
+  revision = "384415f06ee238aae1df5caad877de6ceac3a5c4"
+  version = "0.16.0"
+
+[[projects]]
+  digest = "1:a8255150a79fa9cc785561966bacda7ff5b386abed1b5f5a9a784660407df836"
+  name = "github.com/go-openapi/swag"
+  packages = ["."]
+  pruneopts = ""
+  revision = "becd2f08beafcca035645a8a101e0e3e18140458"
+  version = "0.16.0"
 
 [[projects]]
   digest = "1:0a3f6a0c68ab8f3d455f8892295503b179e571b7fefe47cc6c556405d1f83411"
@@ -96,12 +174,36 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:21d39f826459b6b8452a6dfb59b4956b38ce24703a17342711668d1b7b80ddc8"
+  name = "github.com/google/go-github"
+  packages = ["github"]
+  pruneopts = ""
+  revision = "08dbadce1a0514f79ea9a9aa91b2f12ba656d5a7"
+  version = "v18.0.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:9abc49f39e3e23e262594bb4fb70abf74c0c99e94f99153f43b143805e850719"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  pruneopts = ""
+  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+
+[[projects]]
   branch = "master"
   digest = "1:754f77e9c839b24778a4b64422236d38515301d2baeb63113aa3edc42e6af692"
   name = "github.com/google/gofuzz"
   packages = ["."]
   pruneopts = ""
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
+
+[[projects]]
+  digest = "1:5247b135b5492aa232a731acdcb52b08f32b874cb398f21ab460396eadbe866b"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = ""
+  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:16b2837c8b3cf045fa2cdc82af0cf78b19582701394484ae76b2c3bc3c99ad73"
@@ -159,20 +261,32 @@
   version = "v0.3.4"
 
 [[projects]]
-  digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
-  name = "github.com/inconshreveable/mousetrap"
-  packages = ["."]
-  pruneopts = ""
-  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
-  version = "v1.0"
-
-[[projects]]
   digest = "1:9eab2325abbed0ebcee9d44bb3660a69d5d10e42d5ac4a0e77f7a6ea22bfce88"
   name = "github.com/json-iterator/go"
   packages = ["."]
   pruneopts = ""
   revision = "ca39e5af3ece67bbcda3d0f4f56a8e24d9f2dad4"
   version = "1.1.3"
+
+[[projects]]
+  digest = "1:d26c006cbf54ca5c040463d5678013169e2bd91fb62c2f960ae283a1723d4278"
+  name = "github.com/juju/ratelimit"
+  packages = ["."]
+  pruneopts = ""
+  revision = "59fac5042749a5afb9af70e813da1dd5474f0167"
+  version = "1.0.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:212bebc561f4f654a653225868b2a97353cd5e160dc0b0bbc7232b06608474ec"
+  name = "github.com/mailru/easyjson"
+  packages = [
+    "buffer",
+    "jlexer",
+    "jwriter",
+  ]
+  pruneopts = ""
+  revision = "60711f1a8329503b04e1c88535f419d0bb440bff"
 
 [[projects]]
   digest = "1:63722a4b1e1717be7b98fc686e0b30d5e7f734b9e93d7dee86293b6deab7ea28"
@@ -197,6 +311,22 @@
   pruneopts = ""
   revision = "1df9eeb2bb81f327b96228865c5687bc2194af3f"
   version = "1.0.0"
+
+[[projects]]
+  digest = "1:a5484d4fa43127138ae6e7b2299a6a52ae006c7f803d98d717f60abf3e97192e"
+  name = "github.com/pborman/uuid"
+  packages = ["."]
+  pruneopts = ""
+  revision = "adf5a7427709b9deb95d29d3fa8a2bf9cfd388f1"
+  version = "v1.2"
+
+[[projects]]
+  digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  pruneopts = ""
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
 
 [[projects]]
   digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
@@ -251,14 +381,6 @@
   revision = "fe93d378a6b03758a2c1b65e86cf630bf78681c0"
 
 [[projects]]
-  digest = "1:a1403cc8a94b8d7956ee5e9694badef0e7b051af289caad1cf668331e3ffa4f6"
-  name = "github.com/spf13/cobra"
-  packages = ["."]
-  pruneopts = ""
-  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
-  version = "v0.0.3"
-
-[[projects]]
   digest = "1:8e243c568f36b09031ec18dff5f7d2769dcf5ca4d624ea511c8e3197dc3d352d"
   name = "github.com/spf13/pflag"
   packages = ["."]
@@ -267,39 +389,20 @@
   version = "v1.0.1"
 
 [[projects]]
-  branch = "master"
-  digest = "1:1893d97b848cedb5b82dc93ddc7128b9f4e6939adcbde032c1ac2fba82158955"
-  name = "github.com/statoil/radix-operator"
-  packages = [
-    "pkg/apis/brigade",
-    "pkg/apis/kube",
-    "pkg/apis/radix",
-    "pkg/apis/radix/v1",
-    "pkg/client/clientset/versioned",
-    "pkg/client/clientset/versioned/fake",
-    "pkg/client/clientset/versioned/scheme",
-    "pkg/client/clientset/versioned/typed/radix/v1",
-    "pkg/client/clientset/versioned/typed/radix/v1/fake",
-    "pkg/client/informers/externalversions/internalinterfaces",
-    "pkg/client/informers/externalversions/radix",
-    "pkg/client/informers/externalversions/radix/v1",
-    "pkg/client/listers/radix/v1",
-    "radix-operator/application",
-    "radix-operator/common",
-    "radix-operator/deployment",
-    "radix-operator/registration",
-    "rx/commands",
-  ]
-  pruneopts = ""
-  revision = "b34435976c8a259501efbb359a512ecd7c749934"
-
-[[projects]]
   digest = "1:a30066593578732a356dc7e5d7f78d69184ca65aeeff5939241a3ab10559bb06"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   pruneopts = ""
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
+
+[[projects]]
+  digest = "1:2e7f653483e51243b6cd6de60ce39bde0d6927d10a3c24295ab0f82cb1efeae2"
+  name = "github.com/ugorji/go"
+  packages = ["codec"]
+  pruneopts = ""
+  revision = "b4c50a2b199d93b13dc15e78929cfb23bfdf21ab"
+  version = "v1.1.1"
 
 [[projects]]
   branch = "master"
@@ -367,6 +470,7 @@
     "unicode/cldr",
     "unicode/norm",
     "unicode/rangetable",
+    "width",
   ]
   pruneopts = ""
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
@@ -653,35 +757,89 @@
   pruneopts = ""
   revision = "f442ecb314a3679150c272e2b9713d8deed5955d"
 
+[[projects]]
+  digest = "1:3395933afd438d546468d1136ee967ee5df6e2674748813cac241b102788ab42"
+  name = "k8s.io/kubernetes"
+  packages = [
+    "pkg/api",
+    "pkg/api/errors",
+    "pkg/api/meta",
+    "pkg/api/meta/metatypes",
+    "pkg/api/resource",
+    "pkg/api/unversioned",
+    "pkg/api/v1",
+    "pkg/api/validation/path",
+    "pkg/apis/apps",
+    "pkg/apis/autoscaling",
+    "pkg/apis/batch",
+    "pkg/apis/certificates",
+    "pkg/apis/extensions",
+    "pkg/apis/policy",
+    "pkg/apis/rbac",
+    "pkg/apis/storage",
+    "pkg/auth/user",
+    "pkg/client/cache",
+    "pkg/client/metrics",
+    "pkg/client/restclient",
+    "pkg/client/transport",
+    "pkg/client/unversioned/clientcmd/api",
+    "pkg/conversion",
+    "pkg/conversion/queryparams",
+    "pkg/fields",
+    "pkg/genericapiserver/openapi/common",
+    "pkg/labels",
+    "pkg/runtime",
+    "pkg/runtime/serializer",
+    "pkg/runtime/serializer/json",
+    "pkg/runtime/serializer/protobuf",
+    "pkg/runtime/serializer/recognizer",
+    "pkg/runtime/serializer/streaming",
+    "pkg/runtime/serializer/versioning",
+    "pkg/selection",
+    "pkg/types",
+    "pkg/util",
+    "pkg/util/cert",
+    "pkg/util/clock",
+    "pkg/util/diff",
+    "pkg/util/errors",
+    "pkg/util/flowcontrol",
+    "pkg/util/framer",
+    "pkg/util/integer",
+    "pkg/util/intstr",
+    "pkg/util/json",
+    "pkg/util/labels",
+    "pkg/util/net",
+    "pkg/util/parsers",
+    "pkg/util/rand",
+    "pkg/util/runtime",
+    "pkg/util/sets",
+    "pkg/util/uuid",
+    "pkg/util/validation",
+    "pkg/util/validation/field",
+    "pkg/util/wait",
+    "pkg/util/yaml",
+    "pkg/version",
+    "pkg/watch",
+    "pkg/watch/versioned",
+    "third_party/forked/golang/reflect",
+  ]
+  pruneopts = ""
+  revision = "e8c167a115ec662726904265d17f75a6d79d78d8"
+  version = "v1.5.8"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/Sirupsen/logrus",
     "github.com/golang/glog",
-    "github.com/prometheus/client_golang/prometheus",
+    "github.com/google/go-github/github",
+    "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus/promhttp",
-    "github.com/spf13/cobra",
-    "github.com/statoil/radix-operator/pkg/apis/brigade",
-    "github.com/statoil/radix-operator/pkg/apis/kube",
-    "github.com/statoil/radix-operator/pkg/apis/radix",
-    "github.com/statoil/radix-operator/pkg/apis/radix/v1",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/scheme",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/typed/radix/v1",
-    "github.com/statoil/radix-operator/pkg/client/clientset/versioned/typed/radix/v1/fake",
-    "github.com/statoil/radix-operator/pkg/client/informers/externalversions/internalinterfaces",
-    "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix",
-    "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix/v1",
-    "github.com/statoil/radix-operator/pkg/client/listers/radix/v1",
-    "github.com/statoil/radix-operator/radix-operator/application",
-    "github.com/statoil/radix-operator/radix-operator/common",
-    "github.com/statoil/radix-operator/radix-operator/deployment",
-    "github.com/statoil/radix-operator/radix-operator/registration",
-    "github.com/statoil/radix-operator/rx/commands",
+    "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
     "gopkg.in/yaml.v2",
+    "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
@@ -709,6 +867,7 @@
     "k8s.io/client-go/util/flowcontrol",
     "k8s.io/client-go/util/workqueue",
     "k8s.io/code-generator/cmd/client-gen",
+    "k8s.io/kubernetes/pkg/client/cache",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

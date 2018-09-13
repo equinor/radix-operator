@@ -50,46 +50,37 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 	}
 
-	radixApplication, err := t.radixclient.RadixV1().RadixApplications(fmt.Sprintf("%s-app", radixDeploy.Spec.AppName)).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		logger.Infof("Failed to get RadixApplication object: %v", err)
-		return fmt.Errorf("Failed to get RadixApplication object: %v", err)
-	} else {
-		logger.Infof("RadixApplication %s exists", radixApplication.Name)
-	}
-
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations("default").Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
 	} else {
-		logger.Infof("RadixRegistartion %s exists", radixApplication.Name)
+		logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	}
 
-	appComponents := radixApplication.Spec.Components
-	for _, v := range radixDeploy.Spec.Components {
-		for _, w := range appComponents {
-			if v.Name != w.Name {
-				continue
-			}
+	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy.Spec.Environment)
+	if err != nil {
+		logger.Errorf("Failed to provision secrets: %v", err)
+		return fmt.Errorf("Failed to provision secrets: %v", err)
+	}
 
-			// Deploy to current radixDeploy object's namespace
-			err := t.createDeployment(radixDeploy, v, w)
+	for _, v := range radixDeploy.Spec.Components {
+		// Deploy to current radixDeploy object's namespace
+		err := t.createDeployment(radixRegistration, radixDeploy, v)
+		if err != nil {
+			logger.Infof("Failed to create deployment: %v", err)
+			return fmt.Errorf("Failed to create deployment: %v", err)
+		}
+		err = t.createService(radixDeploy, v)
+		if err != nil {
+			logger.Infof("Failed to create service: %v", err)
+			return fmt.Errorf("Failed to create service: %v", err)
+		}
+		if v.Public {
+			err = t.createIngress(radixDeploy, v)
 			if err != nil {
-				logger.Infof("Failed to create deployment: %v", err)
-				return fmt.Errorf("Failed to create deployment: %v", err)
-			}
-			err = t.createService(radixDeploy, w)
-			if err != nil {
-				logger.Infof("Failed to create service: %v", err)
-				return fmt.Errorf("Failed to create service: %v", err)
-			}
-			if w.Public {
-				err = t.createIngress(radixDeploy, w)
-				if err != nil {
-					logger.Infof("Failed to create ingress: %v", err)
-					return fmt.Errorf("Failed to create ingress: %v", err)
-				}
+				logger.Infof("Failed to create ingress: %v", err)
+				return fmt.Errorf("Failed to create ingress: %v", err)
 			}
 		}
 	}
@@ -133,13 +124,26 @@ func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGr
 	return nil
 }
 
-func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent, appComponent v1.RadixComponent) error {
+func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistration, radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	deployment := getDeploymentConfig(radixDeploy, deployComponent.Image, appComponent)
-	logger.Infof("Creating Deployment object %s in namespace %s", appComponent.Name, namespace)
+	appName := radixDeploy.Spec.AppName
+	deployment := getDeploymentConfig(radixDeploy, deployComponent)
+
+	if isRadixWebHook(appName) {
+		serviceAccountName := "radix-webhook"
+		serviceAccount, err := t.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
+		if err != nil {
+			logger.Warnf("Service account for running radix webhook not made. %v", err)
+		} else {
+			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
+			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+		}
+	}
+
+	logger.Infof("Creating Deployment object %s in namespace %s", deployComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("Deployment object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
+		logger.Infof("Deployment object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
 		updatedDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Update(deployment)
 		if err != nil {
 			return fmt.Errorf("Failed to update Deployment object: %v", err)
@@ -154,19 +158,23 @@ func (t *RadixDeployHandler) createDeployment(radixDeploy *v1.RadixDeployment, d
 	return nil
 }
 
-func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
+func isRadixWebHook(appName string) bool {
+	return appName == "radix-webhook"
+}
+
+func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	service := getServiceConfig(appComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, appComponent.Ports)
-	logger.Infof("Creating Service object %s in namespace %s", appComponent.Name, namespace)
+	service := getServiceConfig(deployComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, deployComponent.Ports)
+	logger.Infof("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
 	createdService, err := t.kubeclient.CoreV1().Services(namespace).Create(service)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("Service object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
-		oldService, err := t.kubeclient.CoreV1().Services(namespace).Get(appComponent.Name, metav1.GetOptions{})
+		logger.Infof("Service object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
+		oldService, err := t.kubeclient.CoreV1().Services(namespace).Get(deployComponent.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to get old Service object: %v", err)
 		}
 		newService := oldService.DeepCopy()
-		ports := buildServicePorts(appComponent.Ports)
+		ports := buildServicePorts(deployComponent.Ports)
 		newService.Spec.Ports = ports
 
 		oldServiceJson, err := json.Marshal(oldService)
@@ -184,7 +192,7 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appC
 			return fmt.Errorf("Failed to create two way merge patch Service objects: %v", err)
 		}
 
-		patchedService, err := t.kubeclient.CoreV1().Services(namespace).Patch(appComponent.Name, types.StrategicMergePatchType, patchBytes)
+		patchedService, err := t.kubeclient.CoreV1().Services(namespace).Patch(deployComponent.Name, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
 		}
@@ -198,7 +206,7 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, appC
 	return nil
 }
 
-func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appComponent v1.RadixComponent) error {
+func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
 	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps("default").Get("radix-config", metav1.GetOptions{})
 	if err != nil {
@@ -206,11 +214,11 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appC
 	}
 	clustername := radixconfigmap.Data["clustername"]
 	logger.Infof("Cluster name: %s", clustername)
-	ingress := getIngressConfig(appComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, appComponent.Ports)
-	logger.Infof("Creating Ingress object %s in namespace %s", appComponent.Name, namespace)
+	ingress := getIngressConfig(deployComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, deployComponent.Ports)
+	logger.Infof("Creating Ingress object %s in namespace %s", deployComponent.Name, namespace)
 	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("Ingress object %s already exists in namespace %s, updating the object now", appComponent.Name, namespace)
+		logger.Infof("Ingress object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
 		updatedIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Update(ingress)
 		if err != nil {
 			return fmt.Errorf("Failed to update Ingress object: %v", err)
@@ -225,14 +233,14 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, appC
 	return nil
 }
 
-func getDeploymentConfig(radixDeploy *v1.RadixDeployment, image string, appComponent v1.RadixComponent) *v1beta1.Deployment {
+func getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
 	trueVar := true
 	appName := radixDeploy.Spec.AppName
 	uid := radixDeploy.UID
 	environment := radixDeploy.Spec.Environment
-	componentName := appComponent.Name
-	componentPorts := appComponent.Ports
-	replicas := appComponent.Replicas
+	componentName := deployComponent.Name
+	componentPorts := deployComponent.Ports
+	replicas := deployComponent.Replicas
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
@@ -268,7 +276,7 @@ func getDeploymentConfig(radixDeploy *v1.RadixDeployment, image string, appCompo
 					Containers: []corev1.Container{
 						{
 							Name:  componentName,
-							Image: image,
+							Image: deployComponent.Image,
 						},
 					},
 					ImagePullSecrets: []corev1.LocalObjectReference{
@@ -295,7 +303,7 @@ func getDeploymentConfig(radixDeploy *v1.RadixDeployment, image string, appCompo
 		deployment.Spec.Replicas = int32Ptr(int32(replicas))
 	}
 
-	environmentVariables := getEnvironmentVariables(appComponent.EnvironmentVariables, appComponent.Secrets, radixDeploy.Name, environment, componentName)
+	environmentVariables := getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, radixDeploy.Name, environment, componentName)
 	if environmentVariables != nil {
 		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
@@ -342,7 +350,7 @@ func getEnvironmentVariables(radixEnvVars []v1.EnvVars, radixSecrets []string, r
 	return environmentVariables
 }
 
-func getServiceConfig(componentName string, appName string, uid types.UID, componentPorts []v1.ComponentPort) *corev1.Service {
+func getServiceConfig(componentName, appName string, uid types.UID, componentPorts []v1.ComponentPort) *corev1.Service {
 	trueVar := true
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -375,7 +383,7 @@ func getServiceConfig(componentName string, appName string, uid types.UID, compo
 	return service
 }
 
-func getIngressConfig(componentName, appName, clustername string, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	trueVar := true
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: radix-webhook
+spec:
+  ports:
+    - name: http
+      port: {{ .Values.service.internalPort }}
+      protocol: TCP
+      targetPort: {{ .Values.service.internalPort }}
+  selector:
+    radixApp: radix-webhook
+  type: {{ .Values.service.type }}

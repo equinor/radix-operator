@@ -17,7 +17,6 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Secrets      SecretsMap       `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	Environments []Environment    `json:"environments"`
 	Components   []RadixComponent `json:"components"`
 }
@@ -65,6 +64,7 @@ type ComponentPort struct {
 type RadixComponent struct {
 	Name                 string          `json:"name" yaml:"name"`
 	SourceFolder         string          `json:"src" yaml:"src"`
+	DockerfileName       string          `json:"dockerfileName" yaml:"dockerfileName"`
 	Ports                []ComponentPort `json:"ports" yaml:"ports"`
 	Public               bool            `json:"public" yaml:"public"`
 	Replicas             int             `json:"replicas" yaml:"replicas"`

@@ -65,10 +65,3 @@ func assertGroups(t *testing.T, configuredGroups []string, actualGroups []auth.S
 		assert.True(t, matchingGroup, group)
 	}
 }
-
-func TestCreateBrigadeRolebinding(t *testing.T) {
-	rolebinding := BrigadeRoleBinding("app_name", "role_name", []string{"1g", "2g"}, metav1.OwnerReference{})
-
-	assert.Equal(t, "role_name-binding", rolebinding.Name)
-	assert.Equal(t, "RoleBinding", rolebinding.Kind)
-}
