@@ -30,8 +30,7 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName st
 			return fmt.Errorf("Failed to update container registry credentials secret in %s: %v", ns, err)
 		}
 		logger.Infof("Updated container registry credentials secret: %s in namespace %s", updatedDockerSecret.Name, ns)
-	}
-	if err != nil {
+	} else if err != nil {
 		return fmt.Errorf("Failed to create container registry credentials secret in %s: %v", ns, err)
 	}
 	logger.Infof("Created container registry credentials secret: %s in namespace %s", createdDockerSecret.Name, ns)
@@ -50,8 +49,7 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName st
 			return fmt.Errorf("Failed to update TLS certificate and key secret in %s: %v", ns, err)
 		}
 		logger.Infof("Updated TLS certificate and key secret: %s in namespace %s", updatedTlsSecret.Name, ns)
-	}
-	if err != nil {
+	} else if err != nil {
 		return fmt.Errorf("Failed to create TLS certificate and key secret in %s: %v", ns, err)
 	}
 	logger.Infof("Created TLS certificate and key secret: %s in namespace %s", createdTlsSecret.Name, ns)
