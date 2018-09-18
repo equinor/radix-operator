@@ -85,6 +85,7 @@ func (cli *RadixOnPushHandler) applyRadixApplication(radixRegistration *v1.Radix
 	if err != nil {
 		return fmt.Errorf("failed to apply radix application. %v", err)
 	}
+	log.Infof("RadixApplication %s saved to ns %s", radixApplication.Name, appNamespace)
 	return nil
 }
 
