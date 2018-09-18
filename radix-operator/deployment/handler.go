@@ -385,19 +385,21 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 
 func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	trueVar := true
+	clusterUniqueChars := clustername[len(clustername)-5:] // TODO - make more robust solution
+	hostname := fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clusterUniqueChars)
+	tlsSecretName := fmt.Sprintf("tls-cert-%s", componentName)
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Annotations: map[string]string{
-				// "kubernetes.io/tls-acme":         "true",
-				"kubernetes.io/ingress.class": "nginx",
+				"kubernetes.io/tls-acme": "true",
 			},
 			Labels: map[string]string{
 				"radixApp": appName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+					APIVersion: "radix.equinor.com/v1",
 					Kind:       "RadixDeployment",
 					Name:       componentName,
 					UID:        uid,
@@ -409,14 +411,14 @@ func getIngressConfig(componentName, appName, clustername, namespace string, uid
 			TLS: []v1beta1.IngressTLS{
 				{
 					Hosts: []string{
-						fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername),
+						hostname,
 					},
-					SecretName: "domain-ssl-cert-key",
+					SecretName: tlsSecretName,
 				},
 			},
 			Rules: []v1beta1.IngressRule{
 				{
-					Host: fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername),
+					Host: hostname,
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
