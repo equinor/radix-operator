@@ -15,28 +15,7 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName st
 	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
 	ns := fmt.Sprintf("%s-%s", registration.Name, envName)
 
-	err := k.createDockerSecret(registration, ns)
-	if err != nil {
-		return err
-	}
-
-	return k.createTlsSecret(registration, ns)
-
-}
-
-func (k *Kube) createTlsSecret(registration *radixv1.RadixRegistration, ns string) error {
-	tlsSecret, err := k.kubeClient.CoreV1().Secrets("default").Get("domain-ssl-cert-key", metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("Could not find TLS certificate and key: %v", err)
-	}
-	tlsSecret.ResourceVersion = ""
-	tlsSecret.Namespace = ns
-	saveTLSSecret, err := k.ApplySecret(ns, tlsSecret)
-	if err != nil {
-		return fmt.Errorf("Failed to save TLS certificate and key secret in %s: %v", ns, err)
-	}
-	logger.Infof("Created TLS certificate and key secret: %s in namespace %s", saveTLSSecret.Name, ns)
-	return nil
+	return k.createDockerSecret(registration, ns)
 }
 
 func (k *Kube) createDockerSecret(registration *radixv1.RadixRegistration, ns string) error {
