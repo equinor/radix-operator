@@ -47,11 +47,21 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 				if jobModified.Status.Succeeded == 1 {
 					err = nil
 					done <- nil
+					return
 				}
 				if jobModified.Status.Failed == 1 {
 					err = fmt.Errorf("Build job failed")
 					done <- err
+					return
 				}
+			} else if event.Type == "ERROR" {
+				err = fmt.Errorf("Error watching job: %v", event.Object)
+				done <- err
+				return
+			} else if event.Type == "DELETED" {
+				err = fmt.Errorf("Error, job deleted: %v", event.Object)
+				done <- err
+				return
 			}
 		}
 	}()
