@@ -1,12 +1,13 @@
 package deployment
 
 import (
-	"fmt"
-
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	radixUtils "github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -385,8 +386,8 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 
 func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	trueVar := true
-	clusterUniqueChars := clustername[len(clustername)-5:] // TODO - make more robust solution
-	hostname := fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clusterUniqueChars)
+	clusterUniqueChars := radixUtils.RandStringStrSeed(5, clustername) // TODO - make more robust solution
+	hostname := fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, strings.ToLower(clusterUniqueChars))
 	tlsSecretName := fmt.Sprintf("tls-cert-%s", componentName)
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
