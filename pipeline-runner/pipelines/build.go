@@ -51,7 +51,7 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 			time.Sleep(5 * time.Second)
 		}
 	}()
-	<-done
+	err = <-done
 
 	return err
 }
