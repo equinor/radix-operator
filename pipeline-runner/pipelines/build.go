@@ -3,6 +3,7 @@ package onpush
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
@@ -22,51 +23,36 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 		return err
 	}
 
-	// should we only build if the git commit hash differ from what exist earlier?
-	// include git commit hash as label on job (registered in app namespace), check if it exist and is completeded earlier
-	// do we need to also query ACR and see if image exist?
 	log.Infof("Apply job (%s) to build components for app %s", job.Name, appName)
 	job, err = cli.kubeclient.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
 	}
 
-	watcher, err := cli.kubeclient.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("build=%s", fmt.Sprintf("%s-%s", appName, imageTag)),
-	})
-	if err != nil {
-		return err
-	}
-	channel := watcher.ResultChan()
+	// TODO: workaround watcher bug - pull job status instead of watching
 	done := make(chan error)
-
 	go func() {
-		for event := range channel {
-			if event.Type == "ADDED" || event.Type == "MODIFIED" {
-				jobModified, _ := event.Object.(*batchv1.Job)
-				if jobModified.Status.Succeeded == 1 {
-					err = nil
-					done <- nil
-					return
-				}
-				if jobModified.Status.Failed == 1 {
-					err = fmt.Errorf("Build job failed")
-					done <- err
-					return
-				}
-			} else if event.Type == "ERROR" {
-				err = fmt.Errorf("Error watching job: %v", event.Object)
-				done <- err
-				return
-			} else if event.Type == "DELETED" {
-				err = fmt.Errorf("Error, job deleted: %v", event.Object)
+		for {
+			j, err := cli.kubeclient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
+			if err != nil {
 				done <- err
 				return
 			}
+			switch {
+			case j.Status.Succeeded == 1:
+				done <- nil
+				return
+			case j.Status.Failed == 1:
+				done <- fmt.Errorf("Build docker image failed")
+				return
+			default:
+				log.Debugf("Ongoing - build docker image")
+			}
+			time.Sleep(5 * time.Second)
 		}
 	}()
-
 	<-done
+
 	return err
 }
 
