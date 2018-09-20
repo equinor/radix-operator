@@ -5,7 +5,6 @@ RUN mkdir -p /go/src/github.com/statoil/radix-operator/
 WORKDIR /go/src/github.com/statoil/radix-operator/
 COPY Gopkg.toml Gopkg.lock ./
 RUN dep ensure -vendor-only
-RUN sed -i 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go
 COPY ./pipeline-runner ./pipeline-runner
 COPY ./pkg ./pkg
 WORKDIR /go/src/github.com/statoil/radix-operator/pipeline-runner/
