@@ -8,7 +8,7 @@ spec:
   components:
   - name: "webhook"
     src: "."
-    dockerfileName: "Dockerfile.webhook"
+    dockerfileName: "webhook.Dockerfile"
     ports:
     - name: http
       port: 3001
