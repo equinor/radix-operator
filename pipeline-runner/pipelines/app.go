@@ -62,12 +62,14 @@ func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
 		log.Errorf("failed to build app %s. Error: %v", appName, err)
 		return err
 	}
+	log.Infof("Succeeded: build docker image")
 
 	err = cli.deploy(radixRegistration, radixApplication, imageTag)
 	if err != nil {
 		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
 		return err
 	}
+	log.Infof("Succeeded: deploy application")
 	return nil
 }
 
