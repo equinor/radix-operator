@@ -262,9 +262,9 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 	}
 	if in.EnvironmentVariables != nil {
 		in, out := &in.EnvironmentVariables, &out.EnvironmentVariables
-		*out = make([]EnvVars, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
+		*out = make(EnvVarsMap, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
 		}
 	}
 	if in.Secrets != nil {

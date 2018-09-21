@@ -88,7 +88,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageT
 	components := []v1.RadixDeployComponent{}
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
-		_ = getEnvironmentVariables(appComponent, env)
+		variables := getEnvironmentVariables(appComponent, env)
 
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
@@ -97,20 +97,24 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageT
 			Public:               appComponent.Public,
 			Ports:                appComponent.Ports,
 			Secrets:              appComponent.Secrets,
-			EnvironmentVariables: appComponent.EnvironmentVariables, // todo: use single EnvVars instead
+			EnvironmentVariables: variables, // todo: use single EnvVars instead
 		}
 		components = append(components, deployComponent)
 	}
 	return components
 }
 
-func getEnvironmentVariables(component v1.RadixComponent, env string) v1.EnvVars {
-	for _, variable := range component.EnvironmentVariables {
-		if variable.Environment == env {
-			return variable
+func getEnvironmentVariables(component v1.RadixComponent, env string) v1.EnvVarsMap {
+	if component.EnvironmentVariables == nil {
+		return v1.EnvVarsMap{}
+	}
+
+	for _, variables := range component.EnvironmentVariables {
+		if variables.Environment == env {
+			return variables.Variables
 		}
 	}
-	return v1.EnvVars{}
+	return v1.EnvVarsMap{}
 }
 
 func getOwnerRef(radixRegistration *v1.RadixRegistration) []metav1.OwnerReference {

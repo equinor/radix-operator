@@ -38,6 +38,6 @@ type RadixDeployComponent struct {
 	Ports                []ComponentPort `json:"ports" yaml:"ports"`
 	Replicas             int             `json:"replicas" yaml:"replicas"`
 	Public               bool            `json:"public" yaml:"public"`
-	EnvironmentVariables []EnvVars       `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
+	EnvironmentVariables EnvVarsMap      `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets              []string        `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
