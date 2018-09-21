@@ -61,7 +61,7 @@ func (p *PipelineTrigger) createPipelineJob(jobName, randomStr, sshUrl, pushBran
 	imageTag := fmt.Sprintf("%s/%s:%s", p.config.DockerRegistryPath, p.config.WorkerImage, "latest")
 	logrus.Infof("Using image: %s", imageTag)
 
-	backOffLimit := int32(4)
+	backOffLimit := int32(0)
 	defaultMode := int32(256)
 
 	job := batchv1.Job{

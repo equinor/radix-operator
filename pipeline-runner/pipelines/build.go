@@ -62,7 +62,7 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 	gitCloneCommand := fmt.Sprintf("git clone %s -b %s .", cloneURL, branch) // TODO - MUST ensure commands are not injected
 	buildContainers := createBuildContainers(appName, imageTag, components)
 
-	defaultMode, backOffLimit := int32(256), int32(1)
+	defaultMode, backOffLimit := int32(256), int32(0)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
