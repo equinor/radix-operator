@@ -34,8 +34,8 @@ func (p *PipelineTrigger) ProcessPullRequestEvent(rr *v1.RadixRegistration, prEv
 
 func (p *PipelineTrigger) ProcessPushEvent(rr *v1.RadixRegistration, pushEvent *github.PushEvent, req *http.Request) error {
 	jobName, randomNr := getUniqueJobName(p.config.WorkerImage)
-	ref := strings.Split(*pushEvent.Ref, "/")
-	pushBranch := ref[len(ref)-1]
+	logrus.Infof("Triggered by ref: %s", *pushEvent.Ref)
+	pushBranch := strings.TrimPrefix(*pushEvent.Ref, "refs/heads/")
 	job := p.createPipelineJob(jobName, randomNr, *pushEvent.Repo.SSHURL, pushBranch)
 
 	logrus.Infof("Starting pipeline: %s, %s", jobName, p.config.WorkerImage)
