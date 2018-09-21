@@ -310,25 +310,21 @@ func getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.Rad
 	return deployment
 }
 
-func getEnvironmentVariables(radixEnvVars []v1.EnvVars, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
+func getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
 	if radixEnvVars == nil && radixSecrets == nil {
 		logger.Infof("No environment variable and secret is set for this RadixDeployment %s", radixDeployName)
 		return nil
 	}
 	var environmentVariables []corev1.EnvVar
 	// environmentVariables
-	for _, v := range radixEnvVars {
-		if v.Environment != currentEnvironment {
-			continue
+	for key, value := range radixEnvVars {
+		envVar := corev1.EnvVar{
+			Name:  key,
+			Value: value,
 		}
-		for key, value := range v.Variables {
-			envVar := corev1.EnvVar{
-				Name:  key,
-				Value: value,
-			}
-			environmentVariables = append(environmentVariables, envVar)
-		}
+		environmentVariables = append(environmentVariables, envVar)
 	}
+
 	// secrets
 	for _, v := range radixSecrets {
 		secretKeySelector := corev1.SecretKeySelector{
