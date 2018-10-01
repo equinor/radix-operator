@@ -66,6 +66,13 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 		logger.Infof("Applied access permissions to RadixRegistration")
 	}
 
+	err = kube.GrantAccessToCICDLogs(radixRegistration)
+	if err != nil {
+		logger.Errorf("Failed to grant access to ci/cd logs: %v", err)
+	} else {
+		logger.Infof("Applied access to ci/cd logs")
+	}
+
 	err = kube.ApplyRbacOnPipelineRunner(radixRegistration, pipelineServiceAccount)
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)

@@ -57,7 +57,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	}
 
-	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy.Spec.Environment)
+	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy)
 	if err != nil {
 		logger.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)
@@ -82,12 +82,16 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 				return fmt.Errorf("Failed to create ingress: %v", err)
 			}
 		}
+		err = t.kubeutil.GrantAppAdminAccessToRuntimeSecrets(radixDeploy.Namespace, radixRegistration, &v)
+		if err != nil {
+			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
+		}
 	}
 
-	err = t.applyRbacOnRd(radixDeploy, radixRegistration.Spec.AdGroups)
+	err = t.kubeutil.GrantAppAdminAccessToNs(radixDeploy.Namespace, radixRegistration)
 	if err != nil {
-		logger.Infof("Failed to apply RBAC on RD: %v", err)
-		return fmt.Errorf("Failed to apply RBAC on RD: %v", err)
+		logger.Infof("Failed to setup RBAC on namespace %s: %v", radixDeploy.Namespace, err)
+		return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", radixDeploy.Namespace, err)
 	}
 
 	return nil
@@ -102,24 +106,6 @@ func (t *RadixDeployHandler) ObjectDeleted(key string) error {
 // ObjectUpdated is called when an object is updated
 func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	logger.Info("Deploy object updated received.")
-	return nil
-}
-
-func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGroups []string) error {
-	logger.Infof("Applies rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
-	role := kube.RdRole(radixDeploy, adGroups)
-	rolebinding := kube.RdRoleBinding(radixDeploy, role.Name, adGroups)
-
-	err := t.kubeutil.ApplyRole(radixDeploy.Namespace, role)
-	if err != nil {
-		return err
-	}
-
-	err = t.kubeutil.ApplyRoleBinding(radixDeploy.Namespace, rolebinding)
-	if err != nil {
-		return err
-	}
-	logger.Infof("Applied rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
 	return nil
 }
 
