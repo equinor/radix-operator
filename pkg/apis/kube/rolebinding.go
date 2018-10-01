@@ -12,18 +12,74 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func (k *Kube) ApplyRbacRadixApplication(app *radixv1.RadixApplication) error {
-	for _, env := range app.Spec.Environments {
-		for _, auth := range env.Authorization {
-			namespace := fmt.Sprintf("%s-%s", app.Name, env.Name)
-			rolebinding := appRoleBinding(app.Name, auth.Role, auth.Groups)
-			err := k.ApplyRoleBinding(namespace, rolebinding)
-			if err != nil {
-				return err
-			}
-		}
+func (k *Kube) GrantAppAdminAccessToNs(namespace string, registration *radixv1.RadixRegistration) error {
+	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
+	clusterRoleName := "radix-app-admin-envs"
+
+	roleBinding := &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterRoleName,
+			Labels: map[string]string{
+				"radixApp": registration.Name,
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clusterRoleName,
+		},
+		Subjects: subjects,
 	}
-	return nil
+
+	return k.ApplyRoleBinding(namespace, roleBinding)
+}
+
+func (k *Kube) GrantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) error {
+	if component.Secrets == nil || len(component.Secrets) <= 0 {
+		return nil
+	}
+
+	role := roleAppAdminSecrets(registration, component)
+
+	err := k.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	rolebinding := rolebindingAppAdminSecrets(registration, role)
+
+	return k.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (k *Kube) GrantAccessToCICDLogs(registration *radixv1.RadixRegistration) error {
+	namespace := GetCiCdNamespace(registration)
+	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
+	clusterRoleName := "radix-app-admin"
+
+	roleBinding := &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterRoleName,
+			Labels: map[string]string{
+				"radixApp": registration.Name,
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clusterRoleName,
+		},
+		Subjects: subjects,
+	}
+
+	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
 func (k *Kube) ApplyRbacRadixRegistration(registration *radixv1.RadixRegistration) error {
@@ -136,36 +192,6 @@ func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
 	return ownerRef
 }
 
-func RdRoleBinding(radixDeploy *radixv1.RadixDeployment, roleName string, adGroups []string) *auth.RoleBinding {
-	appName := radixDeploy.Spec.AppName
-	roleBindingName := roleName
-	ownerReference := GetOwnerReference(radixDeploy.Name, "RadixDeployment", radixDeploy.UID)
-	subjects := getRoleBindingGroups(adGroups)
-
-	rolebinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleBindingName,
-			Labels: map[string]string{
-				"radixDeploy": appName,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerReference,
-			},
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     roleName,
-		},
-		Subjects: subjects,
-	}
-	return rolebinding
-}
-
 func (k *Kube) givePipelineAccessToRR(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
 	namespace := "default"
 	role := RrPipelineRole(registration)
@@ -196,8 +222,9 @@ func (k *Kube) givePipelineAccessToDefaultNamespace(registration *radixv1.RadixR
 	return k.ApplyClusterRoleBinding(rolebinding)
 }
 
-func appRoleBinding(appName, clusterrole string, groups []string) *auth.RoleBinding {
-	subjects := getRoleBindingGroups(groups)
+func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
+	roleName := role.ObjectMeta.Name
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -205,15 +232,15 @@ func appRoleBinding(appName, clusterrole string, groups []string) *auth.RoleBind
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("operator-%s-%s", appName, clusterrole),
+			Name: roleName,
 			Labels: map[string]string{
-				"radixApp": appName,
+				"radixApp": registration.Name,
 			},
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterrole,
+			Kind:     "Role",
+			Name:     roleName,
 		},
 		Subjects: subjects,
 	}

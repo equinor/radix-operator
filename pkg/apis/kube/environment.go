@@ -11,11 +11,32 @@ import (
 )
 
 //CreateSecrets should provision required secrets in the specified environment
-func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName string) error {
+func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, deploy *radixv1.RadixDeployment) error {
+	envName := deploy.Spec.Environment
 	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
 	ns := fmt.Sprintf("%s-%s", registration.Name, envName)
 
-	return k.createDockerSecret(registration, ns)
+	err := k.createDockerSecret(registration, ns)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Apply empty secrets based on radix deployment obj")
+	for _, component := range deploy.Spec.Components {
+		for _, secretName := range component.Secrets {
+			secret := v1.Secret{
+				Type: "Opaque",
+				ObjectMeta: metav1.ObjectMeta{
+					Name: secretName,
+				},
+			}
+			_, err = k.ApplySecret(ns, &secret)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (k *Kube) createDockerSecret(registration *radixv1.RadixRegistration, ns string) error {
