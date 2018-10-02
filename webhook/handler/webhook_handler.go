@@ -6,18 +6,18 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
+	"io/ioutil"
+	"net/http"
+	"regexp"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log"
-	"net/http"
-	"regexp"
-	"strings"
 )
 
 const hubSignatureHeader = "X-Hub-Signature"
@@ -53,6 +53,7 @@ func (wh *WebHookHandler) HandleWebhookEvents(listener WebhookListener) http.Han
 			succeed(w, event)
 		}
 		_succeedWithMessage := func(message string) {
+			log.Infof("Success: %s", message)
 			succeedWithMessage(w, event, message)
 		}
 
@@ -76,7 +77,7 @@ func (wh *WebHookHandler) HandleWebhookEvents(listener WebhookListener) http.Han
 
 		switch e := payload.(type) {
 		case *github.PushEvent:
-			rr, err := wh.isValidSecret(req, body, e.Repo.GetFullName())
+			rr, err := wh.isValidSecret(req, body, e.Repo.GetSSHURL())
 			if err != nil {
 				_fail(err)
 				return
@@ -91,17 +92,17 @@ func (wh *WebHookHandler) HandleWebhookEvents(listener WebhookListener) http.Han
 			_succeed()
 
 		case *github.PingEvent:
-			repoFullName := getRepoFullNameFromPing(*e.Hook.URL)
-			_, err := wh.isValidSecret(req, body, repoFullName)
+			sshURL := getSSHUrlFromPingURL(*e.Hook.URL)
+			rr, err := wh.isValidSecret(req, body, sshURL)
 			if err != nil {
 				_fail(err)
 				return
 			}
 
-			_succeedWithMessage("Webhook is set up correctly with the Radix project")
+			_succeedWithMessage(fmt.Sprintf("Webhook is set up correctly with the Radix project: %s", rr.Name))
 
 		case *github.PullRequestEvent:
-			rr, err := wh.isValidSecret(req, body, e.Repo.GetFullName())
+			rr, err := wh.isValidSecret(req, body, e.Repo.GetSSHURL())
 			if err != nil {
 				_fail(err)
 				return
@@ -122,21 +123,22 @@ func (wh *WebHookHandler) HandleWebhookEvents(listener WebhookListener) http.Han
 	})
 }
 
-func (wh *WebHookHandler) isValidSecret(req *http.Request, body []byte, repo string) (*v1.RadixRegistration, error) {
-	rr, err := wh.getRadixRegistrationFromRepo(repo)
+func (wh *WebHookHandler) isValidSecret(req *http.Request, body []byte, sshUrl string) (*v1.RadixRegistration, error) {
+	rr, err := wh.getRadixRegistrationFromRepo(sshUrl)
 	if err != nil {
 		return nil, err
 	}
 
 	signature := req.Header.Get(hubSignatureHeader)
 	if err := validateSignature(signature, rr.Spec.SharedSecret, body); err != nil {
+		log.Printf("Failed to validate signature for app %s", rr.Name)
 		return nil, err
 	}
 
 	return rr, nil
 }
 
-func (wh *WebHookHandler) getRadixRegistrationFromRepo(repoFullName string) (*v1.RadixRegistration, error) {
+func (wh *WebHookHandler) getRadixRegistrationFromRepo(sshUrl string) (*v1.RadixRegistration, error) {
 	rrs, err := wh.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -144,23 +146,23 @@ func (wh *WebHookHandler) getRadixRegistrationFromRepo(repoFullName string) (*v1
 
 	var matchedRR *v1.RadixRegistration
 	for _, rr := range rrs.Items {
-		if strings.Contains(rr.Spec.Repository, repoFullName) {
+		if strings.EqualFold(rr.Spec.CloneURL, sshUrl) {
 			matchedRR = &rr
 			break
 		}
 	}
 
 	if matchedRR == nil {
-		return nil, errors.New("No matching Radix registration found for this webhook")
+		return nil, errors.New("No matching Radix registration found for this webhook: " + sshUrl)
 	}
 
 	return matchedRR, nil
 }
 
-func getRepoFullNameFromPing(pingURL string) string {
+func getSSHUrlFromPingURL(pingURL string) string {
 	fullName := pingRepoPattern.ReplaceAllString(pingURL, "")
 	fullName = pingHooksPattern.ReplaceAllString(fullName, "")
-	return fullName
+	return fmt.Sprintf("git@github.com:%s.git", fullName)
 }
 
 func succeed(w http.ResponseWriter, event string) {
@@ -179,7 +181,7 @@ func succeedWithMessage(w http.ResponseWriter, event, message string) {
 }
 
 func fail(w http.ResponseWriter, event string, err error) {
-	logrus.Printf("%s\n", err)
+	log.Printf("%s\n", err)
 	w.WriteHeader(500)
 	render(w, WebhookResponse{
 		Ok:    false,
