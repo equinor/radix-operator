@@ -17,7 +17,6 @@ type RadixRegistration struct {
 
 //RadixRegistrationSpec is the spec for an application
 type RadixRegistrationSpec struct {
-	Repository   string   `json:"repository" yaml:"repository"`
 	CloneURL     string   `json:"cloneURL" yaml:"cloneURL"`
 	SharedSecret string   `json:"sharedSecret" yaml:"sharedSecret"`
 	DeployKey    string   `json:"deployKey" yaml:"deployKey"`
