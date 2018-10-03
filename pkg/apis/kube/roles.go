@@ -93,8 +93,8 @@ func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *rad
 			{
 				APIGroups:     []string{""},
 				Resources:     []string{"secrets"},
-				ResourceNames: component.Secrets,
-				Verbs:         []string{"get", "list", "watch", "update", "delete"},
+				ResourceNames: []string{component.Name},
+				Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
 			},
 		},
 	}

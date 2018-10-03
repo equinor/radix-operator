@@ -10,10 +10,10 @@ kind: RadixRegistration
 metadata:
   name: myapp
 spec:
-  repository: "https://github.com/Statoil/myapp"
   cloneURL: "git@github.com:Statoil/myapp"
   sharedSecret: "ThisIsASecret"
-  defaultScript: ""
   deployKey: ""
-  defaultScriptName: "radix-script"
+  adGroups: 
+  - 1asddf33-1asdfa32-2asdfa43-12asdf3
+  - werwwer3-asasfdfa-12a2f3-32asdf231
 ```
