@@ -1,6 +1,6 @@
 DOCKER_REGISTRY	?= radixdev.azurecr.io
 
-DOCKER_FILES	= operator pipeline webhook
+DOCKER_FILES	= operator pipeline
 
 VERSION 	?= latest
 
