@@ -1,0 +1,11 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixRegistration
+metadata:
+  name: testapp
+spec:
+  cloneURL: "git@github.com:Statoil/testapp.git"
+  sharedSecret: "NotSoSecret"
+  adGroups:
+  - "a6a3b81b-34gd-sfsf-saf2-7986371ea35f"
+  secrets:
+    test: test
