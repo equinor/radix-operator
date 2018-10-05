@@ -44,14 +44,7 @@ type EnvVars struct {
 
 //Environment defines a Radix application environment
 type Environment struct {
-	Name          string              `json:"name" yaml:"name"`
-	Authorization []AuthorizationSpec `json:"authorization" yaml:"authorization"`
-}
-
-//AuthorizationSpec maps Azure AD groups to roles
-type AuthorizationSpec struct {
-	Role   string   `json:"role" yaml:"role"`
-	Groups []string `json:"groups" yaml:"groups"`
+	Name string `json:"name" yaml:"name"`
 }
 
 // ComponentPort defines the port number, protocol and port for a service

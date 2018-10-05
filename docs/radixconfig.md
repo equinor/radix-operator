@@ -15,15 +15,7 @@ metadata:
 spec:
   environments:
     - name: dev
-      authorization:
-      - role: RadixReader
-        groups:
-        - "<Azure AD group display name>"
     - name: prod
-      authorization:
-      - role: RadixReader
-        groups:
-        - "<Azure AD group ID>"
   components:
     - name: frontend
       src: frontend
@@ -58,15 +50,6 @@ This is an array of environments for your application.
 #### name
 
 The name of your environment
-
-#### authorization
-
-A list of rolemappings - mapping Azure AD groups to a role in Radix
-
-Available Roles:
-- RadixReader
-- RadixDeploy
-- RadixAdmin
 
 ### components
 
