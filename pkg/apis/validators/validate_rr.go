@@ -1,13 +1,15 @@
-package radixutils
+package validators
 
 import (
 	"fmt"
 	"regexp"
 
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func IsValidRadixRegistration(registration *radixv1.RadixRegistration) (bool, []error) {
+func IsValidRadixRegistration(client radixclient.Interface, registration *radixv1.RadixRegistration) (bool, []error) {
 	errs := []error{}
 	err := validateGitSSHUrl(registration.Spec.CloneURL)
 	if err != nil {
@@ -21,8 +23,20 @@ func IsValidRadixRegistration(registration *radixv1.RadixRegistration) (bool, []
 	if err != nil {
 		errs = append(errs, err)
 	}
+	err = validateDoesNameAlreadyExist(client, registration.Name)
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 	return len(errs) <= 0, errs
+}
+
+func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
+	rr, _ := client.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
+	if rr != nil {
+		return fmt.Errorf("App name must be unique in cluster - %s already exist", appName)
+	}
+	return nil
 }
 
 func validateAdGroups(groups []string) error {

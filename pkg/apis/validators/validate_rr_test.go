@@ -1,15 +1,17 @@
-package radixutils
+package validators
 
 import (
 	"testing"
 
 	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_valid_rr_returns_true(t *testing.T) {
+	client := fake.NewSimpleClientset()
 	rr, _ := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
-	isValid, errs := IsValidRadixRegistration(rr)
+	isValid, errs := IsValidRadixRegistration(client, rr)
 
 	assert.True(t, isValid)
 	assert.True(t, len(errs) == 0)
@@ -17,12 +19,28 @@ func Test_valid_rr_returns_true(t *testing.T) {
 
 func Test_invalid_rr_returns_false(t *testing.T) {
 	rr, _ := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
+	client := fake.NewSimpleClientset(rr)
 	rr.Spec.CloneURL = "not correct clone url"
 	rr.Spec.AdGroups = []string{"incorrect_ad_group"}
-	isValid, errs := IsValidRadixRegistration(rr)
+	isValid, errs := IsValidRadixRegistration(client, rr)
 
 	assert.False(t, isValid)
 	assert.False(t, len(errs) == 0)
+}
+
+func Test_valid_app_name(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	err := validateDoesNameAlreadyExist(client, "coolapp")
+
+	assert.Nil(t, err)
+}
+
+func Test_invalid_app_name(t *testing.T) {
+	rr, _ := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
+	client := fake.NewSimpleClientset(rr)
+	err := validateDoesNameAlreadyExist(client, "testapp")
+
+	assert.NotNil(t, err)
 }
 
 func Test_valid_ssh_url(t *testing.T) {

@@ -2,6 +2,7 @@ apiVersion: radix.equinor.com/v1
 kind: RadixRegistration
 metadata:
   name: testapp
+  namespace: default
 spec:
   cloneURL: "git@github.com:Statoil/testapp.git"
   sharedSecret: "NotSoSecret"
