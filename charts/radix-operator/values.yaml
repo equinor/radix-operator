@@ -40,3 +40,4 @@ affinity: {}
 privateRegistrySecret: radix-docker
 privateRegistry: radixdev.azurecr.io
 clustername: clusterz
+clusterFQDN: clusterz.radix.equinor.com
