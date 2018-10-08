@@ -56,7 +56,7 @@ func validateReplicas(components []radixv1.RadixDeployComponent) error {
 func validateReplica(replica int) error {
 	maxReplica := 32
 	minReplica := 0 // default will be set to 2
-	if replica > maxReplica || replica < minReplica {
+	if replica > maxReplica || replica <= minReplica {
 		return fmt.Errorf("replicas %v must be between %v and %v", replica, minReplica, maxReplica)
 	}
 	return nil

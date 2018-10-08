@@ -33,7 +33,7 @@ func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.Radix
 		isValid, errors := validators.IsValidRadixDeployment(cli.radixclient, &rd)
 		if !isValid {
 			for _, err := range errors {
-				log.Errorf("%s", err)
+				log.Errorf("%v", err)
 			}
 			return fmt.Errorf("Radix deployment is not valid. See log for more information")
 		}
