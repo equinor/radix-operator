@@ -3,6 +3,9 @@ package registration
 import (
 	"fmt"
 
+	"github.com/statoil/radix-operator/pkg/apis/validators"
+	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
@@ -10,13 +13,15 @@ import (
 )
 
 type RadixRegistrationHandler struct {
-	kubeclient kubernetes.Interface
+	kubeclient  kubernetes.Interface
+	radixclient radixclient.Interface
 }
 
 //NewRegistrationHandler creates a handler which deals with RadixRegistration resources
-func NewRegistrationHandler(kubeclient kubernetes.Interface) RadixRegistrationHandler {
+func NewRegistrationHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixRegistrationHandler {
 	handler := RadixRegistrationHandler{
-		kubeclient: kubeclient,
+		kubeclient:  kubeclient,
+		radixclient: radixclient,
 	}
 
 	return handler
@@ -33,6 +38,13 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 	radixRegistration, ok := obj.(*v1.RadixRegistration)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
+	}
+	isValid, errors := validators.IsValidRadixRegistration(t.radixclient, radixRegistration)
+	if !isValid {
+		for _, err := range errors {
+			log.Errorf("%v", err)
+		}
+		return fmt.Errorf("Provided object was not a valid Radix Registration")
 	}
 
 	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})

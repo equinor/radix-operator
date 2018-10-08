@@ -7,6 +7,7 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/statoil/radix-operator/pkg/apis/validators"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +40,14 @@ func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
 	if err != nil {
 		log.Errorf("failed to get ra from file (%s) for app Error: %v", appFileName, err)
 		return err
+	}
+
+	isValid, errors := validators.IsValidRadixApplication(cli.radixclient, radixApplication)
+	if !isValid {
+		for _, err := range errors {
+			log.Errorf("%v", err)
+		}
+		return fmt.Errorf("Invalid radix application")
 	}
 
 	appName := radixApplication.Name

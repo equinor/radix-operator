@@ -6,6 +6,7 @@ import (
 
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/validators"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -47,6 +48,14 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 	radixDeploy, ok := obj.(*v1.RadixDeployment)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
+	}
+
+	isValid, errors := validators.IsValidRadixDeployment(t.radixclient, radixDeploy)
+	if !isValid {
+		for _, err := range errors {
+			logger.Errorf("%v", err)
+		}
+		return fmt.Errorf("Radix deployment is not valid. See log for more information")
 	}
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations("default").Get(radixDeploy.Spec.AppName, metav1.GetOptions{})

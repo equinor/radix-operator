@@ -3,8 +3,7 @@ kind: RadixRegistration
 metadata:
   name: testapp
 spec:
-  repository: "https://github.com/Statoil/testapp"
-  cloneURL: "git@github.com:Statoil/testapp"
+  cloneURL: "git@github.com:Statoil/testapp.git"
   sharedSecret: "NotSoSecret"
   secrets:
     test: test

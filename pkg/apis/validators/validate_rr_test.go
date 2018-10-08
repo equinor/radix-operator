@@ -29,13 +29,31 @@ func Test_invalid_rr_returns_false(t *testing.T) {
 }
 
 func Test_valid_app_name(t *testing.T) {
+	err := validateAppName("some.cool-app")
+
+	assert.Nil(t, err)
+}
+
+func Test_invalid_to_long_app_name(t *testing.T) {
+	err := validateAppName("way.toooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.long-app-name")
+
+	assert.NotNil(t, err)
+}
+
+func Test_invalid_app_name_char(t *testing.T) {
+	err := validateAppName("invalid,char.appname")
+
+	assert.NotNil(t, err)
+}
+
+func Test_non_existing_app_name(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	err := validateDoesNameAlreadyExist(client, "coolapp")
 
 	assert.Nil(t, err)
 }
 
-func Test_invalid_app_name(t *testing.T) {
+func Test_existing_app_name(t *testing.T) {
 	rr, _ := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
 	client := fake.NewSimpleClientset(rr)
 	err := validateDoesNameAlreadyExist(client, "testapp")

@@ -3,6 +3,8 @@ package onpush
 import (
 	"fmt"
 
+	"github.com/statoil/radix-operator/pkg/apis/validators"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +30,14 @@ func (cli *RadixOnPushHandler) deploy(radixRegistration *v1.RadixRegistration, r
 
 func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.RadixRegistration, radixDeployments []v1.RadixDeployment) error {
 	for _, rd := range radixDeployments {
+		isValid, errors := validators.IsValidRadixDeployment(cli.radixclient, &rd)
+		if !isValid {
+			for _, err := range errors {
+				log.Errorf("%s", err)
+			}
+			return fmt.Errorf("Radix deployment is not valid. See log for more information")
+		}
+
 		err := cli.applyEnvNamespace(radixRegistration, rd)
 		if err != nil {
 			log.Errorf("Failed to create namespace %s. %v", rd.ObjectMeta.Namespace, err)

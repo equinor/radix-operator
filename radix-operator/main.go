@@ -45,7 +45,7 @@ func main() {
 }
 
 func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	handler := registration.NewRegistrationHandler(client)
+	handler := registration.NewRegistrationHandler(client, radixClient)
 	registrationController := registration.NewController(client, radixClient, &handler)
 
 	go registrationController.Run(stop)

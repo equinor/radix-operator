@@ -10,7 +10,12 @@ import (
 
 func IsValidRadixApplication(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
 	errs := []error{}
-	err := validateExistEnvForComponentVariables(app)
+	err := validateAppName(app.Name)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = validateExistEnvForComponentVariables(app)
 	if err != nil {
 		errs = append(errs, err)
 	}

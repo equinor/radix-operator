@@ -11,7 +11,12 @@ import (
 
 func IsValidRadixRegistration(client radixclient.Interface, registration *radixv1.RadixRegistration) (bool, []error) {
 	errs := []error{}
-	err := validateGitSSHUrl(registration.Spec.CloneURL)
+	err := validateAppName(registration.Name)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = validateGitSSHUrl(registration.Spec.CloneURL)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -23,10 +28,10 @@ func IsValidRadixRegistration(client radixclient.Interface, registration *radixv
 	if err != nil {
 		errs = append(errs, err)
 	}
-	err = validateDoesNameAlreadyExist(client, registration.Name)
-	if err != nil {
-		errs = append(errs, err)
-	}
+	// err = validateDoesNameAlreadyExist(client, registration.Name)
+	// if err != nil {
+	// 	errs = append(errs, err)
+	// }
 
 	return len(errs) <= 0, errs
 }
@@ -37,6 +42,20 @@ func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) 
 		return fmt.Errorf("App name must be unique in cluster - %s already exist", appName)
 	}
 	return nil
+}
+
+func validateAppName(appName string) error {
+	if len(appName) > 253 {
+		return fmt.Errorf("app name (%s) max length is 253", appName)
+	}
+
+	re := regexp.MustCompile("^[a-z0-9.-]{0,}$")
+
+	isValid := re.MatchString(appName)
+	if isValid {
+		return nil
+	}
+	return fmt.Errorf("app name %s can only consist of lower case alphanumeric characters, '.' and '-'", appName)
 }
 
 func validateAdGroups(groups []string) error {
