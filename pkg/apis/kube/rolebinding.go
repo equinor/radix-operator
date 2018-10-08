@@ -158,7 +158,7 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *r
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "radix-webhook",
+			Name: fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
 			OwnerReferences: []metav1.OwnerReference{
 				ownerReference,
 			},
