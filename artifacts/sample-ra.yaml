@@ -5,10 +5,6 @@ metadata:
 spec:
   environments:
     - name: dev
-      authorization:
-      - role: RadixReader
-        groups:
-        - "c6da402e-9426-4b27-ae22-a7432c3db31f"
   components:
     - name: frontend
       src: src/frontend

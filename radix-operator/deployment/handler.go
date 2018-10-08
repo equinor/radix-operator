@@ -115,7 +115,7 @@ func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistr
 	deployment := getDeploymentConfig(radixDeploy, deployComponent)
 
 	t.customRbacSettings(appName, namespace, radixRegistration, deployment)
-
+  
 	logger.Infof("Creating Deployment object %s in namespace %s", deployComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
@@ -136,10 +136,10 @@ func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistr
 
 func (t *RadixDeployHandler) customRbacSettings(appName, namespace string, radixRegistration *v1.RadixRegistration, deployment *v1beta1.Deployment) {
 	if isRadixWebHook(radixRegistration.Namespace, appName) {
-		serviceAccountName := "radix-webhook"
+		serviceAccountName := "radix-github-webhook"
 		serviceAccount, err := t.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
 		if err != nil {
-			logger.Warnf("Service account for running radix webhook not made. %v", err)
+			logger.Warnf("Service account for running radix github webhook not made. %v", err)
 		} else {
 			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
 			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
@@ -162,7 +162,7 @@ func isRadixAPI(radixRegistrationNamespace, appName string) bool {
 }
 
 func isRadixWebHook(radixRegistrationNamespace, appName string) bool {
-	return appName == "radix-webhook" && radixRegistrationNamespace == "default"
+	return appName == "radix-github-webhook" && radixRegistrationNamespace == "default"
 }
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
