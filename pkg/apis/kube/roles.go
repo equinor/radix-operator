@@ -15,12 +15,12 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	logger.Infof("Apply role %s", role.Name)
 	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("Role %s already exists", role.Name)
-		return nil
+		logger.Infof("Role %s already exists. Updating", role.Name)
+		_, err = k.kubeClient.RbacV1().Roles(namespace).Update(role)
 	}
 
 	if err != nil {
-		logger.Infof("Creating role %s failed: %v", role.Name, err)
+		logger.Infof("Saving role %s failed: %v", role.Name, err)
 		return err
 	}
 	logger.Infof("Created role %s in %s", role.Name, namespace)

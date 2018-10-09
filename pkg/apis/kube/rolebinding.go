@@ -116,12 +116,12 @@ func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding)
 
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("Rolebinding %s already exists", rolebinding.Name)
-		return nil
+		_, err = k.kubeClient.RbacV1().RoleBindings(namespace).Update(rolebinding)
+		logger.Infof("Rolebinding %s already exists. Updating", rolebinding.Name)
 	}
 
 	if err != nil {
-		logger.Errorf("Failed to create roleBinding in [%s]: %v", namespace, err)
+		logger.Errorf("Failed to save roleBinding in [%s]: %v", namespace, err)
 		return err
 	}
 
