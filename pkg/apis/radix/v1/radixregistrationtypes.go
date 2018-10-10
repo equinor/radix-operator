@@ -17,10 +17,11 @@ type RadixRegistration struct {
 
 //RadixRegistrationSpec is the spec for an application
 type RadixRegistrationSpec struct {
-	CloneURL     string   `json:"cloneURL" yaml:"cloneURL"`
-	SharedSecret string   `json:"sharedSecret" yaml:"sharedSecret"`
-	DeployKey    string   `json:"deployKey" yaml:"deployKey"`
-	AdGroups     []string `json:"adGroups" yaml:"adGroups"`
+	CloneURL        string   `json:"cloneURL" yaml:"cloneURL"`
+	SharedSecret    string   `json:"sharedSecret" yaml:"sharedSecret"`
+	DeployKey       string   `json:"deployKey" yaml:"deployKey"`
+	DeployKeyPublic string   `json:"deployKeyPublic" yaml:"deployKeyPublic"`
+	AdGroups        []string `json:"adGroups" yaml:"adGroups"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
