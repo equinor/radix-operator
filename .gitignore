@@ -16,3 +16,4 @@ vendor/
 vendor.orig/
 bin/
 rootfs/
+.vscode/

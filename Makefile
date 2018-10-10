@@ -1,8 +1,8 @@
 DOCKER_REGISTRY	?= radixdev.azurecr.io
 
-DOCKER_FILES	= operator pipeline webhook
+DOCKER_FILES	= operator pipeline
 
-IMAGE_TAG 	?= latest
+VERSION 	?= latest
 
 .PHONY: test
 test:
@@ -10,13 +10,13 @@ test:
 
 define make-docker-build
   	build-$1:
-		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(IMAGE_TAG) -f Dockerfile.$1 .
+		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) -f $1.Dockerfile .
   	build:: build-$1
 endef
 
 define make-docker-push
   	push-$1:
-		docker push $(DOCKER_REGISTRY)/radix-$1:$(IMAGE_TAG)
+		docker push $(DOCKER_REGISTRY)/radix-$1:$(VERSION)
   	push:: push-$1
 endef
 
@@ -32,11 +32,10 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
 # need to connect to kubernetes and container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
 deploy-operator-kc:
-	make build-operator
-	make push-operator
+	make deploy-operator
 	# update docker image version in deploy file - file name should be a variable
 	kubectl get deploy radix-operator -o yaml > oldRadixOperatorDef.yaml 
-	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(IMAGE_TAG)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
+	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
 	kubectl apply -f newRadixOperatorDef.yaml
 	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
 

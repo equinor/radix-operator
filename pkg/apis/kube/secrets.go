@@ -1,11 +1,6 @@
 package kube
 
 import (
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"strings"
-
 	log "github.com/Sirupsen/logrus"
 
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
@@ -24,11 +19,29 @@ type ContainerRegistryCredentials struct {
 	Password string
 }
 
+func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
+	secretName := secret.ObjectMeta.Name
+	log.Infof("Applies secret %s in namespace %s", secretName, namespace)
+
+	savedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Create(secret)
+	if errors.IsAlreadyExists(err) {
+		log.Infof("Updating secret %s that already exists in namespace %s.", secretName, namespace)
+		savedSecret, err = k.kubeClient.CoreV1().Secrets(namespace).Update(secret)
+	}
+
+	if err != nil {
+		log.Errorf("Failed to apply secret %s in namespace %s. %v", secretName, namespace, err)
+		return nil, err
+	}
+	log.Infof("Applied secret %s in namespace %s", secretName, namespace)
+	return savedSecret, nil
+}
+
 func (k *Kube) ApplySecretsForPipelines(radixRegistration *radixv1.RadixRegistration) error {
 	log.Infof("Apply secrets for pipelines")
 	buildNamespace := GetCiCdNamespace(radixRegistration)
 
-	err := k.applyDockerSecretToBuildNamespace(buildNamespace, radixRegistration)
+	err := k.applyDockerSecretToBuildNamespace(buildNamespace)
 	if err != nil {
 		return err
 	}
@@ -39,66 +52,24 @@ func (k *Kube) ApplySecretsForPipelines(radixRegistration *radixv1.RadixRegistra
 	return nil
 }
 
-//RetrieveContainerRegistryCredentials retrieves the default container registry credentials from Kubernetes secret
-func (k *Kube) RetrieveContainerRegistryCredentials() (*ContainerRegistryCredentials, error) {
-	secret, err := k.kubeClient.CoreV1().Secrets("default").Get("radix-docker", metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve container credentials: %v", err)
-	}
-	credsJSON, ok := secret.Data[".dockerconfigjson"]
-	if !ok {
-		return nil, fmt.Errorf("Failed to read docker config from radix-docker")
-	}
-
-	var config DockerConfigJson
-	err = json.Unmarshal(credsJSON, &config)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal docker config: %v", err)
-	}
-
-	creds := &ContainerRegistryCredentials{}
-	for key := range config.Authentication {
-		creds.Server = key
-		values := config.Authentication[key].(map[string]interface{})
-		auth := values["auth"].(string)
-		decoded, err := getDecodedCredentials(auth)
-		if err != nil {
-			return nil, err
-		}
-
-		credentials := strings.Split(decoded, ":")
-		creds.User = credentials[0]
-		creds.Password = credentials[1]
-	}
-
-	return creds, nil
-}
-
-func getDecodedCredentials(encodedCredentials string) (string, error) {
-	creds, err := base64.StdEncoding.DecodeString(encodedCredentials)
-	if err != nil {
-		return "", fmt.Errorf("Failed to decode credentials: %v", err)
-	}
-	return string(creds), nil
-}
-
 func (k *Kube) applyGitDeployKeyToBuildNamespace(namespace string, radixRegistration *radixv1.RadixRegistration) error {
 	secret, err := k.createNewGitDeployKey(namespace, radixRegistration)
 	if err != nil {
 		return err
 	}
 
-	_, err = k.kubeClient.CoreV1().Secrets(namespace).Create(secret)
-	if errors.IsAlreadyExists(err) {
-		log.Infof("git deploykey file already exists")
-		return nil
-	}
+	_, err = k.ApplySecret(namespace, secret)
+	return err
+}
 
+func (k *Kube) applyDockerSecretToBuildNamespace(buildNamespace string) error {
+	dockerSecretForBuild, err := k.createNewDockerBuildSecret(buildNamespace)
 	if err != nil {
-		log.Errorf("Failed to create git-ssh-keys secret. %v", err)
 		return err
 	}
-	return nil
+
+	_, err = k.ApplySecret(buildNamespace, dockerSecretForBuild)
+	return err
 }
 
 func (k *Kube) createNewGitDeployKey(namespace string, radixRegistration *radixv1.RadixRegistration) (*corev1.Secret, error) {
@@ -123,29 +94,12 @@ func (k *Kube) createNewGitDeployKey(namespace string, radixRegistration *radixv
 	return &secret, nil
 }
 
-func (k *Kube) applyDockerSecretToBuildNamespace(buildNamespace string, radixRegistration *radixv1.RadixRegistration) error {
+func (k *Kube) createNewDockerBuildSecret(namespace string) (*corev1.Secret, error) {
 	dockerSecret, err := k.kubeClient.CoreV1().Secrets("default").Get("radix-docker", metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get radix-docker secret from default. %v", err)
-		return err
+		return nil, err
 	}
-	dockerSecretForBuild := createNewDockerBuildSecret(buildNamespace, dockerSecret)
-
-	_, err = k.kubeClient.CoreV1().Secrets(buildNamespace).Create(&dockerSecretForBuild)
-	if errors.IsAlreadyExists(err) {
-		log.Infof("radix-docker file already exists")
-		return nil
-	}
-
-	if err != nil {
-		log.Errorf("Failed to create radix-docker in namespace %s", buildNamespace)
-		return err
-	}
-
-	return nil
-}
-
-func createNewDockerBuildSecret(namespace string, dockerSecret *corev1.Secret) corev1.Secret {
 	secret := corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,5 +110,5 @@ func createNewDockerBuildSecret(namespace string, dockerSecret *corev1.Secret) c
 			"config.json": dockerSecret.Data[".dockerconfigjson"],
 		},
 	}
-	return secret
+	return &secret, nil
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -16,53 +15,22 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	logger.Infof("Apply role %s", role.Name)
 	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("Role %s already exists", role.Name)
-		return nil
+		logger.Infof("Role %s already exists. Updating", role.Name)
+		_, err = k.kubeClient.RbacV1().Roles(namespace).Update(role)
 	}
 
 	if err != nil {
-		logger.Infof("Creating role %s failed: %v", role.Name, err)
+		logger.Infof("Saving role %s failed: %v", role.Name, err)
 		return err
 	}
 	logger.Infof("Created role %s in %s", role.Name, namespace)
 	return nil
 }
 
-func RdRole(radixDeploy *v1.RadixDeployment, adGroups []string) *auth.Role {
-	appName := radixDeploy.Spec.AppName
-	roleName := fmt.Sprintf("operator-rd-%s", appName)
-	ownerReference := GetOwnerReference(radixDeploy.Name, "RadixDeployment", radixDeploy.UID)
-
-	role := &auth.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				"radixDeploy": appName,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerReference,
-			},
-		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups:     []string{"radix.equinor.com"},
-				Resources:     []string{"RadixDeployment"},
-				ResourceNames: []string{appName},
-				Verbs:         []string{"get", "delete"},
-			},
-		},
-	}
-	return role
-}
-
 func RrUserRole(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-rr-%s", appName)
-	return RrRole(registration, roleName, []string{"get", "update", "patch", "delete"})
+	return RrRole(registration, roleName, []string{"get", "list", "watch", "update", "patch", "delete"})
 }
 
 func RrPipelineRole(registration *radixv1.RadixRegistration) *auth.Role {
@@ -104,5 +72,31 @@ func RrRole(registration *radixv1.RadixRegistration, roleName string, verbs []st
 	}
 	logger.Infof("Done - creating role config %s", roleName)
 
+	return role
+}
+
+func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) *auth.Role {
+	roleName := fmt.Sprintf("radix-app-adm-%s", component.Name)
+
+	role := &auth.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: roleName,
+			Labels: map[string]string{
+				"radixReg": registration.Name,
+			},
+		},
+		Rules: []auth.PolicyRule{
+			{
+				APIGroups:     []string{""},
+				Resources:     []string{"secrets"},
+				ResourceNames: []string{component.Name},
+				Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
+			},
+		},
+	}
 	return role
 }

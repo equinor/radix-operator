@@ -2,10 +2,12 @@ package registration
 
 import (
 	"fmt"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -45,7 +47,7 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 		logger.Infof("App namespace created")
 	}
 
-	err = kube.ApplySecretsForPipelines(radixRegistration)
+	err = kube.ApplySecretsForPipelines(radixRegistration) // create deploy key in app namespace
 	if err != nil {
 		logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
 	} else {
@@ -66,6 +68,13 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 		logger.Infof("Applied access permissions to RadixRegistration")
 	}
 
+	err = kube.GrantAccessToCICDLogs(radixRegistration)
+	if err != nil {
+		logger.Errorf("Failed to grant access to ci/cd logs: %v", err)
+	} else {
+		logger.Infof("Applied access to ci/cd logs")
+	}
+
 	err = kube.ApplyRbacOnPipelineRunner(radixRegistration, pipelineServiceAccount)
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
@@ -83,13 +92,48 @@ func (t *RadixRegistrationHandler) ObjectDeleted(key string) error {
 
 // ObjectUpdated is called when an object is updated
 func (t *RadixRegistrationHandler) ObjectUpdated(objOld, objNew interface{}) error {
+	if objOld == nil {
+		log.Info("update radix registration - no new changes (objOld == nil)")
+		return nil
+	}
+
+	radixRegistrationOld, ok := objOld.(*v1.RadixRegistration)
+	if !ok {
+		return fmt.Errorf("Provided old object was not a valid Radix Registration; instead was %v", objOld)
+	}
+
 	radixRegistration, ok := objNew.(*v1.RadixRegistration)
 	if !ok {
-		return fmt.Errorf("Provided object was not a valid Radix Registration; instead was %v", objNew)
+		return fmt.Errorf("Provided new object was not a valid Radix Registration; instead was %v", objNew)
 	}
 
 	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
+	kube, _ := kube.New(t.kubeclient)
 
-	// todo, ensure update is handled correctly
+	if !strings.EqualFold(radixRegistration.Spec.DeployKey, radixRegistrationOld.Spec.DeployKey) {
+		err := kube.ApplySecretsForPipelines(radixRegistration) // create deploy key in app namespace
+		if err != nil {
+			logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
+		} else {
+			logger.Infof("Applied secrets needed by pipelines")
+		}
+	}
+
+	if !utils.ArrayEqualElements(radixRegistration.Spec.AdGroups, radixRegistrationOld.Spec.AdGroups) {
+		err := kube.ApplyRbacRadixRegistration(radixRegistration)
+		if err != nil {
+			logger.Errorf("Failed to set access on RadixRegistration: %v", err)
+		} else {
+			logger.Infof("Applied access permissions to RadixRegistration")
+		}
+
+		err = kube.GrantAccessToCICDLogs(radixRegistration)
+		if err != nil {
+			logger.Errorf("Failed to grant access to ci/cd logs: %v", err)
+		} else {
+			logger.Infof("Applied access to ci/cd logs")
+		}
+	}
+
 	return nil
 }

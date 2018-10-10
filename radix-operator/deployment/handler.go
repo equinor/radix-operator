@@ -1,9 +1,8 @@
 package deployment
 
 import (
-	"fmt"
-
 	"encoding/json"
+	"fmt"
 
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
@@ -58,7 +57,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	}
 
-	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy.Spec.Environment)
+	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy)
 	if err != nil {
 		logger.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)
@@ -83,12 +82,16 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 				return fmt.Errorf("Failed to create ingress: %v", err)
 			}
 		}
+		err = t.kubeutil.GrantAppAdminAccessToRuntimeSecrets(radixDeploy.Namespace, radixRegistration, &v)
+		if err != nil {
+			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
+		}
 	}
 
-	err = t.applyRbacOnRd(radixDeploy, radixRegistration.Spec.AdGroups)
+	err = t.kubeutil.GrantAppAdminAccessToNs(radixDeploy.Namespace, radixRegistration)
 	if err != nil {
-		logger.Infof("Failed to apply RBAC on RD: %v", err)
-		return fmt.Errorf("Failed to apply RBAC on RD: %v", err)
+		logger.Infof("Failed to setup RBAC on namespace %s: %v", radixDeploy.Namespace, err)
+		return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", radixDeploy.Namespace, err)
 	}
 
 	return nil
@@ -106,40 +109,13 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	return nil
 }
 
-func (t *RadixDeployHandler) applyRbacOnRd(radixDeploy *v1.RadixDeployment, adGroups []string) error {
-	logger.Infof("Applies rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
-	role := kube.RdRole(radixDeploy, adGroups)
-	rolebinding := kube.RdRoleBinding(radixDeploy, role.Name, adGroups)
-
-	err := t.kubeutil.ApplyRole(radixDeploy.Namespace, role)
-	if err != nil {
-		return err
-	}
-
-	err = t.kubeutil.ApplyRoleBinding(radixDeploy.Namespace, rolebinding)
-	if err != nil {
-		return err
-	}
-	logger.Infof("Applied rbac to rd %s on ns %s", radixDeploy.Name, radixDeploy.Namespace)
-	return nil
-}
-
 func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistration, radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
 	appName := radixDeploy.Spec.AppName
 	deployment := getDeploymentConfig(radixDeploy, deployComponent)
 
-	if isRadixWebHook(appName) {
-		serviceAccountName := "radix-webhook"
-		serviceAccount, err := t.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
-		if err != nil {
-			logger.Warnf("Service account for running radix webhook not made. %v", err)
-		} else {
-			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
-			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
-		}
-	}
-
+	t.customRbacSettings(appName, namespace, radixRegistration, deployment)
+  
 	logger.Infof("Creating Deployment object %s in namespace %s", deployComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {
@@ -158,8 +134,35 @@ func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistr
 	return nil
 }
 
-func isRadixWebHook(appName string) bool {
-	return appName == "radix-webhook"
+func (t *RadixDeployHandler) customRbacSettings(appName, namespace string, radixRegistration *v1.RadixRegistration, deployment *v1beta1.Deployment) {
+	if isRadixWebHook(radixRegistration.Namespace, appName) {
+		serviceAccountName := "radix-github-webhook"
+		serviceAccount, err := t.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
+		if err != nil {
+			logger.Warnf("Service account for running radix github webhook not made. %v", err)
+		} else {
+			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
+			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+		}
+	}
+	if isRadixAPI(radixRegistration.Namespace, appName) {
+		serviceAccountName := "radix-api"
+		serviceAccount, err := t.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
+		if err != nil {
+			logger.Warnf("Error creating Service account for radix api. %v", err)
+		} else {
+			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
+			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
+		}
+	}
+}
+
+func isRadixAPI(radixRegistrationNamespace, appName string) bool {
+	return appName == "radix-api" && radixRegistrationNamespace == "default"
+}
+
+func isRadixWebHook(radixRegistrationNamespace, appName string) bool {
+	return appName == "radix-github-webhook" && radixRegistrationNamespace == "default"
 }
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
@@ -311,25 +314,21 @@ func getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.Rad
 	return deployment
 }
 
-func getEnvironmentVariables(radixEnvVars []v1.EnvVars, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
+func getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
 	if radixEnvVars == nil && radixSecrets == nil {
 		logger.Infof("No environment variable and secret is set for this RadixDeployment %s", radixDeployName)
 		return nil
 	}
 	var environmentVariables []corev1.EnvVar
 	// environmentVariables
-	for _, v := range radixEnvVars {
-		if v.Environment != currentEnvironment {
-			continue
+	for key, value := range radixEnvVars {
+		envVar := corev1.EnvVar{
+			Name:  key,
+			Value: value,
 		}
-		for key, value := range v.Variables {
-			envVar := corev1.EnvVar{
-				Name:  key,
-				Value: value,
-			}
-			environmentVariables = append(environmentVariables, envVar)
-		}
+		environmentVariables = append(environmentVariables, envVar)
 	}
+
 	// secrets
 	for _, v := range radixSecrets {
 		secretKeySelector := corev1.SecretKeySelector{
@@ -385,11 +384,12 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 
 func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	trueVar := true
+	hostname := fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername)
+	tlsSecretName := "cluster-wildcard-tls-cert"
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Annotations: map[string]string{
-				// "kubernetes.io/tls-acme":         "true",
 				"kubernetes.io/ingress.class": "nginx",
 			},
 			Labels: map[string]string{
@@ -397,7 +397,7 @@ func getIngressConfig(componentName, appName, clustername, namespace string, uid
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
+					APIVersion: "radix.equinor.com/v1",
 					Kind:       "RadixDeployment",
 					Name:       componentName,
 					UID:        uid,
@@ -409,14 +409,14 @@ func getIngressConfig(componentName, appName, clustername, namespace string, uid
 			TLS: []v1beta1.IngressTLS{
 				{
 					Hosts: []string{
-						fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername),
+						hostname,
 					},
-					SecretName: "domain-ssl-cert-key",
+					SecretName: tlsSecretName,
 				},
 			},
 			Rules: []v1beta1.IngressRule{
 				{
-					Host: fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername),
+					Host: hostname,
 					IngressRuleValue: v1beta1.IngressRuleValue{
 						HTTP: &v1beta1.HTTPIngressRuleValue{
 							Paths: []v1beta1.HTTPIngressPath{
