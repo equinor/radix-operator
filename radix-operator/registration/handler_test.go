@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/statoil/radix-operator/radix-operator/common"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 
 	log "github.com/Sirupsen/logrus"
 
@@ -36,7 +36,7 @@ func Test_RadixRegistrationHandler(t *testing.T) {
 
 	client := fake.NewSimpleClientset(secret)
 	radixClient := fakeradix.NewSimpleClientset()
-	registration, _ := common.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
+	registration, _ := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
 	handler := NewRegistrationHandler(client)
 	radixClient.PrependReactor("get", "radixregistrations", func(action kubetest.Action) (handled bool, ret runtime.Object, err error) {
 		return true, registration, nil

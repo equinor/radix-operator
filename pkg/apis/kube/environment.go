@@ -11,49 +11,47 @@ import (
 )
 
 //CreateSecrets should provision required secrets in the specified environment
-func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, envName string) error {
+func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, deploy *radixv1.RadixDeployment) error {
+	envName := deploy.Spec.Environment
 	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
+	ns := fmt.Sprintf("%s-%s", registration.Name, envName)
 
+	err := k.createDockerSecret(registration, ns)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Apply empty secrets based on radix deployment obj")
+	for _, component := range deploy.Spec.Components {
+		if len(component.Secrets) > 0 {
+			secret := v1.Secret{
+				Type: "Opaque",
+				ObjectMeta: metav1.ObjectMeta{
+					Name: component.Name,
+				},
+			}
+			_, err = k.ApplySecret(ns, &secret)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (k *Kube) createDockerSecret(registration *radixv1.RadixRegistration, ns string) error {
 	dockerSecret, err := k.kubeClient.CoreV1().Secrets("default").Get("radix-docker", metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Could not find container registry credentials: %v", err)
 	}
-	ns := fmt.Sprintf("%s-%s", registration.Name, envName)
 	dockerSecret.ResourceVersion = ""
 	dockerSecret.Namespace = ns
 	dockerSecret.UID = ""
-	createdDockerSecret, err := k.kubeClient.CoreV1().Secrets(ns).Create(dockerSecret)
-	if errors.IsAlreadyExists(err) {
-		logger.Infof("Secret object %s already exists in namespace %s, updating the object now", dockerSecret.Name, ns)
-		updatedDockerSecret, err := k.kubeClient.CoreV1().Secrets(ns).Update(dockerSecret)
-		if err != nil {
-			return fmt.Errorf("Failed to update container registry credentials secret in %s: %v", ns, err)
-		}
-		logger.Infof("Updated container registry credentials secret: %s in namespace %s", updatedDockerSecret.Name, ns)
-	} else if err != nil {
+	saveDockerSecret, err := k.ApplySecret(ns, dockerSecret)
+	if err != nil {
 		return fmt.Errorf("Failed to create container registry credentials secret in %s: %v", ns, err)
 	}
-	logger.Infof("Created container registry credentials secret: %s in namespace %s", createdDockerSecret.Name, ns)
-
-	tlsSecret, err := k.kubeClient.CoreV1().Secrets("default").Get("domain-ssl-cert-key", metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("Could not find TLS certificate and key: %v", err)
-	}
-	tlsSecret.ResourceVersion = ""
-	tlsSecret.Namespace = ns
-	createdTlsSecret, err := k.kubeClient.CoreV1().Secrets(ns).Create(tlsSecret)
-	if errors.IsAlreadyExists(err) {
-		logger.Infof("Secret object %s already exists in namespace %s, updating the object now", tlsSecret.Name, ns)
-		updatedTlsSecret, err := k.kubeClient.CoreV1().Secrets(ns).Update(tlsSecret)
-		if err != nil {
-			return fmt.Errorf("Failed to update TLS certificate and key secret in %s: %v", ns, err)
-		}
-		logger.Infof("Updated TLS certificate and key secret: %s in namespace %s", updatedTlsSecret.Name, ns)
-	} else if err != nil {
-		return fmt.Errorf("Failed to create TLS certificate and key secret in %s: %v", ns, err)
-	}
-	logger.Infof("Created TLS certificate and key secret: %s in namespace %s", createdTlsSecret.Name, ns)
-
+	logger.Infof("Created container registry credentials secret: %s in namespace %s", saveDockerSecret.Name, ns)
 	return nil
 }
 

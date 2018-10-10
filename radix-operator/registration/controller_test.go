@@ -6,8 +6,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/statoil/radix-operator/radix-operator/common"
 	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -40,7 +40,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 
-	registration, err := common.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
+	registration, err := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
 	if err != nil {
 		log.Fatalf("Could not read configuration data: %v", err)
 	}

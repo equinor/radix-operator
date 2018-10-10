@@ -3,6 +3,7 @@ package onpush
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
@@ -22,41 +23,36 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 		return err
 	}
 
-	// should we only build if the git commit hash differ from what exist earlier?
-	// include git commit hash as label on job (registered in app namespace), check if it exist and is completeded earlier
-	// do we need to also query ACR and see if image exist?
 	log.Infof("Apply job (%s) to build components for app %s", job.Name, appName)
 	job, err = cli.kubeclient.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
 	}
 
-	watcher, err := cli.kubeclient.BatchV1().Jobs(namespace).Watch(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("build=%s", fmt.Sprintf("%s-%s", appName, imageTag)),
-	})
-	if err != nil {
-		return err
-	}
-	channel := watcher.ResultChan()
+	// TODO: workaround watcher bug - pull job status instead of watching
 	done := make(chan error)
-
 	go func() {
-		for event := range channel {
-			if event.Type == "ADDED" || event.Type == "MODIFIED" {
-				jobModified, _ := event.Object.(*batchv1.Job)
-				if jobModified.Status.Succeeded == 1 {
-					err = nil
-					done <- nil
-				}
-				if jobModified.Status.Failed == 1 {
-					err = fmt.Errorf("Build job failed")
-					done <- err
-				}
+		for {
+			j, err := cli.kubeclient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
+			if err != nil {
+				done <- err
+				return
 			}
+			switch {
+			case j.Status.Succeeded == 1:
+				done <- nil
+				return
+			case j.Status.Failed == 1:
+				done <- fmt.Errorf("Build docker image failed")
+				return
+			default:
+				log.Debugf("Ongoing - build docker image")
+			}
+			time.Sleep(5 * time.Second)
 		}
 	}()
+	err = <-done
 
-	<-done
 	return err
 }
 
@@ -66,7 +62,7 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 	gitCloneCommand := fmt.Sprintf("git clone %s -b %s .", cloneURL, branch) // TODO - MUST ensure commands are not injected
 	buildContainers := createBuildContainers(appName, imageTag, components)
 
-	defaultMode, backOffLimit := int32(256), int32(1)
+	defaultMode, backOffLimit := int32(256), int32(0)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -139,7 +135,7 @@ func createBuildContainers(appName, imageTag string, components []v1.RadixCompon
 		log.Infof("using dockerfile %s in context %s", dockerFile, context)
 		container := corev1.Container{
 			Name:  fmt.Sprintf("build-%s", c.Name),
-			Image: "gcr.io/kaniko-project/executor:latest", // todo - version?
+			Image: "gcr.io/kaniko-project/executor:v0.4.0", // todo - version?
 			Args: []string{
 				fmt.Sprintf("--dockerfile=%s", dockerFile),
 				fmt.Sprintf("--context=%s", context),
