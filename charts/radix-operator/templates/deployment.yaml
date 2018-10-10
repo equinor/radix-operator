@@ -36,6 +36,15 @@ spec:
             httpGet:
               path: /healthz
               port: metrics
+          env:
+            - name: KUBERNETES_PORT_443_TCP_ADDR
+              value: {{ .Values.clusterFQDN }}
+            - name: KUBERNETES_PORT
+              value: tcp://{{ .Values.clusterFQDN }}:443
+            - name: KUBERNETES_PORT_443_TCP
+              value: tcp://{{ .Values.clusterFQDN }}:443
+            - name: KUBERNETES_SERVICE_HOST
+              value: {{ .Values.clusterFQDN }}
       {{ if .Values.privateRegistrySecret }}imagePullSecrets:
         - name: {{.Values.privateRegistrySecret}}{{end}}
           resources:
