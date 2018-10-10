@@ -7,8 +7,8 @@ replicaCount: 1
 
 image:
   repository: radix-operator
-  tag: "013859e"
-  pullPolicy: IfNotPresent
+  tag: "latest"
+  pullPolicy: Always
 
 imageCredentials:
   registry: dummy.azurecr.io
