@@ -22,7 +22,7 @@ spec:
       serviceAccount: {{ template "radix-operator.fullname" . }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.privateRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.imageCredentials.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
@@ -40,24 +40,28 @@ spec:
             - name: KUBERNETES_PORT_443_TCP_ADDR
               value: {{ .Values.clusterAKSAPIserver }}
             - name: KUBERNETES_PORT
-              value: tcp://{{ .Values.clusterAKSAPIserver }}:443
+              value: "tcp://{{ .Values.clusterAKSAPIserver }}:443"
             - name: KUBERNETES_PORT_443_TCP
-              value: tcp://{{ .Values.clusterAKSAPIserver }}:443
+              value: "tcp://{{ .Values.clusterAKSAPIserver }}:443"
             - name: KUBERNETES_SERVICE_HOST
               value: {{ .Values.clusterAKSAPIserver }}
-      {{ if .Values.privateRegistrySecret }}imagePullSecrets:
-        - name: {{.Values.privateRegistrySecret}}{{end}}
           resources:
-{{ toYaml .Values.resources | indent 12 }}
-    {{- with .Values.nodeSelector }}
+            {{- toYaml .Values.resources | indent 12 -}}
+
+      {{ if .Values.imageCredentials.registry }}
+      imagePullSecrets:
+        - name: {{.Values.imageCredentials.registry}}
+      {{ end }}
+
+      {{- with .Values.nodeSelector }}
       nodeSelector:
-{{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .Values.affinity }}
+        {{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
       affinity:
-{{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .Values.tolerations }}
+        {{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
       tolerations:
-{{ toYaml . | indent 8 }}
-    {{- end }}
+        {{ toYaml . | indent 8 }}
+      {{- end }}
