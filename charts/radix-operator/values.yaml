@@ -39,5 +39,8 @@ affinity: {}
 
 privateRegistrySecret: radix-docker
 privateRegistry: radixdev.azurecr.io
+
 clustername: clusterz
-clusterFQDN: clusterz.radix.equinor.com
+
+# This is a workaround until https://github.com/Azure/AKS/issues/676 gets fixed
+clusterAKSAPIserver: mycluster-xx-xx.hcp.northeurope.azmk8s.io
