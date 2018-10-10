@@ -37,7 +37,7 @@ If the build complains about missing a git tag, add a tag manually with
 
 Then do `make docker-build` and after that completes `go run radix-operator/main.go` should also work locally.
 
-## Deployment  to Kubernetes
+## Deployment to Kubernetes
 
 1. Make Docker image.
 
@@ -54,9 +54,31 @@ Then do `make docker-build` and after that completes `go run radix-operator/main
         docker login [REGISTRY] -u [USERNAME] -p [PASSWORD]
         make docker-push
 
-3. Deploy using the given `helm` chart. First, modify `values.yaml` file under `charts/radix-operator` directory, change the `tag` value to the Docker image tag (i.e. the first 7 digits of the commit hash). Modify other parameters as necessary. Then install the chart using the following command.
+3. Update the `helm` chart. Modify `values.yaml` file under `charts/radix-operator` directory, change the `tag` value to the Docker image tag (i.e. the first 7 digits of the commit hash). Modify other parameters as necessary.
 
-        helm install -n [NAME] charts/radix-operator
+4. Push updated `helm` chart to ACR. **PS: See note below if you have not used private ACR Helm Repos before.**
+
+        cd charts/
+        export CHART_VERSION=`cat radix-operator/Chart.yaml | yq --raw-output .version`
+        tar -zcvf radix-operator-$CHART_VERSION.tgz radix-operator
+        az acr helm push radix-operator-$CHART_VERSION.tgz
+
+> Uses `yq` to extract version from `Charts.yaml`. Install with `sudo apt-get install jq && pip install yq`
+
+5. Deploy using the given `helm` chart.
+
+        helm repo update
+        helm install --name [RELEASE_NAME] radixdev/radix-operator
+
+Where RELEASE_NAME is what you would like to call this particular instance of the installed helm chart.
+
+**First time setup - Add private Helm Repo** 
+
+If you have not used private Helm Repos in ACR before you need to add it before you can push and deploy from it:
+
+    az configure --defaults acr=radixdev
+    az acr helm repo add
+    helm repo update
 
 ## Updating RadixApplication CRD
 
