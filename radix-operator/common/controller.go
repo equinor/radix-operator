@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+// Controller Instance variables
 type Controller struct {
 	KubeClient  kubernetes.Interface
 	RadixClient radixclient.Interface
@@ -22,6 +23,7 @@ type Controller struct {
 	Log         *log.Entry
 }
 
+// Run starts the shared informer, which will be stopped when stopCh is closed.
 func (c *Controller) Run(stop <-chan struct{}) {
 	c.Log.Info("Starting controller")
 	defer utilruntime.HandleCrash()
@@ -35,6 +37,7 @@ func (c *Controller) Run(stop <-chan struct{}) {
 	wait.Until(c.runWorker, time.Second, stop)
 }
 
+// HasSynced returns true if the shared informer's store has synced.
 func (c *Controller) HasSynced() bool {
 	return c.Informer.HasSynced()
 }
@@ -77,7 +80,7 @@ func (c *Controller) processNextItem() bool {
 		}
 	} else if queueItem.Operation == Update {
 		c.Log.Infof("Controller.processNextItem: object update detected: %s", queueItem.Key)
-		err := c.Handler.ObjectUpdated(nil, item)
+		err := c.Handler.ObjectUpdated(queueItem.OldObject, item)
 		if err != nil {
 			log.Errorf("Failed to create object: %v", err)
 		}

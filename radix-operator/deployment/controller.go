@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+// DeployController Instance variables
 type DeployController struct {
 	clientset   kubernetes.Interface
 	radixclient radixclient.Interface
@@ -28,6 +29,7 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "deployment-controller"})
 }
 
+// NewDeployController creates a new controller that handles RadixDeployments
 func NewDeployController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler) *common.Controller {
 	latestResourceVersion, err := getLatestRadixDeploymentResourceVersion(radixClient)
 	if err != nil {
@@ -49,7 +51,7 @@ func NewDeployController(client kubernetes.Interface, radixClient radixclient.In
 		AddFunc: func(obj interface{}) {
 			radixDeployment, ok := obj.(*v1.RadixDeployment)
 			if !ok {
-				logger.Error("Provided object was not a valid Radix Deployment; instead was %v", obj)
+				logger.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 				return
 			}
 
@@ -66,7 +68,7 @@ func NewDeployController(client kubernetes.Interface, radixClient radixclient.In
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			radixDeployment, ok := newObj.(*v1.RadixDeployment)
 			if !ok {
-				logger.Error("Provided object was not a valid Radix Deployment; instead was %v", newObj)
+				logger.Errorf("Provided object was not a valid Radix Deployment; instead was %v", newObj)
 				return
 			}
 
@@ -75,13 +77,13 @@ func NewDeployController(client kubernetes.Interface, radixClient radixclient.In
 			key, err := cache.MetaNamespaceKeyFunc(oldObj)
 			if err == nil {
 				logger.Infof("Updated radix deployment: %s", key)
-				queue.Add(common.QueueItem{Key: key, Operation: common.Update})
+				queue.Add(common.QueueItem{Key: key, OldObject: oldObj, Operation: common.Update})
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixDeployment, ok := obj.(*v1.RadixDeployment)
 			if !ok {
-				logger.Error("Provided object was not a valid Radix Deployment; instead was %v", obj)
+				logger.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 				return
 			}
 
