@@ -26,13 +26,14 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		0,
 		cache.Indexers{},
 	)
+
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			radixRegistration, ok := obj.(*v1.RadixRegistration)
 			if !ok {
-				logger.Error("Provided object was not a valid Radix Registration; instead was %v", obj)
+				logger.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
 				return
 			}
 
@@ -47,7 +48,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			newRadixRegistration, ok := newObj.(*v1.RadixRegistration)
 			if !ok {
-				logger.Error("New object was not a valid Radix Registration; instead was %v", newObj)
+				logger.Errorf("New object was not a valid Radix Registration; instead was %v", newObj)
 				return
 			}
 
@@ -56,13 +57,13 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			key, err := cache.MetaNamespaceKeyFunc(oldObj)
 			logger.Infof("Updated radix registration: %s", key)
 			if err == nil {
-				queue.Add(common.QueueItem{Key: key, Operation: common.Update})
+				queue.Add(common.QueueItem{Key: key, OldObject: oldObj, Operation: common.Update})
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixRegistration, ok := obj.(*v1.RadixRegistration)
 			if !ok {
-				logger.Error("Provided object was not a valid Radix Registration; instead was %v", obj)
+				logger.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
 				return
 			}
 
