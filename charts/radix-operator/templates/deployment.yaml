@@ -38,13 +38,13 @@ spec:
               port: metrics
           env:
             - name: KUBERNETES_PORT_443_TCP_ADDR
-              value: {{ .Values.clusterAKSAPIserver }}
+              value: {{ .Values.clusterFQDN }}
             - name: KUBERNETES_PORT
-              value: "tcp://{{ .Values.clusterAKSAPIserver }}:443"
+              value: "tcp://{{ .Values.clusterFQDN }}:443"
             - name: KUBERNETES_PORT_443_TCP
-              value: "tcp://{{ .Values.clusterAKSAPIserver }}:443"
+              value: "tcp://{{ .Values.clusterFQDN }}:443"
             - name: KUBERNETES_SERVICE_HOST
-              value: {{ .Values.clusterAKSAPIserver }}
+              value: {{ .Values.clusterFQDN }}
           resources:
             {{- toYaml .Values.resources | indent 12 -}}
 
