@@ -36,4 +36,4 @@ affinity: {}
 clustername: clusterz
 
 # This is a workaround until https://github.com/Azure/AKS/issues/676 gets fixed
-clusterAKSAPIserver: mycluster-xx-xx.hcp.northeurope.azmk8s.io
+clusterFQDN: mycluster-xx-xx.hcp.northeurope.azmk8s.io
