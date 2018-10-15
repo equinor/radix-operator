@@ -4,7 +4,7 @@
 apiVersion: v1
 kind: Secret
 metadata:
-  name: {{ .Values.imageCredentials.registry }}
+  name: radix-docker
 type: kubernetes.io/dockerconfigjson
 data:
   .dockerconfigjson: {{ template "dockerconfig" . }}
