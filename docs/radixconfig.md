@@ -15,6 +15,8 @@ metadata:
 spec:
   environments:
     - name: dev
+      build:
+        from: master
     - name: prod
   components:
     - name: frontend
@@ -45,11 +47,17 @@ spec:
 
 ### environments
 
-This is an array of environments for your application.
+This is an array of environments for your application. 
 
 #### name
 
 The name of your environment
+
+#### build
+
+You have to specify the branch name to build and deploy in each environment by adding `from: <BRANCH_NAME>`. If you do not specify one in an environment, nothing will be built and deployed to this particular environment.
+
+In the example above, a `git push` to `master` branch will build and deploy code from the `master` branch to `dev` environment. Nothing will be built and deployed to the `prod` environment.
 
 ### components
 

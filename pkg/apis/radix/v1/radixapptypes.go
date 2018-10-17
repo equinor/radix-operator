@@ -44,7 +44,13 @@ type EnvVars struct {
 
 //Environment defines a Radix application environment
 type Environment struct {
-	Name string `json:"name" yaml:"name"`
+	Name  string   `json:"name" yaml:"name"`
+	Build EnvBuild `json:"build,omitempty" yaml:"build,omitempty"`
+}
+
+// EnvBuild defines build parameters of a specific environment
+type EnvBuild struct {
+	From string `json:"from,omitempty" yaml:"from,omitempty"`
 }
 
 // ComponentPort defines the port number, protocol and port for a service
