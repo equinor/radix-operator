@@ -8,11 +8,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *RadixOnPushHandler) deploy(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag string) error {
+func (cli *RadixOnPushHandler) deploy(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag string, targetEnvs map[string]bool) error {
 	appName := radixRegistration.Name
 	log.Infof("Deploying app %s", appName)
 
-	radixDeployments, err := createRadixDeployments(radixApplication, imageTag)
+	radixDeployments, err := createRadixDeployments(radixApplication, imageTag, targetEnvs)
 	if err != nil {
 		return fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
 	}
@@ -53,9 +53,12 @@ func (cli *RadixOnPushHandler) applyEnvNamespace(radixRegistration *v1.RadixRegi
 	return cli.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
 }
 
-func createRadixDeployments(radixApplication *v1.RadixApplication, imageTag string) ([]v1.RadixDeployment, error) {
+func createRadixDeployments(radixApplication *v1.RadixApplication, imageTag string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
 	radixDeployments := []v1.RadixDeployment{}
 	for _, env := range radixApplication.Spec.Environments {
+		if _, contains := targetEnvs[env.Name]; !contains {
+			continue
+		}
 		radixComponents := getRadixComponentsForEnv(radixApplication, env.Name, imageTag)
 		radixDeployment := createRadixDeployment(radixApplication.Name, env.Name, imageTag, radixComponents)
 		radixDeployments = append(radixDeployments, radixDeployment)
