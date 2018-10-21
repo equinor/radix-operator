@@ -53,10 +53,9 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 	if err != nil {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
-	} else {
-		logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	}
 
+	logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy)
 	if err != nil {
 		logger.Errorf("Failed to provision secrets: %v", err)
@@ -115,7 +114,7 @@ func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistr
 	deployment := getDeploymentConfig(radixDeploy, deployComponent)
 
 	t.customRbacSettings(appName, namespace, radixRegistration, deployment)
-  
+
 	logger.Infof("Creating Deployment object %s in namespace %s", deployComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
 	if errors.IsAlreadyExists(err) {

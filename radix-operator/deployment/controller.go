@@ -111,7 +111,7 @@ func NewDeployController(client kubernetes.Interface, radixClient radixclient.In
 func shouldAddToQueue(obj interface{}, key, latestResourceVersion string) bool {
 	radixDeployment, ok := obj.(*v1.RadixDeployment)
 	if !ok {
-		logger.Error("Provided object was not a valid Radix Deployment; instead was %v", obj)
+		logger.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 		return true
 	}
 
