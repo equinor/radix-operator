@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/statoil/radix-operator/pkg/apis/utils"
-	utils "github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	registration "github.com/statoil/radix-operator/radix-operator/registration"
 	testutils "github.com/statoil/radix-operator/radix-operator/utils"
@@ -16,19 +15,17 @@ import (
 
 func TestObjectCreated_(t *testing.T) {
 	// Setup
-	logger.Error("Setup")
-	stop := make(chan struct{})
-	defer close(stop)
-
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
-	testutils.CreateClusterPrerequisites(kubeclient)
-
 	registrationHandler := registration.NewRegistrationHandler(kubeclient)
-	deployHandler := NewDeployHandler(kubeclient, radixclient)
+	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
-	anyRadixDeployment := utils.ARadixDeployment().
+	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
+	testUtils.CreateClusterPrerequisites()
+
+	// Test
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("edcradix").
 		WithImageTag("axmz8").
 		WithEnvironment("test").
@@ -51,15 +48,17 @@ func TestObjectCreated_(t *testing.T) {
 			WithPort("http", 3000).
 			WithPublic(true).
 			WithReplicas(0).
-			WithSecrets([]string{"a_secret"}))
+			WithSecrets([]string{"a_secret"})))
 
-	assert.NoError(t, err, "ObjectCreated - Unexpected error")
+	envNamespace := testutils.GetNamespaceForApplicationEnvironment("edcradix", "test")
+	services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 3, len(services.Items), "ObjectCreated - Number of components was not handled correctly")
+	assert.Equal(t, "app", services.Items[0].Name, "ObjectCreated - app service not there")
+	assert.Equal(t, "redis", services.Items[1].Name, "ObjectCreated - redis service not there")
+	assert.Equal(t, "radixquote", services.Items[2].Name, "ObjectCreated - radixquote service not there")
 
-	services, err := kubeclient.CoreV1().Services(getNamespaceForApplicationEnvironment("edcradix", "test")).List(metav1.ListOptions{})
-	assert.NoError(t, err, "ObjectCreated - Unexpected error")
-
-	serviceName := services.Items[1].GetName()
-	logger.Infof("%s", serviceName)
+	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "ObjectCreated - Number of ingresses was not according to public components")
 
 	// Teardown
 	t.Log("Teardown")

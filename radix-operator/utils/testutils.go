@@ -16,17 +16,15 @@ type TestUtils struct {
 	client              kubernetes.Interface
 	radixclient         radixclient.Interface
 	registrationHandler common.Handler
-	applicationHandler  common.Handler
 	deploymentHandler   common.Handler
 }
 
 // NewTestUtils Constructor
-func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, registrationHandler common.Handler, applicationHandler common.Handler, deploymentHandler common.Handler) TestUtils {
+func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, registrationHandler common.Handler, deploymentHandler common.Handler) TestUtils {
 	return TestUtils{
 		client:              client,
 		radixclient:         radixclient,
 		registrationHandler: registrationHandler,
-		applicationHandler:  applicationHandler,
 		deploymentHandler:   deploymentHandler,
 	}
 }
@@ -46,7 +44,7 @@ func (tu *TestUtils) ApplyApplication(applicationBuilder utils.ApplicationBuilde
 	}
 
 	ra := applicationBuilder.BuildRA()
-	appNamespace := createAppNamespace(tu.client, ra.GetName())
+	appNamespace := CreateAppNamespace(tu.client, ra.GetName())
 	tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(ra)
 }
 
@@ -58,14 +56,14 @@ func (tu *TestUtils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) 
 	}
 
 	rd := deploymentBuilder.BuildRD()
-	envNamespace := createEnvNamespace(tu.client, rd.GetName(), rd.Spec.Environment)
+	envNamespace := CreateEnvNamespace(tu.client, rd.GetName(), rd.Spec.Environment)
 	tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
 	tu.deploymentHandler.ObjectCreated(rd)
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func CreateClusterPrerequisites(kubeclient kubernetes.Interface) {
-	kubeclient.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
+func (tu *TestUtils) CreateClusterPrerequisites() {
+	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "radix-docker",
@@ -76,7 +74,7 @@ func CreateClusterPrerequisites(kubeclient kubernetes.Interface) {
 		},
 	})
 
-	kubeclient.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
+	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "radix-known-hosts-git",
@@ -87,7 +85,7 @@ func CreateClusterPrerequisites(kubeclient kubernetes.Interface) {
 		},
 	})
 
-	kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(&corev1.ConfigMap{
+	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "radix-config",
 			Namespace: corev1.NamespaceDefault,
@@ -98,19 +96,22 @@ func CreateClusterPrerequisites(kubeclient kubernetes.Interface) {
 	})
 }
 
+// CreateAppNamespace Helper method to creat app namespace
 func CreateAppNamespace(kubeclient kubernetes.Interface, appName string) string {
 	ns := getAppNamespace(appName)
 	createNamespace(kubeclient, ns)
 	return ns
 }
 
+// CreateEnvNamespace Helper method to creat env namespace
 func CreateEnvNamespace(kubeclient kubernetes.Interface, appName, environment string) string {
-	ns := getNamespaceForApplicationEnvironment(appName, environment)
+	ns := GetNamespaceForApplicationEnvironment(appName, environment)
 	createNamespace(kubeclient, ns)
 	return ns
 }
 
-func getNamespaceForApplicationEnvironment(appName, environment string) string {
+// GetNamespaceForApplicationEnvironment Helper method to get namespace name for app environment
+func GetNamespaceForApplicationEnvironment(appName, environment string) string {
 	return fmt.Sprintf("%s-%s", appName, environment)
 }
 
