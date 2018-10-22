@@ -185,6 +185,7 @@ type DeployComponentBuilder interface {
 	WithImage(string) DeployComponentBuilder
 	WithPort(string, int32) DeployComponentBuilder
 	WithEnvironmentVariable(string, string) DeployComponentBuilder
+	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
 	WithPublic(bool) DeployComponentBuilder
 	WithReplicas(int) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
@@ -228,6 +229,11 @@ func (dcb *deployComponentBuilder) WithReplicas(replicas int) DeployComponentBui
 
 func (dcb *deployComponentBuilder) WithEnvironmentVariable(name string, value string) DeployComponentBuilder {
 	dcb.environmentVariables[name] = value
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithEnvironmentVariables(environmentVariables map[string]string) DeployComponentBuilder {
+	dcb.environmentVariables = environmentVariables
 	return dcb
 }
 

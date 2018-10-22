@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/statoil/radix-operator/pkg/apis/utils"
@@ -13,7 +12,103 @@ import (
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
-func TestObjectCreated_(t *testing.T) {
+func TestObjectCreated_NoRegistration_ReturnsError(t *testing.T) {
+	// Setup
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+
+	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
+
+	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
+	testUtils.CreateClusterPrerequisites()
+
+	err := testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithRadixApplication(utils.ARadixApplication().
+			WithRadixRegistration(nil)))
+	assert.Error(t, err)
+}
+
+func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
+	// Setup
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+
+	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
+
+	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
+	testUtils.CreateClusterPrerequisites()
+
+	// Test
+	err := testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("edcradix").
+		WithImageTag("axmz8").
+		WithEnvironment("test").
+		WithComponents([]utils.DeployComponentBuilder{
+			utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true).
+				WithReplicas(4),
+			utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
+				WithName("redis").
+				WithEnvironmentVariable("a_variable", "3001").
+				WithPort("http", 6379).
+				WithPublic(false).
+				WithReplicas(0),
+			utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
+				WithName("radixquote").
+				WithPort("http", 3000).
+				WithPublic(true).
+				WithReplicas(0).
+				WithSecrets([]string{"a_secret"})}))
+
+	assert.NoError(t, err)
+	envNamespace := testutils.GetNamespaceForApplicationEnvironment("edcradix", "test")
+	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 3, len(deployments.Items), "ObjectCreated - Number of deployments wasn't as expected")
+	assert.Equal(t, "app", deployments.Items[0].Name, "ObjectCreated - app deployment not there")
+	assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "ObjectCreated - number of replicas was unexpected")
+	assert.Equal(t, "redis", deployments.Items[1].Name, "ObjectCreated - redis deployment not there")
+	assert.Equal(t, int32(1), *deployments.Items[1].Spec.Replicas, "ObjectCreated - number of replicas was unexpected")
+	assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
+	assert.Equal(t, "3001", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Value)
+	assert.Equal(t, "radixquote", deployments.Items[2].Name, "ObjectCreated - radixquote deployment not there")
+	assert.Equal(t, int32(1), *deployments.Items[2].Spec.Replicas, "ObjectCreated - number of replicas was unexpected")
+	assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[0].Name)
+
+	services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 3, len(services.Items), "ObjectCreated - Number of services wasn't as expected")
+	assert.Equal(t, "app", services.Items[0].Name, "ObjectCreated - app service not there")
+	assert.Equal(t, "redis", services.Items[1].Name, "ObjectCreated - redis service not there")
+	assert.Equal(t, "radixquote", services.Items[2].Name, "ObjectCreated - radixquote service not there")
+
+	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(ingresses.Items), "ObjectCreated - Number of ingresses was not according to public components")
+	assert.Equal(t, "app", ingresses.Items[0].GetName(), "ObjectCreated - App should have had an ingress")
+	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "ObjectCreated - Port was unexpected")
+	assert.Equal(t, "radixquote", ingresses.Items[1].GetName(), "ObjectCreated - Radixquote should have had an ingress")
+	assert.Equal(t, int32(3000), ingresses.Items[1].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "ObjectCreated - Port was unexpected")
+
+	secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(secrets.Items), "ObjectCreated - Number of secrets was not according to spec")
+	assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "ObjectCreated - Component secret is not as expected")
+	assert.Equal(t, "radixquote", secrets.Items[1].GetName(), "ObjectCreated - Component secret is not as expected")
+
+	serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 0, len(serviceAccounts.Items), "ObjectCreated - Number of service accounts was not expected")
+
+	rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(rolebindings.Items), "ObjectCreated - Number of rolebindings was not expected")
+	assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "ObjectCreated - Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+	assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[1].GetName(), "ObjectCreated - Expected rolebinding radix-app-admin-envs to be there by default")
+}
+
+func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
@@ -26,79 +121,91 @@ func TestObjectCreated_(t *testing.T) {
 
 	// Test
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
-		WithAppName("edcradix").
-		WithImageTag("axmz8").
-		WithEnvironment("test").
-		WithComponent(utils.NewDeployComponentBuilder().
-			WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
-			WithName("app").
-			WithPort("http", 8080).
-			WithPublic(true).
-			WithReplicas(4)).
-		WithComponent(utils.NewDeployComponentBuilder().
-			WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
-			WithName("redis").
-			WithEnvironmentVariable("a_variable", "3001").
-			WithPort("http", 6379).
-			WithPublic(false).
-			WithReplicas(0)).
-		WithComponent(utils.NewDeployComponentBuilder().
-			WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
-			WithName("radixquote").
-			WithPort("http", 3000).
-			WithPublic(true).
-			WithReplicas(0).
-			WithSecrets([]string{"a_secret"})))
+		WithAppName("any-other-app").
+		WithEnvironment("test"))
 
-	envNamespace := testutils.GetNamespaceForApplicationEnvironment("edcradix", "test")
+	serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(testutils.GetNamespaceForApplicationEnvironment("any-other-app", "test")).List(metav1.ListOptions{})
+	assert.Equal(t, 0, len(serviceAccounts.Items), "ObjectCreated - Number of service accounts was not expected")
+
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("radix-github-webhook").
+		WithEnvironment("test"))
+
+	serviceAccounts, _ = kubeclient.CoreV1().ServiceAccounts(testutils.GetNamespaceForApplicationEnvironment("radix-github-webhook", "test")).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(serviceAccounts.Items), "ObjectCreated - Number of service accounts was not expected")
+
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("radix-api").
+		WithEnvironment("test"))
+
+	serviceAccounts, _ = kubeclient.CoreV1().ServiceAccounts(testutils.GetNamespaceForApplicationEnvironment("radix-api", "test")).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(serviceAccounts.Items), "ObjectCreated - Number of service accounts was not expected")
+
+}
+
+func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
+	// Setup
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+
+	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
+
+	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
+	testUtils.CreateClusterPrerequisites()
+
+	// Test
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("app").
+		WithEnvironment("test").
+		WithComponents([]utils.DeployComponentBuilder{
+			utils.NewDeployComponentBuilder().
+				WithImage("anyimage").
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true),
+			utils.NewDeployComponentBuilder().
+				WithImage("anotherimage").
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true)}))
+
+	envNamespace := testutils.GetNamespaceForApplicationEnvironment("app", "test")
+	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(deployments.Items), "ObjectCreated - Number of deployments wasn't as expected")
+
 	services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
-	assert.Equal(t, 3, len(services.Items), "ObjectCreated - Number of components was not handled correctly")
-	assert.Equal(t, "app", services.Items[0].Name, "ObjectCreated - app service not there")
-	assert.Equal(t, "redis", services.Items[1].Name, "ObjectCreated - redis service not there")
-	assert.Equal(t, "radixquote", services.Items[2].Name, "ObjectCreated - radixquote service not there")
+	assert.Equal(t, 1, len(services.Items), "ObjectCreated - Number of services wasn't as expected")
 
 	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "ObjectCreated - Number of ingresses was not according to public components")
-
-	// Teardown
-	t.Log("Teardown")
-
 }
 
-func Test_map_rd_to_deploy_name(t *testing.T) {
-	file, _ := filepath.Abs("./testdata/radixdeploy.yaml")
-	rd, _ := utils.GetRadixDeploy(file)
+func TestObjectCreated_NoEnvAndNoSecrets_ContainsNoEnvVariableOrSecret(t *testing.T) {
+	// Setup
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
 
-	component := rd.Spec.Components[0]
-	deploy := getDeploymentConfig(rd, component)
-	assert.Equal(t, deploy.Name, component.Name)
-}
+	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
-func Test_map_rd_to_deploy_replica(t *testing.T) {
-	file, _ := filepath.Abs("./testdata/radixdeploy.yaml")
-	rd, _ := utils.GetRadixDeploy(file)
+	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
+	testUtils.CreateClusterPrerequisites()
 
-	component := rd.Spec.Components[0]
-	deploy := getDeploymentConfig(rd, component)
-	replicas := *deploy.Spec.Replicas
-	assert.Equal(t, int32(4), replicas)
-}
+	// Test
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("app").
+		WithEnvironment("test").
+		WithComponents([]utils.DeployComponentBuilder{
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithEnvironmentVariables(nil).
+				WithSecrets(nil)}))
 
-func Test_map_rd_to_deploy_variables(t *testing.T) {
-	file, _ := filepath.Abs("./testdata/radixdeploy.yaml")
-	rd, _ := utils.GetRadixDeploy(file)
+	envNamespace := testutils.GetNamespaceForApplicationEnvironment("app", "test")
+	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 0, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "ObjectCreated - Should have no environment variable")
 
-	component := rd.Spec.Components[1]
-	deploy := getDeploymentConfig(rd, component)
-	assert.Equal(t, "a_variable", deploy.Spec.Template.Spec.Containers[0].Env[0].Name)
-	assert.Equal(t, "3001", deploy.Spec.Template.Spec.Containers[0].Env[0].Value)
-}
-
-func Test_map_rd_to_deploy_secrets(t *testing.T) {
-	file, _ := filepath.Abs("./testdata/radixdeploy.yaml")
-	rd, _ := utils.GetRadixDeploy(file)
-
-	component := rd.Spec.Components[2]
-	deploy := getDeploymentConfig(rd, component)
-	assert.Equal(t, "a_secret", deploy.Spec.Template.Spec.Containers[0].Env[0].Name)
+	secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(secrets.Items), "ObjectCreated - Should only have default secret")
 }

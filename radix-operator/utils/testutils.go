@@ -30,35 +30,58 @@ func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface
 }
 
 // ApplyRegistration Will help persist an application registration
-func (tu *TestUtils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder) {
+func (tu *TestUtils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder) error {
 	rr := registrationBuilder.BuildRR()
 
-	tu.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Create(rr)
-	tu.registrationHandler.ObjectCreated(rr)
+	_, err := tu.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Create(rr)
+	if err != nil {
+		return err
+	}
+
+	err = tu.registrationHandler.ObjectCreated(rr)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ApplyApplication Will help persist an application
-func (tu *TestUtils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) {
+func (tu *TestUtils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) error {
 	if applicationBuilder.GetRegistrationBuilder() != nil {
 		tu.ApplyRegistration(applicationBuilder.GetRegistrationBuilder())
 	}
 
 	ra := applicationBuilder.BuildRA()
 	appNamespace := CreateAppNamespace(tu.client, ra.GetName())
-	tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(ra)
+	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(ra)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ApplyDeployment Will help persist a deployment
-func (tu *TestUtils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) {
+func (tu *TestUtils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) error {
 
 	if deploymentBuilder.GetApplicationBuilder() != nil {
 		tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
 	}
 
 	rd := deploymentBuilder.BuildRD()
-	envNamespace := CreateEnvNamespace(tu.client, rd.GetName(), rd.Spec.Environment)
-	tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
-	tu.deploymentHandler.ObjectCreated(rd)
+	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
+	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
+	if err != nil {
+		return err
+	}
+
+	err = tu.deploymentHandler.ObjectCreated(rd)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
