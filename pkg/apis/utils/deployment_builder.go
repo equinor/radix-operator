@@ -1,32 +1,11 @@
 package utils
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// TODO : Separate out into library functions
-func getAppNamespace(appName string) string {
-	return fmt.Sprintf("%s-app", appName)
-}
-
-func getNamespaceForApplicationEnvironment(appName, environment string) string {
-	return fmt.Sprintf("%s-%s", appName, environment)
-}
-
-func getDeploymentName(appName, imageTag string) string {
-	return fmt.Sprintf("%s-%s", appName, imageTag)
-}
-
-func getAppAndImagePairFromName(name string) (string, string) {
-	runes := []rune(name)
-	lastIndex := strings.LastIndex(name, "-")
-	return string(runes[0:lastIndex]), string(runes[(lastIndex + 1):len(runes)])
-}
 
 // DeploymentBuilder Handles construction of RD
 type DeploymentBuilder interface {
@@ -58,7 +37,7 @@ func (db *deploymentBuilder) WithRadixApplication(applicationBuilder Application
 }
 
 func (db *deploymentBuilder) WithRadixDeployment(radixDeployment *v1.RadixDeployment) DeploymentBuilder {
-	_, imageTag := getAppAndImagePairFromName(radixDeployment.Name)
+	_, imageTag := GetAppAndTagPairFromName(radixDeployment.Name)
 
 	db.WithImageTag(imageTag)
 	db.WithAppName(radixDeployment.Spec.AppName)
@@ -140,8 +119,8 @@ func (db *deploymentBuilder) BuildRD() *v1.RadixDeployment {
 			Kind:       "RadixDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              getDeploymentName(db.appName, db.imageTag),
-			Namespace:         getNamespaceForApplicationEnvironment(db.appName, db.environment),
+			Name:              GetDeploymentName(db.appName, db.imageTag),
+			Namespace:         GetEnvironmentNamespace(db.appName, db.environment),
 			Labels:            db.labels,
 			CreationTimestamp: metav1.Time{Time: db.created},
 		},

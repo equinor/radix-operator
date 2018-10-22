@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"fmt"
-
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	"github.com/statoil/radix-operator/radix-operator/common"
@@ -121,25 +119,16 @@ func (tu *TestUtils) CreateClusterPrerequisites(clustername string) {
 
 // CreateAppNamespace Helper method to creat app namespace
 func CreateAppNamespace(kubeclient kubernetes.Interface, appName string) string {
-	ns := getAppNamespace(appName)
+	ns := utils.GetAppNamespace(appName)
 	createNamespace(kubeclient, ns)
 	return ns
 }
 
 // CreateEnvNamespace Helper method to creat env namespace
 func CreateEnvNamespace(kubeclient kubernetes.Interface, appName, environment string) string {
-	ns := GetNamespaceForApplicationEnvironment(appName, environment)
+	ns := utils.GetEnvironmentNamespace(appName, environment)
 	createNamespace(kubeclient, ns)
 	return ns
-}
-
-// GetNamespaceForApplicationEnvironment Helper method to get namespace name for app environment
-func GetNamespaceForApplicationEnvironment(appName, environment string) string {
-	return fmt.Sprintf("%s-%s", appName, environment)
-}
-
-func getAppNamespace(appName string) string {
-	return fmt.Sprintf("%s-app", appName)
 }
 
 func createNamespace(kubeclient kubernetes.Interface, ns string) {

@@ -68,7 +68,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithSecrets([]string{"a_secret"})}))
 
 	assert.NoError(t, err)
-	envNamespace := testutils.GetNamespaceForApplicationEnvironment("edcradix", "test")
+	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 3, len(deployments.Items), "ObjectCreated - Number of deployments wasn't as expected")
 	assert.Equal(t, "app", deployments.Items[0].Name, "ObjectCreated - app deployment not there")
@@ -129,21 +129,21 @@ func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 		WithAppName("any-other-app").
 		WithEnvironment("test"))
 
-	serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(testutils.GetNamespaceForApplicationEnvironment("any-other-app", "test")).List(metav1.ListOptions{})
+	serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
 	assert.Equal(t, 0, len(serviceAccounts.Items), "ObjectCreated - Number of service accounts was not expected")
 
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("radix-github-webhook").
 		WithEnvironment("test"))
 
-	serviceAccounts, _ = kubeclient.CoreV1().ServiceAccounts(testutils.GetNamespaceForApplicationEnvironment("radix-github-webhook", "test")).List(metav1.ListOptions{})
+	serviceAccounts, _ = kubeclient.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(serviceAccounts.Items), "ObjectCreated - Number of service accounts was not expected")
 
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("radix-api").
 		WithEnvironment("test"))
 
-	serviceAccounts, _ = kubeclient.CoreV1().ServiceAccounts(testutils.GetNamespaceForApplicationEnvironment("radix-api", "test")).List(metav1.ListOptions{})
+	serviceAccounts, _ = kubeclient.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(serviceAccounts.Items), "ObjectCreated - Number of service accounts was not expected")
 
 }
@@ -175,7 +175,7 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 				WithPort("http", 8080).
 				WithPublic(true)}))
 
-	envNamespace := testutils.GetNamespaceForApplicationEnvironment("app", "test")
+	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(deployments.Items), "ObjectCreated - Number of deployments wasn't as expected")
 
@@ -210,7 +210,7 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsNoEnvVariableOrSecret(t *testin
 				WithEnvironmentVariables(nil).
 				WithSecrets(nil)}))
 
-	envNamespace := testutils.GetNamespaceForApplicationEnvironment("app", "test")
+	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "ObjectCreated - Should only have default environment variables")
 	assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)

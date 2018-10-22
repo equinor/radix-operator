@@ -78,7 +78,7 @@ func (ap *applicationBuilder) BuildRA() *v1.RadixApplication {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ap.appName,
-			Namespace: getAppNamespace(ap.appName),
+			Namespace: GetAppNamespace(ap.appName),
 		},
 		Spec: v1.RadixApplicationSpec{
 			Components:   components,

@@ -1,20 +1,12 @@
 package utils
 
 import (
-	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-const repoURL = "https://github.com/"
-const sshURL = "git@github.com:"
-const rootPath = ""
-
-var repoPattern = regexp.MustCompile(fmt.Sprintf("%s(.*?)", repoURL))
 
 // RegistrationBuilder Handles construction of RR or applicationRegistation
 type RegistrationBuilder interface {
@@ -87,7 +79,7 @@ func (rb *registrationBuilder) WithPrivateKey(privateKey string) RegistrationBui
 func (rb *registrationBuilder) BuildRR() *v1.RadixRegistration {
 	cloneURL := rb.cloneURL
 	if cloneURL == "" {
-		cloneURL = getCloneURLFromRepo(rb.repository)
+		cloneURL = GetGithubCloneURLFromRepo(rb.repository)
 	}
 
 	radixRegistration := &v1.RadixRegistration{
@@ -123,14 +115,4 @@ func ARadixRegistration() RegistrationBuilder {
 		WithSharedSecret("NotSoSecret")
 
 	return builder
-}
-
-func getCloneURLFromRepo(repo string) string {
-	if repo == "" {
-		return ""
-	}
-
-	cloneURL := repoPattern.ReplaceAllString(repo, sshURL)
-	cloneURL += ".git"
-	return cloneURL
 }
