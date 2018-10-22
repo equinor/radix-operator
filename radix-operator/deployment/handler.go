@@ -17,6 +17,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const clusternameEnvironmentVariable = "clustername"
+const environmentnameEnvironmentVariable = "environment"
+
 type RadixDeployHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
@@ -49,7 +52,7 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 	}
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations("default").Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
@@ -111,7 +114,7 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistration, radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
 	appName := radixDeploy.Spec.AppName
-	deployment := getDeploymentConfig(radixDeploy, deployComponent)
+	deployment := t.getDeploymentConfig(radixDeploy, deployComponent)
 
 	t.customRbacSettings(appName, namespace, radixRegistration, deployment)
 
@@ -157,11 +160,11 @@ func (t *RadixDeployHandler) customRbacSettings(appName, namespace string, radix
 }
 
 func isRadixAPI(radixRegistrationNamespace, appName string) bool {
-	return appName == "radix-api" && radixRegistrationNamespace == "default"
+	return appName == "radix-api" && radixRegistrationNamespace == corev1.NamespaceDefault
 }
 
 func isRadixWebHook(radixRegistrationNamespace, appName string) bool {
-	return appName == "radix-github-webhook" && radixRegistrationNamespace == "default"
+	return appName == "radix-github-webhook" && radixRegistrationNamespace == corev1.NamespaceDefault
 }
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
@@ -179,17 +182,17 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, depl
 		ports := buildServicePorts(deployComponent.Ports)
 		newService.Spec.Ports = ports
 
-		oldServiceJson, err := json.Marshal(oldService)
+		oldServiceJSON, err := json.Marshal(oldService)
 		if err != nil {
 			return fmt.Errorf("Failed to marshal old Service object: %v", err)
 		}
 
-		newServiceJson, err := json.Marshal(newService)
+		newServiceJSON, err := json.Marshal(newService)
 		if err != nil {
 			return fmt.Errorf("Failed to marshal new Service object: %v", err)
 		}
 
-		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldServiceJson, newServiceJson, corev1.Service{})
+		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldServiceJSON, newServiceJSON, corev1.Service{})
 		if err != nil {
 			return fmt.Errorf("Failed to create two way merge patch Service objects: %v", err)
 		}
@@ -210,7 +213,7 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, depl
 
 func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps("default").Get("radix-config", metav1.GetOptions{})
+	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to get radix config map: %v", err)
 	}
@@ -235,7 +238,7 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, depl
 	return nil
 }
 
-func getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
+func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
 	trueVar := true
 	appName := radixDeploy.Spec.AppName
 	uid := radixDeploy.UID
@@ -305,7 +308,8 @@ func getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.Rad
 		deployment.Spec.Replicas = int32Ptr(int32(replicas))
 	}
 
-	environmentVariables := getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, radixDeploy.Name, environment, componentName)
+	environmentVariables := t.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, radixDeploy.Name, environment, componentName)
+
 	if environmentVariables != nil {
 		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
@@ -313,38 +317,65 @@ func getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.Rad
 	return deployment
 }
 
-func getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
-	if radixEnvVars == nil && radixSecrets == nil {
-		logger.Infof("No environment variable and secret is set for this RadixDeployment %s", radixDeployName)
-		return nil
-	}
+func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
 	var environmentVariables []corev1.EnvVar
-	// environmentVariables
-	for key, value := range radixEnvVars {
-		envVar := corev1.EnvVar{
-			Name:  key,
-			Value: value,
+	if radixEnvVars != nil {
+		// environmentVariables
+		for key, value := range radixEnvVars {
+			envVar := corev1.EnvVar{
+				Name:  key,
+				Value: value,
+			}
+			environmentVariables = append(environmentVariables, envVar)
 		}
-		environmentVariables = append(environmentVariables, envVar)
+	} else {
+		logger.Infof("No environment variable is set for this RadixDeployment %s", radixDeployName)
 	}
 
+	environmentVariables = t.appendDefaultVariables(currentEnvironment, environmentVariables)
+
 	// secrets
-	for _, v := range radixSecrets {
-		secretKeySelector := corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: componentName,
-			},
-			Key: v,
+	if radixSecrets != nil {
+		for _, v := range radixSecrets {
+			secretKeySelector := corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: componentName,
+				},
+				Key: v,
+			}
+			envVarSource := corev1.EnvVarSource{
+				SecretKeyRef: &secretKeySelector,
+			}
+			secretEnvVar := corev1.EnvVar{
+				Name:      v,
+				ValueFrom: &envVarSource,
+			}
+			environmentVariables = append(environmentVariables, secretEnvVar)
 		}
-		envVarSource := corev1.EnvVarSource{
-			SecretKeyRef: &secretKeySelector,
-		}
-		secretEnvVar := corev1.EnvVar{
-			Name:      v,
-			ValueFrom: &envVarSource,
-		}
-		environmentVariables = append(environmentVariables, secretEnvVar)
+	} else {
+		logger.Infof("No secret is set for this RadixDeployment %s", radixDeployName)
 	}
+
+	return environmentVariables
+}
+
+func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar) []corev1.EnvVar {
+	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
+	if err != nil {
+		return environmentVariables
+	}
+
+	clustername := radixconfigmap.Data["clustername"]
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  clusternameEnvironmentVariable,
+		Value: clustername,
+	})
+
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  environmentnameEnvironmentVariable,
+		Value: currentEnvironment,
+	})
+
 	return environmentVariables
 }
 

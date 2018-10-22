@@ -21,7 +21,7 @@ func TestObjectCreated_NoRegistration_ReturnsError(t *testing.T) {
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
 	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
-	testUtils.CreateClusterPrerequisites()
+	testUtils.CreateClusterPrerequisites("AnyClusterName")
 
 	err := testUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithRadixApplication(utils.ARadixApplication().
@@ -38,7 +38,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
 	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
-	testUtils.CreateClusterPrerequisites()
+	testUtils.CreateClusterPrerequisites("AnyClusterName")
 
 	// Test
 	err := testUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -75,11 +75,16 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 	assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "ObjectCreated - number of replicas was unexpected")
 	assert.Equal(t, "redis", deployments.Items[1].Name, "ObjectCreated - redis deployment not there")
 	assert.Equal(t, int32(1), *deployments.Items[1].Spec.Replicas, "ObjectCreated - number of replicas was unexpected")
+	assert.Equal(t, 3, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "ObjectCreated - number of environment variables was unexpected for component. It should contain default and custom")
 	assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
+	assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[1].Name)
+	assert.Equal(t, environmentnameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[2].Name)
 	assert.Equal(t, "3001", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Value)
 	assert.Equal(t, "radixquote", deployments.Items[2].Name, "ObjectCreated - radixquote deployment not there")
 	assert.Equal(t, int32(1), *deployments.Items[2].Spec.Replicas, "ObjectCreated - number of replicas was unexpected")
-	assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[0].Name)
+	assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[0].Name)
+	assert.Equal(t, environmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
+	assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[2].Name)
 
 	services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 3, len(services.Items), "ObjectCreated - Number of services wasn't as expected")
@@ -117,7 +122,7 @@ func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
 	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
-	testUtils.CreateClusterPrerequisites()
+	testUtils.CreateClusterPrerequisites("AnyClusterName")
 
 	// Test
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -152,7 +157,7 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
 	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
-	testUtils.CreateClusterPrerequisites()
+	testUtils.CreateClusterPrerequisites("AnyClusterName")
 
 	// Test
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -190,12 +195,15 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsNoEnvVariableOrSecret(t *testin
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
 	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
-	testUtils.CreateClusterPrerequisites()
+	anyClustername := "AnyClusterName"
+	anyEnvironment := "test"
+
+	testUtils.CreateClusterPrerequisites(anyClustername)
 
 	// Test
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app").
-		WithEnvironment("test").
+		WithEnvironment(anyEnvironment).
 		WithComponents([]utils.DeployComponentBuilder{
 			utils.NewDeployComponentBuilder().
 				WithName("app").
@@ -204,7 +212,11 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsNoEnvVariableOrSecret(t *testin
 
 	envNamespace := testutils.GetNamespaceForApplicationEnvironment("app", "test")
 	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
-	assert.Equal(t, 0, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "ObjectCreated - Should have no environment variable")
+	assert.Equal(t, 2, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "ObjectCreated - Should only have default environment variables")
+	assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
+	assert.Equal(t, anyClustername, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
+	assert.Equal(t, environmentnameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
+	assert.Equal(t, anyEnvironment, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Value)
 
 	secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(secrets.Items), "ObjectCreated - Should only have default secret")
