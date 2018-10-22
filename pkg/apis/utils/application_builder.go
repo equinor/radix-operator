@@ -16,19 +16,19 @@ type ApplicationBuilder interface {
 	BuildRA() *v1.RadixApplication
 }
 
-type applicationBuilder struct {
+type ApplicationBuilderStruct struct {
 	registrationBuilder RegistrationBuilder
 	appName             string
 	environments        []string
 	components          []RadixApplicationComponentBuilder
 }
 
-func (ap *applicationBuilder) WithRadixRegistration(registrationBuilder RegistrationBuilder) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithRadixRegistration(registrationBuilder RegistrationBuilder) ApplicationBuilder {
 	ap.registrationBuilder = registrationBuilder
 	return ap
 }
 
-func (ap *applicationBuilder) WithAppName(appName string) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithAppName(appName string) ApplicationBuilder {
 	if ap.registrationBuilder != nil {
 		ap.registrationBuilder = ap.registrationBuilder.WithName(appName)
 	}
@@ -37,22 +37,22 @@ func (ap *applicationBuilder) WithAppName(appName string) ApplicationBuilder {
 	return ap
 }
 
-func (ap *applicationBuilder) WithEnvironments(environments []string) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithEnvironments(environments []string) ApplicationBuilder {
 	ap.environments = environments
 	return ap
 }
 
-func (ap *applicationBuilder) WithComponent(component RadixApplicationComponentBuilder) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithComponent(component RadixApplicationComponentBuilder) ApplicationBuilder {
 	ap.components = append(ap.components, component)
 	return ap
 }
 
-func (ap *applicationBuilder) WithComponents(components []RadixApplicationComponentBuilder) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithComponents(components []RadixApplicationComponentBuilder) ApplicationBuilder {
 	ap.components = components
 	return ap
 }
 
-func (ap *applicationBuilder) GetRegistrationBuilder() RegistrationBuilder {
+func (ap *ApplicationBuilderStruct) GetRegistrationBuilder() RegistrationBuilder {
 	if ap.registrationBuilder != nil {
 		return ap.registrationBuilder
 	}
@@ -60,7 +60,7 @@ func (ap *applicationBuilder) GetRegistrationBuilder() RegistrationBuilder {
 	return nil
 }
 
-func (ap *applicationBuilder) BuildRA() *v1.RadixApplication {
+func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 	var environments = make([]v1.Environment, 0)
 	for _, env := range ap.environments {
 		environments = append(environments, v1.Environment{Name: env})
@@ -90,7 +90,7 @@ func (ap *applicationBuilder) BuildRA() *v1.RadixApplication {
 
 // NewRadixApplicationBuilder Constructor for config builder
 func NewRadixApplicationBuilder() ApplicationBuilder {
-	return &applicationBuilder{}
+	return &ApplicationBuilderStruct{}
 }
 
 // ARadixApplication Constructor for application builder containing test data

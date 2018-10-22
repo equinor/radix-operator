@@ -21,22 +21,25 @@ type DeploymentBuilder interface {
 	BuildRD() *v1.RadixDeployment
 }
 
-type deploymentBuilder struct {
+// DeploymentBuilderStruct Holds instance variables
+type DeploymentBuilderStruct struct {
 	applicationBuilder ApplicationBuilder
-	appName            string
-	labels             map[string]string
-	imageTag           string
-	environment        string
-	created            time.Time
+	AppName            string
+	Labels             map[string]string
+	ImageTag           string
+	Environment        string
+	Created            time.Time
 	components         []DeployComponentBuilder
 }
 
-func (db *deploymentBuilder) WithRadixApplication(applicationBuilder ApplicationBuilder) DeploymentBuilder {
+// WithRadixApplication Links to RA builder
+func (db *DeploymentBuilderStruct) WithRadixApplication(applicationBuilder ApplicationBuilder) DeploymentBuilder {
 	db.applicationBuilder = applicationBuilder
 	return db
 }
 
-func (db *deploymentBuilder) WithRadixDeployment(radixDeployment *v1.RadixDeployment) DeploymentBuilder {
+// WithRadixDeployment Reverse engineers RD
+func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.RadixDeployment) DeploymentBuilder {
 	_, imageTag := GetAppAndTagPairFromName(radixDeployment.Name)
 
 	db.WithImageTag(imageTag)
@@ -46,44 +49,51 @@ func (db *deploymentBuilder) WithRadixDeployment(radixDeployment *v1.RadixDeploy
 	return db
 }
 
-func (db *deploymentBuilder) WithAppName(appName string) DeploymentBuilder {
-	db.labels["radixApp"] = appName
+// WithAppName Sets app name
+func (db *DeploymentBuilderStruct) WithAppName(appName string) DeploymentBuilder {
+	db.Labels["radixApp"] = appName
 
 	if db.applicationBuilder != nil {
 		db.applicationBuilder = db.applicationBuilder.WithAppName(appName)
 	}
 
-	db.appName = appName
+	db.AppName = appName
 	return db
 }
 
-func (db *deploymentBuilder) WithLabel(label, value string) DeploymentBuilder {
-	db.labels[label] = value
+// WithLabel Appends label
+func (db *DeploymentBuilderStruct) WithLabel(label, value string) DeploymentBuilder {
+	db.Labels[label] = value
 	return db
 }
 
-func (db *deploymentBuilder) WithImageTag(imageTag string) DeploymentBuilder {
-	db.imageTag = imageTag
+// WithImageTag Sets deployment tag to be appended to name
+func (db *DeploymentBuilderStruct) WithImageTag(imageTag string) DeploymentBuilder {
+	db.ImageTag = imageTag
 	return db
 }
 
-func (db *deploymentBuilder) WithEnvironment(environment string) DeploymentBuilder {
-	db.labels["env"] = environment
-	db.environment = environment
+// WithEnvironment Sets environment name
+func (db *DeploymentBuilderStruct) WithEnvironment(environment string) DeploymentBuilder {
+	db.Labels["env"] = environment
+	db.Environment = environment
 	return db
 }
 
-func (db *deploymentBuilder) WithCreated(created time.Time) DeploymentBuilder {
-	db.created = created
+// WithCreated Sets timestamp
+func (db *DeploymentBuilderStruct) WithCreated(created time.Time) DeploymentBuilder {
+	db.Created = created
 	return db
 }
 
-func (db *deploymentBuilder) WithComponent(component DeployComponentBuilder) DeploymentBuilder {
+// WithComponent Appends component to list of components
+func (db *DeploymentBuilderStruct) WithComponent(component DeployComponentBuilder) DeploymentBuilder {
 	db.components = append(db.components, component)
 	return db
 }
 
-func (db *deploymentBuilder) WithComponents(components []DeployComponentBuilder) DeploymentBuilder {
+// WithComponents Sets list of components
+func (db *DeploymentBuilderStruct) WithComponents(components []DeployComponentBuilder) DeploymentBuilder {
 	if db.applicationBuilder != nil {
 		applicationComponents := make([]RadixApplicationComponentBuilder, 0)
 
@@ -99,7 +109,8 @@ func (db *deploymentBuilder) WithComponents(components []DeployComponentBuilder)
 	return db
 }
 
-func (db *deploymentBuilder) GetApplicationBuilder() ApplicationBuilder {
+// GetApplicationBuilder Obtains the builder for the corresponding RA, if exists (used for testing)
+func (db *DeploymentBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 	if db.applicationBuilder != nil {
 		return db.applicationBuilder
 	}
@@ -107,7 +118,8 @@ func (db *deploymentBuilder) GetApplicationBuilder() ApplicationBuilder {
 	return nil
 }
 
-func (db *deploymentBuilder) BuildRD() *v1.RadixDeployment {
+// BuildRD Builds RD structure based on set variables
+func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	var components = make([]v1.RadixDeployComponent, 0)
 	for _, comp := range db.components {
 		components = append(components, comp.BuildComponent())
@@ -119,15 +131,15 @@ func (db *deploymentBuilder) BuildRD() *v1.RadixDeployment {
 			Kind:       "RadixDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              GetDeploymentName(db.appName, db.imageTag),
-			Namespace:         GetEnvironmentNamespace(db.appName, db.environment),
-			Labels:            db.labels,
-			CreationTimestamp: metav1.Time{Time: db.created},
+			Name:              GetDeploymentName(db.AppName, db.ImageTag),
+			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
+			Labels:            db.Labels,
+			CreationTimestamp: metav1.Time{Time: db.Created},
 		},
 		Spec: v1.RadixDeploymentSpec{
-			AppName:     db.appName,
+			AppName:     db.AppName,
 			Components:  components,
-			Environment: db.environment,
+			Environment: db.Environment,
 		},
 	}
 	return radixDeployment
@@ -135,9 +147,9 @@ func (db *deploymentBuilder) BuildRD() *v1.RadixDeployment {
 
 // NewDeploymentBuilder Constructor for deployment builder
 func NewDeploymentBuilder() DeploymentBuilder {
-	return &deploymentBuilder{
-		labels:  make(map[string]string),
-		created: time.Now(),
+	return &DeploymentBuilderStruct{
+		Labels:  make(map[string]string),
+		Created: time.Now(),
 	}
 }
 
