@@ -1,0 +1,259 @@
+package utils
+
+import (
+	"time"
+
+	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// DeploymentBuilder Handles construction of RD
+type DeploymentBuilder interface {
+	WithRadixApplication(ApplicationBuilder) DeploymentBuilder
+	WithRadixDeployment(*v1.RadixDeployment) DeploymentBuilder
+	WithImageTag(string) DeploymentBuilder
+	WithAppName(string) DeploymentBuilder
+	WithEnvironment(string) DeploymentBuilder
+	WithCreated(time.Time) DeploymentBuilder
+	WithComponent(DeployComponentBuilder) DeploymentBuilder
+	WithComponents([]DeployComponentBuilder) DeploymentBuilder
+	GetApplicationBuilder() ApplicationBuilder
+	BuildRD() *v1.RadixDeployment
+}
+
+// DeploymentBuilderStruct Holds instance variables
+type DeploymentBuilderStruct struct {
+	applicationBuilder ApplicationBuilder
+	AppName            string
+	Labels             map[string]string
+	ImageTag           string
+	Environment        string
+	Created            time.Time
+	components         []DeployComponentBuilder
+}
+
+// WithRadixApplication Links to RA builder
+func (db *DeploymentBuilderStruct) WithRadixApplication(applicationBuilder ApplicationBuilder) DeploymentBuilder {
+	db.applicationBuilder = applicationBuilder
+	return db
+}
+
+// WithRadixDeployment Reverse engineers RD
+func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.RadixDeployment) DeploymentBuilder {
+	_, imageTag := GetAppAndTagPairFromName(radixDeployment.Name)
+
+	db.WithImageTag(imageTag)
+	db.WithAppName(radixDeployment.Spec.AppName)
+	db.WithEnvironment(radixDeployment.Spec.Environment)
+	db.WithCreated(radixDeployment.CreationTimestamp.Time)
+	return db
+}
+
+// WithAppName Sets app name
+func (db *DeploymentBuilderStruct) WithAppName(appName string) DeploymentBuilder {
+	db.Labels["radixApp"] = appName
+
+	if db.applicationBuilder != nil {
+		db.applicationBuilder = db.applicationBuilder.WithAppName(appName)
+	}
+
+	db.AppName = appName
+	return db
+}
+
+// WithLabel Appends label
+func (db *DeploymentBuilderStruct) WithLabel(label, value string) DeploymentBuilder {
+	db.Labels[label] = value
+	return db
+}
+
+// WithImageTag Sets deployment tag to be appended to name
+func (db *DeploymentBuilderStruct) WithImageTag(imageTag string) DeploymentBuilder {
+	db.ImageTag = imageTag
+	return db
+}
+
+// WithEnvironment Sets environment name
+func (db *DeploymentBuilderStruct) WithEnvironment(environment string) DeploymentBuilder {
+	db.Labels["env"] = environment
+	db.Environment = environment
+	return db
+}
+
+// WithCreated Sets timestamp
+func (db *DeploymentBuilderStruct) WithCreated(created time.Time) DeploymentBuilder {
+	db.Created = created
+	return db
+}
+
+// WithComponent Appends component to list of components
+func (db *DeploymentBuilderStruct) WithComponent(component DeployComponentBuilder) DeploymentBuilder {
+	db.components = append(db.components, component)
+	return db
+}
+
+// WithComponents Sets list of components
+func (db *DeploymentBuilderStruct) WithComponents(components []DeployComponentBuilder) DeploymentBuilder {
+	if db.applicationBuilder != nil {
+		applicationComponents := make([]RadixApplicationComponentBuilder, 0)
+
+		for _, comp := range components {
+			applicationComponents = append(applicationComponents, NewApplicationComponentBuilder().
+				WithName(comp.BuildComponent().Name))
+		}
+
+		db.applicationBuilder = db.applicationBuilder.WithComponents(applicationComponents)
+	}
+
+	db.components = components
+	return db
+}
+
+// GetApplicationBuilder Obtains the builder for the corresponding RA, if exists (used for testing)
+func (db *DeploymentBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
+	if db.applicationBuilder != nil {
+		return db.applicationBuilder
+	}
+
+	return nil
+}
+
+// BuildRD Builds RD structure based on set variables
+func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
+	var components = make([]v1.RadixDeployComponent, 0)
+	for _, comp := range db.components {
+		components = append(components, comp.BuildComponent())
+	}
+
+	radixDeployment := &v1.RadixDeployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "radix.equinor.com/v1",
+			Kind:       "RadixDeployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              GetDeploymentName(db.AppName, db.ImageTag),
+			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
+			Labels:            db.Labels,
+			CreationTimestamp: metav1.Time{Time: db.Created},
+		},
+		Spec: v1.RadixDeploymentSpec{
+			AppName:     db.AppName,
+			Components:  components,
+			Environment: db.Environment,
+		},
+	}
+	return radixDeployment
+}
+
+// NewDeploymentBuilder Constructor for deployment builder
+func NewDeploymentBuilder() DeploymentBuilder {
+	return &DeploymentBuilderStruct{
+		Labels:  make(map[string]string),
+		Created: time.Now(),
+	}
+}
+
+// ARadixDeployment Constructor for deployment builder containing test data
+func ARadixDeployment() DeploymentBuilder {
+	builder := NewDeploymentBuilder().
+		WithRadixApplication(ARadixApplication()).
+		WithAppName("someapp").
+		WithImageTag("imagetag").
+		WithEnvironment("test").
+		WithComponent(NewDeployComponentBuilder().
+			WithImage("radixdev.azurecr.io/some-image:imagetag").
+			WithName("app").
+			WithPort("http", 8080).
+			WithPublic(true).
+			WithReplicas(1))
+
+	return builder
+}
+
+// DeployComponentBuilder Handles construction of RD component
+type DeployComponentBuilder interface {
+	WithName(string) DeployComponentBuilder
+	WithImage(string) DeployComponentBuilder
+	WithPort(string, int32) DeployComponentBuilder
+	WithEnvironmentVariable(string, string) DeployComponentBuilder
+	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
+	WithPublic(bool) DeployComponentBuilder
+	WithReplicas(int) DeployComponentBuilder
+	WithSecrets([]string) DeployComponentBuilder
+	BuildComponent() v1.RadixDeployComponent
+}
+
+type deployComponentBuilder struct {
+	name                 string
+	image                string
+	ports                map[string]int32
+	environmentVariables map[string]string
+	public               bool
+	replicas             int
+	secrets              []string
+}
+
+func (dcb *deployComponentBuilder) WithName(name string) DeployComponentBuilder {
+	dcb.name = name
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithImage(image string) DeployComponentBuilder {
+	dcb.image = image
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithPort(name string, port int32) DeployComponentBuilder {
+	dcb.ports[name] = port
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithPublic(public bool) DeployComponentBuilder {
+	dcb.public = public
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithReplicas(replicas int) DeployComponentBuilder {
+	dcb.replicas = replicas
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithEnvironmentVariable(name string, value string) DeployComponentBuilder {
+	dcb.environmentVariables[name] = value
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithEnvironmentVariables(environmentVariables map[string]string) DeployComponentBuilder {
+	dcb.environmentVariables = environmentVariables
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithSecrets(secrets []string) DeployComponentBuilder {
+	dcb.secrets = secrets
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
+	componentPorts := make([]v1.ComponentPort, 0)
+	for key, value := range dcb.ports {
+		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
+	}
+
+	return v1.RadixDeployComponent{
+		Image:                dcb.image,
+		Name:                 dcb.name,
+		Ports:                componentPorts,
+		Public:               dcb.public,
+		Replicas:             dcb.replicas,
+		Secrets:              dcb.secrets,
+		EnvironmentVariables: dcb.environmentVariables,
+	}
+}
+
+// NewDeployComponentBuilder Constructor for component builder
+func NewDeployComponentBuilder() DeployComponentBuilder {
+	return &deployComponentBuilder{
+		ports:                make(map[string]int32),
+		environmentVariables: make(map[string]string),
+	}
+}

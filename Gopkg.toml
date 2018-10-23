@@ -64,3 +64,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "github.com/prometheus/client_golang"
   version = "0.8.0"
+
+[[override]]
+  name = "github.com/docker/distribution"
+  branch = "master"
