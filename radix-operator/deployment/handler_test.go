@@ -186,7 +186,7 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 	assert.Equal(t, 1, len(ingresses.Items), "ObjectCreated - Number of ingresses was not according to public components")
 }
 
-func TestObjectCreated_NoEnvAndNoSecrets_ContainsNoEnvVariableOrSecret(t *testing.T) {
+func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
