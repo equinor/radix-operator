@@ -227,3 +227,7 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.
 		assert.Equal(t, 1, len(secrets.Items), "Should only have default secret")
 	})
 }
+
+func TestObjectCreated_DeploymentExistsAndWithNoChangesToIngress_IngressShouldBeUnchanged(t *testing.T) {
+
+}

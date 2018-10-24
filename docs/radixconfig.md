@@ -27,6 +27,7 @@ spec:
       public: true
     - name: backend
       src: backend
+      replicas: 2
       ports:
         - name: http
           port: 5000
@@ -70,6 +71,10 @@ Name of the component - this will be used for building the images (appName-compo
 #### src
 
 The folder where the Dockerfile can be found.
+
+#### replicas
+
+Scales the component
 
 #### public
 
