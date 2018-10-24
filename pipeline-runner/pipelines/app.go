@@ -70,7 +70,7 @@ func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
 	}
 	log.Infof("Succeeded: build docker image")
 
-	err = cli.deploy(radixRegistration, radixApplication, imageTag, targetEnvs)
+	err = cli.Deploy(radixRegistration, radixApplication, imageTag, targetEnvs)
 	if err != nil {
 		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
 		return err
@@ -101,7 +101,11 @@ func getTargetEnvironmentsAsMap(branch string, radixApplication *v1.RadixApplica
 	targetEnvs := make(map[string]bool)
 	for _, env := range radixApplication.Spec.Environments {
 		if branch == env.Build.From {
+			// Deploy environment
 			targetEnvs[env.Name] = true
+		} else {
+			// Only create namespace for environment
+			targetEnvs[env.Name] = false
 		}
 	}
 	return targetEnvs

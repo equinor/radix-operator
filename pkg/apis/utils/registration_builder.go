@@ -6,10 +6,12 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // RegistrationBuilder Handles construction of RR or applicationRegistation
 type RegistrationBuilder interface {
+	WithUID(types.UID) RegistrationBuilder
 	WithName(name string) RegistrationBuilder
 	WithRepository(string) RegistrationBuilder
 	WithSharedSecret(string) RegistrationBuilder
@@ -23,6 +25,7 @@ type RegistrationBuilder interface {
 
 // RegistrationBuilderStruct Instance variables
 type RegistrationBuilderStruct struct {
+	uid          types.UID
 	name         string
 	repository   string
 	sharedSecret string
@@ -39,6 +42,11 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithAdGroups(radixRegistration.Spec.AdGroups)
 	rb.WithPublicKey(radixRegistration.Spec.DeployKeyPublic)
 	rb.WithPrivateKey(radixRegistration.Spec.DeployKey)
+	return rb
+}
+
+func (rb *RegistrationBuilderStruct) WithUID(uid types.UID) RegistrationBuilder {
+	rb.uid = uid
 	return rb
 }
 
@@ -90,6 +98,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rb.name,
+			UID:       rb.uid,
 			Namespace: corev1.NamespaceDefault,
 		},
 		Spec: v1.RadixRegistrationSpec{
@@ -113,7 +122,9 @@ func ARadixRegistration() RegistrationBuilder {
 	builder := NewRegistrationBuilder().
 		WithName("anyapp").
 		WithCloneURL("git@github.com:Statoil/anyapp").
-		WithSharedSecret("NotSoSecret")
+		WithSharedSecret("NotSoSecret").
+		WithUID("1234-5678").
+		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"})
 
 	return builder
 }

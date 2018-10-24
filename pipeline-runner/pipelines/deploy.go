@@ -8,13 +8,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *RadixOnPushHandler) deploy(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag string, targetEnvs map[string]bool) error {
+// Deploy Handles deploy step of the pipeline
+func (cli *RadixOnPushHandler) Deploy(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag string, targetEnvs map[string]bool) error {
 	appName := radixRegistration.Name
 	log.Infof("Deploying app %s", appName)
 
 	radixDeployments, err := createRadixDeployments(radixApplication, imageTag, targetEnvs)
 	if err != nil {
 		return fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
+	}
+
+	err = cli.applyEnvNamespaces(radixRegistration, targetEnvs)
+	if err != nil {
+		log.Errorf("Failed to create namespaces for app environments %s. %v", radixRegistration.Name, err)
+		return err
 	}
 
 	err = cli.applyRadixDeployments(radixRegistration, radixDeployments)
@@ -28,14 +35,8 @@ func (cli *RadixOnPushHandler) deploy(radixRegistration *v1.RadixRegistration, r
 
 func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.RadixRegistration, radixDeployments []v1.RadixDeployment) error {
 	for _, rd := range radixDeployments {
-		err := cli.applyEnvNamespace(radixRegistration, rd)
-		if err != nil {
-			log.Errorf("Failed to create namespace %s. %v", rd.ObjectMeta.Namespace, err)
-			return err
-		}
-
 		log.Infof("Apply radix deployment %s on env %s", rd.ObjectMeta.Name, rd.ObjectMeta.Namespace)
-		_, err = cli.radixclient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Create(&rd)
+		_, err := cli.radixclient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Create(&rd)
 		if err != nil {
 			return err
 		}
@@ -43,14 +44,21 @@ func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.Radix
 	return nil
 }
 
-func (cli *RadixOnPushHandler) applyEnvNamespace(radixRegistration *v1.RadixRegistration, rd v1.RadixDeployment) error {
-	namespaceName := rd.ObjectMeta.Namespace
-	ownerRef := getOwnerRef(radixRegistration)
-	labels := map[string]string{
-		"sync": "cluster-wildcard-tls-cert",
+func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixRegistration, targetEnvs map[string]bool) error {
+	for env := range targetEnvs {
+		namespaceName := fmt.Sprintf("%s-%s", radixRegistration.Name, env)
+		ownerRef := getOwnerRef(radixRegistration)
+		labels := map[string]string{
+			"sync": "cluster-wildcard-tls-cert",
+		}
+
+		err := cli.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
+		if err != nil {
+			return err
+		}
 	}
 
-	return cli.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
+	return nil
 }
 
 func createRadixDeployments(radixApplication *v1.RadixApplication, imageTag string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
@@ -59,6 +67,12 @@ func createRadixDeployments(radixApplication *v1.RadixApplication, imageTag stri
 		if _, contains := targetEnvs[env.Name]; !contains {
 			continue
 		}
+
+		if !targetEnvs[env.Name] {
+			// Target environment exists in config but should not be built
+			continue
+		}
+
 		radixComponents := getRadixComponentsForEnv(radixApplication, env.Name, imageTag)
 		radixDeployment := createRadixDeployment(radixApplication.Name, env.Name, imageTag, radixComponents)
 		radixDeployments = append(radixDeployments, radixDeployment)
