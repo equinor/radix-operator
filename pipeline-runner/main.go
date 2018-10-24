@@ -21,6 +21,7 @@ import (
 func main() {
 	args := getArgs()
 	branch := args["BRANCH"]
+	commitID := args["COMMIT_ID"]
 	fileName := args["RADIX_FILE_NAME"]
 	imageTag := args["IMAGE_TAG"]
 
@@ -40,7 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = pushHandler.Run(branch, imageTag, fileName)
+	err = pushHandler.Run(branch, commitID, imageTag, fileName)
 	if err != nil {
 		os.Exit(2)
 	}

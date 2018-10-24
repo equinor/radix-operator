@@ -13,6 +13,7 @@ type DeploymentBuilder interface {
 	WithRadixDeployment(*v1.RadixDeployment) DeploymentBuilder
 	WithImageTag(string) DeploymentBuilder
 	WithAppName(string) DeploymentBuilder
+	WithLabel(label, value string) DeploymentBuilder
 	WithEnvironment(string) DeploymentBuilder
 	WithCreated(time.Time) DeploymentBuilder
 	WithComponent(DeployComponentBuilder) DeploymentBuilder

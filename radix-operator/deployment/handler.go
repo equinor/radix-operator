@@ -246,12 +246,25 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 	componentName := deployComponent.Name
 	componentPorts := deployComponent.Ports
 	replicas := deployComponent.Replicas
+
+	const branchKey, commitIDKey = "branch", "commitID"
+	rdLabels := radixDeploy.Labels
+	var branch, commitID string
+	if branchVal, exists := rdLabels[branchKey]; exists {
+		branch = branchVal
+	}
+	if commitIDVal, exists := rdLabels[commitIDKey]; exists {
+		commitID = commitIDVal
+	}
+
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
 				"radixApp":       appName,
 				"radixComponent": componentName,
+				"branch":         branch,
+				"commitID":       commitID,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
@@ -275,6 +288,8 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 					Labels: map[string]string{
 						"radixApp":       appName,
 						"radixComponent": componentName,
+						"branch":         branch,
+						"commitID":       commitID,
 					},
 				},
 				Spec: corev1.PodSpec{
