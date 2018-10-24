@@ -3,40 +3,73 @@ package onpush
 import (
 	"testing"
 
+	"github.com/statoil/radix-operator/pkg/apis/utils"
+	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
 const deployTestFilePath = "./testdata/radixconfig.variable.yaml"
 
-func Test_create_radix_deploy(t *testing.T) {
-	ra := createRadixApplication(deployTestFilePath)
-	targetEnvs := createTargetEnvs()
-	deploys, _ := createRadixDeployments(ra, "1", targetEnvs)
+func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
 
-	assert.Equal(t, 2, len(deploys))
-}
+	rr := utils.ARadixRegistration().
+		WithName("any-app").
+		BuildRR()
 
-func Test_create_radix_deploy_correct_nr_of_components(t *testing.T) {
-	ra := createRadixApplication(deployTestFilePath)
-	targetEnvs := createTargetEnvs()
-	deploys, _ := createRadixDeployments(ra, "1", targetEnvs)
-	devDeploy := deploys[0]
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName("any-app").
+		WithEnvironment("dev", "master").
+		WithEnvironment("prod", "").
+		WithComponents([]utils.RadixApplicationComponentBuilder{
+			utils.AnApplicationComponent().
+				WithName("app").
+				WithPublic(true).
+				WithReplicas(4).
+				WithPort("http", 8080),
+			utils.AnApplicationComponent().
+				WithName("redis").
+				WithPublic(false).
+				WithPort("http", 6379).
+				WithEnvironmentVariable("dev", "DB_HOST", "db-dev").
+				WithEnvironmentVariable("dev", "DB_PORT", "1234").
+				WithEnvironmentVariable("prod", "DB_HOST", "db-prod").
+				WithEnvironmentVariable("prod", "DB_PORT", "9876").
+				WithEnvironmentVariable("no-existing-env", "DB_HOST", "db-prod").
+				WithEnvironmentVariable("no-existing-env", "DB_PORT", "9876")}).
+		BuildRA()
 
-	assert.Equal(t, 2, len(deploys))
-	assert.Equal(t, 2, len(devDeploy.Spec.Components))
-}
+	cli, _ := Init(kubeclient, radixclient)
+	targetEnvs := getTargetEnvironmentsAsMap("master", ra)
 
-func Test_create_radix_deploy_variable_in_invalid_env(t *testing.T) {
-	ra := createRadixApplication(deployTestFilePath)
-	targetEnvs := createTargetEnvs()
-	deploys, _ := createRadixDeployments(ra, "1", targetEnvs)
-	redisComp := deploys[0].Spec.Components[1]
-	redisCompProd := deploys[1].Spec.Components[1]
+	err := cli.Deploy(rr, ra, "anytag", targetEnvs)
+	t.Run("validate deploy", func(t *testing.T) {
+		assert.NoError(t, err)
+	})
 
-	assert.Equal(t, 2, len(redisComp.EnvironmentVariables))
-	assert.Equal(t, 2, len(redisCompProd.EnvironmentVariables))
-}
+	t.Run("validate namespace creation", func(t *testing.T) {
+		devNs, _ := kubeclient.CoreV1().Namespaces().Get("any-app-dev", metav1.GetOptions{})
+		assert.NotNil(t, devNs)
+		prodNs, _ := kubeclient.CoreV1().Namespaces().Get("any-app-prod", metav1.GetOptions{})
+		assert.NotNil(t, prodNs)
+	})
 
-func createTargetEnvs() map[string]bool {
-	return map[string]bool{"dev": true, "prod": true}
+	t.Run("validate deployment exist in only the namespace of the modified branch", func(t *testing.T) {
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get("any-app-anytag", metav1.GetOptions{})
+		assert.NotNil(t, rdDev)
+
+		rdProd, _ := radixclient.RadixV1().RadixDeployments("any-app-prod").Get("any-app-anytag", metav1.GetOptions{})
+		assert.Nil(t, rdProd)
+	})
+
+	t.Run("validate deployment environment variables", func(t *testing.T) {
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get("any-app-anytag", metav1.GetOptions{})
+		assert.Equal(t, 2, len(rdDev.Spec.Components))
+		assert.Equal(t, 2, len(rdDev.Spec.Components[1].EnvironmentVariables))
+		assert.Equal(t, "db-dev", rdDev.Spec.Components[1].EnvironmentVariables["DB_HOST"])
+		assert.Equal(t, "1234", rdDev.Spec.Components[1].EnvironmentVariables["DB_PORT"])
+	})
 }

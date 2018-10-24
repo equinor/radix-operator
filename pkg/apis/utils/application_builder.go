@@ -9,25 +9,28 @@ import (
 type ApplicationBuilder interface {
 	WithRadixRegistration(RegistrationBuilder) ApplicationBuilder
 	WithAppName(string) ApplicationBuilder
-	WithEnvironments([]string) ApplicationBuilder
+	WithEnvironment(string, string) ApplicationBuilder
 	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
 	WithComponents([]RadixApplicationComponentBuilder) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *v1.RadixApplication
 }
 
+// ApplicationBuilderStruct Instance variables
 type ApplicationBuilderStruct struct {
 	registrationBuilder RegistrationBuilder
 	appName             string
-	environments        []string
+	environments        []v1.Environment
 	components          []RadixApplicationComponentBuilder
 }
 
+// WithRadixRegistration Associates this builder with a registration builder
 func (ap *ApplicationBuilderStruct) WithRadixRegistration(registrationBuilder RegistrationBuilder) ApplicationBuilder {
 	ap.registrationBuilder = registrationBuilder
 	return ap
 }
 
+// WithAppName Sets app name
 func (ap *ApplicationBuilderStruct) WithAppName(appName string) ApplicationBuilder {
 	if ap.registrationBuilder != nil {
 		ap.registrationBuilder = ap.registrationBuilder.WithName(appName)
@@ -37,21 +40,31 @@ func (ap *ApplicationBuilderStruct) WithAppName(appName string) ApplicationBuild
 	return ap
 }
 
-func (ap *ApplicationBuilderStruct) WithEnvironments(environments []string) ApplicationBuilder {
-	ap.environments = environments
+// WithEnvironment Appends to environment-build list
+func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom string) ApplicationBuilder {
+	ap.environments = append(ap.environments, v1.Environment{
+		Name: environment,
+		Build: v1.EnvBuild{
+			From: buildFrom,
+		},
+	})
+
 	return ap
 }
 
+// WithComponent Appends application component to list of existing components
 func (ap *ApplicationBuilderStruct) WithComponent(component RadixApplicationComponentBuilder) ApplicationBuilder {
 	ap.components = append(ap.components, component)
 	return ap
 }
 
+// WithComponents Sets application components to application
 func (ap *ApplicationBuilderStruct) WithComponents(components []RadixApplicationComponentBuilder) ApplicationBuilder {
 	ap.components = components
 	return ap
 }
 
+// GetRegistrationBuilder Gets associated registration builder
 func (ap *ApplicationBuilderStruct) GetRegistrationBuilder() RegistrationBuilder {
 	if ap.registrationBuilder != nil {
 		return ap.registrationBuilder
@@ -60,12 +73,8 @@ func (ap *ApplicationBuilderStruct) GetRegistrationBuilder() RegistrationBuilder
 	return nil
 }
 
+// BuildRA Builds RA
 func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
-	var environments = make([]v1.Environment, 0)
-	for _, env := range ap.environments {
-		environments = append(environments, v1.Environment{Name: env})
-	}
-
 	var components = make([]v1.RadixComponent, 0)
 	for _, comp := range ap.components {
 		components = append(components, comp.BuildComponent())
@@ -82,7 +91,7 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 		},
 		Spec: v1.RadixApplicationSpec{
 			Components:   components,
-			Environments: environments,
+			Environments: ap.environments,
 		},
 	}
 	return radixApplication
@@ -98,9 +107,8 @@ func ARadixApplication() ApplicationBuilder {
 	builder := NewRadixApplicationBuilder().
 		WithRadixRegistration(ARadixRegistration()).
 		WithAppName("anyapp").
-		WithEnvironments([]string{"test"}).
-		WithComponent(NewApplicationComponentBuilder().
-			WithName("app"))
+		WithEnvironment("test", "master").
+		WithComponent(AnApplicationComponent())
 
 	return builder
 }
@@ -108,17 +116,34 @@ func ARadixApplication() ApplicationBuilder {
 // RadixApplicationComponentBuilder Handles construction of RA component
 type RadixApplicationComponentBuilder interface {
 	WithName(string) RadixApplicationComponentBuilder
+	WithPublic(bool) RadixApplicationComponentBuilder
+	WithReplicas(int) RadixApplicationComponentBuilder
+	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithEnvironmentVariablesMap([]v1.EnvVars) RadixApplicationComponentBuilder
+	WithEnvironmentVariable(string, string, string) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
 type radixApplicationComponentBuilder struct {
 	name                 string
 	environmentVariables []v1.EnvVars
+	public               bool
+	replicas             int
+	ports                map[string]int32
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
 	rcb.name = name
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithPublic(public bool) RadixApplicationComponentBuilder {
+	rcb.public = public
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithReplicas(replicas int) RadixApplicationComponentBuilder {
+	rcb.replicas = replicas
 	return rcb
 }
 
@@ -127,14 +152,60 @@ func (rcb *radixApplicationComponentBuilder) WithEnvironmentVariablesMap(environ
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithEnvironmentVariable(environment, name, value string) RadixApplicationComponentBuilder {
+	for index, variable := range rcb.environmentVariables {
+		if variable.Environment == environment {
+			envVariables := rcb.environmentVariables[index].Variables
+			envVariables[name] = value
+			rcb.environmentVariables[index].Variables = envVariables
+			return rcb
+		}
+	}
+
+	envVariables := make(map[string]string)
+	envVariables[name] = value
+
+	rcb.environmentVariables = append(rcb.environmentVariables, v1.EnvVars{
+		Environment: environment,
+		Variables:   envVariables,
+	})
+
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithPort(name string, port int32) RadixApplicationComponentBuilder {
+	rcb.ports[name] = port
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
+	componentPorts := make([]v1.ComponentPort, 0)
+	for key, value := range rcb.ports {
+		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
+	}
+
 	return v1.RadixComponent{
 		Name:                 rcb.name,
 		EnvironmentVariables: rcb.environmentVariables,
+		Public:               rcb.public,
+		Replicas:             rcb.replicas,
+		Ports:                componentPorts,
 	}
 }
 
 // NewApplicationComponentBuilder Constructor for component builder
 func NewApplicationComponentBuilder() RadixApplicationComponentBuilder {
-	return &radixApplicationComponentBuilder{}
+	return &radixApplicationComponentBuilder{
+		ports:                make(map[string]int32),
+		environmentVariables: make([]v1.EnvVars, 0),
+	}
+}
+
+// AnApplicationComponent Constructor for component builder builder containing test data
+func AnApplicationComponent() RadixApplicationComponentBuilder {
+	return &radixApplicationComponentBuilder{
+		name:                 "app",
+		ports:                make(map[string]int32),
+		environmentVariables: make([]v1.EnvVars, 0),
+	}
 }
