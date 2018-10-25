@@ -64,7 +64,6 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("radixquote").
 				WithPort("http", 3000).
 				WithPublic(true).
-				WithReplicas(0).
 				WithSecrets([]string{"a_secret"})}))
 
 	assert.NoError(t, err)
