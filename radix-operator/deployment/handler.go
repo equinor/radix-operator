@@ -17,15 +17,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const clusternameEnvironmentVariable = "clustername"
-const environmentnameEnvironmentVariable = "environment"
+const clusternameEnvironmentVariable = "radix-clustername"
+const environmentnameEnvironmentVariable = "radix-environment"
 
+// RadixDeployHandler Instance variables
 type RadixDeployHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 }
 
+// NewDeployHandler Constructor
 func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixDeployHandler {
 	kube, _ := kube.New(kubeclient)
 
