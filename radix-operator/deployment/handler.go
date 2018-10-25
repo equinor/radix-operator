@@ -17,15 +17,18 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const clusternameEnvironmentVariable = "clustername"
-const environmentnameEnvironmentVariable = "environment"
+const clusternameEnvironmentVariable = "radix-clustername"
+const environmentnameEnvironmentVariable = "radix-environment"
+const defaultReplicas = 2
 
+// RadixDeployHandler Instance variables
 type RadixDeployHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 }
 
+// NewDeployHandler Constructor
 func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixDeployHandler {
 	kube, _ := kube.New(kubeclient)
 
@@ -264,7 +267,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 			},
 		},
 		Spec: v1beta1.DeploymentSpec{
-			Replicas: int32Ptr(1),
+			Replicas: int32Ptr(defaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"radixComponent": componentName,

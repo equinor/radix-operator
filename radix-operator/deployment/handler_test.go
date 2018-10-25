@@ -64,7 +64,6 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("radixquote").
 				WithPort("http", 3000).
 				WithPublic(true).
-				WithReplicas(0).
 				WithSecrets([]string{"a_secret"})}))
 
 	assert.NoError(t, err)
@@ -76,14 +75,14 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, "app", deployments.Items[0].Name, "app deployment not there")
 		assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, "redis", deployments.Items[1].Name, "redis deployment not there")
-		assert.Equal(t, int32(1), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, int32(2), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, 3, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, environmentnameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[2].Name)
 		assert.Equal(t, "3001", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Value)
 		assert.Equal(t, "radixquote", deployments.Items[2].Name, "radixquote deployment not there")
-		assert.Equal(t, int32(1), *deployments.Items[2].Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, int32(2), *deployments.Items[2].Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, environmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[2].Name)
