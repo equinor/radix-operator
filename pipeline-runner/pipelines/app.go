@@ -34,7 +34,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (R
 	return handler, nil
 }
 
-func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
+func (cli *RadixOnPushHandler) Run(branch, commitID, imageTag, appFileName string) error {
 	radixApplication, err := utils.GetRadixApplication(appFileName)
 	if err != nil {
 		log.Errorf("failed to get ra from file (%s) for app Error: %v", appFileName, err)
@@ -70,7 +70,7 @@ func (cli *RadixOnPushHandler) Run(branch, imageTag, appFileName string) error {
 	}
 	log.Infof("Succeeded: build docker image")
 
-	err = cli.Deploy(radixRegistration, radixApplication, imageTag, targetEnvs)
+	err = cli.Deploy(radixRegistration, radixApplication, imageTag, branch, commitID, targetEnvs)
 	if err != nil {
 		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
 		return err
