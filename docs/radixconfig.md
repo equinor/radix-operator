@@ -74,7 +74,7 @@ The folder where the Dockerfile can be found.
 
 #### replicas
 
-Scales the component
+Scales the component. Defaults to 2 if not set to ensure rolling updates.
 
 #### public
 

@@ -19,6 +19,7 @@ import (
 
 const clusternameEnvironmentVariable = "clustername"
 const environmentnameEnvironmentVariable = "environment"
+const defaultReplicas = 2
 
 type RadixDeployHandler struct {
 	kubeclient  kubernetes.Interface
@@ -264,7 +265,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 			},
 		},
 		Spec: v1beta1.DeploymentSpec{
-			Replicas: int32Ptr(1),
+			Replicas: int32Ptr(defaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"radixComponent": componentName,
