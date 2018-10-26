@@ -42,7 +42,7 @@ func (cli *RadixOnPushHandler) Run(branch, commitID, imageTag, appFileName strin
 	}
 
 	targetEnvs := getTargetEnvironmentsAsMap(branch, radixApplication)
-	if len(targetEnvs) == 0 {
+	if isTargetEnvsEmpty(targetEnvs) {
 		err := fmt.Errorf("no matching branch to any environment")
 		log.Errorf("failed to match environment to branch: %v", err)
 		return err
@@ -109,4 +109,23 @@ func getTargetEnvironmentsAsMap(branch string, radixApplication *v1.RadixApplica
 		}
 	}
 	return targetEnvs
+}
+
+func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
+	if len(targetEnvs) == 0 {
+		return true
+	}
+
+	// Check if all values are false
+	falseCount := 0
+	for _, value := range targetEnvs {
+		if value == false {
+			falseCount++
+		}
+	}
+	if falseCount == len(targetEnvs) {
+		return true
+	}
+
+	return false
 }
