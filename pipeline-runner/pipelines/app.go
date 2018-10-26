@@ -63,7 +63,7 @@ func (cli *RadixOnPushHandler) Run(branch, commitID, imageTag, appFileName strin
 		return err
 	}
 
-	err = cli.build(radixRegistration, radixApplication, branch, imageTag)
+	err = cli.build(radixRegistration, radixApplication, branch, commitID, imageTag)
 	if err != nil {
 		log.Errorf("failed to build app %s. Error: %v", appName, err)
 		return err

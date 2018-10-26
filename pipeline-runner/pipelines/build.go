@@ -12,13 +12,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, imageTag string) error {
+func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag string) error {
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
 	namespace := fmt.Sprintf("%s-app", appName)
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createBuildJob(appName, radixApplication.Spec.Components, cloneURL, branch, imageTag)
+	job, err := createBuildJob(appName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)
 	if err != nil {
 		return err
 	}
@@ -58,8 +58,9 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 
 const workspace = "/workspace"
 
-func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, branch, imageTag string) (*batchv1.Job, error) {
-	gitCloneCommand := fmt.Sprintf("git clone %s -b %s .", cloneURL, branch) // TODO - MUST ensure commands are not injected
+func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag string) (*batchv1.Job, error) {
+	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
+	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
 	buildContainers := createBuildContainers(appName, imageTag, components)
 
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -85,7 +86,7 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 							Name:    "clone",
 							Image:   "alpine:3.7",
 							Command: []string{"/bin/sh", "-c"},
-							Args:    []string{fmt.Sprintf("apk add --no-cache bash openssh-client git && ls /root/.ssh && cd %s && %s", workspace, gitCloneCommand)},
+							Args:    []string{argString},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "build-context",
@@ -184,4 +185,17 @@ func getContext(sourceFolder string) string {
 		return fmt.Sprintf("%s/", workspace)
 	}
 	return fmt.Sprintf("%s/%s/", workspace, sourceFolder)
+}
+
+func getGitCloneCommand(cloneURL, branch string) string {
+	return fmt.Sprintf("git clone %s -b %s .", cloneURL, branch)
+}
+
+func getInitContainerArgString(workspace, gitCloneCommand, commitID string) string {
+	argString := fmt.Sprintf("apk add --no-cache bash openssh-client git && ls /root/.ssh && cd %s && %s", workspace, gitCloneCommand)
+	if commitID != "" {
+		checkoutString := fmt.Sprintf("git checkout %s", commitID)
+		argString += " && " + checkoutString
+	}
+	return argString
 }
