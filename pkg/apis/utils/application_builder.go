@@ -10,6 +10,7 @@ type ApplicationBuilder interface {
 	WithRadixRegistration(RegistrationBuilder) ApplicationBuilder
 	WithAppName(string) ApplicationBuilder
 	WithEnvironment(string, string) ApplicationBuilder
+	WithEnvironmentNoBranch(string) ApplicationBuilder
 	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
 	WithComponents([]RadixApplicationComponentBuilder) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
@@ -47,6 +48,14 @@ func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom strin
 		Build: v1.EnvBuild{
 			From: buildFrom,
 		},
+	})
+
+	return ap
+}
+
+func (ap *ApplicationBuilderStruct) WithEnvironmentNoBranch(environment string) ApplicationBuilder {
+	ap.environments = append(ap.environments, v1.Environment{
+		Name: environment,
 	})
 
 	return ap
