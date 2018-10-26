@@ -49,7 +49,7 @@ func (cli *RadixOnPushHandler) Run(branch, commitID, imageTag, appFileName strin
 	}
 
 	appName := radixApplication.Name
-	log.Infof("start pipeline build and deploy for %s and branch %s", appName, branch)
+	log.Infof("start pipeline build and deploy for %s and branch %s and commit id %s", appName, branch, commitID)
 
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
 	if err != nil {
