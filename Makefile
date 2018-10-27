@@ -1,16 +1,28 @@
+# Use bash as a shell command (bash or dash is required,
+# we need arithmetic in the shell)
+SHELL = /bin/bash
+
+# Include our auto incrementer
+include ./hack/Makefile.buildver
+
 DOCKER_REGISTRY	?= radixdev.azurecr.io
 
 DOCKER_FILES	= operator pipeline
 
 VERSION 	?= latest
 
+DATE = $(shell date +%F_%T)
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+HASH := $(shell git rev-parse HEAD)
+
 .PHONY: test
-test:
+test:	
 	go test -cover `go list ./... | grep -v 'pkg/client\|apis/radix'`
 
 define make-docker-build
   	build-$1:
-		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) -f $1.Dockerfile .
+	  	$(call buildver, %1)
+		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) --build-arg date="$(DATE)" --build-arg branch="$(BRANCH)" --build-arg commitid="$(HASH)" -f $1.Dockerfile .
   	build:: build-$1
 endef
 

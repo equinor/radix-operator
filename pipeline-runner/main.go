@@ -11,6 +11,16 @@ import (
 	pipe "github.com/statoil/radix-operator/pipeline-runner/pipelines"
 )
 
+var (
+	date string
+)
+
+func init() {
+	if date == "" {
+		date = "(Mon YYYY)"
+	}
+}
+
 // Requirements to run, pipeline must have:
 // - access to read RR of the app mention in "RADIX_FILE_NAME"
 // - access to create Jobs in "app" namespace it runs under
