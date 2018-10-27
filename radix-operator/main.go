@@ -45,7 +45,7 @@ func init() {
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
 
-	logger.Infof("Starting Radix Operator built '%s'", date)
+	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", commitid, branch, date)
 
 	client, radixClient := getKubernetesClient()
 
