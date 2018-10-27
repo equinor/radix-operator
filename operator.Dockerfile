@@ -14,7 +14,7 @@ ARG date
 ARG commitid
 ARG branch
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w -X main.commitid=${commitid} -X main.branch=${branch} -X main.date=${date}" -a -installsuffix cgo -o ./rootfs/radix-operator
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w -X main.operatorCommitid=${commitid} -X main.operatorBranch=${branch} -X main.operatorDate=${date}" -a -installsuffix cgo -o ./rootfs/radix-operator
 RUN adduser -D -g '' radix-operator
 
 FROM scratch

@@ -23,29 +23,29 @@ import (
 var logger *log.Entry
 
 var (
-	date     string
-	commitid string
-	branch   string
+	operatorDate     string
+	operatorCommitid string
+	operatorBranch   string
 )
 
 func init() {
-	if commitid == "" {
-		commitid = "no commitid"
+	if operatorCommitid == "" {
+		operatorCommitid = "no commitid"
 	}
 
-	if branch == "" {
-		branch = "no branch"
+	if operatorBranch == "" {
+		operatorBranch = "no branch"
 	}
 
-	if date == "" {
-		date = "(Mon YYYY)"
+	if operatorDate == "" {
+		operatorDate = "(Mon YYYY)"
 	}
 }
 
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
 
-	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", commitid, branch, date)
+	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
 
 	client, radixClient := getKubernetesClient()
 
