@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"testing"
+	"time"
 
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
@@ -45,7 +46,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 		WithAppName("edcradix").
 		WithImageTag("axmz8").
 		WithEnvironment("test").
-		WithComponents([]utils.DeployComponentBuilder{
+		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
 				WithName("app").
@@ -64,7 +65,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("radixquote").
 				WithPort("http", 3000).
 				WithPublic(true).
-				WithSecrets([]string{"a_secret"})}))
+				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
@@ -171,7 +172,7 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
-		WithComponents([]utils.DeployComponentBuilder{
+		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithImage("anyimage").
 				WithName("app").
@@ -181,7 +182,7 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 				WithImage("anotherimage").
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true)}))
+				WithPublic(true)))
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
@@ -203,11 +204,11 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.
 	testUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment(anyEnvironment).
-		WithComponents([]utils.DeployComponentBuilder{
+		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithEnvironmentVariables(nil).
-				WithSecrets(nil)}))
+				WithSecrets(nil)))
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	t.Run("validate deploy", func(t *testing.T) {
@@ -251,20 +252,61 @@ func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 
 func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	// Setup
-	//testUtils, kubeclient := setupTest()
+	testUtils, _ := setupTest()
 
 	// Test
-	/*
-		now := time.Now()
+	now := time.Now()
 
-		testUtils.ApplyDeployment(utils.ARadixDeployment().
-			WithAppName("app").
-			WithImageTag("firstdeployment").
-			WithCreated(now))
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("app1").
+		WithEnvironment("prod").
+		WithImageTag("firstdeployment").
+		WithCreated(now))
 
-		testUtils.ApplyDeployment(utils.ARadixDeployment().
-			WithAppName("app").
-			WithImageTag("seconddeployment").
-			WithCreated(now.Add(time.Second * time.Duration(1))))
-	*/
+	// This is one second newer deployment
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("app1").
+		WithEnvironment("prod").
+		WithImageTag("seconddeployment").
+		WithCreated(now.Add(time.Second * time.Duration(1))))
+
+	// Re-apply the first deployment. This should be ignored and cause an error as it is not the latest
+	err := testUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
+		WithAppName("app1").
+		WithEnvironment("prod").
+		WithImageTag("firstdeployment").
+		WithCreated(now))
+
+	assert.Error(t, err)
+	assert.Equal(t, "RadixDeployment app1-firstdeployment was not the latest. Ignoring", err.Error())
+}
+
+func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
+	testUtils, kubeclient := setupTest()
+
+	// Test
+	testUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName("anyapp1").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true)))
+
+	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
+	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+
+	testUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
+		WithAppName("anyapp1").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8081).
+				WithPublic(true)))
+
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 }

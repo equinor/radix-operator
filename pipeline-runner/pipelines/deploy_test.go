@@ -24,7 +24,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", "").
-		WithComponents([]utils.RadixApplicationComponentBuilder{
+		WithComponents(
 			utils.AnApplicationComponent().
 				WithName("app").
 				WithPublic(true).
@@ -39,7 +39,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				WithEnvironmentVariable("prod", "DB_HOST", "db-prod").
 				WithEnvironmentVariable("prod", "DB_PORT", "9876").
 				WithEnvironmentVariable("no-existing-env", "DB_HOST", "db-prod").
-				WithEnvironmentVariable("no-existing-env", "DB_PORT", "9876")}).
+				WithEnvironmentVariable("no-existing-env", "DB_PORT", "9876")).
 		BuildRA()
 
 	cli, _ := Init(kubeclient, radixclient)
