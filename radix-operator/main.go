@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/version"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -23,10 +22,30 @@ import (
 
 var logger *log.Entry
 
+var (
+	operatorDate     string
+	operatorCommitid string
+	operatorBranch   string
+)
+
+func init() {
+	if operatorCommitid == "" {
+		operatorCommitid = "no commitid"
+	}
+
+	if operatorBranch == "" {
+		operatorBranch = "no branch"
+	}
+
+	if operatorDate == "" {
+		operatorDate = "(Mon YYYY)"
+	}
+}
+
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
 
-	logger.Infof("Starting Radix Operator version '%v'", version.Version)
+	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
 
 	client, radixClient := getKubernetesClient()
 

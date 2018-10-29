@@ -1,4 +1,5 @@
 FROM golang:alpine3.7 as builder
+
 RUN apk update && apk add git && apk add -y ca-certificates curl && \
     curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 RUN mkdir -p /go/src/github.com/statoil/radix-operator/
@@ -8,7 +9,12 @@ RUN dep ensure -vendor-only
 COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
 WORKDIR /go/src/github.com/statoil/radix-operator/radix-operator/
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
+
+ARG date
+ARG commitid
+ARG branch
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w -X main.operatorCommitid=${commitid} -X main.operatorBranch=${branch} -X main.operatorDate=${date}" -a -installsuffix cgo -o ./rootfs/radix-operator
 RUN adduser -D -g '' radix-operator
 
 FROM scratch

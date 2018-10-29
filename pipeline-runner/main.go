@@ -8,8 +8,29 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	log "github.com/Sirupsen/logrus"
 	pipe "github.com/statoil/radix-operator/pipeline-runner/pipelines"
 )
+
+var (
+	pipelineDate     string
+	pipelineCommitid string
+	pipelineBranch   string
+)
+
+func init() {
+	if pipelineCommitid == "" {
+		pipelineCommitid = "no commitid"
+	}
+
+	if pipelineBranch == "" {
+		pipelineBranch = "no branch"
+	}
+
+	if pipelineDate == "" {
+		pipelineDate = "(Mon YYYY)"
+	}
+}
 
 // Requirements to run, pipeline must have:
 // - access to read RR of the app mention in "RADIX_FILE_NAME"
@@ -24,6 +45,8 @@ func main() {
 	commitID := args["COMMIT_ID"]
 	fileName := args["RADIX_FILE_NAME"]
 	imageTag := args["IMAGE_TAG"]
+
+	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
 	if branch == "" {
 		branch = "master"
