@@ -1,6 +1,7 @@
 package utils
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	"github.com/statoil/radix-operator/radix-operator/common"
@@ -68,6 +69,8 @@ func (tu *TestUtils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) 
 	}
 
 	rd := deploymentBuilder.BuildRD()
+	log.Infof("%s", rd.GetObjectMeta().GetCreationTimestamp())
+
 	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
 	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
 	if err != nil {
@@ -75,6 +78,21 @@ func (tu *TestUtils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) 
 	}
 
 	err = tu.deploymentHandler.ObjectCreated(rd)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ApplyDeploymentUpdate Will help update a deployment
+func (tu *TestUtils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder) error {
+	rd := deploymentBuilder.BuildRD()
+	envNamespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
+	previousVersion, _ := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(rd.GetName(), metav1.GetOptions{})
+
+	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Update(rd)
+	err = tu.deploymentHandler.ObjectUpdated(previousVersion, rd)
 	if err != nil {
 		return err
 	}

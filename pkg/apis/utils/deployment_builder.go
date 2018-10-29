@@ -17,7 +17,7 @@ type DeploymentBuilder interface {
 	WithEnvironment(string) DeploymentBuilder
 	WithCreated(time.Time) DeploymentBuilder
 	WithComponent(DeployComponentBuilder) DeploymentBuilder
-	WithComponents([]DeployComponentBuilder) DeploymentBuilder
+	WithComponents(...DeployComponentBuilder) DeploymentBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRD() *v1.RadixDeployment
 }
@@ -94,7 +94,7 @@ func (db *DeploymentBuilderStruct) WithComponent(component DeployComponentBuilde
 }
 
 // WithComponents Sets list of components
-func (db *DeploymentBuilderStruct) WithComponents(components []DeployComponentBuilder) DeploymentBuilder {
+func (db *DeploymentBuilderStruct) WithComponents(components ...DeployComponentBuilder) DeploymentBuilder {
 	if db.applicationBuilder != nil {
 		applicationComponents := make([]RadixApplicationComponentBuilder, 0)
 
@@ -103,7 +103,7 @@ func (db *DeploymentBuilderStruct) WithComponents(components []DeployComponentBu
 				WithName(comp.BuildComponent().Name))
 		}
 
-		db.applicationBuilder = db.applicationBuilder.WithComponents(applicationComponents)
+		db.applicationBuilder = db.applicationBuilder.WithComponents(applicationComponents...)
 	}
 
 	db.components = components

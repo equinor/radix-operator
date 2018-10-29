@@ -12,7 +12,7 @@ type ApplicationBuilder interface {
 	WithEnvironment(string, string) ApplicationBuilder
 	WithEnvironmentNoBranch(string) ApplicationBuilder
 	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
-	WithComponents([]RadixApplicationComponentBuilder) ApplicationBuilder
+	WithComponents(...RadixApplicationComponentBuilder) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *v1.RadixApplication
 }
@@ -68,7 +68,7 @@ func (ap *ApplicationBuilderStruct) WithComponent(component RadixApplicationComp
 }
 
 // WithComponents Sets application components to application
-func (ap *ApplicationBuilderStruct) WithComponents(components []RadixApplicationComponentBuilder) ApplicationBuilder {
+func (ap *ApplicationBuilderStruct) WithComponents(components ...RadixApplicationComponentBuilder) ApplicationBuilder {
 	ap.components = components
 	return ap
 }
