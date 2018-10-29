@@ -55,6 +55,46 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
 	}
 
+	err := t.processRadixDeployment(radixDeploy)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ObjectDeleted is called when an object is deleted
+func (t *RadixDeployHandler) ObjectDeleted(key string) error {
+	logger.Info("RadixDeployment object deleted.")
+	return nil
+}
+
+// ObjectUpdated is called when an object is updated
+func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
+	logger.Info("Deploy object updated received.")
+	radixDeploy, ok := objNew.(*v1.RadixDeployment)
+	if !ok {
+		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", objNew)
+	}
+
+	err := t.processRadixDeployment(radixDeploy)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeployment) error {
+	isLatest, err := t.isLatest(radixDeploy)
+	if err != nil {
+		return fmt.Errorf("Failed to check if RadixDeployment was latest. Error was %v", err)
+	}
+
+	if !isLatest {
+		return fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", radixDeploy.GetName())
+	}
+
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
@@ -102,16 +142,20 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 	return nil
 }
 
-// ObjectDeleted is called when an object is deleted
-func (t *RadixDeployHandler) ObjectDeleted(key string) error {
-	logger.Info("RadixDeployment object deleted.")
-	return nil
-}
+func (t *RadixDeployHandler) isLatest(theOne *v1.RadixDeployment) (bool, error) {
+	all, err := t.radixclient.RadixV1().RadixDeployments(theOne.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
 
-// ObjectUpdated is called when an object is updated
-func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	logger.Info("Deploy object updated received.")
-	return nil
+	for _, rd := range all.Items {
+		if rd.GetName() != theOne.GetName() &&
+			rd.CreationTimestamp.Time.After(theOne.CreationTimestamp.Time) {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistration, radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {

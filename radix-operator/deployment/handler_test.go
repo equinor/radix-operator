@@ -227,7 +227,7 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.
 	})
 }
 
-func TestObjectCreated_With_Labels(t *testing.T) {
+func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	// Setup
 	testUtils, kubeclient := setupTest()
 
@@ -247,4 +247,24 @@ func TestObjectCreated_With_Labels(t *testing.T) {
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["commitID"])
 	})
 
+}
+
+func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
+	// Setup
+	//testUtils, kubeclient := setupTest()
+
+	// Test
+	/*
+		now := time.Now()
+
+		testUtils.ApplyDeployment(utils.ARadixDeployment().
+			WithAppName("app").
+			WithImageTag("firstdeployment").
+			WithCreated(now))
+
+		testUtils.ApplyDeployment(utils.ARadixDeployment().
+			WithAppName("app").
+			WithImageTag("seconddeployment").
+			WithCreated(now.Add(time.Second * time.Duration(1))))
+	*/
 }
