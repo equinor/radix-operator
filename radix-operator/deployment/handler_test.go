@@ -7,7 +7,7 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	registration "github.com/statoil/radix-operator/radix-operator/registration"
-	test "github.com/statoil/radix-operator/radix-operator/utils"
+	"github.com/statoil/radix-operator/radix-operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kube "k8s.io/client-go/kubernetes"
@@ -16,7 +16,7 @@ import (
 
 const clusterName = "AnyClusterName"
 
-func setupTest() (*test.HandlerTestUtils, kube.Interface) {
+func setupTest() (*test.Utils, kube.Interface) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
