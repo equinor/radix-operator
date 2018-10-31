@@ -52,7 +52,6 @@ func (tu *utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 
 // ApplyDeployment Will help persist a deployment
 func (tu *utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) error {
-
 	if deploymentBuilder.GetApplicationBuilder() != nil {
 		tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
 	}
