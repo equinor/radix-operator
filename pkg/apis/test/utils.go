@@ -1,40 +1,32 @@
-package utils
+package test
 
 import (
-	test "github.com/statoil/radix-operator/pkg/apis/test"
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	log "github.com/Sirupsen/logrus"
+	builders "github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	"github.com/statoil/radix-operator/radix-operator/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// HandlerTestUtils Instance variables
-type HandlerTestUtils struct {
-	client              kubernetes.Interface
-	radixclient         radixclient.Interface
-	registrationHandler common.Handler
-	deploymentHandler   common.Handler
+type utils struct {
+	client      kubernetes.Interface
+	radixclient radixclient.Interface
 }
 
-// NewHandlerTestUtils Constructor
-func NewHandlerTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, registrationHandler common.Handler, deploymentHandler common.Handler) HandlerTestUtils {
-	return HandlerTestUtils{
-		client:              client,
-		radixclient:         radixclient,
-		registrationHandler: registrationHandler,
-		deploymentHandler:   deploymentHandler,
+// NewTestUtils Constructor
+func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface) utils {
+	return utils{
+		client:      client,
+		radixclient: radixclient,
 	}
 }
 
 // ApplyRegistration Will help persist an application registration
-func (tu *HandlerTestUtils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder) error {
-	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
-	err := testUtils.ApplyRegistration(registrationBuilder)
-
+func (tu *utils) ApplyRegistration(registrationBuilder builders.RegistrationBuilder) error {
 	rr := registrationBuilder.BuildRR()
-	err = tu.registrationHandler.ObjectCreated(rr)
+
+	_, err := tu.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Create(rr)
 	if err != nil {
 		return err
 	}
@@ -43,13 +35,14 @@ func (tu *HandlerTestUtils) ApplyRegistration(registrationBuilder utils.Registra
 }
 
 // ApplyApplication Will help persist an application
-func (tu *HandlerTestUtils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) error {
+func (tu *utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder) error {
 	if applicationBuilder.GetRegistrationBuilder() != nil {
 		tu.ApplyRegistration(applicationBuilder.GetRegistrationBuilder())
 	}
 
-	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
-	err := testUtils.ApplyApplication(applicationBuilder)
+	ra := applicationBuilder.BuildRA()
+	appNamespace := CreateAppNamespace(tu.client, ra.GetName())
+	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(ra)
 	if err != nil {
 		return err
 	}
@@ -58,20 +51,17 @@ func (tu *HandlerTestUtils) ApplyApplication(applicationBuilder utils.Applicatio
 }
 
 // ApplyDeployment Will help persist a deployment
-func (tu *HandlerTestUtils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) error {
+func (tu *utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) error {
 
 	if deploymentBuilder.GetApplicationBuilder() != nil {
 		tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
 	}
 
-	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
-	err := testUtils.ApplyDeployment(deploymentBuilder)
-	if err != nil {
-		return err
-	}
-
 	rd := deploymentBuilder.BuildRD()
-	err = tu.deploymentHandler.ObjectCreated(rd)
+	log.Infof("%s", rd.GetObjectMeta().GetCreationTimestamp())
+
+	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
+	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
 	if err != nil {
 		return err
 	}
@@ -80,18 +70,11 @@ func (tu *HandlerTestUtils) ApplyDeployment(deploymentBuilder utils.DeploymentBu
 }
 
 // ApplyDeploymentUpdate Will help update a deployment
-func (tu *HandlerTestUtils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder) error {
+func (tu *utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuilder) error {
 	rd := deploymentBuilder.BuildRD()
-	envNamespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
-	previousVersion, _ := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(rd.GetName(), metav1.GetOptions{})
+	envNamespace := builders.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
 
-	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
-	err := testUtils.ApplyDeploymentUpdate(deploymentBuilder)
-	if err != nil {
-		return err
-	}
-
-	err = tu.deploymentHandler.ObjectUpdated(previousVersion, rd)
+	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Update(rd)
 	if err != nil {
 		return err
 	}
@@ -100,7 +83,7 @@ func (tu *HandlerTestUtils) ApplyDeploymentUpdate(deploymentBuilder utils.Deploy
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *HandlerTestUtils) CreateClusterPrerequisites(clustername string) {
+func (tu *utils) CreateClusterPrerequisites(clustername string) {
 	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
@@ -136,14 +119,14 @@ func (tu *HandlerTestUtils) CreateClusterPrerequisites(clustername string) {
 
 // CreateAppNamespace Helper method to creat app namespace
 func CreateAppNamespace(kubeclient kubernetes.Interface, appName string) string {
-	ns := utils.GetAppNamespace(appName)
+	ns := builders.GetAppNamespace(appName)
 	createNamespace(kubeclient, ns)
 	return ns
 }
 
 // CreateEnvNamespace Helper method to creat env namespace
 func CreateEnvNamespace(kubeclient kubernetes.Interface, appName, environment string) string {
-	ns := utils.GetEnvironmentNamespace(appName, environment)
+	ns := builders.GetEnvironmentNamespace(appName, environment)
 	createNamespace(kubeclient, ns)
 	return ns
 }

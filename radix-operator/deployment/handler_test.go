@@ -7,7 +7,7 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	registration "github.com/statoil/radix-operator/radix-operator/registration"
-	testutils "github.com/statoil/radix-operator/radix-operator/utils"
+	test "github.com/statoil/radix-operator/radix-operator/utils"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kube "k8s.io/client-go/kubernetes"
@@ -16,7 +16,7 @@ import (
 
 const clusterName = "AnyClusterName"
 
-func setupTest() (*testutils.TestUtils, kube.Interface) {
+func setupTest() (*test.HandlerTestUtils, kube.Interface) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
@@ -24,25 +24,25 @@ func setupTest() (*testutils.TestUtils, kube.Interface) {
 	registrationHandler := registration.NewRegistrationHandler(kubeclient)
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
 
-	testUtils := testutils.NewTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
-	testUtils.CreateClusterPrerequisites(clusterName)
-	return &testUtils, kubeclient
+	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName)
+	return &handlerTestUtils, kubeclient
 }
 
 func TestObjectCreated_NoRegistration_ReturnsError(t *testing.T) {
-	testUtils, _ := setupTest()
+	handlerTestUtils, _ := setupTest()
 
-	err := testUtils.ApplyDeployment(utils.ARadixDeployment().
+	err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithRadixApplication(utils.ARadixApplication().
 			WithRadixRegistration(nil)))
 	assert.Error(t, err)
 }
 
 func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
-	testUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient := setupTest()
 
 	// Test
-	err := testUtils.ApplyDeployment(utils.ARadixDeployment().
+	err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("edcradix").
 		WithImageTag("axmz8").
 		WithEnvironment("test").
@@ -133,11 +133,11 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 
 func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	// Setup
-	testUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient := setupTest()
 
 	// Test
 	t.Run("app use default SA", func(t *testing.T) {
-		testUtils.ApplyDeployment(utils.ARadixDeployment().
+		handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
@@ -146,7 +146,7 @@ func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	})
 
 	t.Run("webhook runs custom SA", func(t *testing.T) {
-		testUtils.ApplyDeployment(utils.ARadixDeployment().
+		handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 			WithAppName("radix-github-webhook").
 			WithEnvironment("test"))
 
@@ -155,7 +155,7 @@ func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	})
 
 	t.Run("radix-api runs custom SA", func(t *testing.T) {
-		testUtils.ApplyDeployment(utils.ARadixDeployment().
+		handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 			WithAppName("radix-api").
 			WithEnvironment("test"))
 
@@ -166,10 +166,10 @@ func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 
 func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
 	// Setup
-	testUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient := setupTest()
 
 	// Test
-	testUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
 		WithComponents(
@@ -197,11 +197,11 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 
 func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
-	testUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient := setupTest()
 	anyEnvironment := "test"
 
 	// Test
-	testUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -230,10 +230,10 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.
 
 func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	// Setup
-	testUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient := setupTest()
 
 	// Test
-	testUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
 		WithLabel("branch", "master").
@@ -252,26 +252,26 @@ func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 
 func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	// Setup
-	testUtils, _ := setupTest()
+	handlerTestUtils, _ := setupTest()
 
 	// Test
 	now := time.Now()
 
-	testUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
 		WithCreated(now))
 
 	// This is one second newer deployment
-	testUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("seconddeployment").
 		WithCreated(now.Add(time.Second * time.Duration(1))))
 
 	// Re-apply the first deployment. This should be ignored and cause an error as it is not the latest
-	err := testUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
+	err := handlerTestUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
@@ -282,10 +282,10 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 }
 
 func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
-	testUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient := setupTest()
 
 	// Test
-	testUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("anyapp1").
 		WithEnvironment("test").
 		WithComponents(
@@ -298,7 +298,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
-	testUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
 		WithAppName("anyapp1").
 		WithEnvironment("test").
 		WithComponents(
