@@ -69,11 +69,11 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("radix-builder-%s", imageTag),
 			Labels: map[string]string{
-				"build":    fmt.Sprintf("%s-%s", appName, imageTag),
-				"appName":  appName,
-				"imageTag": imageTag,
-				"branch":   branch,
-				"type":     "build",
+				"radix-build":     fmt.Sprintf("%s-%s", appName, imageTag),
+				"radix-app-name":  appName,
+				"radix-image-tag": imageTag,
+				"radix-branch":    branch,
+				"radix-job-type":  "build",
 			},
 		},
 		Spec: batchv1.JobSpec{
