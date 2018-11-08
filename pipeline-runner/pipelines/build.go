@@ -73,7 +73,7 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 				"radixAppName":  appName,
 				"radixImageTag": imageTag,
 				"radixBranch":   branch,
-				"radixType":     "build",
+				"radixJobType":  "build",
 			},
 		},
 		Spec: batchv1.JobSpec{
