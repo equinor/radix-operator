@@ -17,8 +17,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const clusternameEnvironmentVariable = "radix-clustername"
-const environmentnameEnvironmentVariable = "radix-environment"
+const clusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
+const environmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 const defaultReplicas = 2
 
 // RadixDeployHandler Instance variables
