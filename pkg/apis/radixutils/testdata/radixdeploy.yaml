@@ -1,0 +1,37 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixDeployment
+metadata:
+  labels:
+    env: test
+    radixApp: edcradix
+  name: edcradix-axmz8
+  namespace: edcradix-test
+spec:
+  appname: edcradix
+  environment: test
+  components:
+  - image: radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh
+    name: app
+    ports:
+    - name: http
+      port: 8080
+    public: true
+    replicas: 4
+  - image: radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh
+    name: redis
+    environmentVariables:
+      a_variable: "3001"
+    ports:
+    - name: http
+      port: 6379
+    public: false
+    replicas: 0
+  - image: radixdev.azurecr.io/edcradix-radixquote:axmz8
+    name: radixquote
+    ports:
+    - name: http
+      port: 3000
+    public: true
+    replicas: 0
+    secrets:
+    - a_secret
