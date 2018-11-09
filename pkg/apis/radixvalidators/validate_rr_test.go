@@ -1,10 +1,10 @@
-package radixutils_test
+package radixvalidators_test
 
 import (
 	"testing"
 
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	"github.com/statoil/radix-operator/pkg/apis/radixutils"
+	"github.com/statoil/radix-operator/pkg/apis/radixvalidators"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
@@ -16,7 +16,7 @@ import (
 func Test_valid_rr_returns_true(t *testing.T) {
 	_, client := validRRSetup()
 	validRR := createValidRR()
-	isValid, err := radixutils.CanRadixRegistrationBeInserted(client, validRR)
+	isValid, err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
 
 	assert.True(t, isValid)
 	assert.Nil(t, err)
@@ -50,7 +50,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRR := createValidRR()
 			testcase.updateRR(validRR)
-			isValid, err := radixutils.CanRadixRegistrationBeInserted(client, validRR)
+			isValid, err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
 
 			assert.False(t, isValid)
 			assert.NotNil(t, err)
@@ -60,7 +60,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 	t.Run("name already exist", func(t *testing.T) {
 		validRR := createValidRR()
 		client = radixfake.NewSimpleClientset(validRR)
-		isValid, err := radixutils.CanRadixRegistrationBeInserted(client, validRR)
+		isValid, err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
 
 		assert.False(t, isValid)
 		assert.NotNil(t, err)
@@ -71,7 +71,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		client = radixfake.NewSimpleClientset(validRR)
 		validRR = createValidRR()
 		validRR.Name = "new-app"
-		isValid, err := radixutils.CanRadixRegistrationBeInserted(client, validRR)
+		isValid, err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
 
 		assert.False(t, isValid)
 		assert.NotNil(t, err)

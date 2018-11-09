@@ -1,10 +1,10 @@
-package radixutils_test
+package radixvalidators_test
 
 import (
 	"testing"
 
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	"github.com/statoil/radix-operator/pkg/apis/radixutils"
+	"github.com/statoil/radix-operator/pkg/apis/radixvalidators"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
@@ -16,7 +16,7 @@ import (
 func Test_valid_rd_returns_true(t *testing.T) {
 	validRD := createValidRD()
 	_, radixclient := validRDSetup()
-	isValid, err := radixutils.CanRadixDeploymentBeInserted(radixclient, validRD)
+	isValid, err := radixvalidators.CanRadixDeploymentBeInserted(radixclient, validRD)
 
 	assert.True(t, isValid)
 	assert.Nil(t, err)
@@ -46,7 +46,7 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRD := createValidRD()
 			testcase.updateRD(validRD)
-			isValid, err := radixutils.CanRadixDeploymentBeInserted(client, validRD)
+			isValid, err := radixvalidators.CanRadixDeploymentBeInserted(client, validRD)
 
 			assert.False(t, isValid)
 			assert.NotNil(t, err)

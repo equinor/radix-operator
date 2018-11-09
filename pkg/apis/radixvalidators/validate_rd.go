@@ -1,4 +1,4 @@
-package radixutils
+package radixvalidators
 
 import (
 	"fmt"
