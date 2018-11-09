@@ -34,7 +34,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (R
 	return handler, nil
 }
 
-func (cli *RadixOnPushHandler) Run(branch, commitID, imageTag, appFileName string) error {
+func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileName string) error {
 	radixApplication, err := utils.GetRadixApplication(appFileName)
 	if err != nil {
 		log.Errorf("failed to get ra from file (%s) for app Error: %v", appFileName, err)
@@ -63,7 +63,7 @@ func (cli *RadixOnPushHandler) Run(branch, commitID, imageTag, appFileName strin
 		return err
 	}
 
-	err = cli.build(radixRegistration, radixApplication, branch, commitID, imageTag)
+	err = cli.build(jobName, radixRegistration, radixApplication, branch, commitID, imageTag)
 	if err != nil {
 		log.Errorf("failed to build app %s. Error: %v", appName, err)
 		return err
