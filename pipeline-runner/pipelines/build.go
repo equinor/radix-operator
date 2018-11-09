@@ -80,6 +80,11 @@ func createBuildJob(appName, jobName string, components []v1.RadixComponent, clo
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"radix-job-name": jobName,
+					},
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: "Never",
 					InitContainers: []corev1.Container{
