@@ -25,7 +25,7 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, deploy *ra
 	for _, component := range deploy.Spec.Components {
 		if len(component.Secrets) > 0 {
 			componentName := component.Name
-			if exists := k.isSecretExists(ns, componentName); exists {
+			if k.isSecretExists(ns, componentName) {
 				continue
 			}
 			secret := v1.Secret{
