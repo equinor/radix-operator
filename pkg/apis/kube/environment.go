@@ -24,10 +24,14 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, deploy *ra
 	logger.Infof("Apply empty secrets based on radix deployment obj")
 	for _, component := range deploy.Spec.Components {
 		if len(component.Secrets) > 0 {
+			componentName := component.Name
+			if k.isSecretExists(ns, componentName) {
+				continue
+			}
 			secret := v1.Secret{
 				Type: "Opaque",
 				ObjectMeta: metav1.ObjectMeta{
-					Name: component.Name,
+					Name: componentName,
 				},
 			}
 			_, err = k.ApplySecret(ns, &secret)
