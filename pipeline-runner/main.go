@@ -45,6 +45,7 @@ func main() {
 	commitID := args["COMMIT_ID"]
 	fileName := args["RADIX_FILE_NAME"]
 	imageTag := args["IMAGE_TAG"]
+	jobName := args["JOB_NAME"]
 
 	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
@@ -64,7 +65,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = pushHandler.Run(branch, commitID, imageTag, fileName)
+	err = pushHandler.Run(jobName, branch, commitID, imageTag, fileName)
 	if err != nil {
 		os.Exit(2)
 	}

@@ -12,13 +12,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag string) error {
+func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag string) error {
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
 	namespace := fmt.Sprintf("%s-app", appName)
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createBuildJob(appName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)
+	job, err := createBuildJob(appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (cli *RadixOnPushHandler) build(radixRegistration *v1.RadixRegistration, ra
 
 const workspace = "/workspace"
 
-func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag string) (*batchv1.Job, error) {
+func createBuildJob(appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag string) (*batchv1.Job, error) {
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
 	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
 	buildContainers := createBuildContainers(appName, imageTag, components)
@@ -69,6 +69,7 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("radix-builder-%s", imageTag),
 			Labels: map[string]string{
+				"radix-job-name":  jobName,
 				"radix-build":     fmt.Sprintf("%s-%s", appName, imageTag),
 				"radix-app-name":  appName,
 				"radix-image-tag": imageTag,
@@ -79,6 +80,11 @@ func createBuildJob(appName string, components []v1.RadixComponent, cloneURL, br
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"radix-job-name": jobName,
+					},
+				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: "Never",
 					InitContainers: []corev1.Container{
