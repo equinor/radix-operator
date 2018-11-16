@@ -9,11 +9,11 @@ import (
 )
 
 // Deploy Handles deploy step of the pipeline
-func (cli *RadixOnPushHandler) Deploy(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag, branch, commitID string, targetEnvs map[string]bool) error {
+func (cli *RadixOnPushHandler) Deploy(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag, branch, commitID string, targetEnvs map[string]bool) error {
 	appName := radixRegistration.Name
 	log.Infof("Deploying app %s", appName)
 
-	radixDeployments, err := createRadixDeployments(radixApplication, imageTag, branch, commitID, targetEnvs)
+	radixDeployments, err := createRadixDeployments(radixApplication, jobName, imageTag, branch, commitID, targetEnvs)
 	if err != nil {
 		return fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
 	}
@@ -61,7 +61,7 @@ func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixReg
 	return nil
 }
 
-func createRadixDeployments(radixApplication *v1.RadixApplication, imageTag, branch, commitID string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
+func createRadixDeployments(radixApplication *v1.RadixApplication, jobName, imageTag, branch, commitID string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
 	radixDeployments := []v1.RadixDeployment{}
 	for _, env := range radixApplication.Spec.Environments {
 		if _, contains := targetEnvs[env.Name]; !contains {
@@ -74,23 +74,24 @@ func createRadixDeployments(radixApplication *v1.RadixApplication, imageTag, bra
 		}
 
 		radixComponents := getRadixComponentsForEnv(radixApplication, env.Name, imageTag)
-		radixDeployment := createRadixDeployment(radixApplication.Name, env.Name, imageTag, branch, commitID, radixComponents)
+		radixDeployment := createRadixDeployment(radixApplication.Name, env.Name, jobName, imageTag, branch, commitID, radixComponents)
 		radixDeployments = append(radixDeployments, radixDeployment)
 	}
 
 	return radixDeployments, nil
 }
 
-func createRadixDeployment(appName, env, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
+func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
 	radixDeployment := v1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-%s", appName, imageTag),
 			Namespace: fmt.Sprintf("%s-%s", appName, env),
 			Labels: map[string]string{
-				"radixApp": appName,
-				"env":      env,
-				"branch":   branch,
-				"commitID": commitID,
+				"radixApp":       appName,
+				"env":            env,
+				"branch":         branch,
+				"commitID":       commitID,
+				"radix-job-name": jobName,
 			},
 		},
 		Spec: v1.RadixDeploymentSpec{
