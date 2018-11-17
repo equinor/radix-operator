@@ -88,9 +88,9 @@ func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID str
 			Namespace: fmt.Sprintf("%s-%s", appName, env),
 			Labels: map[string]string{
 				"radixApp":       appName,
-				"env":            env,
-				"branch":         branch,
-				"commitID":       commitID,
+				"radix-env":            env,
+				"radix-branch":   branch,
+				"radix-commit": commitID,
 				"radix-job-name": jobName,
 			},
 		},
