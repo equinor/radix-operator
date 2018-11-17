@@ -45,7 +45,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	cli, _ := Init(kubeclient, radixclient)
 	targetEnvs := getTargetEnvironmentsAsMap("master", ra)
 
-	err := cli.Deploy(rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
+	err := cli.Deploy("any-job-name", rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
 	t.Run("validate deploy", func(t *testing.T) {
 		assert.NoError(t, err)
 	})
@@ -73,7 +73,9 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, "1234", rdDev.Spec.Components[1].EnvironmentVariables["DB_PORT"])
 		assert.NotEmpty(t, rdDev.Labels["radix-branch"])
 		assert.NotEmpty(t, rdDev.Labels["radix-commit"])
+		assert.NotEmpty(t, rdDev.Labels["radix-job-name"])
 		assert.Equal(t, "master", rdDev.Labels["radix-branch"])
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", rdDev.Labels["radix-commit"])
+		assert.Equal(t, "any-job-name", rdDev.Labels["radix-job-name"])
 	})
 }
