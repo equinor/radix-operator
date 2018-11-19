@@ -4,7 +4,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: RadixReader
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
@@ -18,7 +18,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: RadixSecretReader
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
@@ -32,7 +32,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: RadixAppAdmin
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
@@ -50,7 +50,7 @@ kind: ClusterRole
 metadata:
   name: radix-pipeline
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
@@ -81,7 +81,7 @@ kind: ClusterRole
 metadata:
   name: radix-pipeline-runner
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"

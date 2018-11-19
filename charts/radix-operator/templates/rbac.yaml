@@ -2,20 +2,40 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ template "radix-operator.fullname" . }}
+  name: "radix-operator"
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
+
 {{ if .Values.rbac.enabled }}
+---
+# Give radix-operator cluster-admin role
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: "radix-operator"
+  labels:
+    app: "radix-operator"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+subjects:
+- kind: ServiceAccount
+  namespace: default
+  name: "radix-operator"
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: radix-deploy
+  name: "radix-deploy"
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
@@ -23,9 +43,9 @@ metadata:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ template "radix-operator.fullname" . }}
+  name: "radix-operator"
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
@@ -46,37 +66,19 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: radix-deploy
+  name: "radix-deploy" 
   labels:
-    app: {{ template "radix-operator.name" . }}
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
 subjects:
 - kind: ServiceAccount
   namespace: default
-  name: radix-deploy
+  name: "radix-deploy"
 roleRef:
   kind: ClusterRole
-  name: {{ template "radix-operator.fullname" . }}
+  name: "radix-operator"
   apiGroup: rbac.authorization.k8s.io
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: {{ template "radix-operator.fullname" . }}
-  labels:
-    app: {{ template "radix-operator.name" . }}
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
-subjects:
-- kind: ServiceAccount
-  namespace: default
-  name: {{ template "radix-operator.fullname" . }}
-roleRef:
-  kind: ClusterRole
-#  name: {{ template "radix-operator.fullname"  .}}
-  name: cluster-admin
-  apiGroup: rbac.authorization.k8s.io
+
 {{ end }}

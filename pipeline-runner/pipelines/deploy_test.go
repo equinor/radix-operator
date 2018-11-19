@@ -45,11 +45,13 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	cli, _ := Init(kubeclient, radixclient)
 	targetEnvs := getTargetEnvironmentsAsMap("master", ra)
 
-	err := cli.Deploy("any-job-name", rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
+	rds, err := cli.Deploy("any-job-name", rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
 	t.Run("validate deploy", func(t *testing.T) {
 		assert.NoError(t, err)
+		assert.True(t, len(rds) > 0)
 	})
 
+	rdNameDev := rds[0].Name
 	t.Run("validate namespace creation", func(t *testing.T) {
 		devNs, _ := kubeclient.CoreV1().Namespaces().Get("any-app-dev", metav1.GetOptions{})
 		assert.NotNil(t, devNs)
@@ -58,15 +60,15 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	})
 
 	t.Run("validate deployment exist in only the namespace of the modified branch", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get("any-app-anytag", metav1.GetOptions{})
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
 		assert.NotNil(t, rdDev)
 
-		rdProd, _ := radixclient.RadixV1().RadixDeployments("any-app-prod").Get("any-app-anytag", metav1.GetOptions{})
+		rdProd, _ := radixclient.RadixV1().RadixDeployments("any-app-prod").Get(rdNameDev, metav1.GetOptions{})
 		assert.Nil(t, rdProd)
 	})
 
 	t.Run("validate deployment environment variables", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get("any-app-anytag", metav1.GetOptions{})
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
 		assert.Equal(t, 2, len(rdDev.Spec.Components))
 		assert.Equal(t, 2, len(rdDev.Spec.Components[1].EnvironmentVariables))
 		assert.Equal(t, "db-dev", rdDev.Spec.Components[1].EnvironmentVariables["DB_HOST"])
