@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -258,6 +259,7 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	now := time.Now()
 
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
@@ -271,14 +273,16 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithCreated(now.Add(time.Second * time.Duration(1))))
 
 	// Re-apply the first deployment. This should be ignored and cause an error as it is not the latest
-	err := handlerTestUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
+	rdBuilder := utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
-		WithCreated(now))
+		WithCreated(now)
+	err := handlerTestUtils.ApplyDeploymentUpdate(rdBuilder)
 
 	assert.Error(t, err)
-	assert.Equal(t, "RadixDeployment app1-firstdeployment was not the latest. Ignoring", err.Error())
+	assert.Equal(t, fmt.Sprintf("RadixDeployment %s was not the latest. Ignoring", rdBuilder.BuildRD().Name), err.Error())
 }
 
 func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
@@ -286,6 +290,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 
 	// Test
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
 		WithComponents(
@@ -299,6 +304,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
 	handlerTestUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
 		WithComponents(
