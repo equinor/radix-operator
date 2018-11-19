@@ -16,8 +16,9 @@ func GetEnvironmentNamespace(appName, environment string) string {
 }
 
 // GetDeploymentName Function to get deployment name
-func GetDeploymentName(appName, tag string) string {
-	return fmt.Sprintf("%s-%s", appName, tag)
+func GetDeploymentName(appName, env, tag string) string {
+	random := strings.ToLower(RandString(8))
+	return fmt.Sprintf("%s-%s-%s", env, tag, random)
 }
 
 // GetAppAndTagPairFromName Reverse engineer deployment name

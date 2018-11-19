@@ -3,34 +3,36 @@ package onpush
 import (
 	"fmt"
 
+	"github.com/statoil/radix-operator/pkg/apis/utils"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Deploy Handles deploy step of the pipeline
-func (cli *RadixOnPushHandler) Deploy(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag, branch, commitID string, targetEnvs map[string]bool) error {
+func (cli *RadixOnPushHandler) Deploy(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag, branch, commitID string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
 	appName := radixRegistration.Name
 	log.Infof("Deploying app %s", appName)
 
 	radixDeployments, err := createRadixDeployments(radixApplication, imageTag, branch, commitID, targetEnvs)
 	if err != nil {
-		return fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
+		return nil, fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
 	}
 
 	err = cli.applyEnvNamespaces(radixRegistration, targetEnvs)
 	if err != nil {
 		log.Errorf("Failed to create namespaces for app environments %s. %v", radixRegistration.Name, err)
-		return err
+		return nil, err
 	}
 
 	err = cli.applyRadixDeployments(radixRegistration, radixDeployments)
 	if err != nil {
-		return fmt.Errorf("Failed to apply radix deployments for app %s. %v", appName, err)
+		return nil, fmt.Errorf("Failed to apply radix deployments for app %s. %v", appName, err)
 	}
 	log.Infof("App deployed %s", appName)
 
-	return nil
+	return radixDeployments, nil
 }
 
 func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.RadixRegistration, radixDeployments []v1.RadixDeployment) error {
@@ -82,9 +84,10 @@ func createRadixDeployments(radixApplication *v1.RadixApplication, imageTag, bra
 }
 
 func createRadixDeployment(appName, env, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
+	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	radixDeployment := v1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", appName, imageTag),
+			Name:      deployName,
 			Namespace: fmt.Sprintf("%s-%s", appName, env),
 			Labels: map[string]string{
 				"radixApp": appName,

@@ -11,6 +11,7 @@ import (
 type DeploymentBuilder interface {
 	WithRadixApplication(ApplicationBuilder) DeploymentBuilder
 	WithRadixDeployment(*v1.RadixDeployment) DeploymentBuilder
+	WithDeploymentName(string) DeploymentBuilder
 	WithImageTag(string) DeploymentBuilder
 	WithAppName(string) DeploymentBuilder
 	WithLabel(label, value string) DeploymentBuilder
@@ -25,12 +26,18 @@ type DeploymentBuilder interface {
 // DeploymentBuilderStruct Holds instance variables
 type DeploymentBuilderStruct struct {
 	applicationBuilder ApplicationBuilder
+	DeploymentName     string
 	AppName            string
 	Labels             map[string]string
 	ImageTag           string
 	Environment        string
 	Created            time.Time
 	components         []DeployComponentBuilder
+}
+
+func (db *DeploymentBuilderStruct) WithDeploymentName(name string) DeploymentBuilder {
+	db.DeploymentName = name
+	return db
 }
 
 // WithRadixApplication Links to RA builder
@@ -121,9 +128,13 @@ func (db *DeploymentBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 
 // BuildRD Builds RD structure based on set variables
 func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
-	var components = make([]v1.RadixDeployComponent, 0)
+	components := make([]v1.RadixDeployComponent, 0)
 	for _, comp := range db.components {
 		components = append(components, comp.BuildComponent())
+	}
+	deployName := db.DeploymentName
+	if deployName == "" {
+		deployName = GetDeploymentName(db.AppName, db.Environment, db.ImageTag)
 	}
 
 	radixDeployment := &v1.RadixDeployment{
@@ -132,7 +143,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 			Kind:       "RadixDeployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              GetDeploymentName(db.AppName, db.ImageTag),
+			Name:              deployName,
 			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
 			Labels:            db.Labels,
 			CreationTimestamp: metav1.Time{Time: db.Created},

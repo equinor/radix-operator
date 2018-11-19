@@ -70,7 +70,7 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 	}
 	log.Infof("Succeeded: build docker image")
 
-	err = cli.Deploy(radixRegistration, radixApplication, imageTag, branch, commitID, targetEnvs)
+	_, err = cli.Deploy(radixRegistration, radixApplication, imageTag, branch, commitID, targetEnvs)
 	if err != nil {
 		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
 		return err
