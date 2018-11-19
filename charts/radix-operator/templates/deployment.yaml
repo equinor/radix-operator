@@ -1,25 +1,25 @@
 apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: {{ template "radix-operator.fullname" . }}
+  name: "radix-operator"
   labels:
-    app: {{ template "radix-operator.name" . }}
-    chart: {{ template "radix-operator.chart" . }}
+    app: "radix-operator"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ template "radix-operator.name" . }}
+      app: "radix-operator"
       release: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ template "radix-operator.name" . }}
+        app: "radix-operator"
         release: {{ .Release.Name }}
     spec:
-      serviceAccount: {{ template "radix-operator.fullname" . }}
+      serviceAccount: "radix-operator"
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.imageCredentials.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
