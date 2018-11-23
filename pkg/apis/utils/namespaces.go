@@ -21,6 +21,13 @@ func GetDeploymentName(appName, env, tag string) string {
 	return fmt.Sprintf("%s-%s-%s", env, tag, random)
 }
 
+func GetComponentSecretName(componentame string) string {
+	// include a hash so that users cannot get access to a secret they should not ,
+	// by naming component the same as secret object
+	hash := strings.ToLower(RandStringStrSeed(8, componentame))
+	return fmt.Sprintf("%s-%s", componentame, hash)
+}
+
 // GetAppAndTagPairFromName Reverse engineer deployment name
 func GetAppAndTagPairFromName(name string) (string, string) {
 	runes := []rune(name)
