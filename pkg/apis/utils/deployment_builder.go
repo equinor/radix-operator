@@ -83,7 +83,7 @@ func (db *DeploymentBuilderStruct) WithImageTag(imageTag string) DeploymentBuild
 
 // WithEnvironment Sets environment name
 func (db *DeploymentBuilderStruct) WithEnvironment(environment string) DeploymentBuilder {
-	db.Labels["env"] = environment
+	db.Labels["radix-env"] = environment
 	db.Environment = environment
 	return db
 }

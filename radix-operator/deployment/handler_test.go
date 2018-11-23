@@ -237,16 +237,16 @@ func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
-		WithLabel("branch", "master").
-		WithLabel("commitID", "4faca8595c5283a9d0f17a623b9255a0d9866a2e"))
+		WithLabel("radix-branch", "master").
+		WithLabel("radix-commit", "4faca8595c5283a9d0f17a623b9255a0d9866a2e"))
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 
 	t.Run("validate deploy labels", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, "master", deployments.Items[0].Labels["branch"])
-		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["commitID"])
+		assert.Equal(t, "master", deployments.Items[0].Labels["radix-branch"])
+		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["radix-commit"])
 	})
 
 }

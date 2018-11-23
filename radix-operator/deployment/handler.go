@@ -294,7 +294,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 	componentPorts := deployComponent.Ports
 	replicas := deployComponent.Replicas
 
-	const branchKey, commitIDKey = "branch", "commitID"
+	const branchKey, commitIDKey = "radix-branch", "radix-commit"
 	rdLabels := radixDeploy.Labels
 	var branch, commitID string
 	if branchVal, exists := rdLabels[branchKey]; exists {
@@ -309,9 +309,9 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 			Name: componentName,
 			Labels: map[string]string{
 				"radixApp":       appName,
-				"radixComponent": componentName,
-				"branch":         branch,
-				"commitID":       commitID,
+				"radix-component": componentName,
+				"radix-branch":   branch,
+				"radix-commit":   commitID,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
@@ -327,16 +327,16 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 			Replicas: int32Ptr(defaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"radixComponent": componentName,
+					"radix-component": componentName,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"radixApp":       appName,
-						"radixComponent": componentName,
-						"branch":         branch,
-						"commitID":       commitID,
+						"radix-component": componentName,
+						"radix-branch":   branch,
+						"radix-commit":   commitID,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -448,7 +448,7 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 			Name: componentName,
 			Labels: map[string]string{
 				"radixApp":       appName,
-				"radixComponent": componentName,
+				"radix-component": componentName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
@@ -463,7 +463,7 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				"radixComponent": componentName,
+				"radix-component": componentName,
 			},
 		},
 	}
