@@ -126,10 +126,11 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
+		componentSecretName := utils.GetComponentSecretName("radixquote")
 		secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
 		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
-		assert.Equal(t, "radixquote", secrets.Items[1].GetName(), "Component secret is not as expected")
+		assert.Equal(t, componentSecretName, secrets.Items[1].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {

@@ -3,6 +3,8 @@ package kube
 import (
 	"fmt"
 
+	"github.com/statoil/radix-operator/pkg/apis/utils"
+
 	log "github.com/Sirupsen/logrus"
 
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
@@ -76,6 +78,7 @@ func RrRole(registration *radixv1.RadixRegistration, roleName string, verbs []st
 }
 
 func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) *auth.Role {
+	secretName := utils.GetComponentSecretName(component.Name)
 	roleName := fmt.Sprintf("radix-app-adm-%s", component.Name)
 
 	role := &auth.Role{
@@ -93,7 +96,7 @@ func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *rad
 			{
 				APIGroups:     []string{""},
 				Resources:     []string{"secrets"},
-				ResourceNames: []string{component.Name},
+				ResourceNames: []string{secretName},
 				Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
 			},
 		},
