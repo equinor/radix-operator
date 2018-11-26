@@ -51,6 +51,19 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 	return nil
 }
 
+// ApplyApplicationUpdate Will help update an application
+func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationBuilder) error {
+	ra := applicationBuilder.BuildRA()
+	appNamespace := builders.GetAppNamespace(ra.GetName())
+
+	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Update(ra)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ApplyDeployment Will help persist a deployment
 func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) error {
 	if deploymentBuilder.GetApplicationBuilder() != nil {
