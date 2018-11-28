@@ -88,6 +88,13 @@ An array of ports exposed by your component.
 
 An array of objects containing environment name and variables to be set inside the running container.
 
+By default, each application container will have the following _default_ environment variables.
+
+```
+RADIX_CLUSTERNAME
+RADIX_ENVIRONMENT
+```
+
 #### secrets
 
 An array of keys that should be saved as a Kubernetes `secret` object. The `secret` object should be created in every environment (i.e. `namespace`).
