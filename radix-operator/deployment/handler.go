@@ -19,6 +19,12 @@ import (
 
 const clusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
 const environmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
+const publicEndpointEnvironmentVariable = "RADIX_PUBLIC_DOMAIN_NAME"
+const radixAppEnvironmentVariable = "RADIX_APP"
+const radixComponentEnvironmentVariable = "RADIX_COMPONENT"
+const radixPortsEnvironmentVariable = "RADIX_PORTS"
+const radixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
+const hostnameTemplate = "%s-%s.%s.dev.radix.equinor.com"
 const defaultReplicas = 2
 
 // RadixDeployHandler Instance variables
@@ -308,10 +314,10 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":       appName,
+				"radixApp":        appName,
 				"radix-component": componentName,
-				"radix-branch":   branch,
-				"radix-commit":   commitID,
+				"radix-branch":    branch,
+				"radix-commit":    commitID,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{
@@ -333,10 +339,10 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radixApp":       appName,
+						"radixApp":        appName,
 						"radix-component": componentName,
-						"radix-branch":   branch,
-						"radix-commit":   commitID,
+						"radix-branch":    branch,
+						"radix-commit":    commitID,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -370,7 +376,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 		deployment.Spec.Replicas = int32Ptr(int32(replicas))
 	}
 
-	environmentVariables := t.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, radixDeploy.Name, environment, componentName)
+	environmentVariables := t.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, deployComponent.Public, deployComponent.Ports, radixDeploy.Name, radixDeploy.Namespace, environment, appName, componentName)
 
 	if environmentVariables != nil {
 		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
@@ -379,7 +385,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 	return deployment
 }
 
-func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, radixDeployName, currentEnvironment, componentName string) []corev1.EnvVar {
+func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort, radixDeployName, namespace, currentEnvironment, appName, componentName string) []corev1.EnvVar {
 	var environmentVariables []corev1.EnvVar
 	if radixEnvVars != nil {
 		// environmentVariables
@@ -394,7 +400,7 @@ func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap,
 		logger.Infof("No environment variable is set for this RadixDeployment %s", radixDeployName)
 	}
 
-	environmentVariables = t.appendDefaultVariables(currentEnvironment, environmentVariables)
+	environmentVariables = t.appendDefaultVariables(currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports)
 
 	// secrets
 	if radixSecrets != nil {
@@ -421,16 +427,16 @@ func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap,
 	return environmentVariables
 }
 
-func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar) []corev1.EnvVar {
+func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort) []corev1.EnvVar {
 	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
 	if err != nil {
 		return environmentVariables
 	}
 
-	clustername := radixconfigmap.Data["clustername"]
+	clusterName := radixconfigmap.Data["clustername"]
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
 		Name:  clusternameEnvironmentVariable,
-		Value: clustername,
+		Value: clusterName,
 	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
@@ -438,7 +444,53 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 		Value: currentEnvironment,
 	})
 
+	if isPublic {
+		environmentVariables = append(environmentVariables, corev1.EnvVar{
+			Name:  publicEndpointEnvironmentVariable,
+			Value: fmt.Sprintf(hostnameTemplate, componentName, namespace, clusterName),
+		})
+	}
+
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  radixAppEnvironmentVariable,
+		Value: appName,
+	})
+
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  radixComponentEnvironmentVariable,
+		Value: componentName,
+	})
+
+	if len(ports) > 0 {
+		portNumbers, portNames := getPortNumbersAndNamesString(ports)
+		environmentVariables = append(environmentVariables, corev1.EnvVar{
+			Name:  radixPortsEnvironmentVariable,
+			Value: portNumbers,
+		})
+
+		environmentVariables = append(environmentVariables, corev1.EnvVar{
+			Name:  radixPortNamesEnvironmentVariable,
+			Value: portNames,
+		})
+	}
+
 	return environmentVariables
+}
+
+func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
+	portNumbers := "("
+	portNames := "("
+	portsSize := len(ports)
+	for i, portObj := range ports {
+		if i < portsSize-1 {
+			portNumbers += fmt.Sprint(portObj.Port) + " "
+			portNames += fmt.Sprint(portObj.Name) + " "
+		} else {
+			portNumbers += fmt.Sprint(portObj.Port) + ")"
+			portNames += fmt.Sprint(portObj.Name) + ")"
+		}
+	}
+	return portNumbers, portNames
 }
 
 func getServiceConfig(componentName, appName string, uid types.UID, componentPorts []v1.ComponentPort) *corev1.Service {
@@ -447,7 +499,7 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":       appName,
+				"radixApp":        appName,
 				"radix-component": componentName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
@@ -476,7 +528,7 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 
 func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	trueVar := true
-	hostname := fmt.Sprintf("%s-%s.%s.dev.radix.equinor.com", componentName, namespace, clustername)
+	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
 	tlsSecretName := "cluster-wildcard-tls-cert"
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
