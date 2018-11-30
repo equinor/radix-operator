@@ -21,6 +21,15 @@ func Test_valid_ra_returns_true(t *testing.T) {
 	assert.True(t, isValid)
 	assert.Nil(t, err)
 }
+func Test_missing_rr(t *testing.T) {
+	client := radixfake.NewSimpleClientset()
+	validRA := createValidRA()
+
+	isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+
+	assert.False(t, isValid)
+	assert.NotNil(t, err)
+}
 
 type updateRAFunc func(rr *v1.RadixApplication)
 
@@ -44,6 +53,15 @@ func Test_invalid_ra(t *testing.T) {
 					},
 				},
 			}
+		}},
+		{"invalid component name", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = "invalid,char.appname" }},
+		{"uppercase component name", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = "invalidUPPERCASE.appname" }},
+		{"invalid port name", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports[0].Name = "invalid,char.appname" }},
+		{"invalid number of replicas", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Replicas = radixvalidators.MaxReplica + 1 }},
+		{"invalid env name", func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = "invalid,char.appname" }},
+		{"invalid branch name", func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Build.From = "invalid,char.appname" }},
+		{"to long branch name", func(ra *v1.RadixApplication) {
+			ra.Spec.Environments[0].Build.From = "way.toooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.long-app-name"
 		}},
 	}
 

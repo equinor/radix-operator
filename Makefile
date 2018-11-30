@@ -10,7 +10,7 @@ HASH := $(shell git rev-parse HEAD)
 
 .PHONY: test
 test:	
-	go test -cover `go list ./... | grep -v 'pkg/client\|apis/radix'`
+	go test -cover `go list ./... | grep -v 'pkg/client'`
 
 define make-docker-build
   	build-$1:

@@ -6,6 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	validate "github.com/statoil/radix-operator/pkg/apis/radixvalidators"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,6 +43,15 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 	if err != nil {
 		log.Errorf("failed to get ra from file (%s) for app Error: %v", appFileName, err)
 		return err
+	}
+
+	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.radixclient, radixApplication)
+	if !isRAValid {
+		log.Errorf("radix config not valid.")
+		for _, err = range errs {
+			log.Errorf("%v", err)
+		}
+		return validate.ConcatErrors(errs)
 	}
 
 	targetEnvs := getTargetEnvironmentsAsMap(branch, radixApplication)

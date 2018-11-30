@@ -5,6 +5,8 @@ metadata:
 spec:
   environments:
     - name: dev
+      build:
+        from: master
     - name: prod
   components:
     - name: app

@@ -24,7 +24,7 @@ func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistrat
 	if !isValid && errUniqueAppName == nil {
 		return false, err
 	}
-	return false, concatErrors([]error{errUniqueAppName, err})
+	return false, ConcatErrors([]error{errUniqueAppName, err})
 }
 
 func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
@@ -53,7 +53,7 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 	if len(errs) <= 0 {
 		return true, nil
 	}
-	return false, concatErrors(errs)
+	return false, ConcatErrors(errs)
 }
 
 func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
@@ -65,21 +65,25 @@ func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) 
 }
 
 func validateAppName(appName string) error {
-	if len(appName) > 253 {
-		return fmt.Errorf("app name (%s) max length is 253", appName)
+	return validateRequiredResourceName("app name", appName)
+}
+
+func validateRequiredResourceName(resourceName, value string) error {
+	if len(value) > 253 {
+		return fmt.Errorf("%s (%s) max length is 253", resourceName, value)
 	}
 
-	if appName == "" {
-		return fmt.Errorf("app name is required")
+	if value == "" {
+		return fmt.Errorf("%s cannot be empty", resourceName)
 	}
 
-	re := regexp.MustCompile("^[a-z0-9.-]{0,}$")
+	re := regexp.MustCompile("^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$")
 
-	isValid := re.MatchString(appName)
+	isValid := re.MatchString(value)
 	if isValid {
 		return nil
 	}
-	return fmt.Errorf("app name %s can only consist of lower case alphanumeric characters, '.' and '-'", appName)
+	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
 }
 
 func validateAdGroups(groups []string) error {
@@ -136,7 +140,15 @@ func validateSSHKey(deployKey string) error {
 	return nil
 }
 
-func concatErrors(errs []error) error {
+func validateDoesRRExist(client radixclient.Interface, appName string) error {
+	rr, err := client.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
+	if rr == nil || err != nil {
+		return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
+	}
+	return nil
+}
+
+func ConcatErrors(errs []error) error {
 	var errstrings []string
 	for _, err := range errs {
 		errstrings = append(errstrings, err.Error())
