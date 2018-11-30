@@ -7,6 +7,11 @@ import (
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 )
 
+const (
+	MinReplica = 0 // default is 2
+	MaxReplica = 64
+)
+
 func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.RadixDeployment) (bool, error) {
 	// todo! ensure that all rules are valid
 	errors := []error{}
@@ -25,7 +30,7 @@ func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.
 		errors = append(errors, err)
 	}
 
-	err = validateAppName(deploy.Spec.Environment)
+	err = validateRequiredResourceName("env name", deploy.Spec.Environment)
 	if err != nil {
 		errors = append(errors, err)
 	}
@@ -33,12 +38,12 @@ func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.
 	if len(errors) <= 0 {
 		return true, nil
 	}
-	return false, concatErrors(errors)
+	return false, ConcatErrors(errors)
 }
 
 func validateComponentNames(components []radixv1.RadixDeployComponent) error {
 	for _, component := range components {
-		err := validateAppName(component.Name)
+		err := validateRequiredResourceName("component name", component.Name)
 		if err != nil {
 			return err
 		}
@@ -57,10 +62,8 @@ func validateReplicas(components []radixv1.RadixDeployComponent) error {
 }
 
 func validateReplica(replica int) error {
-	maxReplica := 32
-	minReplica := 0 // default will be set to 2
-	if replica > maxReplica || replica < minReplica {
-		return fmt.Errorf("replicas %v must be between %v and %v", replica, minReplica, maxReplica)
+	if replica > MaxReplica || replica < MinReplica {
+		return fmt.Errorf("replicas %v must be between %v and %v", replica, MinReplica, MaxReplica)
 	}
 	return nil
 }
