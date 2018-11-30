@@ -51,7 +51,9 @@ func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixReg
 		namespaceName := fmt.Sprintf("%s-%s", radixRegistration.Name, env)
 		ownerRef := getOwnerRef(radixRegistration)
 		labels := map[string]string{
-			"sync": "cluster-wildcard-tls-cert",
+			"sync":      "cluster-wildcard-tls-cert",
+			"radix-app": radixRegistration.Name,
+			"radix-env": env,
 		}
 
 		err := cli.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
@@ -90,10 +92,11 @@ func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID str
 			Name:      deployName,
 			Namespace: fmt.Sprintf("%s-%s", appName, env),
 			Labels: map[string]string{
-				"radixApp":       appName,
-				"radix-env":            env,
+				"radixApp":       appName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app":      appName,
+				"radix-env":      env,
 				"radix-branch":   branch,
-				"radix-commit": commitID,
+				"radix-commit":   commitID,
 				"radix-job-name": jobName,
 			},
 		},

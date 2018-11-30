@@ -13,12 +13,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// RadixOnPushHandler Instance variables
 type RadixOnPushHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 }
 
+// Init constructor
 func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (RadixOnPushHandler, error) {
 	kube, err := kube.New(kubeclient)
 	if err != nil {
@@ -34,6 +36,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (R
 	return handler, nil
 }
 
+// Run Runs the main pipeline
 func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileName string) error {
 	radixApplication, err := utils.GetRadixApplication(appFileName)
 	if err != nil {
@@ -43,8 +46,7 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 
 	targetEnvs := getTargetEnvironmentsAsMap(branch, radixApplication)
 	if isTargetEnvsEmpty(targetEnvs) {
-		err := fmt.Errorf("no matching branch to any environment")
-		log.Errorf("failed to match environment to branch: %v", err)
+		log.Errorf("Failed to match environment to branch: %s", branch)
 		return err
 	}
 
