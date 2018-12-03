@@ -59,7 +59,8 @@ func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.Radix
 
 // WithAppName Sets app name
 func (db *DeploymentBuilderStruct) WithAppName(appName string) DeploymentBuilder {
-	db.Labels["radixApp"] = appName
+	db.Labels["radixApp"] = appName // For backwards compatibility. Remove when cluster is migrated
+	db.Labels["radix-app"] = appName
 
 	if db.applicationBuilder != nil {
 		db.applicationBuilder = db.applicationBuilder.WithAppName(appName)

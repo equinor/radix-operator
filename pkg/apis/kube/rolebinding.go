@@ -24,7 +24,8 @@ func (k *Kube) GrantAppAdminAccessToNs(namespace string, registration *radixv1.R
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				"radixApp": registration.Name,
+				"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app": registration.Name,
 			},
 		},
 		RoleRef: auth.RoleRef{
@@ -68,7 +69,8 @@ func (k *Kube) GrantAccessToCICDLogs(registration *radixv1.RadixRegistration) er
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				"radixApp": registration.Name,
+				"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app": registration.Name,
 			},
 		},
 		RoleRef: auth.RoleRef{
@@ -234,7 +236,8 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 			Labels: map[string]string{
-				"radixApp": registration.Name,
+				"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app": registration.Name,
 			},
 		},
 		RoleRef: auth.RoleRef{

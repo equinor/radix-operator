@@ -314,7 +314,8 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":        appName,
+				"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app":       appName,
 				"radix-component": componentName,
 				"radix-branch":    branch,
 				"radix-commit":    commitID,
@@ -339,7 +340,8 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radixApp":        appName,
+						"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
+						"radix-app":       appName,
 						"radix-component": componentName,
 						"radix-branch":    branch,
 						"radix-commit":    commitID,
@@ -499,7 +501,8 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":        appName,
+				"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app":       appName,
 				"radix-component": componentName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
@@ -537,7 +540,8 @@ func getIngressConfig(componentName, appName, clustername, namespace string, uid
 				"kubernetes.io/ingress.class": "nginx",
 			},
 			Labels: map[string]string{
-				"radixApp": appName,
+				"radixApp":  appName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app": appName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{

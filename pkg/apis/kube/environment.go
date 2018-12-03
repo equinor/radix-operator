@@ -70,7 +70,9 @@ func (k *Kube) CreateEnvironment(registration *radixv1.RadixRegistration, envNam
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
-				"radixApp": registration.Name,
+				"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app": registration.Name,
+				"radix-env": envName,
 			},
 			OwnerReferences: []metav1.OwnerReference{
 				metav1.OwnerReference{

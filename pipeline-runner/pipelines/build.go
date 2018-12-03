@@ -71,7 +71,8 @@ func createBuildJob(appName, jobName string, components []v1.RadixComponent, clo
 			Labels: map[string]string{
 				"radix-job-name":  jobName,
 				"radix-build":     fmt.Sprintf("%s-%s", appName, imageTag),
-				"radix-app-name":  appName,
+				"radix-app-name":  appName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app":       appName,
 				"radix-image-tag": imageTag,
 				"radix-branch":    branch,
 				"radix-job-type":  "build",

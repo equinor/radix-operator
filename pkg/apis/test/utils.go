@@ -133,21 +133,26 @@ func (tu *Utils) CreateClusterPrerequisites(clustername string) {
 // CreateAppNamespace Helper method to creat app namespace
 func CreateAppNamespace(kubeclient kubernetes.Interface, appName string) string {
 	ns := builders.GetAppNamespace(appName)
-	createNamespace(kubeclient, ns)
+	createNamespace(kubeclient, appName, "app", ns)
 	return ns
 }
 
 // CreateEnvNamespace Helper method to creat env namespace
 func CreateEnvNamespace(kubeclient kubernetes.Interface, appName, environment string) string {
 	ns := builders.GetEnvironmentNamespace(appName, environment)
-	createNamespace(kubeclient, ns)
+	createNamespace(kubeclient, appName, environment, ns)
 	return ns
 }
 
-func createNamespace(kubeclient kubernetes.Interface, ns string) {
+func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns string) {
 	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ns,
+			Labels: map[string]string{
+				"radixApp":  appName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app": appName,
+				"radix-env": envName,
+			},
 		},
 	}
 
