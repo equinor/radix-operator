@@ -53,22 +53,17 @@ Then do `make docker-build` and after that completes `go run radix-operator/main
 
     make push
 
-3. Deploy (using the helm chart in the background. Remember to update DOCKER_PASSWORD):
+3. Deploy (using the helm chart in the background.):
 
-    export CLUSTER_NAME=$(kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
     make deploy-via-helm
 
 Will by default deploy image tag with commit id. Optionally deploy another image:
 
-    TAG=6e2da3995c078f33613cf459942d914f88f40367 CLUSTER_NAME=playground-master-45 DOCKER_PASSWORD=xx make deploy-via-helm
-
-> Set DOCKER_PASSWORD to the password for the `radixdev` user on the ACR.
+    TAG=6e2da3995c078f33613cf459942d914f88f40367 make deploy-via-helm
 
 4. Combined command for build push & deploy.
 
-    export CLUSTER_NAME=$(kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
     make helm-up
-
 
 **First time setup - Add private Helm Repo** 
 

@@ -8,6 +8,8 @@ DATE = $(shell date +%F_%T)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD)
 
+CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
+
 TAG := $(BRANCH)-$(HASH)
 
 .PHONY: test
@@ -36,23 +38,13 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-build,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-push,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
-# need to connect to kubernetes and container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
-deploy-operator-kc:
-	make deploy-operator
-	# update docker image version in deploy file - file name should be a variable
-	kubectl get deploy radix-operator -o yaml > oldRadixOperatorDef.yaml 
-	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
-	kubectl apply -f newRadixOperatorDef.yaml
-	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
-
 deploy-via-helm:
 	az acr helm repo add --name radixdev
 	helm repo update
 	helm upgrade --install radix-operator radixdev/radix-operator --set clusterName=$(CLUSTER_NAME) --set image.tag=$(TAG)
 
 helm-up:
-	make build
-	make push
+	make deploy-operator
 	make deploy-via-helm
 
 ROOT_PACKAGE=github.com/statoil/radix-operator
