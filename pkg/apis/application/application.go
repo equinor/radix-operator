@@ -1,8 +1,13 @@
 package application
 
 import (
+	"strings"
+
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 )
+
+// MagicBranch The branch that radix config lives on
+const MagicBranch = "master"
 
 // Application Instance variables
 type Application struct {
@@ -12,6 +17,11 @@ type Application struct {
 // NewApplication Constructor
 func NewApplication(config *radixv1.RadixApplication) Application {
 	return Application{config}
+}
+
+// IsMagicBranch Checks if given branch is were radix config lives
+func IsMagicBranch(branch string) bool {
+	return strings.EqualFold(branch, MagicBranch)
 }
 
 // IsBranchMappedToEnvironment Checks if given branch has a mapping
