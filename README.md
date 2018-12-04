@@ -55,7 +55,8 @@ Then do `make docker-build` and after that completes `go run radix-operator/main
 
 3. Deploy (using the helm chart in the background. Remember to update DOCKER_PASSWORD):
 
-    CLUSTER_NAME=dev DOCKER_PASSWORD=xx make deploy-via-helm
+    export CLUSTER_NAME=$(kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
+    make deploy-via-helm
 
 Will by default deploy image tag with commit id. Optionally deploy another image:
 
@@ -63,16 +64,11 @@ Will by default deploy image tag with commit id. Optionally deploy another image
 
 > Set DOCKER_PASSWORD to the password for the `radixdev` user on the ACR.
 
-# Updating helm chart
+4. Combined command for build push & deploy.
 
-1. Push updated `helm` chart to ACR. **PS: See note below if you have not used private ACR Helm Repos before.**
+    export CLUSTER_NAME=$(kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
+    make helm-up
 
-        cd charts/
-        export CHART_VERSION=`cat radix-operator/Chart.yaml | yq --raw-output .version`
-        tar -zcvf radix-operator-$CHART_VERSION.tgz radix-operator
-        az acr helm push radix-operator-$CHART_VERSION.tgz
-
-> Uses `yq` to extract version from `Charts.yaml`. Install with `sudo apt-get install jq && pip install yq`
 
 **First time setup - Add private Helm Repo** 
 

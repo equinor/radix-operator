@@ -1,5 +1,4 @@
 DOCKER_REGISTRY	?= radixdev.azurecr.io
-DOCKER_USERNAME	?= radixdev
 
 DOCKER_FILES	= operator pipeline
 
@@ -49,7 +48,7 @@ deploy-operator-kc:
 deploy-via-helm:
 	az acr helm repo add --name radixdev
 	helm repo update
-	helm upgrade --install radix-operator radixdev/radix-operator --set clusterName=$(CLUSTER_NAME) --set imageCredentials.username=$(DOCKER_USERNAME) --set imageCredentials.password=$(DOCKER_PASSWORD) --set image.tag=$(TAG)
+	helm upgrade --install radix-operator radixdev/radix-operator --set clusterName=$(CLUSTER_NAME) --set image.tag=$(TAG)
 
 helm-up:
 	make build

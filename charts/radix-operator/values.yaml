@@ -2,6 +2,9 @@
 
 clusterName: clusterz
 
+imagePullSecretName: radix-docker
+imageRegistry: radixdev.azurecr.io
+
 rbac:
   enabled: true
 
@@ -11,11 +14,6 @@ image:
   repository: radix-operator
   tag: "latest"
   pullPolicy: Always
-
-imageCredentials:
-  registry: radixdev.azurecr.io
-  username: someone
-  password: sillyness
 
 service:
   type: ClusterIP
