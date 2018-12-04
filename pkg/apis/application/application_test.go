@@ -1,4 +1,4 @@
-package onpush
+package application
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetTargetEnvironmentsAsMap_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
+func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -15,14 +15,16 @@ func TestGetTargetEnvironmentsAsMap_multipleEnvsToOneBranch_ListsBoth(t *testing
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
+	application := NewApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
+	assert.True(t, branchMapped)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], true)
 	assert.Equal(t, targetEnvs["qa"], true)
 }
 
-func TestGetTargetEnvironmentsAsMap_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
+func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
 	branch := "development"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -30,14 +32,16 @@ func TestGetTargetEnvironmentsAsMap_multipleEnvsToOneBranchOtherBranchIsChanged_
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
+	application := NewApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
+	assert.False(t, branchMapped)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["qa"], false)
 }
 
-func TestGetTargetEnvironmentsAsMap_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
+func TestIsBranchMappedToEnvironment_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
 	branch := "development"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -45,14 +49,16 @@ func TestGetTargetEnvironmentsAsMap_oneEnvToOneBranch_ListsBothButOnlyOneShouldB
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
+	application := NewApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
+	assert.True(t, branchMapped)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["qa"], true)
 }
 
-func TestGetTargetEnvironmentsAsMap_twoEnvNoBranch(t *testing.T) {
+func TestIsBranchMappedToEnvironment_twoEnvNoBranch(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -60,25 +66,29 @@ func TestGetTargetEnvironmentsAsMap_twoEnvNoBranch(t *testing.T) {
 		WithEnvironmentNoBranch("prod").
 		BuildRA()
 
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
+	application := NewApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
+	assert.False(t, branchMapped)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, false, targetEnvs["qa"])
 	assert.Equal(t, false, targetEnvs["prod"])
 }
 
-func TestGetTargetEnvironmentsAsMap_NoEnv(t *testing.T) {
+func TestIsBranchMappedToEnvironment_NoEnv(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
+	application := NewApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
+	assert.False(t, branchMapped)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
-func TestGetTargetEnvironmentsAsMap_promotionScheme_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
+func TestIsBranchMappedToEnvironment_promotionScheme_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -86,8 +96,10 @@ func TestGetTargetEnvironmentsAsMap_promotionScheme_ListsBothButOnlyOneShouldBeB
 		WithEnvironment("prod", "").
 		BuildRA()
 
-	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
+	application := NewApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
+	assert.True(t, branchMapped)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["qa"], true)

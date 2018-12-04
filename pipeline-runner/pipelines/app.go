@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/statoil/radix-operator/pkg/apis/application"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/statoil/radix-operator/pkg/apis/radixvalidators"
@@ -54,10 +55,11 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 		return validate.ConcatErrors(errs)
 	}
 
-	targetEnvs := getTargetEnvironmentsAsMap(branch, radixApplication)
-	if isTargetEnvsEmpty(targetEnvs) {
-		log.Errorf("Failed to match environment to branch: %s", branch)
-		return err
+	application := application.NewApplication(radixApplication)
+	branchIsMapped, targetEnvironments := application.IsBranchMappedToEnvironment(branch)
+
+	if !branchIsMapped {
+		return fmt.Errorf("Failed to match environment to branch: %s", branch)
 	}
 
 	appName := radixApplication.Name
@@ -82,7 +84,7 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 	}
 	log.Infof("Succeeded: build docker image")
 
-	_, err = cli.Deploy(jobName, radixRegistration, radixApplication, imageTag, branch, commitID, targetEnvs)
+	_, err = cli.Deploy(jobName, radixRegistration, radixApplication, imageTag, branch, commitID, targetEnvironments)
 	if err != nil {
 		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
 		return err
@@ -107,37 +109,4 @@ func (cli *RadixOnPushHandler) applyRadixApplication(radixRegistration *v1.Radix
 	}
 	log.Infof("RadixApplication %s saved to ns %s", radixApplication.Name, appNamespace)
 	return nil
-}
-
-func getTargetEnvironmentsAsMap(branch string, radixApplication *v1.RadixApplication) map[string]bool {
-	targetEnvs := make(map[string]bool)
-	for _, env := range radixApplication.Spec.Environments {
-		if branch == env.Build.From {
-			// Deploy environment
-			targetEnvs[env.Name] = true
-		} else {
-			// Only create namespace for environment
-			targetEnvs[env.Name] = false
-		}
-	}
-	return targetEnvs
-}
-
-func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
-	if len(targetEnvs) == 0 {
-		return true
-	}
-
-	// Check if all values are false
-	falseCount := 0
-	for _, value := range targetEnvs {
-		if value == false {
-			falseCount++
-		}
-	}
-	if falseCount == len(targetEnvs) {
-		return true
-	}
-
-	return false
 }
