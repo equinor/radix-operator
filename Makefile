@@ -1,4 +1,5 @@
 DOCKER_REGISTRY	?= radixdev.azurecr.io
+DOCKER_USERNAME	?= radixdev
 
 DOCKER_FILES	= operator pipeline
 
@@ -8,19 +9,21 @@ DATE = $(shell date +%F_%T)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD)
 
+TAG := $(BRANCH)-$(HASH)
+
 .PHONY: test
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client\|apis/radix'`
 
 define make-docker-build
   	build-$1:
-		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) --build-arg date="$(DATE)" --build-arg branch="$(BRANCH)" --build-arg commitid="$(HASH)" -f $1.Dockerfile .
+		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(TAG) --build-arg date="$(DATE)" --build-arg branch="$(BRANCH)" --build-arg commitid="$(HASH)" -f $1.Dockerfile .
   	build:: build-$1
 endef
 
 define make-docker-push
   	push-$1:
-		docker push $(DOCKER_REGISTRY)/radix-$1:$(VERSION)
+		docker push $(DOCKER_REGISTRY)/radix-$1:$(TAG)
   	push:: push-$1
 endef
 
@@ -42,6 +45,16 @@ deploy-operator-kc:
 	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
 	kubectl apply -f newRadixOperatorDef.yaml
 	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
+
+deploy-via-helm:
+	az acr helm repo add --name radixdev
+	helm repo update
+	helm upgrade --install radix-operator radixdev/radix-operator --set clusterName=$(CLUSTER_NAME) --set imageCredentials.username=$(DOCKER_USERNAME) --set imageCredentials.password=$(DOCKER_PASSWORD) --set image.tag=$(TAG)
+
+helm-up:
+	make build
+	make push
+	make deploy-via-helm
 
 ROOT_PACKAGE=github.com/statoil/radix-operator
 CUSTOM_RESOURCE_NAME=radix
