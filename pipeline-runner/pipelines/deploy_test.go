@@ -3,6 +3,7 @@ package onpush
 import (
 	"testing"
 
+	"github.com/statoil/radix-operator/pkg/apis/application"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +44,9 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		BuildRA()
 
 	cli, _ := Init(kubeclient, radixclient)
-	targetEnvs := getTargetEnvironmentsAsMap("master", ra)
+
+	application := application.NewApplication(ra)
+	_, targetEnvs := application.IsBranchMappedToEnvironment("master")
 
 	rds, err := cli.Deploy("any-job-name", rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
 	t.Run("validate deploy", func(t *testing.T) {
