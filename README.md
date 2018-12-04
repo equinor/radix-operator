@@ -39,38 +39,31 @@ Then do `make docker-build` and after that completes `go run radix-operator/main
 
 ## Deployment to Kubernetes
 
-1. Make Docker image.
+1. Make Docker image:
 
-        make docker-build
+    make build
 
     If this does not work, delete `Gopkg.lock` and `Gopkg.toml` files and run the following command:
 
-        dep init
+    dep init
 
     If some errors occur, try deleting `$GOPATH/pkg/dep/sources` directory and all its sub-directories, and re-run `dep init`.
 
-2. Push the created Docker image to container registry.
+2. Push the created Docker image to container registry:
 
-        docker login [REGISTRY] -u [USERNAME] -p [PASSWORD]
-        make docker-push
+    make push
 
-3. Update the `helm` chart. Modify `values.yaml` file under `charts/radix-operator` directory, change the `tag` value to the Docker image tag (i.e. the first 7 digits of the commit hash). Modify other parameters as necessary.
+3. Deploy (using the helm chart in the background.):
 
-4. Push updated `helm` chart to ACR. **PS: See note below if you have not used private ACR Helm Repos before.**
+    make deploy-via-helm
 
-        cd charts/
-        export CHART_VERSION=`cat radix-operator/Chart.yaml | yq --raw-output .version`
-        tar -zcvf radix-operator-$CHART_VERSION.tgz radix-operator
-        az acr helm push radix-operator-$CHART_VERSION.tgz
+Will by default deploy image tag with commit id. Optionally deploy another image:
 
-> Uses `yq` to extract version from `Charts.yaml`. Install with `sudo apt-get install jq && pip install yq`
+    TAG=6e2da3995c078f33613cf459942d914f88f40367 make deploy-via-helm
 
-5. Deploy using the given `helm` chart.
+4. Combined command for build push & deploy.
 
-        helm repo update
-        helm install --name [RELEASE_NAME] radixdev/radix-operator
-
-Where RELEASE_NAME is what you would like to call this particular instance of the installed helm chart.
+    make helm-up
 
 **First time setup - Add private Helm Repo** 
 

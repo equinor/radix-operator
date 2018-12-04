@@ -8,19 +8,23 @@ DATE = $(shell date +%F_%T)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD)
 
+CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
+
+TAG := $(BRANCH)-$(HASH)
+
 .PHONY: test
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
 define make-docker-build
   	build-$1:
-		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) --build-arg date="$(DATE)" --build-arg branch="$(BRANCH)" --build-arg commitid="$(HASH)" -f $1.Dockerfile .
+		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(TAG) --build-arg date="$(DATE)" --build-arg branch="$(BRANCH)" --build-arg commitid="$(HASH)" -f $1.Dockerfile .
   	build:: build-$1
 endef
 
 define make-docker-push
   	push-$1:
-		docker push $(DOCKER_REGISTRY)/radix-$1:$(VERSION)
+		docker push $(DOCKER_REGISTRY)/radix-$1:$(TAG)
   	push:: push-$1
 endef
 
@@ -34,14 +38,14 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-build,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-push,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
-# need to connect to kubernetes and container registry first - docker login radixdev.azurecr.io -u radixdev -p <%password%>
-deploy-operator-kc:
+deploy-via-helm:
+	az acr helm repo add --name radixdev
+	helm repo update
+	helm upgrade --install radix-operator radixdev/radix-operator --set clusterName=$(CLUSTER_NAME) --set image.tag=$(TAG)
+
+helm-up:
 	make deploy-operator
-	# update docker image version in deploy file - file name should be a variable
-	kubectl get deploy radix-operator -o yaml > oldRadixOperatorDef.yaml 
-	sed -E "s/(image: radixdev.azurecr.io\/radix-operator).*/\1:$(VERSION)/g" ./oldRadixOperatorDef.yaml > newRadixOperatorDef.yaml
-	kubectl apply -f newRadixOperatorDef.yaml
-	rm oldRadixOperatorDef.yaml newRadixOperatorDef.yaml
+	make deploy-via-helm
 
 ROOT_PACKAGE=github.com/statoil/radix-operator
 CUSTOM_RESOURCE_NAME=radix

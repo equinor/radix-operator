@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: "radix-operator"
@@ -22,7 +22,7 @@ spec:
       serviceAccount: "radix-operator"
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.imageCredentials.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
@@ -37,13 +37,9 @@ spec:
               path: /healthz
               port: metrics
           resources:
-            {{- toYaml .Values.resources | indent 12 -}}
-
-      {{ if .Values.imageCredentials.registry }}
+            {{- toYaml .Values.resources | indent 12 }}
       imagePullSecrets:
-        - name: {{.Values.imageCredentials.registry}}
-      {{ end }}
-
+        - name: {{ .Values.imagePullSecretName }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{ toYaml . | indent 8 }}

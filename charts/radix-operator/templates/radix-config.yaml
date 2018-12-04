@@ -8,4 +8,4 @@ metadata:
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
 data:
-  clustername: {{ .Values.clustername }}
+  clustername: {{ .Values.clusterName }}
