@@ -22,7 +22,7 @@ spec:
       serviceAccount: "radix-operator"
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.imageCredentials.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.imageRegistry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
@@ -39,10 +39,8 @@ spec:
           resources:
             {{- toYaml .Values.resources | indent 12 -}}
 
-      {{ if .Values.imageCredentials.registry }}
       imagePullSecrets:
-        - name: {{.Values.imageCredentials.registry}}
-      {{ end }}
+        - name: {{ .Values.imagePullSecretName }}
 
       {{- with .Values.nodeSelector }}
       nodeSelector:
