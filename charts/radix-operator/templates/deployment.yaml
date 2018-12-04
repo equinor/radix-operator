@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: "radix-operator"
@@ -37,11 +37,9 @@ spec:
               path: /healthz
               port: metrics
           resources:
-            {{- toYaml .Values.resources | indent 12 -}}
-
+            {{- toYaml .Values.resources | indent 12 }}
       imagePullSecrets:
         - name: {{ .Values.imagePullSecretName }}
-
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{ toYaml . | indent 8 }}
