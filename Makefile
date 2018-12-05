@@ -24,6 +24,7 @@ endef
 
 define make-docker-push
   	push-$1:
+		docker push $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION)
 		docker push $(DOCKER_REGISTRY)/radix-$1:$(TAG)
   	push:: push-$1
 endef
