@@ -25,7 +25,7 @@ const radixComponentEnvironmentVariable = "RADIX_COMPONENT"
 const radixPortsEnvironmentVariable = "RADIX_PORTS"
 const radixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
 const hostnameTemplate = "%s-%s.%s.dev.radix.equinor.com"
-const defaultReplicas = 2
+const defaultReplicas = 1			
 
 // RadixDeployHandler Instance variables
 type RadixDeployHandler struct {
