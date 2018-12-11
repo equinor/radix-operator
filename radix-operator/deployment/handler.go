@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/statoil/radix-operator/pkg/apis/utils"
+
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -25,7 +27,7 @@ const radixComponentEnvironmentVariable = "RADIX_COMPONENT"
 const radixPortsEnvironmentVariable = "RADIX_PORTS"
 const radixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
 const hostnameTemplate = "%s-%s.%s.dev.radix.equinor.com"
-const defaultReplicas = 2
+const defaultReplicas = 1			
 
 // RadixDeployHandler Instance variables
 type RadixDeployHandler struct {
@@ -407,9 +409,10 @@ func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap,
 	// secrets
 	if radixSecrets != nil {
 		for _, v := range radixSecrets {
+			componentSecretName := utils.GetComponentSecretName(componentName)
 			secretKeySelector := corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: componentName,
+					Name: componentSecretName,
 				},
 				Key: v,
 			}
