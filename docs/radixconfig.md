@@ -74,7 +74,7 @@ The folder where the Dockerfile can be found.
 
 #### replicas
 
-Scales the component. Defaults to 2 if not set to ensure rolling updates.
+Scales the component. Defaults to 1 if not set.
 
 #### public
 
@@ -91,8 +91,13 @@ An array of objects containing environment name and variables to be set inside t
 By default, each application container will have the following _default_ environment variables.
 
 ```
+RADIX_APP
 RADIX_CLUSTERNAME
+RADIX_COMPONENT
 RADIX_ENVIRONMENT
+RADIX_PORTS (only available if set in the config)
+RADIX_PORT_NAMES (only available if set in the config)
+RADIX_PUBLIC_DOMAIN_NAME (if public equals true is set)
 ```
 
 #### secrets
