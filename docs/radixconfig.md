@@ -42,6 +42,9 @@ spec:
             DB_PORT: "9876"
       secrets:
         - DB_PASS
+  dnsAppAlias:
+    environment: prod
+    component: frontend
 ```
 
 ## Specification
@@ -63,6 +66,12 @@ In the example above, a `git push` to `master` branch will build and deploy code
 ### components
 
 This is where you specify the various components for your application - it needs at least one.
+
+### dnsAppAlias
+
+Creates an alias in the form of `<app-name>.app.radix.equinor.com` for the specified environment and component. 
+
+In the example above, the component frontend hosted in environment prod, will be accessible from `myapp.app.radix.equinor.com` and a default endpoint provided for all open component `frontend-myapp-prod.<clustername>.dev.radix.equinor.com`
 
 #### name
 

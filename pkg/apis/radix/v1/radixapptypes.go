@@ -19,6 +19,7 @@ type RadixApplication struct {
 type RadixApplicationSpec struct {
 	Environments []Environment    `json:"environments"`
 	Components   []RadixComponent `json:"components"`
+	DNSAppAlias  AppAlias         `json:"dnsAppAlias"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -51,6 +52,12 @@ type Environment struct {
 // EnvBuild defines build parameters of a specific environment
 type EnvBuild struct {
 	From string `json:"from,omitempty" yaml:"from,omitempty"`
+}
+
+// AppAlias defines a URL alias for this application. The URL will be of form <app-name>.apps.radix.equinor.com
+type AppAlias struct {
+	Environment string `json:"environment,omitempty" yaml:"environment,omitempty"`
+	Component   string `json:"component,omitempty" yaml:"component,omitempty"`
 }
 
 // ComponentPort defines the port number, protocol and port for a service
