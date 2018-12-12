@@ -40,4 +40,5 @@ type RadixDeployComponent struct {
 	Public               bool            `json:"public" yaml:"public"`
 	EnvironmentVariables EnvVarsMap      `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets              []string        `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	DNSAppAlias          bool            `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
 }

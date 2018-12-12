@@ -13,6 +13,7 @@ type ApplicationBuilder interface {
 	WithEnvironmentNoBranch(string) ApplicationBuilder
 	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
 	WithComponents(...RadixApplicationComponentBuilder) ApplicationBuilder
+	WithDNSAppAlias(string, string) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *v1.RadixApplication
 }
@@ -23,6 +24,7 @@ type ApplicationBuilderStruct struct {
 	appName             string
 	environments        []v1.Environment
 	components          []RadixApplicationComponentBuilder
+	dnsAppAlias         v1.AppAlias
 }
 
 // WithRadixRegistration Associates this builder with a registration builder
@@ -58,6 +60,14 @@ func (ap *ApplicationBuilderStruct) WithEnvironmentNoBranch(environment string) 
 		Name: environment,
 	})
 
+	return ap
+}
+
+func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env string, component string) ApplicationBuilder {
+	ap.dnsAppAlias = v1.AppAlias{
+		Environment: env,
+		Component:   component,
+	}
 	return ap
 }
 
@@ -101,6 +111,7 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 		Spec: v1.RadixApplicationSpec{
 			Components:   components,
 			Environments: ap.environments,
+			DNSAppAlias:  ap.dnsAppAlias,
 		},
 	}
 	return radixApplication

@@ -44,10 +44,31 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
+	dnsErrors := validateDnsAppAlias(app)
+	if len(dnsErrors) > 0 {
+		errs = append(errs, dnsErrors...)
+	}
+
 	if len(errs) <= 0 {
 		return true, nil
 	}
 	return false, errs
+}
+
+func validateDnsAppAlias(app *radixv1.RadixApplication) []error {
+	errs := []error{}
+	alias := app.Spec.DNSAppAlias
+	if alias.Component == "" && alias.Environment == "" {
+		return errs
+	}
+
+	if !doesEnvExist(app, alias.Environment) {
+		errs = append(errs, fmt.Errorf("Env %s refered to by dnsAppAlias is not defined", alias.Environment))
+	}
+	if !doesComponentExist(app, alias.Component) {
+		errs = append(errs, fmt.Errorf("Component %s refered to by dnsAppAlias is not defined", alias.Component))
+	}
+	return errs
 }
 
 func validateComponents(app *radixv1.RadixApplication) []error {
@@ -117,6 +138,15 @@ func validateLabelName(resourceName, value string) error {
 		return nil
 	}
 	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
+}
+
+func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
+	for _, component := range app.Spec.Components {
+		if component.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {

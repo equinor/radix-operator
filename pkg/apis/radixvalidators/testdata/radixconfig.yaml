@@ -35,4 +35,6 @@ spec:
         - db-pass
         - db-pass2
         - db-pass3
-    
+  dnsAppAlias:
+    environment: prod
+    component: app

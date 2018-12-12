@@ -193,6 +193,7 @@ type DeployComponentBuilder interface {
 	WithPublic(bool) DeployComponentBuilder
 	WithReplicas(int) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
+	WithDNSAppAlias(bool) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -204,10 +205,16 @@ type deployComponentBuilder struct {
 	public               bool
 	replicas             int
 	secrets              []string
+	dnsappalias          bool
 }
 
 func (dcb *deployComponentBuilder) WithName(name string) DeployComponentBuilder {
 	dcb.name = name
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithDNSAppAlias(createDNSAppAlias bool) DeployComponentBuilder {
+	dcb.dnsappalias = createDNSAppAlias
 	return dcb
 }
 
@@ -260,6 +267,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Replicas:             dcb.replicas,
 		Secrets:              dcb.secrets,
 		EnvironmentVariables: dcb.environmentVariables,
+		DNSAppAlias:          dcb.dnsappalias,
 	}
 }
 
