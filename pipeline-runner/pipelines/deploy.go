@@ -111,7 +111,9 @@ func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID str
 
 func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageTag string) []v1.RadixDeployComponent {
 	appName := radixApplication.Name
+	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
+
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
 		variables := getEnvironmentVariables(appComponent, env)
@@ -124,7 +126,9 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageT
 			Ports:                appComponent.Ports,
 			Secrets:              appComponent.Secrets,
 			EnvironmentVariables: variables, // todo: use single EnvVars instead
+			DNSAppAlias:          env == dnsAppAlias.Environment && componentName == dnsAppAlias.Component,
 		}
+
 		components = append(components, deployComponent)
 	}
 	return components
