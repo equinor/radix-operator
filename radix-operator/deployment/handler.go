@@ -521,7 +521,7 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, depl
 		}
 	}
 
-	ingress := getIngressConfig(deployComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, deployComponent.Ports)
+	ingress := getDefaultIngressConfig(deployComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, deployComponent.Ports)
 	return t.applyIngress(namespace, ingress)
 }
 
@@ -561,34 +561,21 @@ func getAppAliasIngressConfig(componentName, appName, clustername, namespace str
 	ownerReference := getOwnerReference(componentName, uid)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
-	ingress := &v1beta1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-url-alias", appName),
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class": "nginx",
-			},
-			Labels: map[string]string{
-				"radixApp":  appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": appName,
-			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerReference,
-			},
-		},
-		Spec: ingressSpec,
-	}
-
-	return ingress
+	return getIngressConfig(appName, fmt.Sprintf("%s-url-alias", appName), ownerReference, ingressSpec)
 }
 
-func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+func getDefaultIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
 	ownerReference := getOwnerReference(componentName, uid)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
+	return getIngressConfig(appName, componentName, ownerReference, ingressSpec)
+}
+
+func getIngressConfig(appName, ingressName string, ownerReference metav1.OwnerReference, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: componentName,
+			Name: ingressName,
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx",
 			},
