@@ -37,6 +37,12 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 		return fmt.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
 	}
 
+	t.processRadixRegistration(radixRegistration)
+	return nil
+}
+
+// TODO: Move this into Application domain/package
+func (t *RadixRegistrationHandler) processRadixRegistration(radixRegistration *v1.RadixRegistration) {
 	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
 	kube, _ := kube.New(t.kubeclient)
 
@@ -81,8 +87,6 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 	} else {
 		logger.Infof("Applied access permissions needed by pipeline")
 	}
-
-	return nil
 }
 
 // ObjectDeleted is called when an object is deleted

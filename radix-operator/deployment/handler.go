@@ -95,6 +95,7 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	return nil
 }
 
+// TODO: Move this to the Deployment domain/package
 func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeployment) error {
 	isLatest, err := t.isLatest(radixDeploy)
 	if err != nil {
