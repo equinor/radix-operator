@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// TODO : This should be moved closer to Application domain/package
 func (kube *Kube) ApplyPipelineServiceAccount(radixRegistration *v1.RadixRegistration) (*corev1.ServiceAccount, error) {
 	namespace := utils.GetAppNamespace(radixRegistration.Name)
 	return kube.ApplyServiceAccount("radix-pipeline", namespace)

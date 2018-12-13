@@ -222,7 +222,7 @@ func isRadixWebHook(radixRegistrationNamespace, appName string) bool {
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	service := getServiceConfig(deployComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, deployComponent.Ports)
+	service := getServiceConfig(deployComponent.Name, radixDeploy, deployComponent.Ports)
 	logger.Infof("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
 	createdService, err := t.kubeclient.CoreV1().Services(namespace).Create(service)
 	if errors.IsAlreadyExists(err) {
@@ -272,7 +272,7 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, depl
 	}
 	clustername := radixconfigmap.Data["clustername"]
 	logger.Infof("Cluster name: %s", clustername)
-	ingress := getIngressConfig(deployComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, deployComponent.Ports)
+	ingress := getIngressConfig(deployComponent.Name, radixDeploy, clustername, namespace, deployComponent.Ports)
 	logger.Infof("Creating Ingress object %s in namespace %s", deployComponent.Name, namespace)
 	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
 	if errors.IsAlreadyExists(err) {
@@ -292,9 +292,7 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, depl
 }
 
 func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
-	trueVar := true
 	appName := radixDeploy.Spec.AppName
-	uid := radixDeploy.UID
 	environment := radixDeploy.Spec.Environment
 	componentName := deployComponent.Name
 	componentPorts := deployComponent.Ports
@@ -310,6 +308,8 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 		commitID = commitIDVal
 	}
 
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeploy)
+
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
@@ -320,15 +320,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 				"radix-branch":    branch,
 				"radix-commit":    commitID,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-					Kind:       "RadixDeployment",
-					Name:       componentName,
-					UID:        uid,
-					Controller: &trueVar,
-				},
-			},
+			OwnerReferences: ownerReference,
 		},
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: int32Ptr(defaultReplicas),
@@ -495,25 +487,18 @@ func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 	return portNumbers, portNames
 }
 
-func getServiceConfig(componentName, appName string, uid types.UID, componentPorts []v1.ComponentPort) *corev1.Service {
-	trueVar := true
+func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app":       appName,
+				"radixApp":        radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app":       radixDeployment.Spec.AppName,
 				"radix-component": componentName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-					Kind:       "RadixDeployment",
-					Name:       componentName,
-					UID:        uid,
-					Controller: &trueVar,
-				},
-			},
+			OwnerReferences: ownerReference,
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
@@ -529,8 +514,9 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 	return service
 }
 
-func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	trueVar := true
+func getIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+
 	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
 	tlsSecretName := "cluster-wildcard-tls-cert"
 	ingress := &v1beta1.Ingress{
@@ -540,18 +526,10 @@ func getIngressConfig(componentName, appName, clustername, namespace string, uid
 				"kubernetes.io/ingress.class": "nginx",
 			},
 			Labels: map[string]string{
-				"radixApp":  appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": appName,
+				"radixApp":  radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				"radix-app": radixDeployment.Spec.AppName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1",
-					Kind:       "RadixDeployment",
-					Name:       componentName,
-					UID:        uid,
-					Controller: &trueVar,
-				},
-			},
+			OwnerReferences: ownerReference,
 		},
 		Spec: v1beta1.IngressSpec{
 			TLS: []v1beta1.IngressTLS{

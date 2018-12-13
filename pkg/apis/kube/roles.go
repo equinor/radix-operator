@@ -27,23 +27,26 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	return nil
 }
 
+// TODO : This should be moved closer to Application domain/package
 func RrUserRole(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-rr-%s", appName)
 	return RrRole(registration, roleName, []string{"get", "list", "watch", "update", "patch", "delete"})
 }
 
+// TODO : This should be moved closer to Application domain/package
 func RrPipelineRole(registration *radixv1.RadixRegistration) *auth.Role {
 	appName := registration.Name
 	roleName := fmt.Sprintf("radix-pipeline-%s", appName)
 	return RrRole(registration, roleName, []string{"get"})
 }
 
+// TODO : This should be moved closer to Application domain/package
 func RrRole(registration *radixv1.RadixRegistration, roleName string, verbs []string) *auth.Role {
 	appName := registration.Name
 	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
 
-	ownerRef := GetOwnerReference(roleName, "RadixRegistration", registration.UID)
+	ownerRef := GetOwnerReferenceOfRegistrationWithName(roleName, registration)
 
 	logger.Infof("Creating role config %s", roleName)
 
@@ -57,9 +60,7 @@ func RrRole(registration *radixv1.RadixRegistration, roleName string, verbs []st
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerRef,
-			},
+			OwnerReferences: ownerRef,
 		},
 		Rules: []auth.PolicyRule{
 			{

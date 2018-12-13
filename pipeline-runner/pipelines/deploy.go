@@ -3,6 +3,7 @@ package onpush
 import (
 	"fmt"
 
+	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 
 	log "github.com/Sirupsen/logrus"
@@ -49,7 +50,7 @@ func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.Radix
 func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixRegistration, targetEnvs map[string]bool) error {
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(radixRegistration.Name, env)
-		ownerRef := getOwnerRef(radixRegistration)
+		ownerRef := kube.GetOwnerReferenceOfRegistration(radixRegistration)
 		labels := map[string]string{
 			"sync":      "cluster-wildcard-tls-cert",
 			"radix-app": radixRegistration.Name,
@@ -141,17 +142,4 @@ func getEnvironmentVariables(component v1.RadixComponent, env string) v1.EnvVars
 		}
 	}
 	return v1.EnvVarsMap{}
-}
-
-func getOwnerRef(radixRegistration *v1.RadixRegistration) []metav1.OwnerReference {
-	trueVar := true
-	return []metav1.OwnerReference{
-		metav1.OwnerReference{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixRegistration",
-			Name:       radixRegistration.Name,
-			UID:        radixRegistration.UID,
-			Controller: &trueVar,
-		},
-	}
 }

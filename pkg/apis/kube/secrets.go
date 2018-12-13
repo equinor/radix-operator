@@ -38,6 +38,7 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 	return savedSecret, nil
 }
 
+// TODO : This should be moved closer to Application domain/package
 func (k *Kube) ApplySecretsForPipelines(radixRegistration *radixv1.RadixRegistration) error {
 	log.Infof("Apply secrets for pipelines")
 	buildNamespace := utils.GetAppNamespace(radixRegistration.Name)
