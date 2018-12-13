@@ -53,6 +53,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("app").
 				WithPort("http", 8080).
 				WithPublic(true).
+				WithDNSAppAlias(true).
 				WithReplicas(4),
 			utils.NewDeployComponentBuilder().
 				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
@@ -92,14 +93,14 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, radixPortNamesEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Name)
 		assert.Equal(t, "(http)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Value)
 		assert.Equal(t, "redis", deployments.Items[1].Name, "redis deployment not there")
-		assert.Equal(t, int32(2), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, int32(defaultReplicas), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, 7, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, environmentnameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[2].Name)
 		assert.Equal(t, "3001", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Value)
 		assert.Equal(t, "radixquote", deployments.Items[2].Name, "radixquote deployment not there")
-		assert.Equal(t, int32(2), *deployments.Items[2].Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, int32(defaultReplicas), *deployments.Items[2].Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, clusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, environmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[7].Name)
@@ -117,19 +118,22 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate ingress", func(t *testing.T) {
 		t.Parallel()
 		ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(ingresses.Items), "Number of ingresses was not according to public components")
-		assert.Equal(t, "app", ingresses.Items[0].GetName(), "App should have had an ingress")
+		assert.Equal(t, 3, len(ingresses.Items), "Number of ingresses was not according to public components")
+		assert.Equal(t, "edcradix-url-alias", ingresses.Items[0].GetName(), "App should have had an app alias ingress")
 		assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-		assert.Equal(t, "radixquote", ingresses.Items[1].GetName(), "Radixquote should have had an ingress")
-		assert.Equal(t, int32(3000), ingresses.Items[1].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "app", ingresses.Items[1].GetName(), "App should have had an ingress")
+		assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "radixquote", ingresses.Items[2].GetName(), "Radixquote should have had an ingress")
+		assert.Equal(t, int32(3000), ingresses.Items[2].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
+		componentSecretName := utils.GetComponentSecretName("radixquote")
 		secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
 		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
-		assert.Equal(t, "radixquote", secrets.Items[1].GetName(), "Component secret is not as expected")
+		assert.Equal(t, componentSecretName, secrets.Items[1].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {

@@ -63,6 +63,8 @@ func Test_invalid_ra(t *testing.T) {
 		{"to long branch name", func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = "way.toooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.long-app-name"
 		}},
+		{"dns alias non existing component", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = "non existing" }},
+		{"dns alias non existing env", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Environment = "non existing" }},
 	}
 
 	_, client := validRASetup()
