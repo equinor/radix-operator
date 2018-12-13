@@ -9,6 +9,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// TODO: Merge this with "github.com/statoil/radix-operator/pkg/apis/test" once the handler functionality is in the pkg structure
+
 // Utils Instance variables
 type Utils struct {
 	client              kubernetes.Interface
