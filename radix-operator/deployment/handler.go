@@ -499,14 +499,14 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, depl
 	}
 
 	if deployComponent.DNSAppAlias {
-		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, deployComponent.Ports)
+		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, radixDeploy, clustername, namespace, deployComponent.Ports)
 		err = t.applyIngress(namespace, appAliasIngress)
 		if err != nil {
-			logger.Errorf("Failed to create app alias ingress for app %v", radixDeploy.Spec.AppName, err)
+			logger.Errorf("Failed to create app alias ingress for app %s. Error was %s ", radixDeploy.Spec.AppName, err)
 		}
 	}
 
-	ingress := getDefaultIngressConfig(deployComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, deployComponent.Ports)
+	ingress := getDefaultIngressConfig(deployComponent.Name, radixDeploy, clustername, namespace, deployComponent.Ports)
 	return t.applyIngress(namespace, ingress)
 }
 
@@ -541,23 +541,23 @@ func (t *RadixDeployHandler) getClusterName() (string, error) {
 	return clustername, nil
 }
 
-func getAppAliasIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	hostname := fmt.Sprintf("%s.app.radix.equinor.com", appName)
-	ownerReference := getOwnerReference(componentName, uid)
+func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+	hostname := fmt.Sprintf("%s.app.radix.equinor.com", radixDeployment.Spec.AppName)
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
-	return getIngressConfig(appName, fmt.Sprintf("%s-url-alias", appName), ownerReference, ingressSpec)
+	return getIngressConfig(radixDeployment, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, ingressSpec)
 }
 
-func getDefaultIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
-	ownerReference := getOwnerReference(componentName, uid)
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
-	return getIngressConfig(appName, componentName, ownerReference, ingressSpec)
+	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)
 }
 
-func getIngressConfig(appName, ingressName string, ownerReference metav1.OwnerReference, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
+func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, ownerReference []metav1.OwnerReference, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ingressName,
@@ -569,17 +569,12 @@ func getIngressConfig(appName, ingressName string, ownerReference metav1.OwnerRe
 				"radix-app": radixDeployment.Spec.AppName,
 			},
 			OwnerReferences: ownerReference,
-			},
 		},
 		Spec: ingressSpec,
 	}
 
 	return ingress
 }
-
-func getOwnerReference(componentName string, uid types.UID) metav1.OwnerReference {
-	trueVar := true
-	return metav1.OwnerReference{
 
 func getIngressSpec(hostname, serviceName string, servicePort int32) v1beta1.IngressSpec {
 	tlsSecretName := "cluster-wildcard-tls-cert"
