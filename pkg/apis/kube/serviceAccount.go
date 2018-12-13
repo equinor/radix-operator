@@ -3,13 +3,14 @@ package kube
 import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (kube *Kube) ApplyPipelineServiceAccount(radixRegistration *v1.RadixRegistration) (*corev1.ServiceAccount, error) {
-	namespace := GetCiCdNamespace(radixRegistration)
+	namespace := utils.GetAppNamespace(radixRegistration.Name)
 	return kube.ApplyServiceAccount("radix-pipeline", namespace)
 }
 

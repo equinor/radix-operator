@@ -4,6 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +40,7 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 
 func (k *Kube) ApplySecretsForPipelines(radixRegistration *radixv1.RadixRegistration) error {
 	log.Infof("Apply secrets for pipelines")
-	buildNamespace := GetCiCdNamespace(radixRegistration)
+	buildNamespace := utils.GetAppNamespace(radixRegistration.Name)
 
 	err := k.applyDockerSecretToBuildNamespace(buildNamespace)
 	if err != nil {

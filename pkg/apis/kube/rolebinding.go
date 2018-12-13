@@ -5,6 +5,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,7 +58,7 @@ func (k *Kube) GrantAppAdminAccessToRuntimeSecrets(namespace string, registratio
 }
 
 func (k *Kube) GrantAccessToCICDLogs(registration *radixv1.RadixRegistration) error {
-	namespace := GetCiCdNamespace(registration)
+	namespace := utils.GetAppNamespace(registration.Name)
 	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
 	clusterRoleName := "radix-app-admin"
 
@@ -212,7 +213,7 @@ func (k *Kube) givePipelineAccessToRR(registration *radixv1.RadixRegistration, s
 }
 
 func (k *Kube) givePipelineAccessToAppNamespace(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
-	namespace := GetCiCdNamespace(registration)
+	namespace := utils.GetAppNamespace(registration.Name)
 	rolebinding := pipelineRoleBinding(registration, serviceAccount)
 
 	return k.ApplyRoleBinding(namespace, rolebinding)

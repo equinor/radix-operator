@@ -1,7 +1,6 @@
 package registration
 
 import (
-	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -45,7 +44,7 @@ func Test_RadixRegistrationHandler(t *testing.T) {
 	t.Run("It creates a registration", func(t *testing.T) {
 		err := handler.ObjectCreated(registration)
 		assert.NoError(t, err)
-		ns, err := client.CoreV1().Namespaces().Get(fmt.Sprintf("%s-app", registration.Name), metav1.GetOptions{})
+		ns, err := client.CoreV1().Namespaces().Get(utils.GetAppNamespace(registration.Name), metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, ns)
 	})

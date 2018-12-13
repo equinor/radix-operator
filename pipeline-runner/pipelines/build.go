@@ -7,6 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +16,8 @@ import (
 func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag string) error {
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
-	namespace := fmt.Sprintf("%s-app", appName)
+	namespace := utils.GetAppNamespace(appName)
+
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createBuildJob(appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)

@@ -48,7 +48,7 @@ func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.Radix
 
 func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixRegistration, targetEnvs map[string]bool) error {
 	for env := range targetEnvs {
-		namespaceName := fmt.Sprintf("%s-%s", radixRegistration.Name, env)
+		namespaceName := utils.GetEnvironmentNamespace(radixRegistration.Name, env)
 		ownerRef := getOwnerRef(radixRegistration)
 		labels := map[string]string{
 			"sync":      "cluster-wildcard-tls-cert",
@@ -90,7 +90,7 @@ func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID str
 	radixDeployment := v1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deployName,
-			Namespace: fmt.Sprintf("%s-%s", appName, env),
+			Namespace: utils.GetEnvironmentNamespace(appName, env),
 			Labels: map[string]string{
 				"radixApp":       appName, // For backwards compatibility. Remove when cluster is migrated
 				"radix-app":      appName,

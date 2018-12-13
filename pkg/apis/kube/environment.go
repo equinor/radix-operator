@@ -5,6 +5,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +15,7 @@ import (
 func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, deploy *radixv1.RadixDeployment) error {
 	envName := deploy.Spec.Environment
 	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
-	ns := fmt.Sprintf("%s-%s", registration.Name, envName)
+	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
 	err := k.createDockerSecret(registration, ns)
 	if err != nil {
@@ -64,7 +65,7 @@ func (k *Kube) CreateEnvironment(registration *radixv1.RadixRegistration, envNam
 	logger = logger.WithFields(log.Fields{"registrationName": registration.ObjectMeta.Name, "registrationNamespace": registration.ObjectMeta.Namespace})
 
 	trueVar := true
-	name := fmt.Sprintf("%s-%s", registration.Name, envName)
+	name := utils.GetEnvironmentNamespace(registration.Name, envName)
 	ns := &v1.Namespace{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{

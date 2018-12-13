@@ -94,7 +94,7 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 }
 
 func (cli *RadixOnPushHandler) applyRadixApplication(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication) error {
-	appNamespace := kube.GetCiCdNamespace(radixRegistration)
+	appNamespace := utils.GetAppNamespace(radixRegistration.Name)
 	_, err := cli.radixclient.RadixV1().RadixApplications(appNamespace).Create(radixApplication)
 	if errors.IsAlreadyExists(err) {
 		err = cli.radixclient.RadixV1().RadixApplications(appNamespace).Delete(radixApplication.Name, &metav1.DeleteOptions{})
