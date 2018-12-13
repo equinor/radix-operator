@@ -17,9 +17,9 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Environments []Environment    `json:"environments"`
-	Components   []RadixComponent `json:"components"`
-	DNSAppAlias  AppAlias         `json:"dnsAppAlias"`
+	Environments []Environment    `json:"environments" yaml:"environments"`
+	Components   []RadixComponent `json:"components" yaml:"components"`
+	DNSAppAlias  AppAlias         `json:"dnsAppAlias" yaml:"dnsAppAlias"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
