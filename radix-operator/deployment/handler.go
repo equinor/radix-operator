@@ -7,6 +7,8 @@ import (
 
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -27,6 +29,7 @@ const (
 	radixAppEnvironmentVariable        = "RADIX_APP"
 	radixComponentEnvironmentVariable  = "RADIX_COMPONENT"
 	radixPortsEnvironmentVariable      = "RADIX_PORTS"
+	prometheusInstanceLabel            = "LABEL_PROMETHEUS_INSTANCE"
 	radixPortNamesEnvironmentVariable  = "RADIX_PORT_NAMES"
 	hostnameTemplate                   = "%s-%s.%s.dev.radix.equinor.com"
 	defaultReplicas                    = 1
@@ -34,19 +37,21 @@ const (
 
 // RadixDeployHandler Instance variables
 type RadixDeployHandler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
+	kubeclient              kubernetes.Interface
+	radixclient             radixclient.Interface
+	prometheusperatorclient monitoring.Interface
+	kubeutil                *kube.Kube
 }
 
 // NewDeployHandler Constructor
-func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixDeployHandler {
+func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface) RadixDeployHandler {
 	kube, _ := kube.New(kubeclient)
 
 	handler := RadixDeployHandler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kube,
+		kubeclient:              kubeclient,
+		radixclient:             radixclient,
+		prometheusperatorclient: prometheusperatorclient,
+		kubeutil:                kube,
 	}
 
 	return handler
@@ -137,6 +142,13 @@ func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeploym
 			if err != nil {
 				logger.Infof("Failed to create ingress: %v", err)
 				return fmt.Errorf("Failed to create ingress: %v", err)
+			}
+		}
+		if v.Monitoring {
+			err = t.createServiceMonitor(radixDeploy, v)
+			if err != nil {
+				logger.Infof("Failed to create service monitor: %v", err)
+				return fmt.Errorf("Failed to create service monitor: %v", err)
 			}
 		}
 		err = t.kubeutil.GrantAppAdminAccessToRuntimeSecrets(radixDeploy.Namespace, radixRegistration, &v)
@@ -267,6 +279,26 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, depl
 		return fmt.Errorf("Failed to create Service object: %v", err)
 	}
 	logger.Infof("Created Service: %s in namespace %s", createdService.Name, namespace)
+	return nil
+}
+
+func (t *RadixDeployHandler) createServiceMonitor(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
+	namespace := radixDeploy.Namespace
+	serviceMonitor := getServiceMonitorConfig(deployComponent.Name, namespace, deployComponent.Ports)
+	createdServiceMonitor, err := t.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitor)
+	if errors.IsAlreadyExists(err) {
+		logger.Infof("ServiceMonitor object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
+		updatedServiceMonitor, err := t.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(serviceMonitor)
+		if err != nil {
+			return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
+		}
+		logger.Infof("Updated ServiceMonitor: %s in namespace %s", updatedServiceMonitor.Name, namespace)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
+	}
+	logger.Infof("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 	return nil
 }
 
@@ -493,6 +525,37 @@ func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment,
 	return service
 }
 
+func getServiceMonitorConfig(componentName, namespace string, componentPorts []v1.ComponentPort) *monitoringv1.ServiceMonitor {
+	serviceMonitor := &monitoringv1.ServiceMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: componentName,
+			Labels: map[string]string{
+				"prometheus": os.Getenv(prometheusInstanceLabel),
+			},
+		},
+		Spec: monitoringv1.ServiceMonitorSpec{
+			Endpoints: []monitoringv1.Endpoint{
+				{
+					Interval: "5s",
+					Port:     componentPorts[0].Name,
+				},
+			},
+			JobLabel: fmt.Sprintf("%s-%s", namespace, componentName),
+			NamespaceSelector: monitoringv1.NamespaceSelector{
+				MatchNames: []string{
+					namespace,
+				},
+			},
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"radix-component": componentName,
+				},
+			},
+		},
+	}
+	return serviceMonitor
+}
+
 func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
 	clustername, err := t.getClusterName()
@@ -618,6 +681,7 @@ func getIngressSpec(hostname, serviceName string, servicePort int32) v1beta1.Ing
 		},
 	}
 }
+
 func buildServicePorts(componentPorts []v1.ComponentPort) []corev1.ServicePort {
 	var ports []corev1.ServicePort
 	for _, v := range componentPorts {

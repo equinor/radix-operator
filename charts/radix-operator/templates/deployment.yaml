@@ -28,6 +28,9 @@ spec:
             - name: metrics
               containerPort: {{ .Values.service.internalPort }}
               protocol: TCP
+          env:
+            - name: LABEL_PROMETHEUS_INSTANCE
+              value: {{ .Values.prometheusName }}
           livenessProbe:
             httpGet:
               path: /healthz

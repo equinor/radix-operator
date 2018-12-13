@@ -34,3 +34,5 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+prometheusName: kube-prometheus
