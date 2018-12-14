@@ -5,6 +5,20 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Radix Labels
+const (
+	RadixAppLabel       = "radix-app"
+	RadixEnvLabel       = "radix-env"
+	RadixComponentLabel = "radix-component"
+	RadixJobNameLabel   = "radix-job-name"
+	RadixBuildLabel     = "radix-build"
+	RadixCommitLabel    = "radix-commit"
+	RadixImageTagLabel  = "radix-image-tag"
+	RadixBranchLabel    = "radix-branch"
+	RadixJobTypeLabel   = "radix-job-type"
+	RadixJobTypeBuild   = "build"
+)
+
 type Kube struct {
 	kubeClient kubernetes.Interface
 }

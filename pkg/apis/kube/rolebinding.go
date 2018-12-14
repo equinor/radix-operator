@@ -5,13 +5,15 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
+// GrantAppAdminAccessToNs Grant access to environment namespace
+// TODO : This should be moved closer to Deployment domain/package
 func (k *Kube) GrantAppAdminAccessToNs(namespace string, registration *radixv1.RadixRegistration) error {
 	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
 	clusterRoleName := "radix-app-admin-envs"
@@ -24,8 +26,8 @@ func (k *Kube) GrantAppAdminAccessToNs(namespace string, registration *radixv1.R
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": registration.Name,
+				"radixApp":    registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				RadixAppLabel: registration.Name,
 			},
 		},
 		RoleRef: auth.RoleRef{
@@ -39,6 +41,8 @@ func (k *Kube) GrantAppAdminAccessToNs(namespace string, registration *radixv1.R
 	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
+// GrantAppAdminAccessToRuntimeSecrets Grants access to runtime secrets in environment namespace
+// TODO : This should be moved closer to Deployment domain/package
 func (k *Kube) GrantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) error {
 	if component.Secrets == nil || len(component.Secrets) <= 0 {
 		return nil
@@ -56,8 +60,10 @@ func (k *Kube) GrantAppAdminAccessToRuntimeSecrets(namespace string, registratio
 	return k.ApplyRoleBinding(namespace, rolebinding)
 }
 
+// GrantAccessToCICDLogs Grants access to pipeline logs
+// TODO : This should be moved closer to Application domain/package
 func (k *Kube) GrantAccessToCICDLogs(registration *radixv1.RadixRegistration) error {
-	namespace := GetCiCdNamespace(registration)
+	namespace := utils.GetAppNamespace(registration.Name)
 	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
 	clusterRoleName := "radix-app-admin"
 
@@ -69,8 +75,8 @@ func (k *Kube) GrantAccessToCICDLogs(registration *radixv1.RadixRegistration) er
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": registration.Name,
+				"radixApp":    registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				RadixAppLabel: registration.Name,
 			},
 		},
 		RoleRef: auth.RoleRef{
@@ -84,6 +90,8 @@ func (k *Kube) GrantAccessToCICDLogs(registration *radixv1.RadixRegistration) er
 	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
+// ApplyRbacRadixRegistration Grants access to radix registration
+// TODO : This should be moved closer to Application domain/package
 func (k *Kube) ApplyRbacRadixRegistration(registration *radixv1.RadixRegistration) error {
 	namespace := "default"
 	role := RrUserRole(registration)
@@ -97,6 +105,8 @@ func (k *Kube) ApplyRbacRadixRegistration(registration *radixv1.RadixRegistratio
 	return k.ApplyRoleBinding(namespace, rolebinding)
 }
 
+// ApplyRbacOnPipelineRunner Grants access to radix pipeline
+// TODO : This should be moved closer to Application domain/package
 func (k *Kube) ApplyRbacOnPipelineRunner(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
 	err := k.givePipelineAccessToRR(registration, serviceAccount)
 	if err != nil {
@@ -151,8 +161,9 @@ func (k *Kube) ApplyClusterRoleBinding(rolebinding *auth.ClusterRoleBinding) err
 	return nil
 }
 
+// TODO : This should be moved closer to Application domain/package
 func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
-	ownerReference := GetOwnerReference(registration.Name, "RadixRegistration", registration.UID)
+	ownerReference := GetOwnerReferenceOfRegistration(registration)
 
 	rolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -160,10 +171,8 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *r
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
-			OwnerReferences: []metav1.OwnerReference{
-				ownerReference,
-			},
+			Name:            fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
+			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -179,19 +188,6 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *r
 		},
 	}
 	return k.ApplyClusterRoleBinding(rolebinding)
-}
-
-func GetOwnerReference(name, kind string, uid types.UID) metav1.OwnerReference {
-	trueVar := true
-	ownerRef := metav1.OwnerReference{
-		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-		Kind:       kind,
-		Name:       name,
-		UID:        uid,
-		Controller: &trueVar,
-	}
-	logger.Infof("owner reference uid: %v, name: %s, kind: %s", uid, name, kind)
-	return ownerRef
 }
 
 func (k *Kube) givePipelineAccessToRR(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
@@ -212,7 +208,7 @@ func (k *Kube) givePipelineAccessToRR(registration *radixv1.RadixRegistration, s
 }
 
 func (k *Kube) givePipelineAccessToAppNamespace(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
-	namespace := GetCiCdNamespace(registration)
+	namespace := utils.GetAppNamespace(registration.Name)
 	rolebinding := pipelineRoleBinding(registration, serviceAccount)
 
 	return k.ApplyRoleBinding(namespace, rolebinding)
@@ -236,8 +232,8 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 			Labels: map[string]string{
-				"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": registration.Name,
+				"radixApp":    registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				RadixAppLabel: registration.Name,
 			},
 		},
 		RoleRef: auth.RoleRef{
@@ -254,7 +250,7 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 func pipelineClusterRolebinding(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) *auth.ClusterRoleBinding {
 	appName := registration.Name
 	roleName := "radix-pipeline-runner"
-	ownerReference := GetOwnerReference(registration.Name, "RadixRegistration", registration.UID)
+	ownerReference := GetOwnerReferenceOfRegistration(registration)
 	logger.Infof("Create cluster rolebinding config %s", roleName)
 
 	rolebinding := &auth.ClusterRoleBinding{
@@ -267,9 +263,7 @@ func pipelineClusterRolebinding(registration *radixv1.RadixRegistration, service
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerReference,
-			},
+			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -322,7 +316,7 @@ func pipelineRoleBinding(registration *radixv1.RadixRegistration, serviceAccount
 func rrPipelineRoleBinding(registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount, role *auth.Role) *auth.RoleBinding {
 	appName := registration.Name
 	roleBindingName := role.Name
-	ownerReference := GetOwnerReference(registration.Name, "RadixRegistration", registration.UID)
+	ownerReference := GetOwnerReferenceOfRegistration(registration)
 	logger.Infof("Create rolebinding config %s", roleBindingName)
 
 	rolebinding := &auth.RoleBinding{
@@ -335,9 +329,7 @@ func rrPipelineRoleBinding(registration *radixv1.RadixRegistration, serviceAccou
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerReference,
-			},
+			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -360,7 +352,7 @@ func rrRoleBinding(registration *radixv1.RadixRegistration, role *auth.Role) *au
 	roleBindingName := role.Name
 	logger.Infof("Create roleBinding config %s", roleBindingName)
 
-	ownerReference := GetOwnerReference(roleBindingName, "RadixRegistration", registration.UID)
+	ownerReference := GetOwnerReferenceOfRegistrationWithName(roleBindingName, registration)
 	subjects := getRoleBindingGroups(registration.Spec.AdGroups)
 
 	rolebinding := &auth.RoleBinding{
@@ -373,9 +365,7 @@ func rrRoleBinding(registration *radixv1.RadixRegistration, role *auth.Role) *au
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				ownerReference,
-			},
+			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",

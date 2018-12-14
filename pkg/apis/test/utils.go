@@ -2,6 +2,7 @@ package test
 
 import (
 	log "github.com/Sirupsen/logrus"
+	"github.com/statoil/radix-operator/pkg/apis/kube"
 	builders "github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -149,9 +150,9 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ns,
 			Labels: map[string]string{
-				"radixApp":  appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": appName,
-				"radix-env": envName,
+				"radixApp":         appName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel: appName,
+				kube.RadixEnvLabel: envName,
 			},
 		},
 	}
