@@ -292,11 +292,11 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app":       appName,
-				"radix-component": componentName,
-				"radix-branch":    branch,
-				"radix-commit":    commitID,
+				"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:       appName,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixBranchLabel:    branch,
+				kube.RadixCommitLabel:    commitID,
 			},
 			OwnerReferences: ownerReference,
 		},
@@ -304,17 +304,17 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 			Replicas: int32Ptr(defaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"radix-component": componentName,
+					kube.RadixComponentLabel: componentName,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
-						"radix-app":       appName,
-						"radix-component": componentName,
-						"radix-branch":    branch,
-						"radix-commit":    commitID,
+						"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
+						kube.RadixAppLabel:       appName,
+						kube.RadixComponentLabel: componentName,
+						kube.RadixBranchLabel:    branch,
+						kube.RadixCommitLabel:    commitID,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -472,16 +472,16 @@ func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":        radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app":       radixDeployment.Spec.AppName,
-				"radix-component": componentName,
+				"radixApp":               radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
+				kube.RadixComponentLabel: componentName,
 			},
 			OwnerReferences: ownerReference,
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				"radix-component": componentName,
+				kube.RadixComponentLabel: componentName,
 			},
 		},
 	}
@@ -566,8 +566,8 @@ func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, o
 				"kubernetes.io/ingress.class": "nginx",
 			},
 			Labels: map[string]string{
-				"radixApp":  radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": radixDeployment.Spec.AppName,
+				"radixApp":         radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel: radixDeployment.Spec.AppName,
 			},
 			OwnerReferences: ownerReference,
 		},

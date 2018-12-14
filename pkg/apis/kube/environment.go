@@ -52,9 +52,9 @@ func (k *Kube) CreateEnvironment(registration *radixv1.RadixRegistration, envNam
 	name := utils.GetEnvironmentNamespace(registration.Name, envName)
 
 	labels := map[string]string{
-		"radixApp":  registration.Name, // For backwards compatibility. Remove when cluster is migrated
-		"radix-app": registration.Name,
-		"radix-env": envName,
+		"radixApp":    registration.Name, // For backwards compatibility. Remove when cluster is migrated
+		RadixAppLabel: registration.Name,
+		RadixEnvLabel: envName,
 	}
 
 	ownerRef := GetOwnerReferenceOfRegistration(registration)

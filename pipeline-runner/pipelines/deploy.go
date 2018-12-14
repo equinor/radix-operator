@@ -36,6 +36,7 @@ func (cli *RadixOnPushHandler) Deploy(jobName string, radixRegistration *v1.Radi
 	return radixDeployments, nil
 }
 
+// TODO : Move this into Deployment domain/package
 func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.RadixRegistration, radixDeployments []v1.RadixDeployment) error {
 	for _, rd := range radixDeployments {
 		log.Infof("Apply radix deployment %s on env %s", rd.ObjectMeta.Name, rd.ObjectMeta.Namespace)
@@ -47,14 +48,15 @@ func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.Radix
 	return nil
 }
 
+// TODO : Move this into Deployment domain/package
 func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixRegistration, targetEnvs map[string]bool) error {
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(radixRegistration.Name, env)
 		ownerRef := kube.GetOwnerReferenceOfRegistration(radixRegistration)
 		labels := map[string]string{
-			"sync":      "cluster-wildcard-tls-cert",
-			"radix-app": radixRegistration.Name,
-			"radix-env": env,
+			"sync":             "cluster-wildcard-tls-cert",
+			kube.RadixAppLabel: radixRegistration.Name,
+			kube.RadixEnvLabel: env,
 		}
 
 		err := cli.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
@@ -66,6 +68,7 @@ func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixReg
 	return nil
 }
 
+// TODO : Move this into Deployment domain/package
 func createRadixDeployments(radixApplication *v1.RadixApplication, jobName, imageTag, branch, commitID string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
 	radixDeployments := []v1.RadixDeployment{}
 	for _, env := range radixApplication.Spec.Environments {
@@ -93,12 +96,12 @@ func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID str
 			Name:      deployName,
 			Namespace: utils.GetEnvironmentNamespace(appName, env),
 			Labels: map[string]string{
-				"radixApp":       appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app":      appName,
-				"radix-env":      env,
-				"radix-branch":   branch,
-				"radix-commit":   commitID,
-				"radix-job-name": jobName,
+				"radixApp":             appName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:     appName,
+				kube.RadixEnvLabel:     env,
+				kube.RadixBranchLabel:  branch,
+				kube.RadixCommitLabel:  commitID,
+				kube.RadixJobNameLabel: jobName,
 			},
 		},
 		Spec: v1.RadixDeploymentSpec{
