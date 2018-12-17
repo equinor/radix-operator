@@ -3,6 +3,7 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 
@@ -501,9 +502,11 @@ func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, depl
 
 	if deployComponent.DNSAppAlias {
 		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, radixDeploy, clustername, namespace, deployComponent.Ports)
-		err = t.applyIngress(namespace, appAliasIngress)
-		if err != nil {
-			logger.Errorf("Failed to create app alias ingress for app %s. Error was %s ", radixDeploy.Spec.AppName, err)
+		if appAliasIngress != nil {
+			err = t.applyIngress(namespace, appAliasIngress)
+			if err != nil {
+				logger.Errorf("Failed to create app alias ingress for app %s. Error was %s ", radixDeploy.Spec.AppName, err)
+			}
 		}
 	}
 
@@ -543,7 +546,12 @@ func (t *RadixDeployHandler) getClusterName() (string, error) {
 }
 
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	hostname := fmt.Sprintf("%s.app.radix.equinor.com", radixDeployment.Spec.AppName)
+	appAlias := os.Getenv("app_alias_url") // .app.dev.radix.equinor.com in launch.json
+	if appAlias == "" {
+		return nil
+	}
+
+	hostname := fmt.Sprintf("%s%s", radixDeployment.Spec.AppName, appAlias)
 	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
