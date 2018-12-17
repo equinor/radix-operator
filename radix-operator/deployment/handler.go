@@ -546,12 +546,12 @@ func (t *RadixDeployHandler) getClusterName() (string, error) {
 }
 
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	appAlias := os.Getenv("app_alias_url") // .app.dev.radix.equinor.com in launch.json
+	appAlias := os.Getenv("APP_ALIAS_BASE_URL") // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
 		return nil
 	}
 
-	hostname := fmt.Sprintf("%s%s", radixDeployment.Spec.AppName, appAlias)
+	hostname := fmt.Sprintf("%s.%s", radixDeployment.Spec.AppName, appAlias)
 	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
