@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	registration "github.com/statoil/radix-operator/radix-operator/registration"
@@ -24,9 +25,10 @@ func setupTest() (*test.Utils, kube.Interface) {
 
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
+	prometheusoperatorclient := &monitoring.Clientset{}
 
 	registrationHandler := registration.NewRegistrationHandler(kubeclient)
-	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
+	deploymentHandler := NewDeployHandler(kubeclient, radixclient, prometheusoperatorclient)
 
 	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName)

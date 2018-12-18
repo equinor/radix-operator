@@ -10,6 +10,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	"github.com/statoil/radix-operator/radix-operator/deployment"
@@ -47,7 +49,7 @@ func main() {
 
 	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
 
-	client, radixClient := getKubernetesClient()
+	client, radixClient, prometheusOperatorClient := getKubernetesClient()
 
 	stop := make(chan struct{})
 	defer close(stop)
@@ -55,7 +57,7 @@ func main() {
 	go startMetricsServer(stop)
 
 	startRegistrationController(client, radixClient, stop)
-	startDeploymentController(client, radixClient, stop)
+	startDeploymentController(client, radixClient, prometheusOperatorClient, stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -70,8 +72,8 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	go registrationController.Run(stop)
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	deployHandler := deployment.NewDeployHandler(client, radixClient)
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, stop <-chan struct{}) {
+	deployHandler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient)
 
 	deployController := deployment.NewDeployController(client, radixClient, &deployHandler)
 	go deployController.Run(stop)
@@ -112,7 +114,7 @@ func Healthz(writer http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(writer, "%s", response)
 }
 
-func getKubernetesClient() (kubernetes.Interface, radixclient.Interface) {
+func getKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
@@ -132,6 +134,11 @@ func getKubernetesClient() (kubernetes.Interface, radixclient.Interface) {
 		logger.Fatalf("getClusterConfig radix client: %v", err)
 	}
 
+	prometheusOperatorClient, err := monitoring.NewForConfig(&monitoringv1.DefaultCrdKinds, "monitoring.coreos.com", config)
+	if err != nil {
+		logger.Fatalf("getClusterConfig prometheus-operator client: %v", err)
+	}
+
 	logger.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient
+	return client, radixClient, prometheusOperatorClient
 }

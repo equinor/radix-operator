@@ -76,4 +76,5 @@ type RadixComponent struct {
 	Replicas             int             `json:"replicas" yaml:"replicas"`
 	EnvironmentVariables []EnvVars       `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets              []string        `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Monitoring           bool            `json:"monitoring" yaml:"monitoring"`
 }

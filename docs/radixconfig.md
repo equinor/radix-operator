@@ -25,6 +25,7 @@ spec:
        - name: http
          port: 80
       public: true
+      monitoring: true
     - name: backend
       src: backend
       replicas: 2
@@ -118,3 +119,7 @@ kubectl create secret generic backend -n myapp-dev --from-literal=DB_PASS=devpas
 
 kubectl create secret generic backend -n myapp-prod --from-literal=DB_PASS=prodpassword
 ```
+
+#### monitoring
+
+true/false - This will create `ServiceMonitor` object (for metrics monitoring) for the component if set to true.
