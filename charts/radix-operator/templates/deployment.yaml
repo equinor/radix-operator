@@ -38,6 +38,9 @@ spec:
               port: metrics
           resources:
             {{- toYaml .Values.resources | indent 12 }}
+          env:
+            - name: APP_ALIAS_BASE_URL
+              value: {{ .Values.appAliasBaseURL }}
       imagePullSecrets:
         - name: {{ .Values.imagePullSecretName }}
       {{- with .Values.nodeSelector }}

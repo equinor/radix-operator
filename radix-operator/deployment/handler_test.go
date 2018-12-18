@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ const clusterName = "AnyClusterName"
 
 func setupTest() (*test.Utils, kube.Interface) {
 	// Setup
+	os.Setenv("APP_ALIAS_BASE_URL", ".app.dev.radix.equinor.com")
+
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
