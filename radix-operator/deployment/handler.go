@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -353,8 +354,9 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  componentName,
-							Image: deployComponent.Image,
+							Name:      componentName,
+							Image:     deployComponent.Image,
+							Resources: getResourceRequirements(),
 						},
 					},
 					ImagePullSecrets: []corev1.LocalObjectReference{
@@ -388,6 +390,27 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 	}
 
 	return deployment
+}
+
+func getResourceRequirements() corev1.ResourceRequirements {
+	// if you only set limit, it will use the same values for request
+	memDefaultQuantity, _ := resource.ParseQuantity("4Gi")
+	cpuDefaultQuantity, _ := resource.ParseQuantity("250m") // 2CPU = 2000m
+	memMinQuantity, _ := resource.ParseQuantity("64Mi")     // 64 MiB = 2^26 bytes
+	cpuMinQuantity, _ := resource.ParseQuantity("100m")     // 0.1 CPU
+
+	req := corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			"memory": memDefaultQuantity,
+			"cpu":    cpuDefaultQuantity,
+		},
+		Requests: corev1.ResourceList{
+			"memory": memMinQuantity,
+			"cpu":    cpuMinQuantity,
+		},
+	}
+
+	return req
 }
 
 func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort, radixDeployName, namespace, currentEnvironment, appName, componentName string) []corev1.EnvVar {

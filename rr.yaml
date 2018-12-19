@@ -1,0 +1,39 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixRegistration
+metadata:
+  name: radix-loadbalancer-html
+  namespace: default
+spec:
+  adGroups:
+  - 7552642f-ad75-4e9d-a140-3ab8f3742c16
+  cloneURL: git@github.com:Statoil/radix-example-loadbalancer-api-db.git
+  deployKey: |
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIEogIBAAKCAQEAloGSs5DGIQoOmYUFNj6DOysfJXcrtpzPjp9xvmgYzE+iNrxO
+    TkyaZ7A2tmp7NJKOmING/eayFad43mIlxEPvts/c5NqqDKLM3/rCtQlwB0TOqcsp
+    QHnvfBNFp8SuJH3dz4wUnNrVLt+ES/naSUzdCYQZGkHL+MblRxha2pCV2acC/9dZ
+    JsvIgKPYVMPdzEVV0iiXoaBCW12ZbaO/Pga64Q8oZEln1nkdomU2Tuf5QP2j4y7K
+    Lpgd9U+F4V6rbYshNDTUOakxbdoG/1ftxz2FBqyOLmfVhdy09t0n9FnOx4T3APXp
+    0zytAmBNY2MdXxpo/4pxKqwbjbzUauaJu4HTwwIDAQABAoIBAAvmhvEH24K1Rt5A
+    tF7LppjBGh9eQuiXkZnXZakGlh9hlJP7Y72xNOxJ9KmL1d4cUIYiqzRcT2yC532+
+    CPpx3Lx5xx+ZYqTJIqX7L/Ycnu0UNbsbQ1HD0nnfFDzlwldEVIuaqe6VJxIjvlQ7
+    l1UAbOHZvhpjZXtwTqTGejiaAh9JhFoQT0idgHlrgm5svYTleI3vAr928UQR6gl7
+    5OQsp28hP32wBag22/HkSLx8VL8b0JU4tDDEPssTjMxuEaMpDLwgfXDE0KtJyXdu
+    myj/VPM+6kWi+dD8CkNLR/PlDyBUZS7xCmxryqSPvIbOTUvyxv2zzMrEHKYaKRQA
+    cy4kDhECgYEAwierv6hET+dCNbFL47ZIXrV6HtsGpJPPFaPwg5symGcCEDgTBtKU
+    D1T3WicRpxDpCksHnTxAppY/K6VVZr79NTqYPcHIC7+3qJvdehYCKWDVeT/KxymT
+    +AkoL/y1iCJZ3nyxt3nV0x1iLvluSsUE7P3BloNukF8bgnvOb3PNYNcCgYEAxnKR
+    TPmANGEQbRccF6Vm6OnrATMzUY1NmHeyUz8oiEFN4P59jMYEqkay/c9BqN2/134z
+    80WDQg0KO5s9bui3OhIN79LEIHBCvS4Fownu4vrqqy9d8plAxaf5YL1lfDoWxCvT
+    fkHG7zf4Cby2ePmGRYrihMPZSXebIsvxgsj6SvUCgYAC04UCgzaLWzhxg6UxKWQg
+    TM/8Rv/vwV8QV5SWtdmksksrZUWRodsZ5gi7vTnajrp1teXkeg4O3r0Iq510o28Y
+    KUQyEfIRibbos2wj7NIXPBufajhPceF/iNKW8DzMQIPCY1pK63EbY6AcQvFCEWAi
+    +waoZD1lyJyj5513rd3dfQKBgFLGJuU8jMVMV1WpdgZG743nRCbT/GvfzKX0B2XB
+    yl5LHvjiLewyDHAZ3T8Q3ApbtFFmSrUGIaHDXqlOL2m7l/GY5kdKWpRNPwk50RAY
+    bJQwpQGSWFWApwvK7LH1TgdrE2PwA99+AER3y/YDyPjc26zWKXXHWzLRuNvixXIP
+    8pahAoGACkvS4r3GDX7WwQ/jdY32ZBYvIM5LObUzMCOh7UmGgyM8fYEIOwXHa1yk
+    kg/JXd6QJJWjopKZAaN1JbQLWkhhwNJIcP13GuZwAPgFi8NTXoRxAEJrAeBoHHGD
+    d+9qmFlhips411OzUK3N062DW3RkPzm/+GgbET+WDMLtn9Jh3ik=
+    -----END RSA PRIVATE KEY-----
+  deployKeyPublic: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCWgZKzkMYhCg6ZhQU2PoM7Kx8ldyu2nM+On3G+aBjMT6I2vE5OTJpnsDa2ans0ko6Yg0b95rIVp3jeYiXEQ++2z9zk2qoMoszf+sK1CXAHRM6pyylAee98E0WnxK4kfd3PjBSc2tUu34RL+dpJTN0JhBkaQcv4xuVHGFrakJXZpwL/11kmy8iAo9hUw93MRVXSKJehoEJbXZlto78+BrrhDyhkSWfWeR2iZTZO5/lA/aPjLsoumB31T4XhXqttiyE0NNQ5qTFt2gb/V+3HPYUGrI4uZ9WF3LT23Sf0Wc7HhPcA9enTPK0CYE1jYx1fGmj/inEqrBuNvNRq5om7gdPD
+  sharedSecret: an untame foamless stranger
