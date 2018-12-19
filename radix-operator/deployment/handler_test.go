@@ -2,9 +2,11 @@ package deployment
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	registration "github.com/statoil/radix-operator/radix-operator/registration"
@@ -19,11 +21,14 @@ const clusterName = "AnyClusterName"
 
 func setupTest() (*test.Utils, kube.Interface) {
 	// Setup
+	os.Setenv("APP_ALIAS_BASE_URL", ".app.dev.radix.equinor.com")
+
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
+	prometheusoperatorclient := &monitoring.Clientset{}
 
 	registrationHandler := registration.NewRegistrationHandler(kubeclient)
-	deploymentHandler := NewDeployHandler(kubeclient, radixclient)
+	deploymentHandler := NewDeployHandler(kubeclient, radixclient, prometheusoperatorclient)
 
 	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName)
@@ -53,6 +58,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("app").
 				WithPort("http", 8080).
 				WithPublic(true).
+				WithDNSAppAlias(true).
 				WithReplicas(4),
 			utils.NewDeployComponentBuilder().
 				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
@@ -117,11 +123,13 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate ingress", func(t *testing.T) {
 		t.Parallel()
 		ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(ingresses.Items), "Number of ingresses was not according to public components")
-		assert.Equal(t, "app", ingresses.Items[0].GetName(), "App should have had an ingress")
+		assert.Equal(t, 3, len(ingresses.Items), "Number of ingresses was not according to public components")
+		assert.Equal(t, "edcradix-url-alias", ingresses.Items[0].GetName(), "App should have had an app alias ingress")
 		assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-		assert.Equal(t, "radixquote", ingresses.Items[1].GetName(), "Radixquote should have had an ingress")
-		assert.Equal(t, int32(3000), ingresses.Items[1].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "app", ingresses.Items[1].GetName(), "App should have had an ingress")
+		assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "radixquote", ingresses.Items[2].GetName(), "Radixquote should have had an ingress")
+		assert.Equal(t, int32(3000), ingresses.Items[2].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {

@@ -25,6 +25,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", "").
+		WithDNSAppAlias("dev", "app").
 		WithComponents(
 			utils.AnApplicationComponent().
 				WithName("app").
@@ -82,5 +83,11 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, "master", rdDev.Labels["radix-branch"])
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", rdDev.Labels["radix-commit"])
 		assert.Equal(t, "any-job-name", rdDev.Labels["radix-job-name"])
+	})
+
+	t.Run("validate dns app alias", func(t *testing.T) {
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+		assert.True(t, rdDev.Spec.Components[0].DNSAppAlias)
+		assert.False(t, rdDev.Spec.Components[1].DNSAppAlias)
 	})
 }

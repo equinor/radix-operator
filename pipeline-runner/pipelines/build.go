@@ -6,7 +6,9 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/statoil/radix-operator/pkg/apis/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +17,8 @@ import (
 func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag string) error {
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
-	namespace := fmt.Sprintf("%s-app", appName)
+	namespace := utils.GetAppNamespace(appName)
+
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createBuildJob(appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)
@@ -69,13 +72,13 @@ func createBuildJob(appName, jobName string, components []v1.RadixComponent, clo
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("radix-builder-%s", imageTag),
 			Labels: map[string]string{
-				"radix-job-name":  jobName,
-				"radix-build":     fmt.Sprintf("%s-%s", appName, imageTag),
-				"radix-app-name":  appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app":       appName,
-				"radix-image-tag": imageTag,
-				"radix-branch":    branch,
-				"radix-job-type":  "build",
+				kube.RadixJobNameLabel:  jobName,
+				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s", appName, imageTag),
+				"radix-app-name":        appName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:      appName,
+				kube.RadixImageTagLabel: imageTag,
+				kube.RadixBranchLabel:   branch,
+				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -83,7 +86,7 @@ func createBuildJob(appName, jobName string, components []v1.RadixComponent, clo
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radix-job-name": jobName,
+						kube.RadixJobNameLabel: jobName,
 					},
 				},
 				Spec: corev1.PodSpec{

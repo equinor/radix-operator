@@ -25,6 +25,7 @@ spec:
        - name: http
          port: 80
       public: true
+      monitoring: true
     - name: backend
       src: backend
       replicas: 2
@@ -42,6 +43,9 @@ spec:
             DB_PORT: "9876"
       secrets:
         - DB_PASS
+  dnsAppAlias:
+    environment: prod
+    component: frontend
 ```
 
 ## Specification
@@ -64,6 +68,12 @@ In the example above, a `git push` to `master` branch will build and deploy code
 
 This is where you specify the various components for your application - it needs at least one.
 
+### dnsAppAlias
+
+Creates an alias in the form of `<app-name>.app.radix.equinor.com` for the specified environment and component. 
+
+In the example above, the component frontend hosted in environment prod, will be accessible from `myapp.app.radix.equinor.com` and a default endpoint provided for all open component `frontend-myapp-prod.<clustername>.dev.radix.equinor.com`
+
 #### name
 
 Name of the component - this will be used for building the images (appName-componentName).
@@ -74,7 +84,7 @@ The folder where the Dockerfile can be found.
 
 #### replicas
 
-Scales the component. Defaults to 2 if not set to ensure rolling updates.
+Scales the component. Defaults to 1 if not set.
 
 #### public
 
@@ -91,8 +101,13 @@ An array of objects containing environment name and variables to be set inside t
 By default, each application container will have the following _default_ environment variables.
 
 ```
+RADIX_APP
 RADIX_CLUSTERNAME
+RADIX_COMPONENT
 RADIX_ENVIRONMENT
+RADIX_PORTS (only available if set in the config)
+RADIX_PORT_NAMES (only available if set in the config)
+RADIX_PUBLIC_DOMAIN_NAME (if public equals true is set)
 ```
 
 #### secrets
@@ -104,3 +119,7 @@ kubectl create secret generic backend -n myapp-dev --from-literal=DB_PASS=devpas
 
 kubectl create secret generic backend -n myapp-prod --from-literal=DB_PASS=prodpassword
 ```
+
+#### monitoring
+
+true/false - This will create `ServiceMonitor` object (for metrics monitoring) for the component if set to true.

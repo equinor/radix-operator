@@ -3,9 +3,12 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
 	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -19,31 +22,36 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const clusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
-const environmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
-const publicEndpointEnvironmentVariable = "RADIX_PUBLIC_DOMAIN_NAME"
-const radixAppEnvironmentVariable = "RADIX_APP"
-const radixComponentEnvironmentVariable = "RADIX_COMPONENT"
-const radixPortsEnvironmentVariable = "RADIX_PORTS"
-const radixPortNamesEnvironmentVariable = "RADIX_PORT_NAMES"
-const hostnameTemplate = "%s-%s.%s.dev.radix.equinor.com"
-const defaultReplicas = 1			
+const (
+	clusternameEnvironmentVariable     = "RADIX_CLUSTERNAME"
+	environmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
+	publicEndpointEnvironmentVariable  = "RADIX_PUBLIC_DOMAIN_NAME"
+	radixAppEnvironmentVariable        = "RADIX_APP"
+	radixComponentEnvironmentVariable  = "RADIX_COMPONENT"
+	radixPortsEnvironmentVariable      = "RADIX_PORTS"
+	prometheusInstanceLabel            = "LABEL_PROMETHEUS_INSTANCE"
+	radixPortNamesEnvironmentVariable  = "RADIX_PORT_NAMES"
+	hostnameTemplate                   = "%s-%s.%s.dev.radix.equinor.com"
+	defaultReplicas                    = 1
+)
 
 // RadixDeployHandler Instance variables
 type RadixDeployHandler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
+	kubeclient              kubernetes.Interface
+	radixclient             radixclient.Interface
+	prometheusperatorclient monitoring.Interface
+	kubeutil                *kube.Kube
 }
 
 // NewDeployHandler Constructor
-func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixDeployHandler {
+func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface) RadixDeployHandler {
 	kube, _ := kube.New(kubeclient)
 
 	handler := RadixDeployHandler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kube,
+		kubeclient:              kubeclient,
+		radixclient:             radixclient,
+		prometheusperatorclient: prometheusperatorclient,
+		kubeutil:                kube,
 	}
 
 	return handler
@@ -93,6 +101,7 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	return nil
 }
 
+// TODO: Move this to the Deployment domain/package
 func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeployment) error {
 	isLatest, err := t.isLatest(radixDeploy)
 	if err != nil {
@@ -133,6 +142,13 @@ func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeploym
 			if err != nil {
 				logger.Infof("Failed to create ingress: %v", err)
 				return fmt.Errorf("Failed to create ingress: %v", err)
+			}
+		}
+		if v.Monitoring {
+			err = t.createServiceMonitor(radixDeploy, v)
+			if err != nil {
+				logger.Infof("Failed to create service monitor: %v", err)
+				return fmt.Errorf("Failed to create service monitor: %v", err)
 			}
 		}
 		err = t.kubeutil.GrantAppAdminAccessToRuntimeSecrets(radixDeploy.Namespace, radixRegistration, &v)
@@ -224,7 +240,7 @@ func isRadixWebHook(radixRegistrationNamespace, appName string) bool {
 
 func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	service := getServiceConfig(deployComponent.Name, radixDeploy.Spec.AppName, radixDeploy.UID, deployComponent.Ports)
+	service := getServiceConfig(deployComponent.Name, radixDeploy, deployComponent.Ports)
 	logger.Infof("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
 	createdService, err := t.kubeclient.CoreV1().Services(namespace).Create(service)
 	if errors.IsAlreadyExists(err) {
@@ -266,37 +282,28 @@ func (t *RadixDeployHandler) createService(radixDeploy *v1.RadixDeployment, depl
 	return nil
 }
 
-func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
+func (t *RadixDeployHandler) createServiceMonitor(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("Failed to get radix config map: %v", err)
-	}
-	clustername := radixconfigmap.Data["clustername"]
-	logger.Infof("Cluster name: %s", clustername)
-	ingress := getIngressConfig(deployComponent.Name, radixDeploy.Spec.AppName, clustername, namespace, radixDeploy.UID, deployComponent.Ports)
-	logger.Infof("Creating Ingress object %s in namespace %s", deployComponent.Name, namespace)
-	createdIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
+	serviceMonitor := getServiceMonitorConfig(deployComponent.Name, namespace, deployComponent.Ports)
+	createdServiceMonitor, err := t.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitor)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("Ingress object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
-		updatedIngress, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Update(ingress)
+		logger.Infof("ServiceMonitor object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
+		updatedServiceMonitor, err := t.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(serviceMonitor)
 		if err != nil {
-			return fmt.Errorf("Failed to update Ingress object: %v", err)
+			return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
 		}
-		logger.Infof("Updated Ingress: %s in namespace %s", updatedIngress.Name, namespace)
+		logger.Infof("Updated ServiceMonitor: %s in namespace %s", updatedServiceMonitor.Name, namespace)
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to create Ingress object: %v", err)
+		return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
 	}
-	logger.Infof("Created Ingress: %s in namespace %s", createdIngress.Name, namespace)
+	logger.Infof("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 	return nil
 }
 
 func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
-	trueVar := true
 	appName := radixDeploy.Spec.AppName
-	uid := radixDeploy.UID
 	environment := radixDeploy.Spec.Environment
 	componentName := deployComponent.Name
 	componentPorts := deployComponent.Ports
@@ -312,41 +319,35 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 		commitID = commitIDVal
 	}
 
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeploy)
+
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app":       appName,
-				"radix-component": componentName,
-				"radix-branch":    branch,
-				"radix-commit":    commitID,
+				"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:       appName,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixBranchLabel:    branch,
+				kube.RadixCommitLabel:    commitID,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-					Kind:       "RadixDeployment",
-					Name:       componentName,
-					UID:        uid,
-					Controller: &trueVar,
-				},
-			},
+			OwnerReferences: ownerReference,
 		},
 		Spec: v1beta1.DeploymentSpec{
 			Replicas: int32Ptr(defaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"radix-component": componentName,
+					kube.RadixComponentLabel: componentName,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
-						"radix-app":       appName,
-						"radix-component": componentName,
-						"radix-branch":    branch,
-						"radix-commit":    commitID,
+						"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
+						kube.RadixAppLabel:       appName,
+						kube.RadixComponentLabel: componentName,
+						kube.RadixBranchLabel:    branch,
+						kube.RadixCommitLabel:    commitID,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -433,12 +434,11 @@ func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap,
 }
 
 func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort) []corev1.EnvVar {
-	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
+	clusterName, err := t.getClusterName()
 	if err != nil {
 		return environmentVariables
 	}
 
-	clusterName := radixconfigmap.Data["clustername"]
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
 		Name:  clusternameEnvironmentVariable,
 		Value: clusterName,
@@ -498,30 +498,23 @@ func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 	return portNumbers, portNames
 }
 
-func getServiceConfig(componentName, appName string, uid types.UID, componentPorts []v1.ComponentPort) *corev1.Service {
-	trueVar := true
+func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":        appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app":       appName,
-				"radix-component": componentName,
+				"radixApp":               radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
+				kube.RadixComponentLabel: componentName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8
-					Kind:       "RadixDeployment",
-					Name:       componentName,
-					UID:        uid,
-					Controller: &trueVar,
-				},
-			},
+			OwnerReferences: ownerReference,
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				"radix-component": componentName,
+				kube.RadixComponentLabel: componentName,
 			},
 		},
 	}
@@ -532,52 +525,152 @@ func getServiceConfig(componentName, appName string, uid types.UID, componentPor
 	return service
 }
 
-func getIngressConfig(componentName, appName, clustername, namespace string, uid types.UID, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	trueVar := true
-	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
-	tlsSecretName := "cluster-wildcard-tls-cert"
-	ingress := &v1beta1.Ingress{
+func getServiceMonitorConfig(componentName, namespace string, componentPorts []v1.ComponentPort) *monitoringv1.ServiceMonitor {
+	serviceMonitor := &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
+			Labels: map[string]string{
+				"prometheus": os.Getenv(prometheusInstanceLabel),
+			},
+		},
+		Spec: monitoringv1.ServiceMonitorSpec{
+			Endpoints: []monitoringv1.Endpoint{
+				{
+					Interval: "5s",
+					Port:     componentPorts[0].Name,
+				},
+			},
+			JobLabel: fmt.Sprintf("%s-%s", namespace, componentName),
+			NamespaceSelector: monitoringv1.NamespaceSelector{
+				MatchNames: []string{
+					namespace,
+				},
+			},
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"radix-component": componentName,
+				},
+			},
+		},
+	}
+	return serviceMonitor
+}
+
+func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
+	namespace := radixDeploy.Namespace
+	clustername, err := t.getClusterName()
+	if err != nil {
+		return err
+	}
+
+	if deployComponent.DNSAppAlias {
+		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, radixDeploy, clustername, namespace, deployComponent.Ports)
+		if appAliasIngress != nil {
+			err = t.applyIngress(namespace, appAliasIngress)
+			if err != nil {
+				logger.Errorf("Failed to create app alias ingress for app %s. Error was %s ", radixDeploy.Spec.AppName, err)
+			}
+		}
+	}
+
+	ingress := getDefaultIngressConfig(deployComponent.Name, radixDeploy, clustername, namespace, deployComponent.Ports)
+	return t.applyIngress(namespace, ingress)
+}
+
+func (t *RadixDeployHandler) applyIngress(namespace string, ingress *v1beta1.Ingress) error {
+	ingressName := ingress.GetName()
+	logger.Infof("Creating Ingress object %s in namespace %s", ingressName, namespace)
+
+	_, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
+	if errors.IsAlreadyExists(err) {
+		logger.Infof("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
+		_, err := t.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Update(ingress)
+		if err != nil {
+			return fmt.Errorf("Failed to update Ingress object: %v", err)
+		}
+		logger.Infof("Updated Ingress: %s in namespace %s", ingressName, namespace)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("Failed to create Ingress object: %v", err)
+	}
+	logger.Infof("Created Ingress: %s in namespace %s", ingressName, namespace)
+	return nil
+}
+
+func (t *RadixDeployHandler) getClusterName() (string, error) {
+	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("Failed to get radix config map: %v", err)
+	}
+	clustername := radixconfigmap.Data["clustername"]
+	logger.Infof("Cluster name: %s", clustername)
+	return clustername, nil
+}
+
+func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+	appAlias := os.Getenv("APP_ALIAS_BASE_URL") // .app.dev.radix.equinor.com in launch.json
+	if appAlias == "" {
+		return nil
+	}
+
+	hostname := fmt.Sprintf("%s.%s", radixDeployment.Spec.AppName, appAlias)
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
+
+	return getIngressConfig(radixDeployment, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, ingressSpec)
+}
+
+func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
+	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
+
+	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)
+}
+
+func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, ownerReference []metav1.OwnerReference, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
+	ingress := &v1beta1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ingressName,
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class": "nginx",
 			},
 			Labels: map[string]string{
-				"radixApp":  appName, // For backwards compatibility. Remove when cluster is migrated
-				"radix-app": appName,
+				"radixApp":         radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel: radixDeployment.Spec.AppName,
 			},
-			OwnerReferences: []metav1.OwnerReference{
-				metav1.OwnerReference{
-					APIVersion: "radix.equinor.com/v1",
-					Kind:       "RadixDeployment",
-					Name:       componentName,
-					UID:        uid,
-					Controller: &trueVar,
+			OwnerReferences: ownerReference,
+		},
+		Spec: ingressSpec,
+	}
+
+	return ingress
+}
+
+func getIngressSpec(hostname, serviceName string, servicePort int32) v1beta1.IngressSpec {
+	tlsSecretName := "cluster-wildcard-tls-cert"
+	return v1beta1.IngressSpec{
+		TLS: []v1beta1.IngressTLS{
+			{
+				Hosts: []string{
+					hostname,
 				},
+				SecretName: tlsSecretName,
 			},
 		},
-		Spec: v1beta1.IngressSpec{
-			TLS: []v1beta1.IngressTLS{
-				{
-					Hosts: []string{
-						hostname,
-					},
-					SecretName: tlsSecretName,
-				},
-			},
-			Rules: []v1beta1.IngressRule{
-				{
-					Host: hostname,
-					IngressRuleValue: v1beta1.IngressRuleValue{
-						HTTP: &v1beta1.HTTPIngressRuleValue{
-							Paths: []v1beta1.HTTPIngressPath{
-								{
-									Path: "/",
-									Backend: v1beta1.IngressBackend{
-										ServiceName: componentName,
-										ServicePort: intstr.IntOrString{
-											IntVal: int32(componentPorts[0].Port),
-										},
+		Rules: []v1beta1.IngressRule{
+			{
+				Host: hostname,
+				IngressRuleValue: v1beta1.IngressRuleValue{
+					HTTP: &v1beta1.HTTPIngressRuleValue{
+						Paths: []v1beta1.HTTPIngressPath{
+							{
+								Path: "/",
+								Backend: v1beta1.IngressBackend{
+									ServiceName: serviceName,
+									ServicePort: intstr.IntOrString{
+										IntVal: int32(servicePort),
 									},
 								},
 							},
@@ -587,8 +680,6 @@ func getIngressConfig(componentName, appName, clustername, namespace string, uid
 			},
 		},
 	}
-
-	return ingress
 }
 
 func buildServicePorts(componentPorts []v1.ComponentPort) []corev1.ServicePort {
