@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
@@ -387,7 +389,36 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
 
+	resourceRequirements := getResourceRequirements(deployComponent)
+
+	if resourceRequirements != nil {
+		deployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
+	}
+
 	return deployment
+}
+
+func getResourceRequirements(deployComponent v1.RadixDeployComponent) *corev1.ResourceRequirements {
+	// if you only set limit, it will use the same values for request
+	limits := corev1.ResourceList{}
+	requests := corev1.ResourceList{}
+	for name, limit := range deployComponent.Resources.Limits {
+		limits[corev1.ResourceName(name)], _ = resource.ParseQuantity(limit)
+	}
+	for name, req := range deployComponent.Resources.Requests {
+		requests[corev1.ResourceName(name)], _ = resource.ParseQuantity(req)
+	}
+
+	if len(limits) <= 0 && len(requests) <= 0 {
+		return nil
+	}
+
+	req := corev1.ResourceRequirements{
+		Limits:   limits,
+		Requests: requests,
+	}
+
+	return &req
 }
 
 func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort, radixDeployName, namespace, currentEnvironment, appName, componentName string) []corev1.EnvVar {

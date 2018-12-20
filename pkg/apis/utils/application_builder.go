@@ -141,6 +141,7 @@ type RadixApplicationComponentBuilder interface {
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithEnvironmentVariablesMap([]v1.EnvVars) RadixApplicationComponentBuilder
 	WithEnvironmentVariable(string, string, string) RadixApplicationComponentBuilder
+	WithResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
@@ -152,6 +153,15 @@ type radixApplicationComponentBuilder struct {
 	replicas             int
 	ports                map[string]int32
 	secrets              []string
+	resources            v1.ResourceRequirements
+}
+
+func (rcb *radixApplicationComponentBuilder) WithResource(request map[string]string, limit map[string]string) RadixApplicationComponentBuilder {
+	rcb.resources = v1.ResourceRequirements{
+		Limits:   limit,
+		Requests: request,
+	}
+	return rcb
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -218,6 +228,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Replicas:             rcb.replicas,
 		Ports:                componentPorts,
 		Secrets:              rcb.secrets,
+		Resources:            rcb.resources,
 	}
 }
 

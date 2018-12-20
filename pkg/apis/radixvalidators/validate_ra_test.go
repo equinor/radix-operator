@@ -65,6 +65,12 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"dns alias non existing component", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = "non existing" }},
 		{"dns alias non existing env", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Environment = "non existing" }},
+		{"resource limit unsupported resource", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Resources.Limits["unsupportedResource"] = "250m" }},
+		{"resource limit wrong format", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Resources.Limits["memory"] = "asdfasd" }},
+		{"resource request wrong format", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Resources.Requests["memory"] = "asdfasd" }},
+		{"resource request unsupported resource", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Requests["unsupportedResource"] = "250m"
+		}},
 	}
 
 	_, client := validRASetup()
