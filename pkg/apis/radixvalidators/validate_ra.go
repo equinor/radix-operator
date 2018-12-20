@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 )
@@ -86,9 +84,9 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, err)
 		}
 
-		err = validateResourceRequirements(&component.Resources)
-		if err != nil {
-			errs = append(errs, err)
+		errList := validateResourceRequirements(&component.Resources)
+		if errList != nil && len(errList) > 0 {
+			errs = append(errs, errList...)
 		}
 
 		for _, port := range component.Ports {
@@ -109,35 +107,48 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
-func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) error {
+func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) []error {
+	errs := []error{}
 	if resourceRequirements == nil {
-		return nil
+		return errs
 	}
 
 	for name, value := range resourceRequirements.Requests {
 		err := validateQuantity(name, value)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
 	for name, value := range resourceRequirements.Limits {
 		err := validateQuantity(name, value)
 		if err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
 func validateQuantity(name, value string) error {
-	if name != "memory" && name != "cpu" {
-		return fmt.Errorf("Only support resource requirement type memory and cpu (not %s)", name)
+	if name == "memory" {
+		regex := "^[0-9]+[MG]i$"
+		re := regexp.MustCompile(regex)
+
+		isValid := re.MatchString(value)
+		if !isValid {
+			return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Must match regex '%s'", name, value, regex)
+		}
+	} else if name == "cpu" {
+		regex := "^[0-9]+m$"
+		re := regexp.MustCompile(regex)
+
+		isValid := re.MatchString(value)
+		if !isValid {
+			return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", name, value, regex)
+		}
+	} else {
+		return fmt.Errorf("Only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
 	}
 
-	_, err := resource.ParseQuantity(value)
-	if err != nil {
-		return fmt.Errorf("Format of resource requirement %s (value %s) is wrong: %v", name, value, err)
-	}
 	return nil
 }
 

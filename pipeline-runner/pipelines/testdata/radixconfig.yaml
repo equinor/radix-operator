@@ -18,6 +18,13 @@ spec:
          port: 8080
       public: true
       replicas: 6
+      resources: 
+        requests: 
+          memory: "64Mi"
+          cpu: "100m"
+        limits: 
+          memory: "128Mi"
+          cpu: "200m"
     - name: redis
       src: redis/
       ports:
