@@ -132,6 +132,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env, imageT
 			EnvironmentVariables: variables, // todo: use single EnvVars instead
 			DNSAppAlias:          env == dnsAppAlias.Environment && componentName == dnsAppAlias.Component,
 			Monitoring:           appComponent.Monitoring,
+			Resources:            appComponent.Resources,
 		}
 
 		components = append(components, deployComponent)

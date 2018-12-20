@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 )
@@ -84,6 +86,11 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, err)
 		}
 
+		err = validateResourceRequirements(&component.Resources)
+		if err != nil {
+			errs = append(errs, err)
+		}
+
 		for _, port := range component.Ports {
 			err := validateRequiredResourceName("port name", port.Name)
 			if err != nil {
@@ -100,6 +107,38 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 	}
 
 	return errs
+}
+
+func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) error {
+	if resourceRequirements == nil {
+		return nil
+	}
+
+	for name, value := range resourceRequirements.Requests {
+		err := validateQuantity(name, value)
+		if err != nil {
+			return err
+		}
+	}
+	for name, value := range resourceRequirements.Limits {
+		err := validateQuantity(name, value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateQuantity(name, value string) error {
+	if name != "memory" && name != "cpu" {
+		return fmt.Errorf("Only support resource requirement type memory and cpu (not %s)", name)
+	}
+
+	_, err := resource.ParseQuantity(value)
+	if err != nil {
+		return fmt.Errorf("Format of resource requirement %s (value %s) is wrong: %v", name, value, err)
+	}
+	return nil
 }
 
 func validateBranchNames(app *radixv1.RadixApplication) error {

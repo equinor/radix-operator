@@ -277,6 +277,7 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	in.Resources.DeepCopyInto(&out.Resources)
 	return
 }
 
@@ -460,7 +461,7 @@ func (in ResourceList) DeepCopyInto(out *ResourceList) {
 		in := &in
 		*out = make(ResourceList, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val.DeepCopy()
+			(*out)[key] = val
 		}
 		return
 	}
@@ -483,14 +484,14 @@ func (in *ResourceRequirements) DeepCopyInto(out *ResourceRequirements) {
 		in, out := &in.Limits, &out.Limits
 		*out = make(ResourceList, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val.DeepCopy()
+			(*out)[key] = val
 		}
 	}
 	if in.Requests != nil {
 		in, out := &in.Requests, &out.Requests
 		*out = make(ResourceList, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val.DeepCopy()
+			(*out)[key] = val
 		}
 	}
 	return

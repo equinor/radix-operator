@@ -33,13 +33,14 @@ type RadixDeploymentList struct {
 
 //RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
-	Name                 string          `json:"name" yaml:"name"`
-	Image                string          `json:"image" yaml:"image"`
-	Ports                []ComponentPort `json:"ports" yaml:"ports"`
-	Replicas             int             `json:"replicas" yaml:"replicas"`
-	Public               bool            `json:"public" yaml:"public"`
-	EnvironmentVariables EnvVarsMap      `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
-	Secrets              []string        `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	DNSAppAlias          bool            `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
-	Monitoring           bool            `json:"monitoring" yaml:"monitoring"`
+	Name                 string               `json:"name" yaml:"name"`
+	Image                string               `json:"image" yaml:"image"`
+	Ports                []ComponentPort      `json:"ports" yaml:"ports"`
+	Replicas             int                  `json:"replicas" yaml:"replicas"`
+	Public               bool                 `json:"public" yaml:"public"`
+	EnvironmentVariables EnvVarsMap           `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
+	Secrets              []string             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	DNSAppAlias          bool                 `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
+	Monitoring           bool                 `json:"monitoring" yaml:"monitoring"`
+	Resources            ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
 }

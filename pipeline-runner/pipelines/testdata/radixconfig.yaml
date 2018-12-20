@@ -36,6 +36,13 @@ spec:
             DB_PORT: "9876"
       secrets:
         - DB_PASS
+      resources: 
+        limits: 
+          memory: "512Mi"
+          cpu: "500m"
+        requests: 
+          memory: "128Mi"
+          cpu: "250m"
   dnsAppAlias:
     environment: prod
     component: app

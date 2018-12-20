@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -67,14 +66,14 @@ type ComponentPort struct {
 	Port int32  `json:"port"`
 }
 
-type ResourceList map[string]resource.Quantity
+type ResourceList map[string]string
 
 // ResourceRequirements describes the compute resource requirements.
 type ResourceRequirements struct {
 	// Limits describes the maximum amount of compute resources allowed.
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	// +optional
-	Limits ResourceList `json:"limits,omitempty" yaml:"requests,omitempty"`
+	Limits ResourceList `json:"limits,omitempty" yaml:"limits,omitempty"`
 	// Requests describes the minimum amount of compute resources required.
 	// If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
 	// otherwise to an implementation-defined value.

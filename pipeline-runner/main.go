@@ -56,7 +56,7 @@ func main() {
 		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")
 	}
 	if imageTag == "" {
-		imageTag = "latest"
+		imageTag = "latest2"
 	}
 
 	client, radixClient := kube.GetKubernetesClient()

@@ -35,3 +35,10 @@ spec:
             DB_PORT: "9876"
       secrets:
         - DB_PASS
+      resources: 
+        limits: 
+          memory: "128Mi"
+          cpu: "500m"
+        requests: 
+          memory: "64Mi"
+          cpu: "250m"

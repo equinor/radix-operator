@@ -1,6 +1,7 @@
 package onpush
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/statoil/radix-operator/pkg/apis/application"
@@ -41,7 +42,14 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				WithEnvironmentVariable("prod", "DB_HOST", "db-prod").
 				WithEnvironmentVariable("prod", "DB_PORT", "9876").
 				WithEnvironmentVariable("no-existing-env", "DB_HOST", "db-prod").
-				WithEnvironmentVariable("no-existing-env", "DB_PORT", "9876")).
+				WithEnvironmentVariable("no-existing-env", "DB_PORT", "9876").
+				WithResource(map[string]string{
+					"memory": "64Mi",
+					"cpu":    "250m",
+				}, map[string]string{
+					"memory": "128Mi",
+					"cpu":    "500m",
+				})).
 		BuildRA()
 
 	cli, _ := Init(kubeclient, radixclient)
@@ -89,5 +97,15 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
 		assert.True(t, rdDev.Spec.Components[0].DNSAppAlias)
 		assert.False(t, rdDev.Spec.Components[1].DNSAppAlias)
+	})
+
+	t.Run("validate resources", func(t *testing.T) {
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+
+		fmt.Print(rdDev.Spec.Components[0].Resources)
+		fmt.Print(rdDev.Spec.Components[1].Resources)
+		assert.NotNil(t, rdDev.Spec.Components[1].Resources)
+		assert.Equal(t, "128Mi", rdDev.Spec.Components[1].Resources.Limits["memory"])
+		assert.Equal(t, "500m", rdDev.Spec.Components[1].Resources.Limits["cpu"])
 	})
 }
