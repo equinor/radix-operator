@@ -42,7 +42,7 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 deploy-via-helm:
 	az acr helm repo add --name radixdev
 	helm repo update
-	helm upgrade --install radix-operator radixdev/radix-operator --set prometheusName=radix-stage1-prometheus --set clusterName=$(CLUSTER_NAME) --set image.tag=$(TAG)
+	helm upgrade --install radix-operator radixdev/radix-operator --set prometheusName=radix-stage1 --set clusterName=$(CLUSTER_NAME) --set image.tag=$(TAG)
 
 helm-up:
 	make deploy-operator
