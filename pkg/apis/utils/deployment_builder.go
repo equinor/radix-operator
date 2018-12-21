@@ -192,6 +192,7 @@ type DeployComponentBuilder interface {
 	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
 	WithPublic(bool) DeployComponentBuilder
 	WithReplicas(int) DeployComponentBuilder
+	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
@@ -206,6 +207,15 @@ type deployComponentBuilder struct {
 	replicas             int
 	secrets              []string
 	dnsappalias          bool
+	resources            v1.ResourceRequirements
+}
+
+func (dcb *deployComponentBuilder) WithResource(request map[string]string, limit map[string]string) DeployComponentBuilder {
+	dcb.resources = v1.ResourceRequirements{
+		Limits:   limit,
+		Requests: request,
+	}
+	return dcb
 }
 
 func (dcb *deployComponentBuilder) WithName(name string) DeployComponentBuilder {
@@ -268,6 +278,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Secrets:              dcb.secrets,
 		EnvironmentVariables: dcb.environmentVariables,
 		DNSAppAlias:          dcb.dnsappalias,
+		Resources:            dcb.resources,
 	}
 }
 

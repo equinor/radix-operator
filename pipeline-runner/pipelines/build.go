@@ -150,12 +150,13 @@ func createBuildContainers(appName, imageTag string, components []v1.RadixCompon
 		log.Infof("using dockerfile %s in context %s", dockerFile, context)
 		container := corev1.Container{
 			Name:  fmt.Sprintf("build-%s", c.Name),
-			Image: "gcr.io/kaniko-project/executor:v0.6.0", // todo - version?
+			Image: "gcr.io/kaniko-project/executor:v0.7.0", // todo - version?
 			Args: []string{
 				fmt.Sprintf("--dockerfile=%s", dockerFile),
 				fmt.Sprintf("--context=%s", context),
 				fmt.Sprintf("--destination=%s", imagePath),
 				"--cache=true",
+				"--snapshotMode=time",
 			},
 			Env: []corev1.EnvVar{
 				{

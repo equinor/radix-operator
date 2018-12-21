@@ -26,6 +26,13 @@ spec:
          port: 80
       public: true
       monitoring: true
+      resources: 
+        requests: 
+          memory: "64Mi"
+          cpu: "100m"
+        limits: 
+          memory: "128Mi"
+          cpu: "200m"
     - name: backend
       src: backend
       replicas: 2
@@ -67,6 +74,15 @@ In the example above, a `git push` to `master` branch will build and deploy code
 ### components
 
 This is where you specify the various components for your application - it needs at least one.
+
+### resources
+
+Can specify how much CPU and memory each component needs. This is used to make ensure that each component is allocated enough resources to run as it should.
+
+Limits describes the maximum amount of compute resources allowed.
+Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value.
+
+More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 
 ### dnsAppAlias
 

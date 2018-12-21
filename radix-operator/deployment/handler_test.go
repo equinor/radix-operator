@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
@@ -35,6 +37,11 @@ func setupTest() (*test.Utils, kube.Interface) {
 	return &handlerTestUtils, kubeclient
 }
 
+func parseQuantity(value string) resource.Quantity {
+	q, _ := resource.ParseQuantity(value)
+	return q
+}
+
 func TestObjectCreated_NoRegistration_ReturnsError(t *testing.T) {
 	handlerTestUtils, _ := setupTest()
 
@@ -59,6 +66,14 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublic(true).
 				WithDNSAppAlias(true).
+				WithDNSAppAlias(true).
+				WithResource(map[string]string{
+					"memory": "64Mi",
+					"cpu":    "250m",
+				}, map[string]string{
+					"memory": "128Mi",
+					"cpu":    "500m",
+				}).
 				WithReplicas(4),
 			utils.NewDeployComponentBuilder().
 				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
@@ -97,6 +112,10 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, "(8080)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Value)
 		assert.Equal(t, radixPortNamesEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Name)
 		assert.Equal(t, "(http)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Value)
+		assert.Equal(t, parseQuantity("128Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["memory"])
+		assert.Equal(t, parseQuantity("500m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["cpu"])
+		assert.Equal(t, parseQuantity("64Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["memory"])
+		assert.Equal(t, parseQuantity("250m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["cpu"])
 		assert.Equal(t, "redis", deployments.Items[1].Name, "redis deployment not there")
 		assert.Equal(t, int32(defaultReplicas), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, 7, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")

@@ -18,6 +18,13 @@ spec:
          port: 8080
       public: true
       replicas: 6
+      resources: 
+        requests: 
+          memory: "64Mi"
+          cpu: "100m"
+        limits: 
+          memory: "128Mi"
+          cpu: "200m"
     - name: redis
       src: redis/
       ports:
@@ -36,6 +43,13 @@ spec:
             DB_PORT: "9876"
       secrets:
         - DB_PASS
+      resources: 
+        limits: 
+          memory: "512Mi"
+          cpu: "500m"
+        requests: 
+          memory: "128Mi"
+          cpu: "250m"
   dnsAppAlias:
     environment: prod
     component: app

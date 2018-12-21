@@ -84,6 +84,11 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, err)
 		}
 
+		errList := validateResourceRequirements(&component.Resources)
+		if errList != nil && len(errList) > 0 {
+			errs = append(errs, errList...)
+		}
+
 		for _, port := range component.Ports {
 			err := validateRequiredResourceName("port name", port.Name)
 			if err != nil {
@@ -100,6 +105,51 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 	}
 
 	return errs
+}
+
+func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) []error {
+	errs := []error{}
+	if resourceRequirements == nil {
+		return errs
+	}
+
+	for name, value := range resourceRequirements.Requests {
+		err := validateQuantity(name, value)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	for name, value := range resourceRequirements.Limits {
+		err := validateQuantity(name, value)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+func validateQuantity(name, value string) error {
+	if name == "memory" {
+		regex := "^[0-9]+[MG]i$"
+		re := regexp.MustCompile(regex)
+
+		isValid := re.MatchString(value)
+		if !isValid {
+			return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Must match regex '%s'", name, value, regex)
+		}
+	} else if name == "cpu" {
+		regex := "^[0-9]+m$"
+		re := regexp.MustCompile(regex)
+
+		isValid := re.MatchString(value)
+		if !isValid {
+			return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", name, value, regex)
+		}
+	} else {
+		return fmt.Errorf("Only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
+	}
+
+	return nil
 }
 
 func validateBranchNames(app *radixv1.RadixApplication) error {
