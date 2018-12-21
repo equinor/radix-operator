@@ -31,6 +31,8 @@ spec:
           env:
             - name: LABEL_PROMETHEUS_INSTANCE
               value: {{ .Values.prometheusName }}
+            - name: APP_ALIAS_BASE_URL
+              value: {{ .Values.appAliasBaseURL }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -41,9 +43,6 @@ spec:
               port: metrics
           resources:
             {{- toYaml .Values.resources | indent 12 }}
-          env:
-            - name: APP_ALIAS_BASE_URL
-              value: {{ .Values.appAliasBaseURL }}
       imagePullSecrets:
         - name: {{ .Values.imagePullSecretName }}
       {{- with .Values.nodeSelector }}
