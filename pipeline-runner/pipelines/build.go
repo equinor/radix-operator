@@ -156,6 +156,7 @@ func createBuildContainers(appName, imageTag string, components []v1.RadixCompon
 				fmt.Sprintf("--context=%s", context),
 				fmt.Sprintf("--destination=%s", imagePath),
 				"--cache=true",
+				"--snapshotMode=time",
 			},
 			Env: []corev1.EnvVar{
 				{
