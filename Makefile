@@ -9,6 +9,7 @@ BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
+CHART_VERSION = $(shell cat charts/radix-operator/Chart.yaml | yq --raw-output .version)
 
 TAG := $(BRANCH)-$(HASH)
 
@@ -39,14 +40,22 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-build,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-push,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
+# deploys radix operator using helm chart in radixdev acr
 deploy-via-helm:
 	az acr helm repo add --name radixdev
 	helm repo update
 	helm upgrade --install radix-operator radixdev/radix-operator --set prometheusName=radix-stage1 --set clusterName=$(CLUSTER_NAME) --set image.tag=$(TAG)
 
+# build and deploy radix operator
 helm-up:
 	make deploy-operator
 	make deploy-via-helm
+
+# upgrades helm chart in radixdev acr (does not deploy radix-operator)
+helm-upgrade-operator-chart:
+	tar -zcvf radix-operator-$(CHART_VERSION).tgz charts/radix-operator
+	az acr helm push --name radixdev charts/radix-operator-$(CHART_VERSION).tgz
+	rm charts/radix-operator-$(CHART_VERSION).tgz
 
 ROOT_PACKAGE=github.com/statoil/radix-operator
 CUSTOM_RESOURCE_NAME=radix
@@ -75,6 +84,3 @@ endif
 
 .PHONY: bootstrap
 bootstrap: vendor
-
-fix: 
-	sed -i "" 's/spt.Token/spt.Token()/g' ./vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go

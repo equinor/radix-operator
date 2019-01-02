@@ -65,12 +65,13 @@ func createBuildJob(appName, jobName string, components []v1.RadixComponent, clo
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
 	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
 	buildContainers := createBuildContainers(appName, imageTag, components)
+	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("radix-builder-%s", imageTag),
+			Name: fmt.Sprintf("radix-builder-%s-%s", timestamp, imageTag),
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s", appName, imageTag),
