@@ -54,9 +54,10 @@ func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixReg
 		namespaceName := utils.GetEnvironmentNamespace(radixRegistration.Name, env)
 		ownerRef := kube.GetOwnerReferenceOfRegistration(radixRegistration)
 		labels := map[string]string{
-			"sync":             "cluster-wildcard-tls-cert",
-			kube.RadixAppLabel: radixRegistration.Name,
-			kube.RadixEnvLabel: env,
+			"cluster-wildcard-sync": "cluster-wildcard-tls-cert",
+			"app-wildcard-sync":     "app-wildcard-tls-cert",
+			kube.RadixAppLabel:      radixRegistration.Name,
+			kube.RadixEnvLabel:      env,
 		}
 
 		err := cli.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
