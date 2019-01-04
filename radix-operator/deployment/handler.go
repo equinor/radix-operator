@@ -465,7 +465,7 @@ func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap,
 }
 
 func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort) []corev1.EnvVar {
-	clusterName, err := kubeutil.GetClusterName()
+	clusterName, err := t.kubeutil.GetClusterName()
 	if err != nil {
 		return environmentVariables
 	}
@@ -589,7 +589,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 
 func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	clustername, err := kubeutil.GetClusterName()
+	clustername, err := t.kubeutil.GetClusterName()
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/statoil/radix-operator/pkg/apis/application"
+	commonTest "github.com/statoil/radix-operator/pkg/apis/test"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -12,11 +13,23 @@ import (
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
-const deployTestFilePath = "./testdata/radixconfig.variable.yaml"
+const (
+	deployTestFilePath = "./testdata/radixconfig.variable.yaml"
+	clusterName        = "AnyClusterName"
+)
 
-func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
+func setupTest() (*kubernetes.Clientset, *radix.Clientset) {
+	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
+
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
+	testUtils.CreateClusterPrerequisites(clusterName)
+	return kubeclient, radixclient
+}
+
+func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
+	kubeclient, radixclient := setupTest()
 
 	rr := utils.ARadixRegistration().
 		WithName("any-app").

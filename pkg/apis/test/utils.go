@@ -126,7 +126,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername string) {
 			Namespace: corev1.NamespaceDefault,
 		},
 		Data: map[string]string{
-			"clustername": clustername,
+			"clustername":               clustername,
+			"infrastructureEnvironment": "dev",
 		},
 	})
 }

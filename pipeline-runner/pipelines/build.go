@@ -18,10 +18,14 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
 	namespace := utils.GetAppNamespace(appName)
+	infrastructureEnvironment, err := cli.kubeutil.GetInfrastructureEnvironment()
+	if err != nil {
+		return err
+	}
 
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createBuildJob(appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)
+	job, err := createBuildJob(infrastructureEnvironment, appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)
 	if err != nil {
 		return err
 	}
@@ -61,10 +65,10 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 
 const workspace = "/workspace"
 
-func createBuildJob(appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag string) (*batchv1.Job, error) {
+func createBuildJob(infrastructureEnvironment, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag string) (*batchv1.Job, error) {
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
 	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
-	buildContainers := createBuildContainers(appName, imageTag, components)
+	buildContainers := createBuildContainers(infrastructureEnvironment, appName, imageTag, components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -141,11 +145,11 @@ func createBuildJob(appName, jobName string, components []v1.RadixComponent, clo
 	return &job, nil
 }
 
-func createBuildContainers(appName, imageTag string, components []v1.RadixComponent) []corev1.Container {
+func createBuildContainers(infrastructureEnvironment, appName, imageTag string, components []v1.RadixComponent) []corev1.Container {
 	containers := []corev1.Container{}
 
 	for _, c := range components {
-		imagePath := getImagePath(appName, c.Name, imageTag)
+		imagePath := getImagePath(infrastructureEnvironment, appName, c.Name, imageTag)
 		dockerFile := getDockerfile(c.SourceFolder, c.DockerfileName)
 		context := getContext(c.SourceFolder)
 		log.Infof("using dockerfile %s in context %s", dockerFile, context)
