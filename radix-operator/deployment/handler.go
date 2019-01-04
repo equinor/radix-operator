@@ -465,7 +465,7 @@ func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap,
 }
 
 func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort) []corev1.EnvVar {
-	clusterName, err := t.getClusterName()
+	clusterName, err := kubeutil.GetClusterName()
 	if err != nil {
 		return environmentVariables
 	}
@@ -589,7 +589,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 
 func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	clustername, err := t.getClusterName()
+	clustername, err := kubeutil.GetClusterName()
 	if err != nil {
 		return err
 	}
@@ -627,16 +627,6 @@ func (t *RadixDeployHandler) applyIngress(namespace string, ingress *v1beta1.Ing
 	}
 	logger.Infof("Created Ingress: %s in namespace %s", ingressName, namespace)
 	return nil
-}
-
-func (t *RadixDeployHandler) getClusterName() (string, error) {
-	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("Failed to get radix config map: %v", err)
-	}
-	clustername := radixconfigmap.Data["clustername"]
-	logger.Infof("Cluster name: %s", clustername)
-	return clustername, nil
 }
 
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
