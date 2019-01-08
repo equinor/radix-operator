@@ -59,7 +59,9 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 	branchIsMapped, targetEnvironments := application.IsBranchMappedToEnvironment(branch)
 
 	if !branchIsMapped {
-		return fmt.Errorf("Failed to match environment to branch: %s", branch)
+		errMsg := fmt.Sprintf("Failed to match environment to branch: %s", branch)
+		log.Warnf(errMsg)
+		return fmt.Errorf(errMsg)
 	}
 
 	appName := radixApplication.Name
