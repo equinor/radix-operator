@@ -46,6 +46,7 @@ func main() {
 	fileName := args["RADIX_FILE_NAME"]
 	imageTag := args["IMAGE_TAG"]
 	jobName := args["JOB_NAME"]
+	useCache := args["USE_CACHE"]
 
 	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
@@ -58,6 +59,9 @@ func main() {
 	if imageTag == "" {
 		imageTag = "latest"
 	}
+	if useCache == "" {
+		useCache = "true"
+	}
 
 	client, radixClient := kube.GetKubernetesClient()
 	pushHandler, err := pipe.Init(client, radixClient)
@@ -65,7 +69,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = pushHandler.Run(jobName, branch, commitID, imageTag, fileName)
+	err = pushHandler.Run(jobName, branch, commitID, imageTag, fileName, useCache)
 	if err != nil {
 		os.Exit(2)
 	}

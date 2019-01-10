@@ -7,14 +7,14 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag string) error {
+func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag, useCache string) error {
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
 	namespace := utils.GetAppNamespace(appName)
@@ -25,7 +25,7 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createBuildJob(infrastructureEnvironment, appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag)
+	job, err := createBuildJob(infrastructureEnvironment, appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag, useCache)
 	if err != nil {
 		return err
 	}
@@ -65,10 +65,10 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 
 const workspace = "/workspace"
 
-func createBuildJob(infrastructureEnvironment, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag string) (*batchv1.Job, error) {
+func createBuildJob(infrastructureEnvironment, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
 	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
-	buildContainers := createBuildContainers(infrastructureEnvironment, appName, imageTag, components)
+	buildContainers := createBuildContainers(infrastructureEnvironment, appName, imageTag, useCache, components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -145,7 +145,7 @@ func createBuildJob(infrastructureEnvironment, appName, jobName string, componen
 	return &job, nil
 }
 
-func createBuildContainers(infrastructureEnvironment, appName, imageTag string, components []v1.RadixComponent) []corev1.Container {
+func createBuildContainers(infrastructureEnvironment, appName, imageTag, useCache string, components []v1.RadixComponent) []corev1.Container {
 	containers := []corev1.Container{}
 
 	for _, c := range components {
@@ -160,7 +160,7 @@ func createBuildContainers(infrastructureEnvironment, appName, imageTag string, 
 				fmt.Sprintf("--dockerfile=%s", dockerFile),
 				fmt.Sprintf("--context=%s", context),
 				fmt.Sprintf("--destination=%s", imagePath),
-				"--cache=true",
+				fmt.Sprintf("--cache=%s", useCache),
 				"--snapshotMode=time",
 			},
 			Env: []corev1.EnvVar{
