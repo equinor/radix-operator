@@ -6,7 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/statoil/radix-operator/pkg/apis/application"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/statoil/radix-operator/pkg/apis/radixvalidators"
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
@@ -39,7 +39,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (R
 }
 
 // Run Runs the main pipeline
-func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileName string) error {
+func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileName, useCache string) error {
 	radixApplication, err := utils.GetRadixApplication(appFileName)
 	if err != nil {
 		log.Errorf("failed to get ra from file (%s) for app Error: %v", appFileName, err)
@@ -59,7 +59,9 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 	branchIsMapped, targetEnvironments := application.IsBranchMappedToEnvironment(branch)
 
 	if !branchIsMapped {
-		return fmt.Errorf("Failed to match environment to branch: %s", branch)
+		errMsg := fmt.Sprintf("Failed to match environment to branch: %s", branch)
+		log.Warnf(errMsg)
+		return fmt.Errorf(errMsg)
 	}
 
 	appName := radixApplication.Name
@@ -77,7 +79,7 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 		return err
 	}
 
-	err = cli.build(jobName, radixRegistration, radixApplication, branch, commitID, imageTag)
+	err = cli.build(jobName, radixRegistration, radixApplication, branch, commitID, imageTag, useCache)
 	if err != nil {
 		log.Errorf("failed to build app %s. Error: %v", appName, err)
 		return err
