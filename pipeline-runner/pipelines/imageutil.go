@@ -2,8 +2,7 @@ package onpush
 
 import "fmt"
 
-func getImagePath(infrastructureEnvironment, appName, componentName, imageTag string) string {
-	containerRegistryURL := fmt.Sprintf("radix%s.azurecr.io", infrastructureEnvironment)
-	imageName := fmt.Sprintf("%s/%s-%s:%s", containerRegistryURL, appName, componentName, imageTag)
+func getImagePath(containerRegistry, appName, componentName, imageTag string) string {
+	imageName := fmt.Sprintf("%s/%s-%s:%s", containerRegistry, appName, componentName, imageTag)
 	return imageName
 }

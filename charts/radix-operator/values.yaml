@@ -1,7 +1,6 @@
 # Default values for radix-operator.
 
 clusterName: clusterz
-infrastructureEnvironment: envivonmentz
 
 appAliasBaseURL: app.dev.radix.equinor.com
 

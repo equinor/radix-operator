@@ -7,7 +7,7 @@ import (
 	"github.com/statoil/radix-operator/pkg/apis/utils"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -130,7 +130,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, infrastruct
 
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
-			Image:                getImagePath(infrastructureEnvironment, appName, componentName, imageTag),
+			Image:                getImagePath(containerRegistry, appName, componentName, imageTag),
 			Replicas:             appComponent.Replicas,
 			Public:               appComponent.Public,
 			Ports:                appComponent.Ports,
