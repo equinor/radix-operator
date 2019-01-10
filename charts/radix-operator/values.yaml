@@ -15,7 +15,7 @@ replicaCount: 1
 
 image:
   repository: radix-operator
-  tag: "latest"
+  tag: "release-latest"
   pullPolicy: Always
 
 service:
