@@ -18,14 +18,14 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 	appName := radixRegistration.Name
 	cloneURL := radixRegistration.Spec.CloneURL
 	namespace := utils.GetAppNamespace(appName)
-	infrastructureEnvironment, err := cli.kubeutil.GetInfrastructureEnvironment()
+	containerRegistry, err := cli.kubeutil.GetContainerRegistry()
 	if err != nil {
 		return err
 	}
 
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createBuildJob(infrastructureEnvironment, appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag, useCache)
+	job, err := createBuildJob(containerRegistry, appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag, useCache)
 	if err != nil {
 		return err
 	}
@@ -65,10 +65,10 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 
 const workspace = "/workspace"
 
-func createBuildJob(infrastructureEnvironment, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
+func createBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
 	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
-	buildContainers := createBuildContainers(infrastructureEnvironment, appName, imageTag, useCache, components)
+	buildContainers := createBuildContainers(containerRegistry, appName, imageTag, useCache, components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -145,7 +145,7 @@ func createBuildJob(infrastructureEnvironment, appName, jobName string, componen
 	return &job, nil
 }
 
-func createBuildContainers(infrastructureEnvironment, appName, imageTag, useCache string, components []v1.RadixComponent) []corev1.Container {
+func createBuildContainers(containerRegistry, appName, imageTag, useCache string, components []v1.RadixComponent) []corev1.Container {
 	containers := []corev1.Container{}
 
 	for _, c := range components {

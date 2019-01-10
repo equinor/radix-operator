@@ -126,8 +126,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername string) {
 			Namespace: corev1.NamespaceDefault,
 		},
 		Data: map[string]string{
-			"clustername":               clustername,
-			"infrastructureEnvironment": "dev",
+			"clustername":       clustername,
+			"containerRegistry": "radixdev.azurecr.io",
 		},
 	})
 }

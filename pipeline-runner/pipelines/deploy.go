@@ -14,14 +14,14 @@ import (
 // Deploy Handles deploy step of the pipeline
 func (cli *RadixOnPushHandler) Deploy(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, imageTag, branch, commitID string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
 	appName := radixRegistration.Name
-	infrastructureEnvironment, err := cli.kubeutil.GetInfrastructureEnvironment()
+	containerRegistry, err := cli.kubeutil.GetContainerRegistry()
 	if err != nil {
 		return nil, err
 	}
 
 	log.Infof("Deploying app %s", appName)
 
-	radixDeployments, err := createRadixDeployments(radixApplication, infrastructureEnvironment, jobName, imageTag, branch, commitID, targetEnvs)
+	radixDeployments, err := createRadixDeployments(radixApplication, containerRegistry, jobName, imageTag, branch, commitID, targetEnvs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
 	}
@@ -75,7 +75,7 @@ func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixReg
 }
 
 // TODO : Move this into Deployment domain/package
-func createRadixDeployments(radixApplication *v1.RadixApplication, infrastructureEnvironment, jobName, imageTag, branch, commitID string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
+func createRadixDeployments(radixApplication *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, targetEnvs map[string]bool) ([]v1.RadixDeployment, error) {
 	radixDeployments := []v1.RadixDeployment{}
 	for _, env := range radixApplication.Spec.Environments {
 		if _, contains := targetEnvs[env.Name]; !contains {
@@ -87,7 +87,7 @@ func createRadixDeployments(radixApplication *v1.RadixApplication, infrastructur
 			continue
 		}
 
-		radixComponents := getRadixComponentsForEnv(radixApplication, infrastructureEnvironment, env.Name, imageTag)
+		radixComponents := getRadixComponentsForEnv(radixApplication, containerRegistry, env.Name, imageTag)
 		radixDeployment := createRadixDeployment(radixApplication.Name, env.Name, jobName, imageTag, branch, commitID, radixComponents)
 		radixDeployments = append(radixDeployments, radixDeployment)
 	}
@@ -119,7 +119,7 @@ func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID str
 	return radixDeployment
 }
 
-func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, infrastructureEnvironment, env, imageTag string) []v1.RadixDeployComponent {
+func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env, imageTag string) []v1.RadixDeployComponent {
 	appName := radixApplication.Name
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}

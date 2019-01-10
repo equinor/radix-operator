@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	configMapName                   = "radix-config"
-	clusterNameConfig               = "clustername"
-	infrastructureEnvironmentConfig = "infrastructureEnvironment"
+	configMapName           = "radix-config"
+	clusterNameConfig       = "clustername"
+	containerRegistryConfig = "containerRegistry"
 )
 
 // GetClusterName Gets the global name of the cluster from config map in default namespace
@@ -30,7 +30,7 @@ func (kube *Kube) GetContainerRegistry() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Failed to get radix config map: %v", err)
 	}
-	infrastructureEnvironment := radixconfigmap.Data[infrastructureEnvironmentConfig]
-	logger.Infof("Infrastructure environment: %s", infrastructureEnvironment)
-	return infrastructureEnvironment, nil
+	containerRegistry := radixconfigmap.Data[containerRegistryConfig]
+	logger.Infof("Infrastructure environment: %s", containerRegistry)
+	return containerRegistry, nil
 }
