@@ -74,9 +74,13 @@ rules:
   - list
   - watch
   - create
-- apiGroups: ["*"]
-  resources: ["configmaps"]
-  verbs: ["get", "list"]
+- apiGroups:
+  - "*"
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
 ---
 # used to grant pipeline access to create new namespaces and deployments
 apiVersion: rbac.authorization.k8s.io/v1
@@ -105,3 +109,10 @@ rules:
   verbs:
   - get
   - create
+- apiGroups:
+  - "*"
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
