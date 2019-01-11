@@ -12,7 +12,7 @@ import (
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -33,7 +33,7 @@ const (
 	radixPortsEnvironmentVariable      = "RADIX_PORTS"
 	prometheusInstanceLabel            = "LABEL_PROMETHEUS_INSTANCE"
 	radixPortNamesEnvironmentVariable  = "RADIX_PORT_NAMES"
-	hostnameTemplate                   = "%s-%s.%s.dev.radix.equinor.com"
+	hostnameTemplate                   = "%s-%s.%s.%s"
 	defaultReplicas                    = 1
 )
 
@@ -481,9 +481,14 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 	})
 
 	if isPublic {
+		dnsZone := os.Getenv("DNS_ZONE")
+		if dnsZone == "" {
+			return nil
+		}
+
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
 			Name:  publicEndpointEnvironmentVariable,
-			Value: fmt.Sprintf(hostnameTemplate, componentName, namespace, clusterName),
+			Value: fmt.Sprintf(hostnameTemplate, componentName, namespace, clusterName, dnsZone),
 		})
 	}
 
@@ -643,7 +648,11 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 }
 
 func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
+	dnsZone := os.Getenv("DNS_ZONE")
+	if dnsZone == "" {
+		return nil
+	}
+	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 

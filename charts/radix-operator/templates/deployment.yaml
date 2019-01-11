@@ -31,6 +31,8 @@ spec:
           env:
             - name: LABEL_PROMETHEUS_INSTANCE
               value: {{ .Values.prometheusName }}
+            - name: DNS_ZONE
+              value: {{ .Values.dnsZone }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
           livenessProbe:
