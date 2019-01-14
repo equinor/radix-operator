@@ -21,7 +21,7 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createBuildJob(appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag, useCache)
+	job, err := createACRBuildJob(appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag, useCache)
 	if err != nil {
 		return err
 	}

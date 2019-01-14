@@ -20,6 +20,10 @@ type ContainerRegistryCredentials struct {
 	Password string
 }
 
+const (
+	spACRSecretName = "radix-sp-acr-azure" //also defined in ../pipeline-runner/build/build.go
+)
+
 func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
 	secretName := secret.ObjectMeta.Name
 	log.Infof("Applies secret %s in namespace %s", secretName, namespace)
@@ -51,6 +55,10 @@ func (k *Kube) ApplySecretsForPipelines(radixRegistration *radixv1.RadixRegistra
 	if err != nil {
 		return err
 	}
+	err = k.applyServicePrincipleACRSecretToBuildNamespace(buildNamespace)
+	if err != nil {
+		log.Warnf("Failed to apply service principle acr secret (%s) to namespace %s", spACRSecretName, buildNamespace)
+	}
 	return nil
 }
 
@@ -72,6 +80,35 @@ func (k *Kube) applyDockerSecretToBuildNamespace(buildNamespace string) error {
 
 	_, err = k.ApplySecret(buildNamespace, dockerSecretForBuild)
 	return err
+}
+
+func (k *Kube) applyServicePrincipleACRSecretToBuildNamespace(buildNamespace string) error {
+	dockerSecretForBuild, err := k.createNewServicePrincipleACRSecret(buildNamespace)
+	if err != nil {
+		return err
+	}
+
+	_, err = k.ApplySecret(buildNamespace, dockerSecretForBuild)
+	return err
+}
+
+func (k *Kube) createNewServicePrincipleACRSecret(namespace string) (*corev1.Secret, error) {
+	dockerSecret, err := k.kubeClient.CoreV1().Secrets("default").Get(spACRSecretName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("Failed to get %s secret from default. %v", spACRSecretName, err)
+		return nil, err
+	}
+	secret := corev1.Secret{
+		Type: "Opaque",
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      spACRSecretName,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"sp_credentials.json": dockerSecret.Data["sp_credentials.json"],
+		},
+	}
+	return &secret, nil
 }
 
 func (k *Kube) createNewGitDeployKey(namespace string, radixRegistration *radixv1.RadixRegistration) (*corev1.Secret, error) {
