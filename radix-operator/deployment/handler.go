@@ -189,7 +189,7 @@ func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistr
 	appName := radixDeploy.Spec.AppName
 	deployment := t.getDeploymentConfig(radixDeploy, deployComponent)
 
-	t.customRbacSettings(appName, namespace, radixRegistration, deployment)
+	t.customSecuritySettings(appName, namespace, radixRegistration, deployment)
 
 	logger.Infof("Creating Deployment object %s in namespace %s", deployComponent.Name, namespace)
 	createdDeployment, err := t.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
@@ -209,7 +209,9 @@ func (t *RadixDeployHandler) createDeployment(radixRegistration *v1.RadixRegistr
 	return nil
 }
 
-func (t *RadixDeployHandler) customRbacSettings(appName, namespace string, radixRegistration *v1.RadixRegistration, deployment *v1beta1.Deployment) {
+func (t *RadixDeployHandler) customSecuritySettings(appName, namespace string, radixRegistration *v1.RadixRegistration, deployment *v1beta1.Deployment) {
+	// need to be able to get serviceaccount token inside container
+	automountServiceAccountToken := true
 	if isRadixWebHook(radixRegistration.Namespace, appName) {
 		serviceAccountName := "radix-github-webhook"
 		serviceAccount, err := t.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
@@ -219,6 +221,7 @@ func (t *RadixDeployHandler) customRbacSettings(appName, namespace string, radix
 			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
 			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 		}
+		deployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	}
 	if isRadixAPI(radixRegistration.Namespace, appName) {
 		serviceAccountName := "radix-api"
@@ -229,6 +232,7 @@ func (t *RadixDeployHandler) customRbacSettings(appName, namespace string, radix
 			_ = t.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", radixRegistration, serviceAccount)
 			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 		}
+		deployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	}
 }
 
@@ -310,6 +314,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 	componentName := deployComponent.Name
 	componentPorts := deployComponent.Ports
 	replicas := deployComponent.Replicas
+	automountServiceAccountToken := false
 
 	const branchKey, commitIDKey = "radix-branch", "radix-commit"
 	rdLabels := radixDeploy.Labels
@@ -322,6 +327,7 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 	}
 
 	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeploy)
+	securityContext := getSecurityContextForContainer()
 
 	deployment := &v1beta1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -351,12 +357,18 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 						kube.RadixBranchLabel:    branch,
 						kube.RadixCommitLabel:    commitID,
 					},
+					Annotations: map[string]string{
+						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
+						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
+					},
 				},
 				Spec: corev1.PodSpec{
+					AutomountServiceAccountToken: &automountServiceAccountToken,
 					Containers: []corev1.Container{
 						{
-							Name:  componentName,
-							Image: deployComponent.Image,
+							Name:            componentName,
+							Image:           deployComponent.Image,
+							SecurityContext: securityContext,
 						},
 					},
 					ImagePullSecrets: []corev1.LocalObjectReference{
@@ -396,6 +408,18 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 	}
 
 	return deployment
+}
+
+func getSecurityContextForContainer() *corev1.SecurityContext {
+	allowPrivilegeEscalation := false
+	runAsNonRoot := true
+	runAsUser := int64(1000)
+
+	return &corev1.SecurityContext{
+		AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+		RunAsNonRoot:             &runAsNonRoot,
+		RunAsUser:                &runAsUser,
+	}
 }
 
 func getResourceRequirements(deployComponent v1.RadixDeployComponent) *corev1.ResourceRequirements {
