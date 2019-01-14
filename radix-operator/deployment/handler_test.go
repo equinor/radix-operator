@@ -363,3 +363,91 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 }
+
+func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
+	// Remove this command when looking at:
+	// OR-793 - Operator does not handle change of the number of components
+	t.SkipNow()
+	handlerTestUtils, kubeclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentOneName := "componentOneName"
+	componentTwoName := "componentTwoName"
+	componentThreeName := "componentThreeName"
+
+	// Test
+	err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublic(true).
+				WithDNSAppAlias(true).
+				WithReplicas(4),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublic(false).
+				WithReplicas(0),
+			utils.NewDeployComponentBuilder().
+				WithName(componentThreeName).
+				WithPort("http", 3000).
+				WithPublic(true).
+				WithSecrets([]string{"a_secret"})))
+
+	assert.NoError(t, err)
+
+	// Remove components
+	err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublic(false).
+				WithReplicas(0)))
+
+	assert.NoError(t, err)
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
+	t.Run("validate deploy", func(t *testing.T) {
+		t.Parallel()
+		deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(deployments.Items), "Number of deployments wasn't as expected")
+		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
+	})
+
+	t.Run("validate service", func(t *testing.T) {
+		t.Parallel()
+		services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(services.Items), "Number of services wasn't as expected")
+		assert.Equal(t, componentTwoName, services.Items[1].Name, "component 2 service not there")
+	})
+
+	t.Run("validate ingress", func(t *testing.T) {
+		t.Parallel()
+		ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(ingresses.Items), "Number of ingresses was not according to public components")
+	})
+
+	t.Run("validate secrets", func(t *testing.T) {
+		t.Parallel()
+		secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(secrets.Items), "Number of secrets was not according to spec")
+	})
+
+	t.Run("validate service accounts", func(t *testing.T) {
+		t.Parallel()
+		serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+	})
+
+	t.Run("validate rolebindings", func(t *testing.T) {
+		t.Parallel()
+		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
+	})
+}
