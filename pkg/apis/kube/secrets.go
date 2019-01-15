@@ -55,7 +55,7 @@ func (k *Kube) ApplySecretsForPipelines(radixRegistration *radixv1.RadixRegistra
 	if err != nil {
 		return err
 	}
-	err = k.applyServicePrincipleACRSecretToBuildNamespace(buildNamespace)
+	err = k.applyServicePrincipalACRSecretToBuildNamespace(buildNamespace)
 	if err != nil {
 		log.Warnf("Failed to apply service principle acr secret (%s) to namespace %s", spACRSecretName, buildNamespace)
 	}
@@ -82,18 +82,18 @@ func (k *Kube) applyDockerSecretToBuildNamespace(buildNamespace string) error {
 	return err
 }
 
-func (k *Kube) applyServicePrincipleACRSecretToBuildNamespace(buildNamespace string) error {
-	dockerSecretForBuild, err := k.createNewServicePrincipleACRSecret(buildNamespace)
+func (k *Kube) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
+	servicePrincipalSecretForBuild, err := k.createNewServicePrincipalACRSecret(buildNamespace)
 	if err != nil {
 		return err
 	}
 
-	_, err = k.ApplySecret(buildNamespace, dockerSecretForBuild)
+	_, err = k.ApplySecret(buildNamespace, servicePrincipalSecretForBuild)
 	return err
 }
 
-func (k *Kube) createNewServicePrincipleACRSecret(namespace string) (*corev1.Secret, error) {
-	dockerSecret, err := k.kubeClient.CoreV1().Secrets("default").Get(spACRSecretName, metav1.GetOptions{})
+func (k *Kube) createNewServicePrincipalACRSecret(namespace string) (*corev1.Secret, error) {
+	servicePrincipalSecret, err := k.kubeClient.CoreV1().Secrets("default").Get(spACRSecretName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get %s secret from default. %v", spACRSecretName, err)
 		return nil, err
@@ -105,7 +105,7 @@ func (k *Kube) createNewServicePrincipleACRSecret(namespace string) (*corev1.Sec
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{
-			"sp_credentials.json": dockerSecret.Data["sp_credentials.json"],
+			"sp_credentials.json": servicePrincipalSecret.Data["sp_credentials.json"],
 		},
 	}
 	return &secret, nil
