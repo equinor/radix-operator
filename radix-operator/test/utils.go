@@ -101,7 +101,7 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder
 }
 
 // CreateClusterPrerequisites Creates needed pre-required resources in cluster
-func (tu *Utils) CreateClusterPrerequisites(clustername string) {
+func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry string) {
 	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
-	testUtils.CreateClusterPrerequisites(clustername)
+	testUtils.CreateClusterPrerequisites(clustername, containerRegistry)
 }

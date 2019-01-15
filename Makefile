@@ -1,8 +1,11 @@
-DOCKER_REGISTRY	?= radixdev.azurecr.io
-
 DOCKER_FILES	= operator pipeline
 
 VERSION 	?= latest
+
+ENVIRONMENT ?= dev
+
+CONTAINER_REPO ?= radix$(ENVIRONMENT)
+DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 
 DATE = $(shell date +%F_%T)
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
@@ -40,22 +43,26 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-build,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-push,$(element))))
 $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
-# deploys radix operator using helm chart in radixdev acr
+# deploys radix operator using helm chart in radixdev/radixprod acr
 deploy-via-helm:
-	az acr helm repo add --name radixdev
+	az acr helm repo add --name $(CONTAINER_REPO)
 	helm repo update
-	helm upgrade --install radix-operator radixdev/radix-operator --set prometheusName=radix-stage1 --set clusterName=$(CLUSTER_NAME) --set image.tag=$(TAG)
+	helm upgrade --install radix-operator $(CONTAINER_REPO)/radix-operator --set prometheusName=radix-stage1 --set clusterName=$(CLUSTER_NAME) --set imageRegistry=$(DOCKER_REGISTRY) --set image.tag=$(TAG)
 
 # build and deploy radix operator
 helm-up:
 	make deploy-operator
 	make deploy-via-helm
 
-# upgrades helm chart in radixdev acr (does not deploy radix-operator)
+# upgrades helm chart in radixdev/radixprod acr (does not deploy radix-operator)
 helm-upgrade-operator-chart:
 	tar -zcvf radix-operator-$(CHART_VERSION).tgz charts/radix-operator
-	az acr helm push --name radixdev charts/radix-operator-$(CHART_VERSION).tgz
+	az acr helm push --name $(CONTAINER_REPO) charts/radix-operator-$(CHART_VERSION).tgz
 	rm charts/radix-operator-$(CHART_VERSION).tgz
+
+deploy-acr-builder:
+	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
+	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
 
 ROOT_PACKAGE=github.com/statoil/radix-operator
 CUSTOM_RESOURCE_NAME=radix

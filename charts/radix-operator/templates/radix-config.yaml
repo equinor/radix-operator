@@ -9,3 +9,4 @@ metadata:
     heritage: "{{ .Release.Service }}"
 data:
   clustername: {{ .Values.clusterName }}
+  containerRegistry: {{ .Values.imageRegistry }}
