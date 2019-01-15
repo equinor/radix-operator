@@ -412,13 +412,13 @@ func (t *RadixDeployHandler) getDeploymentConfig(radixDeploy *v1.RadixDeployment
 
 func getSecurityContextForContainer() *corev1.SecurityContext {
 	allowPrivilegeEscalation := false
-	runAsNonRoot := true
-	runAsUser := int64(1000)
+	// runAsNonRoot := true
+	// runAsUser := int64(1000)
 
 	return &corev1.SecurityContext{
 		AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-		RunAsNonRoot:             &runAsNonRoot,
-		RunAsUser:                &runAsUser,
+		// RunAsNonRoot:             &runAsNonRoot,
+		// RunAsUser:                &runAsUser,
 	}
 }
 
