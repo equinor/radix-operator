@@ -25,15 +25,16 @@ import (
 )
 
 const (
-	clusternameEnvironmentVariable     = "RADIX_CLUSTERNAME"
-	environmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
-	publicEndpointEnvironmentVariable  = "RADIX_PUBLIC_DOMAIN_NAME"
-	radixAppEnvironmentVariable        = "RADIX_APP"
-	radixComponentEnvironmentVariable  = "RADIX_COMPONENT"
-	radixPortsEnvironmentVariable      = "RADIX_PORTS"
-	prometheusInstanceLabel            = "LABEL_PROMETHEUS_INSTANCE"
-	radixPortNamesEnvironmentVariable  = "RADIX_PORT_NAMES"
-	defaultReplicas                    = 1
+	clusternameEnvironmentVariable       = "RADIX_CLUSTERNAME"
+	containerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
+	environmentnameEnvironmentVariable   = "RADIX_ENVIRONMENT"
+	publicEndpointEnvironmentVariable    = "RADIX_PUBLIC_DOMAIN_NAME"
+	radixAppEnvironmentVariable          = "RADIX_APP"
+	radixComponentEnvironmentVariable    = "RADIX_COMPONENT"
+	radixPortsEnvironmentVariable        = "RADIX_PORTS"
+	prometheusInstanceLabel              = "LABEL_PROMETHEUS_INSTANCE"
+	radixPortNamesEnvironmentVariable    = "RADIX_PORT_NAMES"
+	defaultReplicas                      = 1
 )
 
 // RadixDeployHandler Instance variables
@@ -492,6 +493,16 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 	if err != nil {
 		return environmentVariables
 	}
+
+	containerRegistry, err := t.kubeutil.GetContainerRegistry()
+	if err != nil {
+		return environmentVariables
+	}
+
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  containerRegistryEnvironmentVariable,
+		Value: containerRegistry,
+	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
 		Name:  clusternameEnvironmentVariable,
