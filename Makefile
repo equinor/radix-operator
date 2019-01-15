@@ -61,8 +61,8 @@ helm-upgrade-operator-chart:
 	rm charts/radix-operator-$(CHART_VERSION).tgz
 
 deploy-acr-builder:
-	docker build -t radixdev.azurecr.io/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
-	docker push radixdev.azurecr.io/radix-image-builder:$(BRANCH)-$(VERSION)
+	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
+	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
 
 ROOT_PACKAGE=github.com/statoil/radix-operator
 CUSTOM_RESOURCE_NAME=radix
