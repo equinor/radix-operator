@@ -33,7 +33,6 @@ const (
 	radixPortsEnvironmentVariable      = "RADIX_PORTS"
 	prometheusInstanceLabel            = "LABEL_PROMETHEUS_INSTANCE"
 	radixPortNamesEnvironmentVariable  = "RADIX_PORT_NAMES"
-	hostnameTemplate                   = "%s-%s.%s.%s"
 	defaultReplicas                    = 1
 )
 
@@ -512,7 +511,7 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
 			Name:  publicEndpointEnvironmentVariable,
-			Value: fmt.Sprintf(hostnameTemplate, componentName, namespace, clusterName, dnsZone),
+			Value: getHostName(componentName, namespace, clusterName, dnsZone),
 		})
 	}
 
@@ -676,11 +675,16 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 	if dnsZone == "" {
 		return nil
 	}
-	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
+	hostname := getHostName(componentName, namespace, clustername, dnsZone)
 	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)
+}
+
+func getHostName(componentName, namespace, clustername, dnsZone string) string {
+	hostnameTemplate := "%s-%s.%s.%s"
+	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
 
 func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, ownerReference []metav1.OwnerReference, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
