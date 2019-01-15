@@ -12,7 +12,7 @@ import (
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
 	"github.com/statoil/radix-operator/pkg/apis/kube"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -25,16 +25,16 @@ import (
 )
 
 const (
-	clusternameEnvironmentVariable     = "RADIX_CLUSTERNAME"
-	environmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
-	publicEndpointEnvironmentVariable  = "RADIX_PUBLIC_DOMAIN_NAME"
-	radixAppEnvironmentVariable        = "RADIX_APP"
-	radixComponentEnvironmentVariable  = "RADIX_COMPONENT"
-	radixPortsEnvironmentVariable      = "RADIX_PORTS"
-	prometheusInstanceLabel            = "LABEL_PROMETHEUS_INSTANCE"
-	radixPortNamesEnvironmentVariable  = "RADIX_PORT_NAMES"
-	hostnameTemplate                   = "%s-%s.%s.dev.radix.equinor.com"
-	defaultReplicas                    = 1
+	clusternameEnvironmentVariable       = "RADIX_CLUSTERNAME"
+	containerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
+	environmentnameEnvironmentVariable   = "RADIX_ENVIRONMENT"
+	publicEndpointEnvironmentVariable    = "RADIX_PUBLIC_DOMAIN_NAME"
+	radixAppEnvironmentVariable          = "RADIX_APP"
+	radixComponentEnvironmentVariable    = "RADIX_COMPONENT"
+	radixPortsEnvironmentVariable        = "RADIX_PORTS"
+	prometheusInstanceLabel              = "LABEL_PROMETHEUS_INSTANCE"
+	radixPortNamesEnvironmentVariable    = "RADIX_PORT_NAMES"
+	defaultReplicas                      = 1
 )
 
 // RadixDeployHandler Instance variables
@@ -489,10 +489,20 @@ func (t *RadixDeployHandler) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap,
 }
 
 func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort) []corev1.EnvVar {
-	clusterName, err := t.getClusterName()
+	clusterName, err := t.kubeutil.GetClusterName()
 	if err != nil {
 		return environmentVariables
 	}
+
+	containerRegistry, err := t.kubeutil.GetContainerRegistry()
+	if err != nil {
+		return environmentVariables
+	}
+
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  containerRegistryEnvironmentVariable,
+		Value: containerRegistry,
+	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
 		Name:  clusternameEnvironmentVariable,
@@ -505,9 +515,14 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 	})
 
 	if isPublic {
+		dnsZone := os.Getenv("DNS_ZONE")
+		if dnsZone == "" {
+			return nil
+		}
+
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
 			Name:  publicEndpointEnvironmentVariable,
-			Value: fmt.Sprintf(hostnameTemplate, componentName, namespace, clusterName),
+			Value: getHostName(componentName, namespace, clusterName, dnsZone),
 		})
 	}
 
@@ -613,7 +628,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 
 func (t *RadixDeployHandler) createIngress(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixDeployComponent) error {
 	namespace := radixDeploy.Namespace
-	clustername, err := t.getClusterName()
+	clustername, err := t.kubeutil.GetClusterName()
 	if err != nil {
 		return err
 	}
@@ -653,16 +668,6 @@ func (t *RadixDeployHandler) applyIngress(namespace string, ingress *v1beta1.Ing
 	return nil
 }
 
-func (t *RadixDeployHandler) getClusterName() (string, error) {
-	radixconfigmap, err := t.kubeclient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get("radix-config", metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("Failed to get radix config map: %v", err)
-	}
-	clustername := radixconfigmap.Data["clustername"]
-	logger.Infof("Cluster name: %s", clustername)
-	return clustername, nil
-}
-
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	appAlias := os.Getenv("APP_ALIAS_BASE_URL") // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
@@ -677,11 +682,20 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 }
 
 func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	hostname := fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername)
+	dnsZone := os.Getenv("DNS_ZONE")
+	if dnsZone == "" {
+		return nil
+	}
+	hostname := getHostName(componentName, namespace, clustername, dnsZone)
 	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)
+}
+
+func getHostName(componentName, namespace, clustername, dnsZone string) string {
+	hostnameTemplate := "%s-%s.%s.%s"
+	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
 
 func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, ownerReference []metav1.OwnerReference, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {

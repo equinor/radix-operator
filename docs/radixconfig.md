@@ -119,6 +119,7 @@ By default, each application container will have the following _default_ environ
 ```
 RADIX_APP
 RADIX_CLUSTERNAME
+RADIX_CONTAINER_REGISTRY
 RADIX_COMPONENT
 RADIX_ENVIRONMENT
 RADIX_PORTS (only available if set in the config)

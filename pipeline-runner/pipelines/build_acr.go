@@ -18,9 +18,9 @@ const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
 )
 
-func createACRBuildJob(appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
-	cloneContainer := CloneContainer(cloneURL, "master")
-	buildContainers := createACRBuildContainers(appName, imageTag, useCache, components)
+func createACRBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
+	cloneContainer := CloneContainer(containerRegistry, cloneURL, "master")
+	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, useCache, components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -81,12 +81,12 @@ func createACRBuildJob(appName, jobName string, components []v1.RadixComponent, 
 	return &job, nil
 }
 
-func createACRBuildContainers(appName, imageTag, useCache string, components []v1.RadixComponent) []corev1.Container {
+func createACRBuildContainers(containerRegistry, appName, imageTag, useCache string, components []v1.RadixComponent) []corev1.Container {
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 
 	for _, c := range components {
-		imagePath := getImagePath(appName, c.Name, imageTag)
+		imagePath := getImagePath(containerRegistry, appName, c.Name, imageTag)
 		dockerFile := c.DockerfileName
 		if dockerFile == "" {
 			dockerFile = "Dockerfile"
@@ -95,7 +95,7 @@ func createACRBuildContainers(appName, imageTag, useCache string, components []v
 		log.Infof("using dockerfile %s in context %s", dockerFile, context)
 		container := corev1.Container{
 			Name:  fmt.Sprintf("build-%s", c.Name),
-			Image: "radixdev.azurecr.io/radix-image-builder:master-latest", // todo - version?
+			Image: fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
 			Env: []corev1.EnvVar{
 				{
 					Name:  "DOCKER_FILE_NAME",
@@ -132,12 +132,12 @@ func createACRBuildContainers(appName, imageTag, useCache string, components []v
 }
 
 // CloneContainer The sidecar for cloning repo
-func CloneContainer(sshURL, branch string) corev1.Container {
+func CloneContainer(containerRegistry, sshURL, branch string) corev1.Container {
 	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --verbose --progress .", sshURL, branch)
 
 	container := corev1.Container{
 		Name:    "clone",
-		Image:   "radixdev.azurecr.io/gitclone:latest",
+		Image:   fmt.Sprintf("%s/gitclone:latest", containerRegistry),
 		Command: []string{"/bin/sh", "-c"},
 		Args:    []string{gitCloneCommand},
 		VolumeMounts: []corev1.VolumeMount{

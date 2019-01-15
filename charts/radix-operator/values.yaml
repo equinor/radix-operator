@@ -3,6 +3,7 @@
 clusterName: clusterz
 
 appAliasBaseURL: app.dev.radix.equinor.com
+dnsZone: dev.radix.equinor.com
 
 imagePullSecretName: radix-docker
 imageRegistry: radixdev.azurecr.io
@@ -14,7 +15,7 @@ replicaCount: 1
 
 image:
   repository: radix-operator
-  tag: "latest"
+  tag: "release-latest"
   pullPolicy: Always
 
 service:

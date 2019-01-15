@@ -102,3 +102,10 @@ rules:
   verbs:
   - get
   - create
+- apiGroups:
+  - "*"
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list

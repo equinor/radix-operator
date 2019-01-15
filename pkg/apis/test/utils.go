@@ -97,7 +97,7 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuil
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername string) {
+func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry string) {
 	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
@@ -126,7 +126,8 @@ func (tu *Utils) CreateClusterPrerequisites(clustername string) {
 			Namespace: corev1.NamespaceDefault,
 		},
 		Data: map[string]string{
-			"clustername": clustername,
+			"clustername":       clustername,
+			"containerRegistry": containerRegistry,
 		},
 	})
 }
