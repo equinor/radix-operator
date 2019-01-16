@@ -4,6 +4,8 @@ VERSION 	?= latest
 
 ENVIRONMENT ?= dev
 
+DNS_ZONE ?= dev.radix.equinor.com
+
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 
@@ -47,7 +49,7 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 deploy-via-helm:
 	az acr helm repo add --name $(CONTAINER_REPO)
 	helm repo update
-	helm upgrade --install radix-operator $(CONTAINER_REPO)/radix-operator --set prometheusName=radix-stage1 --set clusterName=$(CLUSTER_NAME) --set imageRegistry=$(DOCKER_REGISTRY) --set image.tag=$(TAG)
+	helm upgrade --install radix-operator $(CONTAINER_REPO)/radix-operator --set dnsZone=$(DNS_ZONE) --set appAliasBaseURL=app.$(DNS_ZONE) --set prometheusName=radix-stage1 --set clusterName=$(CLUSTER_NAME) --set imageRegistry=$(DOCKER_REGISTRY) --set image.tag=$(TAG)
 
 # build and deploy radix operator
 helm-up:
