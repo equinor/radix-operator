@@ -51,7 +51,7 @@ func main() {
 	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
 	if branch == "" {
-		branch = "master"
+		branch = "dev"
 	}
 	if fileName == "" {
 		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")

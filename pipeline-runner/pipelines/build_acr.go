@@ -19,7 +19,7 @@ const (
 )
 
 func createACRBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
-	cloneContainer := CloneContainer(containerRegistry, cloneURL, "master")
+	cloneContainer := CloneContainer(containerRegistry, cloneURL, branch)
 	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, useCache, components)
 	timestamp := time.Now().Format("20060102150405")
 
@@ -133,12 +133,12 @@ func createACRBuildContainers(containerRegistry, appName, imageTag, useCache str
 
 // CloneContainer The sidecar for cloning repo
 func CloneContainer(containerRegistry, sshURL, branch string) corev1.Container {
-	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --verbose --progress .", sshURL, branch)
+	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --progress .", sshURL, branch)
 
 	container := corev1.Container{
 		Name:    "clone",
 		Image:   fmt.Sprintf("%s/gitclone:latest", containerRegistry),
-		Command: []string{"/bin/sh", "-c"},
+		Command: []string{"/bin/sh", "-c", "-x"},
 		Args:    []string{gitCloneCommand},
 		VolumeMounts: []corev1.VolumeMount{
 			{
