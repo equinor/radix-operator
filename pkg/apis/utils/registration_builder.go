@@ -3,7 +3,7 @@ package utils
 import (
 	"strings"
 
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -121,7 +121,7 @@ func NewRegistrationBuilder() RegistrationBuilder {
 func ARadixRegistration() RegistrationBuilder {
 	builder := NewRegistrationBuilder().
 		WithName("anyapp").
-		WithCloneURL("git@github.com:Statoil/anyapp").
+		WithCloneURL("git@github.com:equinor/anyapp").
 		WithSharedSecret("NotSoSecret").
 		WithUID("1234-5678").
 		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"})

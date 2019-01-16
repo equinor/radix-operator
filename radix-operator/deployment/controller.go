@@ -2,10 +2,10 @@ package deployment
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	radixinformer "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix/v1"
-	"github.com/statoil/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
+	"github.com/equinor/radix-operator/radix-operator/common"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"

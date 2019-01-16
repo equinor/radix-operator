@@ -3,11 +3,11 @@ package onpush
 import (
 	"fmt"
 
-	"github.com/statoil/radix-operator/pkg/apis/kube"
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	log "github.com/Sirupsen/logrus"
-	v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

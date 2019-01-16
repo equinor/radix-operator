@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/statoil/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	log "github.com/Sirupsen/logrus"
-	pipe "github.com/statoil/radix-operator/pipeline-runner/pipelines"
+	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
 )
 
 var (

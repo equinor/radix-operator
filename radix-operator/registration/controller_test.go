@@ -6,8 +6,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/statoil/radix-operator/pkg/apis/utils"
-	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"

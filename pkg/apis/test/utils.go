@@ -2,9 +2,9 @@ package test
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/apis/kube"
-	builders "github.com/statoil/radix-operator/pkg/apis/utils"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	builders "github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

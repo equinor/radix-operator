@@ -5,7 +5,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"

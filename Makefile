@@ -64,7 +64,7 @@ deploy-acr-builder:
 	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
 	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
 
-ROOT_PACKAGE=github.com/statoil/radix-operator
+ROOT_PACKAGE=github.com/equinor/radix-operator
 CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
 

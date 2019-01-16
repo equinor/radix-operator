@@ -21,10 +21,10 @@ func TestGetGithubCloneURLFromRepo_EmptyRepo_CreatesEmptyClone(t *testing.T) {
 }
 
 func TestCloneToRepositoryURL_ValidUrl(t *testing.T) {
-	cloneURL := "git@github.com:Statoil/radix-api.git"
+	cloneURL := "git@github.com:equinor/radix-api.git"
 	repo := GetGithubRepositoryURLFromCloneURL(cloneURL)
 
-	assert.Equal(t, "https://github.com/Statoil/radix-api", repo)
+	assert.Equal(t, "https://github.com/equinor/radix-api", repo)
 }
 
 func TestCloneToRepositoryURL_EmptyURL(t *testing.T) {

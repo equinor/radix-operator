@@ -2,13 +2,13 @@ FROM golang:alpine3.7 as builder
 
 RUN apk update && apk add git && apk add -y ca-certificates curl && \
     curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-RUN mkdir -p /go/src/github.com/statoil/radix-operator/
-WORKDIR /go/src/github.com/statoil/radix-operator/
+RUN mkdir -p /go/src/github.com/equinor/radix-operator/
+WORKDIR /go/src/github.com/equinor/radix-operator/
 COPY Gopkg.toml Gopkg.lock ./
 RUN dep ensure -vendor-only
 COPY ./pipeline-runner ./pipeline-runner
 COPY ./pkg ./pkg
-WORKDIR /go/src/github.com/statoil/radix-operator/pipeline-runner/
+WORKDIR /go/src/github.com/equinor/radix-operator/pipeline-runner/
 
 ARG date
 ARG commitid
@@ -20,6 +20,6 @@ RUN adduser -D -g '' radix-pipeline
 FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /go/src/github.com/statoil/radix-operator/pipeline-runner/rootfs/pipeline-runner /usr/local/bin/pipeline-runner
+COPY --from=builder /go/src/github.com/equinor/radix-operator/pipeline-runner/rootfs/pipeline-runner /usr/local/bin/pipeline-runner
 USER radix-pipeline
 ENTRYPOINT ["/usr/local/bin/pipeline-runner"]

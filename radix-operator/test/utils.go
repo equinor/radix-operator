@@ -1,15 +1,15 @@
 package test
 
 import (
-	test "github.com/statoil/radix-operator/pkg/apis/test"
-	"github.com/statoil/radix-operator/pkg/apis/utils"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	"github.com/statoil/radix-operator/radix-operator/common"
+	test "github.com/equinor/radix-operator/pkg/apis/test"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// TODO: Merge this with "github.com/statoil/radix-operator/pkg/apis/test" once the handler functionality is in the pkg structure
+// TODO: Merge this with "github.com/equinor/radix-operator/pkg/apis/test" once the handler functionality is in the pkg structure
 
 // Utils Instance variables
 type Utils struct {

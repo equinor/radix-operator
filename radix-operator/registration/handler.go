@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/apis/kube"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"k8s.io/client-go/kubernetes"
 )
 

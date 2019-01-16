@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	yaml "gopkg.in/yaml.v2"
 )
 

@@ -3,11 +3,11 @@ package kube
 import (
 	"fmt"
 
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	log "github.com/Sirupsen/logrus"
 
-	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

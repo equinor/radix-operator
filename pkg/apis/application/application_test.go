@@ -3,7 +3,7 @@ package application
 import (
 	"testing"
 
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
 
