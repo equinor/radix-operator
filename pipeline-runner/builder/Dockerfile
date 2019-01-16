@@ -9,4 +9,5 @@ ENV TENANT=3aa4a235-b6e2-48d5-9195-7fcf05b459b0 \
     CONTEXT=./workspace/
 
 RUN chmod +x /radix-image-builder/build_acr.sh
-CMD /bin/sh -c "/radix-image-builder/build_acr.sh"
+ENTRYPOINT [ "/radix-image-builder/build_acr.sh"]
+CMD ["-c"]
