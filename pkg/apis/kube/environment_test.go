@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"

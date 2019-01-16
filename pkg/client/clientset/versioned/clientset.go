@@ -19,7 +19,7 @@ limitations under the License.
 package versioned
 
 import (
-	radixv1 "github.com/statoil/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

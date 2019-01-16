@@ -4,13 +4,13 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
 
-	fakeradix "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
+	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

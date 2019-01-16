@@ -4,7 +4,7 @@ metadata:
   name: testapp
   namespace: default
 spec:
-  cloneURL: "git@github.com:Statoil/testapp.git"
+  cloneURL: "git@github.com:equinor/testapp.git"
   sharedSecret: "NotSoSecret"
   adGroups:
   - "a6a3b81b-34gd-sfsf-saf2-7986371ea35f"
