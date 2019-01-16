@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/statoil/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
-	radix "github.com/statoil/radix-operator/pkg/client/informers/externalversions/radix"
+	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
+	radix "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

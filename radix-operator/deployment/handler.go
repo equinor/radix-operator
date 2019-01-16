@@ -7,13 +7,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
-	"github.com/statoil/radix-operator/pkg/apis/kube"
-	v1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"

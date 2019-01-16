@@ -3,7 +3,7 @@ package utils
 import (
 	"time"
 
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

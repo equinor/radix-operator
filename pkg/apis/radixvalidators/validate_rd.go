@@ -3,8 +3,8 @@ package radixvalidators
 import (
 	"fmt"
 
-	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
 
 const (

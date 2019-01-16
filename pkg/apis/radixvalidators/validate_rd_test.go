@@ -3,11 +3,11 @@ package radixvalidators_test
 import (
 	"testing"
 
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	"github.com/statoil/radix-operator/pkg/apis/radixvalidators"
-	"github.com/statoil/radix-operator/pkg/apis/utils"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
-	radixfake "github.com/statoil/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"

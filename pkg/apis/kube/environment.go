@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	radixv1 "github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	"github.com/statoil/radix-operator/pkg/apis/utils"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

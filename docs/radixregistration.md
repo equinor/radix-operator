@@ -10,7 +10,7 @@ kind: RadixRegistration
 metadata:
   name: myapp
 spec:
-  cloneURL: "git@github.com:Statoil/myapp"
+  cloneURL: "git@github.com:equinor/myapp"
   sharedSecret: "ThisIsASecret"
   deployKey: ""
   adGroups: 

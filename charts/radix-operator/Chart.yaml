@@ -8,7 +8,7 @@ keywords:
   - radix
 home: radix.equinor.com
 sources:
-  - https://github.com/Statoil/radix-operator
+  - https://github.com/equinor/radix-operator
 maintainers: 
   - name: Stian Ovrevage
     email: sov@equinor.com

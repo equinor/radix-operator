@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/statoil/radix-operator/pkg/apis/radix/v1"
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

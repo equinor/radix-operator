@@ -3,7 +3,7 @@ package kube
 import (
 	"os"
 
-	radixclient "github.com/statoil/radix-operator/pkg/client/clientset/versioned"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
