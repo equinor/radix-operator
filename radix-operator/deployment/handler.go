@@ -34,6 +34,7 @@ const (
 	radixPortsEnvironmentVariable        = "RADIX_PORTS"
 	prometheusInstanceLabel              = "LABEL_PROMETHEUS_INSTANCE"
 	radixPortNamesEnvironmentVariable    = "RADIX_PORT_NAMES"
+	radixDNSZoneEnvironmentVariable      = "RADIX_DNS_ZONE"
 	defaultReplicas                      = 1
 )
 
@@ -494,6 +495,11 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 		return environmentVariables
 	}
 
+	dnsZone := os.Getenv("DNS_ZONE")
+	if dnsZone == "" {
+		return nil
+	}
+
 	containerRegistry, err := t.kubeutil.GetContainerRegistry()
 	if err != nil {
 		return environmentVariables
@@ -502,6 +508,11 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
 		Name:  containerRegistryEnvironmentVariable,
 		Value: containerRegistry,
+	})
+
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  radixDNSZoneEnvironmentVariable,
+		Value: dnsZone,
 	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
@@ -515,11 +526,6 @@ func (t *RadixDeployHandler) appendDefaultVariables(currentEnvironment string, e
 	})
 
 	if isPublic {
-		dnsZone := os.Getenv("DNS_ZONE")
-		if dnsZone == "" {
-			return nil
-		}
-
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
 			Name:  publicEndpointEnvironmentVariable,
 			Value: getHostName(componentName, namespace, clusterName, dnsZone),
