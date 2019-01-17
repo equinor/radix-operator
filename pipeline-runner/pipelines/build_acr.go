@@ -2,6 +2,7 @@ package onpush
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -84,6 +85,7 @@ func createACRBuildJob(containerRegistry, appName, jobName string, components []
 func createACRBuildContainers(containerRegistry, appName, imageTag, useCache string, components []v1.RadixComponent) []corev1.Container {
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
+	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 
 	for _, c := range components {
 		imagePath := getImagePath(containerRegistry, appName, c.Name, imageTag)
@@ -100,6 +102,10 @@ func createACRBuildContainers(containerRegistry, appName, imageTag, useCache str
 				{
 					Name:  "DOCKER_FILE_NAME",
 					Value: dockerFile,
+				},
+				{
+					Name:  "DOCKER_REGISTRY",
+					Value: firstPartContainerRegistry,
 				},
 				{
 					Name:  "IMAGE",
