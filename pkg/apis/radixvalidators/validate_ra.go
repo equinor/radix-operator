@@ -44,7 +44,7 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	dnsErrors := validateDnsAppAlias(app)
+	dnsErrors := validateDNSAppAlias(app)
 	if len(dnsErrors) > 0 {
 		errs = append(errs, dnsErrors...)
 	}
@@ -55,7 +55,7 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	return false, errs
 }
 
-func validateDnsAppAlias(app *radixv1.RadixApplication) []error {
+func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	errs := []error{}
 	alias := app.Spec.DNSAppAlias
 	if alias.Component == "" && alias.Environment == "" {
@@ -89,11 +89,9 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
-		for _, port := range component.Ports {
-			err := validateRequiredResourceName("port name", port.Name)
-			if err != nil {
-				errs = append(errs, err)
-			}
+		errList = validatePorts(component.Ports)
+		if errList != nil && len(errList) > 0 {
+			errs = append(errs, errList...)
 		}
 
 		for _, variable := range component.EnvironmentVariables {
@@ -101,6 +99,24 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 				err = fmt.Errorf("Env %s refered to by component variable %s is not defined", variable.Environment, component.Name)
 				errs = append(errs, err)
 			}
+		}
+	}
+
+	return errs
+}
+
+func validatePorts(ports []radixv1.ComponentPort) []error {
+	errs := []error{}
+
+	if ports == nil || len(ports) == 0 {
+		err := fmt.Errorf("Port specification cannot be empty")
+		errs = append(errs, err)
+	}
+
+	for _, port := range ports {
+		err := validateRequiredResourceName("port name", port.Name)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
 
