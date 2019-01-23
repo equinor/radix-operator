@@ -181,8 +181,8 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[1].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[1].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
 	})
 }
 
