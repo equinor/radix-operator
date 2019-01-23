@@ -89,7 +89,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
-		errList = validatePorts(component.Ports)
+		errList = validatePorts(component)
 		if errList != nil && len(errList) > 0 {
 			errs = append(errs, errList...)
 		}
@@ -105,15 +105,15 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
-func validatePorts(ports []radixv1.ComponentPort) []error {
+func validatePorts(component radixv1.RadixComponent) []error {
 	errs := []error{}
 
-	if ports == nil || len(ports) == 0 {
-		err := fmt.Errorf("Port specification cannot be empty")
+	if component.Ports == nil || len(component.Ports) == 0 {
+		err := fmt.Errorf("Port specification cannot be empty for %s", component.Name)
 		errs = append(errs, err)
 	}
 
-	for _, port := range ports {
+	for _, port := range component.Ports {
 		err := validateRequiredResourceName("port name", port.Name)
 		if err != nil {
 			errs = append(errs, err)
