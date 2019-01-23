@@ -121,6 +121,15 @@ func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeploym
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
 	}
 
+	// Normally the user should not get to this point if radix config is wrong, but in case
+	// of a bug in our validation we should at least grant access to the namespace so that the user is able to access the logs
+	// in order to maybe identify the problem there
+	err = t.kubeutil.GrantAppAdminAccessToNs(radixDeploy.Namespace, radixRegistration)
+	if err != nil {
+		logger.Infof("Failed to setup RBAC on namespace %s: %v", radixDeploy.Namespace, err)
+		return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", radixDeploy.Namespace, err)
+	}
+
 	logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	err = t.kubeutil.CreateSecrets(radixRegistration, radixDeploy)
 	if err != nil {
@@ -158,12 +167,6 @@ func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeploym
 		if err != nil {
 			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
 		}
-	}
-
-	err = t.kubeutil.GrantAppAdminAccessToNs(radixDeploy.Namespace, radixRegistration)
-	if err != nil {
-		logger.Infof("Failed to setup RBAC on namespace %s: %v", radixDeploy.Namespace, err)
-		return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", radixDeploy.Namespace, err)
 	}
 
 	return nil
