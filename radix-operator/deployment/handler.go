@@ -163,10 +163,6 @@ func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeploym
 				return fmt.Errorf("Failed to create service monitor: %v", err)
 			}
 		}
-		err = t.kubeutil.GrantAppAdminAccessToRuntimeSecrets(radixDeploy.Namespace, radixRegistration, &v)
-		if err != nil {
-			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
-		}
 	}
 
 	return nil
