@@ -108,7 +108,7 @@ true/false - This will generate a public endpoint for the component if set to tr
 
 #### ports
 
-An array of ports exposed by your component.
+An array of ports exposed by your component. Ports is a mandatory field and cannot be empty
 
 #### environmentVariables
 

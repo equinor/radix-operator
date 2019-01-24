@@ -3,7 +3,7 @@ package radixvalidators_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -56,6 +56,8 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"invalid component name", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = "invalid,char.appname" }},
 		{"uppercase component name", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = "invalidUPPERCASE.appname" }},
+		{"invalid port specification. Nil value", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = nil }},
+		{"invalid port specification. Empty value", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = []v1.ComponentPort{} }},
 		{"invalid port name", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports[0].Name = "invalid,char.appname" }},
 		{"invalid number of replicas", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Replicas = radixvalidators.MaxReplica + 1 }},
 		{"invalid env name", func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = "invalid,char.appname" }},
