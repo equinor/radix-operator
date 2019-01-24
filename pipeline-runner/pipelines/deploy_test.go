@@ -122,4 +122,15 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, "128Mi", rdDev.Spec.Components[1].Resources.Limits["memory"])
 		assert.Equal(t, "500m", rdDev.Spec.Components[1].Resources.Limits["cpu"])
 	})
+
+	t.Run("validate rolebindings", func(t *testing.T) {
+		t.Parallel()
+		rolebindings, _ := kubeclient.RbacV1().RoleBindings("any-app-dev").List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+
+		rolebindings, _ = kubeclient.RbacV1().RoleBindings("any-app-prod").List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+	})
 }

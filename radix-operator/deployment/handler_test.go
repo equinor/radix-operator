@@ -180,9 +180,11 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
-		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[1].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+
+		// Rolebinding radix-app-admin-envs happens alongside pipeplines creation of namespace. No way to test this now,
+		// until we refactor the code. Moved this test to pipeline
 	})
 }
 

@@ -70,6 +70,11 @@ func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixReg
 		if err != nil {
 			return err
 		}
+
+		err = cli.kubeutil.GrantAppAdminAccessToNs(namespaceName, radixRegistration)
+		if err != nil {
+			return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", namespaceName, err)
+		}
 	}
 
 	return nil
