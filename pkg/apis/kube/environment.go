@@ -6,7 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,6 +38,11 @@ func (k *Kube) CreateSecrets(registration *radixv1.RadixRegistration, deploy *ra
 			_, err = k.ApplySecret(ns, &secret)
 			if err != nil {
 				return err
+			}
+
+			err = k.GrantAppAdminAccessToRuntimeSecrets(deploy.Namespace, registration, &component)
+			if err != nil {
+				return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
 			}
 		}
 	}
