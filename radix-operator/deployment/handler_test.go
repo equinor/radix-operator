@@ -11,6 +11,7 @@ import (
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/radix-operator/application"
 	registration "github.com/equinor/radix-operator/radix-operator/registration"
 	"github.com/equinor/radix-operator/radix-operator/test"
 	"github.com/stretchr/testify/assert"
@@ -33,9 +34,11 @@ func setupTest() (*test.Utils, kube.Interface) {
 	prometheusoperatorclient := &monitoring.Clientset{}
 
 	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	applicationHandler := application.NewApplicationHandler(kubeclient, radixclient)
+
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient, prometheusoperatorclient)
 
-	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &deploymentHandler)
+	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &applicationHandler, &deploymentHandler)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 	return &handlerTestUtils, kubeclient
 }
@@ -180,11 +183,9 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
-
-		// Rolebinding radix-app-admin-envs happens alongside pipeplines creation of namespace. No way to test this now,
-		// until we refactor the code. Moved this test to pipeline
+		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[1].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
 	})
 }
 

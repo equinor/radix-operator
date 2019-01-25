@@ -22,8 +22,9 @@ func setupTest() (*test.Utils, kube.Interface) {
 	radixclient := radix.NewSimpleClientset()
 
 	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	applicationHandler := NewApplicationHandler(kubeclient, radixclient)
 
-	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, nil)
+	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &applicationHandler, nil)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 	return &handlerTestUtils, kubeclient
 }
@@ -31,7 +32,7 @@ func setupTest() (*test.Utils, kube.Interface) {
 func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T) {
 	handlerTestUtils, kubeclient := setupTest()
 
-	err := handlerTestUtils.ApplyApplication(utils.ARadixApplication().
+	handlerTestUtils.ApplyApplication(utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", ""))
@@ -53,6 +54,4 @@ func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
 		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 	})
-
-	assert.Error(t, err)
 }

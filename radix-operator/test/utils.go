@@ -16,15 +16,17 @@ type Utils struct {
 	client              kubernetes.Interface
 	radixclient         radixclient.Interface
 	registrationHandler common.Handler
+	applicationHandler  common.Handler
 	deploymentHandler   common.Handler
 }
 
 // NewHandlerTestUtils Constructor
-func NewHandlerTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, registrationHandler common.Handler, deploymentHandler common.Handler) Utils {
+func NewHandlerTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, registrationHandler common.Handler, applicationHandler common.Handler, deploymentHandler common.Handler) Utils {
 	return Utils{
 		client:              client,
 		radixclient:         radixclient,
 		registrationHandler: registrationHandler,
+		applicationHandler:  applicationHandler,
 		deploymentHandler:   deploymentHandler,
 	}
 }
@@ -51,6 +53,11 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) e
 
 	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
 	err := testUtils.ApplyApplication(applicationBuilder)
+	if err != nil {
+		return err
+	}
+
+	err = tu.applicationHandler.ObjectCreated(applicationBuilder.BuildRA())
 	if err != nil {
 		return err
 	}
