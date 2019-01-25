@@ -3,9 +3,16 @@ package application
 import (
 	"testing"
 
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
+
+func getApplication(ra *radixv1.RadixApplication) Application {
+	// The other arguments are not relevant for this test
+	application, _ := NewApplication(nil, nil, nil, ra)
+	return application
+}
 
 func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
 	branch := "master"
@@ -15,7 +22,7 @@ func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testin
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	application := NewApplication(ra)
+	application := getApplication(ra)
 	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
 	assert.True(t, branchMapped)
@@ -32,7 +39,7 @@ func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranchOtherBranchIsChanged
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	application := NewApplication(ra)
+	application := getApplication(ra)
 	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
 	assert.False(t, branchMapped)
@@ -49,7 +56,7 @@ func TestIsBranchMappedToEnvironment_oneEnvToOneBranch_ListsBothButOnlyOneShould
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	application := NewApplication(ra)
+	application := getApplication(ra)
 	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
 	assert.True(t, branchMapped)
@@ -66,7 +73,7 @@ func TestIsBranchMappedToEnvironment_twoEnvNoBranch(t *testing.T) {
 		WithEnvironmentNoBranch("prod").
 		BuildRA()
 
-	application := NewApplication(ra)
+	application := getApplication(ra)
 	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
 	assert.False(t, branchMapped)
@@ -81,7 +88,7 @@ func TestIsBranchMappedToEnvironment_NoEnv(t *testing.T) {
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
-	application := NewApplication(ra)
+	application := getApplication(ra)
 	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
 	assert.False(t, branchMapped)
@@ -96,7 +103,7 @@ func TestIsBranchMappedToEnvironment_promotionScheme_ListsBothButOnlyOneShouldBe
 		WithEnvironment("prod", "").
 		BuildRA()
 
-	application := NewApplication(ra)
+	application := getApplication(ra)
 	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
 
 	assert.True(t, branchMapped)

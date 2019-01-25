@@ -12,10 +12,11 @@ import (
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
 	"github.com/equinor/radix-operator/radix-operator/registration"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
@@ -57,6 +58,7 @@ func main() {
 	go startMetricsServer(stop)
 
 	startRegistrationController(client, radixClient, stop)
+	startApplicationController(client, radixClient, stop)
 	startDeploymentController(client, radixClient, prometheusOperatorClient, stop)
 
 	sigTerm := make(chan os.Signal, 1)
@@ -70,6 +72,13 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	registrationController := registration.NewController(client, radixClient, &handler)
 
 	go registrationController.Run(stop)
+}
+
+func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
+	handler := application.NewApplicationHandler(client, radixClient)
+	applicationController := application.NewApplicationController(client, radixClient, &handler)
+
+	go applicationController.Run(stop)
 }
 
 func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, stop <-chan struct{}) {
