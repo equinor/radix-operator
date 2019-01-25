@@ -68,7 +68,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	cli, _ := Init(kubeclient, radixclient)
 
-	application := application.NewApplication(ra)
+	application, _ := application.NewApplication(kubeclient, radixclient, rr, ra)
 	_, targetEnvs := application.IsBranchMappedToEnvironment("master")
 
 	rds, err := cli.Deploy("any-job-name", rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
@@ -78,12 +78,6 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	})
 
 	rdNameDev := rds[0].Name
-	t.Run("validate namespace creation", func(t *testing.T) {
-		devNs, _ := kubeclient.CoreV1().Namespaces().Get("any-app-dev", metav1.GetOptions{})
-		assert.NotNil(t, devNs)
-		prodNs, _ := kubeclient.CoreV1().Namespaces().Get("any-app-prod", metav1.GetOptions{})
-		assert.NotNil(t, prodNs)
-	})
 
 	t.Run("validate deployment exist in only the namespace of the modified branch", func(t *testing.T) {
 		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
@@ -123,14 +117,4 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, "500m", rdDev.Spec.Components[1].Resources.Limits["cpu"])
 	})
 
-	t.Run("validate rolebindings", func(t *testing.T) {
-		t.Parallel()
-		rolebindings, _ := kubeclient.RbacV1().RoleBindings("any-app-dev").List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
-
-		rolebindings, _ = kubeclient.RbacV1().RoleBindings("any-app-prod").List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
-	})
 }

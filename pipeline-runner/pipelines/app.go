@@ -6,11 +6,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -42,20 +41,31 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (R
 func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileName, useCache string) error {
 	radixApplication, err := utils.GetRadixApplication(appFileName)
 	if err != nil {
-		log.Errorf("failed to get ra from file (%s) for app Error: %v", appFileName, err)
+		log.Errorf("Failed to get ra from file (%s) for app Error: %v", appFileName, err)
 		return err
 	}
 
 	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.radixclient, radixApplication)
 	if !isRAValid {
-		log.Errorf("radix config not valid.")
+		log.Errorf("Radix config not valid.")
 		for _, err = range errs {
 			log.Errorf("%v", err)
 		}
 		return validate.ConcatErrors(errs)
 	}
 
-	application := application.NewApplication(radixApplication)
+	appName := radixApplication.Name
+	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(appName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("Failed to get RR for app %s. Error: %v", appName, err)
+		return err
+	}
+
+	application, err := application.NewApplication(cli.kubeclient, cli.radixclient, radixRegistration, radixApplication)
+	if err != nil {
+		return err
+	}
+
 	branchIsMapped, targetEnvironments := application.IsBranchMappedToEnvironment(branch)
 
 	if !branchIsMapped {
@@ -64,16 +74,9 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 		return fmt.Errorf(errMsg)
 	}
 
-	appName := radixApplication.Name
 	log.Infof("start pipeline build and deploy for %s and branch %s and commit id %s", appName, branch, commitID)
 
-	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("failed to get RR for app %s. Error: %v", appName, err)
-		return err
-	}
-
-	err = cli.applyRadixApplication(radixRegistration, radixApplication)
+	err = application.ApplyConfigToApplicationNamespace()
 	if err != nil {
 		log.Errorf("Failed to apply radix application. %v", err)
 		return err
@@ -92,24 +95,5 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 		return err
 	}
 	log.Infof("Succeeded: deploy application")
-	return nil
-}
-
-// TODO: Move this closer to Application domain/package
-func (cli *RadixOnPushHandler) applyRadixApplication(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication) error {
-	appNamespace := utils.GetAppNamespace(radixRegistration.Name)
-	_, err := cli.radixclient.RadixV1().RadixApplications(appNamespace).Create(radixApplication)
-	if errors.IsAlreadyExists(err) {
-		err = cli.radixclient.RadixV1().RadixApplications(appNamespace).Delete(radixApplication.Name, &metav1.DeleteOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to delete radix application. %v", err)
-		}
-
-		_, err = cli.radixclient.RadixV1().RadixApplications(appNamespace).Create(radixApplication)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to apply radix application. %v", err)
-	}
-	log.Infof("RadixApplication %s saved to ns %s", radixApplication.Name, appNamespace)
 	return nil
 }
