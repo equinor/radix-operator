@@ -26,12 +26,6 @@ func (cli *RadixOnPushHandler) Deploy(jobName string, radixRegistration *v1.Radi
 		return nil, fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
 	}
 
-	err = cli.applyEnvNamespaces(radixRegistration, targetEnvs)
-	if err != nil {
-		log.Errorf("Failed to create namespaces for app environments %s. %v", radixRegistration.Name, err)
-		return nil, err
-	}
-
 	err = cli.applyRadixDeployments(radixRegistration, radixDeployments)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to apply radix deployments for app %s. %v", appName, err)
@@ -50,28 +44,6 @@ func (cli *RadixOnPushHandler) applyRadixDeployments(radixRegistration *v1.Radix
 			return err
 		}
 	}
-	return nil
-}
-
-// TODO : Move this into Deployment domain/package
-func (cli *RadixOnPushHandler) applyEnvNamespaces(radixRegistration *v1.RadixRegistration, targetEnvs map[string]bool) error {
-	for env := range targetEnvs {
-		namespaceName := utils.GetEnvironmentNamespace(radixRegistration.Name, env)
-		ownerRef := kube.GetOwnerReferenceOfRegistration(radixRegistration)
-		labels := map[string]string{
-			"sync":                  "cluster-wildcard-tls-cert",
-			"cluster-wildcard-sync": "cluster-wildcard-tls-cert",
-			"app-wildcard-sync":     "app-wildcard-tls-cert",
-			kube.RadixAppLabel:      radixRegistration.Name,
-			kube.RadixEnvLabel:      env,
-		}
-
-		err := cli.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
