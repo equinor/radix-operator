@@ -94,7 +94,6 @@ rules:
   - get
   - list
   - watch
-  - create
 - apiGroups:
   - radix.equinor.com
   resources:
