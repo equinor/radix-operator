@@ -5,7 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"

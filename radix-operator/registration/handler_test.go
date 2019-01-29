@@ -6,7 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
 

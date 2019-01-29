@@ -8,8 +8,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	log "github.com/Sirupsen/logrus"
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
