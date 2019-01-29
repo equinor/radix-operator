@@ -3,13 +3,16 @@ package kube
 import (
 	"os"
 
+	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface) {
+// GetKubernetesClient Gets clients to talk to the API
+func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
@@ -29,6 +32,11 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface) {
 		logger.Fatalf("getClusterConfig radix client: %v", err)
 	}
 
+	prometheusOperatorClient, err := monitoring.NewForConfig(&monitoringv1.DefaultCrdKinds, "monitoring.coreos.com", config)
+	if err != nil {
+		logger.Fatalf("getClusterConfig prometheus-operator client: %v", err)
+	}
+
 	logger.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient
+	return client, radixClient, prometheusOperatorClient
 }

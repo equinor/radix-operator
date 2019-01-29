@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -88,7 +90,7 @@ func createACRBuildContainers(containerRegistry, appName, imageTag, useCache str
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 
 	for _, c := range components {
-		imagePath := getImagePath(containerRegistry, appName, c.Name, imageTag)
+		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
 		dockerFile := c.DockerfileName
 		if dockerFile == "" {
 			dockerFile = "Dockerfile"

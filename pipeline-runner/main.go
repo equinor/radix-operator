@@ -63,8 +63,8 @@ func main() {
 		useCache = "true"
 	}
 
-	client, radixClient := kube.GetKubernetesClient()
-	pushHandler, err := pipe.Init(client, radixClient)
+	client, radixClient, prometheusOperatorClient := kube.GetKubernetesClient()
+	pushHandler, err := pipe.Init(client, radixClient, prometheusOperatorClient)
 	if err != nil {
 		os.Exit(1)
 	}

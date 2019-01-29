@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
@@ -16,22 +17,24 @@ import (
 
 // RadixOnPushHandler Instance variables
 type RadixOnPushHandler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
+	kubeclient               kubernetes.Interface
+	radixclient              radixclient.Interface
+	prometheusOperatorClient monitoring.Interface
+	kubeutil                 *kube.Kube
 }
 
 // Init constructor
-func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (RadixOnPushHandler, error) {
+func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) (RadixOnPushHandler, error) {
 	kube, err := kube.New(kubeclient)
 	if err != nil {
 		return RadixOnPushHandler{}, err
 	}
 
 	handler := RadixOnPushHandler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kube,
+		kubeclient:               kubeclient,
+		radixclient:              radixclient,
+		prometheusOperatorClient: prometheusOperatorClient,
+		kubeutil:                 kube,
 	}
 
 	return handler, nil

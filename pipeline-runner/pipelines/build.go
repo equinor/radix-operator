@@ -149,7 +149,7 @@ func createBuildContainers(containerRegistry, appName, imageTag, useCache string
 	containers := []corev1.Container{}
 
 	for _, c := range components {
-		imagePath := getImagePath(containerRegistry, appName, c.Name, imageTag)
+		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
 		dockerFile := getDockerfile(c.SourceFolder, c.DockerfileName)
 		context := getContext(c.SourceFolder)
 		log.Infof("using dockerfile %s in context %s", dockerFile, context)
