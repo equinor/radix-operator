@@ -7,8 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GrantAppAdminAccessToRuntimeSecrets Grants access to runtime secrets in environment namespace
-func (deploy *Deployment) GrantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) error {
+func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) error {
 	if component.Secrets == nil || len(component.Secrets) <= 0 {
 		return nil
 	}

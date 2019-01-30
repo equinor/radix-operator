@@ -104,7 +104,7 @@ func (deploy *Deployment) IsLatestInTheEnvironment() (bool, error) {
 
 // OnDeploy Process Radix deplyment
 func (deploy *Deployment) OnDeploy() error {
-	err := deploy.CreateSecrets(deploy.registration, deploy.radixDeployment)
+	err := deploy.createSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)

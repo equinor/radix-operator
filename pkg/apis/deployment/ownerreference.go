@@ -5,8 +5,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetOwnerReferenceOfDeploymentWithName Gets owner reference given deployment with custom name. Resources that an RD owns
-func GetOwnerReferenceOfDeploymentWithName(name string, radixDeployment *v1.RadixDeployment) []metav1.OwnerReference {
+func getOwnerReferenceOfDeploymentWithName(name string, radixDeployment *v1.RadixDeployment) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		metav1.OwnerReference{

@@ -10,8 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// CreateSecrets should provision required secrets in the specified environment
-func (deploy *Deployment) CreateSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
+func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
@@ -38,7 +37,7 @@ func (deploy *Deployment) CreateSecrets(registration *radixv1.RadixRegistration,
 				return err
 			}
 
-			err = deploy.GrantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component)
+			err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component)
 			if err != nil {
 				return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
 			}
