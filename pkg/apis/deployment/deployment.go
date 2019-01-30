@@ -65,7 +65,7 @@ func ConstructForTargetEnvironments(config *v1.RadixApplication, containerRegist
 		}
 
 		radixComponents := getRadixComponentsForEnv(config, containerRegistry, env.Name, imageTag)
-		radixDeployment := createRadixDeployment(config.Name, env.Name, jobName, imageTag, branch, commitID, radixComponents)
+		radixDeployment := constructRadixDeployment(config.Name, env.Name, jobName, imageTag, branch, commitID, radixComponents)
 		radixDeployments = append(radixDeployments, radixDeployment)
 	}
 
@@ -138,7 +138,7 @@ func (deploy *Deployment) OnDeploy() error {
 	return nil
 }
 
-func createRadixDeployment(appName, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
+func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	radixDeployment := v1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
