@@ -14,14 +14,12 @@ func (deploy *Deployment) GrantAppAdminAccessToRuntimeSecrets(namespace string, 
 	}
 
 	role := roleAppAdminSecrets(registration, component)
-
 	err := deploy.kubeutil.ApplyRole(namespace, role)
 	if err != nil {
 		return err
 	}
 
 	rolebinding := rolebindingAppAdminSecrets(registration, role)
-
 	return deploy.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 

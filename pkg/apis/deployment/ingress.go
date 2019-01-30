@@ -34,7 +34,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 }
 
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	appAlias := os.Getenv("APP_ALIAS_BASE_URL") // .app.dev.radix.equinor.com in launch.json
+	appAlias := os.Getenv(OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
 		return nil
 	}
@@ -47,7 +47,7 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 }
 
 func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
-	dnsZone := os.Getenv("DNS_ZONE")
+	dnsZone := os.Getenv(OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		return nil
 	}

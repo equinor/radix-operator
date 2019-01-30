@@ -14,6 +14,9 @@ import (
 )
 
 const (
+	OperatorDNSZoneEnvironmentVariable         = "DNS_ZONE"
+	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
+
 	ClusternameEnvironmentVariable       = "RADIX_CLUSTERNAME"
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 	EnvironmentnameEnvironmentVariable   = "RADIX_ENVIRONMENT"

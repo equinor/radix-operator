@@ -59,7 +59,7 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 		return environmentVariables
 	}
 
-	dnsZone := os.Getenv("DNS_ZONE")
+	dnsZone := os.Getenv(OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		return nil
 	}
