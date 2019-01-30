@@ -59,7 +59,7 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 }
 
 func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
-	ownerReference := kube.GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ownerReference := GetOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{

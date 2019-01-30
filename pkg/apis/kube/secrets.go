@@ -24,6 +24,19 @@ const (
 	spACRSecretName = "radix-sp-acr-azure" //also defined in ../pipeline-runner/build/build.go
 )
 
+// SecretExists Checks if secret allready exists
+func (k *Kube) SecretExists(namespace, secretName string) bool {
+	_, err := k.kubeClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		return false
+	}
+	if err != nil {
+		log.Errorf("Failed to get secret %s in namespace %s. %v", secretName, namespace, err)
+		return false
+	}
+	return true
+}
+
 func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
 	secretName := secret.ObjectMeta.Name
 	log.Infof("Applies secret %s in namespace %s", secretName, namespace)
@@ -150,16 +163,4 @@ func (k *Kube) createNewDockerBuildSecret(namespace string) (*corev1.Secret, err
 		},
 	}
 	return &secret, nil
-}
-
-func (k *Kube) isSecretExists(namespace, secretName string) bool {
-	_, err := k.kubeClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
-	if err != nil && errors.IsNotFound(err) {
-		return false
-	}
-	if err != nil {
-		log.Errorf("Failed to get secret %s in namespace %s. %v", secretName, namespace, err)
-		return false
-	}
-	return true
 }
