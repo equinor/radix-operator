@@ -108,7 +108,6 @@ func (app Application) CreateEnvironments() error {
 }
 
 // GrantAppAdminAccessToNs Grant access to environment namespace
-// TODO : This should be moved closer to Deployment domain/package
 func (app Application) GrantAppAdminAccessToNs(namespace string) error {
 	registration := app.registration
 	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)

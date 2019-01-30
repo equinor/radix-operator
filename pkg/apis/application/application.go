@@ -43,7 +43,7 @@ func (app Application) OnRegistered() {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
 
-	err := app.kubeutil.CreateEnvironment(radixRegistration, "app")
+	err := app.createAppNamespace()
 	if err != nil {
 		logger.Errorf("Failed to create app namespace. %v", err)
 	} else {
