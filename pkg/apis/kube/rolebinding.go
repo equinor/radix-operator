@@ -3,7 +3,6 @@ package kube
 import (
 	"fmt"
 
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -64,10 +63,7 @@ func (k *Kube) ApplyClusterRoleBinding(rolebinding *auth.ClusterRoleBinding) err
 	return nil
 }
 
-// TODO : This should be moved closer to Deployment domain/package
-func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *radixv1.RadixRegistration, serviceAccount *corev1.ServiceAccount) error {
-	// ownerReference := GetOwnerReferenceOfRegistration(registration) // TODO! reference into app package, shouldnt
-
+func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -75,7 +71,7 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *r
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
-			OwnerReferences: nil,
+			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",

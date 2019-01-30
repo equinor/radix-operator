@@ -8,25 +8,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app Application) RrUserRole() *auth.Role {
+func (app Application) rrUserRole() *auth.Role {
 	registration := app.registration
 	appName := registration.Name
 	roleName := fmt.Sprintf("operator-rr-%s", appName)
-	return app.RrRole(roleName, []string{"get", "list", "watch", "update", "patch", "delete"})
+	return app.rrRole(roleName, []string{"get", "list", "watch", "update", "patch", "delete"})
 }
 
-func (app Application) RrPipelineRole() *auth.Role {
+func (app Application) rrPipelineRole() *auth.Role {
 	registration := app.registration
 	appName := registration.Name
 	roleName := fmt.Sprintf("radix-pipeline-%s", appName)
-	return app.RrRole(roleName, []string{"get"})
+	return app.rrRole(roleName, []string{"get"})
 }
 
-func (app Application) RrRole(roleName string, verbs []string) *auth.Role {
+func (app Application) rrRole(roleName string, verbs []string) *auth.Role {
 	registration := app.registration
 	appName := registration.Name
 
-	ownerRef := app.GetOwnerReferenceOfRegistrationWithName(roleName)
+	ownerRef := app.getOwnerReferenceOfRegistrationWithName(roleName)
 
 	logger.Infof("Creating role config %s", roleName)
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	app "github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -26,7 +26,6 @@ type Application struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *v1.RadixRegistration
-	application  *app.Application
 	config       *radixv1.RadixApplication
 }
 
@@ -36,17 +35,12 @@ func NewApplication(kubeclient kubernetes.Interface, radixclient radixclient.Int
 	if err != nil {
 		return Application{}, err
 	}
-	app, err := app.NewApplication(kubeclient, radixclient, registration)
-	if err != nil {
-		return Application{}, err
-	}
 
 	return Application{
 		kubeclient,
 		radixclient,
 		kubeutil,
 		registration,
-		&app,
 		config}, nil
 }
 
@@ -90,7 +84,7 @@ func (app Application) CreateEnvironments() error {
 
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(app.registration.Name, env)
-		ownerRef := app.application.GetOwnerReferenceOfRegistration()
+		ownerRef := application.GetOwnerReferenceOfRegistration(app.registration)
 		labels := map[string]string{
 			"sync":                  "cluster-wildcard-tls-cert",
 			"cluster-wildcard-sync": "cluster-wildcard-tls-cert",

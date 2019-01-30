@@ -17,7 +17,7 @@ const (
 )
 
 // ApplySecretsForPipelines creates secrets needed by pipeline to run
-func (app Application) ApplySecretsForPipelines() error {
+func (app Application) applySecretsForPipelines() error {
 	radixRegistration := app.registration
 
 	log.Infof("Apply secrets for pipelines")

@@ -42,7 +42,6 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 	return nil
 }
 
-// TODO: Move this into Application domain/package
 func (t *RadixRegistrationHandler) processRadixRegistration(radixRegistration *v1.RadixRegistration) {
 	application, _ := application.NewApplication(t.kubeclient, t.radixclient, radixRegistration)
 	application.OnRegistered()

@@ -6,7 +6,7 @@ import (
 )
 
 // ApplyPipelineServiceAccount create service account needed by pipeline
-func (app Application) ApplyPipelineServiceAccount() (*corev1.ServiceAccount, error) {
+func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, error) {
 	namespace := utils.GetAppNamespace(app.registration.Name)
 	return app.kubeutil.ApplyServiceAccount("radix-pipeline", namespace)
 }

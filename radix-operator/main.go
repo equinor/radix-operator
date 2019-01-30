@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
@@ -48,7 +48,7 @@ func main() {
 
 	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
 
-	client, radixClient, prometheusOperatorClient := kube.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
 	stop := make(chan struct{})
 	defer close(stop)

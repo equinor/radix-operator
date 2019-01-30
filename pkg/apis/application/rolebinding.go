@@ -47,7 +47,7 @@ func (app Application) applyRbacRadixRegistration() error {
 	namespace := "default"
 	k := app.kubeutil
 
-	role := app.RrUserRole()
+	role := app.rrUserRole()
 	rolebinding := app.rrRoleBinding(role)
 
 	err := k.ApplyRole(namespace, role)
@@ -59,7 +59,7 @@ func (app Application) applyRbacRadixRegistration() error {
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline
-func (app Application) ApplyRbacOnPipelineRunner(serviceAccount *corev1.ServiceAccount) error {
+func (app Application) applyRbacOnPipelineRunner(serviceAccount *corev1.ServiceAccount) error {
 	err := app.givePipelineAccessToRR(serviceAccount)
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (app Application) givePipelineAccessToRR(serviceAccount *corev1.ServiceAcco
 	namespace := "default"
 	k := app.kubeutil
 
-	role := app.RrPipelineRole()
+	role := app.rrPipelineRole()
 	rolebinding := app.rrPipelineRoleBinding(serviceAccount, role)
 
 	err := k.ApplyRole(namespace, role)
@@ -114,7 +114,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 	registration := app.registration
 	appName := registration.Name
 	roleName := "radix-pipeline-runner"
-	ownerReference := app.GetOwnerReferenceOfRegistration()
+	ownerReference := app.getOwnerReference()
 	logger.Infof("Create cluster rolebinding config %s", roleName)
 
 	rolebinding := &auth.ClusterRoleBinding{
@@ -182,7 +182,7 @@ func (app Application) rrPipelineRoleBinding(serviceAccount *corev1.ServiceAccou
 	registration := app.registration
 	appName := registration.Name
 	roleBindingName := role.Name
-	ownerReference := app.GetOwnerReferenceOfRegistration()
+	ownerReference := app.getOwnerReference()
 	logger.Infof("Create rolebinding config %s", roleBindingName)
 
 	rolebinding := &auth.RoleBinding{
@@ -219,7 +219,7 @@ func (app Application) rrRoleBinding(role *auth.Role) *auth.RoleBinding {
 	roleBindingName := role.Name
 	logger.Infof("Create roleBinding config %s", roleBindingName)
 
-	ownerReference := app.GetOwnerReferenceOfRegistrationWithName(roleBindingName)
+	ownerReference := app.getOwnerReferenceOfRegistrationWithName(roleBindingName)
 	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
 
 	rolebinding := &auth.RoleBinding{

@@ -50,14 +50,14 @@ func (app Application) OnRegistered() {
 		logger.Infof("App namespace created")
 	}
 
-	err = app.ApplySecretsForPipelines() // create deploy key in app namespace
+	err = app.applySecretsForPipelines() // create deploy key in app namespace
 	if err != nil {
 		logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
 	} else {
 		logger.Infof("Applied secrets needed by pipelines")
 	}
 
-	pipelineServiceAccount, err := app.ApplyPipelineServiceAccount()
+	pipelineServiceAccount, err := app.applyPipelineServiceAccount()
 	if err != nil {
 		logger.Errorf("Failed to apply service account needed by pipeline. %v", err)
 	} else {
@@ -78,7 +78,7 @@ func (app Application) OnRegistered() {
 		logger.Infof("Applied access to ci/cd logs")
 	}
 
-	err = app.ApplyRbacOnPipelineRunner(pipelineServiceAccount)
+	err = app.applyRbacOnPipelineRunner(pipelineServiceAccount)
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
 	} else {
@@ -91,7 +91,7 @@ func (app Application) OnUpdated(radixRegistrationOld *v1.RadixRegistration) {
 	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
 
 	if !strings.EqualFold(radixRegistration.Spec.DeployKey, radixRegistrationOld.Spec.DeployKey) {
-		err := app.ApplySecretsForPipelines() // create deploy key in app namespace
+		err := app.applySecretsForPipelines() // create deploy key in app namespace
 		if err != nil {
 			logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
 		} else {
