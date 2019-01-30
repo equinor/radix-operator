@@ -11,7 +11,7 @@ import (
 )
 
 // GrantAccessToCICDLogs Grants access to pipeline logs
-func (app Application) GrantAccessToCICDLogs() error {
+func (app Application) grantAccessToCICDLogs() error {
 	k := app.kubeutil
 	registration := app.registration
 
@@ -43,7 +43,7 @@ func (app Application) GrantAccessToCICDLogs() error {
 }
 
 // ApplyRbacRadixRegistration Grants access to radix registration
-func (app Application) ApplyRbacRadixRegistration() error {
+func (app Application) applyRbacRadixRegistration() error {
 	namespace := "default"
 	k := app.kubeutil
 

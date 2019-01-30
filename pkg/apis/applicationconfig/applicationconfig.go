@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -89,7 +90,7 @@ func (app Application) CreateEnvironments() error {
 
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(app.registration.Name, env)
-		ownerRef := app.GetOwnerReferenceOfRegistration()
+		ownerRef := app.application.GetOwnerReferenceOfRegistration()
 		labels := map[string]string{
 			"sync":                  "cluster-wildcard-tls-cert",
 			"cluster-wildcard-sync": "cluster-wildcard-tls-cert",
@@ -103,13 +104,43 @@ func (app Application) CreateEnvironments() error {
 			return err
 		}
 
-		err = app.kubeutil.GrantAppAdminAccessToNs(namespaceName, app.registration)
+		err = app.GrantAppAdminAccessToNs(namespaceName)
 		if err != nil {
 			return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", namespaceName, err)
 		}
 	}
 
 	return nil
+}
+
+// GrantAppAdminAccessToNs Grant access to environment namespace
+// TODO : This should be moved closer to Deployment domain/package
+func (app Application) GrantAppAdminAccessToNs(namespace string) error {
+	registration := app.registration
+	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
+	clusterRoleName := "radix-app-admin-envs"
+
+	roleBinding := &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterRoleName,
+			Labels: map[string]string{
+				"radixApp":         registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel: registration.Name,
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clusterRoleName,
+		},
+		Subjects: subjects,
+	}
+
+	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 }
 
 func getTargetEnvironmentsAsMap(branch string, radixApplication *radixv1.RadixApplication) map[string]bool {

@@ -27,14 +27,14 @@ const containerRegistry = "any.container.registry"
 
 func setupTest() (*test.Utils, kube.Interface) {
 	// Setup
-	os.Setenv("DNS_ZONE", dnsZone)
-	os.Setenv("APP_ALIAS_BASE_URL", ".app.dev.radix.equinor.com")
+	os.Setenv(deployment.OperatorDNSZoneEnvironmentVariable, dnsZone)
+	os.Setenv(deployment.OperatorAppAliasBaseURLEnvironmentVariable, ".app.dev.radix.equinor.com")
 
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	prometheusoperatorclient := &monitoring.Clientset{}
 
-	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	registrationHandler := registration.NewRegistrationHandler(kubeclient, radixclient)
 	applicationHandler := application.NewApplicationHandler(kubeclient, radixclient)
 
 	deploymentHandler := NewDeployHandler(kubeclient, radixclient, prometheusoperatorclient)

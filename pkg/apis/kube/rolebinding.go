@@ -11,52 +11,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GrantAppAdminAccessToNs Grant access to environment namespace
-// TODO : This should be moved closer to Deployment domain/package
-func (k *Kube) GrantAppAdminAccessToNs(namespace string, registration *radixv1.RadixRegistration) error {
-	subjects := GetRoleBindingGroups(registration.Spec.AdGroups)
-	clusterRoleName := "radix-app-admin-envs"
-
-	roleBinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
-			Labels: map[string]string{
-				"radixApp":    registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				RadixAppLabel: registration.Name,
-			},
-		},
-		RoleRef: auth.RoleRef{
+// GetRoleBindingGroups Get subjects for list of ad groups
+func GetRoleBindingGroups(groups []string) []auth.Subject {
+	subjects := []auth.Subject{}
+	for _, group := range groups {
+		subjects = append(subjects, auth.Subject{
+			Kind:     "Group",
+			Name:     group,
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRoleName,
-		},
-		Subjects: subjects,
+		})
 	}
-
-	return k.ApplyRoleBinding(namespace, roleBinding)
-}
-
-// GrantAppAdminAccessToRuntimeSecrets Grants access to runtime secrets in environment namespace
-// TODO : This should be moved closer to Deployment domain/package
-func (k *Kube) GrantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) error {
-	if component.Secrets == nil || len(component.Secrets) <= 0 {
-		return nil
-	}
-
-	role := roleAppAdminSecrets(registration, component)
-
-	err := k.ApplyRole(namespace, role)
-	if err != nil {
-		return err
-	}
-
-	rolebinding := rolebindingAppAdminSecrets(registration, role)
-
-	return k.ApplyRoleBinding(namespace, rolebinding)
+	return subjects
 }
 
 func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
@@ -126,43 +91,4 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, registration *r
 		},
 	}
 	return k.ApplyClusterRoleBinding(rolebinding)
-}
-
-func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
-	subjects := GetRoleBindingGroups(registration.Spec.AdGroups)
-	roleName := role.ObjectMeta.Name
-
-	rolebinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				"radixApp":    registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				RadixAppLabel: registration.Name,
-			},
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     roleName,
-		},
-		Subjects: subjects,
-	}
-
-	return rolebinding
-}
-
-func GetRoleBindingGroups(groups []string) []auth.Subject {
-	subjects := []auth.Subject{}
-	for _, group := range groups {
-		subjects = append(subjects, auth.Subject{
-			Kind:     "Group",
-			Name:     group,
-			APIGroup: "rbac.authorization.k8s.io",
-		})
-	}
-	return subjects
 }

@@ -8,6 +8,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// SecretExists Checks if secret allready exists
+func (k *Kube) SecretExists(namespace, secretName string) bool {
+	_, err := k.kubeClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		return false
+	}
+	if err != nil {
+		log.Errorf("Failed to get secret %s in namespace %s. %v", secretName, namespace, err)
+		return false
+	}
+	return true
+}
+
 func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
 	secretName := secret.ObjectMeta.Name
 	log.Infof("Applies secret %s in namespace %s", secretName, namespace)
@@ -24,16 +37,4 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 	}
 	log.Infof("Applied secret %s in namespace %s", secretName, namespace)
 	return savedSecret, nil
-}
-
-func (k *Kube) isSecretExists(namespace, secretName string) bool {
-	_, err := k.kubeClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
-	if err != nil && errors.IsNotFound(err) {
-		return false
-	}
-	if err != nil {
-		log.Errorf("Failed to get secret %s in namespace %s. %v", secretName, namespace, err)
-		return false
-	}
-	return true
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
-	"github.com/equinor/radix-operator/pkg/apis/application"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
