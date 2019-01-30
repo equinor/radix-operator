@@ -8,12 +8,10 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// Ingress
 func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	clustername, err := deploy.kubeutil.GetClusterName()
@@ -24,7 +22,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 	if deployComponent.DNSAppAlias {
 		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, deployComponent.Ports)
 		if appAliasIngress != nil {
-			err = deploy.applyIngress(namespace, appAliasIngress)
+			err = deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
 			if err != nil {
 				log.Errorf("Failed to create app alias ingress for app %s. Error was %s ", deploy.radixDeployment.Spec.AppName, err)
 			}
@@ -32,29 +30,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 	}
 
 	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, deployComponent.Ports)
-	return deploy.applyIngress(namespace, ingress)
-}
-
-// TOOD move to kube
-func (deploy *Deployment) applyIngress(namespace string, ingress *v1beta1.Ingress) error {
-	ingressName := ingress.GetName()
-	log.Infof("Creating Ingress object %s in namespace %s", ingressName, namespace)
-
-	_, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
-	if errors.IsAlreadyExists(err) {
-		log.Infof("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
-		_, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(namespace).Update(ingress)
-		if err != nil {
-			return fmt.Errorf("Failed to update Ingress object: %v", err)
-		}
-		log.Infof("Updated Ingress: %s in namespace %s", ingressName, namespace)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("Failed to create Ingress object: %v", err)
-	}
-	log.Infof("Created Ingress: %s in namespace %s", ingressName, namespace)
-	return nil
+	return deploy.kubeutil.ApplyIngress(namespace, ingress)
 }
 
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {

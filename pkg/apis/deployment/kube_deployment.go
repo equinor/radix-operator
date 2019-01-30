@@ -1,14 +1,10 @@
 package deployment
 
 import (
-	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,23 +15,7 @@ func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployCompone
 	deployment := deploy.getDeploymentConfig(deployComponent)
 
 	deploy.customSecuritySettings(appName, namespace, deployment)
-
-	log.Infof("Creating Deployment object %s in namespace %s", deployComponent.Name, namespace)
-	createdDeployment, err := deploy.kubeclient.ExtensionsV1beta1().Deployments(namespace).Create(deployment)
-	if errors.IsAlreadyExists(err) {
-		log.Infof("Deployment object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
-		updatedDeployment, err := deploy.kubeclient.ExtensionsV1beta1().Deployments(namespace).Update(deployment)
-		if err != nil {
-			return fmt.Errorf("Failed to update Deployment object: %v", err)
-		}
-		log.Infof("Updated Deployment: %s in namespace %s", updatedDeployment.Name, namespace)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("Failed to create Deployment object: %v", err)
-	}
-	log.Infof("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
-	return nil
+	return deploy.kubeutil.ApplyDeployment(namespace, deployment)
 }
 
 func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {

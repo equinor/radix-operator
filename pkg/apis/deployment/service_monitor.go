@@ -14,21 +14,7 @@ import (
 func (deploy *Deployment) createServiceMonitor(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	serviceMonitor := getServiceMonitorConfig(deployComponent.Name, namespace, deployComponent.Ports)
-	createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitor)
-	if errors.IsAlreadyExists(err) {
-		log.Infof("ServiceMonitor object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
-		updatedServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(serviceMonitor)
-		if err != nil {
-			return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
-		}
-		log.Infof("Updated ServiceMonitor: %s in namespace %s", updatedServiceMonitor.Name, namespace)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
-	}
-	log.Infof("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
-	return nil
+	return deploy.applyServiceMonitor(namespace, serviceMonitor)
 }
 
 func getServiceMonitorConfig(componentName, namespace string, componentPorts []v1.ComponentPort) *monitoringv1.ServiceMonitor {
@@ -60,4 +46,22 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 		},
 	}
 	return serviceMonitor
+}
+
+func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *monitoringv1.ServiceMonitor) error {
+	createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitor)
+	if errors.IsAlreadyExists(err) {
+		log.Infof("ServiceMonitor object %s already exists in namespace %s, updating the object now", serviceMonitor.Name, namespace)
+		updatedServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(serviceMonitor)
+		if err != nil {
+			return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
+		}
+		log.Infof("Updated ServiceMonitor: %s in namespace %s", updatedServiceMonitor.Name, namespace)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
+	}
+	log.Infof("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
+	return nil
 }

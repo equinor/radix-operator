@@ -79,7 +79,6 @@ func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
 	return nil
 }
 
-// TODO: Move this to the Deployment domain/package
 func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeployment) error {
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
