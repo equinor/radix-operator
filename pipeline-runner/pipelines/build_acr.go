@@ -7,9 +7,9 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

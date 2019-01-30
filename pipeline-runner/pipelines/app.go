@@ -3,13 +3,13 @@ package onpush
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
-	"github.com/equinor/radix-operator/pkg/apis/application"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

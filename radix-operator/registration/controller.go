@@ -1,7 +1,7 @@
 package registration
 
 import (
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"

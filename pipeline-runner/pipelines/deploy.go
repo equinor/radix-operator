@@ -3,9 +3,9 @@ package onpush
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	log "github.com/sirupsen/logrus"
 )
 
 // Deploy Handles deploy step of the pipeline

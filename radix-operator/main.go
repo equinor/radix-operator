@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -66,7 +66,7 @@ func main() {
 }
 
 func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	handler := registration.NewRegistrationHandler(client)
+	handler := registration.NewRegistrationHandler(client, radixClient)
 	registrationController := registration.NewController(client, radixClient, &handler)
 
 	go registrationController.Run(stop)

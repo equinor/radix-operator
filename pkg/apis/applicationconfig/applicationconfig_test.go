@@ -1,4 +1,4 @@
-package application
+package applicationconfig
 
 import (
 	"testing"

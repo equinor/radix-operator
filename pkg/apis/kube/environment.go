@@ -3,9 +3,9 @@ package kube
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -62,8 +62,8 @@ func (k *Kube) CreateEnvironment(registration *radixv1.RadixRegistration, envNam
 		RadixEnvLabel: envName,
 	}
 
-	ownerRef := GetOwnerReferenceOfRegistration(registration)
-	err := k.ApplyNamespace(name, labels, ownerRef)
+	// ownerRef := GetOwnerReferenceOfRegistration(registration)
+	err := k.ApplyNamespace(name, labels, nil)
 
 	if err != nil {
 		logger.Errorf("Failed to create namespace %s: %v", name, err)
