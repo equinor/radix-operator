@@ -1,17 +1,61 @@
 package applicationconfig
 
 import (
+	"fmt"
+	"io/ioutil"
+	"log"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
+
+const (
+	sampleRegistration = "./testdata/sampleregistration.yaml"
+	sampleApp          = "./testdata/radixconfig.yaml"
+)
+
+func init() {
+	log.SetOutput(ioutil.Discard)
+}
 
 func getApplication(ra *radixv1.RadixApplication) Application {
 	// The other arguments are not relevant for this test
 	application, _ := NewApplication(nil, nil, nil, ra)
 	return application
+}
+
+func Test_Create_Radix_Environments(t *testing.T) {
+	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
+	radixApp, _ := utils.GetRadixApplication(sampleApp)
+
+	kubeclient := kubernetes.NewSimpleClientset()
+	radixClient := radix.NewSimpleClientset()
+	app, _ := NewApplication(kubeclient, radixClient, radixRegistration, radixApp)
+
+	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
+	t.Run("It can create environments", func(t *testing.T) {
+		err := app.CreateEnvironments()
+		assert.NoError(t, err)
+		namespaces, _ := kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
+			LabelSelector: label,
+		})
+		assert.Len(t, namespaces.Items, 2)
+	})
+
+	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
+		err := app.CreateEnvironments()
+		assert.NoError(t, err)
+		namespaces, _ := kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
+			LabelSelector: label,
+		})
+		assert.Len(t, namespaces.Items, 2)
+	})
 }
 
 func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
