@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -20,8 +19,8 @@ import (
 // MagicBranch The branch that radix config lives on
 const MagicBranch = "master"
 
-// Application Instance variables
-type Application struct {
+// ApplicationConfig Instance variables
+type ApplicationConfig struct {
 	kubeclient   kubernetes.Interface
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
@@ -29,14 +28,14 @@ type Application struct {
 	config       *radixv1.RadixApplication
 }
 
-// NewApplication Constructor
-func NewApplication(kubeclient kubernetes.Interface, radixclient radixclient.Interface, registration *v1.RadixRegistration, config *radixv1.RadixApplication) (Application, error) {
+// NewApplicationConfig Constructor
+func NewApplicationConfig(kubeclient kubernetes.Interface, radixclient radixclient.Interface, registration *v1.RadixRegistration, config *radixv1.RadixApplication) (*ApplicationConfig, error) {
 	kubeutil, err := kube.New(kubeclient)
 	if err != nil {
-		return Application{}, err
+		return nil, err
 	}
 
-	return Application{
+	return &ApplicationConfig{
 		kubeclient,
 		radixclient,
 		kubeutil,
@@ -50,7 +49,7 @@ func IsMagicBranch(branch string) bool {
 }
 
 // IsBranchMappedToEnvironment Checks if given branch has a mapping
-func (app Application) IsBranchMappedToEnvironment(branch string) (bool, map[string]bool) {
+func (app *ApplicationConfig) IsBranchMappedToEnvironment(branch string) (bool, map[string]bool) {
 	targetEnvs := getTargetEnvironmentsAsMap(branch, app.config)
 	if isTargetEnvsEmpty(targetEnvs) {
 		return false, targetEnvs
@@ -60,7 +59,7 @@ func (app Application) IsBranchMappedToEnvironment(branch string) (bool, map[str
 }
 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
-func (app Application) ApplyConfigToApplicationNamespace() error {
+func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	appNamespace := utils.GetAppNamespace(app.registration.Name)
 	_, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Create(app.config)
 	if errors.IsAlreadyExists(err) {
@@ -78,8 +77,16 @@ func (app Application) ApplyConfigToApplicationNamespace() error {
 	return nil
 }
 
+// OnConfigApplied called when an application config is applied to application namespace
+func (app *ApplicationConfig) OnConfigApplied() {
+	err := app.createEnvironments()
+	if err != nil {
+		log.Errorf("Failed to create namespaces for app environments %s. %v", app.registration.Name, err)
+	}
+}
+
 // CreateEnvironments Will create environments defined in the radix config
-func (app Application) CreateEnvironments() error {
+func (app *ApplicationConfig) createEnvironments() error {
 	targetEnvs := getTargetEnvironmentsAsMap("", app.config)
 
 	for env := range targetEnvs {
@@ -98,42 +105,13 @@ func (app Application) CreateEnvironments() error {
 			return err
 		}
 
-		err = app.GrantAppAdminAccessToNs(namespaceName)
+		err = app.grantAppAdminAccessToNs(namespaceName)
 		if err != nil {
 			return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", namespaceName, err)
 		}
 	}
 
 	return nil
-}
-
-// GrantAppAdminAccessToNs Grant access to environment namespace
-func (app Application) GrantAppAdminAccessToNs(namespace string) error {
-	registration := app.registration
-	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
-	clusterRoleName := "radix-app-admin-envs"
-
-	roleBinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
-			Labels: map[string]string{
-				"radixApp":         registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				kube.RadixAppLabel: registration.Name,
-			},
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRoleName,
-		},
-		Subjects: subjects,
-	}
-
-	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 }
 
 func getTargetEnvironmentsAsMap(branch string, radixApplication *radixv1.RadixApplication) map[string]bool {

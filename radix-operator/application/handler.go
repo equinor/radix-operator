@@ -84,15 +84,11 @@ func (t *RadixApplicationHandler) processRadixApplication(radixApplication *v1.R
 		return err
 	}
 
-	application, err := application.NewApplication(t.kubeclient, t.radixclient, radixRegistration, radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(t.kubeclient, t.radixclient, radixRegistration, radixApplication)
 	if err != nil {
 		return err
 	}
 
-	err = application.CreateEnvironments()
-	if err != nil {
-		log.Errorf("Failed to create namespaces for app environments %s. %v", radixRegistration.Name, err)
-		return err
-	}
+	applicationConfig.OnConfigApplied()
 	return nil
 }

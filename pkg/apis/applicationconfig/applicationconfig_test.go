@@ -24,9 +24,9 @@ func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
-func getApplication(ra *radixv1.RadixApplication) Application {
+func getApplication(ra *radixv1.RadixApplication) *ApplicationConfig {
 	// The other arguments are not relevant for this test
-	application, _ := NewApplication(nil, nil, nil, ra)
+	application, _ := NewApplicationConfig(nil, nil, nil, ra)
 	return application
 }
 
@@ -36,11 +36,11 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset()
-	app, _ := NewApplication(kubeclient, radixClient, radixRegistration, radixApp)
+	app, _ := NewApplicationConfig(kubeclient, radixClient, radixRegistration, radixApp)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
-		err := app.CreateEnvironments()
+		err := app.createEnvironments()
 		assert.NoError(t, err)
 		namespaces, _ := kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
 			LabelSelector: label,
@@ -49,7 +49,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
-		err := app.CreateEnvironments()
+		err := app.createEnvironments()
 		assert.NoError(t, err)
 		namespaces, _ := kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
 			LabelSelector: label,

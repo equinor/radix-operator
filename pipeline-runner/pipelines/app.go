@@ -64,12 +64,12 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 		return err
 	}
 
-	application, err := application.NewApplication(cli.kubeclient, cli.radixclient, radixRegistration, radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, radixRegistration, radixApplication)
 	if err != nil {
 		return err
 	}
 
-	branchIsMapped, targetEnvironments := application.IsBranchMappedToEnvironment(branch)
+	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(branch)
 
 	if !branchIsMapped {
 		errMsg := fmt.Sprintf("Failed to match environment to branch: %s", branch)
@@ -79,7 +79,7 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 
 	log.Infof("start pipeline build and deploy for %s and branch %s and commit id %s", appName, branch, commitID)
 
-	err = application.ApplyConfigToApplicationNamespace()
+	err = applicationConfig.ApplyConfigToApplicationNamespace()
 	if err != nil {
 		log.Errorf("Failed to apply radix application. %v", err)
 		return err
