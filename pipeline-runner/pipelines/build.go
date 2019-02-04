@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -149,7 +149,7 @@ func createBuildContainers(containerRegistry, appName, imageTag, useCache string
 	containers := []corev1.Container{}
 
 	for _, c := range components {
-		imagePath := getImagePath(containerRegistry, appName, c.Name, imageTag)
+		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
 		dockerFile := getDockerfile(c.SourceFolder, c.DockerfileName)
 		context := getContext(c.SourceFolder)
 		log.Infof("using dockerfile %s in context %s", dockerFile, context)

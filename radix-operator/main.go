@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
@@ -19,8 +19,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 var logger *log.Entry
@@ -50,7 +48,7 @@ func main() {
 
 	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
 
-	client, radixClient, prometheusOperatorClient := getKubernetesClient()
+	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
 	stop := make(chan struct{})
 	defer close(stop)
@@ -68,7 +66,7 @@ func main() {
 }
 
 func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	handler := registration.NewRegistrationHandler(client)
+	handler := registration.NewRegistrationHandler(client, radixClient)
 	registrationController := registration.NewController(client, radixClient, &handler)
 
 	go registrationController.Run(stop)
@@ -121,33 +119,4 @@ func Healthz(writer http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(writer, "%s", response)
-}
-
-func getKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface) {
-	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-	if err != nil {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			logger.Fatalf("getClusterConfig InClusterConfig: %v", err)
-		}
-	}
-
-	client, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		logger.Fatalf("getClusterConfig k8s client: %v", err)
-	}
-
-	radixClient, err := radixclient.NewForConfig(config)
-	if err != nil {
-		logger.Fatalf("getClusterConfig radix client: %v", err)
-	}
-
-	prometheusOperatorClient, err := monitoring.NewForConfig(&monitoringv1.DefaultCrdKinds, "monitoring.coreos.com", config)
-	if err != nil {
-		logger.Fatalf("getClusterConfig prometheus-operator client: %v", err)
-	}
-
-	logger.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, prometheusOperatorClient
 }

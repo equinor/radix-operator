@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -66,10 +67,11 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				})).
 		BuildRA()
 
-	cli, _ := Init(kubeclient, radixclient)
+	// Prometheus doesn´t contain any fake
+	cli, _ := Init(kubeclient, radixclient, &monitoring.Clientset{})
 
-	application, _ := application.NewApplication(kubeclient, radixclient, rr, ra)
-	_, targetEnvs := application.IsBranchMappedToEnvironment("master")
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
+	_, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
 
 	rds, err := cli.Deploy("any-job-name", rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
 	t.Run("validate deploy", func(t *testing.T) {

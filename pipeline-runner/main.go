@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	log "github.com/Sirupsen/logrus"
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -63,8 +63,8 @@ func main() {
 		useCache = "true"
 	}
 
-	client, radixClient := kube.GetKubernetesClient()
-	pushHandler, err := pipe.Init(client, radixClient)
+	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
+	pushHandler, err := pipe.Init(client, radixClient, prometheusOperatorClient)
 	if err != nil {
 		os.Exit(1)
 	}
