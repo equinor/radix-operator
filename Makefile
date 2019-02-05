@@ -1,16 +1,42 @@
 DOCKER_FILES	= operator pipeline
-
 ENVIRONMENT ?= dev
 VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
 SUBSCRIPTION = "Omnia Radix Development"
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
 ifeq ($(ENVIRONMENT),prod)
+	IS_PROD = yes
+else
+	IS_DEV = yes
+endif
+
+ifeq ($(BRANCH),release)
+	IS_PROD_BRANCH = yes
+endif
+
+ifeq ($(BRANCH),master)
+	IS_DEV_BRANCH = yes
+endif
+
+ifdef IS_PROD
+ifdef IS_PROD_BRANCH
+	CAN_RELEASE_OPERATOR = yes
+endif
+endif
+
+ifdef IS_DEV
+ifdef IS_DEV_BRANCH
+	CAN_RELEASE_OPERATOR = yes
+endif
+endif
+
+ifdef IS_PROD
 	DNS_ZONE = radix.equinor.com
 endif
 
-ifeq ($(ENVIRONMENT),prod)
+ifdef IS_PROD
 	SUBSCRIPTION = "Omnia Radix Production"
 endif
 
@@ -19,13 +45,14 @@ DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
 DATE = $(shell date +%F_%T)
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
 CHART_VERSION = $(shell cat charts/radix-operator/Chart.yaml | yq --raw-output .version)
 
 TAG := $(BRANCH)-$(HASH)
+
+# CAN_DEPLOY_OPERATOR := $(and  $(res_A), $(res_B))
 
 echo:
 	@echo "ENVIRONMENT : " $(ENVIRONMENT)
@@ -36,6 +63,11 @@ echo:
 	@echo "BRANCH : " $(BRANCH)
 	@echo "CLUSTER_NAME : " $(CLUSTER_NAME)
 	@echo "APP_ALIAS_BASE_URL : " $(APP_ALIAS_BASE_URL)
+	@echo "IS_PROD : " $(IS_PROD)
+	@echo "IS_DEV : " $(IS_DEV)
+	@echo "IS_PROD_BRANCH : " $(IS_PROD_BRANCH)
+	@echo "IS_DEV_BRANCH : " $(IS_DEV_BRANCH)
+	@echo "CAN_RELEASE_OPERATOR : " $(CAN_RELEASE_OPERATOR)
 
 .PHONY: test
 test:	
@@ -83,6 +115,11 @@ deploy-via-helm:
 
 # build and deploy radix operator
 helm-up:
+ifndef CAN_RELEASE_OPERATOR
+		@echo "Cannot release Operator to this cluster";\
+		exit 1
+endif
+
 	exit 1
 	make deploy-operator
 	make deploy-via-helm
