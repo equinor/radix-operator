@@ -6,9 +6,14 @@ Radix-pipeline:
 
 We need to build from both master (used by QA environment) and release (used by Prod environment)
 For each branch:
-1. git checkout <branch>
-2. 
+1. git checkout \<branch\>
+2. make deploy-pipeline ENVIRONMENT=prod|dev
 
+Radix-operator:
+We need to build from release
+For each branch:
+1. git checkout \<branch\>
+2. make deploy-pipeline ENVIRONMENT=prod|dev
 
 1. Make Docker image:
 
