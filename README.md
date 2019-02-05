@@ -5,7 +5,7 @@ https://github.com/equinor/radix-private/blob/master/docs/how-we-work/developmen
 
 ## Release to Cluster
 
-### Radix-pipeline:
+### Radix-pipeline
 
 We need to build from both master (used by QA environment) and release (used by Prod environment) in both dev and prod subscription. We should not merge to release branch before QA has passed.
 For each subscription:
@@ -13,7 +13,7 @@ For each subscription:
 1. git checkout \<branch\>
 2. make deploy-pipeline ENVIRONMENT=prod|dev
 
-### Radix-operator:
+### Radix-operator
 
 For development/staging we need to deploy from master branch while for production we need to deploy from release branch
 
