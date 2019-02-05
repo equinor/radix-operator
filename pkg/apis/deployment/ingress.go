@@ -68,7 +68,8 @@ func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, o
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ingressName,
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class": "nginx",
+				"kubernetes.io/ingress.class":              "nginx",
+				"ingress.kubernetes.io/force-ssl-redirect": "true",
 			},
 			Labels: map[string]string{
 				"radixApp":         radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
