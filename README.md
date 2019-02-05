@@ -18,9 +18,8 @@ For development/staging we need to deploy from master branch while for productio
 2. git checkout \<branch\>
 2. make helm-up ENVIRONMENT=prod|dev (this will build, push to ACR and release to cluster)
 
-### ACR builder
-
 ### Operator helm chart
+
 
 ## Updating RadixApplication CRD
 
