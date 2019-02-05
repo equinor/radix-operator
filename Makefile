@@ -3,7 +3,6 @@ ENVIRONMENT ?= dev
 VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
-SUBSCRIPTION = "Omnia Radix Development"
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
 ifeq ($(ENVIRONMENT),prod)
@@ -36,10 +35,6 @@ ifdef IS_PROD
 	DNS_ZONE = radix.equinor.com
 endif
 
-ifdef IS_PROD
-	SUBSCRIPTION = "Omnia Radix Production"
-endif
-
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
@@ -55,7 +50,6 @@ TAG := $(BRANCH)-$(HASH)
 echo:
 	@echo "ENVIRONMENT : " $(ENVIRONMENT)
 	@echo "DNS_ZONE : " $(DNS_ZONE)
-	@echo "SUBSCRIPTION : " $(SUBSCRIPTION)
 	@echo "CONTAINER_REPO : " $(CONTAINER_REPO)
 	@echo "DOCKER_REGISTRY : " $(DOCKER_REGISTRY)
 	@echo "BRANCH : " $(BRANCH)
@@ -79,7 +73,6 @@ endef
 
 define make-docker-push
   	push-$1:
-		az account set -s $(SUBSCRIPTION)
 		az acr login --name $(CONTAINER_REPO)
 		docker push $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION)
 		docker push $(DOCKER_REGISTRY)/radix-$1:$(TAG)
@@ -103,7 +96,6 @@ ifndef CAN_DEPLOY_OPERATOR
 		exit 1
 endif
 
-	az account set -s $(SUBSCRIPTION)
 	az acr helm repo add --name $(CONTAINER_REPO)
 	helm repo update
 	helm upgrade --install radix-operator \
@@ -118,24 +110,17 @@ endif
 
 # build and deploy radix operator
 helm-up:
-ifndef CAN_DEPLOY_OPERATOR
-		@echo "Cannot release Operator to this cluster";\
-		exit 1
-endif
-
 	make deploy-operator
 	make deploy-via-helm
 
 # upgrades helm chart in radixdev/radixprod acr (does not deploy radix-operator)
 helm-upgrade-operator-chart:
-	az account set -s $(SUBSCRIPTION)
 	az acr helm repo add --name $(CONTAINER_REPO)
 	tar -zcvf radix-operator-$(CHART_VERSION).tgz charts/radix-operator
 	az acr helm push --name $(CONTAINER_REPO) charts/radix-operator-$(CHART_VERSION).tgz
 	rm charts/radix-operator-$(CHART_VERSION).tgz
 
 deploy-acr-builder:
-	az account set -s $(SUBSCRIPTION)
 	az acr login --name $(CONTAINER_REPO)
 	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
 	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
@@ -147,23 +132,3 @@ CUSTOM_RESOURCE_VERSION=v1
 .PHONY: code-gen
 code-gen: 
 	vendor/k8s.io/code-generator/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION)
-	
-HAS_GOMETALINTER := $(shell command -v gometalinter;)
-HAS_DEP          := $(shell command -v dep;)
-HAS_GIT          := $(shell command -v git;)
-
-vendor:
-ifndef HAS_GIT
-	$(error You must install git)
-endif
-ifndef HAS_DEP
-	go get -u github.com/golang/dep/cmd/dep
-endif
-ifndef HAS_GOMETALINTER
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
-endif
-	dep ensure
-
-.PHONY: bootstrap
-bootstrap: vendor
