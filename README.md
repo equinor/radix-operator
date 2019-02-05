@@ -1,43 +1,19 @@
 # radix-operator
 
-## Development on Windows with Windows Subsystem for Linux (WSL)
+## Release to Cluster
 
-Follow this tutorial to get Docker working from inside WSL: https://nickjanetakis.com/blog/setting-up-docker-for-windows-and-wsl-to-work-flawlessly
+Radix-pipeline:
 
-Also handy if you have problems removing docker.io: https://github.com/docker/for-linux/issues/52
+We need to build from both master (used by QA environment) and release (used by Prod environment)
+For each branch:
+1. git checkout \<branch\>
+2. make deploy-pipeline ENVIRONMENT=prod|dev
 
-The repo also has to be cloned to the correct path under GOPATH. So for example
-
-    export GOPATH=/home/stian/whereIkeepMycode
-    mkdir -p $GOPATH/src/github.com/equinor/
-    cd $GOPATH/src/github.com/equinor/
-    git clone git@github.com:equinor/radix-operator.git
-
-PS: The local organization path (equinor) HAS to be lowercase. If it is capitalized `dep ensure` will download a copy of `equinor/radix-operator` and put it in your `vendor/` folder as an external dependency and any code changes won't have any effect. It's not possible to use proper capitalization in the Go imports since Kubernetes code-generator will lowercase stuff in the process and fail.
-
-Create a link so that make can find GoMetaLinter
-
-    ln -s /root/go/bin/gometalinter /usr/bin/gometalinter
-
-Also, in vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go:300
-
-Change
-
-    token:       spt.Token,
-
-To
-
-    token:       spt.Token(),
-
-This because we cannot use latest version of client-go because reasons.
-
-If the build complains about missing a git tag, add a tag manually with
-
-    git tag v1.0.0
-
-Then do `make docker-build` and after that completes `go run radix-operator/main.go` should also work locally.
-
-## Deployment to Kubernetes
+Radix-operator:
+We need to build from release
+For each branch:
+1. git checkout \<branch\>
+2. make deploy-pipeline ENVIRONMENT=prod|dev
 
 1. Make Docker image:
 
