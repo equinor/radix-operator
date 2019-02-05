@@ -22,13 +22,13 @@ endif
 
 ifdef IS_PROD
 ifdef IS_PROD_BRANCH
-	CAN_RELEASE_OPERATOR = yes
+	CAN_DEPLOY_OPERATOR = yes
 endif
 endif
 
 ifdef IS_DEV
 ifdef IS_DEV_BRANCH
-	CAN_RELEASE_OPERATOR = yes
+	CAN_DEPLOY_OPERATOR = yes
 endif
 endif
 
@@ -52,8 +52,6 @@ CHART_VERSION = $(shell cat charts/radix-operator/Chart.yaml | yq --raw-output .
 
 TAG := $(BRANCH)-$(HASH)
 
-# CAN_DEPLOY_OPERATOR := $(and  $(res_A), $(res_B))
-
 echo:
 	@echo "ENVIRONMENT : " $(ENVIRONMENT)
 	@echo "DNS_ZONE : " $(DNS_ZONE)
@@ -67,7 +65,7 @@ echo:
 	@echo "IS_DEV : " $(IS_DEV)
 	@echo "IS_PROD_BRANCH : " $(IS_PROD_BRANCH)
 	@echo "IS_DEV_BRANCH : " $(IS_DEV_BRANCH)
-	@echo "CAN_RELEASE_OPERATOR : " $(CAN_RELEASE_OPERATOR)
+	@echo "CAN_DEPLOY_OPERATOR : " $(CAN_DEPLOY_OPERATOR)
 
 .PHONY: test
 test:	
@@ -100,6 +98,11 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
 # deploys radix operator using helm chart in radixdev/radixprod acr
 deploy-via-helm:
+ifndef CAN_DEPLOY_OPERATOR
+		@echo "Cannot release Operator to this cluster";\
+		exit 1
+endif
+
 	az account set -s $(SUBSCRIPTION)
 	az acr helm repo add --name $(CONTAINER_REPO)
 	helm repo update
@@ -115,12 +118,11 @@ deploy-via-helm:
 
 # build and deploy radix operator
 helm-up:
-ifndef CAN_RELEASE_OPERATOR
+ifndef CAN_DEPLOY_OPERATOR
 		@echo "Cannot release Operator to this cluster";\
 		exit 1
 endif
 
-	exit 1
 	make deploy-operator
 	make deploy-via-helm
 
