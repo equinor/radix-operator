@@ -3,11 +3,11 @@ package application
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/equinor/radix-operator/pkg/apis/application"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -84,15 +84,11 @@ func (t *RadixApplicationHandler) processRadixApplication(radixApplication *v1.R
 		return err
 	}
 
-	application, err := application.NewApplication(t.kubeclient, t.radixclient, radixRegistration, radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(t.kubeclient, t.radixclient, radixRegistration, radixApplication)
 	if err != nil {
 		return err
 	}
 
-	err = application.CreateEnvironments()
-	if err != nil {
-		log.Errorf("Failed to create namespaces for app environments %s. %v", radixRegistration.Name, err)
-		return err
-	}
+	applicationConfig.OnConfigApplied()
 	return nil
 }

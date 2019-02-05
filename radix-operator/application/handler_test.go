@@ -21,7 +21,7 @@ func setupTest() (*test.Utils, kube.Interface) {
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
-	registrationHandler := registration.NewRegistrationHandler(kubeclient)
+	registrationHandler := registration.NewRegistrationHandler(kubeclient, radixclient)
 	applicationHandler := NewApplicationHandler(kubeclient, radixclient)
 
 	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &applicationHandler, nil)

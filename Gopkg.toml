@@ -38,7 +38,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
   revision = "01a732e01d00cb9a81bb0ca050d3e6d2b947927b"
 
 [[constraint]]
-  name = "github.com/Sirupsen/logrus"
+  name = "github.com/sirupsen/logrus"
   version = "1.0.6"
 
 [[constraint]]

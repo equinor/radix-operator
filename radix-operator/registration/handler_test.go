@@ -6,7 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/stretchr/testify/assert"
 
@@ -36,7 +36,7 @@ func Test_RadixRegistrationHandler(t *testing.T) {
 	client := fake.NewSimpleClientset(secret)
 	radixClient := fakeradix.NewSimpleClientset()
 	registration, _ := utils.GetRadixRegistrationFromFile("testdata/sampleregistration.yaml")
-	handler := NewRegistrationHandler(client)
+	handler := NewRegistrationHandler(client, radixClient)
 	radixClient.PrependReactor("get", "radixregistrations", func(action kubetest.Action) (handled bool, ret runtime.Object, err error) {
 		return true, registration, nil
 	})

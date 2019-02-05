@@ -3,12 +3,13 @@ package onpush
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,22 +17,24 @@ import (
 
 // RadixOnPushHandler Instance variables
 type RadixOnPushHandler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
+	kubeclient               kubernetes.Interface
+	radixclient              radixclient.Interface
+	prometheusOperatorClient monitoring.Interface
+	kubeutil                 *kube.Kube
 }
 
 // Init constructor
-func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface) (RadixOnPushHandler, error) {
+func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) (RadixOnPushHandler, error) {
 	kube, err := kube.New(kubeclient)
 	if err != nil {
 		return RadixOnPushHandler{}, err
 	}
 
 	handler := RadixOnPushHandler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kube,
+		kubeclient:               kubeclient,
+		radixclient:              radixclient,
+		prometheusOperatorClient: prometheusOperatorClient,
+		kubeutil:                 kube,
 	}
 
 	return handler, nil
@@ -61,12 +64,12 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 		return err
 	}
 
-	application, err := application.NewApplication(cli.kubeclient, cli.radixclient, radixRegistration, radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, radixRegistration, radixApplication)
 	if err != nil {
 		return err
 	}
 
-	branchIsMapped, targetEnvironments := application.IsBranchMappedToEnvironment(branch)
+	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(branch)
 
 	if !branchIsMapped {
 		errMsg := fmt.Sprintf("Failed to match environment to branch: %s", branch)
@@ -76,7 +79,7 @@ func (cli *RadixOnPushHandler) Run(jobName, branch, commitID, imageTag, appFileN
 
 	log.Infof("start pipeline build and deploy for %s and branch %s and commit id %s", appName, branch, commitID)
 
-	err = application.ApplyConfigToApplicationNamespace()
+	err = applicationConfig.ApplyConfigToApplicationNamespace()
 	if err != nil {
 		log.Errorf("Failed to apply radix application. %v", err)
 		return err

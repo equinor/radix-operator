@@ -1,77 +1,34 @@
 # radix-operator
 
-## Development on Windows with Windows Subsystem for Linux (WSL)
+For more background of process, see:
+https://github.com/equinor/radix-private/blob/master/docs/how-we-work/development-practices.md
 
-Follow this tutorial to get Docker working from inside WSL: https://nickjanetakis.com/blog/setting-up-docker-for-windows-and-wsl-to-work-flawlessly
+## Release to Cluster
 
-Also handy if you have problems removing docker.io: https://github.com/docker/for-linux/issues/52
+### Radix-pipeline
 
-The repo also has to be cloned to the correct path under GOPATH. So for example
+We need to build from both master (used by QA environment) and release (used by Prod environment) in both dev and prod subscription. We should not merge to release branch before QA has passed.
+For each subscription:
 
-    export GOPATH=/home/stian/whereIkeepMycode
-    mkdir -p $GOPATH/src/github.com/equinor/
-    cd $GOPATH/src/github.com/equinor/
-    git clone git@github.com:equinor/radix-operator.git
+1. git checkout \<branch\>
+2. make deploy-pipeline ENVIRONMENT=prod|dev
 
-PS: The local organization path (equinor) HAS to be lowercase. If it is capitalized `dep ensure` will download a copy of `equinor/radix-operator` and put it in your `vendor/` folder as an external dependency and any code changes won't have any effect. It's not possible to use proper capitalization in the Go imports since Kubernetes code-generator will lowercase stuff in the process and fail.
+### Radix-operator
 
-Create a link so that make can find GoMetaLinter
+For development/staging we need to deploy from master branch while for production we need to deploy from release branch. We should not merge to release branch before QA has passed.
 
-    ln -s /root/go/bin/gometalinter /usr/bin/gometalinter
+1. Go to cluster inside correct subscription
+2. git checkout \<branch\>
+3. make helm-up ENVIRONMENT=prod|dev (this will build, push to ACR and release to cluster)
 
-Also, in vendor/k8s.io/client-go/plugin/pkg/client/auth/azure/azure.go:300
+### Operator helm chart
 
-Change
+For changes the chart the same proceedure applies as for changes to code. For development/staging we need to deploy from master branch while for production we need to deploy from release branch. We should not merge to release branch before QA has passed.:
 
-    token:       spt.Token,
-
-To
-
-    token:       spt.Token(),
-
-This because we cannot use latest version of client-go because reasons.
-
-If the build complains about missing a git tag, add a tag manually with
-
-    git tag v1.0.0
-
-Then do `make docker-build` and after that completes `go run radix-operator/main.go` should also work locally.
-
-## Deployment to Kubernetes
-
-1. Make Docker image:
-
-    make build
-
-    If this does not work, delete `Gopkg.lock` and `Gopkg.toml` files and run the following command:
-
-    dep init
-
-    If some errors occur, try deleting `$GOPATH/pkg/dep/sources` directory and all its sub-directories, and re-run `dep init`.
-
-2. Push the created Docker image to container registry:
-
-    make push
-
-3. Deploy (using the helm chart in the background.):
-
-    make deploy-via-helm
-
-Will by default deploy image tag with commit id. Optionally deploy another image:
-
-    TAG=6e2da3995c078f33613cf459942d914f88f40367 make deploy-via-helm
-
-4. Combined command for build push & deploy.
-
-    make helm-up
-
-**First time setup - Add private Helm Repo** 
-
-If you have not used private Helm Repos in ACR before you need to add it before you can push and deploy from it:
-
-    az configure --defaults acr=radixdev
-    az acr helm repo add
-    helm repo update
+1. Go to cluster inside correct subscription
+2. git checkout \<branch\>
+3. make helm-upgrade-operator-chart ENVIRONMENT=prod|dev (will package and push to ACR)
+4. make deploy-via-helm ENVIRONMENT=prod|dev (will release latest version of helm chart in ACR to cluster)
 
 ## Updating RadixApplication CRD
 
@@ -87,14 +44,3 @@ This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client`
 This file/directory should NOT be edited.
 
 If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
-
-## Installing Helm Chart
-
-Installing Radix Operator using the Helm Chart you need to do the following:
-
-- Clone this repository
-- Run: `helm inspect values ./charts/radix-operator > radix-operator.yaml`
-- Edit the `radix-operator.yaml` and fill in the credentials for the Container Registry you wish to use
-- Install: `helm install -f radix-operator.values ./charts/radix-operator`
-
-If you wish to use a different image version, update the `image.tag` property in `radix-operator.yaml` you created above.

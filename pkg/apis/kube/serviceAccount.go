@@ -1,19 +1,11 @@
 package kube
 
 import (
-	log "github.com/Sirupsen/logrus"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// TODO : This should be moved closer to Application domain/package
-func (kube *Kube) ApplyPipelineServiceAccount(radixRegistration *v1.RadixRegistration) (*corev1.ServiceAccount, error) {
-	namespace := utils.GetAppNamespace(radixRegistration.Name)
-	return kube.ApplyServiceAccount("radix-pipeline", namespace)
-}
 
 func (kube *Kube) ApplyServiceAccount(serviceAccountName, namespace string) (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
