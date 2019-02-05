@@ -1,53 +1,21 @@
 # radix-operator
 
+For more background of process, see:
+https://github.com/equinor/radix-private/blob/master/docs/how-we-work/development-practices.md
+
 ## Release to Cluster
 
 Radix-pipeline:
 
-We need to build from both master (used by QA environment) and release (used by Prod environment)
-For each branch:
+We need to build from both master (used by QA environment) and release (used by Prod environment). We should not merge to release before QA has passed:
 1. git checkout \<branch\>
 2. make deploy-pipeline ENVIRONMENT=prod|dev
 
 Radix-operator:
-We need to build from release
-For each branch:
-1. git checkout \<branch\>
-2. make deploy-pipeline ENVIRONMENT=prod|dev
-
-1. Make Docker image:
-
-    make build
-
-    If this does not work, delete `Gopkg.lock` and `Gopkg.toml` files and run the following command:
-
-    dep init
-
-    If some errors occur, try deleting `$GOPATH/pkg/dep/sources` directory and all its sub-directories, and re-run `dep init`.
-
-2. Push the created Docker image to container registry:
-
-    make push
-
-3. Deploy (using the helm chart in the background.):
-
-    make deploy-via-helm
-
-Will by default deploy image tag with commit id. Optionally deploy another image:
-
-    TAG=6e2da3995c078f33613cf459942d914f88f40367 make deploy-via-helm
-
-4. Combined command for build push & deploy.
-
-    make helm-up
-
-**First time setup - Add private Helm Repo** 
-
-If you have not used private Helm Repos in ACR before you need to add it before you can push and deploy from it:
-
-    az configure --defaults acr=radixdev
-    az acr helm repo add
-    helm repo update
+For development we need to deploy from master branch while for production we need to deploy from release branch
+1. Go to cluster
+2. git checkout \<branch\>
+2. make helm-up ENVIRONMENT=prod|dev (this will build, push to ACR and release to cluster)
 
 ## Updating RadixApplication CRD
 
@@ -63,14 +31,3 @@ This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client`
 This file/directory should NOT be edited.
 
 If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
-
-## Installing Helm Chart
-
-Installing Radix Operator using the Helm Chart you need to do the following:
-
-- Clone this repository
-- Run: `helm inspect values ./charts/radix-operator > radix-operator.yaml`
-- Edit the `radix-operator.yaml` and fill in the credentials for the Container Registry you wish to use
-- Install: `helm install -f radix-operator.values ./charts/radix-operator`
-
-If you wish to use a different image version, update the `image.tag` property in `radix-operator.yaml` you created above.
