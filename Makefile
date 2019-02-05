@@ -1,22 +1,65 @@
 DOCKER_FILES	= operator pipeline
-
+ENVIRONMENT ?= dev
 VERSION 	?= latest
 
-ENVIRONMENT ?= dev
+DNS_ZONE = dev.radix.equinor.com
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-DNS_ZONE ?= dev.radix.equinor.com
+ifeq ($(ENVIRONMENT),prod)
+	IS_PROD = yes
+else
+	IS_DEV = yes
+endif
+
+ifeq ($(BRANCH),release)
+	IS_PROD_BRANCH = yes
+endif
+
+ifeq ($(BRANCH),master)
+	IS_DEV_BRANCH = yes
+endif
+
+ifdef IS_PROD
+ifdef IS_PROD_BRANCH
+	CAN_DEPLOY_OPERATOR = yes
+endif
+endif
+
+ifdef IS_DEV
+ifdef IS_DEV_BRANCH
+	CAN_DEPLOY_OPERATOR = yes
+endif
+endif
+
+ifdef IS_PROD
+	DNS_ZONE = radix.equinor.com
+endif
 
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
+APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
 DATE = $(shell date +%F_%T)
-BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
 CHART_VERSION = $(shell cat charts/radix-operator/Chart.yaml | yq --raw-output .version)
 
 TAG := $(BRANCH)-$(HASH)
+
+echo:
+	@echo "ENVIRONMENT : " $(ENVIRONMENT)
+	@echo "DNS_ZONE : " $(DNS_ZONE)
+	@echo "CONTAINER_REPO : " $(CONTAINER_REPO)
+	@echo "DOCKER_REGISTRY : " $(DOCKER_REGISTRY)
+	@echo "BRANCH : " $(BRANCH)
+	@echo "CLUSTER_NAME : " $(CLUSTER_NAME)
+	@echo "APP_ALIAS_BASE_URL : " $(APP_ALIAS_BASE_URL)
+	@echo "IS_PROD : " $(IS_PROD)
+	@echo "IS_DEV : " $(IS_DEV)
+	@echo "IS_PROD_BRANCH : " $(IS_PROD_BRANCH)
+	@echo "IS_DEV_BRANCH : " $(IS_DEV_BRANCH)
+	@echo "CAN_DEPLOY_OPERATOR : " $(CAN_DEPLOY_OPERATOR)
 
 .PHONY: test
 test:	
@@ -30,6 +73,7 @@ endef
 
 define make-docker-push
   	push-$1:
+		az acr login --name $(CONTAINER_REPO)
 		docker push $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION)
 		docker push $(DOCKER_REGISTRY)/radix-$1:$(TAG)
   	push:: push-$1
@@ -47,9 +91,22 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
 # deploys radix operator using helm chart in radixdev/radixprod acr
 deploy-via-helm:
+ifndef CAN_DEPLOY_OPERATOR
+		@echo "Cannot release Operator to this cluster";\
+		exit 1
+endif
+
 	az acr helm repo add --name $(CONTAINER_REPO)
 	helm repo update
-	helm upgrade --install radix-operator $(CONTAINER_REPO)/radix-operator --set dnsZone=$(DNS_ZONE) --set appAliasBaseURL=app.$(DNS_ZONE) --set prometheusName=radix-stage1 --set clusterName=$(CLUSTER_NAME) --set imageRegistry=$(DOCKER_REGISTRY) --set image.tag=$(TAG)
+	helm upgrade --install radix-operator \
+	    $(CONTAINER_REPO)/radix-operator \
+		--namespace default \
+	    --set dnsZone=$(DNS_ZONE) \
+		--set appAliasBaseURL=$(APP_ALIAS_BASE_URL) \
+		--set prometheusName=radix-stage1 \
+		--set imageRegistry=$(DOCKER_REGISTRY) \
+		--set clusterName=$(CLUSTER_NAME) \
+		--set image.tag=$(BRANCH)-$(VERSION)
 
 # build and deploy radix operator
 helm-up:
@@ -58,11 +115,13 @@ helm-up:
 
 # upgrades helm chart in radixdev/radixprod acr (does not deploy radix-operator)
 helm-upgrade-operator-chart:
+	az acr helm repo add --name $(CONTAINER_REPO)
 	tar -zcvf radix-operator-$(CHART_VERSION).tgz charts/radix-operator
 	az acr helm push --name $(CONTAINER_REPO) charts/radix-operator-$(CHART_VERSION).tgz
 	rm charts/radix-operator-$(CHART_VERSION).tgz
 
 deploy-acr-builder:
+	az acr login --name $(CONTAINER_REPO)
 	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
 	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
 
@@ -73,23 +132,3 @@ CUSTOM_RESOURCE_VERSION=v1
 .PHONY: code-gen
 code-gen: 
 	vendor/k8s.io/code-generator/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION)
-	
-HAS_GOMETALINTER := $(shell command -v gometalinter;)
-HAS_DEP          := $(shell command -v dep;)
-HAS_GIT          := $(shell command -v git;)
-
-vendor:
-ifndef HAS_GIT
-	$(error You must install git)
-endif
-ifndef HAS_DEP
-	go get -u github.com/golang/dep/cmd/dep
-endif
-ifndef HAS_GOMETALINTER
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
-endif
-	dep ensure
-
-.PHONY: bootstrap
-bootstrap: vendor
