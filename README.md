@@ -15,7 +15,7 @@ For each subscription:
 
 ### Radix-operator
 
-For development/staging we need to deploy from master branch while for production we need to deploy from release branch
+For development/staging we need to deploy from master branch while for production we need to deploy from release branch. We should not merge to release branch before QA has passed.
 
 1. Go to cluster inside correct subscription
 2. git checkout \<branch\>
@@ -23,7 +23,7 @@ For development/staging we need to deploy from master branch while for productio
 
 ### Operator helm chart
 
-For changes the chart the same proceedure applies as for changes to code. For development/staging we need to deploy from master branch while for production we need to deploy from release branch:
+For changes the chart the same proceedure applies as for changes to code. For development/staging we need to deploy from master branch while for production we need to deploy from release branch. We should not merge to release branch before QA has passed.:
 
 1. Go to cluster inside correct subscription
 2. git checkout \<branch\>
