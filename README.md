@@ -1,34 +1,51 @@
 # radix-operator
 
-For more background of process, see:
-https://github.com/equinor/radix-private/blob/master/docs/how-we-work/development-practices.md
+## Process
 
-## Release to Cluster
+The operator is developed using trunk-based development. The two applications here are `radix-operator` and `radix-pipeline`. They are deployed by downloading and running the correct pre-built images from the container registry. 
+
+For the `radix-pipeline` we only produce a new image when changes are made to the code. `radix-pipeline` is only invoked by `radix-api` application, and the "environment" mentioned below is the Radix environment of `radix-api` (different environments for `radix-api` therefore use different images of `radix-pipeline`. The process for deploying `radix-pipeline` is this:
+
+- `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, we should immediately release a new image to be used by the `qa` environment, by (1) checkout and pull `master` branch (2) `make deploy-pipeline ENVIRONMENT=prod|dev` which will create a `radix-pipeline:master-latest` image available in ACR of the subscription
+- `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) checkout and pull `release` branch (2) `make deploy-pipeline` which will create a `radix-pipeline:release-latest ENVIRONMENT=prod|dev` image available in ACR of the subscription
+
+For the `radix-operator`, instead of releasing to different environments, we release to different clusters:
+
+- `master` branch should be used for deployment to the `dev` cluster. When a pull request is approved and merged to `master`, we should immediately release those changes to the `dev` cluster, by (1) position yourself in the `dev` cluster (2) checkout and pull `master` branch (3) `make helm-up ENVIRONMENT=prod|dev` which will create a `radix-operator:master-latest` image and install it into the `dev` cluster
+- `release` branch should be used for deployment to the `prod` cluster. When a pull request is approved and merged to `master`, and tested ok in `dev` cluster we should immediately merge `master` into `release` and deploy those changes to the `prod` cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) position yourself in the `prod` cluster (2) checkout and pull `release` branch (3) `make helm-up ENVIRONMENT=prod|dev` which will create a `radix-operator:release-latest` image and install it into the cluster
+
+## Procedure to release to cluster
 
 ### Radix-pipeline
 
-We need to build from both master (used by QA environment) and release (used by Prod environment) in both dev and prod subscription. We should not merge to release branch before QA has passed.
+We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscription. We should not merge to `release` branch before QA has passed.
 For each subscription:
 
-1. git checkout \<branch\>
+```
+1. git checkout <branch>
 2. make deploy-pipeline ENVIRONMENT=prod|dev
+```
 
 ### Radix-operator
 
-For development/staging we need to deploy from master branch while for production we need to deploy from release branch. We should not merge to release branch before QA has passed.
+For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.
 
+```
 1. Go to cluster inside correct subscription
-2. git checkout \<branch\>
+2. git checkout <branch>
 3. make helm-up ENVIRONMENT=prod|dev (this will build, push to ACR and release to cluster)
+```
 
 ### Operator helm chart
 
-For changes the chart the same proceedure applies as for changes to code. For development/staging we need to deploy from master branch while for production we need to deploy from release branch. We should not merge to release branch before QA has passed.:
+For changes to the chart the same proceedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.:
 
+```
 1. Go to cluster inside correct subscription
-2. git checkout \<branch\>
+2. git checkout <branch>
 3. make helm-upgrade-operator-chart ENVIRONMENT=prod|dev (will package and push to ACR)
 4. make deploy-via-helm ENVIRONMENT=prod|dev (will release latest version of helm chart in ACR to cluster)
+```
 
 ## Updating RadixApplication CRD
 
