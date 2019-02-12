@@ -1,11 +1,11 @@
 package application
 
 import (
-	log "github.com/sirupsen/logrus"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	log "github.com/sirupsen/logrus"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -50,7 +50,7 @@ func NewApplicationController(client kubernetes.Interface, radixClient radixclie
 
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				logger.Infof("Added radix application: %s", key)
+				logger.Infof("Adding radix application created event to queue: %s", key)
 				queue.Add(common.QueueItem{Key: key, Operation: common.Add})
 			}
 		},
@@ -65,7 +65,7 @@ func NewApplicationController(client kubernetes.Interface, radixClient radixclie
 
 			key, err := cache.MetaNamespaceKeyFunc(oldObj)
 			if err == nil {
-				logger.Infof("Updated radix application: %s", key)
+				logger.Infof("Adding radix application updated event to queue: %s", key)
 				queue.Add(common.QueueItem{Key: key, OldObject: oldObj, Operation: common.Update})
 			}
 		},
@@ -80,7 +80,7 @@ func NewApplicationController(client kubernetes.Interface, radixClient radixclie
 
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
-				logger.Infof("Deleted radix application: %s", key)
+				logger.Infof("Adding radix application deleted event to queue: %s", key)
 				queue.Add(common.QueueItem{Key: key, Operation: common.Delete})
 			}
 		},

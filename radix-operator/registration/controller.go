@@ -1,11 +1,11 @@
 package registration
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	log "github.com/sirupsen/logrus"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -40,8 +40,8 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
 
 			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
-			logger.Infof("Added radix registration: %s", key)
 			if err == nil {
+				logger.Infof("Adding radix registration created event to queue: %s", key)
 				queue.Add(common.QueueItem{Key: key, Operation: common.Add})
 			}
 		},
@@ -55,8 +55,8 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			logger = logger.WithFields(log.Fields{"registrationName": newRadixRegistration.ObjectMeta.Name, "registrationNamespace": newRadixRegistration.ObjectMeta.Namespace})
 
 			key, err := cache.MetaNamespaceKeyFunc(oldObj)
-			logger.Infof("Updated radix registration: %s", key)
 			if err == nil {
+				logger.Infof("Adding radix registration updated event to queue: %s", key)
 				queue.Add(common.QueueItem{Key: key, OldObject: oldObj, Operation: common.Update})
 			}
 		},
@@ -70,8 +70,8 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
 
 			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
-			logger.Infof("Deleted radix registration: %s", key)
 			if err == nil {
+				logger.Infof("Adding radix registration deleted event to queue: %s", key)
 				queue.Add(common.QueueItem{Key: key, Operation: common.Delete})
 			}
 		},

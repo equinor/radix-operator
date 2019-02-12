@@ -43,7 +43,7 @@ func (t *RadixDeployHandler) Init() error {
 
 // ObjectCreated is called when an object is created
 func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
-	logger.Info("Deploy object created received.")
+	logger.Info("Deploy object created event received.")
 	radixDeploy, ok := obj.(*v1.RadixDeployment)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
@@ -59,13 +59,13 @@ func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
 
 // ObjectDeleted is called when an object is deleted
 func (t *RadixDeployHandler) ObjectDeleted(key string) error {
-	logger.Info("RadixDeployment object deleted.")
+	logger.Info("Deploy object deleted event received. Do nothing.")
 	return nil
 }
 
 // ObjectUpdated is called when an object is updated
 func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	logger.Info("Deploy object updated received.")
+	logger.Info("Deploy object updated event received.")
 	radixDeploy, ok := objNew.(*v1.RadixDeployment)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", objNew)

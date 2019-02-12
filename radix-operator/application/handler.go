@@ -41,7 +41,7 @@ func (t *RadixApplicationHandler) Init() error {
 
 // ObjectCreated is called when an object is created
 func (t *RadixApplicationHandler) ObjectCreated(obj interface{}) error {
-	logger.Info("Application object created received.")
+	logger.Info("Application object created event received.")
 	radixApplication, ok := obj.(*v1.RadixApplication)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Application; instead was %v", obj)
@@ -57,13 +57,13 @@ func (t *RadixApplicationHandler) ObjectCreated(obj interface{}) error {
 
 // ObjectDeleted is called when an object is deleted
 func (t *RadixApplicationHandler) ObjectDeleted(key string) error {
-	logger.Info("RadixApplication object deleted.")
+	logger.Info("Application object deleted event received. Do nothing.")
 	return nil
 }
 
 // ObjectUpdated is called when an object is updated
 func (t *RadixApplicationHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	logger.Info("Application object updated received.")
+	logger.Info("Application object updated event received.")
 	radixApplication, ok := objNew.(*v1.RadixApplication)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Application; instead was %v", objNew)
