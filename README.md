@@ -7,7 +7,7 @@ The operator is developed using trunk-based development. The two applications he
 For the `radix-pipeline` we only produce a new image when changes are made to the code. `radix-pipeline` is only invoked by `radix-api` application, and the "environment" mentioned below is the Radix environment of `radix-api` (different environments for `radix-api` therefore use different images of `radix-pipeline`. The process for deploying `radix-pipeline` is this:
 
 - `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, we should immediately release a new image to be used by the `qa` environment, by (1) checkout and pull `master` branch (2) `make deploy-pipeline ENVIRONMENT=prod|dev` which will create a `radix-pipeline:master-latest` image available in ACR of the subscription
-- `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) checkout and pull `release` branch (2) `make deploy-pipeline` which will create a `radix-pipeline:release-latest ENVIRONMENT=prod|dev` image available in ACR of the subscription
+- `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) checkout and pull `release` branch (2) `make deploy-pipeline ENVIRONMENT=prod|dev` which will create a `radix-pipeline:release-latest` image available in ACR of the subscription
 
 For the `radix-operator`, instead of releasing to different environments, we release to different clusters:
 
@@ -18,7 +18,7 @@ For the `radix-operator`, instead of releasing to different environments, we rel
 
 ### Radix-pipeline
 
-We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscription. We should not merge to `release` branch before QA has passed.
+We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed.
 For each subscription:
 
 ```
@@ -38,7 +38,7 @@ For development/staging we need to deploy from `master` branch while for product
 
 ### Operator helm chart
 
-For changes to the chart the same proceedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.:
+For changes to the chart the same procedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.
 
 ```
 1. Go to cluster inside correct subscription
