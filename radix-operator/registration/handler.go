@@ -33,6 +33,7 @@ func (t *RadixRegistrationHandler) Init() error {
 
 // ObjectCreated is called when an object is created
 func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
+	logger.Info("Registration object created event received.")
 	radixRegistration, ok := obj.(*v1.RadixRegistration)
 	if !ok {
 		return fmt.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
@@ -49,11 +50,13 @@ func (t *RadixRegistrationHandler) processRadixRegistration(radixRegistration *v
 
 // ObjectDeleted is called when an object is deleted
 func (t *RadixRegistrationHandler) ObjectDeleted(key string) error {
+	logger.Info("Registration object deleted event received. Do nothing.")
 	return nil
 }
 
 // ObjectUpdated is called when an object is updated
 func (t *RadixRegistrationHandler) ObjectUpdated(objOld, objNew interface{}) error {
+	logger.Info("Registration object updated event received.")
 	if objOld == nil {
 		log.Info("update radix registration - no new changes (objOld == nil)")
 		return nil
