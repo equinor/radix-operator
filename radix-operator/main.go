@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -19,6 +20,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	kubeinformers "k8s.io/client-go/informers"
 )
 
 var logger *log.Entry
@@ -66,8 +70,15 @@ func main() {
 }
 
 func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, time.Second*30)
+	registrationInformerFactory := informers.NewSharedInformerFactory(radixClient, time.Second*30)
 	handler := registration.NewRegistrationHandler(client, radixClient)
-	registrationController := registration.NewController(client, radixClient, &handler)
+	registrationController := registration.NewController(
+		client,
+		radixClient,
+		&handler,
+		registrationInformerFactory.Radix().V1().RadixRegistrations(),
+		kubeInformerFactory.Core().V1().Namespaces())
 
 	go registrationController.Run(stop)
 }

@@ -1,12 +1,12 @@
 package registration
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -19,17 +19,13 @@ func init() {
 }
 
 //NewController creates a new controller that handles RadixRegistrations
-func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler) *common.Controller {
-	informer := radixinformer.NewRadixRegistrationInformer(
-		radixClient,
-		meta_v1.NamespaceAll,
-		0,
-		cache.Indexers{},
-	)
-
+func NewController(client kubernetes.Interface,
+	radixClient radixclient.Interface, handler common.Handler,
+	registrationInformer radixinformer.RadixRegistrationInformer,
+	namespaceInformer coreinformers.NamespaceInformer) *common.Controller {
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			radixRegistration, ok := obj.(*v1.RadixRegistration)
 			if !ok {
@@ -80,7 +76,7 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 	controller := &common.Controller{
 		KubeClient:  client,
 		RadixClient: radixClient,
-		Informer:    informer,
+		Informer:    registrationInformer.Informer(),
 		Queue:       queue,
 		Handler:     handler,
 		Log:         logger,
