@@ -23,6 +23,8 @@ type ApplicationController struct {
 
 var logger *log.Entry
 
+const controllerAgentName = "application-controller"
+
 func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "application-controller"})
 }
@@ -87,10 +89,11 @@ func NewApplicationController(client kubernetes.Interface, radixClient radixclie
 	})
 
 	controller := &common.Controller{
+		Name:        controllerAgentName,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    informer,
-		Queue:       queue,
+		WorkQueue:   queue,
 		Handler:     handler,
 		Log:         logger,
 	}

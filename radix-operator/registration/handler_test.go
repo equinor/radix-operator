@@ -2,26 +2,15 @@ package registration
 
 import (
 	"io/ioutil"
-	"testing"
-
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	log "github.com/sirupsen/logrus"
-
-	"github.com/stretchr/testify/assert"
-
-	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/fake"
-	kubetest "k8s.io/client-go/testing"
 )
 
 func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
+/*
 func Test_RadixRegistrationHandler(t *testing.T) {
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -53,3 +42,4 @@ func Test_RadixRegistrationHandler(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+*/

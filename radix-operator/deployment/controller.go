@@ -1,7 +1,7 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -22,6 +22,8 @@ type DeployController struct {
 }
 
 var logger *log.Entry
+
+const controllerAgentName = "deployment-controller"
 
 func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "deployment-controller"})
@@ -87,10 +89,11 @@ func NewDeployController(client kubernetes.Interface, radixClient radixclient.In
 	})
 
 	controller := &common.Controller{
+		Name:        controllerAgentName,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    informer,
-		Queue:       queue,
+		WorkQueue:   queue,
 		Handler:     handler,
 		Log:         logger,
 	}

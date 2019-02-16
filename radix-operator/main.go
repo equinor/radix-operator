@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/klog"
 
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kubeinformers "k8s.io/client-go/informers"
@@ -80,21 +81,26 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 		registrationInformerFactory.Radix().V1().RadixRegistrations(),
 		kubeInformerFactory.Core().V1().Namespaces())
 
-	go registrationController.Run(stop)
+	kubeInformerFactory.Start(stop)
+	registrationInformerFactory.Start(stop)
+
+	if err := registrationController.Run(1, stop); err != nil {
+		klog.Fatalf("Error running controller: %s", err.Error())
+	}
 }
 
 func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
 	handler := application.NewApplicationHandler(client, radixClient)
 	applicationController := application.NewApplicationController(client, radixClient, &handler)
 
-	go applicationController.Run(stop)
+	go applicationController.Run(1, stop)
 }
 
 func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, stop <-chan struct{}) {
 	deployHandler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient)
 
 	deployController := deployment.NewDeployController(client, radixClient, &deployHandler)
-	go deployController.Run(stop)
+	go deployController.Run(1, stop)
 }
 
 func startMetricsServer(stop <-chan struct{}) {

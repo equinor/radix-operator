@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 )
 
 // RadixDeployHandler Instance variables
@@ -35,9 +36,8 @@ func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.I
 	return handler
 }
 
-// Init handles any handler initialization
-func (t *RadixDeployHandler) Init() error {
-	logger.Info("RadixDeployHandler.Init")
+// Sync Is created on sync of resource
+func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
 	return nil
 }
 
