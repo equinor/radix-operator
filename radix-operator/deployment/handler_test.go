@@ -1,30 +1,10 @@
 package deployment
 
-import (
-	"fmt"
-	"os"
-	"testing"
-	"time"
-
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/radix-operator/application"
-	registration "github.com/equinor/radix-operator/radix-operator/registration"
-	"github.com/equinor/radix-operator/radix-operator/test"
-	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kube "k8s.io/client-go/kubernetes"
-	kubernetes "k8s.io/client-go/kubernetes/fake"
-)
-
 const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const containerRegistry = "any.container.registry"
 
+/*
 func setupTest() (*test.Utils, kube.Interface) {
 	// Setup
 	os.Setenv(deployment.OperatorDNSZoneEnvironmentVariable, dnsZone)
@@ -469,4 +449,4 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
 	})
-}
+}*/

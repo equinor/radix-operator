@@ -1,22 +1,10 @@
 package application
 
-import (
-	"testing"
-
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	registration "github.com/equinor/radix-operator/radix-operator/registration"
-	"github.com/equinor/radix-operator/radix-operator/test"
-	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kube "k8s.io/client-go/kubernetes"
-	kubernetes "k8s.io/client-go/kubernetes/fake"
-)
-
 const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const containerRegistry = "any.container.registry"
 
+/*
 func setupTest() (*test.Utils, kube.Interface) {
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
@@ -55,3 +43,4 @@ func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T
 		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 	})
 }
+*/

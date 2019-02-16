@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -20,7 +19,7 @@ const (
 
 	// MessageResourceSynced is the message used for an Event fired when a Registration
 	// is synced successfully
-	MessageResourceSynced = "Foo synced successfully"
+	MessageResourceSynced = "Radix Registration synced successfully"
 )
 
 type RadixRegistrationHandler struct {
@@ -42,7 +41,7 @@ func NewRegistrationHandler(kubeclient kubernetes.Interface, radixclient radixcl
 func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
 	registration, err := t.radixclient.RadixV1().RadixRegistrations(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		// The Foo resource may no longer exist, in which case we stop
+		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
 			utilruntime.HandleError(fmt.Errorf("Radix registration '%s' in work queue no longer exists", name))
@@ -53,13 +52,7 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 	}
 
 	t.onSync(registration)
-	eventRecorder.Event(registration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
-	return nil
-}
-
-// ObjectCreated is called when an object is created
-// TODO: remove
-func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
+	//eventRecorder.Event(registration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
@@ -67,6 +60,12 @@ func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
 func (t *RadixRegistrationHandler) onSync(radixRegistration *v1.RadixRegistration) {
 	application, _ := application.NewApplication(t.kubeclient, t.radixclient, radixRegistration)
 	application.OnRegistered()
+}
+
+// ObjectCreated is called when an object is created
+// TODO: remove
+func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
+	return nil
 }
 
 // ObjectDeleted is called when an object is deleted

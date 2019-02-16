@@ -5,10 +5,14 @@ import (
 	"time"
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -25,6 +29,16 @@ type Controller struct {
 	Handler     Handler
 	Log         *log.Entry
 	Recorder    record.EventRecorder
+}
+
+// NewEventRecorder Creates an event recorder for controller
+func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface) record.EventRecorder {
+	radixscheme.AddToScheme(scheme.Scheme)
+	klog.V(4).Info("Creating event broadcaster")
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(klog.Infof)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
+	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 }
 
 // Run starts the shared informer, which will be stopped when stopCh is closed.
@@ -120,7 +134,7 @@ func (c *Controller) Enqueue(obj interface{}) {
 		utilruntime.HandleError(err)
 		return
 	}
-	c.WorkQueue.AddRateLimited(QueueItem{Key: key, Operation: Update})
+	c.WorkQueue.AddRateLimited(key)
 }
 
 func (c *Controller) hasSynced() bool {

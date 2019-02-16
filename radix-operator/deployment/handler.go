@@ -9,9 +9,20 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+)
+
+const (
+	// SuccessSynced is used as part of the Event 'reason' when a Deployment is synced
+	SuccessSynced = "Synced"
+
+	// MessageResourceSynced is the message used for an Event fired when a Deployment
+	// is synced successfully
+	MessageResourceSynced = "Radix Deployment synced successfully"
 )
 
 // RadixDeployHandler Instance variables
@@ -38,48 +49,26 @@ func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.I
 
 // Sync Is created on sync of resource
 func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	return nil
-}
-
-// ObjectCreated is called when an object is created
-func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
-	logger.Info("Deploy object created event received.")
-	radixDeploy, ok := obj.(*v1.RadixDeployment)
-	if !ok {
-		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
-	}
-
-	err := t.processRadixDeployment(radixDeploy)
+	deployment, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
+		// The Registration resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			utilruntime.HandleError(fmt.Errorf("Radix deployment '%s' in work queue no longer exists", name))
+			return nil
+		}
+
 		return err
 	}
 
-	return nil
-}
-
-// ObjectDeleted is called when an object is deleted
-func (t *RadixDeployHandler) ObjectDeleted(key string) error {
-	logger.Info("Deploy object deleted event received. Do nothing.")
-	return nil
-}
-
-// ObjectUpdated is called when an object is updated
-func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	logger.Info("Deploy object updated event received.")
-	radixDeploy, ok := objNew.(*v1.RadixDeployment)
-	if !ok {
-		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", objNew)
-	}
-
-	err := t.processRadixDeployment(radixDeploy)
-	if err != nil {
-		return err
-	}
+	t.onSync(deployment)
+	//eventRecorder.Event(deployment, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 
 	return nil
 }
 
-func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeployment) error {
+// TODO: Move to deployment domain
+func (t *RadixDeployHandler) onSync(radixDeploy *v1.RadixDeployment) error {
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
@@ -100,7 +89,20 @@ func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeploym
 		return fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", radixDeploy.GetName())
 	}
 
-	logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
 	return deployment.OnDeploy()
+}
 
+// ObjectCreated is called when an object is created
+func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
+	return nil
+}
+
+// ObjectDeleted is called when an object is deleted
+func (t *RadixDeployHandler) ObjectDeleted(key string) error {
+	return nil
+}
+
+// ObjectUpdated is called when an object is updated
+func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
+	return nil
 }
