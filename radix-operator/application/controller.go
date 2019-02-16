@@ -1,6 +1,7 @@
 package application
 
 import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -47,20 +48,19 @@ func NewApplicationController(client kubernetes.Interface,
 	}
 
 	klog.Info("Setting up event handlers")
-	/*
-		informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: controller.Enqueue,
-			UpdateFunc: func(old, new interface{}) {
-				controller.Enqueue(new)
-			},
-			DeleteFunc: func(obj interface{}) {
-				radixApplication, _ := obj.(*v1.RadixApplication)
-				key, err := cache.MetaNamespaceKeyFunc(radixApplication)
-				if err == nil {
-					logger.Infof("Application object deleted event received for %s. Do nothing", key)
-				}
-			},
-		})*/
+	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.Enqueue,
+		UpdateFunc: func(old, new interface{}) {
+			controller.Enqueue(new)
+		},
+		DeleteFunc: func(obj interface{}) {
+			radixApplication, _ := obj.(*v1.RadixApplication)
+			key, err := cache.MetaNamespaceKeyFunc(radixApplication)
+			if err == nil {
+				logger.Infof("Application object deleted event received for %s. Do nothing", key)
+			}
+		},
+	})
 
 	return controller
 }

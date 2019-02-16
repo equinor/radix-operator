@@ -11,6 +11,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog"
 )
 
 const (
@@ -51,7 +52,8 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 		return err
 	}
 
-	t.onSync(registration)
+	klog.Infof("Sync registration %s", registration.Name)
+	//t.onSync(registration)
 	//eventRecorder.Event(registration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
