@@ -43,7 +43,10 @@ func NewController(client kubernetes.Interface,
 	klog.Info("Setting up event handlers")
 
 	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.Enqueue,
+		AddFunc: func(obj interface{}) {
+			logger.Info("Registration object added event received")
+			controller.Enqueue(obj)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			controller.Enqueue(new)
 		},
