@@ -9,6 +9,7 @@ import (
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 )
@@ -25,9 +26,8 @@ func init() {
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	registrationInformer radixinformer.RadixRegistrationInformer,
-	namespaceInformer coreinformers.NamespaceInformer) *common.Controller {
-
-	recorder := common.NewEventRecorder(controllerAgentName, client.CoreV1().Events(""))
+	namespaceInformer coreinformers.NamespaceInformer,
+	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{
 		Name:        controllerAgentName,
@@ -43,10 +43,7 @@ func NewController(client kubernetes.Interface,
 	klog.Info("Setting up event handlers")
 
 	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			logger.Info("Registration object added event received")
-			controller.Enqueue(obj)
-		},
+		AddFunc: controller.Enqueue,
 		UpdateFunc: func(old, new interface{}) {
 			controller.Enqueue(new)
 		},

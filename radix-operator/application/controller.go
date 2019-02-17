@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 )
@@ -26,15 +27,14 @@ var logger *log.Entry
 const controllerAgentName = "application-controller"
 
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": "application-controller"})
+	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
 }
 
 // NewApplicationController creates a new controller that handles RadixDeployments
 func NewApplicationController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
-	applicationInformer radixinformer.RadixApplicationInformer) *common.Controller {
-
-	//recorder := common.NewEventRecorder(controllerAgentName, client.CoreV1().Events(""))
+	applicationInformer radixinformer.RadixApplicationInformer,
+	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{
 		Name:        controllerAgentName,
@@ -44,7 +44,7 @@ func NewApplicationController(client kubernetes.Interface,
 		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RadixApplications"),
 		Handler:     handler,
 		Log:         logger,
-		Recorder:    nil,
+		Recorder:    recorder,
 	}
 
 	klog.Info("Setting up event handlers")

@@ -58,9 +58,10 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 		return err
 	}
 
-	klog.Infof("Sync registration %s", registration.Name)
-	//t.onSync(registration)
-	eventRecorder.Event(registration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	syncRegistration := registration.DeepCopy()
+	klog.Infof("Sync registration %s", syncRegistration.Name)
+	t.onSync(syncRegistration)
+	eventRecorder.Event(syncRegistration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 

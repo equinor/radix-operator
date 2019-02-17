@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -15,15 +14,22 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/application"
+	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog"
 
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kubeinformers "k8s.io/client-go/informers"
+)
+
+const (
+	resyncPeriod = 0
+	threadiness  = 1
 )
 
 var logger *log.Entry
@@ -53,16 +59,20 @@ func main() {
 
 	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
 
-	client, radixClient, _ := utils.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
 	stop := make(chan struct{})
 	defer close(stop)
 
 	go startMetricsServer(stop)
 
-	startRegistrationController(client, radixClient, stop)
-	//go startApplicationController(client, radixClient, stop)
-	//go startDeploymentController(client, radixClient, prometheusOperatorClient, stop)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
+	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""))
+
+	go startRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
+	go startApplicationController(client, radixClient, radixInformerFactory, eventRecorder, stop)
+	go startDeploymentController(client, radixClient, prometheusOperatorClient, radixInformerFactory, eventRecorder, stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -70,9 +80,14 @@ func main() {
 	<-sigTerm
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, time.Second*30)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, time.Second*30)
+func startRegistrationController(
+	client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	radixInformerFactory informers.SharedInformerFactory,
+	recorder record.EventRecorder,
+	stop <-chan struct{}) {
+
 	handler := registration.NewRegistrationHandler(
 		client,
 		radixClient,
@@ -83,24 +98,31 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 		radixClient,
 		&handler,
 		radixInformerFactory.Radix().V1().RadixRegistrations(),
-		kubeInformerFactory.Core().V1().Namespaces())
+		kubeInformerFactory.Core().V1().Namespaces(),
+		recorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := registrationController.Run(2, stop); err != nil {
+	if err := registrationController.Run(1, stop); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
-func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, time.Second*30)
+func startApplicationController(
+	client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	radixInformerFactory informers.SharedInformerFactory,
+	recorder record.EventRecorder,
+	stop <-chan struct{}) {
+
 	handler := application.NewApplicationHandler(client, radixClient)
 	applicationController := application.NewApplicationController(
 		client,
 		radixClient,
 		&handler,
-		radixInformerFactory.Radix().V1().RadixApplications())
+		radixInformerFactory.Radix().V1().RadixApplications(),
+		recorder)
 
 	radixInformerFactory.Start(stop)
 
@@ -109,14 +131,21 @@ func startApplicationController(client kubernetes.Interface, radixClient radixcl
 	}
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, stop <-chan struct{}) {
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, time.Second*30)
+func startDeploymentController(
+	client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	prometheusOperatorClient monitoring.Interface,
+	radixInformerFactory informers.SharedInformerFactory,
+	recorder record.EventRecorder,
+	stop <-chan struct{}) {
+
 	handler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient)
 	deployController := deployment.NewDeployController(
 		client,
 		radixClient,
 		&handler,
-		radixInformerFactory.Radix().V1().RadixDeployments())
+		radixInformerFactory.Radix().V1().RadixDeployments(),
+		recorder)
 
 	radixInformerFactory.Start(stop)
 
