@@ -39,13 +39,14 @@ func NewApplication(
 }
 
 // OnRegistered called when an application is registered (new RadixRegistration in cluster)
-func (app Application) OnRegistered() {
+func (app Application) OnRegistered() error {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
 
 	err := app.createAppNamespace()
 	if err != nil {
 		logger.Errorf("Failed to create app namespace. %v", err)
+		return err
 	} else {
 		logger.Infof("App namespace created")
 	}
@@ -53,6 +54,7 @@ func (app Application) OnRegistered() {
 	err = app.applySecretsForPipelines() // create deploy key in app namespace
 	if err != nil {
 		logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
+		return err
 	} else {
 		logger.Infof("Applied secrets needed by pipelines")
 	}
@@ -60,6 +62,7 @@ func (app Application) OnRegistered() {
 	pipelineServiceAccount, err := app.applyPipelineServiceAccount()
 	if err != nil {
 		logger.Errorf("Failed to apply service account needed by pipeline. %v", err)
+		return err
 	} else {
 		logger.Infof("Applied service account needed by pipelines")
 	}
@@ -67,6 +70,7 @@ func (app Application) OnRegistered() {
 	err = app.applyRbacRadixRegistration()
 	if err != nil {
 		logger.Errorf("Failed to set access on RadixRegistration: %v", err)
+		return err
 	} else {
 		logger.Infof("Applied access permissions to RadixRegistration")
 	}
@@ -74,6 +78,7 @@ func (app Application) OnRegistered() {
 	err = app.grantAccessToCICDLogs()
 	if err != nil {
 		logger.Errorf("Failed to grant access to ci/cd logs: %v", err)
+		return err
 	} else {
 		logger.Infof("Applied access to ci/cd logs")
 	}
@@ -81,9 +86,12 @@ func (app Application) OnRegistered() {
 	err = app.applyRbacOnPipelineRunner(pipelineServiceAccount)
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
+		return err
 	} else {
 		logger.Infof("Applied access permissions needed by pipeline")
 	}
+
+	return nil
 }
 
 func (app Application) OnUpdated(radixRegistrationOld *v1.RadixRegistration) {

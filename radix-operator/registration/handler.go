@@ -35,6 +35,7 @@ func NewRegistrationHandler(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	registrationLister listers.RadixRegistrationLister) RadixRegistrationHandler {
+
 	handler := RadixRegistrationHandler{
 		kubeclient:         kubeclient,
 		radixclient:        radixclient,
@@ -60,15 +61,20 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 
 	syncRegistration := registration.DeepCopy()
 	klog.Infof("Sync registration %s", syncRegistration.Name)
-	t.onSync(syncRegistration)
+	err = t.onSync(syncRegistration)
+	if err != nil {
+		// Put back on queue
+		return err
+	}
+
 	eventRecorder.Event(syncRegistration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
 // TODO: Move to application domain
-func (t *RadixRegistrationHandler) onSync(radixRegistration *v1.RadixRegistration) {
+func (t *RadixRegistrationHandler) onSync(radixRegistration *v1.RadixRegistration) error {
 	application, _ := application.NewApplication(t.kubeclient, t.radixclient, radixRegistration)
-	application.OnRegistered()
+	return application.OnRegistered()
 }
 
 // ObjectCreated is called when an object is created

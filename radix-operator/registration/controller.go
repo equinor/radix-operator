@@ -6,6 +6,8 @@ import (
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -56,5 +58,26 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
+	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			controller.HandleObject(obj, "RadixRegistration", getObject)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			newNs := new.(*corev1.Namespace)
+			oldNs := old.(*corev1.Namespace)
+			if newNs.ResourceVersion == oldNs.ResourceVersion {
+				return
+			}
+			controller.HandleObject(new, "RadixRegistration", getObject)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.HandleObject(obj, "RadixRegistration", getObject)
+		},
+	})
+
 	return controller
+}
+
+func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(name, metav1.GetOptions{})
 }

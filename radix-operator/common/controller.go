@@ -8,6 +8,7 @@ import (
 	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -18,6 +19,9 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 )
+
+// GetOwner Function pointer to pass to retrieve owner
+type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
 
 // Controller Instance variables
 type Controller struct {
@@ -135,6 +139,41 @@ func (c *Controller) Enqueue(obj interface{}) {
 		return
 	}
 	c.WorkQueue.AddRateLimited(key)
+}
+
+// HandleObject ensures that when anything happens to object which any
+// custom resouce is owner of, that custom resource is synced
+func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn GetOwner) {
+	var object metav1.Object
+	var ok bool
+	if object, ok = obj.(metav1.Object); !ok {
+		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+			return
+		}
+		object, ok = tombstone.Obj.(metav1.Object)
+		if !ok {
+			utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
+			return
+		}
+		klog.V(4).Infof("Recovered deleted object '%s' from tombstone", object.GetName())
+	}
+	klog.V(4).Infof("Processing object: %s", object.GetName())
+	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
+		if ownerRef.Kind != ownerKind {
+			return
+		}
+
+		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
+		if err != nil {
+			klog.V(4).Infof("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
+			return
+		}
+
+		c.Enqueue(obj)
+		return
+	}
 }
 
 func (c *Controller) hasSynced() bool {
