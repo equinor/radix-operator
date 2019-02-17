@@ -53,16 +53,16 @@ func main() {
 
 	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
 
-	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
+	client, radixClient, _ := utils.GetKubernetesClient()
 
 	stop := make(chan struct{})
 	defer close(stop)
 
 	go startMetricsServer(stop)
 
-	go startRegistrationController(client, radixClient, stop)
-	go startApplicationController(client, radixClient, stop)
-	go startDeploymentController(client, radixClient, prometheusOperatorClient, stop)
+	startRegistrationController(client, radixClient, stop)
+	//go startApplicationController(client, radixClient, stop)
+	//go startDeploymentController(client, radixClient, prometheusOperatorClient, stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -73,7 +73,11 @@ func main() {
 func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, stop <-chan struct{}) {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, time.Second*30)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, time.Second*30)
-	handler := registration.NewRegistrationHandler(client, radixClient)
+	handler := registration.NewRegistrationHandler(
+		client,
+		radixClient,
+		radixInformerFactory.Radix().V1().RadixRegistrations().Lister())
+
 	registrationController := registration.NewController(
 		client,
 		radixClient,
@@ -84,7 +88,7 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := registrationController.Run(1, stop); err != nil {
+	if err := registrationController.Run(2, stop); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}
 }

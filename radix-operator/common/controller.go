@@ -56,7 +56,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 
 	klog.Info("Starting workers")
-	// Launch two workers to process Foo resources
+	// Launch workers to process resources
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}

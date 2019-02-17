@@ -27,7 +27,7 @@ func NewController(client kubernetes.Interface,
 	registrationInformer radixinformer.RadixRegistrationInformer,
 	namespaceInformer coreinformers.NamespaceInformer) *common.Controller {
 
-	//recorder := common.NewEventRecorder(controllerAgentName, client.CoreV1().Events(""))
+	recorder := common.NewEventRecorder(controllerAgentName, client.CoreV1().Events(""))
 
 	controller := &common.Controller{
 		Name:        controllerAgentName,
@@ -37,7 +37,7 @@ func NewController(client kubernetes.Interface,
 		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RadixRegistrations"),
 		Handler:     handler,
 		Log:         logger,
-		Recorder:    nil,
+		Recorder:    recorder,
 	}
 
 	klog.Info("Setting up event handlers")

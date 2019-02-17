@@ -6,8 +6,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	listers "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -24,15 +25,20 @@ const (
 )
 
 type RadixRegistrationHandler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
+	kubeclient         kubernetes.Interface
+	radixclient        radixclient.Interface
+	registrationLister listers.RadixRegistrationLister
 }
 
 //NewRegistrationHandler creates a handler which deals with RadixRegistration resources
-func NewRegistrationHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixRegistrationHandler {
+func NewRegistrationHandler(
+	kubeclient kubernetes.Interface,
+	radixclient radixclient.Interface,
+	registrationLister listers.RadixRegistrationLister) RadixRegistrationHandler {
 	handler := RadixRegistrationHandler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
+		kubeclient:         kubeclient,
+		radixclient:        radixclient,
+		registrationLister: registrationLister,
 	}
 
 	return handler
@@ -40,7 +46,7 @@ func NewRegistrationHandler(kubeclient kubernetes.Interface, radixclient radixcl
 
 // Sync Is created on sync of resource
 func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	registration, err := t.radixclient.RadixV1().RadixRegistrations(namespace).Get(name, metav1.GetOptions{})
+	registration, err := t.registrationLister.RadixRegistrations(namespace).Get(name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -54,7 +60,7 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 
 	klog.Infof("Sync registration %s", registration.Name)
 	//t.onSync(registration)
-	//eventRecorder.Event(registration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	eventRecorder.Event(registration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
