@@ -56,42 +56,36 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
-	registrationInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
 	controller := NewController(client, radixClient, fakeHandler,
-		registrationInformerFactory.Radix().V1().RadixRegistrations(),
+		radixInformerFactory.Radix().V1().RadixRegistrations(),
 		kubeInformerFactory.Core().V1().Namespaces(), eventRecorder)
 
 	stop := make(chan struct{})
 	defer close(stop)
+
+	kubeInformerFactory.Start(stop)
+	radixInformerFactory.Start(stop)
 	go controller.Run(1, stop)
 
 	t.Run("Create app", func(t *testing.T) {
 		registeredApp, err := radixClient.RadixV1().RadixRegistrations("default").Create(registration)
 		assert.NoError(t, err)
 		assert.NotNil(t, registeredApp)
-		assert.Equal(t, "created", <-fakeHandler.operation)
-		close(stop)
+		assert.Equal(t, "synced", <-fakeHandler.operation)
 	})
 
-	/*
-		t.Run("Update app", func(t *testing.T) {
-			var err error
-			registration.ObjectMeta.Annotations = map[string]string{
-				"update": "test",
-			}
-			updatedApp, err := radixClient.RadixV1().RadixRegistrations("default").Update(registration)
-			assert.NoError(t, err)
-			assert.NotNil(t, updatedApp)
-			assert.NotNil(t, updatedApp.Annotations)
-			assert.Equal(t, "test", updatedApp.Annotations["update"])
-		})
-		t.Run("Delete app", func(t *testing.T) {
-			var err error
-			<-fakeHandler.operation
-			err = radixClient.RadixV1().RadixRegistrations("default").Delete(registration.Name, &meta.DeleteOptions{})
-			assert.NoError(t, err)
-			assert.Equal(t, "deleted", <-fakeHandler.operation)
-		})*/
+	t.Run("Update app", func(t *testing.T) {
+		var err error
+		registration.ObjectMeta.Annotations = map[string]string{
+			"update": "test",
+		}
+		updatedApp, err := radixClient.RadixV1().RadixRegistrations("default").Update(registration)
+		assert.NoError(t, err)
+		assert.NotNil(t, updatedApp)
+		assert.NotNil(t, updatedApp.Annotations)
+		assert.Equal(t, "test", updatedApp.Annotations["update"])
+	})
 }
