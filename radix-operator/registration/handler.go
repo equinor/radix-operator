@@ -33,13 +33,11 @@ type RadixRegistrationHandler struct {
 //NewRegistrationHandler creates a handler which deals with RadixRegistration resources
 func NewRegistrationHandler(
 	kubeclient kubernetes.Interface,
-	radixclient radixclient.Interface,
-	registrationLister listers.RadixRegistrationLister) RadixRegistrationHandler {
+	radixclient radixclient.Interface) RadixRegistrationHandler {
 
 	handler := RadixRegistrationHandler{
-		kubeclient:         kubeclient,
-		radixclient:        radixclient,
-		registrationLister: registrationLister,
+		kubeclient:  kubeclient,
+		radixclient: radixclient,
 	}
 
 	return handler

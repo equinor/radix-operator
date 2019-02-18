@@ -90,8 +90,7 @@ func startRegistrationController(
 
 	handler := registration.NewRegistrationHandler(
 		client,
-		radixClient,
-		radixInformerFactory.Radix().V1().RadixRegistrations().Lister())
+		radixClient)
 
 	registrationController := registration.NewController(
 		client,
