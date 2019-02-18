@@ -91,8 +91,7 @@ func (t *RadixDeployHandler) onSync(radixDeploy *v1.RadixDeployment) error {
 	}
 
 	klog.Infof("Sync deployment %s", radixDeploy.Name)
-	//return deployment.OnDeploy()
-	return nil
+	return deployment.OnDeploy()
 }
 
 // ObjectCreated is called when an object is created

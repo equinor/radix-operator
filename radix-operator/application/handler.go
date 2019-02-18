@@ -60,9 +60,10 @@ func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder rec
 		return err
 	}
 
-	klog.Infof("Sync application %s", radixApplication.Name)
-	//t.onSync(radixApplication)
-	//eventRecorder.Event(radixApplication, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	syncApplication := radixApplication.DeepCopy()
+	klog.Infof("Sync application %s", syncApplication.Name)
+	t.onSync(syncApplication)
+	eventRecorder.Event(syncApplication, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
