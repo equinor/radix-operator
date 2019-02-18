@@ -24,7 +24,8 @@
             "mode": "auto",
             "program": "${workspaceFolder}/radix-operator/main.go",
             "env": {
-                "APP_ALIAS_BASE_URL":"app.dev.radix.equinor.com"
+                "APP_ALIAS_BASE_URL":"app.dev.radix.equinor.com",
+                "DNS_ZONE":"dev.radix.equinor.com"
             },
             "args": [
                 "--useOutClusterClient=false"
