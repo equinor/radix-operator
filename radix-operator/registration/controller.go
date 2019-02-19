@@ -1,89 +1,83 @@
 package registration
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
 var logger *log.Entry
+
+const controllerAgentName = "registration-controller"
 
 func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
 }
 
 //NewController creates a new controller that handles RadixRegistrations
-func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler) *common.Controller {
-	informer := radixinformer.NewRadixRegistrationInformer(
-		radixClient,
-		meta_v1.NamespaceAll,
-		0,
-		cache.Indexers{},
-	)
+func NewController(client kubernetes.Interface,
+	radixClient radixclient.Interface, handler common.Handler,
+	registrationInformer radixinformer.RadixRegistrationInformer,
+	namespaceInformer coreinformers.NamespaceInformer,
+	recorder record.EventRecorder) *common.Controller {
 
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	controller := &common.Controller{
+		Name:        controllerAgentName,
+		KubeClient:  client,
+		RadixClient: radixClient,
+		Informer:    registrationInformer.Informer(),
+		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RadixRegistrations"),
+		Handler:     handler,
+		Log:         logger,
+		Recorder:    recorder,
+	}
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			radixRegistration, ok := obj.(*v1.RadixRegistration)
-			if !ok {
-				logger.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
-				return
-			}
+	logger.Info("Setting up event handlers")
 
-			logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
-
-			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
-			if err == nil {
-				logger.Infof("Adding radix registration created event to queue: %s", key)
-				queue.Add(common.QueueItem{Key: key, Operation: common.Add})
-			}
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			newRadixRegistration, ok := newObj.(*v1.RadixRegistration)
-			if !ok {
-				logger.Errorf("New object was not a valid Radix Registration; instead was %v", newObj)
-				return
-			}
-
-			logger = logger.WithFields(log.Fields{"registrationName": newRadixRegistration.ObjectMeta.Name, "registrationNamespace": newRadixRegistration.ObjectMeta.Namespace})
-
-			key, err := cache.MetaNamespaceKeyFunc(oldObj)
-			if err == nil {
-				logger.Infof("Adding radix registration updated event to queue: %s", key)
-				queue.Add(common.QueueItem{Key: key, OldObject: oldObj, Operation: common.Update})
-			}
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.Enqueue,
+		UpdateFunc: func(old, new interface{}) {
+			controller.Enqueue(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixRegistration, ok := obj.(*v1.RadixRegistration)
-			if !ok {
-				logger.Errorf("Provided object was not a valid Radix Registration; instead was %v", obj)
-				return
-			}
-
-			logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
-
+			radixRegistration, _ := obj.(*v1.RadixRegistration)
 			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
 			if err == nil {
-				logger.Infof("Adding radix registration deleted event to queue: %s", key)
-				queue.Add(common.QueueItem{Key: key, Operation: common.Delete})
+				logger.Infof("Registration object deleted event received for %s. Do nothing", key)
 			}
 		},
 	})
 
-	controller := &common.Controller{
-		KubeClient:  client,
-		RadixClient: radixClient,
-		Informer:    informer,
-		Queue:       queue,
-		Handler:     handler,
-		Log:         logger,
-	}
+	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			ns := obj.(*corev1.Namespace)
+			logger.Infof("Namespace object added event received for %s. Do nothing", ns.Name)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			newNs := new.(*corev1.Namespace)
+			oldNs := old.(*corev1.Namespace)
+			if newNs.ResourceVersion == oldNs.ResourceVersion {
+				return
+			}
+			controller.HandleObject(new, "RadixRegistration", getObject)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.HandleObject(obj, "RadixRegistration", getObject)
+		},
+	})
+
 	return controller
+}
+
+func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(name, metav1.GetOptions{})
 }

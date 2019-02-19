@@ -5,6 +5,8 @@ VERSION 	?= latest
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
+# If you want to escape branch-environment contraint, pass in OVERIDE_BRANCH=true
+
 ifeq ($(ENVIRONMENT),prod)
 	IS_PROD = yes
 else
@@ -91,9 +93,11 @@ $(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
 
 # deploys radix operator using helm chart in radixdev/radixprod acr
 deploy-via-helm:
+ifndef OVERIDE_BRANCH
 ifndef CAN_DEPLOY_OPERATOR
 		@echo "Cannot release Operator to this cluster";\
 		exit 1
+endif
 endif
 
 	az acr helm repo add --name $(CONTAINER_REPO)

@@ -3,14 +3,29 @@ package deployment
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
+)
+
+const (
+	// SuccessSynced is used as part of the Event 'reason' when a Deployment is synced
+	SuccessSynced = "Synced"
+
+	// MessageResourceSynced is the message used for an Event fired when a Deployment
+	// is synced successfully
+	MessageResourceSynced = "Radix Deployment synced successfully"
 )
 
 // RadixDeployHandler Instance variables
@@ -35,51 +50,36 @@ func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.I
 	return handler
 }
 
-// Init handles any handler initialization
-func (t *RadixDeployHandler) Init() error {
-	logger.Info("RadixDeployHandler.Init")
-	return nil
-}
+// Sync Is created on sync of resource
+func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+	test, _ := t.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(metav1.ListOptions{})
+	log.Infof("%v", test.Items[0])
 
-// ObjectCreated is called when an object is created
-func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
-	logger.Info("Deploy object created event received.")
-	radixDeploy, ok := obj.(*v1.RadixDeployment)
-	if !ok {
-		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", obj)
-	}
-
-	err := t.processRadixDeployment(radixDeploy)
+	deployment, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
+		// The Deployment resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			utilruntime.HandleError(fmt.Errorf("Radix deployment '%s' in work queue no longer exists", name))
+			return nil
+		}
+
 		return err
 	}
 
-	return nil
-}
-
-// ObjectDeleted is called when an object is deleted
-func (t *RadixDeployHandler) ObjectDeleted(key string) error {
-	logger.Info("Deploy object deleted event received. Do nothing.")
-	return nil
-}
-
-// ObjectUpdated is called when an object is updated
-func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	logger.Info("Deploy object updated event received.")
-	radixDeploy, ok := objNew.(*v1.RadixDeployment)
-	if !ok {
-		return fmt.Errorf("Provided object was not a valid Radix Deployment; instead was %v", objNew)
-	}
-
-	err := t.processRadixDeployment(radixDeploy)
+	err = t.onSync(deployment)
 	if err != nil {
+		// Put back on queue
 		return err
 	}
 
+	eventRecorder.Event(deployment, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+
 	return nil
 }
 
-func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeployment) error {
+// TODO: Move to deployment domain
+func (t *RadixDeployHandler) onSync(radixDeploy *v1.RadixDeployment) error {
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
@@ -97,10 +97,11 @@ func (t *RadixDeployHandler) processRadixDeployment(radixDeploy *v1.RadixDeploym
 	}
 
 	if !isLatest {
-		return fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", radixDeploy.GetName())
+		// Should not be put back on queue
+		logger.Error(fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", radixDeploy.GetName()))
+		return nil
 	}
 
-	logger.Infof("RadixRegistartion %s exists", radixDeploy.Spec.AppName)
+	logger.Infof("Sync deployment %s", radixDeploy.Name)
 	return deployment.OnDeploy()
-
 }

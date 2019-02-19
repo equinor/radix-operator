@@ -9,8 +9,20 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
+)
+
+const (
+	// SuccessSynced is used as part of the Event 'reason' when a Application Config is synced
+	SuccessSynced = "Synced"
+
+	// MessageResourceSynced is the message used for an Event fired when a Application Config
+	// is synced successfully
+	MessageResourceSynced = "Radix Application synced successfully"
 )
 
 // RadixApplicationHandler Instance variables
@@ -33,51 +45,34 @@ func NewApplicationHandler(kubeclient kubernetes.Interface, radixclient radixcli
 	return handler
 }
 
-// Init handles any handler initialization
-func (t *RadixApplicationHandler) Init() error {
-	logger.Info("RadixApplicationHandler.Init")
-	return nil
-}
-
-// ObjectCreated is called when an object is created
-func (t *RadixApplicationHandler) ObjectCreated(obj interface{}) error {
-	logger.Info("Application object created event received.")
-	radixApplication, ok := obj.(*v1.RadixApplication)
-	if !ok {
-		return fmt.Errorf("Provided object was not a valid Radix Application; instead was %v", obj)
-	}
-
-	err := t.processRadixApplication(radixApplication)
+// Sync Is created on sync of resource
+func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
+		// The Application resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			utilruntime.HandleError(fmt.Errorf("Radix application '%s' in work queue no longer exists", name))
+			return nil
+		}
+
 		return err
 	}
 
-	return nil
-}
-
-// ObjectDeleted is called when an object is deleted
-func (t *RadixApplicationHandler) ObjectDeleted(key string) error {
-	logger.Info("Application object deleted event received. Do nothing.")
-	return nil
-}
-
-// ObjectUpdated is called when an object is updated
-func (t *RadixApplicationHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	logger.Info("Application object updated event received.")
-	radixApplication, ok := objNew.(*v1.RadixApplication)
-	if !ok {
-		return fmt.Errorf("Provided object was not a valid Radix Application; instead was %v", objNew)
-	}
-
-	err := t.processRadixApplication(radixApplication)
+	syncApplication := radixApplication.DeepCopy()
+	logger.Infof("Sync application %s", syncApplication.Name)
+	err = t.onSync(syncApplication)
 	if err != nil {
+		// Put back on queue
 		return err
 	}
 
+	eventRecorder.Event(syncApplication, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
 
-func (t *RadixApplicationHandler) processRadixApplication(radixApplication *v1.RadixApplication) error {
+// TODO: Move to application config domain
+func (t *RadixApplicationHandler) onSync(radixApplication *v1.RadixApplication) error {
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixApplication.Name, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", radixApplication.Name, err)

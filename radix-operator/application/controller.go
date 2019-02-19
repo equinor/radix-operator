@@ -6,9 +6,9 @@ import (
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -23,76 +23,43 @@ type ApplicationController struct {
 
 var logger *log.Entry
 
+const controllerAgentName = "application-controller"
+
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": "application-controller"})
+	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
 }
 
 // NewApplicationController creates a new controller that handles RadixDeployments
-func NewApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler) *common.Controller {
-	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+func NewApplicationController(client kubernetes.Interface,
+	radixClient radixclient.Interface, handler common.Handler,
+	applicationInformer radixinformer.RadixApplicationInformer,
+	recorder record.EventRecorder) *common.Controller {
 
-	informer := radixinformer.NewRadixApplicationInformer(
-		radixClient,
-		meta_v1.NamespaceAll,
-		0,
-		cache.Indexers{},
-	)
+	controller := &common.Controller{
+		Name:        controllerAgentName,
+		KubeClient:  client,
+		RadixClient: radixClient,
+		Informer:    applicationInformer.Informer(),
+		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RadixApplications"),
+		Handler:     handler,
+		Log:         logger,
+		Recorder:    recorder,
+	}
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			radixApplication, ok := obj.(*v1.RadixApplication)
-			if !ok {
-				logger.Errorf("Provided object was not a valid Radix Application; instead was %v", obj)
-				return
-			}
-
-			logger = logger.WithFields(log.Fields{"applicationName": radixApplication.ObjectMeta.Name, "applicationNamespace": radixApplication.ObjectMeta.Namespace})
-
-			key, err := cache.MetaNamespaceKeyFunc(obj)
-			if err == nil {
-				logger.Infof("Adding radix application created event to queue: %s", key)
-				queue.Add(common.QueueItem{Key: key, Operation: common.Add})
-			}
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			radixApplication, ok := newObj.(*v1.RadixApplication)
-			if !ok {
-				logger.Errorf("Provided object was not a valid Radix Application; instead was %v", newObj)
-				return
-			}
-
-			logger = logger.WithFields(log.Fields{"applicationName": radixApplication.ObjectMeta.Name, "applicationNamespace": radixApplication.ObjectMeta.Namespace})
-
-			key, err := cache.MetaNamespaceKeyFunc(oldObj)
-			if err == nil {
-				logger.Infof("Adding radix application updated event to queue: %s", key)
-				queue.Add(common.QueueItem{Key: key, OldObject: oldObj, Operation: common.Update})
-			}
+	logger.Info("Setting up event handlers")
+	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.Enqueue,
+		UpdateFunc: func(old, new interface{}) {
+			controller.Enqueue(new)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixApplication, ok := obj.(*v1.RadixApplication)
-			if !ok {
-				logger.Errorf("Provided object was not a valid Radix Application; instead was %v", obj)
-				return
-			}
-
-			logger = logger.WithFields(log.Fields{"applicationName": radixApplication.ObjectMeta.Name, "applicationNamespace": radixApplication.ObjectMeta.Namespace})
-
-			key, err := cache.MetaNamespaceKeyFunc(obj)
+			radixApplication, _ := obj.(*v1.RadixApplication)
+			key, err := cache.MetaNamespaceKeyFunc(radixApplication)
 			if err == nil {
-				logger.Infof("Adding radix application deleted event to queue: %s", key)
-				queue.Add(common.QueueItem{Key: key, Operation: common.Delete})
+				logger.Infof("Application object deleted event received for %s. Do nothing", key)
 			}
 		},
 	})
 
-	controller := &common.Controller{
-		KubeClient:  client,
-		RadixClient: radixClient,
-		Informer:    informer,
-		Queue:       queue,
-		Handler:     handler,
-		Log:         logger,
-	}
 	return controller
 }
