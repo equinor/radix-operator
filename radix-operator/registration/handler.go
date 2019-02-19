@@ -12,7 +12,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog"
 )
 
 const (
@@ -57,7 +56,7 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 	}
 
 	syncRegistration := registration.DeepCopy()
-	klog.Infof("Sync registration %s", syncRegistration.Name)
+	logger.Infof("Sync registration %s", syncRegistration.Name)
 	err = t.onSync(syncRegistration)
 	if err != nil {
 		// Put back on queue

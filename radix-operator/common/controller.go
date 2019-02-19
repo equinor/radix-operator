@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
 )
 
 // GetOwner Function pointer to pass to retrieve owner
@@ -36,11 +35,11 @@ type Controller struct {
 }
 
 // NewEventRecorder Creates an event recorder for controller
-func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface) record.EventRecorder {
+func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterface, logger *log.Entry) record.EventRecorder {
 	radixscheme.AddToScheme(scheme.Scheme)
-	klog.V(4).Info("Creating event broadcaster")
+	logger.Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(klog.Infof)
+	eventBroadcaster.StartLogging(logger.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: events})
 	return eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 }
@@ -51,23 +50,23 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer c.WorkQueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
-	klog.Infof("Starting %s", c.Name)
+	c.Log.Infof("Starting %s", c.Name)
 
 	// Wait for the caches to be synced before starting workers
-	klog.Info("Waiting for informer caches to sync")
+	c.Log.Info("Waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh, c.hasSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	klog.Info("Starting workers")
+	c.Log.Info("Starting workers")
 	// Launch workers to process resources
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
 
-	klog.Info("Started workers")
+	c.Log.Info("Started workers")
 	<-stopCh
-	klog.Info("Shutting down workers")
+	c.Log.Info("Shutting down workers")
 
 	return nil
 }
@@ -101,7 +100,7 @@ func (c *Controller) processNextWorkItem() bool {
 		}
 
 		c.WorkQueue.Forget(obj)
-		klog.Infof("Successfully synced '%s'", key)
+		c.Log.Infof("Successfully synced '%s'", key)
 		return nil
 	}(obj)
 
@@ -157,9 +156,9 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
 			return
 		}
-		klog.V(4).Infof("Recovered deleted object '%s' from tombstone", object.GetName())
+		c.Log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	klog.V(4).Infof("Processing object: %s", object.GetName())
+	c.Log.Infof("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		if ownerRef.Kind != ownerKind {
 			return
@@ -167,7 +166,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 
 		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
-			klog.V(4).Infof("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
+			c.Log.Infof("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return
 		}
 

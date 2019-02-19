@@ -13,7 +13,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
 )
 
 var logger *log.Entry
@@ -42,7 +41,7 @@ func NewController(client kubernetes.Interface,
 		Recorder:    recorder,
 	}
 
-	klog.Info("Setting up event handlers")
+	logger.Info("Setting up event handlers")
 
 	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.Enqueue,

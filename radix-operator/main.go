@@ -21,7 +21,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog"
 
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kubeinformers "k8s.io/client-go/informers"
@@ -68,7 +67,7 @@ func main() {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""))
+	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
 	go startRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
 	go startApplicationController(client, radixClient, radixInformerFactory, eventRecorder, stop)
@@ -104,7 +103,7 @@ func startRegistrationController(
 	radixInformerFactory.Start(stop)
 
 	if err := registrationController.Run(threadiness, stop); err != nil {
-		klog.Fatalf("Error running controller: %s", err.Error())
+		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
@@ -126,7 +125,7 @@ func startApplicationController(
 	radixInformerFactory.Start(stop)
 
 	if err := applicationController.Run(threadiness, stop); err != nil {
-		klog.Fatalf("Error running controller: %s", err.Error())
+		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
@@ -149,7 +148,7 @@ func startDeploymentController(
 	radixInformerFactory.Start(stop)
 
 	if err := deployController.Run(threadiness, stop); err != nil {
-		klog.Fatalf("Error running controller: %s", err.Error())
+		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 

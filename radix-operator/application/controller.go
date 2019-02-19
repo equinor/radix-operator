@@ -10,7 +10,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
 )
 
 // ApplicationController Instance variables
@@ -47,7 +46,7 @@ func NewApplicationController(client kubernetes.Interface,
 		Recorder:    recorder,
 	}
 
-	klog.Info("Setting up event handlers")
+	logger.Info("Setting up event handlers")
 	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.Enqueue,
 		UpdateFunc: func(old, new interface{}) {

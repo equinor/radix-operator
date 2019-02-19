@@ -17,7 +17,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog"
 )
 
 const (
@@ -103,6 +102,6 @@ func (t *RadixDeployHandler) onSync(radixDeploy *v1.RadixDeployment) error {
 		return nil
 	}
 
-	klog.Infof("Sync deployment %s", radixDeploy.Name)
+	logger.Infof("Sync deployment %s", radixDeploy.Name)
 	return deployment.OnDeploy()
 }
