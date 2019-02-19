@@ -8,6 +8,11 @@ dnsZone: dev.radix.equinor.com
 imagePullSecretName: radix-docker
 imageRegistry: radixdev.azurecr.io
 
+imageCredentials:
+  registry: radixdev.azurecr.io
+  username: xx
+  password: xx
+
 rbac:
   enabled: true
 
