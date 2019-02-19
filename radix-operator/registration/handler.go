@@ -6,9 +6,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	listers "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -25,9 +25,8 @@ const (
 )
 
 type RadixRegistrationHandler struct {
-	kubeclient         kubernetes.Interface
-	radixclient        radixclient.Interface
-	registrationLister listers.RadixRegistrationLister
+	kubeclient  kubernetes.Interface
+	radixclient radixclient.Interface
 }
 
 //NewRegistrationHandler creates a handler which deals with RadixRegistration resources
@@ -45,7 +44,7 @@ func NewRegistrationHandler(
 
 // Sync Is created on sync of resource
 func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	registration, err := t.registrationLister.RadixRegistrations(namespace).Get(name)
+	registration, err := t.radixclient.RadixV1().RadixRegistrations(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -73,23 +72,4 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 func (t *RadixRegistrationHandler) onSync(radixRegistration *v1.RadixRegistration) error {
 	application, _ := application.NewApplication(t.kubeclient, t.radixclient, radixRegistration)
 	return application.OnRegistered()
-}
-
-// ObjectCreated is called when an object is created
-// TODO: remove
-func (t *RadixRegistrationHandler) ObjectCreated(obj interface{}) error {
-	return nil
-}
-
-// ObjectDeleted is called when an object is deleted
-// TODO: remove
-func (t *RadixRegistrationHandler) ObjectDeleted(key string) error {
-	return nil
-}
-
-// ObjectUpdated is called when an object is updated
-// TODO: remove
-func (t *RadixRegistrationHandler) ObjectUpdated(objOld, objNew interface{}) error {
-
-	return nil
 }

@@ -1,11 +1,32 @@
 package deployment
 
+import (
+	"os"
+	"testing"
+	"time"
+
+	"k8s.io/apimachinery/pkg/api/resource"
+
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/radix-operator/application"
+	registration "github.com/equinor/radix-operator/radix-operator/registration"
+	"github.com/equinor/radix-operator/radix-operator/test"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	kube "k8s.io/client-go/kubernetes"
+	kubernetes "k8s.io/client-go/kubernetes/fake"
+)
+
 const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const containerRegistry = "any.container.registry"
 
-/*
-func setupTest() (*test.Utils, kube.Interface) {
+func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 	// Setup
 	os.Setenv(deployment.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(deployment.OperatorAppAliasBaseURLEnvironmentVariable, ".app.dev.radix.equinor.com")
@@ -21,7 +42,7 @@ func setupTest() (*test.Utils, kube.Interface) {
 
 	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &applicationHandler, &deploymentHandler)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return &handlerTestUtils, kubeclient
+	return &handlerTestUtils, kubeclient, radixclient
 }
 
 func parseQuantity(value string) resource.Quantity {
@@ -29,20 +50,11 @@ func parseQuantity(value string) resource.Quantity {
 	return q
 }
 
-func TestObjectCreated_NoRegistration_ReturnsError(t *testing.T) {
-	handlerTestUtils, _ := setupTest()
-
-	err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
-		WithRadixApplication(utils.ARadixApplication().
-			WithRadixRegistration(nil)))
-	assert.Error(t, err)
-}
-
 func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
-	handlerTestUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
-	err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("edcradix").
 		WithImageTag("axmz8").
 		WithEnvironment("test").
@@ -172,7 +184,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 
 func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	// Setup
-	handlerTestUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
 	t.Run("app use default SA", func(t *testing.T) {
@@ -205,7 +217,7 @@ func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 
 func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
 	// Setup
-	handlerTestUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -236,7 +248,7 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 
 func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
-	handlerTestUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 	anyEnvironment := "test"
 
 	// Test
@@ -277,7 +289,7 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.
 
 func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	// Setup
-	handlerTestUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -299,24 +311,37 @@ func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 
 func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	// Setup
-	handlerTestUtils, _ := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
 	now := time.Now()
+	var firstUID, secondUID types.UID
+
+	firstUID = "fda3d224-3115-11e9-b189-06c15a8f2fbb"
+	secondUID = "5a8f2fbb-3115-11e9-b189-06c1fda3d224"
 
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
-		WithCreated(now))
+		WithCreated(now).
+		WithUID(firstUID))
+
+	envNamespace := utils.GetEnvironmentNamespace("app1", "prod")
+	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, firstUID, deployments.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
 	// This is one second newer deployment
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("seconddeployment").
-		WithCreated(now.Add(time.Second * time.Duration(1))))
+		WithCreated(now.Add(time.Second * time.Duration(1))).
+		WithUID(secondUID))
+
+	deployments, _ = kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
 	// Re-apply the first deployment. This should be ignored and cause an error as it is not the latest
 	rdBuilder := utils.ARadixDeployment().
@@ -324,15 +349,16 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
-		WithCreated(now)
-	err := handlerTestUtils.ApplyDeploymentUpdate(rdBuilder)
+		WithCreated(now).
+		WithUID(firstUID)
+	handlerTestUtils.ApplyDeploymentUpdate(rdBuilder)
 
-	assert.Error(t, err)
-	assert.Equal(t, fmt.Sprintf("RadixDeployment %s was not the latest. Ignoring", rdBuilder.BuildRD().Name), err.Error())
+	deployments, _ = kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 }
 
 func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
-	handlerTestUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -367,7 +393,7 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 	// Remove this command when looking at:
 	// OR-793 - Operator does not handle change of the number of components
 	t.SkipNow()
-	handlerTestUtils, kubeclient := setupTest()
+	handlerTestUtils, kubeclient, _ := setupTest()
 
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
@@ -376,7 +402,7 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 	componentThreeName := "componentThreeName"
 
 	// Test
-	err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
@@ -400,7 +426,7 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 	assert.NoError(t, err)
 
 	// Remove components
-	err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
@@ -449,4 +475,4 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
 	})
-}*/
+}

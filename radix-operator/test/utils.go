@@ -1,12 +1,13 @@
 package test
 
 import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	test "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 )
 
 // TODO: Merge this with "github.com/equinor/radix-operator/pkg/apis/test" once the handler functionality is in the pkg structure
@@ -18,16 +19,20 @@ type Utils struct {
 	registrationHandler common.Handler
 	applicationHandler  common.Handler
 	deploymentHandler   common.Handler
+	eventRecoder        record.EventRecorder
 }
 
 // NewHandlerTestUtils Constructor
 func NewHandlerTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, registrationHandler common.Handler, applicationHandler common.Handler, deploymentHandler common.Handler) Utils {
+	eventRecorder := &record.FakeRecorder{}
+
 	return Utils{
 		client:              client,
 		radixclient:         radixclient,
 		registrationHandler: registrationHandler,
 		applicationHandler:  applicationHandler,
 		deploymentHandler:   deploymentHandler,
+		eventRecoder:        eventRecorder,
 	}
 }
 
@@ -37,7 +42,7 @@ func (tu *Utils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder
 	err := testUtils.ApplyRegistration(registrationBuilder)
 
 	rr := registrationBuilder.BuildRR()
-	err = tu.registrationHandler.ObjectCreated(rr)
+	err = tu.registrationHandler.Sync(rr.Namespace, rr.Name, tu.eventRecoder)
 	if err != nil {
 		return err
 	}
@@ -57,7 +62,8 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) e
 		return err
 	}
 
-	err = tu.applicationHandler.ObjectCreated(applicationBuilder.BuildRA())
+	ra := applicationBuilder.BuildRA()
+	err = tu.applicationHandler.Sync(ra.Namespace, ra.Name, tu.eventRecoder)
 	if err != nil {
 		return err
 	}
@@ -66,32 +72,29 @@ func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) e
 }
 
 // ApplyDeployment Will help persist a deployment
-func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) error {
+func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
 
 	if deploymentBuilder.GetApplicationBuilder() != nil {
 		tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
 	}
 
 	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
-	err := testUtils.ApplyDeployment(deploymentBuilder)
+	rd, err := testUtils.ApplyDeployment(deploymentBuilder)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	rd := deploymentBuilder.BuildRD()
-	err = tu.deploymentHandler.ObjectCreated(rd)
+	err = tu.deploymentHandler.Sync(rd.Namespace, rd.Name, tu.eventRecoder)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return rd, nil
 }
 
 // ApplyDeploymentUpdate Will help update a deployment
 func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder) error {
 	rd := deploymentBuilder.BuildRD()
-	envNamespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
-	previousVersion, _ := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(rd.GetName(), metav1.GetOptions{})
 
 	testUtils := test.NewTestUtils(tu.client, tu.radixclient)
 	err := testUtils.ApplyDeploymentUpdate(deploymentBuilder)
@@ -99,7 +102,7 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder
 		return err
 	}
 
-	err = tu.deploymentHandler.ObjectUpdated(previousVersion, rd)
+	err = tu.deploymentHandler.Sync(rd.Namespace, rd.Name, tu.eventRecoder)
 	if err != nil {
 		return err
 	}

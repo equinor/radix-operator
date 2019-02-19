@@ -3,11 +3,14 @@ package deployment
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,9 +53,12 @@ func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.I
 
 // Sync Is created on sync of resource
 func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+	test, _ := t.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(metav1.ListOptions{})
+	log.Infof("%v", test.Items[0])
+
 	deployment, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		// The Registration resource may no longer exist, in which case we stop
+		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
 			utilruntime.HandleError(fmt.Errorf("Radix deployment '%s' in work queue no longer exists", name))
@@ -62,8 +68,13 @@ func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.E
 		return err
 	}
 
-	t.onSync(deployment)
-	//eventRecorder.Event(deployment, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	err = t.onSync(deployment)
+	if err != nil {
+		// Put back on queue
+		return err
+	}
+
+	eventRecorder.Event(deployment, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 
 	return nil
 }
@@ -87,24 +98,11 @@ func (t *RadixDeployHandler) onSync(radixDeploy *v1.RadixDeployment) error {
 	}
 
 	if !isLatest {
-		return fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", radixDeploy.GetName())
+		// Should not be put back on queue
+		logger.Error(fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", radixDeploy.GetName()))
+		return nil
 	}
 
 	klog.Infof("Sync deployment %s", radixDeploy.Name)
 	return deployment.OnDeploy()
-}
-
-// ObjectCreated is called when an object is created
-func (t *RadixDeployHandler) ObjectCreated(obj interface{}) error {
-	return nil
-}
-
-// ObjectDeleted is called when an object is deleted
-func (t *RadixDeployHandler) ObjectDeleted(key string) error {
-	return nil
-}
-
-// ObjectUpdated is called when an object is updated
-func (t *RadixDeployHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	return nil
 }

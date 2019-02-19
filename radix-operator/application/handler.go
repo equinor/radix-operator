@@ -83,21 +83,3 @@ func (t *RadixApplicationHandler) onSync(radixApplication *v1.RadixApplication) 
 	applicationConfig.OnConfigApplied()
 	return nil
 }
-
-// ObjectCreated is called when an object is created
-// TODO: remove
-func (t *RadixApplicationHandler) ObjectCreated(obj interface{}) error {
-	return nil
-}
-
-// ObjectDeleted is called when an object is deleted
-// TODO: remove
-func (t *RadixApplicationHandler) ObjectDeleted(key string) error {
-	return nil
-}
-
-// ObjectUpdated is called when an object is updated
-// TODO: remove
-func (t *RadixApplicationHandler) ObjectUpdated(objOld, objNew interface{}) error {
-	return nil
-}
