@@ -61,7 +61,7 @@ func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder rec
 	}
 
 	syncApplication := radixApplication.DeepCopy()
-	klog.Infof("Sync application %s", syncApplication.Name)
+	logger.Infof("Sync application %s", syncApplication.Name)
 	err = t.onSync(syncApplication)
 	if err != nil {
 		// Put back on queue
