@@ -103,7 +103,7 @@ func startRegistrationController(
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := registrationController.Run(1, stop); err != nil {
+	if err := registrationController.Run(threadiness, stop); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -125,7 +125,7 @@ func startApplicationController(
 
 	radixInformerFactory.Start(stop)
 
-	if err := applicationController.Run(1, stop); err != nil {
+	if err := applicationController.Run(threadiness, stop); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -148,7 +148,7 @@ func startDeploymentController(
 
 	radixInformerFactory.Start(stop)
 
-	if err := deployController.Run(1, stop); err != nil {
+	if err := deployController.Run(threadiness, stop); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}
 }
