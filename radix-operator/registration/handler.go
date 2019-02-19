@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,7 +56,8 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 
 	syncRegistration := registration.DeepCopy()
 	logger.Infof("Sync registration %s", syncRegistration.Name)
-	err = t.onSync(syncRegistration)
+	application, _ := application.NewApplication(t.kubeclient, t.radixclient, syncRegistration)
+	err = application.OnSync()
 	if err != nil {
 		// Put back on queue
 		return err
@@ -65,10 +65,4 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 
 	eventRecorder.Event(syncRegistration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
-}
-
-// TODO: Move to application domain
-func (t *RadixRegistrationHandler) onSync(radixRegistration *v1.RadixRegistration) error {
-	application, _ := application.NewApplication(t.kubeclient, t.radixclient, radixRegistration)
-	return application.OnRegistered()
 }
