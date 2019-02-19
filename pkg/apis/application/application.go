@@ -1,11 +1,8 @@
 package application
 
 import (
-	"strings"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
@@ -38,8 +35,10 @@ func NewApplication(
 		registration}, nil
 }
 
-// OnRegistered called when an application is registered (new RadixRegistration in cluster)
-func (app Application) OnRegistered() error {
+// onSync compares the actual state with the desired, and attempts to
+// converge the two. It then updates the Status block of the Foo resource
+// with the current status of the resource.
+func (app Application) OnSync() error {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
 
@@ -67,6 +66,14 @@ func (app Application) OnRegistered() error {
 		logger.Infof("Applied service account needed by pipelines")
 	}
 
+	err = app.applyRbacOnPipelineRunner(pipelineServiceAccount)
+	if err != nil {
+		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
+		return err
+	} else {
+		logger.Infof("Applied access permissions needed by pipeline")
+	}
+
 	err = app.applyRbacRadixRegistration()
 	if err != nil {
 		logger.Errorf("Failed to set access on RadixRegistration: %v", err)
@@ -83,43 +90,5 @@ func (app Application) OnRegistered() error {
 		logger.Infof("Applied access to ci/cd logs")
 	}
 
-	err = app.applyRbacOnPipelineRunner(pipelineServiceAccount)
-	if err != nil {
-		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
-		return err
-	} else {
-		logger.Infof("Applied access permissions needed by pipeline")
-	}
-
 	return nil
-}
-
-func (app Application) OnUpdated(radixRegistrationOld *v1.RadixRegistration) {
-	radixRegistration := app.registration
-	logger = logger.WithFields(log.Fields{"registrationName": radixRegistration.ObjectMeta.Name, "registrationNamespace": radixRegistration.ObjectMeta.Namespace})
-
-	if !strings.EqualFold(radixRegistration.Spec.DeployKey, radixRegistrationOld.Spec.DeployKey) {
-		err := app.applySecretsForPipelines() // create deploy key in app namespace
-		if err != nil {
-			logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
-		} else {
-			logger.Infof("Applied secrets needed by pipelines")
-		}
-	}
-
-	if !utils.ArrayEqualElements(radixRegistration.Spec.AdGroups, radixRegistrationOld.Spec.AdGroups) {
-		err := app.applyRbacRadixRegistration()
-		if err != nil {
-			logger.Errorf("Failed to set access on RadixRegistration: %v", err)
-		} else {
-			logger.Infof("Applied access permissions to RadixRegistration")
-		}
-
-		err = app.grantAccessToCICDLogs()
-		if err != nil {
-			logger.Errorf("Failed to grant access to ci/cd logs: %v", err)
-		} else {
-			logger.Infof("Applied access to ci/cd logs")
-		}
-	}
 }
