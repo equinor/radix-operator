@@ -13,6 +13,12 @@ imageCredentials:
   username: xx
   password: xx
 
+cicdacr:
+  name: xx
+  id: x
+  password: xx
+  tenantId: xx
+
 rbac:
   enabled: true
 
