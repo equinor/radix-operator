@@ -3,7 +3,7 @@ kind: Secret
 metadata:
   name: radix-docker
   labels:
-    app: "radix-stage1"
+    app: "radix-operator"
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     release: "{{ .Release.Name }}"
     heritage: "{{ .Release.Service }}"
