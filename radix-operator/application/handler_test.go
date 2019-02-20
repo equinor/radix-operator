@@ -59,10 +59,10 @@ func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T
 		t.Parallel()
 		limitRanges, _ := kubeclient.CoreV1().LimitRanges("any-app-dev").List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
-		assert.Equal(t, "mem-cpu-limit-range", limitRanges.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, "mem-cpu-limit-range", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 
 		limitRanges, _ = kubeclient.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
-		assert.Equal(t, "mem-cpu-limit-range", limitRanges.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, "mem-cpu-limit-range", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 	})
 }
