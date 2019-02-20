@@ -35,6 +35,24 @@ spec:
               value: {{ .Values.dnsZone }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
+            # For configuring limit ranges on app namespaces
+            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
+              value: {{ .Values.app.limitrange.default.memory }}
+            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU
+              value: {{ .Values.app.limitrange.default.cpu }}
+            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY
+              value: {{ .Values.app.limitrange.defaultRequest.memory }}
+            - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU
+              value: {{ .Values.app.limitrange.defaultRequest.cpu }}
+            # For configuring limit ranges on env namespaces
+            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY
+              value: {{ .Values.app.env.limitrange.default.memory }}
+            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU
+              value: {{ .Values.app.env.limitrange.default.cpu }}
+            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY
+              value: {{ .Values.app.env.limitrange.defaultRequest.memory }}
+            - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU
+              value: {{ .Values.app.env.limitrange.defaultRequest.cpu }}
           livenessProbe:
             httpGet:
               path: /healthz

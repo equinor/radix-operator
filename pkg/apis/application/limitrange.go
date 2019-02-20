@@ -1,4 +1,4 @@
-package applicationconfig
+package application
 
 import (
 	"os"
@@ -8,15 +8,15 @@ import (
 )
 
 const (
-	OperatorEnvLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY"
-	OperatorEnvLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU"
-	OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
-	OperatorEnvLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
+	OperatorLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY"
+	OperatorLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU"
+	OperatorLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY"
+	OperatorLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU"
 
-	limitRangeName = "mem-cpu-limit-range-env"
+	limitRangeName = "mem-cpu-limit-range-app"
 )
 
-func (app *ApplicationConfig) createLimitRangeOnEnvironmentNamespace(namespace string) error {
+func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
 	defaultCPU := getDefaultCPU()
 	defaultMemory := getDefaultMemory()
 	defaultCPURequest := getDefaultCPURequest()
@@ -32,7 +32,7 @@ func (app *ApplicationConfig) createLimitRangeOnEnvironmentNamespace(namespace s
 	}
 
 	limitRange := app.kubeutil.BuildLimitRange(namespace,
-		limitRangeName, app.config.Name,
+		limitRangeName, app.registration.Name,
 		*defaultCPU,
 		*defaultMemory,
 		*defaultCPURequest,
@@ -42,7 +42,7 @@ func (app *ApplicationConfig) createLimitRangeOnEnvironmentNamespace(namespace s
 }
 
 func getDefaultCPU() *resource.Quantity {
-	defaultCPUSetting := os.Getenv(OperatorEnvLimitDefaultCPUEnvironmentVariable)
+	defaultCPUSetting := os.Getenv(OperatorLimitDefaultCPUEnvironmentVariable)
 	if defaultCPUSetting == "" {
 		return nil
 	}
@@ -52,7 +52,7 @@ func getDefaultCPU() *resource.Quantity {
 }
 
 func getDefaultMemory() *resource.Quantity {
-	defaultMemorySetting := os.Getenv(OperatorEnvLimitDefaultMemoryEnvironmentVariable)
+	defaultMemorySetting := os.Getenv(OperatorLimitDefaultMemoryEnvironmentVariable)
 	if defaultMemorySetting == "" {
 		return nil
 	}
@@ -62,7 +62,7 @@ func getDefaultMemory() *resource.Quantity {
 }
 
 func getDefaultCPURequest() *resource.Quantity {
-	defaultCPURequestSetting := os.Getenv(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable)
+	defaultCPURequestSetting := os.Getenv(OperatorLimitDefaultReqestCPUEnvironmentVariable)
 	if defaultCPURequestSetting == "" {
 		return nil
 	}
@@ -72,7 +72,7 @@ func getDefaultCPURequest() *resource.Quantity {
 }
 
 func getDefaultMemoryRequest() *resource.Quantity {
-	defaultMemoryRequestSetting := os.Getenv(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
+	defaultMemoryRequestSetting := os.Getenv(OperatorLimitDefaultRequestMemoryEnvironmentVariable)
 	if defaultMemoryRequestSetting == "" {
 		return nil
 	}

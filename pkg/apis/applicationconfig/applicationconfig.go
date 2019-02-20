@@ -110,7 +110,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 			return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", namespaceName, err)
 		}
 
-		err = app.createLimitRangeOnNamespace(namespaceName)
+		err = app.createLimitRangeOnEnvironmentNamespace(namespaceName)
 		if err != nil {
 			return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 		}
