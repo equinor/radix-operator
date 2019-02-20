@@ -31,7 +31,7 @@ func setupTest() (*test.Utils, kube.Interface) {
 	return &handlerTestUtils, kubeclient
 }
 
-func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T) {
+func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimits(t *testing.T) {
 	handlerTestUtils, kubeclient := setupTest()
 
 	handlerTestUtils.ApplyApplication(utils.ARadixApplication().
@@ -67,7 +67,7 @@ func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T
 	})
 }
 
-func TestObjectCreatedUpdated_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimits(t *testing.T) {
+func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimits(t *testing.T) {
 	handlerTestUtils, kubeclient := setupTest()
 
 	// Setup
