@@ -1,10 +1,11 @@
 package test
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -66,7 +67,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationB
 }
 
 // ApplyDeployment Will help persist a deployment
-func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) error {
+func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (*v1.RadixDeployment, error) {
 	if deploymentBuilder.GetApplicationBuilder() != nil {
 		tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
 	}
@@ -75,12 +76,12 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) e
 	log.Infof("%s", rd.GetObjectMeta().GetCreationTimestamp())
 
 	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
-	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
+	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return newRd, nil
 }
 
 // ApplyDeploymentUpdate Will help update a deployment
