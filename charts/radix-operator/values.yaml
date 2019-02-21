@@ -18,6 +18,25 @@ cicdacr:
   password: xx
   tenantId: xx
 
+app:
+  # Limit range on app namespace
+  limitrange:
+    default:
+      memory: 1000M
+      cpu: 1
+    defaultRequest:
+      memory: 500M
+      cpu: 0.25
+  env:
+    # Limit range on env namespace
+    limitrange:
+      default:
+        memory: 1G
+        cpu: 1
+      defaultRequest:
+        memory: 500M
+        cpu: 0.25
+
 rbac:
   enabled: true
 
