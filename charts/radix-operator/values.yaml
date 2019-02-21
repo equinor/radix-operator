@@ -6,7 +6,17 @@ appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 
 imagePullSecretName: radix-docker
-imageRegistry: radixdev.azurecr.io
+
+imageCredentials:
+  registry: radixdev.azurecr.io
+  username: xx
+  password: xx
+
+cicdacr:
+  name: xx
+  id: x
+  password: xx
+  tenantId: xx
 
 app:
   # Limit range on app namespace
@@ -56,3 +66,6 @@ tolerations: []
 affinity: {}
 
 prometheusName: kube-prometheus
+
+radixClusterAdminGroup: "604bad73-c53b-4a95-ab17-d7953f75c8c3" # "fg_radix_platform_development"
+radixUserGroup: "7552642f-ad75-4e9d-a140-3ab8f3742c16"
