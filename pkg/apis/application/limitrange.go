@@ -17,14 +17,14 @@ const (
 )
 
 func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
-	defaultCPU := getDefaultCPU()
-	defaultMemory := getDefaultMemory()
+	defaultCPULimit := getDefaultCPULimit()
+	defaultMemoryLimit := getDefaultMemoryLimit()
 	defaultCPURequest := getDefaultCPURequest()
 	defaultMemoryRequest := getDefaultMemoryRequest()
 
 	// If not all limits are defined, then don't put any limits on namespace
-	if defaultCPU == nil ||
-		defaultMemory == nil ||
+	if defaultCPULimit == nil ||
+		defaultMemoryLimit == nil ||
 		defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
 		log.Warningf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
@@ -33,32 +33,32 @@ func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
 
 	limitRange := app.kubeutil.BuildLimitRange(namespace,
 		limitRangeName, app.registration.Name,
-		*defaultCPU,
-		*defaultMemory,
+		*defaultCPULimit,
+		*defaultMemoryLimit,
 		*defaultCPURequest,
 		*defaultMemoryRequest)
 
 	return app.kubeutil.ApplyLimitRange(namespace, limitRange)
 }
 
-func getDefaultCPU() *resource.Quantity {
-	defaultCPUSetting := os.Getenv(OperatorLimitDefaultCPUEnvironmentVariable)
-	if defaultCPUSetting == "" {
+func getDefaultCPULimit() *resource.Quantity {
+	defaultCPULimitSetting := os.Getenv(OperatorLimitDefaultCPUEnvironmentVariable)
+	if defaultCPULimitSetting == "" {
 		return nil
 	}
 
-	defaultCPU := resource.MustParse(defaultCPUSetting)
-	return &defaultCPU
+	defaultCPULimit := resource.MustParse(defaultCPULimitSetting)
+	return &defaultCPULimit
 }
 
-func getDefaultMemory() *resource.Quantity {
-	defaultMemorySetting := os.Getenv(OperatorLimitDefaultMemoryEnvironmentVariable)
-	if defaultMemorySetting == "" {
+func getDefaultMemoryLimit() *resource.Quantity {
+	defaultMemoryLimitSetting := os.Getenv(OperatorLimitDefaultMemoryEnvironmentVariable)
+	if defaultMemoryLimitSetting == "" {
 		return nil
 	}
 
-	defaultMemory := resource.MustParse(defaultMemorySetting)
-	return &defaultMemory
+	defaultMemoryLimit := resource.MustParse(defaultMemoryLimitSetting)
+	return &defaultMemoryLimit
 }
 
 func getDefaultCPURequest() *resource.Quantity {
