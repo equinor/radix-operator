@@ -47,3 +47,6 @@ tolerations: []
 affinity: {}
 
 prometheusName: kube-prometheus
+
+radixClusterAdminGroup: "604bad73-c53b-4a95-ab17-d7953f75c8c3" # "fg_radix_platform_development"
+radixUserGroup: "7552642f-ad75-4e9d-a140-3ab8f3742c16"
