@@ -35,6 +35,13 @@ spec:
               value: {{ .Values.dnsZone }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
+            {{if .Values.isPlaygroundCluster }}
+            - name: RADIXOPERATOR_CLUSTER_TYPE
+              value: "playground"
+            {{else}}
+            - name: RADIXOPERATOR_CLUSTER_TYPE
+              value: "prod"
+            {{end}}
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
               value: {{ .Values.app.limitrange.default.memory | quote }}
