@@ -64,6 +64,14 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 		return nil
 	}
 
+	clusterType := os.Getenv(OperatorClusterTypeEnvironmentVariable)
+	if clusterType != "" {
+		environmentVariables = append(environmentVariables, corev1.EnvVar{
+			Name:  RadixClusterTypeEnvironmentVariable,
+			Value: clusterType,
+		})
+	}
+
 	containerRegistry, err := deploy.kubeutil.GetContainerRegistry()
 	if err != nil {
 		return environmentVariables
