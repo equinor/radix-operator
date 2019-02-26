@@ -25,7 +25,7 @@ spec:
        - name: http
          port: 80
       public: true
-      environment:
+      environments:
         - name: prod
           monitoring: true
           resources:
@@ -40,7 +40,7 @@ spec:
       ports:
         - name: http
           port: 5000
-      environment:
+      environments:
         - name: prod
           replicas: 2
           variables:
