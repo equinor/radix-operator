@@ -47,7 +47,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"non existing env for component", func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig = []v1.RadixEnvironmentConfig{
 				v1.RadixEnvironmentConfig{
-					EnvironmentName: "nonexistingenv",
+					Environment: "nonexistingenv",
 				},
 			}
 		}},

@@ -89,9 +89,9 @@ type RadixComponent struct {
 
 //RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
 type RadixEnvironmentConfig struct {
-	EnvironmentName string               `json:"environmentName" yaml:"environmentName"`
-	Replicas        int                  `json:"replicas" yaml:"replicas"`
-	Monitoring      bool                 `json:"monitoring" yaml:"monitoring"`
-	Resources       ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables       EnvVarsMap           `json:"variables" yaml:"variables"`
+	Environment string               `json:"environment" yaml:"environment"`
+	Replicas    int                  `json:"replicas" yaml:"replicas"`
+	Monitoring  bool                 `json:"monitoring" yaml:"monitoring"`
+	Resources   ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Variables   EnvVarsMap           `json:"variables" yaml:"variables"`
 }

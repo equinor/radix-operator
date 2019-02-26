@@ -52,7 +52,7 @@ func getEnvironmentSpecificConfigForComponent(component v1.RadixComponent, env s
 	}
 
 	for _, environment := range component.EnvironmentConfig {
-		if environment.EnvironmentName == env {
+		if environment.Environment == env {
 			return &environment
 		}
 	}

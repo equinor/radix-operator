@@ -85,8 +85,8 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 		}
 
 		for _, environment := range component.EnvironmentConfig {
-			if !doesEnvExist(app, environment.EnvironmentName) {
-				err = fmt.Errorf("Env %s refered to by component %s is not defined", environment.EnvironmentName, component.Name)
+			if !doesEnvExist(app, environment.Environment) {
+				err = fmt.Errorf("Env %s refered to by component %s is not defined", environment.Environment, component.Name)
 				errs = append(errs, err)
 			}
 

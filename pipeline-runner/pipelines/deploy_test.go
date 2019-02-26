@@ -49,10 +49,10 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				WithPort("http", 8080).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
-						WithEnvironmentName("prod").
+						WithEnvironment("prod").
 						WithReplicas(4),
 					utils.AnEnvironmentConfig().
-						WithEnvironmentName("dev").
+						WithEnvironment("dev").
 						WithReplicas(4)),
 			utils.AnApplicationComponent().
 				WithName("redis").
@@ -60,7 +60,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				WithPort("http", 6379).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
-						WithEnvironmentName("dev").
+						WithEnvironment("dev").
 						WithEnvironmentVariable("DB_HOST", "db-dev").
 						WithEnvironmentVariable("DB_PORT", "1234").
 						WithResource(map[string]string{
@@ -71,7 +71,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 							"cpu":    "500m",
 						}),
 					utils.AnEnvironmentConfig().
-						WithEnvironmentName("prod").
+						WithEnvironment("prod").
 						WithEnvironmentVariable("DB_HOST", "db-prod").
 						WithEnvironmentVariable("DB_PORT", "9876").
 						WithResource(map[string]string{
@@ -82,7 +82,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 							"cpu":    "500m",
 						}),
 					utils.AnEnvironmentConfig().
-						WithEnvironmentName("no-existing-env").
+						WithEnvironment("no-existing-env").
 						WithEnvironmentVariable("DB_HOST", "db-prod").
 						WithEnvironmentVariable("DB_PORT", "9876"))).
 		BuildRA()

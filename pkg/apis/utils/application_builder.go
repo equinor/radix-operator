@@ -218,7 +218,7 @@ func AnApplicationComponent() RadixApplicationComponentBuilder {
 
 // RadixEnvironmentConfigBuilder Handles construction of RA component environment
 type RadixEnvironmentConfigBuilder interface {
-	WithEnvironmentName(string) RadixEnvironmentConfigBuilder
+	WithEnvironment(string) RadixEnvironmentConfigBuilder
 	WithReplicas(int) RadixEnvironmentConfigBuilder
 	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixEnvironmentConfigBuilder
@@ -226,12 +226,12 @@ type RadixEnvironmentConfigBuilder interface {
 }
 
 type radixEnvironmentConfigBuilder struct {
-	environmentName string
-	variables       v1.EnvVarsMap
-	replicas        int
-	ports           map[string]int32
-	secrets         []string
-	resources       v1.ResourceRequirements
+	environment string
+	variables   v1.EnvVarsMap
+	replicas    int
+	ports       map[string]int32
+	secrets     []string
+	resources   v1.ResourceRequirements
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -242,8 +242,8 @@ func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithEnvironmentName(environmentName string) RadixEnvironmentConfigBuilder {
-	ceb.environmentName = environmentName
+func (ceb *radixEnvironmentConfigBuilder) WithEnvironment(environment string) RadixEnvironmentConfigBuilder {
+	ceb.environment = environment
 	return ceb
 }
 
@@ -259,10 +259,10 @@ func (ceb *radixEnvironmentConfigBuilder) WithEnvironmentVariable(name, value st
 
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
 	return v1.RadixEnvironmentConfig{
-		EnvironmentName: ceb.environmentName,
-		Variables:       ceb.variables,
-		Replicas:        ceb.replicas,
-		Resources:       ceb.resources,
+		Environment: ceb.environment,
+		Variables:   ceb.variables,
+		Replicas:    ceb.replicas,
+		Resources:   ceb.resources,
 	}
 }
 
@@ -276,7 +276,7 @@ func NewComponentEnvironmentBuilder() RadixEnvironmentConfigBuilder {
 // AnEnvironmentConfig Constructor for component environment builder containing test data
 func AnEnvironmentConfig() RadixEnvironmentConfigBuilder {
 	return &radixEnvironmentConfigBuilder{
-		environmentName: "app",
-		variables:       make(map[string]string),
+		environment: "app",
+		variables:   make(map[string]string),
 	}
 }

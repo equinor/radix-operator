@@ -17,7 +17,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 				WithName("app").
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
-						WithEnvironmentName("prod").
+						WithEnvironment("prod").
 						WithEnvironmentVariable("DB_HOST", "db-prod").
 						WithEnvironmentVariable("DB_PORT", "1234").
 						WithResource(map[string]string{
@@ -29,7 +29,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 						}).
 						WithReplicas(4),
 					utils.AnEnvironmentConfig().
-						WithEnvironmentName("dev").
+						WithEnvironment("dev").
 						WithEnvironmentVariable("DB_HOST", "db-dev").
 						WithEnvironmentVariable("DB_PORT", "9876").
 						WithResource(map[string]string{

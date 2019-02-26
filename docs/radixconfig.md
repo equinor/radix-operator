@@ -26,7 +26,7 @@ spec:
          port: 80
       public: true
       environmentConfig:
-        - environmentName: prod
+        - environment: prod
           monitoring: true
           resources:
             requests:
@@ -41,12 +41,12 @@ spec:
         - name: http
           port: 5000
       environmentConfig:
-        - environmentName: prod
+        - environment: prod
           replicas: 2
           variables:
             DB_HOST: "db-prod"
             DB_PORT: "9876"
-        - environmentName: dev
+        - environment: dev
           variables:
             DB_HOST: "db-dev"
             DB_PORT: "1234"
