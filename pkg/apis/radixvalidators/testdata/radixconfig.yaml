@@ -15,8 +15,8 @@ spec:
        - name: http
          port: 8080
       public: true
-      environments:
-        - name: prod
+      environmentConfig:
+        - environmentName: prod
           replicas: 4
           resources: 
             limits: 
@@ -31,12 +31,12 @@ spec:
         - name: http
           port: 6379
       public: false
-      environments:
-        - name: dev
+      environmentConfig:
+        - environmentName: dev
           variables:
             DB_HOST: "useless-dev"
             DB_PORT: "1234"
-        - name: prod
+        - environmentName: prod
           variables:
             DB_HOST: "useless-prod"
             DB_PORT: "9876"
