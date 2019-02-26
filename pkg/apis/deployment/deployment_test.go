@@ -42,29 +42,35 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 						WithReplicas(3))).
 		BuildRA()
 
-	targetEnvs := make(map[string]bool)
-	targetEnvs["prod"] = true
-	rd, _ := ConstructForTargetEnvironments(ra, "anyreg", "anyjob", "anyimage", "anybranch", "anycommit", targetEnvs)
+	var testScenarios = []struct {
+		environment           string
+		expectedReplicas      int
+		expectedDbHost        string
+		expectedDbPort        string
+		expectedMemoryLimit   string
+		expectedCPULimit      string
+		expectedMemoryRequest string
+		expectedCPURequest    string
+	}{
+		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m"},
+		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m"},
+	}
 
-	assert.Equal(t, 4, rd[0].Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
-	assert.Equal(t, "db-prod", rd[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
-	assert.Equal(t, "1234", rd[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
-	assert.Equal(t, "128Mi", rd[0].Spec.Components[0].Resources.Limits["memory"])
-	assert.Equal(t, "500m", rd[0].Spec.Components[0].Resources.Limits["cpu"])
-	assert.Equal(t, "64Mi", rd[0].Spec.Components[0].Resources.Requests["memory"])
-	assert.Equal(t, "250m", rd[0].Spec.Components[0].Resources.Requests["cpu"])
+	for _, testcase := range testScenarios {
+		t.Run(testcase.environment, func(t *testing.T) {
+			targetEnvs := make(map[string]bool)
+			targetEnvs[testcase.environment] = true
+			rd, _ := ConstructForTargetEnvironments(ra, "anyreg", "anyjob", "anyimage", "anybranch", "anycommit", targetEnvs)
 
-	targetEnvs = make(map[string]bool)
-	targetEnvs["dev"] = true
-	rd, _ = ConstructForTargetEnvironments(ra, "anyreg", "anyjob", "anyimage", "anybranch", "anycommit", targetEnvs)
-
-	assert.Equal(t, 3, rd[0].Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
-	assert.Equal(t, "db-dev", rd[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
-	assert.Equal(t, "9876", rd[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
-	assert.Equal(t, "64Mi", rd[0].Spec.Components[0].Resources.Limits["memory"])
-	assert.Equal(t, "250m", rd[0].Spec.Components[0].Resources.Limits["cpu"])
-	assert.Equal(t, "32Mi", rd[0].Spec.Components[0].Resources.Requests["memory"])
-	assert.Equal(t, "125m", rd[0].Spec.Components[0].Resources.Requests["cpu"])
+			assert.Equal(t, testcase.expectedReplicas, rd[0].Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
+			assert.Equal(t, testcase.expectedDbHost, rd[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
+			assert.Equal(t, testcase.expectedDbPort, rd[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
+			assert.Equal(t, testcase.expectedMemoryLimit, rd[0].Spec.Components[0].Resources.Limits["memory"])
+			assert.Equal(t, testcase.expectedCPULimit, rd[0].Spec.Components[0].Resources.Limits["cpu"])
+			assert.Equal(t, testcase.expectedMemoryRequest, rd[0].Spec.Components[0].Resources.Requests["memory"])
+			assert.Equal(t, testcase.expectedCPURequest, rd[0].Spec.Components[0].Resources.Requests["cpu"])
+		})
+	}
 }
 
 func parseQuantity(value string) resource.Quantity {
