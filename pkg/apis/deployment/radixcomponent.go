@@ -12,19 +12,33 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
-		variables := getEnvironmentVariables(appComponent, env)
+		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
+
+		variables := make(map[string]string)
+		monitoring := false
+		var resources v1.ResourceRequirements
+
+		// Will later be overriden by default replicas if not set specifically
+		replicas := 0
+
+		if environmentSpecificConfig != nil {
+			replicas = environmentSpecificConfig.Replicas
+			variables = environmentSpecificConfig.Variables
+			monitoring = environmentSpecificConfig.Monitoring
+			resources = environmentSpecificConfig.Resources
+		}
 
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
 			Image:                utils.GetImagePath(containerRegistry, appName, componentName, imageTag),
-			Replicas:             appComponent.Replicas,
+			Replicas:             replicas,
 			Public:               appComponent.Public,
 			Ports:                appComponent.Ports,
 			Secrets:              appComponent.Secrets,
 			EnvironmentVariables: variables, // todo: use single EnvVars instead
 			DNSAppAlias:          env == dnsAppAlias.Environment && componentName == dnsAppAlias.Component,
-			Monitoring:           appComponent.Monitoring,
-			Resources:            appComponent.Resources,
+			Monitoring:           monitoring,
+			Resources:            resources,
 		}
 
 		components = append(components, deployComponent)
@@ -32,15 +46,15 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 	return components
 }
 
-func getEnvironmentVariables(component v1.RadixComponent, env string) v1.EnvVarsMap {
-	if component.EnvironmentVariables == nil {
-		return v1.EnvVarsMap{}
+func getEnvironmentSpecificConfigForComponent(component v1.RadixComponent, env string) *v1.RadixEnvironmentConfig {
+	if component.EnvironmentConfig == nil {
+		return nil
 	}
 
-	for _, variables := range component.EnvironmentVariables {
-		if variables.Environment == env {
-			return variables.Variables
+	for _, environment := range component.EnvironmentConfig {
+		if environment.EnvironmentName == env {
+			return &environment
 		}
 	}
-	return v1.EnvVarsMap{}
+	return nil
 }

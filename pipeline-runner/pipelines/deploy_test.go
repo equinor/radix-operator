@@ -46,25 +46,45 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 			utils.AnApplicationComponent().
 				WithName("app").
 				WithPublic(true).
-				WithReplicas(4).
-				WithPort("http", 8080),
+				WithPort("http", 8080).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironmentName("prod").
+						WithReplicas(4),
+					utils.AnEnvironmentConfig().
+						WithEnvironmentName("dev").
+						WithReplicas(4)),
 			utils.AnApplicationComponent().
 				WithName("redis").
 				WithPublic(false).
 				WithPort("http", 6379).
-				WithEnvironmentVariable("dev", "DB_HOST", "db-dev").
-				WithEnvironmentVariable("dev", "DB_PORT", "1234").
-				WithEnvironmentVariable("prod", "DB_HOST", "db-prod").
-				WithEnvironmentVariable("prod", "DB_PORT", "9876").
-				WithEnvironmentVariable("no-existing-env", "DB_HOST", "db-prod").
-				WithEnvironmentVariable("no-existing-env", "DB_PORT", "9876").
-				WithResource(map[string]string{
-					"memory": "64Mi",
-					"cpu":    "250m",
-				}, map[string]string{
-					"memory": "128Mi",
-					"cpu":    "500m",
-				})).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironmentName("dev").
+						WithEnvironmentVariable("DB_HOST", "db-dev").
+						WithEnvironmentVariable("DB_PORT", "1234").
+						WithResource(map[string]string{
+							"memory": "64Mi",
+							"cpu":    "250m",
+						}, map[string]string{
+							"memory": "128Mi",
+							"cpu":    "500m",
+						}),
+					utils.AnEnvironmentConfig().
+						WithEnvironmentName("prod").
+						WithEnvironmentVariable("DB_HOST", "db-prod").
+						WithEnvironmentVariable("DB_PORT", "9876").
+						WithResource(map[string]string{
+							"memory": "64Mi",
+							"cpu":    "250m",
+						}, map[string]string{
+							"memory": "128Mi",
+							"cpu":    "500m",
+						}),
+					utils.AnEnvironmentConfig().
+						WithEnvironmentName("no-existing-env").
+						WithEnvironmentVariable("DB_HOST", "db-prod").
+						WithEnvironmentVariable("DB_PORT", "9876"))).
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
