@@ -34,6 +34,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 }
 
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+	tlsSecretName := "app-wildcard-tls-cert"
 	appAlias := os.Getenv(OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
 		return nil
@@ -41,19 +42,20 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 
 	hostname := fmt.Sprintf("%s.%s", radixDeployment.Spec.AppName, appAlias)
 	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
-	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
+	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, ingressSpec)
 }
 
 func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+	tlsSecretName := "cluster-wildcard-tls-cert"
 	dnsZone := os.Getenv(OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		return nil
 	}
 	hostname := getHostName(componentName, namespace, clustername, dnsZone)
 	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
-	ingressSpec := getIngressSpec(hostname, componentName, componentPorts[0].Port)
+	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)
 }
@@ -83,8 +85,7 @@ func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, o
 	return ingress
 }
 
-func getIngressSpec(hostname, serviceName string, servicePort int32) v1beta1.IngressSpec {
-	tlsSecretName := "cluster-wildcard-tls-cert"
+func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32) v1beta1.IngressSpec {
 	return v1beta1.IngressSpec{
 		TLS: []v1beta1.IngressTLS{
 			{
