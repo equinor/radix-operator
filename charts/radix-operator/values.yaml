@@ -18,6 +18,25 @@ cicdacr:
   password: xx
   tenantId: xx
 
+app:
+  # Limit range on app namespace
+  limitrange:
+    default:
+      memory: 1000M
+      cpu: 1
+    defaultRequest:
+      memory: 500M
+      cpu: 0.25
+  env:
+    # Limit range on env namespace
+    limitrange:
+      default:
+        memory: 1G
+        cpu: 1
+      defaultRequest:
+        memory: 500M
+        cpu: 0.25
+
 rbac:
   enabled: true
 
@@ -48,5 +67,11 @@ affinity: {}
 
 prometheusName: kube-prometheus
 
-radixClusterAdminGroup: "604bad73-c53b-4a95-ab17-d7953f75c8c3" # "fg_radix_platform_development"
-radixUserGroup: "7552642f-ad75-4e9d-a140-3ab8f3742c16"
+# By setting this to true we will add the
+# playground user group
+isPlaygroundCluster: false
+
+radixGroups:
+  clusterAdmin: "a5dfa635-dc00-4a28-9ad9-9e7f1e56919d" # "fg_radix_platform_development"
+  user: "64b28659-4fe4-4222-8497-85dd7e43e25b"
+  playground: "4b8ec60e-714c-4a9d-8e0a-3e4cfb3c3d31"

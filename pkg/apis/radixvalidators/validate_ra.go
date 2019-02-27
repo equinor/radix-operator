@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
@@ -146,12 +148,9 @@ func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirem
 
 func validateQuantity(name, value string) error {
 	if name == "memory" {
-		regex := "^[0-9]+[MG]i$"
-		re := regexp.MustCompile(regex)
-
-		isValid := re.MatchString(value)
-		if !isValid {
-			return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Must match regex '%s'", name, value, regex)
+		_, err := resource.ParseQuantity(value)
+		if err != nil {
+			return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", name, value)
 		}
 	} else if name == "cpu" {
 		regex := "^[0-9]+m$"

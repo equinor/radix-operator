@@ -3,6 +3,7 @@ package application
 import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
@@ -35,9 +36,8 @@ func NewApplication(
 		registration}, nil
 }
 
-// onSync compares the actual state with the desired, and attempts to
-// converge the two. It then updates the Status block of the Foo resource
-// with the current status of the resource.
+// OnSync compares the actual state with the desired, and attempts to
+// converge the two
 func (app Application) OnSync() error {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
@@ -48,6 +48,14 @@ func (app Application) OnSync() error {
 		return err
 	} else {
 		logger.Infof("App namespace created")
+	}
+
+	err = app.createLimitRangeOnAppNamespace(utils.GetAppNamespace(radixRegistration.Name))
+	if err != nil {
+		logger.Errorf("Failed to create limit range on app namespace. %v", err)
+		return err
+	} else {
+		logger.Infof("Limit range on app namespace created")
 	}
 
 	err = app.applySecretsForPipelines() // create deploy key in app namespace

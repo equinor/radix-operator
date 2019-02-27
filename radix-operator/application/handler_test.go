@@ -1,8 +1,10 @@
 package application
 
 import (
+	"os"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	registration "github.com/equinor/radix-operator/radix-operator/registration"
@@ -29,7 +31,7 @@ func setupTest() (*test.Utils, kube.Interface) {
 	return &handlerTestUtils, kubeclient
 }
 
-func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T) {
+func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimits(t *testing.T) {
 	handlerTestUtils, kubeclient := setupTest()
 
 	handlerTestUtils.ApplyApplication(utils.ARadixApplication().
@@ -54,4 +56,36 @@ func TestObjectCreatedUpdated_WithEnvironments_NamespacesAreCreated(t *testing.T
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
 		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 	})
+
+	t.Run("validate limit range not set when missing on Operator", func(t *testing.T) {
+		t.Parallel()
+		limitRanges, _ := kubeclient.CoreV1().LimitRanges("any-app-dev").List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
+
+		limitRanges, _ = kubeclient.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
+	})
+}
+
+func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimits(t *testing.T) {
+	handlerTestUtils, kubeclient := setupTest()
+
+	// Setup
+	os.Setenv(applicationconfig.OperatorEnvLimitDefaultCPUEnvironmentVariable, "0.5")
+	os.Setenv(applicationconfig.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+	os.Setenv(applicationconfig.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
+	os.Setenv(applicationconfig.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
+
+	handlerTestUtils.ApplyApplication(utils.ARadixApplication().
+		WithAppName("any-app").
+		WithEnvironment("dev", "master").
+		WithEnvironment("prod", ""))
+
+	limitRanges, _ := kubeclient.CoreV1().LimitRanges("any-app-dev").List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
+	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
+
+	limitRanges, _ = kubeclient.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
+	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 }
