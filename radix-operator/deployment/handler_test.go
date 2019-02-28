@@ -457,7 +457,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
@@ -469,7 +470,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 	})
 }
 

@@ -34,6 +34,10 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 		garbageCollect := true
 		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
+		if strings.EqualFold("", exisitingComponentName) {
+			continue
+		}
+
 		for _, component := range deploy.radixDeployment.Spec.Components {
 			if strings.EqualFold(component.Name, exisitingComponentName) {
 				garbageCollect = false
@@ -62,11 +66,8 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				"radixApp":         registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				kube.RadixAppLabel: registration.Name,
-			},
+			Name:   roleName,
+			Labels: role.Labels,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
