@@ -130,7 +130,14 @@ func (deploy *Deployment) OnSync() error {
 				log.Infof("Failed to create ingress: %v", err)
 				return fmt.Errorf("Failed to create ingress: %v", err)
 			}
+		} else {
+			err = deploy.garbageCollectIngressesNoLongerInSpecForComponent(v)
+			if err != nil {
+				log.Infof("Failed to delete ingress: %v", err)
+				return fmt.Errorf("Failed to delete ingress: %v", err)
+			}
 		}
+
 		if v.Monitoring {
 			err = deploy.createServiceMonitor(v)
 			if err != nil {

@@ -62,6 +62,24 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 	return nil
 }
 
+func (deploy *Deployment) garbageCollectIngressesNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
+	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(ingresses.Items) > 0 {
+		err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(component.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	tlsSecretName := "app-wildcard-tls-cert"
 	appAlias := os.Getenv(OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json

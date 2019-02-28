@@ -476,9 +476,6 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 }
 
 func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
-	// Remove this command when looking at:
-	// OR-793 - Operator does not handle change of the number of components
-	t.SkipNow()
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	anyAppName := "anyappname"
@@ -502,12 +499,8 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-
-	t.Run("validate ingress", func(t *testing.T) {
-		t.Parallel()
-		ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(ingresses.Items), "Both components should be public")
-	})
+	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(ingresses.Items), "Both components should be public")
 
 	// Remove public on component 2
 	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -524,12 +517,8 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 				WithPublic(false)))
 
 	assert.NoError(t, err)
-
-	t.Run("validate ingress", func(t *testing.T) {
-		t.Parallel()
-		ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(ingresses.Items), "Only component 1 should be public")
-	})
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "Only component 1 should be public")
 
 	// Remove public on component 1
 	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -547,9 +536,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	t.Run("validate ingress", func(t *testing.T) {
-		t.Parallel()
-		ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
-	})
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
+
 }
