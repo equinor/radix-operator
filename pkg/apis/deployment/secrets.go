@@ -2,7 +2,9 @@ package deployment
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
@@ -30,6 +32,10 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 				Type: "Opaque",
 				ObjectMeta: metav1.ObjectMeta{
 					Name: secretName,
+					Labels: map[string]string{
+						kube.RadixAppLabel:       registration.Name,
+						kube.RadixComponentLabel: component.Name,
+					},
 				},
 			}
 			_, err = deploy.kubeutil.ApplySecret(ns, &secret)
@@ -43,6 +49,38 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 			}
 		}
 	}
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
+	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, exisitingComponent := range secrets.Items {
+		garbageCollect := true
+		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+
+		if strings.EqualFold("", exisitingComponentName) {
+			continue
+		}
+
+		for _, component := range deploy.radixDeployment.Spec.Components {
+			if strings.EqualFold(component.Name, exisitingComponentName) {
+				garbageCollect = false
+				break
+			}
+		}
+
+		if garbageCollect {
+			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 

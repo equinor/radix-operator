@@ -176,6 +176,16 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectSecretsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectRoleBindingsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
