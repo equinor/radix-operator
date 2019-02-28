@@ -131,7 +131,7 @@ func (deploy *Deployment) OnSync() error {
 				return fmt.Errorf("Failed to create ingress: %v", err)
 			}
 		} else {
-			err = deploy.garbageCollectIngressesNoLongerInSpecForComponent(v)
+			err = deploy.garbageCollectIngressNoLongerInSpecForComponent(v)
 			if err != nil {
 				log.Infof("Failed to delete ingress: %v", err)
 				return fmt.Errorf("Failed to delete ingress: %v", err)

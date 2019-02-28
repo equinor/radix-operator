@@ -62,7 +62,7 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectIngressesNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
+func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
 	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
 	})
