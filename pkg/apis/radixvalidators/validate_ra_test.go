@@ -44,13 +44,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid app name", func(ra *v1.RadixApplication) { ra.Name = "invalid,char.appname" }},
 		{"empty name", func(ra *v1.RadixApplication) { ra.Name = "" }},
 		{"no related rr", func(ra *v1.RadixApplication) { ra.Name = "no related rr" }},
-		{"var connected to non existing env", func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentVariables = []v1.EnvVars{
-				v1.EnvVars{
+		{"non existing env for component", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig = []v1.RadixEnvironmentConfig{
+				v1.RadixEnvironmentConfig{
 					Environment: "nonexistingenv",
-					Variables: map[string]string{
-						"DB_CON": "somedbcon",
-					},
 				},
 			}
 		}},
@@ -59,7 +56,9 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid port specification. Nil value", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = nil }},
 		{"invalid port specification. Empty value", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = []v1.ComponentPort{} }},
 		{"invalid port name", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports[0].Name = "invalid,char.appname" }},
-		{"invalid number of replicas", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Replicas = radixvalidators.MaxReplica + 1 }},
+		{"invalid number of replicas", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
+		}},
 		{"invalid env name", func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = "invalid,char.appname" }},
 		{"invalid branch name", func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Build.From = "invalid,char.appname" }},
 		{"to long branch name", func(ra *v1.RadixApplication) {
@@ -67,11 +66,17 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"dns alias non existing component", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = "non existing" }},
 		{"dns alias non existing env", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Environment = "non existing" }},
-		{"resource limit unsupported resource", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Resources.Limits["unsupportedResource"] = "250m" }},
-		{"resource limit wrong format", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Resources.Limits["memory"] = "asdfasd" }},
-		{"resource request wrong format", func(ra *v1.RadixApplication) { ra.Spec.Components[0].Resources.Requests["memory"] = "asdfasd" }},
+		{"resource limit unsupported resource", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["unsupportedResource"] = "250m"
+		}},
+		{"resource limit wrong format", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "asdfasd"
+		}},
+		{"resource request wrong format", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "asdfasd"
+		}},
 		{"resource request unsupported resource", func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].Resources.Requests["unsupportedResource"] = "250m"
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["unsupportedResource"] = "250m"
 		}},
 	}
 

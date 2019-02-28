@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -137,31 +137,19 @@ func ARadixApplication() ApplicationBuilder {
 type RadixApplicationComponentBuilder interface {
 	WithName(string) RadixApplicationComponentBuilder
 	WithPublic(bool) RadixApplicationComponentBuilder
-	WithReplicas(int) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
-	WithEnvironmentVariablesMap([]v1.EnvVars) RadixApplicationComponentBuilder
-	WithEnvironmentVariable(string, string, string) RadixApplicationComponentBuilder
-	WithResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
+	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
+	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
 type radixApplicationComponentBuilder struct {
-	name                 string
-	environmentVariables []v1.EnvVars
-	public               bool
-	replicas             int
-	ports                map[string]int32
-	secrets              []string
-	resources            v1.ResourceRequirements
-}
-
-func (rcb *radixApplicationComponentBuilder) WithResource(request map[string]string, limit map[string]string) RadixApplicationComponentBuilder {
-	rcb.resources = v1.ResourceRequirements{
-		Limits:   limit,
-		Requests: request,
-	}
-	return rcb
+	name              string
+	public            bool
+	ports             map[string]int32
+	secrets           []string
+	environmentConfig []RadixEnvironmentConfigBuilder
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -171,37 +159,6 @@ func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicat
 
 func (rcb *radixApplicationComponentBuilder) WithPublic(public bool) RadixApplicationComponentBuilder {
 	rcb.public = public
-	return rcb
-}
-
-func (rcb *radixApplicationComponentBuilder) WithReplicas(replicas int) RadixApplicationComponentBuilder {
-	rcb.replicas = replicas
-	return rcb
-}
-
-func (rcb *radixApplicationComponentBuilder) WithEnvironmentVariablesMap(environmentVariables []v1.EnvVars) RadixApplicationComponentBuilder {
-	rcb.environmentVariables = environmentVariables
-	return rcb
-}
-
-func (rcb *radixApplicationComponentBuilder) WithEnvironmentVariable(environment, name, value string) RadixApplicationComponentBuilder {
-	for index, variable := range rcb.environmentVariables {
-		if variable.Environment == environment {
-			envVariables := rcb.environmentVariables[index].Variables
-			envVariables[name] = value
-			rcb.environmentVariables[index].Variables = envVariables
-			return rcb
-		}
-	}
-
-	envVariables := make(map[string]string)
-	envVariables[name] = value
-
-	rcb.environmentVariables = append(rcb.environmentVariables, v1.EnvVars{
-		Environment: environment,
-		Variables:   envVariables,
-	})
-
 	return rcb
 }
 
@@ -215,36 +172,111 @@ func (rcb *radixApplicationComponentBuilder) WithPort(name string, port int32) R
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithEnvironmentConfig(environmentConfig RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder {
+	rcb.environmentConfig = append(rcb.environmentConfig, environmentConfig)
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithEnvironmentConfigs(environmentConfigs ...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder {
+	rcb.environmentConfig = environmentConfigs
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range rcb.ports {
 		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
 	}
 
+	var environmentConfig = make([]v1.RadixEnvironmentConfig, 0)
+	for _, env := range rcb.environmentConfig {
+		environmentConfig = append(environmentConfig, env.BuildEnvironmentConfig())
+	}
+
 	return v1.RadixComponent{
-		Name:                 rcb.name,
-		EnvironmentVariables: rcb.environmentVariables,
-		Public:               rcb.public,
-		Replicas:             rcb.replicas,
-		Ports:                componentPorts,
-		Secrets:              rcb.secrets,
-		Resources:            rcb.resources,
+		Name:              rcb.name,
+		Ports:             componentPorts,
+		Secrets:           rcb.secrets,
+		EnvironmentConfig: environmentConfig,
 	}
 }
 
 // NewApplicationComponentBuilder Constructor for component builder
 func NewApplicationComponentBuilder() RadixApplicationComponentBuilder {
 	return &radixApplicationComponentBuilder{
-		ports:                make(map[string]int32),
-		environmentVariables: make([]v1.EnvVars, 0),
+		ports: make(map[string]int32),
 	}
 }
 
 // AnApplicationComponent Constructor for component builder builder containing test data
 func AnApplicationComponent() RadixApplicationComponentBuilder {
 	return &radixApplicationComponentBuilder{
-		name:                 "app",
-		ports:                make(map[string]int32),
-		environmentVariables: make([]v1.EnvVars, 0),
+		name:  "app",
+		ports: make(map[string]int32),
+	}
+}
+
+// RadixEnvironmentConfigBuilder Handles construction of RA component environment
+type RadixEnvironmentConfigBuilder interface {
+	WithEnvironment(string) RadixEnvironmentConfigBuilder
+	WithReplicas(int) RadixEnvironmentConfigBuilder
+	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
+	WithResource(map[string]string, map[string]string) RadixEnvironmentConfigBuilder
+	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
+}
+
+type radixEnvironmentConfigBuilder struct {
+	environment string
+	variables   v1.EnvVarsMap
+	replicas    int
+	ports       map[string]int32
+	secrets     []string
+	resources   v1.ResourceRequirements
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
+	ceb.resources = v1.ResourceRequirements{
+		Limits:   limit,
+		Requests: request,
+	}
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithEnvironment(environment string) RadixEnvironmentConfigBuilder {
+	ceb.environment = environment
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithReplicas(replicas int) RadixEnvironmentConfigBuilder {
+	ceb.replicas = replicas
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithEnvironmentVariable(name, value string) RadixEnvironmentConfigBuilder {
+	ceb.variables[name] = value
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
+	return v1.RadixEnvironmentConfig{
+		Environment: ceb.environment,
+		Variables:   ceb.variables,
+		Replicas:    ceb.replicas,
+		Resources:   ceb.resources,
+	}
+}
+
+// NewComponentEnvironmentBuilder Constructor for component environment builder
+func NewComponentEnvironmentBuilder() RadixEnvironmentConfigBuilder {
+	return &radixEnvironmentConfigBuilder{
+		variables: make(map[string]string),
+	}
+}
+
+// AnEnvironmentConfig Constructor for component environment builder containing test data
+func AnEnvironmentConfig() RadixEnvironmentConfigBuilder {
+	return &radixEnvironmentConfigBuilder{
+		environment: "app",
+		variables:   make(map[string]string),
 	}
 }
