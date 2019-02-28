@@ -65,7 +65,6 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublic(true).
 				WithDNSAppAlias(true).
-				WithDNSAppAlias(true).
 				WithResource(map[string]string{
 					"memory": "64Mi",
 					"cpu":    "250m",
@@ -326,11 +325,22 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
 		WithCreated(now).
-		WithUID(firstUID))
+		WithUID(firstUID).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true)))
 
 	envNamespace := utils.GetEnvironmentNamespace("app1", "prod")
 	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, firstUID, deployments.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
+
+	services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, firstUID, services.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
+
+	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
 	// This is one second newer deployment
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -338,10 +348,21 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithEnvironment("prod").
 		WithImageTag("seconddeployment").
 		WithCreated(now.Add(time.Second * time.Duration(1))).
-		WithUID(secondUID))
+		WithUID(secondUID).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true)))
 
 	deployments, _ = kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
+
+	services, _ = kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
+
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
 	// Re-apply the first deployment. This should be ignored and cause an error as it is not the latest
 	rdBuilder := utils.ARadixDeployment().
@@ -350,11 +371,23 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
 		WithCreated(now).
-		WithUID(firstUID)
+		WithUID(firstUID).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true))
+
 	handlerTestUtils.ApplyDeploymentUpdate(rdBuilder)
 
 	deployments, _ = kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
+
+	services, _ = kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
+
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 }
 
 func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {

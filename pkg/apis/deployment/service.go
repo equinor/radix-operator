@@ -28,7 +28,9 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 		}
 		newService := oldService.DeepCopy()
 		ports := buildServicePorts(deployComponent.Ports)
+
 		newService.Spec.Ports = ports
+		newService.ObjectMeta.OwnerReferences = service.ObjectMeta.OwnerReferences
 
 		oldServiceJSON, err := json.Marshal(oldService)
 		if err != nil {
