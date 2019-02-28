@@ -6,6 +6,11 @@ import (
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
+	extinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -33,6 +38,9 @@ func init() {
 func NewDeployController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	deploymentInformer radixinformer.RadixDeploymentInformer,
+	kubeDeployInformer extinformers.DeploymentInformer,
+	serviceInformer coreinformers.ServiceInformer,
+	secretInformer coreinformers.SecretInformer,
 	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{
@@ -61,5 +69,63 @@ func NewDeployController(client kubernetes.Interface,
 		},
 	})
 
+	kubeDeployInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			deploy := obj.(*v1beta1.Deployment)
+			logger.Infof("Deployment object added event received for %s. Do nothing", deploy.Name)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			newDeploy := new.(*v1beta1.Deployment)
+			oldDeploy := old.(*v1beta1.Deployment)
+			if newDeploy.ResourceVersion == oldDeploy.ResourceVersion {
+				return
+			}
+			controller.HandleObject(new, "RadixDeployment", getObject)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.HandleObject(obj, "RadixDeployment", getObject)
+		},
+	})
+
+	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			service := obj.(*corev1.Service)
+			logger.Infof("Service object added event received for %s. Do nothing", service.Name)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			newService := new.(*corev1.Service)
+			oldService := old.(*corev1.Service)
+			if newService.ResourceVersion == oldService.ResourceVersion {
+				return
+			}
+			controller.HandleObject(new, "RadixDeployment", getObject)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.HandleObject(obj, "RadixDeployment", getObject)
+		},
+	})
+
+	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			secret := obj.(*corev1.Secret)
+			logger.Infof("Service object added event received for %s. Do nothing", secret.Name)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			newSecret := new.(*corev1.Secret)
+			oldSecret := old.(*corev1.Secret)
+			if newSecret.ResourceVersion == oldSecret.ResourceVersion {
+				return
+			}
+			controller.HandleObject(new, "RadixDeployment", getObject)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.HandleObject(obj, "RadixDeployment", getObject)
+		},
+	})
+
 	return controller
+}
+
+func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 }
