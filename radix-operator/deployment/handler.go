@@ -3,12 +3,9 @@ package deployment
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
-
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 
 	corev1 "k8s.io/api/core/v1"
@@ -52,10 +49,7 @@ func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.I
 
 // Sync Is created on sync of resource
 func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	test, _ := t.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(metav1.ListOptions{})
-	log.Infof("%v", test.Items[0])
-
-	deployment, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
+	rd, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
@@ -67,41 +61,26 @@ func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.E
 		return err
 	}
 
-	err = t.onSync(deployment)
-	if err != nil {
-		// Put back on queue
-		return err
-	}
+	syncRD := rd.DeepCopy()
+	logger.Infof("Sync deployment %s", syncRD.Name)
 
-	eventRecorder.Event(deployment, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
-
-	return nil
-}
-
-// TODO: Move to deployment domain
-func (t *RadixDeployHandler) onSync(radixDeploy *v1.RadixDeployment) error {
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixDeploy.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Infof("Failed to get RadixRegistartion object: %v", err)
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
 	}
 
-	deployment, err := deployment.NewDeployment(t.kubeclient, t.radixclient, t.prometheusperatorclient, radixRegistration, radixDeploy)
+	deployment, err := deployment.NewDeployment(t.kubeclient, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
 	if err != nil {
 		return err
 	}
 
-	isLatest, err := deployment.IsLatestInTheEnvironment()
+	err = deployment.OnSync()
 	if err != nil {
-		return fmt.Errorf("Failed to check if RadixDeployment was latest. Error was %v", err)
+		// Put back on queue
+		return err
 	}
 
-	if !isLatest {
-		// Should not be put back on queue
-		logger.Error(fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", radixDeploy.GetName()))
-		return nil
-	}
-
-	logger.Infof("Sync deployment %s", radixDeploy.Name)
-	return deployment.OnDeploy()
+	eventRecorder.Event(syncRD, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	return nil
 }
