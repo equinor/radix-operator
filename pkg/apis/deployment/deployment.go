@@ -101,15 +101,15 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
+	err = deploy.garbageCollectComponentsNoLongerInSpec()
+	if err != nil {
+		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
+	}
+
 	err = deploy.createSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)
-	}
-
-	err = deploy.garbageCollectComponentsNoLongerInSpec()
-	if err != nil {
-		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
 	}
 
 	for _, v := range deploy.radixDeployment.Spec.Components {
