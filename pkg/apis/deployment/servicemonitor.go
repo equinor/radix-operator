@@ -5,6 +5,7 @@ import (
 	"os"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,7 +41,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 			},
 			Selector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"radix-component": componentName,
+					kube.RadixComponentLabel: componentName,
 				},
 			},
 		},

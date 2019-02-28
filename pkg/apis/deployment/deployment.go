@@ -107,6 +107,11 @@ func (deploy *Deployment) OnSync() error {
 		return fmt.Errorf("Failed to provision secrets: %v", err)
 	}
 
+	err = deploy.garbageCollectComponentsNoLongerInSpec()
+	if err != nil {
+		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
+	}
+
 	for _, v := range deploy.radixDeployment.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
 		err := deploy.createDeployment(v)
@@ -153,6 +158,25 @@ func (deploy *Deployment) isLatestInTheEnvironment() (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
+	err := deploy.garbageCollectDeploymentsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectServicesNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectIngressesNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {

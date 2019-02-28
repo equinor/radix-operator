@@ -390,9 +390,6 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 }
 
 func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
-	// Remove this command when looking at:
-	// OR-793 - Operator does not handle change of the number of components
-	t.SkipNow()
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	anyAppName := "anyappname"
@@ -449,7 +446,6 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		t.Parallel()
 		services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(services.Items), "Number of services wasn't as expected")
-		assert.Equal(t, componentTwoName, services.Items[1].Name, "component 2 service not there")
 	})
 
 	t.Run("validate ingress", func(t *testing.T) {

@@ -3,6 +3,7 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -55,6 +56,34 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 		return fmt.Errorf("Failed to create Service object: %v", err)
 	}
 	log.Infof("Created Service: %s in namespace %s", createdService.Name, namespace)
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
+	services, err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, exisitingComponent := range services.Items {
+		garbageCollect := true
+		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+
+		for _, component := range deploy.radixDeployment.Spec.Components {
+			if strings.EqualFold(component.Name, exisitingComponentName) {
+				garbageCollect = false
+				break
+			}
+		}
+
+		if garbageCollect {
+			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 

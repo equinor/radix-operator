@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -31,6 +32,34 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 
 	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, deployComponent.Ports)
 	return deploy.kubeutil.ApplyIngress(namespace, ingress)
+}
+
+func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
+	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, exisitingComponent := range ingresses.Items {
+		garbageCollect := true
+		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+
+		for _, component := range deploy.radixDeployment.Spec.Components {
+			if strings.EqualFold(component.Name, exisitingComponentName) {
+				garbageCollect = false
+				break
+			}
+		}
+
+		if garbageCollect {
+			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
