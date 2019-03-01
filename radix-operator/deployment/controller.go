@@ -68,25 +68,8 @@ func NewDeployController(client kubernetes.Interface,
 		},
 	})
 
-	/*
-		kubeDeployInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				deploy := obj.(*v1beta1.Deployment)
-				logger.Debugf("Deployment object added event received for %s. Do nothing", deploy.Name)
-			},
-			UpdateFunc: func(old, new interface{}) {
-				newDeploy := new.(*v1beta1.Deployment)
-				oldDeploy := old.(*v1beta1.Deployment)
-				if newDeploy.ResourceVersion == oldDeploy.ResourceVersion {
-					return
-				}
-				controller.HandleObject(new, "RadixDeployment", getObject)
-			},
-			DeleteFunc: func(obj interface{}) {
-				controller.HandleObject(obj, "RadixDeployment", getObject)
-			},
-		})
-	*/
+	// Only the service informer works with this, because it makes use of patch
+	// if not it will end up in an endless loop (deployment, ingress etc.)
 	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			service := obj.(*corev1.Service)
@@ -105,25 +88,6 @@ func NewDeployController(client kubernetes.Interface,
 		},
 	})
 
-	/*
-		ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				ingress := obj.(*v1beta1.Ingress)
-				logger.Debugf("Ingress object added event received for %s. Do nothing", ingress.Name)
-			},
-			UpdateFunc: func(old, new interface{}) {
-				newIngress := new.(*v1beta1.Ingress)
-				oldIngress := old.(*v1beta1.Ingress)
-				if newIngress.ResourceVersion == oldIngress.ResourceVersion {
-					return
-				}
-				controller.HandleObject(new, "RadixDeployment", getObject)
-			},
-			DeleteFunc: func(obj interface{}) {
-				controller.HandleObject(obj, "RadixDeployment", getObject)
-			},
-		})
-	*/
 	return controller
 }
 
