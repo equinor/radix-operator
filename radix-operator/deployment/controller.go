@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	extinformers "k8s.io/client-go/informers/extensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -37,9 +36,7 @@ func init() {
 func NewDeployController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	deploymentInformer radixinformer.RadixDeploymentInformer,
-	kubeDeployInformer extinformers.DeploymentInformer,
 	serviceInformer coreinformers.ServiceInformer,
-	ingressInformer extinformers.IngressInformer,
 	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{

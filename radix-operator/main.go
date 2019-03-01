@@ -144,9 +144,7 @@ func startDeploymentController(
 		radixClient,
 		&handler,
 		radixInformerFactory.Radix().V1().RadixDeployments(),
-		kubeInformerFactory.Extensions().V1beta1().Deployments(),
 		kubeInformerFactory.Core().V1().Services(),
-		kubeInformerFactory.Extensions().V1beta1().Ingresses(),
 		recorder)
 
 	kubeInformerFactory.Start(stop)
