@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	extinformers "k8s.io/client-go/informers/extensions/v1beta1"
@@ -40,7 +39,7 @@ func NewDeployController(client kubernetes.Interface,
 	deploymentInformer radixinformer.RadixDeploymentInformer,
 	kubeDeployInformer extinformers.DeploymentInformer,
 	serviceInformer coreinformers.ServiceInformer,
-	secretInformer coreinformers.SecretInformer,
+	ingressInformer extinformers.IngressInformer,
 	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{
@@ -64,33 +63,34 @@ func NewDeployController(client kubernetes.Interface,
 			radixDeployment, _ := obj.(*v1.RadixDeployment)
 			key, err := cache.MetaNamespaceKeyFunc(radixDeployment)
 			if err == nil {
-				logger.Infof("Deployment object deleted event received for %s. Do nothing", key)
+				logger.Debugf("Deployment object deleted event received for %s. Do nothing", key)
 			}
 		},
 	})
 
-	kubeDeployInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			deploy := obj.(*v1beta1.Deployment)
-			logger.Infof("Deployment object added event received for %s. Do nothing", deploy.Name)
-		},
-		UpdateFunc: func(old, new interface{}) {
-			newDeploy := new.(*v1beta1.Deployment)
-			oldDeploy := old.(*v1beta1.Deployment)
-			if newDeploy.ResourceVersion == oldDeploy.ResourceVersion {
-				return
-			}
-			controller.HandleObject(new, "RadixDeployment", getObject)
-		},
-		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixDeployment", getObject)
-		},
-	})
-
+	/*
+		kubeDeployInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				deploy := obj.(*v1beta1.Deployment)
+				logger.Debugf("Deployment object added event received for %s. Do nothing", deploy.Name)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				newDeploy := new.(*v1beta1.Deployment)
+				oldDeploy := old.(*v1beta1.Deployment)
+				if newDeploy.ResourceVersion == oldDeploy.ResourceVersion {
+					return
+				}
+				controller.HandleObject(new, "RadixDeployment", getObject)
+			},
+			DeleteFunc: func(obj interface{}) {
+				controller.HandleObject(obj, "RadixDeployment", getObject)
+			},
+		})
+	*/
 	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			service := obj.(*corev1.Service)
-			logger.Infof("Service object added event received for %s. Do nothing", service.Name)
+			logger.Debugf("Service object added event received for %s. Do nothing", service.Name)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			newService := new.(*corev1.Service)
@@ -105,24 +105,25 @@ func NewDeployController(client kubernetes.Interface,
 		},
 	})
 
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			secret := obj.(*corev1.Secret)
-			logger.Infof("Service object added event received for %s. Do nothing", secret.Name)
-		},
-		UpdateFunc: func(old, new interface{}) {
-			newSecret := new.(*corev1.Secret)
-			oldSecret := old.(*corev1.Secret)
-			if newSecret.ResourceVersion == oldSecret.ResourceVersion {
-				return
-			}
-			controller.HandleObject(new, "RadixDeployment", getObject)
-		},
-		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixDeployment", getObject)
-		},
-	})
-
+	/*
+		ingressInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				ingress := obj.(*v1beta1.Ingress)
+				logger.Debugf("Ingress object added event received for %s. Do nothing", ingress.Name)
+			},
+			UpdateFunc: func(old, new interface{}) {
+				newIngress := new.(*v1beta1.Ingress)
+				oldIngress := old.(*v1beta1.Ingress)
+				if newIngress.ResourceVersion == oldIngress.ResourceVersion {
+					return
+				}
+				controller.HandleObject(new, "RadixDeployment", getObject)
+			},
+			DeleteFunc: func(obj interface{}) {
+				controller.HandleObject(obj, "RadixDeployment", getObject)
+			},
+		})
+	*/
 	return controller
 }
 

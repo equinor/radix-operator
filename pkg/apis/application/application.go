@@ -47,7 +47,7 @@ func (app Application) OnSync() error {
 		logger.Errorf("Failed to create app namespace. %v", err)
 		return err
 	} else {
-		logger.Infof("App namespace created")
+		logger.Debugf("App namespace created")
 	}
 
 	err = app.createLimitRangeOnAppNamespace(utils.GetAppNamespace(radixRegistration.Name))
@@ -55,7 +55,7 @@ func (app Application) OnSync() error {
 		logger.Errorf("Failed to create limit range on app namespace. %v", err)
 		return err
 	} else {
-		logger.Infof("Limit range on app namespace created")
+		logger.Debugf("Limit range on app namespace created")
 	}
 
 	err = app.applySecretsForPipelines() // create deploy key in app namespace
@@ -63,7 +63,7 @@ func (app Application) OnSync() error {
 		logger.Errorf("Failed to apply secrets needed by pipeline. %v", err)
 		return err
 	} else {
-		logger.Infof("Applied secrets needed by pipelines")
+		logger.Debugf("Applied secrets needed by pipelines")
 	}
 
 	pipelineServiceAccount, err := app.applyPipelineServiceAccount()
@@ -71,7 +71,7 @@ func (app Application) OnSync() error {
 		logger.Errorf("Failed to apply service account needed by pipeline. %v", err)
 		return err
 	} else {
-		logger.Infof("Applied service account needed by pipelines")
+		logger.Debugf("Applied service account needed by pipelines")
 	}
 
 	err = app.applyRbacOnPipelineRunner(pipelineServiceAccount)
@@ -79,7 +79,7 @@ func (app Application) OnSync() error {
 		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
 		return err
 	} else {
-		logger.Infof("Applied access permissions needed by pipeline")
+		logger.Debugf("Applied access permissions needed by pipeline")
 	}
 
 	err = app.applyRbacRadixRegistration()
@@ -87,7 +87,7 @@ func (app Application) OnSync() error {
 		logger.Errorf("Failed to set access on RadixRegistration: %v", err)
 		return err
 	} else {
-		logger.Infof("Applied access permissions to RadixRegistration")
+		logger.Debugf("Applied access permissions to RadixRegistration")
 	}
 
 	err = app.grantAccessToCICDLogs()
@@ -95,7 +95,7 @@ func (app Application) OnSync() error {
 		logger.Errorf("Failed to grant access to ci/cd logs: %v", err)
 		return err
 	} else {
-		logger.Infof("Applied access to ci/cd logs")
+		logger.Debugf("Applied access to ci/cd logs")
 	}
 
 	return nil

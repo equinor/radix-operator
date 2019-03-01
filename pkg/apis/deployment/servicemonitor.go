@@ -52,17 +52,17 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *monitoringv1.ServiceMonitor) error {
 	createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitor)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("ServiceMonitor object %s already exists in namespace %s, updating the object now", serviceMonitor.Name, namespace)
+		log.Debugf("ServiceMonitor object %s already exists in namespace %s, updating the object now", serviceMonitor.Name, namespace)
 		updatedServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(serviceMonitor)
 		if err != nil {
 			return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
 		}
-		log.Infof("Updated ServiceMonitor: %s in namespace %s", updatedServiceMonitor.Name, namespace)
+		log.Debugf("Updated ServiceMonitor: %s in namespace %s", updatedServiceMonitor.Name, namespace)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
 	}
-	log.Infof("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
+	log.Debugf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 	return nil
 }

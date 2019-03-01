@@ -73,7 +73,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	if err != nil {
 		return fmt.Errorf("failed to apply radix application. %v", err)
 	}
-	log.Infof("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
+	log.Debugf("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
 	return nil
 }
 

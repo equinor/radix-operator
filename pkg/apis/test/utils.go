@@ -73,7 +73,7 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (
 	}
 
 	rd := deploymentBuilder.BuildRD()
-	log.Infof("%s", rd.GetObjectMeta().GetCreationTimestamp())
+	log.Debugf("%s", rd.GetObjectMeta().GetCreationTimestamp())
 
 	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
 	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)

@@ -18,10 +18,10 @@ import (
 func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	service := getServiceConfig(deployComponent.Name, deploy.radixDeployment, deployComponent.Ports)
-	log.Infof("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
+	log.Debugf("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
 	createdService, err := deploy.kubeclient.CoreV1().Services(namespace).Create(service)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Service object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
+		log.Debugf("Service object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
 		oldService, err := deploy.kubeclient.CoreV1().Services(namespace).Get(deployComponent.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to get old Service object: %v", err)
@@ -51,13 +51,13 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
 		}
-		log.Infof("Patched Service: %s in namespace %s", patchedService.Name, namespace)
+		log.Debugf("Patched Service: %s in namespace %s", patchedService.Name, namespace)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to create Service object: %v", err)
 	}
-	log.Infof("Created Service: %s in namespace %s", createdService.Name, namespace)
+	log.Debugf("Created Service: %s in namespace %s", createdService.Name, namespace)
 	return nil
 }
 
@@ -90,7 +90,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 }
 
 func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
-	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{

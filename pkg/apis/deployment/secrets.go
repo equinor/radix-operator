@@ -21,7 +21,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 		return err
 	}
 
-	log.Infof("Apply empty secrets based on radix deployment obj")
+	log.Debugf("Apply empty secrets based on radix deployment obj")
 	for _, component := range deployment.Spec.Components {
 		if len(component.Secrets) > 0 {
 			secretName := utils.GetComponentSecretName(component.Name)
@@ -97,6 +97,6 @@ func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistra
 		return fmt.Errorf("Failed to create container registry credentials secret in %s: %v", ns, err)
 	}
 
-	log.Infof("Created container registry credentials secret: %s in namespace %s", saveDockerSecret.Name, ns)
+	log.Debugf("Created container registry credentials secret: %s in namespace %s", saveDockerSecret.Name, ns)
 	return nil
 }

@@ -88,7 +88,7 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 	}
 
 	hostname := fmt.Sprintf("%s.%s", radixDeployment.Spec.AppName, appAlias)
-	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, ingressSpec)
@@ -101,7 +101,7 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 		return nil
 	}
 	hostname := getHostName(componentName, namespace, clustername, dnsZone)
-	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)

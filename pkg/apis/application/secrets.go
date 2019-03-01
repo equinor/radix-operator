@@ -20,7 +20,7 @@ const (
 func (app Application) applySecretsForPipelines() error {
 	radixRegistration := app.registration
 
-	log.Infof("Apply secrets for pipelines")
+	log.Debugf("Apply secrets for pipelines")
 	buildNamespace := utils.GetAppNamespace(radixRegistration.Name)
 
 	err := app.applyDockerSecretToBuildNamespace(buildNamespace)

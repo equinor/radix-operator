@@ -38,7 +38,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 		commitID = commitIDVal
 	}
 
-	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, deploy.radixDeployment)
+	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
 	securityContext := getSecurityContextForContainer()
 
 	deployment := &v1beta1.Deployment{

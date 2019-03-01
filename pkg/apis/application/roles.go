@@ -28,7 +28,7 @@ func (app Application) rrRole(roleName string, verbs []string) *auth.Role {
 
 	ownerRef := app.getOwnerReferenceOfRegistrationWithName(roleName)
 
-	logger.Infof("Creating role config %s", roleName)
+	logger.Debugf("Creating role config %s", roleName)
 
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -51,7 +51,7 @@ func (app Application) rrRole(roleName string, verbs []string) *auth.Role {
 			},
 		},
 	}
-	logger.Infof("Done - creating role config %s", roleName)
+	logger.Debugf("Done - creating role config %s", roleName)
 
 	return role
 }

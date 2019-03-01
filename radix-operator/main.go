@@ -146,9 +146,10 @@ func startDeploymentController(
 		radixInformerFactory.Radix().V1().RadixDeployments(),
 		kubeInformerFactory.Extensions().V1beta1().Deployments(),
 		kubeInformerFactory.Core().V1().Services(),
-		kubeInformerFactory.Core().V1().Secrets(),
+		kubeInformerFactory.Extensions().V1beta1().Ingresses(),
 		recorder)
 
+	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
 	if err := deployController.Run(threadiness, stop); err != nil {
