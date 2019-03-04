@@ -193,6 +193,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectServiceMonitorsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

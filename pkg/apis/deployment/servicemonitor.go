@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -16,6 +17,36 @@ func (deploy *Deployment) createServiceMonitor(deployComponent v1.RadixDeployCom
 	namespace := deploy.radixDeployment.Namespace
 	serviceMonitor := getServiceMonitorConfig(deployComponent.Name, namespace, deployComponent.Ports)
 	return deploy.applyServiceMonitor(namespace, serviceMonitor)
+}
+
+func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
+	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	sms := serviceMonitors.(*monitoringv1.ServiceMonitorList)
+
+	for _, exisitingComponent := range sms.Items {
+		garbageCollect := true
+		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+
+		for _, component := range deploy.radixDeployment.Spec.Components {
+			if strings.EqualFold(component.Name, exisitingComponentName) {
+				garbageCollect = false
+				break
+			}
+		}
+
+		if garbageCollect {
+			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func getServiceMonitorConfig(componentName, namespace string, componentPorts []v1.ComponentPort) *monitoringv1.ServiceMonitor {
