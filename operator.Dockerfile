@@ -1,4 +1,4 @@
-FROM golang:alpine3.7 as builder
+FROM golang:alpine3.9 as builder
 
 RUN apk update && apk add git && apk add -y ca-certificates curl && \
     curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -10,10 +10,11 @@ COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
 WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
 
+RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
+
 ARG date
 ARG commitid
 ARG branch
-
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w -X main.operatorCommitid=${commitid} -X main.operatorBranch=${branch} -X main.operatorDate=${date}" -a -installsuffix cgo -o ./rootfs/radix-operator
 RUN adduser -D -g '' radix-operator
 
