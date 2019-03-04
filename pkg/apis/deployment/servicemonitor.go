@@ -20,6 +20,11 @@ func (deploy *Deployment) createServiceMonitor(deployComponent v1.RadixDeployCom
 }
 
 func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
+	if deploy.prometheusperatorclient == nil {
+		// For testing we need to set the client to nil, to avvoid this code from being executed, due to not having any fake
+		return nil
+	}
+
 	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
 	if err != nil {
 		return err

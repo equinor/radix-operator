@@ -33,7 +33,9 @@ func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
-	prometheusoperatorclient := &monitoring.Clientset{}
+
+	var prometheusoperatorclient monitoring.Interface
+	prometheusoperatorclient = nil
 
 	registrationHandler := registration.NewRegistrationHandler(kubeclient, radixclient)
 	applicationHandler := application.NewApplicationHandler(kubeclient, radixclient)
