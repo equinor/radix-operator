@@ -70,7 +70,7 @@ func main() {
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
 	go startRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
-	go startApplicationController(client, radixClient, radixInformerFactory, eventRecorder, stop)
+	go startApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, radixInformerFactory, eventRecorder, stop)
 
 	sigTerm := make(chan os.Signal, 1)
@@ -91,7 +91,7 @@ func startRegistrationController(
 		client,
 		radixClient)
 
-	registrationController := registration.NewController(
+	registrationController := registration.NewRegistrationController(
 		client,
 		radixClient,
 		&handler,
@@ -110,6 +110,7 @@ func startRegistrationController(
 func startApplicationController(
 	client kubernetes.Interface,
 	radixClient radixclient.Interface,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
@@ -120,8 +121,10 @@ func startApplicationController(
 		radixClient,
 		&handler,
 		radixInformerFactory.Radix().V1().RadixApplications(),
+		kubeInformerFactory.Core().V1().Namespaces(),
 		recorder)
 
+	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
 	if err := applicationController.Run(threadiness, stop); err != nil {
