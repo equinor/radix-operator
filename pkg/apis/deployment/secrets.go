@@ -60,9 +60,9 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 
 	for _, exisitingComponent := range secrets.Items {
 		garbageCollect := true
-		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+		exisitingComponentName, exists := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
-		if strings.EqualFold("", exisitingComponentName) {
+		if !exists {
 			continue
 		}
 
