@@ -26,8 +26,8 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
 }
 
-//NewController creates a new controller that handles RadixRegistrations
-func NewController(client kubernetes.Interface,
+//NewRegistrationController creates a new controller that handles RadixRegistrations
+func NewRegistrationController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	registrationInformer radixinformer.RadixRegistrationInformer,
 	namespaceInformer coreinformers.NamespaceInformer,

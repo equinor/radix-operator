@@ -38,6 +38,7 @@ ifdef IS_PROD
 	DNS_ZONE = radix.equinor.com
 endif
 
+VAULT_NAME = radix-vault-$(ENVIRONMENT)
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
@@ -118,8 +119,9 @@ endif
 		--set imageRegistry=$(DOCKER_REGISTRY) \
 		--set clusterName=$(CLUSTER_NAME) \
 		--set image.tag=$(BRANCH)-$(VERSION) \
-		-f radix-operator-values.yaml \
-	
+    	--set isPlaygroundCluster="false" \
+    	-f radix-operator-values.yaml
+
 	rm -f radix-operator-values.yaml
 
 # build and deploy radix operator

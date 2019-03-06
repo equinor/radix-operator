@@ -5,7 +5,6 @@ import (
 
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -59,31 +58,25 @@ func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder rec
 		return err
 	}
 
-	syncApplication := radixApplication.DeepCopy()
-	logger.Infof("Sync application %s", syncApplication.Name)
-	err = t.onSync(syncApplication)
-	if err != nil {
-		// Put back on queue
-		return err
-	}
-
-	eventRecorder.Event(syncApplication, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
-	return nil
-}
-
-// TODO: Move to application config domain
-func (t *RadixApplicationHandler) onSync(radixApplication *v1.RadixApplication) error {
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixApplication.Name, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", radixApplication.Name, err)
 		return err
 	}
 
+	syncApplication := radixApplication.DeepCopy()
+	logger.Infof("Sync application %s", syncApplication.Name)
 	applicationConfig, err := application.NewApplicationConfig(t.kubeclient, t.radixclient, radixRegistration, radixApplication)
 	if err != nil {
+		// Put back on queue
+		return err
+	}
+	err = applicationConfig.OnSync()
+	if err != nil {
+		// Put back on queue
 		return err
 	}
 
-	applicationConfig.OnConfigApplied()
+	eventRecorder.Event(syncApplication, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
