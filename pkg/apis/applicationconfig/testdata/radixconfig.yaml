@@ -1,7 +1,7 @@
 apiVersion: radix.equinor.com/v1
 kind: RadixApplication
 metadata:
-  name: radix-static-html
+  name: testapp
 spec:
   environments:
     - name: dev

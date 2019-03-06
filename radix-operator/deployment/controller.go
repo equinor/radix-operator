@@ -26,7 +26,10 @@ type DeployController struct {
 
 var logger *log.Entry
 
-const controllerAgentName = "deployment-controller"
+const (
+	controllerAgentName = "deployment-controller"
+	crType              = "RadixDeployments"
+)
 
 func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
@@ -44,7 +47,7 @@ func NewDeployController(client kubernetes.Interface,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    deploymentInformer.Informer(),
-		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RadixDeployments"),
+		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
 		Handler:     handler,
 		Log:         logger,
 		Recorder:    recorder,
@@ -52,7 +55,10 @@ func NewDeployController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.Enqueue,
+		AddFunc: func(new interface{}) {
+			controller.Enqueue(new)
+			controller.CustomResourceAdded(crType)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			controller.Enqueue(new)
 		},
@@ -62,6 +68,7 @@ func NewDeployController(client kubernetes.Interface,
 			if err == nil {
 				logger.Debugf("Deployment object deleted event received for %s. Do nothing", key)
 			}
+			controller.CustomResourceDeleted(crType)
 		},
 	})
 

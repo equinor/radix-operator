@@ -4,6 +4,7 @@ VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+VAULT_NAME ?= radix-vault-$(ENVIRONMENT)
 
 # If you want to escape branch-environment contraint, pass in OVERIDE_BRANCH=true
 
@@ -37,6 +38,7 @@ ifdef IS_PROD
 	DNS_ZONE = radix.equinor.com
 endif
 
+VAULT_NAME = radix-vault-$(ENVIRONMENT)
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
@@ -102,6 +104,12 @@ endif
 
 	az acr helm repo add --name $(CONTAINER_REPO)
 	helm repo update
+
+	az keyvault secret download \
+		--vault-name $(VAULT_NAME) \
+		--name radix-operator-values \
+		--file radix-operator-values.yaml
+
 	helm upgrade --install radix-operator \
 	    $(CONTAINER_REPO)/radix-operator \
 		--namespace default \
@@ -110,7 +118,11 @@ endif
 		--set prometheusName=radix-stage1 \
 		--set imageRegistry=$(DOCKER_REGISTRY) \
 		--set clusterName=$(CLUSTER_NAME) \
-		--set image.tag=$(BRANCH)-$(VERSION)
+		--set image.tag=$(BRANCH)-$(VERSION) \
+    	--set isPlaygroundCluster="false" \
+    	-f radix-operator-values.yaml
+
+	rm -f radix-operator-values.yaml
 
 # build and deploy radix operator
 helm-up:

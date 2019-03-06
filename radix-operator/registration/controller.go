@@ -17,14 +17,17 @@ import (
 
 var logger *log.Entry
 
-const controllerAgentName = "registration-controller"
+const (
+	controllerAgentName = "registration-controller"
+	crType              = "RadixRegistrations"
+)
 
 func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
 }
 
-//NewController creates a new controller that handles RadixRegistrations
-func NewController(client kubernetes.Interface,
+//NewRegistrationController creates a new controller that handles RadixRegistrations
+func NewRegistrationController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	registrationInformer radixinformer.RadixRegistrationInformer,
 	namespaceInformer coreinformers.NamespaceInformer,
@@ -35,7 +38,7 @@ func NewController(client kubernetes.Interface,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    registrationInformer.Informer(),
-		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RadixRegistrations"),
+		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
 		Handler:     handler,
 		Log:         logger,
 		Recorder:    recorder,
@@ -44,7 +47,10 @@ func NewController(client kubernetes.Interface,
 	logger.Info("Setting up event handlers")
 
 	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.Enqueue,
+		AddFunc: func(new interface{}) {
+			controller.Enqueue(new)
+			controller.CustomResourceAdded(crType)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			controller.Enqueue(new)
 		},
@@ -54,6 +60,7 @@ func NewController(client kubernetes.Interface,
 			if err == nil {
 				logger.Debugf("Registration object deleted event received for %s. Do nothing", key)
 			}
+			controller.CustomResourceDeleted(crType)
 		},
 	})
 
