@@ -58,7 +58,7 @@ func NewRegistrationController(client kubernetes.Interface,
 			radixRegistration, _ := obj.(*v1.RadixRegistration)
 			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
 			if err == nil {
-				logger.Infof("Registration object deleted event received for %s. Do nothing", key)
+				logger.Debugf("Registration object deleted event received for %s. Do nothing", key)
 			}
 			controller.CustomResourceDeleted(crType)
 		},
@@ -67,7 +67,7 @@ func NewRegistrationController(client kubernetes.Interface,
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ns := obj.(*corev1.Namespace)
-			logger.Infof("Namespace object added event received for %s. Do nothing", ns.Name)
+			logger.Debugf("Namespace object added event received for %s. Do nothing", ns.Name)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			newNs := new.(*corev1.Namespace)

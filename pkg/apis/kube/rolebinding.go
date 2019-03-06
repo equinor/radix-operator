@@ -26,12 +26,12 @@ func GetRoleBindingGroups(groups []string) []auth.Subject {
 func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
 	logger = logger.WithFields(log.Fields{"roleBinding": rolebinding.ObjectMeta.Name})
 
-	logger.Infof("Apply rolebinding %s", rolebinding.Name)
+	logger.Debugf("Apply rolebinding %s", rolebinding.Name)
 
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
 		_, err = k.kubeClient.RbacV1().RoleBindings(namespace).Update(rolebinding)
-		logger.Infof("Rolebinding %s already exists. Updating", rolebinding.Name)
+		logger.Debugf("Rolebinding %s already exists. Updating", rolebinding.Name)
 	}
 
 	if err != nil {
@@ -39,18 +39,18 @@ func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding)
 		return err
 	}
 
-	logger.Infof("Created roleBinding %s in %s", rolebinding.Name, namespace)
+	logger.Debugf("Created roleBinding %s in %s", rolebinding.Name, namespace)
 	return nil
 }
 
 func (k *Kube) ApplyClusterRoleBinding(rolebinding *auth.ClusterRoleBinding) error {
 	logger = logger.WithFields(log.Fields{"clusterRoleBinding": rolebinding.ObjectMeta.Name})
 
-	logger.Infof("Apply clusterrolebinding %s", rolebinding.Name)
+	logger.Debugf("Apply clusterrolebinding %s", rolebinding.Name)
 
 	_, err := k.kubeClient.RbacV1().ClusterRoleBindings().Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
-		logger.Infof("ClusterRolebinding %s already exists", rolebinding.Name)
+		logger.Debugf("ClusterRolebinding %s already exists", rolebinding.Name)
 		return nil
 	}
 
@@ -59,7 +59,7 @@ func (k *Kube) ApplyClusterRoleBinding(rolebinding *auth.ClusterRoleBinding) err
 		return err
 	}
 
-	logger.Infof("Created clusterRoleBinding %s", rolebinding.Name)
+	logger.Debugf("Created clusterRoleBinding %s", rolebinding.Name)
 	return nil
 }
 

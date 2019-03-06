@@ -23,11 +23,11 @@ func (k *Kube) SecretExists(namespace, secretName string) bool {
 
 func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
 	secretName := secret.ObjectMeta.Name
-	log.Infof("Applies secret %s in namespace %s", secretName, namespace)
+	log.Debugf("Applies secret %s in namespace %s", secretName, namespace)
 
 	savedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Create(secret)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Updating secret %s that already exists in namespace %s.", secretName, namespace)
+		log.Debugf("Updating secret %s that already exists in namespace %s.", secretName, namespace)
 		savedSecret, err = k.kubeClient.CoreV1().Secrets(namespace).Update(secret)
 	}
 
@@ -35,6 +35,6 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 		log.Errorf("Failed to apply secret %s in namespace %s. %v", secretName, namespace, err)
 		return nil, err
 	}
-	log.Infof("Applied secret %s in namespace %s", secretName, namespace)
+	log.Debugf("Applied secret %s in namespace %s", secretName, namespace)
 	return savedSecret, nil
 }

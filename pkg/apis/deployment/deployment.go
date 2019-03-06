@@ -87,26 +87,26 @@ func (deploy *Deployment) Apply() error {
 	return nil
 }
 
-// IsLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
-func (deploy *Deployment) IsLatestInTheEnvironment() (bool, error) {
-	all, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+// OnSync compares the actual state with the desired, and attempts to
+// converge the two
+func (deploy *Deployment) OnSync() error {
+	isLatest, err := deploy.isLatestInTheEnvironment()
 	if err != nil {
-		return false, err
+		return fmt.Errorf("Failed to check if RadixDeployment was latest. Error was %v", err)
 	}
 
-	for _, rd := range all.Items {
-		if rd.GetName() != deploy.radixDeployment.GetName() &&
-			rd.CreationTimestamp.Time.After(deploy.radixDeployment.CreationTimestamp.Time) {
-			return false, nil
-		}
+	if !isLatest {
+		// Should not be put back on queue
+		log.Error(fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", deploy.radixDeployment.GetName()))
+		return nil
 	}
 
-	return true, nil
-}
+	err = deploy.garbageCollectComponentsNoLongerInSpec()
+	if err != nil {
+		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
+	}
 
-// OnDeploy Process Radix deplyment
-func (deploy *Deployment) OnDeploy() error {
-	err := deploy.createSecrets(deploy.registration, deploy.radixDeployment)
+	err = deploy.createSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)
@@ -130,7 +130,14 @@ func (deploy *Deployment) OnDeploy() error {
 				log.Infof("Failed to create ingress: %v", err)
 				return fmt.Errorf("Failed to create ingress: %v", err)
 			}
+		} else {
+			err = deploy.garbageCollectIngressNoLongerInSpecForComponent(v)
+			if err != nil {
+				log.Infof("Failed to delete ingress: %v", err)
+				return fmt.Errorf("Failed to delete ingress: %v", err)
+			}
 		}
+
 		if v.Monitoring {
 			err = deploy.createServiceMonitor(v)
 			if err != nil {
@@ -138,6 +145,57 @@ func (deploy *Deployment) OnDeploy() error {
 				return fmt.Errorf("Failed to create service monitor: %v", err)
 			}
 		}
+	}
+
+	return nil
+}
+
+// isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
+func (deploy *Deployment) isLatestInTheEnvironment() (bool, error) {
+	all, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	for _, rd := range all.Items {
+		if rd.GetName() != deploy.radixDeployment.GetName() &&
+			rd.CreationTimestamp.Time.After(deploy.radixDeployment.CreationTimestamp.Time) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
+	err := deploy.garbageCollectDeploymentsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectServicesNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectIngressesNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectSecretsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectRoleBindingsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectServiceMonitorsNoLongerInSpec()
+	if err != nil {
+		return err
 	}
 
 	return nil

@@ -33,7 +33,9 @@ func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
-	prometheusoperatorclient := &monitoring.Clientset{}
+
+	var prometheusoperatorclient monitoring.Interface
+	prometheusoperatorclient = nil
 
 	registrationHandler := registration.NewRegistrationHandler(kubeclient, radixclient)
 	applicationHandler := application.NewApplicationHandler(kubeclient, radixclient)
@@ -50,7 +52,7 @@ func parseQuantity(value string) resource.Quantity {
 	return q
 }
 
-func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
+func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
@@ -64,7 +66,6 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("app").
 				WithPort("http", 8080).
 				WithPublic(true).
-				WithDNSAppAlias(true).
 				WithDNSAppAlias(true).
 				WithResource(map[string]string{
 					"memory": "64Mi",
@@ -182,7 +183,7 @@ func TestObjectCreated_MultiComponent_ContainsAllElements(t *testing.T) {
 	})
 }
 
-func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
+func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	// Setup
 	handlerTestUtils, kubeclient, _ := setupTest()
 
@@ -215,7 +216,7 @@ func TestObjectCreated_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	})
 }
 
-func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
+func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
 	// Setup
 	handlerTestUtils, kubeclient, _ := setupTest()
 
@@ -246,7 +247,7 @@ func TestObjectCreated_MultiComponentWithSameName_ContainsOneComponent(t *testin
 	assert.Equal(t, 1, len(ingresses.Items), "Number of ingresses was not according to public components")
 }
 
-func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
+func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	handlerTestUtils, kubeclient, _ := setupTest()
 	anyEnvironment := "test"
@@ -287,7 +288,7 @@ func TestObjectCreated_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.
 	})
 }
 
-func TestObjectCreated_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
+func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	// Setup
 	handlerTestUtils, kubeclient, _ := setupTest()
 
@@ -326,11 +327,22 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
 		WithCreated(now).
-		WithUID(firstUID))
+		WithUID(firstUID).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true)))
 
 	envNamespace := utils.GetEnvironmentNamespace("app1", "prod")
 	deployments, _ := kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, firstUID, deployments.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
+
+	services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, firstUID, services.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
+
+	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
 	// This is one second newer deployment
 	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -338,10 +350,21 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithEnvironment("prod").
 		WithImageTag("seconddeployment").
 		WithCreated(now.Add(time.Second * time.Duration(1))).
-		WithUID(secondUID))
+		WithUID(secondUID).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true)))
 
 	deployments, _ = kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
+
+	services, _ = kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
+
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
 	// Re-apply the first deployment. This should be ignored and cause an error as it is not the latest
 	rdBuilder := utils.ARadixDeployment().
@@ -350,11 +373,23 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 		WithEnvironment("prod").
 		WithImageTag("firstdeployment").
 		WithCreated(now).
-		WithUID(firstUID)
+		WithUID(firstUID).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublic(true))
+
 	handlerTestUtils.ApplyDeploymentUpdate(rdBuilder)
 
 	deployments, _ = kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
+
+	services, _ = kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
+
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 }
 
 func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
@@ -389,10 +424,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 }
 
-func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
-	// Remove this command when looking at:
-	// OR-793 - Operator does not handle change of the number of components
-	t.SkipNow()
+func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	anyAppName := "anyappname"
@@ -449,7 +481,6 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 		t.Parallel()
 		services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(services.Items), "Number of services wasn't as expected")
-		assert.Equal(t, componentTwoName, services.Items[1].Name, "component 2 service not there")
 	})
 
 	t.Run("validate ingress", func(t *testing.T) {
@@ -461,7 +492,8 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
@@ -473,6 +505,73 @@ func TestObjectCreated_MultiComponentToOneComponent_HandlesChange(t *testing.T) 
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 	})
+}
+
+func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
+	handlerTestUtils, kubeclient, _ := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentOneName := "componentOneName"
+	componentTwoName := "componentTwoName"
+
+	// Test
+	_, err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublic(true),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublic(true)))
+
+	assert.NoError(t, err)
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
+	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(ingresses.Items), "Both components should be public")
+
+	// Remove public on component 2
+	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublic(true),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublic(false)))
+
+	assert.NoError(t, err)
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "Only component 1 should be public")
+
+	// Remove public on component 1
+	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublic(false),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublic(false)))
+
+	assert.NoError(t, err)
+
+	ingresses, _ = kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
+
 }

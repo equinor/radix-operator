@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"strings"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -22,6 +24,38 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 	return deploy.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
+func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
+	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, exisitingComponent := range roleBindings.Items {
+		garbageCollect := true
+		exisitingComponentName, exists := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+
+		if !exists {
+			continue
+		}
+
+		for _, component := range deploy.radixDeployment.Spec.Components {
+			if strings.EqualFold(component.Name, exisitingComponentName) {
+				garbageCollect = false
+				break
+			}
+		}
+
+		if garbageCollect {
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
 	roleName := role.ObjectMeta.Name
@@ -32,11 +66,8 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				"radixApp":         registration.Name, // For backwards compatibility. Remove when cluster is migrated
-				kube.RadixAppLabel: registration.Name,
-			},
+			Name:   roleName,
+			Labels: role.Labels,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",

@@ -3,6 +3,7 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,17 +18,19 @@ import (
 func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	service := getServiceConfig(deployComponent.Name, deploy.radixDeployment, deployComponent.Ports)
-	log.Infof("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
+	log.Debugf("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
 	createdService, err := deploy.kubeclient.CoreV1().Services(namespace).Create(service)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Service object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
+		log.Debugf("Service object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
 		oldService, err := deploy.kubeclient.CoreV1().Services(namespace).Get(deployComponent.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to get old Service object: %v", err)
 		}
 		newService := oldService.DeepCopy()
 		ports := buildServicePorts(deployComponent.Ports)
+
 		newService.Spec.Ports = ports
+		newService.ObjectMeta.OwnerReferences = service.ObjectMeta.OwnerReferences
 
 		oldServiceJSON, err := json.Marshal(oldService)
 		if err != nil {
@@ -48,18 +51,46 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
 		}
-		log.Infof("Patched Service: %s in namespace %s", patchedService.Name, namespace)
+		log.Debugf("Patched Service: %s in namespace %s", patchedService.Name, namespace)
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to create Service object: %v", err)
 	}
-	log.Infof("Created Service: %s in namespace %s", createdService.Name, namespace)
+	log.Debugf("Created Service: %s in namespace %s", createdService.Name, namespace)
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
+	services, err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, exisitingComponent := range services.Items {
+		garbageCollect := true
+		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+
+		for _, component := range deploy.radixDeployment.Spec.Components {
+			if strings.EqualFold(component.Name, exisitingComponentName) {
+				garbageCollect = false
+				break
+			}
+		}
+
+		if garbageCollect {
+			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
 func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
-	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{

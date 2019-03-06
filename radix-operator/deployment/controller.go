@@ -6,6 +6,9 @@ import (
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -36,6 +39,7 @@ func init() {
 func NewDeployController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	deploymentInformer radixinformer.RadixDeploymentInformer,
+	serviceInformer coreinformers.ServiceInformer,
 	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{
@@ -62,11 +66,35 @@ func NewDeployController(client kubernetes.Interface,
 			radixDeployment, _ := obj.(*v1.RadixDeployment)
 			key, err := cache.MetaNamespaceKeyFunc(radixDeployment)
 			if err == nil {
-				logger.Infof("Deployment object deleted event received for %s. Do nothing", key)
+				logger.Debugf("Deployment object deleted event received for %s. Do nothing", key)
 			}
 			controller.CustomResourceDeleted(crType)
 		},
 	})
 
+	// Only the service informer works with this, because it makes use of patch
+	// if not it will end up in an endless loop (deployment, ingress etc.)
+	serviceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			service := obj.(*corev1.Service)
+			logger.Debugf("Service object added event received for %s. Do nothing", service.Name)
+		},
+		UpdateFunc: func(old, new interface{}) {
+			newService := new.(*corev1.Service)
+			oldService := old.(*corev1.Service)
+			if newService.ResourceVersion == oldService.ResourceVersion {
+				return
+			}
+			controller.HandleObject(new, "RadixDeployment", getObject)
+		},
+		DeleteFunc: func(obj interface{}) {
+			controller.HandleObject(obj, "RadixDeployment", getObject)
+		},
+	})
+
 	return controller
+}
+
+func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 }

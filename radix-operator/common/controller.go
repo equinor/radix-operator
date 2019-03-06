@@ -67,7 +67,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer c.WorkQueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
-	c.Log.Infof("Starting %s", c.Name)
+	c.Log.Debugf("Starting %s", c.Name)
 
 	// Wait for the caches to be synced before starting workers
 	c.Log.Info("Waiting for informer caches to sync")

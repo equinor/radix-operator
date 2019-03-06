@@ -17,7 +17,7 @@ func (kube *Kube) ApplyServiceAccount(serviceAccountName, namespace string) (*co
 
 	sa, err := kube.kubeClient.CoreV1().ServiceAccounts(namespace).Create(&serviceAccount)
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Pipeline service account already exist")
+		log.Debugf("Pipeline service account already exist")
 		sa, err = kube.kubeClient.CoreV1().ServiceAccounts(namespace).Get(serviceAccount.ObjectMeta.Name, metav1.GetOptions{})
 		return sa, nil
 	}

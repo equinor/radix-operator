@@ -8,7 +8,7 @@ import (
 )
 
 func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
-	log.Infof("Create namespace: %s", name)
+	log.Debugf("Create namespace: %s", name)
 
 	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -20,7 +20,7 @@ func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRef
 	_, err := kube.kubeClient.CoreV1().Namespaces().Create(&namespace)
 
 	if errors.IsAlreadyExists(err) {
-		log.Infof("Namespace already exist %s", name)
+		log.Debugf("Namespace already exist %s", name)
 		return nil
 	}
 

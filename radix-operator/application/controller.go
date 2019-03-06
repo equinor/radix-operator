@@ -67,7 +67,7 @@ func NewApplicationController(client kubernetes.Interface,
 			radixApplication, _ := obj.(*v1.RadixApplication)
 			key, err := cache.MetaNamespaceKeyFunc(radixApplication)
 			if err == nil {
-				logger.Infof("Application object deleted event received for %s. Do nothing", key)
+				logger.Debugf("Application object deleted event received for %s. Do nothing", key)
 			}
 			controller.CustomResourceDeleted(crType)
 		},

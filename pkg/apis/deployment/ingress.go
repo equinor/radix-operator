@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -33,6 +34,52 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 	return deploy.kubeutil.ApplyIngress(namespace, ingress)
 }
 
+func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
+	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, exisitingComponent := range ingresses.Items {
+		garbageCollect := true
+		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+
+		for _, component := range deploy.radixDeployment.Spec.Components {
+			if strings.EqualFold(component.Name, exisitingComponentName) {
+				garbageCollect = false
+				break
+			}
+		}
+
+		if garbageCollect {
+			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
+	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(ingresses.Items) > 0 {
+		err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(component.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
 	tlsSecretName := "app-wildcard-tls-cert"
 	appAlias := os.Getenv(OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
@@ -41,7 +88,7 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 	}
 
 	hostname := fmt.Sprintf("%s.%s", radixDeployment.Spec.AppName, appAlias)
-	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, ingressSpec)
@@ -54,7 +101,7 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 		return nil
 	}
 	hostname := getHostName(componentName, namespace, clustername, dnsZone)
-	ownerReference := getOwnerReferenceOfDeploymentWithName(componentName, radixDeployment)
+	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
 	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)
