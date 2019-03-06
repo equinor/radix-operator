@@ -1,0 +1,35 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app: radix-operator
+  name: radix-operator
+  namespace: default
+spec:
+  endpoints:
+  - honorLabels: true
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - default
+  selector:
+    matchLabels:
+      app: radix-operator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: radix-operator
+    operater-radix: "true"
+  name: radix-operator
+  namespace: default
+spec:
+  ports:
+  - name: metrics
+    port: 9000
+    protocol: TCP
+    targetPort: metrics
+  selector:
+    app: radix-operator
+  type: ClusterIP

@@ -4,6 +4,7 @@ VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+VAULT_NAME ?= radix-vault-$(ENVIRONMENT)
 
 # If you want to escape branch-environment contraint, pass in OVERIDE_BRANCH=true
 

@@ -27,7 +27,10 @@ type ApplicationController struct {
 
 var logger *log.Entry
 
-const controllerAgentName = "application-controller"
+const (
+	controllerAgentName = "application-controller"
+	crType              = "RadixApplications"
+)
 
 func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
@@ -45,7 +48,7 @@ func NewApplicationController(client kubernetes.Interface,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    applicationInformer.Informer(),
-		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "RadixApplications"),
+		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
 		Handler:     handler,
 		Log:         logger,
 		Recorder:    recorder,
@@ -53,7 +56,10 @@ func NewApplicationController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.Enqueue,
+		AddFunc: func(new interface{}) {
+			controller.Enqueue(new)
+			controller.CustomResourceAdded(crType)
+		},
 		UpdateFunc: func(old, new interface{}) {
 			controller.Enqueue(new)
 		},
@@ -63,6 +69,7 @@ func NewApplicationController(client kubernetes.Interface,
 			if err == nil {
 				logger.Infof("Application object deleted event received for %s. Do nothing", key)
 			}
+			controller.CustomResourceDeleted(crType)
 		},
 	})
 
