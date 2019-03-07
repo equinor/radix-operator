@@ -5,10 +5,9 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	registration "github.com/equinor/radix-operator/radix-operator/registration"
-	"github.com/equinor/radix-operator/radix-operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kube "k8s.io/client-go/kubernetes"
@@ -23,10 +22,7 @@ func setupTest() (*test.Utils, kube.Interface) {
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
-	registrationHandler := registration.NewRegistrationHandler(kubeclient, radixclient)
-	applicationHandler := NewApplicationHandler(kubeclient, radixclient)
-
-	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &applicationHandler, nil)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 	return &handlerTestUtils, kubeclient
 }
@@ -34,7 +30,7 @@ func setupTest() (*test.Utils, kube.Interface) {
 func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimits(t *testing.T) {
 	handlerTestUtils, kubeclient := setupTest()
 
-	handlerTestUtils.ApplyApplication(utils.ARadixApplication().
+	handlerTestUtils.ApplyApplicationWithSync(utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", ""))
@@ -76,7 +72,7 @@ func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimit
 	os.Setenv(applicationconfig.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
 	os.Setenv(applicationconfig.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
 
-	handlerTestUtils.ApplyApplication(utils.ARadixApplication().
+	handlerTestUtils.ApplyApplicationWithSync(utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", ""))

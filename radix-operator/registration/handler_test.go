@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/radix-operator/test"
 
 	log "github.com/sirupsen/logrus"
 
@@ -39,7 +39,7 @@ func setupTest() (RadixRegistrationHandler, kube.Interface, radixclient.Interfac
 
 	registrationHandler := NewRegistrationHandler(kubeclient, radixclient)
 
-	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, nil, nil)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 
 	return registrationHandler, kubeclient, radixclient

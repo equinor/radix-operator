@@ -7,14 +7,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-operator/radix-operator/application"
-	registration "github.com/equinor/radix-operator/radix-operator/registration"
-	"github.com/equinor/radix-operator/radix-operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,15 +31,7 @@ func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
-	var prometheusoperatorclient monitoring.Interface
-	prometheusoperatorclient = nil
-
-	registrationHandler := registration.NewRegistrationHandler(kubeclient, radixclient)
-	applicationHandler := application.NewApplicationHandler(kubeclient, radixclient)
-
-	deploymentHandler := NewDeployHandler(kubeclient, radixclient, prometheusoperatorclient)
-
-	handlerTestUtils := test.NewHandlerTestUtils(kubeclient, radixclient, &registrationHandler, &applicationHandler, &deploymentHandler)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 	return &handlerTestUtils, kubeclient, radixclient
 }
@@ -56,7 +45,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
-	_, err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err := handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName("edcradix").
 		WithImageTag("axmz8").
 		WithEnvironment("test").
@@ -195,7 +184,7 @@ func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 
 	// Test
 	t.Run("app use default SA", func(t *testing.T) {
-		handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
@@ -204,7 +193,7 @@ func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	})
 
 	t.Run("webhook runs custom SA", func(t *testing.T) {
-		handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 			WithAppName("radix-github-webhook").
 			WithEnvironment("test"))
 
@@ -213,7 +202,7 @@ func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 	})
 
 	t.Run("radix-api runs custom SA", func(t *testing.T) {
-		handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+		handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 			WithAppName("radix-api").
 			WithEnvironment("test"))
 
@@ -227,7 +216,7 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
-	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
 		WithComponents(
@@ -259,7 +248,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	anyEnvironment := "test"
 
 	// Test
-	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment(anyEnvironment).
 		WithComponents(
@@ -299,7 +288,7 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
-	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment("test").
 		WithLabel("radix-branch", "master").
@@ -327,7 +316,7 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	firstUID = "fda3d224-3115-11e9-b189-06c15a8f2fbb"
 	secondUID = "5a8f2fbb-3115-11e9-b189-06c1fda3d224"
 
-	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("app1").
 		WithEnvironment("prod").
@@ -351,7 +340,7 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
 	// This is one second newer deployment
-	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName("app1").
 		WithEnvironment("prod").
 		WithImageTag("seconddeployment").
@@ -386,7 +375,7 @@ func TestObjectUpdated_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublic(true))
 
-	handlerTestUtils.ApplyDeploymentUpdate(rdBuilder)
+	handlerTestUtils.ApplyDeploymentUpdateWithSync(rdBuilder)
 
 	deployments, _ = kubeclient.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
@@ -402,7 +391,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	handlerTestUtils, kubeclient, _ := setupTest()
 
 	// Test
-	handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
@@ -416,7 +405,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	ingresses, _ := kubeclient.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
-	handlerTestUtils.ApplyDeploymentUpdate(utils.ARadixDeployment().
+	handlerTestUtils.ApplyDeploymentUpdateWithSync(utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp1").
 		WithEnvironment("test").
@@ -440,7 +429,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	componentThreeName := "componentThreeName"
 
 	// Test
-	_, err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err := handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
@@ -464,7 +453,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Remove components
-	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err = handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
@@ -525,7 +514,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 	componentTwoName := "componentTwoName"
 
 	// Test
-	_, err := handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err := handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
@@ -544,7 +533,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 	assert.Equal(t, 2, len(ingresses.Items), "Both components should be public")
 
 	// Remove public on component 2
-	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err = handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
@@ -562,7 +551,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 	assert.Equal(t, 1, len(ingresses.Items), "Only component 1 should be public")
 
 	// Remove public on component 1
-	_, err = handlerTestUtils.ApplyDeployment(utils.ARadixDeployment().
+	_, err = handlerTestUtils.ApplyDeploymentWithSync(utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
