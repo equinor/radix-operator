@@ -17,6 +17,7 @@ const (
 	RadixBranchLabel    = "radix-branch"
 	RadixJobTypeLabel   = "radix-job-type"
 	RadixJobTypeBuild   = "build"
+	RadixAppAliasLabel  = "radix-app-alias"
 )
 
 type Kube struct {

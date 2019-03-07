@@ -153,10 +153,16 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, 3, len(ingresses.Items), "Number of ingresses was not according to public components")
 		assert.Equal(t, "edcradix-url-alias", ingresses.Items[0].GetName(), "App should have had an app alias ingress")
 		assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "true", ingresses.Items[0].Labels["radix-app-alias"], "Ingress should be an app alias")
+		assert.Equal(t, "app", ingresses.Items[0].Labels["radix-component"], "Ingress should have the corresponding component")
 		assert.Equal(t, "app", ingresses.Items[1].GetName(), "App should have had an ingress")
 		assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "false", ingresses.Items[1].Labels["radix-app-alias"], "Ingress should not be an app alias")
+		assert.Equal(t, "app", ingresses.Items[1].Labels["radix-component"], "Ingress should have the corresponding component")
 		assert.Equal(t, "radixquote", ingresses.Items[2].GetName(), "Radixquote should have had an ingress")
 		assert.Equal(t, int32(3000), ingresses.Items[2].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "false", ingresses.Items[2].Labels["radix-app-alias"], "Ingress should not be an app alias")
+		assert.Equal(t, "radixquote", ingresses.Items[2].Labels["radix-component"], "Ingress should have the corresponding component")
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {

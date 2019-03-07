@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -91,7 +92,7 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
-	return getIngressConfig(radixDeployment, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, ingressSpec)
+	return getIngressConfig(radixDeployment, componentName, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, true, ingressSpec)
 }
 
 func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
@@ -104,7 +105,7 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
 
-	return getIngressConfig(radixDeployment, componentName, ownerReference, ingressSpec)
+	return getIngressConfig(radixDeployment, componentName, componentName, ownerReference, false, ingressSpec)
 }
 
 func getHostName(componentName, namespace, clustername, dnsZone string) string {
@@ -112,7 +113,7 @@ func getHostName(componentName, namespace, clustername, dnsZone string) string {
 	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
 
-func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, ownerReference []metav1.OwnerReference, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
+func getIngressConfig(radixDeployment *v1.RadixDeployment, componentName, ingressName string, ownerReference []metav1.OwnerReference, isAlias bool, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ingressName,
@@ -121,8 +122,10 @@ func getIngressConfig(radixDeployment *v1.RadixDeployment, ingressName string, o
 				"ingress.kubernetes.io/force-ssl-redirect": "true",
 			},
 			Labels: map[string]string{
-				"radixApp":         radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
-				kube.RadixAppLabel: radixDeployment.Spec.AppName,
+				"radixApp":               radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixAppAliasLabel:  strconv.FormatBool(isAlias),
 			},
 			OwnerReferences: ownerReference,
 		},
