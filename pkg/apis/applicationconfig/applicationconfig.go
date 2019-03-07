@@ -2,6 +2,7 @@ package applicationconfig
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
@@ -62,19 +63,36 @@ func (app *ApplicationConfig) IsBranchMappedToEnvironment(branch string) (bool, 
 // ApplyConfigToApplicationNamespace Will apply the config to app namespace so that the operator can act on it
 func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
-	_, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Create(app.config)
-	if errors.IsAlreadyExists(err) {
-		err = app.radixclient.RadixV1().RadixApplications(appNamespace).Delete(app.config.Name, &metav1.DeleteOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to delete radix application. %v", err)
-		}
 
-		_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(app.config)
-	}
+	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(app.config.Name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to apply radix application. %v", err)
+		if errors.IsNotFound(err) {
+			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
+			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(app.config)
+			if err != nil {
+				return fmt.Errorf("failed to create radix application. %v", err)
+			}
+			log.Infof("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
+			return nil
+		}
+		return fmt.Errorf("failed to get radix application. %v", err)
 	}
-	log.Debugf("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
+
+	// Update RA if different
+	log.Infof("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
+	if !reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
+		log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
+		// For an update, ResourceVersion of the new object must be the same with the old object
+		app.config.SetResourceVersion(existingRA.GetResourceVersion())
+		_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(app.config)
+		if err != nil {
+			return fmt.Errorf("failed to update existing radix application. %v", err)
+		}
+		log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
+	} else {
+		log.Infof("RadixApplication %s exists in namespace %s and no change", app.config.Name, appNamespace)
+	}
+
 	return nil
 }
 
