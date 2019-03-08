@@ -25,16 +25,19 @@ const (
 type RadixRegistrationHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
+	SynchedOk   chan bool
 }
 
 //NewRegistrationHandler creates a handler which deals with RadixRegistration resources
 func NewRegistrationHandler(
 	kubeclient kubernetes.Interface,
-	radixclient radixclient.Interface) RadixRegistrationHandler {
+	radixclient radixclient.Interface,
+	synchedOk chan bool) RadixRegistrationHandler {
 
 	handler := RadixRegistrationHandler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
+		SynchedOk:   synchedOk,
 	}
 
 	return handler
@@ -51,6 +54,10 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 			return nil
 		}
 
+		if t.SynchedOk != nil {
+			t.SynchedOk <- false
+		}
+
 		return err
 	}
 
@@ -59,8 +66,12 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 	application, _ := application.NewApplication(t.kubeclient, t.radixclient, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
-		// Put back on queue
+		// Put back on queue.
 		return err
+	}
+
+	if t.SynchedOk != nil {
+		t.SynchedOk <- true
 	}
 
 	eventRecorder.Event(syncRegistration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
