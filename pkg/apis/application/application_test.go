@@ -29,6 +29,33 @@ func setupTest() (test.Utils, kubernetes.Interface, radixclient.Interface) {
 	return handlerTestUtils, client, radixClient
 }
 
+func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.T) {
+	// Setup
+	tu, client, radixClient := setupTest()
+
+	// Test
+	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
+		WithName("any-app"))
+
+	ns, err := client.CoreV1().Namespaces().Get(utils.GetAppNamespace("any-app"), metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, ns)
+
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(rolebindings.Items))
+	assert.Equal(t, "radix-pipeline", rolebindings.Items[0].Name)
+	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
+
+	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(secrets.Items))
+	assert.Equal(t, "radix-docker", secrets.Items[0].Name)
+	assert.Equal(t, "git-ssh-keys", secrets.Items[1].Name)
+
+	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(serviceAccounts.Items))
+	assert.Equal(t, "radix-pipeline", serviceAccounts.Items[0].Name)
+}
+
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
 	tu, client, radixClient := setupTest()
@@ -40,10 +67,6 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Test
 	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
 		WithName("any-app"))
-
-	ns, err := client.CoreV1().Namespaces().Get(utils.GetAppNamespace("any-app"), metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, ns)
 
 	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
@@ -62,9 +85,6 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	// Test
 	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
 		WithName("any-app"))
-
-	ns, _ := client.CoreV1().Namespaces().Get(utils.GetAppNamespace("any-app"), metav1.GetOptions{})
-	assert.NotNil(t, ns)
 
 	limitRanges, _ := client.CoreV1().LimitRanges(utils.GetAppNamespace("any-app")).List(metav1.ListOptions{})
 	assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
