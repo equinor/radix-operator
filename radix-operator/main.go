@@ -116,7 +116,8 @@ func startApplicationController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
-	handler := application.NewApplicationHandler(client, radixClient)
+	handler := application.NewApplicationHandler(client, radixClient,
+		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 	applicationController := application.NewApplicationController(
 		client,
 		radixClient,

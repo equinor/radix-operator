@@ -56,7 +56,6 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 			return nil
 		}
 
-		t.hasSynced(false)
 		return err
 	}
 

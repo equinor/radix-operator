@@ -6,6 +6,7 @@ import (
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,16 +30,21 @@ type RadixApplicationHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
+	hasSynced   common.HasSynced
 }
 
 // NewApplicationHandler Constructor
-func NewApplicationHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) RadixApplicationHandler {
+func NewApplicationHandler(
+	kubeclient kubernetes.Interface,
+	radixclient radixclient.Interface,
+	hasSynced common.HasSynced) RadixApplicationHandler {
 	kube, _ := kube.New(kubeclient)
 
 	handler := RadixApplicationHandler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kube,
+		hasSynced:   hasSynced,
 	}
 
 	return handler
@@ -77,6 +83,7 @@ func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder rec
 		return err
 	}
 
+	t.hasSynced(true)
 	eventRecorder.Event(syncApplication, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }

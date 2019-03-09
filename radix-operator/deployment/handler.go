@@ -62,7 +62,6 @@ func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.E
 			return nil
 		}
 
-		t.hasSynced(false)
 		return err
 	}
 
