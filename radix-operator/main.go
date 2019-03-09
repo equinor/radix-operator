@@ -90,7 +90,7 @@ func startRegistrationController(
 	handler := registration.NewRegistrationHandler(
 		client,
 		radixClient,
-		nil) // Not interested in getting notifications of synced
+		func(syncedOk bool) {}) // Not interested in getting notifications of synced
 
 	registrationController := registration.NewRegistrationController(
 		client,

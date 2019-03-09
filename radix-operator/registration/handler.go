@@ -3,6 +3,8 @@ package registration
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/radix-operator/common"
+
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -25,19 +27,19 @@ const (
 type RadixRegistrationHandler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
-	SynchedOk   chan bool
+	hasSynced   common.HasSynced
 }
 
 //NewRegistrationHandler creates a handler which deals with RadixRegistration resources
 func NewRegistrationHandler(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
-	synchedOk chan bool) RadixRegistrationHandler {
+	hasSynced common.HasSynced) RadixRegistrationHandler {
 
 	handler := RadixRegistrationHandler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
-		SynchedOk:   synchedOk,
+		hasSynced:   hasSynced,
 	}
 
 	return handler
@@ -54,10 +56,7 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 			return nil
 		}
 
-		if t.SynchedOk != nil {
-			t.SynchedOk <- false
-		}
-
+		t.hasSynced(false)
 		return err
 	}
 
@@ -70,10 +69,7 @@ func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder re
 		return err
 	}
 
-	if t.SynchedOk != nil {
-		t.SynchedOk <- true
-	}
-
+	t.hasSynced(true)
 	eventRecorder.Event(syncRegistration, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
