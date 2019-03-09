@@ -142,7 +142,8 @@ func startDeploymentController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
-	handler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient)
+	handler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient,
+		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 	deployController := deployment.NewDeployController(
 		client,
 		radixClient,
