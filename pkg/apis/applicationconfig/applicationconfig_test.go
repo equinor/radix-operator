@@ -4,24 +4,40 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubernetes "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 const (
 	sampleRegistration = "./testdata/sampleregistration.yaml"
 	sampleApp          = "./testdata/radixconfig.yaml"
+	clusterName        = "AnyClusterName"
+	containerRegistry  = "any.container.registry"
 )
 
 func init() {
 	log.SetOutput(ioutil.Discard)
+}
+
+func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
+	kubeclient := fake.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+	return &handlerTestUtils, kubeclient, radixclient
 }
 
 func getApplication(ra *radixv1.RadixApplication) *ApplicationConfig {
@@ -34,7 +50,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplication(sampleApp)
 
-	kubeclient := kubernetes.NewSimpleClientset()
+	kubeclient := fake.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset()
 	app, _ := NewApplicationConfig(kubeclient, radixClient, radixRegistration, radixApp)
 
@@ -183,4 +199,87 @@ func TestIsTargetEnvsEmpty_twoEntriesWithOneMapping(t *testing.T) {
 		"prod": false,
 	}
 	assert.Equal(t, false, isTargetEnvsEmpty(targetEnvs))
+}
+
+func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimits(t *testing.T) {
+	tu, client, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, radixclient, utils.ARadixApplication().
+		WithAppName("any-app").
+		WithEnvironment("dev", "master").
+		WithEnvironment("prod", ""))
+
+	t.Run("validate namespace creation", func(t *testing.T) {
+		devNs, _ := client.CoreV1().Namespaces().Get("any-app-dev", metav1.GetOptions{})
+		assert.NotNil(t, devNs)
+		prodNs, _ := client.CoreV1().Namespaces().Get("any-app-prod", metav1.GetOptions{})
+		assert.NotNil(t, prodNs)
+	})
+
+	t.Run("validate rolebindings", func(t *testing.T) {
+		t.Parallel()
+		rolebindings, _ := client.RbacV1().RoleBindings("any-app-dev").List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+
+		rolebindings, _ = client.RbacV1().RoleBindings("any-app-prod").List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+	})
+
+	t.Run("validate limit range not set when missing on Operator", func(t *testing.T) {
+		t.Parallel()
+		limitRanges, _ := client.CoreV1().LimitRanges("any-app-dev").List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
+
+		limitRanges, _ = client.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
+	})
+}
+
+func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimits(t *testing.T) {
+	tu, client, radixclient := setupTest()
+
+	// Setup
+	os.Setenv(OperatorEnvLimitDefaultCPUEnvironmentVariable, "0.5")
+	os.Setenv(OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+	os.Setenv(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
+	os.Setenv(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
+
+	applyApplicationWithSync(tu, client, radixclient, utils.ARadixApplication().
+		WithAppName("any-app").
+		WithEnvironment("dev", "master").
+		WithEnvironment("prod", ""))
+
+	limitRanges, _ := client.CoreV1().LimitRanges("any-app-dev").List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
+	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
+
+	limitRanges, _ = client.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
+	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
+}
+
+func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface,
+	radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
+
+	err := tu.ApplyApplication(applicationBuilder)
+	if err != nil {
+		return err
+	}
+
+	ra := applicationBuilder.BuildRA()
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(ra.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	applicationconfig, err := NewApplicationConfig(client, radixclient, radixRegistration, ra)
+
+	err = applicationconfig.OnSync()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
