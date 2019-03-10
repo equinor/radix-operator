@@ -1,12 +1,8 @@
 package test
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/application"
-	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -94,98 +90,6 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuil
 	envNamespace := builders.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
 
 	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Update(rd)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ApplyRegistrationWithSync Will help persist an application registration
-func (tu *Utils) ApplyRegistrationWithSync(registrationBuilder utils.RegistrationBuilder) error {
-	err := tu.ApplyRegistration(registrationBuilder)
-
-	rr := registrationBuilder.BuildRR()
-	application, _ := application.NewApplication(tu.client, tu.radixclient, rr)
-	err = application.OnSync()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ApplyApplicationWithSync Will help persist an application
-func (tu *Utils) ApplyApplicationWithSync(applicationBuilder utils.ApplicationBuilder) error {
-	if applicationBuilder.GetRegistrationBuilder() != nil {
-		tu.ApplyRegistrationWithSync(applicationBuilder.GetRegistrationBuilder())
-	}
-
-	err := tu.ApplyApplication(applicationBuilder)
-	if err != nil {
-		return err
-	}
-
-	ra := applicationBuilder.BuildRA()
-	radixRegistration, err := tu.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(ra.Name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	applicationconfig, err := applicationconfig.NewApplicationConfig(tu.client, tu.radixclient, radixRegistration, ra)
-
-	err = applicationconfig.OnSync()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// ApplyDeploymentWithSync Will help persist a deployment
-func (tu *Utils) ApplyDeploymentWithSync(deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
-
-	if deploymentBuilder.GetApplicationBuilder() != nil {
-		tu.ApplyApplicationWithSync(deploymentBuilder.GetApplicationBuilder())
-	}
-
-	rd, err := tu.ApplyDeployment(deploymentBuilder)
-	if err != nil {
-		return nil, err
-	}
-
-	radixRegistration, err := tu.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(rd.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	deployment, err := deployment.NewDeployment(tu.client, tu.radixclient, nil, radixRegistration, rd)
-
-	err = deployment.OnSync()
-	if err != nil {
-		return nil, err
-	}
-
-	return rd, nil
-}
-
-// ApplyDeploymentUpdateWithSync Will help update a deployment
-func (tu *Utils) ApplyDeploymentUpdateWithSync(deploymentBuilder utils.DeploymentBuilder) error {
-	rd := deploymentBuilder.BuildRD()
-
-	err := tu.ApplyDeploymentUpdate(deploymentBuilder)
-	if err != nil {
-		return err
-	}
-
-	radixRegistration, err := tu.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(rd.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	deployment, err := deployment.NewDeployment(tu.client, tu.radixclient, nil, radixRegistration, rd)
-
-	err = deployment.OnSync()
 	if err != nil {
 		return err
 	}
