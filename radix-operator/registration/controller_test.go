@@ -48,7 +48,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
-	controller := NewController(client, radixClient, fakeHandler,
+	controller := NewRegistrationController(client, radixClient, fakeHandler,
 		radixInformerFactory.Radix().V1().RadixRegistrations(),
 		kubeInformerFactory.Core().V1().Namespaces(), eventRecorder)
 

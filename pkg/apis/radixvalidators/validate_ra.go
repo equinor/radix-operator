@@ -81,25 +81,25 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, err)
 		}
 
-		err = validateReplica(component.Replicas)
-		if err != nil {
-			errs = append(errs, err)
-		}
-
-		errList := validateResourceRequirements(&component.Resources)
+		errList := validatePorts(component)
 		if errList != nil && len(errList) > 0 {
 			errs = append(errs, errList...)
 		}
 
-		errList = validatePorts(component)
-		if errList != nil && len(errList) > 0 {
-			errs = append(errs, errList...)
-		}
-
-		for _, variable := range component.EnvironmentVariables {
-			if !doesEnvExist(app, variable.Environment) {
-				err = fmt.Errorf("Env %s refered to by component variable %s is not defined", variable.Environment, component.Name)
+		for _, environment := range component.EnvironmentConfig {
+			if !doesEnvExist(app, environment.Environment) {
+				err = fmt.Errorf("Env %s refered to by component %s is not defined", environment.Environment, component.Name)
 				errs = append(errs, err)
+			}
+
+			err = validateReplica(environment.Replicas)
+			if err != nil {
+				errs = append(errs, err)
+			}
+
+			errList = validateResourceRequirements(&environment.Resources)
+			if errList != nil && len(errList) > 0 {
+				errs = append(errs, errList...)
 			}
 		}
 	}

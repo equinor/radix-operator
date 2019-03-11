@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	yaml "gopkg.in/yaml.v2"
 )
 
 func GetRadixApplication(filename string) (*v1.RadixApplication, error) {
-	log.Infof("get radix application yaml from %s", filename)
+	log.Debugf("get radix application yaml from %s", filename)
 	radixApp := v1.RadixApplication{}
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -38,7 +38,7 @@ func GetRadixRegistrationFromFile(file string) (*v1.RadixRegistration, error) {
 }
 
 func GetRadixDeploy(filename string) (*v1.RadixDeployment, error) {
-	log.Infof("get radix deploy yaml from %s", filename)
+	log.Debugf("get radix deploy yaml from %s", filename)
 	radixDeploy := v1.RadixDeployment{}
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {

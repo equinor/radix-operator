@@ -201,6 +201,7 @@ type DeployComponentBuilder interface {
 	WithEnvironmentVariable(string, string) DeployComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
 	WithPublic(bool) DeployComponentBuilder
+	WithMonitoring(bool) DeployComponentBuilder
 	WithReplicas(int) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
@@ -214,6 +215,7 @@ type deployComponentBuilder struct {
 	ports                map[string]int32
 	environmentVariables map[string]string
 	public               bool
+	monitoring           bool
 	replicas             int
 	secrets              []string
 	dnsappalias          bool
@@ -253,6 +255,11 @@ func (dcb *deployComponentBuilder) WithPublic(public bool) DeployComponentBuilde
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithMonitoring(monitoring bool) DeployComponentBuilder {
+	dcb.monitoring = monitoring
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) WithReplicas(replicas int) DeployComponentBuilder {
 	dcb.replicas = replicas
 	return dcb
@@ -284,6 +291,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Name:                 dcb.name,
 		Ports:                componentPorts,
 		Public:               dcb.public,
+		Monitoring:           dcb.monitoring,
 		Replicas:             dcb.replicas,
 		Secrets:              dcb.secrets,
 		EnvironmentVariables: dcb.environmentVariables,

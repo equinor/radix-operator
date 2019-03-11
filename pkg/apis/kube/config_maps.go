@@ -29,6 +29,6 @@ func (kube *Kube) getConfigFromMap(config string) (string, error) {
 		return "", fmt.Errorf("Failed to get radix config map: %v", err)
 	}
 	configValue := radixconfigmap.Data[config]
-	logger.Infof("%s: %s", config, configValue)
+	logger.Debugf("%s: %s", config, configValue)
 	return configValue, nil
 }

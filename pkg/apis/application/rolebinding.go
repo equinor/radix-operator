@@ -115,7 +115,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 	appName := registration.Name
 	roleName := "radix-pipeline-runner"
 	ownerReference := app.getOwnerReference()
-	logger.Infof("Create cluster rolebinding config %s", roleName)
+	logger.Debugf("Create cluster rolebinding config %s", roleName)
 
 	rolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -149,7 +149,7 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 	registration := app.registration
 	appName := registration.Name
 	roleName := "radix-pipeline"
-	logger.Infof("Create rolebinding config %s", roleName)
+	logger.Debugf("Create rolebinding config %s", roleName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -183,7 +183,7 @@ func (app Application) rrPipelineRoleBinding(serviceAccount *corev1.ServiceAccou
 	appName := registration.Name
 	roleBindingName := role.Name
 	ownerReference := app.getOwnerReference()
-	logger.Infof("Create rolebinding config %s", roleBindingName)
+	logger.Debugf("Create rolebinding config %s", roleBindingName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -217,7 +217,7 @@ func (app Application) rrRoleBinding(role *auth.Role) *auth.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
 	roleBindingName := role.Name
-	logger.Infof("Create roleBinding config %s", roleBindingName)
+	logger.Debugf("Create roleBinding config %s", roleBindingName)
 
 	ownerReference := app.getOwnerReferenceOfRegistrationWithName(roleBindingName)
 	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
@@ -242,7 +242,7 @@ func (app Application) rrRoleBinding(role *auth.Role) *auth.RoleBinding {
 		Subjects: subjects,
 	}
 
-	logger.Infof("Done - create rolebinding config %s", roleBindingName)
+	logger.Debugf("Done - create rolebinding config %s", roleBindingName)
 
 	return rolebinding
 }

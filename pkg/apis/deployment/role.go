@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
@@ -21,7 +22,9 @@ func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *rad
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 			Labels: map[string]string{
-				"radixReg": registration.Name,
+				"radixReg":               registration.Name, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:       registration.Name,
+				kube.RadixComponentLabel: component.Name,
 			},
 		},
 		Rules: []auth.PolicyRule{

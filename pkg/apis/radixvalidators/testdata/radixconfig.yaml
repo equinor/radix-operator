@@ -15,21 +15,23 @@ spec:
        - name: http
          port: 8080
       public: true
-      replicas: 4
-      resources: 
-        limits: 
-          memory: "512Mi"
-          cpu: "500m"
-        requests: 
-          memory: "128Mi"
-          cpu: "250m"
+      environmentConfig:
+        - environment: prod
+          replicas: 4
+          resources: 
+            limits: 
+              memory: "512Mi"
+              cpu: "500m"
+            requests: 
+              memory: "128Mi"
+              cpu: "250m"
     - name: redis
       src: redis/
       ports:
         - name: http
           port: 6379
       public: false
-      environmentVariables:
+      environmentConfig:
         - environment: dev
           variables:
             DB_HOST: "useless-dev"

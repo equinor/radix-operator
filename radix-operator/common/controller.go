@@ -6,6 +6,8 @@ import (
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +19,21 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+)
+
+var (
+	nrCrAdded = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "radix_operator_cr_added",
+		Help: "The total number of radix custom resources added",
+	}, []string{"cr_type"})
+	nrCrDeleted = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "radix_operator_cr_deleted",
+		Help: "The total number of radix custom resources deleted",
+	}, []string{"cr_type"})
+	nrErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "radix_operator_errors",
+		Help: "The total number of radix operator errors",
+	}, []string{"err_type", "method"})
 )
 
 // GetOwner Function pointer to pass to retrieve owner
@@ -50,7 +67,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer c.WorkQueue.ShutDown()
 
 	// Start the informer factories to begin populating the informer caches
-	c.Log.Infof("Starting %s", c.Name)
+	c.Log.Debugf("Starting %s", c.Name)
 
 	// Wait for the caches to be synced before starting workers
 	c.Log.Info("Waiting for informer caches to sync")
@@ -91,6 +108,10 @@ func (c *Controller) processNextWorkItem() bool {
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
+			nrErrors.With(prometheus.Labels{
+				"method":   "work_queue",
+				"err_type": "error_workqueue_type",
+			}).Inc()
 			return nil
 		}
 
@@ -106,6 +127,7 @@ func (c *Controller) processNextWorkItem() bool {
 
 	if err != nil {
 		utilruntime.HandleError(err)
+		nrErrors.With(prometheus.Labels{"method": "process_next_work_item", "err_type": "unhandled"}).Inc()
 		return true
 	}
 
@@ -116,12 +138,20 @@ func (c *Controller) syncHandler(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Invalid resource key: %s", key))
+		nrErrors.With(prometheus.Labels{
+			"method":   "split_meta_namespace_key",
+			"err_type": "invalid_resource_key"},
+		).Inc()
 		return nil
 	}
 
 	err = c.Handler.Sync(namespace, name, c.Recorder)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Problems syncing: %s", key))
+		nrErrors.With(prometheus.Labels{
+			"method":   "c_handler_sync",
+			"err_type": fmt.Sprintf("problems_sync_%s", key)},
+		).Inc()
 		return nil
 	}
 
@@ -135,6 +165,10 @@ func (c *Controller) Enqueue(obj interface{}) {
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 		utilruntime.HandleError(err)
+		nrErrors.With(prometheus.Labels{
+			"method":   "enqueue",
+			"err_type": fmt.Sprintf("problems_sync_%s", key)},
+		).Inc()
 		return
 	}
 	c.WorkQueue.AddRateLimited(key)
@@ -149,11 +183,19 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+			nrErrors.With(prometheus.Labels{
+				"method":   "handle_object",
+				"err_type": "error_decoding_object",
+			}).Inc()
 			return
 		}
 		object, ok = tombstone.Obj.(metav1.Object)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
+			nrErrors.With(prometheus.Labels{
+				"method":   "handle_object",
+				"err_type": "error_decoding_object_tombstone",
+			}).Inc()
 			return
 		}
 		c.Log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
@@ -173,6 +215,14 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 		c.Enqueue(obj)
 		return
 	}
+}
+
+func (c *Controller) CustomResourceAdded(kind string) {
+	nrCrAdded.With(prometheus.Labels{"cr_type": kind}).Inc()
+}
+
+func (c *Controller) CustomResourceDeleted(kind string) {
+	nrCrDeleted.With(prometheus.Labels{"cr_type": kind}).Inc()
 }
 
 func (c *Controller) hasSynced() bool {

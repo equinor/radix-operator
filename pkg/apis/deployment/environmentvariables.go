@@ -22,7 +22,7 @@ func (deploy *Deployment) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, ra
 			environmentVariables = append(environmentVariables, envVar)
 		}
 	} else {
-		log.Infof("No environment variable is set for this RadixDeployment %s", radixDeployName)
+		log.Debugf("No environment variable is set for this RadixDeployment %s", radixDeployName)
 	}
 
 	environmentVariables = deploy.appendDefaultVariables(currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports)
@@ -47,7 +47,7 @@ func (deploy *Deployment) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, ra
 			environmentVariables = append(environmentVariables, secretEnvVar)
 		}
 	} else {
-		log.Infof("No secret is set for this RadixDeployment %s", radixDeployName)
+		log.Debugf("No secret is set for this RadixDeployment %s", radixDeployName)
 	}
 
 	return environmentVariables

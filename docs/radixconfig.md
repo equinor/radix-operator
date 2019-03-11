@@ -25,29 +25,31 @@ spec:
        - name: http
          port: 80
       public: true
-      monitoring: true
-      resources: 
-        requests: 
-          memory: "64Mi"
-          cpu: "100m"
-        limits: 
-          memory: "128Mi"
-          cpu: "200m"
+      environmentConfig:
+        - environment: prod
+          monitoring: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
     - name: backend
       src: backend
-      replicas: 2
       ports:
         - name: http
           port: 5000
-      environmentVariables:
+      environmentConfig:
+        - environment: prod
+          replicas: 2
+          variables:
+            DB_HOST: "db-prod"
+            DB_PORT: "9876"
         - environment: dev
           variables:
             DB_HOST: "db-dev"
             DB_PORT: "1234"
-        - environment: prod
-          variables:
-            DB_HOST: "db-prod"
-            DB_PORT: "9876"
       secrets:
         - DB_PASS
   dnsAppAlias:

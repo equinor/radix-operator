@@ -14,6 +14,8 @@ For the `radix-operator`, instead of releasing to different environments, we rel
 - `master` branch should be used for deployment to the `dev` cluster. When a pull request is approved and merged to `master`, we should immediately release those changes to the `dev` cluster, by (1) position yourself in the `dev` cluster (2) checkout and pull `master` branch (3) `make helm-up ENVIRONMENT=prod|dev` which will create a `radix-operator:master-latest` image and install it into the `dev` cluster
 - `release` branch should be used for deployment to the `prod` cluster. When a pull request is approved and merged to `master`, and tested ok in `dev` cluster we should immediately merge `master` into `release` and deploy those changes to the `prod` cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) position yourself in the `prod` cluster (2) checkout and pull `release` branch (3) `make helm-up ENVIRONMENT=prod|dev` which will create a `radix-operator:release-latest` image and install it into the cluster
 
+**Important**: The `radix-api` repo has a dependency to the `radix-operator` repo. As they are currently separated from one another, any change to the `radix-operator` repo (especially related to *spec* change) should be copied to the `vendor` directory of the `radix-api` repo.
+
 ## Procedure to release to cluster
 
 ### Radix-pipeline
