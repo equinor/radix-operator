@@ -197,6 +197,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Name:              rcb.name,
 		Ports:             componentPorts,
 		Secrets:           rcb.secrets,
+		Public:            rcb.public,
 		EnvironmentConfig: environmentConfig,
 	}
 }
