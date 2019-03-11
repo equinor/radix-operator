@@ -21,8 +21,16 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		return err
 	}
 
+	var publicPortNumber int32
+	// For backwards compatibility
+	if deployComponent.PublicPort == "" {
+		publicPortNumber = deployComponent.Ports[0].Port
+	} else {
+		publicPortNumber = getPublicPortNumber(deployComponent.Ports, deployComponent.PublicPort)
+	}
+
 	if deployComponent.DNSAppAlias {
-		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, deployComponent.Ports)
+		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
 		if appAliasIngress != nil {
 			err = deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
 			if err != nil {
@@ -31,7 +39,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		}
 	}
 
-	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, deployComponent.Ports)
+	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
 	return deploy.kubeutil.ApplyIngress(namespace, ingress)
 }
 
@@ -81,7 +89,7 @@ func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponent(compon
 	return nil
 }
 
-func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, publicPortNumber int32) *v1beta1.Ingress {
 	tlsSecretName := "app-wildcard-tls-cert"
 	appAlias := os.Getenv(OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
@@ -90,12 +98,12 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 
 	hostname := fmt.Sprintf("%s.%s", radixDeployment.Spec.AppName, appAlias)
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
-	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
+	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, publicPortNumber)
 
 	return getIngressConfig(radixDeployment, componentName, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, true, ingressSpec)
 }
 
-func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, componentPorts []v1.ComponentPort) *v1beta1.Ingress {
+func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, publicPortNumber int32) *v1beta1.Ingress {
 	tlsSecretName := "cluster-wildcard-tls-cert"
 	dnsZone := os.Getenv(OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
@@ -103,7 +111,7 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 	}
 	hostname := getHostName(componentName, namespace, clustername, dnsZone)
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
-	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, componentPorts[0].Port)
+	ingressSpec := getIngressSpec(hostname, componentName, tlsSecretName, publicPortNumber)
 
 	return getIngressConfig(radixDeployment, componentName, componentName, ownerReference, false, ingressSpec)
 }
@@ -166,4 +174,13 @@ func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 			},
 		},
 	}
+}
+
+func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
+	for _, port := range ports {
+		if strings.EqualFold(port.Name, publicPort) {
+			return port.Port
+		}
+	}
+	return 0
 }

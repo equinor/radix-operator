@@ -48,7 +48,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true).
+				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithResource(map[string]string{
 					"memory": "64Mi",
@@ -63,13 +63,13 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("redis").
 				WithEnvironmentVariable("a_variable", "3001").
 				WithPort("http", 6379).
-				WithPublic(false).
+				WithPublicPort("").
 				WithReplicas(0),
 			utils.NewDeployComponentBuilder().
 				WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
 				WithName("radixquote").
 				WithPort("http", 3000).
-				WithPublic(true).
+				WithPublicPort("http").
 				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
@@ -224,12 +224,12 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 				WithImage("anyimage").
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true),
+				WithPublicPort("http"),
 			utils.NewDeployComponentBuilder().
 				WithImage("anotherimage").
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true)))
+				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
@@ -327,7 +327,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true)))
+				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("app1", "prod")
 	deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
@@ -350,7 +350,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true)))
+				WithPublicPort("http")))
 
 	deployments, _ = client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
@@ -373,7 +373,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true))
+				WithPublicPort("http"))
 
 	applyDeploymentUpdateWithSync(tu, client, radixclient, rdBuilder)
 
@@ -399,7 +399,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithPort("http", 8080).
-				WithPublic(true)))
+				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
@@ -413,7 +413,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithPort("http", 8081).
-				WithPublic(true)))
+				WithPublicPort("http")))
 
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
@@ -436,18 +436,18 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("http", 8080).
-				WithPublic(true).
+				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithReplicas(4),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
-				WithPublic(false).
+				WithPublicPort("").
 				WithReplicas(0),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
-				WithPublic(true).
+				WithPublicPort("http").
 				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
@@ -460,7 +460,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
-				WithPublic(false).
+				WithPublicPort("").
 				WithReplicas(0)))
 
 	assert.NoError(t, err)
@@ -520,11 +520,11 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("http", 8080).
-				WithPublic(true),
+				WithPublicPort("http"),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
-				WithPublic(true)))
+				WithPublicPort("http")))
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -539,11 +539,11 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("http", 8080).
-				WithPublic(true),
+				WithPublicPort("http"),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
-				WithPublic(false)))
+				WithPublicPort("")))
 
 	assert.NoError(t, err)
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
@@ -557,11 +557,11 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentOneName).
 				WithPort("http", 8080).
-				WithPublic(false),
+				WithPublicPort(""),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
-				WithPublic(false)))
+				WithPublicPort("")))
 
 	assert.NoError(t, err)
 
@@ -633,6 +633,84 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 			assert.Equal(t, testcase.expectedCPURequest, rd[0].Spec.Components[0].Resources.Requests["cpu"])
 		})
 	}
+}
+
+func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
+	tu, client, radixclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentOneName := "componentOneName"
+
+	// New publicPort exists, old public does not exist
+	_, err := applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("https", 443).
+				WithPort("http", 80).
+				WithPublicPort("http").
+				WithPublic(false)))
+
+	assert.NoError(t, err)
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
+	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
+	assert.Equal(t, 80, ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue())
+
+	// New publicPort exists, old public exists (ignored)
+	_, err = applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("https", 443).
+				WithPort("http", 80).
+				WithPublicPort("http").
+				WithPublic(true)))
+
+	assert.NoError(t, err)
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
+	assert.Equal(t, 80, ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue())
+
+	// New publicPort does not exist, old public does not exist
+	_, err = applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("https", 443).
+				WithPort("http", 80).
+				WithPublicPort("").
+				WithPublic(false)))
+
+	assert.NoError(t, err)
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 0, len(ingresses.Items), "Component should not be public")
+
+	// New publicPort does not exist, old public exists (used)
+	rd, err := applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("https", 443).
+				WithPort("http", 80).
+				WithPublicPort("").
+				WithPublic(true)))
+
+	assert.NoError(t, err)
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
+	actualPortValue := ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue()
+	expectedPortValue := int(rd.Spec.Components[0].Ports[0].Port)
+	assert.Equal(t, expectedPortValue, actualPortValue)
 }
 
 func parseQuantity(value string) resource.Quantity {

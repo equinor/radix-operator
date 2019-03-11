@@ -173,6 +173,136 @@ func Test_InvalidRALimitRequest_Error(t *testing.T) {
 	}
 }
 
+func Test_PublicPort(t *testing.T) {
+	var testScenarios = []struct {
+		name       string
+		updateRA   updateRAFunc
+		isValid    bool
+		isErrorNil bool
+	}{
+		{
+			name: "matching port name for public component, old public does not exist",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Ports[0].Name = "http"
+				ra.Spec.Components[0].Public = false
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			// For backwards compatibility
+			name: "matching port name for public component, old public exists (ignored)",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Ports[0].Name = "http"
+				ra.Spec.Components[0].Public = true
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "port name is irrelevant for non-public component if old public does not exist",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].PublicPort = ""
+				ra.Spec.Components[0].Ports[0].Name = "test"
+				ra.Spec.Components[0].Public = false
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			// For backwards compatibility
+			name: "old public is used if it exists and new publicPort does not exist",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].PublicPort = ""
+				ra.Spec.Components[0].Ports[0].Name = "test"
+				ra.Spec.Components[0].Public = true
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "missing port name for public component, old public does not exist",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Ports[0].Name = "test"
+				ra.Spec.Components[0].Public = false
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			// For backwards compatibility
+			name: "missing port name for public component, old public exists (ignored)",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Ports[0].Name = "test"
+				ra.Spec.Components[0].Public = true
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			name: "duplicate port name for public component, old public does not exist",
+			updateRA: func(ra *v1.RadixApplication) {
+				newPorts := []v1.ComponentPort{
+					{
+						Name: "http",
+						Port: 8080,
+					},
+					{
+						Name: "http",
+						Port: 1234,
+					},
+				}
+				ra.Spec.Components[0].Ports = newPorts
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Public = false
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			// For backwards compatibility
+			name: "duplicate port name for public component, old public exists (ignored)",
+			updateRA: func(ra *v1.RadixApplication) {
+				newPorts := []v1.ComponentPort{
+					{
+						Name: "http",
+						Port: 8080,
+					},
+					{
+						Name: "http",
+						Port: 1234,
+					},
+				}
+				ra.Spec.Components[0].Ports = newPorts
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Public = true
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			isErrorNil := false
+			if err == nil {
+				isErrorNil = true
+			}
+
+			assert.Equal(t, testcase.isValid, isValid)
+			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+		})
+	}
+}
+
 func createValidRA() *v1.RadixApplication {
 	validRA, _ := utils.GetRadixApplication("testdata/radixconfig.yaml")
 

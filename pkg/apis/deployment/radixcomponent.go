@@ -32,7 +32,8 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			Name:                 componentName,
 			Image:                utils.GetImagePath(containerRegistry, appName, componentName, imageTag),
 			Replicas:             replicas,
-			Public:               appComponent.Public,
+			Public:               false,
+			PublicPort:           getPublicPortFromAppComponent(appComponent),
 			Ports:                appComponent.Ports,
 			Secrets:              appComponent.Secrets,
 			EnvironmentVariables: variables, // todo: use single EnvVars instead
@@ -57,4 +58,12 @@ func getEnvironmentSpecificConfigForComponent(component v1.RadixComponent, env s
 		}
 	}
 	return nil
+}
+
+func getPublicPortFromAppComponent(appComponent v1.RadixComponent) string {
+	if appComponent.PublicPort == "" && appComponent.Public {
+		return appComponent.Ports[0].Name
+	}
+
+	return appComponent.PublicPort
 }
