@@ -16,6 +16,26 @@ For the `radix-operator`, instead of releasing to different environments, we rel
 
 **Important**: The `radix-api` repo has a dependency to the `radix-operator` repo. As they are currently separated from one another, any change to the `radix-operator` repo (especially related to *spec* change) should be copied to the `vendor` directory of the `radix-api` repo.
 
+## Procedure to test in cluster
+
+It is suggested that testing is conducted in `Omnia Radix Development` subscription during development.
+
+### Radix-pipeline
+
+Testing `radix-pipeline` is carried out by building the pipeline image and pushing it to the container registry. This process can be executed from a local branch while specifying `BRANCH=master` as follows.
+
+```
+make deploy-pipeline ENVIRONMENT=dev BRANCH=master
+```
+
+### Radix-operator
+
+Testing `radix-operator` can be conducted from a local branch by bypassing the branch-environment constraint using the `OVERIDE_BRANCH=true` flag as follows.
+
+```
+make helm-up ENVIRONMENT=dev OVERIDE_BRANCH=true
+```
+
 ## Procedure to release to cluster
 
 ### Radix-pipeline
