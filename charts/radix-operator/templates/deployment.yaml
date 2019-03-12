@@ -40,7 +40,7 @@ spec:
               value: "playground"
             {{else}}
             - name: RADIXOPERATOR_CLUSTER_TYPE
-              value: "prod"
+              value: "production"
             {{end}}
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
