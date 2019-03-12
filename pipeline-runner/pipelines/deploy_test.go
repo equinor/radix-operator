@@ -6,6 +6,7 @@ import (
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -20,18 +21,18 @@ const (
 	containerRegistry  = "any.container.registry"
 )
 
-func setupTest() (*kubernetes.Clientset, *radix.Clientset) {
+func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return kubeclient, radixclient
+	return kubeclient, radixclient, testUtils
 }
 
 func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
-	kubeclient, radixclient := setupTest()
+	kubeclient, radixclient, _ := setupTest()
 
 	rr := utils.ARadixRegistration().
 		WithName("any-app").

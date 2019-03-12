@@ -89,7 +89,8 @@ func startRegistrationController(
 
 	handler := registration.NewRegistrationHandler(
 		client,
-		radixClient)
+		radixClient,
+		func(syncedOk bool) {}) // Not interested in getting notifications of synced
 
 	registrationController := registration.NewRegistrationController(
 		client,
@@ -115,7 +116,8 @@ func startApplicationController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
-	handler := application.NewApplicationHandler(client, radixClient)
+	handler := application.NewApplicationHandler(client, radixClient,
+		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 	applicationController := application.NewApplicationController(
 		client,
 		radixClient,
@@ -141,7 +143,8 @@ func startDeploymentController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
-	handler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient)
+	handler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient,
+		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 	deployController := deployment.NewDeployController(
 		client,
 		radixClient,
