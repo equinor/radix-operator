@@ -69,7 +69,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = pushHandler.Run(jobName, branch, commitID, imageTag, fileName, useCache)
+	radixApplication, err := pipe.LoadConfigFromFile(fileName)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	radixRegistration, targetEnvironments, err := pushHandler.Prepare(radixApplication, branch)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	err = pushHandler.Run(radixRegistration, radixApplication, targetEnvironments, jobName, branch, commitID, imageTag, useCache)
 	if err != nil {
 		os.Exit(2)
 	}
