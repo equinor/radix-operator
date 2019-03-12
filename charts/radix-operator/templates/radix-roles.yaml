@@ -65,6 +65,7 @@ rules:
   - watch
   - create
   - delete
+  - update
 - apiGroups:
   - batch
   resources:
