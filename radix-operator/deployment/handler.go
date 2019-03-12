@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/common"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,10 +32,12 @@ type RadixDeployHandler struct {
 	radixclient             radixclient.Interface
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
+	hasSynced               common.HasSynced
 }
 
 // NewDeployHandler Constructor
-func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface) RadixDeployHandler {
+func NewDeployHandler(kubeclient kubernetes.Interface,
+	radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, hasSynced common.HasSynced) RadixDeployHandler {
 	kube, _ := kube.New(kubeclient)
 
 	handler := RadixDeployHandler{
@@ -42,6 +45,7 @@ func NewDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.I
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kube,
+		hasSynced:               hasSynced,
 	}
 
 	return handler
@@ -81,6 +85,7 @@ func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.E
 		return err
 	}
 
+	t.hasSynced(true)
 	eventRecorder.Event(syncRD, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }
