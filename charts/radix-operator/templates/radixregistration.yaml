@@ -16,4 +16,4 @@ spec:
     singular: radixregistration
     shortNames:
       - rr
-  scope: Namespaced
+  scope: Cluster
