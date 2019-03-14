@@ -86,5 +86,5 @@ func NewRegistrationController(client kubernetes.Interface,
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
 }

@@ -11,7 +11,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -642,7 +641,7 @@ func applyDeploymentWithSync(tu *test.Utils, client kube.Interface,
 		return nil, err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +664,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface,
 		return err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

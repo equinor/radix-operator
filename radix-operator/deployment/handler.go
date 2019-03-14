@@ -68,7 +68,7 @@ func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.E
 	syncRD := rd.DeepCopy()
 	logger.Infof("Sync deployment %s", syncRD.Name)
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(syncRD.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		logger.Errorf("Failed to get RadixRegistartion object: %v", err)
 		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)

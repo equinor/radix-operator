@@ -29,7 +29,7 @@ func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface
 func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuilder) error {
 	rr := registrationBuilder.BuildRR()
 
-	_, err := tu.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Create(rr)
+	_, err := tu.radixclient.RadixV1().RadixRegistrations().Create(rr)
 	if err != nil {
 		return err
 	}
