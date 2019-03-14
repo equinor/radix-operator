@@ -3,7 +3,6 @@ package deployment
 import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/prometheus/common/log"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 )
 
@@ -11,7 +10,7 @@ func (deploy *Deployment) customSecuritySettings(appName, namespace string, depl
 	// need to be able to get serviceaccount token inside container
 	automountServiceAccountToken := true
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
-	if isRadixWebHook(deploy.registration.Namespace, appName) {
+	if isRadixWebHook(appName) {
 		serviceAccountName := "radix-github-webhook"
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
 		if err != nil {
@@ -22,7 +21,7 @@ func (deploy *Deployment) customSecuritySettings(appName, namespace string, depl
 		}
 		deployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	}
-	if isRadixAPI(deploy.registration.Namespace, appName) {
+	if isRadixAPI(appName) {
 		serviceAccountName := "radix-api"
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(serviceAccountName, namespace)
 		if err != nil {
@@ -35,10 +34,10 @@ func (deploy *Deployment) customSecuritySettings(appName, namespace string, depl
 	}
 }
 
-func isRadixAPI(radixRegistrationNamespace, appName string) bool {
-	return appName == "radix-api" && radixRegistrationNamespace == corev1.NamespaceDefault
+func isRadixAPI(appName string) bool {
+	return appName == "radix-api"
 }
 
-func isRadixWebHook(radixRegistrationNamespace, appName string) bool {
-	return appName == "radix-github-webhook" && radixRegistrationNamespace == corev1.NamespaceDefault
+func isRadixWebHook(appName string) bool {
+	return appName == "radix-github-webhook"
 }
