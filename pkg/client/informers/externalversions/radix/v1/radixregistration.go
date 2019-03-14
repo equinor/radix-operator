@@ -41,33 +41,32 @@ type RadixRegistrationInformer interface {
 type radixRegistrationInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
-	namespace        string
 }
 
 // NewRadixRegistrationInformer constructs a new informer for RadixRegistration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewRadixRegistrationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredRadixRegistrationInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewRadixRegistrationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredRadixRegistrationInformer(client, resyncPeriod, indexers, nil)
 }
 
 // NewFilteredRadixRegistrationInformer constructs a new informer for RadixRegistration type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredRadixRegistrationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredRadixRegistrationInformer(client versioned.Interface, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixRegistrations(namespace).List(options)
+				return client.RadixV1().RadixRegistrations().List(options)
 			},
 			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixRegistrations(namespace).Watch(options)
+				return client.RadixV1().RadixRegistrations().Watch(options)
 			},
 		},
 		&radix_v1.RadixRegistration{},
@@ -77,7 +76,7 @@ func NewFilteredRadixRegistrationInformer(client versioned.Interface, namespace 
 }
 
 func (f *radixRegistrationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredRadixRegistrationInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewFilteredRadixRegistrationInformer(client, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
 func (f *radixRegistrationInformer) Informer() cache.SharedIndexInformer {

@@ -45,8 +45,8 @@ func (c *RadixV1Client) RadixDeployments(namespace string) RadixDeploymentInterf
 	return newRadixDeployments(c, namespace)
 }
 
-func (c *RadixV1Client) RadixRegistrations(namespace string) RadixRegistrationInterface {
-	return newRadixRegistrations(c, namespace)
+func (c *RadixV1Client) RadixRegistrations() RadixRegistrationInterface {
+	return newRadixRegistrations(c)
 }
 
 // NewForConfig creates a new RadixV1Client for the given config.
