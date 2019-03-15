@@ -25,7 +25,8 @@
             "program": "${workspaceFolder}/radix-operator/main.go",
             "env": {
                 "APP_ALIAS_BASE_URL":"app.dev.radix.equinor.com",
-                "DNS_ZONE":"dev.radix.equinor.com"
+                "DNS_ZONE":"dev.radix.equinor.com",
+                "RADIXOPERATOR_DEFAULT_USER_GROUP": "64b28659-4fe4-4222-8497-85dd7e43e25b",
             },
             "args": [
                 "--useOutClusterClient=false"
