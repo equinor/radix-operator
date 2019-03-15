@@ -48,9 +48,9 @@ func defaultNetworkPolicy(appName, env string, owner []metav1.OwnerReference) *v
 						v1.NetworkPolicyPeer{
 							PodSelector: &metav1.LabelSelector{},
 						},
-						// default namespace need label "purpose:common"
-						createSelector(map[string]string{"app": "nginx-ingress"}, map[string]string{"purpose": "common"}),
-						createSelector(map[string]string{"app": "prometheus"}, map[string]string{"purpose": "common"}),
+						// namespace hosting prometheus and nginx-ingress need label "purpose:radix-base-ns"
+						createSelector(map[string]string{"app": "nginx-ingress"}, map[string]string{"purpose": "radix-base-ns"}),
+						createSelector(map[string]string{"app": "prometheus"}, map[string]string{"purpose": "radix-base-ns"}),
 					},
 				},
 			},
