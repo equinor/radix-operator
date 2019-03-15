@@ -1,6 +1,8 @@
 package test
 
 import (
+	"os"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
@@ -99,6 +101,8 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuil
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
 func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry string) {
+	os.Setenv("RADIXOPERATOR_DEFAULT_USER_GROUP", "1234-5678-91011")
+
 	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
