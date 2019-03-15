@@ -64,7 +64,7 @@ func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder rec
 		return err
 	}
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(radixApplication.Name, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(radixApplication.Name, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", radixApplication.Name, err)
 		return err

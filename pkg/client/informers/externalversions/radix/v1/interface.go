@@ -55,5 +55,5 @@ func (v *version) RadixDeployments() RadixDeploymentInformer {
 
 // RadixRegistrations returns a RadixRegistrationInformer.
 func (v *version) RadixRegistrations() RadixRegistrationInformer {
-	return &radixRegistrationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+	return &radixRegistrationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }
