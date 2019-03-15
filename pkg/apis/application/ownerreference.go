@@ -22,17 +22,3 @@ func GetOwnerReferenceOfRegistration(registration *v1.RadixRegistration) []metav
 		},
 	}
 }
-
-// GetOwnerReferenceOfRegistrationWithName Gets owner reference given registration with custom name. Resources that an RR owns
-func (app Application) getOwnerReferenceOfRegistrationWithName(name string) []metav1.OwnerReference {
-	trueVar := true
-	return []metav1.OwnerReference{
-		metav1.OwnerReference{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixRegistration",
-			Name:       name,
-			UID:        app.registration.UID,
-			Controller: &trueVar,
-		},
-	}
-}

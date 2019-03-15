@@ -26,7 +26,7 @@ func (app Application) rrRole(roleName string, verbs []string) *auth.Role {
 	registration := app.registration
 	appName := registration.Name
 
-	ownerRef := app.getOwnerReferenceOfRegistrationWithName(roleName)
+	ownerRef := app.getOwnerReference()
 
 	logger.Debugf("Creating role config %s", roleName)
 

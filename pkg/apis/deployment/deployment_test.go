@@ -170,6 +170,12 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		//assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
 	})
+
+	t.Run("validate networkpolicy", func(t *testing.T) {
+		t.Parallel()
+		np, _ := client.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+	})
 }
 
 func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {

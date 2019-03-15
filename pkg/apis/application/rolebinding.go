@@ -225,7 +225,7 @@ func (app Application) rrRoleBinding(role *auth.Role) *auth.RoleBinding {
 	roleBindingName := role.Name
 	logger.Debugf("Create roleBinding config %s", roleBindingName)
 
-	ownerReference := app.getOwnerReferenceOfRegistrationWithName(roleBindingName)
+	ownerReference := app.getOwnerReference()
 
 	adGroups, _ := GetAdGroups(registration)
 	subjects := kube.GetRoleBindingGroups(adGroups)
