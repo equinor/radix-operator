@@ -111,7 +111,7 @@ endif
 		--file radix-operator-values.yaml
 
 	helm upgrade --install radix-operator \
-	    ./charts/radix-operator/. \
+	    /charts/radix-operator/. \
 		--namespace default \
 	    --set dnsZone=$(DNS_ZONE) \
 		--set appAliasBaseURL=$(APP_ALIAS_BASE_URL) \
