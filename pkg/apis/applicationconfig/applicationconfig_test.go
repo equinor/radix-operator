@@ -14,7 +14,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -47,18 +46,17 @@ func getApplication(ra *radixv1.RadixApplication) *ApplicationConfig {
 }
 
 func Test_Create_Radix_Environments(t *testing.T) {
+	_, client, radixclient := setupTest()
+
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplication(sampleApp)
-
-	kubeclient := fake.NewSimpleClientset()
-	radixClient := radix.NewSimpleClientset()
-	app, _ := NewApplicationConfig(kubeclient, radixClient, radixRegistration, radixApp)
+	app, _ := NewApplicationConfig(client, radixclient, radixRegistration, radixApp)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
 		err := app.createEnvironments()
 		assert.NoError(t, err)
-		namespaces, _ := kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
+		namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
 			LabelSelector: label,
 		})
 		assert.Len(t, namespaces.Items, 2)
@@ -67,7 +65,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
 		err := app.createEnvironments()
 		assert.NoError(t, err)
-		namespaces, _ := kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
+		namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
 			LabelSelector: label,
 		})
 		assert.Len(t, namespaces.Items, 2)
@@ -269,7 +267,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface,
 	}
 
 	ra := applicationBuilder.BuildRA()
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(ra.Name, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(ra.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

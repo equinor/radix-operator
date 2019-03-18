@@ -10,7 +10,6 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -62,7 +61,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		log.Fatalf("Could not read configuration data: %v", err)
 	}
 
-	registeredApp, err := radixClient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Create(registration)
+	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(registration)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, registeredApp)
@@ -75,7 +74,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	registration.ObjectMeta.Annotations = map[string]string{
 		"update": "test",
 	}
-	updatedApp, err := radixClient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Update(registration)
+	updatedApp, err := radixClient.RadixV1().RadixRegistrations().Update(registration)
 
 	op, ok = <-synced
 	assert.True(t, ok)

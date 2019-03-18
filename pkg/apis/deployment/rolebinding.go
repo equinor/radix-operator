@@ -3,6 +3,7 @@ package deployment
 import (
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -57,7 +58,8 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 }
 
 func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
-	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
+	adGroups, _ := application.GetAdGroups(registration)
+	subjects := kube.GetRoleBindingGroups(adGroups)
 	roleName := role.ObjectMeta.Name
 
 	rolebinding := &auth.RoleBinding{

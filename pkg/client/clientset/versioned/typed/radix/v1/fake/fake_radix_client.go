@@ -36,8 +36,8 @@ func (c *FakeRadixV1) RadixDeployments(namespace string) v1.RadixDeploymentInter
 	return &FakeRadixDeployments{c, namespace}
 }
 
-func (c *FakeRadixV1) RadixRegistrations(namespace string) v1.RadixRegistrationInterface {
-	return &FakeRadixRegistrations{c, namespace}
+func (c *FakeRadixV1) RadixRegistrations() v1.RadixRegistrationInterface {
+	return &FakeRadixRegistrations{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

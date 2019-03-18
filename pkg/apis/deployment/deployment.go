@@ -112,6 +112,13 @@ func (deploy *Deployment) OnSync() error {
 		return fmt.Errorf("Failed to provision secrets: %v", err)
 	}
 
+	err = deploy.denyTrafficFromOtherNamespaces()
+	if err != nil {
+		errmsg := "Failed to setup NSP whitelist: "
+		log.Errorf("%s%v", errmsg, err)
+		return fmt.Errorf("%s%v", errmsg, err)
+	}
+
 	for _, v := range deploy.radixDeployment.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
 		err := deploy.createDeployment(v)

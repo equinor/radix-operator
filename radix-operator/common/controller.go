@@ -147,6 +147,9 @@ func (c *Controller) syncHandler(key string) error {
 
 	err = c.Handler.Sync(namespace, name, c.Recorder)
 	if err != nil {
+		// DEBUG
+		log.Errorf("Error while syncing: %v", err)
+
 		utilruntime.HandleError(fmt.Errorf("Problems syncing: %s", key))
 		nrErrors.With(prometheus.Labels{
 			"method":   "c_handler_sync",

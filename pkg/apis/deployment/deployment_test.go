@@ -11,7 +11,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -170,6 +169,12 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
 		//assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+	})
+
+	t.Run("validate networkpolicy", func(t *testing.T) {
+		t.Parallel()
+		np, _ := client.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
 	})
 }
 
@@ -642,7 +647,7 @@ func applyDeploymentWithSync(tu *test.Utils, client kube.Interface,
 		return nil, err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +670,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface,
 		return err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations(corev1.NamespaceDefault).Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

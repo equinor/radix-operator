@@ -38,9 +38,13 @@ spec:
             {{if .Values.isPlaygroundCluster }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: "playground"
+            - name: RADIXOPERATOR_DEFAULT_USER_GROUP
+              value: "{{ .Values.radixGroups.playground }}"
             {{else}}
             - name: RADIXOPERATOR_CLUSTER_TYPE
               value: "production"
+            - name: RADIXOPERATOR_DEFAULT_USER_GROUP
+              value: "{{ .Values.radixGroups.user }}"
             {{end}}
             # For configuring limit ranges on app namespaces
             - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY

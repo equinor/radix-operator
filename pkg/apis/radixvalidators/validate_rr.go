@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -57,7 +57,7 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 }
 
 func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
-	rr, _ := client.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
+	rr, _ := client.RadixV1().RadixRegistrations().Get(appName, metav1.GetOptions{})
 	if rr != nil && rr.Name != "" {
 		return fmt.Errorf("App name must be unique in cluster - %s already exist", appName)
 	}
@@ -90,7 +90,9 @@ func validateAdGroups(groups []string) error {
 	re := regexp.MustCompile("^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$")
 
 	if groups == nil || len(groups) <= 0 {
-		return fmt.Errorf("AD group is required")
+		// If Ad-group is missing from spec the operator will
+		// set a default ad-group provided for the cluster
+		return nil
 	}
 
 	for _, group := range groups {
@@ -122,7 +124,7 @@ func validateNoDuplicateGitRepo(client radixclient.Interface, appName, sshURL st
 		return nil
 	}
 
-	registrations, err := client.RadixV1().RadixRegistrations("default").List(metav1.ListOptions{})
+	registrations, err := client.RadixV1().RadixRegistrations().List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -141,7 +143,7 @@ func validateSSHKey(deployKey string) error {
 }
 
 func validateDoesRRExist(client radixclient.Interface, appName string) error {
-	rr, err := client.RadixV1().RadixRegistrations("default").Get(appName, metav1.GetOptions{})
+	rr, err := client.RadixV1().RadixRegistrations().Get(appName, metav1.GetOptions{})
 	if rr == nil || err != nil {
 		return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
 	}

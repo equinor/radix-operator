@@ -47,7 +47,7 @@ func NewRegistrationHandler(
 
 // Sync Is created on sync of resource
 func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	registration, err := t.radixclient.RadixV1().RadixRegistrations(namespace).Get(name, metav1.GetOptions{})
+	registration, err := t.radixclient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
