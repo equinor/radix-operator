@@ -43,14 +43,14 @@ func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding)
 	return nil
 }
 
-func (k *Kube) ApplyClusterRoleBinding(rolebinding *auth.ClusterRoleBinding) error {
-	logger = logger.WithFields(log.Fields{"clusterRoleBinding": rolebinding.ObjectMeta.Name})
+func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBinding) error {
+	logger = logger.WithFields(log.Fields{"clusterRoleBinding": clusterrolebinding.ObjectMeta.Name})
 
-	logger.Debugf("Apply clusterrolebinding %s", rolebinding.Name)
+	logger.Debugf("Apply clusterrolebinding %s", clusterrolebinding.Name)
 
-	_, err := k.kubeClient.RbacV1().ClusterRoleBindings().Create(rolebinding)
+	_, err := k.kubeClient.RbacV1().ClusterRoleBindings().Create(clusterrolebinding)
 	if errors.IsAlreadyExists(err) {
-		logger.Debugf("ClusterRolebinding %s already exists", rolebinding.Name)
+		logger.Debugf("ClusterRolebinding %s already exists", clusterrolebinding.Name)
 		return nil
 	}
 
@@ -59,7 +59,7 @@ func (k *Kube) ApplyClusterRoleBinding(rolebinding *auth.ClusterRoleBinding) err
 		return err
 	}
 
-	logger.Debugf("Created clusterRoleBinding %s", rolebinding.Name)
+	logger.Debugf("Created clusterRoleBinding %s", clusterrolebinding.Name)
 	return nil
 }
 

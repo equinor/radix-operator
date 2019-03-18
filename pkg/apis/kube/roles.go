@@ -20,3 +20,19 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	logger.Debugf("Created role %s in %s", role.Name, namespace)
 	return nil
 }
+
+func (k *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
+	logger.Debugf("Apply clusterrole %s", clusterrole.Name)
+	_, err := k.kubeClient.RbacV1().ClusterRoles().Create(clusterrole)
+	if errors.IsAlreadyExists(err) {
+		logger.Debugf("Clusterrole %s already exists. Updating", clusterrole.Name)
+		_, err = k.kubeClient.RbacV1().ClusterRoles().Update(clusterrole)
+	}
+
+	if err != nil {
+		logger.Debugf("Saving clusterrole %s failed: %v", clusterrole.Name, err)
+		return err
+	}
+	logger.Debugf("Created clusterrole %s", clusterrole.Name)
+	return nil
+}

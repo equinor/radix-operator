@@ -50,18 +50,17 @@ func (app Application) grantAccessToCICDLogs() error {
 
 // ApplyRbacRadixRegistration Grants access to radix registration
 func (app Application) applyRbacRadixRegistration() error {
-	namespace := "default"
 	k := app.kubeutil
 
-	role := app.rrUserRole()
-	rolebinding := app.rrRoleBinding(role)
+	clusterrole := app.rrUserClusterRole()
+	clusterrolebinding := app.rrClusterroleBinding(clusterrole)
 
-	err := k.ApplyRole(namespace, role)
+	err := k.ApplyClusterRole(clusterrole)
 	if err != nil {
 		return err
 	}
 
-	return k.ApplyRoleBinding(namespace, rolebinding)
+	return k.ApplyClusterRoleBinding(clusterrolebinding)
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline
@@ -80,18 +79,17 @@ func (app Application) applyRbacOnPipelineRunner(serviceAccount *corev1.ServiceA
 }
 
 func (app Application) givePipelineAccessToRR(serviceAccount *corev1.ServiceAccount) error {
-	namespace := "default"
 	k := app.kubeutil
 
-	role := app.rrPipelineRole()
-	rolebinding := app.rrPipelineRoleBinding(serviceAccount, role)
+	clusterrole := app.rrPipelineClusterRole()
+	clusterrolebinding := app.rrPipelineClusterRoleBinding(serviceAccount, clusterrole)
 
-	err := k.ApplyRole(namespace, role)
+	err := k.ApplyClusterRole(clusterrole)
 	if err != nil {
 		return err
 	}
 
-	err = k.ApplyRoleBinding(namespace, rolebinding)
+	err = k.ApplyClusterRoleBinding(clusterrolebinding)
 	if err != nil {
 		return err
 	}
@@ -184,20 +182,20 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 	return rolebinding
 }
 
-func (app Application) rrPipelineRoleBinding(serviceAccount *corev1.ServiceAccount, role *auth.Role) *auth.RoleBinding {
+func (app Application) rrPipelineClusterRoleBinding(serviceAccount *corev1.ServiceAccount, clusterrole *auth.ClusterRole) *auth.ClusterRoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	roleBindingName := role.Name
+	clusterroleBindingName := clusterrole.Name
 	ownerReference := app.getOwnerReference()
-	logger.Debugf("Create rolebinding config %s", roleBindingName)
+	logger.Debugf("Create clusterrolebinding config %s", clusterroleBindingName)
 
-	rolebinding := &auth.RoleBinding{
+	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
+			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: roleBindingName,
+			Name: clusterroleBindingName,
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
@@ -205,8 +203,8 @@ func (app Application) rrPipelineRoleBinding(serviceAccount *corev1.ServiceAccou
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     role.Name,
+			Kind:     "ClusterRole",
+			Name:     clusterrole.Name,
 		},
 		Subjects: []auth.Subject{
 			auth.Subject{
@@ -216,27 +214,27 @@ func (app Application) rrPipelineRoleBinding(serviceAccount *corev1.ServiceAccou
 			},
 		},
 	}
-	return rolebinding
+	return clusterrolebinding
 }
 
-func (app Application) rrRoleBinding(role *auth.Role) *auth.RoleBinding {
+func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth.ClusterRoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	roleBindingName := role.Name
-	logger.Debugf("Create roleBinding config %s", roleBindingName)
+	clusterroleBindingName := clusterrole.Name
+	logger.Debugf("Create clusterrolebinding config %s", clusterroleBindingName)
 
 	ownerReference := app.getOwnerReference()
 
 	adGroups, _ := GetAdGroups(registration)
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
-	rolebinding := &auth.RoleBinding{
+	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
+			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: roleBindingName,
+			Name: clusterroleBindingName,
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
@@ -244,13 +242,13 @@ func (app Application) rrRoleBinding(role *auth.Role) *auth.RoleBinding {
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     role.Name,
+			Kind:     "ClusterRole",
+			Name:     clusterrole.Name,
 		},
 		Subjects: subjects,
 	}
 
-	logger.Debugf("Done - create rolebinding config %s", roleBindingName)
+	logger.Debugf("Done - create clusterrolebinding config %s", clusterroleBindingName)
 
-	return rolebinding
+	return clusterrolebinding
 }
