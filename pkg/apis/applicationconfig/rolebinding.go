@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,7 +10,13 @@ import (
 // grantAppAdminAccessToNs Grant access to environment namespace
 func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 	registration := app.registration
-	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
+
+	adGroups, err := application.GetAdGroups(registration)
+	if err != nil {
+		return err
+	}
+
+	subjects := kube.GetRoleBindingGroups(adGroups)
 	clusterRoleName := "radix-app-admin-envs"
 
 	roleBinding := &auth.RoleBinding{

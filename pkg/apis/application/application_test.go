@@ -56,6 +56,40 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.Equal(t, "radix-pipeline", serviceAccounts.Items[0].Name)
 }
 
+func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
+	// Setup
+	tu, client, radixClient := setupTest()
+	os.Setenv(OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
+
+	// Test
+	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
+		WithName("any-app").
+		WithAdGroups([]string{}))
+
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(rolebindings.Items))
+	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
+	assert.Equal(t, "9876-54321-09876", rolebindings.Items[1].Subjects[0].Name)
+
+}
+
+func TestOnSync_UserGroupDefined_UserGroupSet(t *testing.T) {
+	// Setup
+	tu, client, radixClient := setupTest()
+	os.Setenv(OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
+
+	// Test
+	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
+		WithName("any-app").
+		WithAdGroups([]string{"5678-91011-1234"}))
+
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(rolebindings.Items))
+	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
+	assert.Equal(t, "5678-91011-1234", rolebindings.Items[1].Subjects[0].Name)
+
+}
+
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
 	tu, client, radixClient := setupTest()

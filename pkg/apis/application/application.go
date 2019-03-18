@@ -1,6 +1,9 @@
 package application
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -10,6 +13,9 @@ import (
 )
 
 var logger *log.Entry
+
+// OperatorDefaultUserGroupEnvironmentVariable If users don't provide ad-group, then it should default to this
+const OperatorDefaultUserGroupEnvironmentVariable = "RADIXOPERATOR_DEFAULT_USER_GROUP"
 
 // Application Instance variables
 type Application struct {
@@ -99,4 +105,20 @@ func (app Application) OnSync() error {
 	}
 
 	return nil
+}
+
+// GetAdGroups Gets ad-groups from registration. If missing, gives default for cluster
+func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
+	if registration.Spec.AdGroups == nil || len(registration.Spec.AdGroups) <= 0 {
+		defaultGroup := os.Getenv(OperatorDefaultUserGroupEnvironmentVariable)
+		if defaultGroup == "" {
+			err := fmt.Errorf("Cannot obtain ad-group as %s has not been set for the operator", OperatorDefaultUserGroupEnvironmentVariable)
+			logger.Error(err)
+			return []string{}, err
+		}
+
+		return []string{defaultGroup}, nil
+	}
+
+	return registration.Spec.AdGroups, nil
 }

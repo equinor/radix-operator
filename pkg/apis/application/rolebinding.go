@@ -16,7 +16,13 @@ func (app Application) grantAccessToCICDLogs() error {
 	registration := app.registration
 
 	namespace := utils.GetAppNamespace(registration.Name)
-	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
+
+	adGroups, err := GetAdGroups(registration)
+	if err != nil {
+		return err
+	}
+
+	subjects := kube.GetRoleBindingGroups(adGroups)
 	clusterRoleName := "radix-app-admin"
 
 	roleBinding := &auth.RoleBinding{
@@ -220,7 +226,9 @@ func (app Application) rrRoleBinding(role *auth.Role) *auth.RoleBinding {
 	logger.Debugf("Create roleBinding config %s", roleBindingName)
 
 	ownerReference := app.getOwnerReference()
-	subjects := kube.GetRoleBindingGroups(registration.Spec.AdGroups)
+
+	adGroups, _ := GetAdGroups(registration)
+	subjects := kube.GetRoleBindingGroups(adGroups)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
