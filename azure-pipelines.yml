@@ -13,6 +13,7 @@ variables:
   dockerRegistry: 'radixdev.azurecr.io'
   azureSubscriptionEndpoint: 'radix-dev-acr'
   imageName: 'radix-operator:$(build.buildId)'
+  helmDirectory: '.'
 
 steps:
 - task: Docker@1
@@ -31,3 +32,8 @@ steps:
     azureContainerRegistry: '$(dockerRegistry)'
     imageName: '$(dockerRegistry)/$(imageName)'
     command: push
+
+- task: PublishPipelineArtifact@0
+  inputs:
+    artifactName: 'helm chart'
+    targetPath: 'charts'
