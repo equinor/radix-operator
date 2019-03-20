@@ -10,8 +10,24 @@ pool:
   vmImage: 'Ubuntu-16.04'
 
 variables:
-  imageName: 'radixdev.azurecr.io/radix-operator:$(build.buildId)'
+  dockerRegistry: 'radixdev.azurecr.io'
+  azureSubscriptionEndpoint: 'radix-dev-acr'
+  imageName: 'radix-operator:$(build.buildId)'
 
 steps:
-- script: docker build -f operator.Dockerfile -t $(imageName) .
-  displayName: 'docker build'
+- task: Docker@1
+  displayName: 'Build image'
+  inputs:
+    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
+    azureContainerRegistry: '$(dockerRegistry)'
+    imageName: '$(dockerRegistry)/$(imageName)'
+    command: build
+    dockerFile: 'operator.Dockerfile'
+
+- task: Docker@1
+  displayName: 'Push image'
+  inputs:
+    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
+    azureContainerRegistry: '$(dockerRegistry)'
+    imageName: '$(dockerRegistry)/$(imageName)'
+    command: push
