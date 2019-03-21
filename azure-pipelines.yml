@@ -11,7 +11,7 @@ pool:
 
 variables:
   dockerRegistry: 'radixdev.azurecr.io'
-  azureSubscriptionEndpoint: 'radix-dev-acr'
+  azureSubscriptionEndpoint: 'radix-cicd-azure-devops'
   imageName: 'radix-operator:$(build.buildId)'
   helmDirectory: '.'
 
