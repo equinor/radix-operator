@@ -35,5 +35,5 @@ steps:
 
 - task: PublishPipelineArtifact@0
   inputs:
-    artifactName: 'helm chart'
+    artifactName: 'helmchart'
     targetPath: 'charts'
