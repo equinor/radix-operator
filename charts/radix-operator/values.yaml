@@ -9,14 +9,14 @@ imagePullSecretName: radix-docker
 
 imageCredentials:
   registry: radixdev.azurecr.io
-  username: xx
+  username: fd2f192c-5d06-4e06-9eae-61e514c05d6e
   password: xx
 
 cicdacr:
-  name: xx
-  id: x
+  name: radix-cr-cicd-dev
+  id: fd2f192c-5d06-4e06-9eae-61e514c05d6e
   password: xx
-  tenantId: xx
+  tenantId: 3aa4a235-b6e2-48d5-9195-7fcf05b459b0
 
 app:
   # Limit range on app namespace
