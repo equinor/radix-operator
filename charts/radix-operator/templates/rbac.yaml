@@ -65,6 +65,11 @@ rules:
 - apiGroups: ["extensions"]
   resources: ["ingresses"]
   verbs: ["get", "list", "watch"]
+# In order to delete orphaned environment through
+# radix-api SA
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["delete"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
