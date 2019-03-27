@@ -10,6 +10,8 @@ COPY ./pipeline-runner ./pipeline-runner
 COPY ./pkg ./pkg
 WORKDIR /go/src/github.com/equinor/radix-operator/pipeline-runner/
 
+RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
+
 ARG date
 ARG commitid
 ARG branch
