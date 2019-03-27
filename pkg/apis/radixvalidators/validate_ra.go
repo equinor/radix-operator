@@ -3,6 +3,7 @@ package radixvalidators
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -55,6 +56,15 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		return true, nil
 	}
 	return false, errs
+}
+
+func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
+	for _, component := range app.Spec.Components {
+		if component.Public {
+			return true
+		}
+	}
+	return false
 }
 
 func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
@@ -119,6 +129,22 @@ func validatePorts(component radixv1.RadixComponent) []error {
 		err := validateRequiredResourceName("port name", port.Name)
 		if err != nil {
 			errs = append(errs, err)
+		}
+	}
+
+	publicPortName := component.PublicPort
+	if publicPortName != "" {
+		matchingPortName := 0
+		for _, port := range component.Ports {
+			if strings.EqualFold(port.Name, publicPortName) {
+				matchingPortName++
+			}
+		}
+		if matchingPortName < 1 {
+			errs = append(errs, fmt.Errorf("%s port name is required for public component %s", publicPortName, component.Name))
+		}
+		if matchingPortName > 1 {
+			errs = append(errs, fmt.Errorf("There are %d ports with name %s for component %s. Only 1 is allowed", matchingPortName, publicPortName, component.Name))
 		}
 	}
 

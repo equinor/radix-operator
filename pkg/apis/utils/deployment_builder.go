@@ -187,7 +187,7 @@ func ARadixDeployment() DeploymentBuilder {
 			WithImage("radixdev.azurecr.io/some-image:imagetag").
 			WithName("app").
 			WithPort("http", 8080).
-			WithPublic(true).
+			WithPublicPort("http").
 			WithReplicas(1))
 
 	return builder
@@ -200,7 +200,9 @@ type DeployComponentBuilder interface {
 	WithPort(string, int32) DeployComponentBuilder
 	WithEnvironmentVariable(string, string) DeployComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
+	// Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublic(bool) DeployComponentBuilder
+	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
 	WithReplicas(int) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
@@ -214,12 +216,14 @@ type deployComponentBuilder struct {
 	image                string
 	ports                map[string]int32
 	environmentVariables map[string]string
-	public               bool
-	monitoring           bool
-	replicas             int
-	secrets              []string
-	dnsappalias          bool
-	resources            v1.ResourceRequirements
+	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
+	public      bool
+	publicPort  string
+	monitoring  bool
+	replicas    int
+	secrets     []string
+	dnsappalias bool
+	resources   v1.ResourceRequirements
 }
 
 func (dcb *deployComponentBuilder) WithResource(request map[string]string, limit map[string]string) DeployComponentBuilder {
@@ -250,8 +254,14 @@ func (dcb *deployComponentBuilder) WithPort(name string, port int32) DeployCompo
 	return dcb
 }
 
+// Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 func (dcb *deployComponentBuilder) WithPublic(public bool) DeployComponentBuilder {
 	dcb.public = public
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithPublicPort(publicPort string) DeployComponentBuilder {
+	dcb.publicPort = publicPort
 	return dcb
 }
 
@@ -291,6 +301,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Name:                 dcb.name,
 		Ports:                componentPorts,
 		Public:               dcb.public,
+		PublicPort:           dcb.publicPort,
 		Monitoring:           dcb.monitoring,
 		Replicas:             dcb.replicas,
 		Secrets:              dcb.secrets,

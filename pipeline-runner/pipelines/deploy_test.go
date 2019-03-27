@@ -46,7 +46,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		WithComponents(
 			utils.AnApplicationComponent().
 				WithName("app").
-				WithPublic(true).
+				WithPublicPort("http").
 				WithPort("http", 8080).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
@@ -57,7 +57,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 						WithReplicas(4)),
 			utils.AnApplicationComponent().
 				WithName("redis").
-				WithPublic(false).
+				WithPublicPort("").
 				WithPort("http", 6379).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().

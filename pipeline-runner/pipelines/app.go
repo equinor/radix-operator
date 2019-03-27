@@ -53,6 +53,10 @@ func LoadConfigFromFile(appFileName string) (*v1.RadixApplication, error) {
 
 // Prepare Runs preparations before build
 func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, branch string) (*v1.RadixRegistration, map[string]bool, error) {
+	if validate.RAContainsOldPublic(radixApplication) {
+		log.Warnf("component.public is deprecated, please use component.publicPort instead")
+	}
+
 	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.radixclient, radixApplication)
 	if !isRAValid {
 		log.Errorf("Radix config not valid.")
