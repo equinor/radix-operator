@@ -136,7 +136,9 @@ func ARadixApplication() ApplicationBuilder {
 // RadixApplicationComponentBuilder Handles construction of RA component
 type RadixApplicationComponentBuilder interface {
 	WithName(string) RadixApplicationComponentBuilder
+	// Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublic(bool) RadixApplicationComponentBuilder
+	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
@@ -145,8 +147,10 @@ type RadixApplicationComponentBuilder interface {
 }
 
 type radixApplicationComponentBuilder struct {
-	name              string
+	name string
+	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
 	public            bool
+	publicPort        string
 	ports             map[string]int32
 	secrets           []string
 	environmentConfig []RadixEnvironmentConfigBuilder
@@ -157,8 +161,14 @@ func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicat
 	return rcb
 }
 
+// Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 func (rcb *radixApplicationComponentBuilder) WithPublic(public bool) RadixApplicationComponentBuilder {
 	rcb.public = public
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithPublicPort(publicPort string) RadixApplicationComponentBuilder {
+	rcb.publicPort = publicPort
 	return rcb
 }
 
@@ -198,6 +208,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Ports:             componentPorts,
 		Secrets:           rcb.secrets,
 		Public:            rcb.public,
+		PublicPort:        rcb.publicPort,
 		EnvironmentConfig: environmentConfig,
 	}
 }

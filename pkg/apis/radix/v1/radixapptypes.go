@@ -78,11 +78,13 @@ type ResourceRequirements struct {
 
 //RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
 type RadixComponent struct {
-	Name              string                   `json:"name" yaml:"name"`
-	SourceFolder      string                   `json:"src" yaml:"src"`
-	DockerfileName    string                   `json:"dockerfileName" yaml:"dockerfileName"`
-	Ports             []ComponentPort          `json:"ports" yaml:"ports"`
+	Name           string          `json:"name" yaml:"name"`
+	SourceFolder   string          `json:"src" yaml:"src"`
+	DockerfileName string          `json:"dockerfileName" yaml:"dockerfileName"`
+	Ports          []ComponentPort `json:"ports" yaml:"ports"`
+	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
 	Public            bool                     `json:"public" yaml:"public"`
+	PublicPort        string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets           []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	EnvironmentConfig []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 }

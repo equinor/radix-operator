@@ -14,7 +14,7 @@ spec:
       ports:
        - name: http
          port: 8080
-      public: true
+      publicPort: http
       environmentConfig:
         - environment: prod
           replicas: 4
@@ -30,7 +30,7 @@ spec:
       ports:
         - name: http
           port: 6379
-      public: false
+      publicPort: ""
       environmentConfig:
         - environment: dev
           variables:
