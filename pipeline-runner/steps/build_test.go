@@ -1,4 +1,4 @@
-package onpush
+package steps
 
 import (
 	"fmt"
