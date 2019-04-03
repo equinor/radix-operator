@@ -1,10 +1,11 @@
-package onpush
+package steps
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -21,9 +22,14 @@ const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
 )
 
-func createACRBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
-	cloneContainer := CloneContainer(containerRegistry, cloneURL, branch)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, useCache, components)
+func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo) (*batchv1.Job, error) {
+	appName := pipelineInfo.GetAppName()
+	branch := pipelineInfo.Branch
+	imageTag := pipelineInfo.ImageTag
+	jobName := pipelineInfo.JobName
+
+	cloneContainer := CloneContainer(containerRegistry, pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
+	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.UseCache, pipelineInfo.RadixApplication.Spec.Components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)

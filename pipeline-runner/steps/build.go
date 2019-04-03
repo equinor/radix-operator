@@ -1,22 +1,22 @@
-package onpush
+package steps
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag, useCache string) error {
-	appName := radixRegistration.Name
-	cloneURL := radixRegistration.Spec.CloneURL
+func (cli *RadixStepHandler) Build(pipelineInfo model.PipelineInfo) error {
+	appName := pipelineInfo.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
 	containerRegistry, err := cli.kubeutil.GetContainerRegistry()
 	if err != nil {
@@ -25,7 +25,7 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 
 	log.Infof("building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createACRBuildJob(containerRegistry, appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag, useCache)
+	job, err := createACRBuildJob(containerRegistry, pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -65,6 +65,7 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 
 const workspace = "/workspace"
 
+// builds using kaniko - not currently used because of slowness and bugs
 func createBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
 	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)

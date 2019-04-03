@@ -21,21 +21,14 @@ spec:
          port: 8080
       public: true
       replicas: 6
-      resources: 
-        requests: 
-          memory: "64Mi"
-          cpu: "100m"
-        limits: 
-          memory: "128Mi"
-          cpu: "200m"
     - name: redis
       src: redis/
       ports:
         - name: http
-          port: 6379
+          port: 6379      
       public: false
       replicas: 1
-      environmentVariables:
+      environmentConfig:
         - environment: dev
           variables:
             DB_HOST: "useless-devy"
@@ -44,15 +37,14 @@ spec:
           variables:
             DB_HOST: "useless-prod"
             DB_PORT: "9876"
-      secrets:
-        - DB_PASS
-      resources: 
-        limits: 
-          memory: "512Mi"
-          cpu: "500m"
-        requests: 
-          memory: "128Mi"
-          cpu: "250m"
+          resources: 
+            requests: 
+              memory: "2G"
+              cpu: "200m"
+            limits:
+              memory: "4G"
+              cpu: "200m"
   dnsAppAlias:
     environment: prod
     component: app
+    
