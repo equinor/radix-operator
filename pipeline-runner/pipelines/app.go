@@ -91,21 +91,22 @@ func (cli *RadixOnPushHandler) Run(pipelineInfo model.PipelineInfo) error {
 	branch := pipelineInfo.Branch
 	commitID := pipelineInfo.CommitID
 
-	stepsCli, _ := steps.Init(cli.kubeclient, cli.radixclient, cli.prometheusOperatorClient)
+	log.Infof("Start pipeline build and deploy for app %s. Branch=%s and commit=%s", appName, branch, commitID)
+	builder := steps.InitBuildHandler(cli.kubeclient, cli.radixclient, cli.kubeutil)
+	deployer := steps.InitDeployHandler(cli.kubeclient, cli.radixclient, cli.kubeutil, cli.prometheusOperatorClient)
 
-	log.Infof("Start pipeline build and deploy for %s and branch %s and commit id %s", appName, branch, commitID)
-	err := stepsCli.Build(pipelineInfo)
-	if err != nil {
-		log.Errorf("failed to build app %s. Error: %v", appName, err)
-		return err
-	}
-	log.Infof("Succeeded: build docker image")
+	err := cli.runSteps(pipelineInfo, builder, deployer)
+	return err
+}
 
-	_, err = stepsCli.Deploy(pipelineInfo)
-	if err != nil {
-		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
-		return err
+func (cli *RadixOnPushHandler) runSteps(pipelineInfo model.PipelineInfo, steps ...steps.Step) error {
+	for _, step := range steps {
+		err := step.Run(pipelineInfo)
+		if err != nil {
+			log.Errorf(step.ErrorMsg(pipelineInfo, err))
+			return err
+		}
+		log.Infof(step.SucceededMsg(pipelineInfo))
 	}
-	log.Infof("Succeeded: deploy application")
 	return nil
 }

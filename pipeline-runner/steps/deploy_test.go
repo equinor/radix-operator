@@ -7,6 +7,7 @@ import (
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -22,18 +23,20 @@ const (
 	containerRegistry  = "any.container.registry"
 )
 
-func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
+func setupTest() (*kubernetes.Clientset, *radix.Clientset, *kube.Kube, test.Utils) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return kubeclient, radixclient, testUtils
+	kube, _ := kube.New(kubeclient)
+
+	return kubeclient, radixclient, kube, testUtils
 }
 
 func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
-	kubeclient, radixclient, _ := setupTest()
+	kubeclient, radixclient, kubeutil, _ := setupTest()
 
 	rr := utils.ARadixRegistration().
 		WithName("any-app").
@@ -90,7 +93,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli, _ := Init(kubeclient, radixclient, &monitoring.Clientset{})
+	cli := InitDeployHandler(kubeclient, radixclient, kubeutil, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	_, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
