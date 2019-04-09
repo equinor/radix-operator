@@ -119,7 +119,7 @@ endif
 		--set imageRegistry=$(DOCKER_REGISTRY) \
 		--set clusterName=$(CLUSTER_NAME) \
 		--set image.tag=$(BRANCH)-$(VERSION) \
-    	--set isPlaygroundCluster="false" \
+    	--set clusterType="development" \
     	-f radix-operator-values.yaml
 
 	rm -f radix-operator-values.yaml
