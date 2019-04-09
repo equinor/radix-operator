@@ -37,6 +37,8 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 				log.Errorf("Failed to create app alias ingress for app %s. Error was %s ", deploy.radixDeployment.Spec.AppName, err)
 			}
 		}
+	} else {
+		deploy.garbageCollectAppAliasIngressNoLongerInSpecForComponent(deployComponent)
 	}
 
 	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
@@ -71,16 +73,24 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 	return nil
 }
 
+func (deploy *Deployment) garbageCollectAppAliasIngressNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
+	return deploy.garbageCollectIngressByLabelSelectorForComponent(component.Name, fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixAppAliasLabel, "true"))
+}
+
 func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
+	return deploy.garbageCollectIngressByLabelSelectorForComponent(component.Name, fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name))
+}
+
+func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(componentName, labelSelector string) error {
 	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		return err
 	}
 
 	if len(ingresses.Items) > 0 {
-		err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(component.Name, &metav1.DeleteOptions{})
+		err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses.Items[0].Name, &metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
