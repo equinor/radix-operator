@@ -24,14 +24,30 @@ type PipelineInfo struct {
 	ImageTag           string
 	UseCache           string
 	PushImage          bool
+	Steps              []Step
 }
 
-func Init(pipelineType string, rr *v1.RadixRegistration, ra *v1.RadixApplication, targetEnv map[string]bool, jobName, branch, commitID, imageTag, useCache, pushImage string) (PipelineInfo, error) {
+func Init(pipelineType string,
+	rr *v1.RadixRegistration,
+	ra *v1.RadixApplication,
+	targetEnv map[string]bool,
+	jobName,
+	branch,
+	commitID,
+	imageTag,
+	useCache,
+	pushImage string,
+	builder Step,
+	deployer Step) (PipelineInfo, error) {
+
+	steps := []Step{}
 	pipeType := BuildAndDeploy
 	if pipelineType == string(Build) {
 		pipeType = Build
+		steps = append(steps, builder)
 	} else if pipelineType == "" || pipelineType == string(BuildAndDeploy) {
 		pipeType = BuildAndDeploy // default if empty
+		steps = append(steps, builder, deployer)
 	} else {
 		return PipelineInfo{}, fmt.Errorf("Does not support pipeline type: %s", pipelineType)
 	}
@@ -49,6 +65,7 @@ func Init(pipelineType string, rr *v1.RadixRegistration, ra *v1.RadixApplication
 		ImageTag:           imageTag,
 		UseCache:           useCache,
 		PushImage:          pushImagebool,
+		Steps:              steps,
 	}, nil
 }
 

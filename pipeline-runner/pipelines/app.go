@@ -5,7 +5,6 @@ import (
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -25,12 +24,8 @@ type RadixOnPushHandler struct {
 }
 
 // Init constructor
-func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) (RadixOnPushHandler, error) {
-	kube, err := kube.New(kubeclient)
-	if err != nil {
-		return RadixOnPushHandler{}, err
-	}
-
+func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) RadixOnPushHandler {
+	kube, _ := kube.New(kubeclient)
 	handler := RadixOnPushHandler{
 		kubeclient:               kubeclient,
 		radixclient:              radixclient,
@@ -38,7 +33,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, pr
 		kubeutil:                 kube,
 	}
 
-	return handler, nil
+	return handler
 }
 
 // Prepare Runs preparations before build
@@ -85,27 +80,14 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 	return radixRegistration, targetEnvironments, nil
 }
 
-// Run Runs the main pipeline
-func (cli *RadixOnPushHandler) Run(pipelineInfo model.PipelineInfo) error {
+func Run(pipelineInfo model.PipelineInfo) error {
 	appName := pipelineInfo.GetAppName()
 	branch := pipelineInfo.Branch
 	commitID := pipelineInfo.CommitID
 
 	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", pipelineInfo.Type, appName, branch, commitID)
-	builder := steps.InitBuildHandler(cli.kubeclient, cli.radixclient, cli.kubeutil)
-	deployer := steps.InitDeployHandler(cli.kubeclient, cli.radixclient, cli.kubeutil, cli.prometheusOperatorClient)
 
-	if pipelineInfo.Type == model.Build {
-		return cli.runSteps(pipelineInfo, builder)
-	} else if pipelineInfo.Type == model.BuildAndDeploy {
-		return cli.runSteps(pipelineInfo, builder, deployer)
-	}
-
-	return nil
-}
-
-func (cli *RadixOnPushHandler) runSteps(pipelineInfo model.PipelineInfo, steps ...steps.Step) error {
-	for _, step := range steps {
+	for _, step := range pipelineInfo.Steps {
 		err := step.Run(pipelineInfo)
 		if err != nil {
 			log.Errorf(step.ErrorMsg(pipelineInfo, err))

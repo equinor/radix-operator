@@ -21,12 +21,13 @@ type DeployHandler struct {
 }
 
 // Init constructor
-func InitDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface) DeployHandler {
+func InitDeployHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) DeployHandler {
+	kube, _ := kube.New(kubeclient)
 	return DeployHandler{
 		kubeclient:               kubeclient,
 		radixclient:              radixclient,
 		prometheusOperatorClient: prometheusOperatorClient,
-		kubeutil:                 kubeutil,
+		kubeutil:                 kube,
 	}
 }
 

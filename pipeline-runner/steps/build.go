@@ -24,11 +24,12 @@ type BuildHandler struct {
 }
 
 // Init constructor
-func InitBuildHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube) BuildHandler {
+func InitBuildHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) BuildHandler {
+	kube, _ := kube.New(kubeclient)
 	return BuildHandler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
-		kubeutil:    kubeutil,
+		kubeutil:    kube,
 	}
 }
 

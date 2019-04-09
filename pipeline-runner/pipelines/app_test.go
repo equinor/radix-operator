@@ -31,7 +31,7 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
 
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, _ := setupTest()
-	cli, _ := Init(kubeclient, radixclient, &monitoring.Clientset{})
+	cli := Init(kubeclient, radixclient, &monitoring.Clientset{})
 
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName("any-app").
@@ -46,7 +46,7 @@ func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 
 func TestPrepare_MasterIsNotMappedToEnvironment_StillItsApplied(t *testing.T) {
 	kubeclient, radixclient, commonTestUtils := setupTest()
-	cli, _ := Init(kubeclient, radixclient, &monitoring.Clientset{})
+	cli := Init(kubeclient, radixclient, &monitoring.Clientset{})
 
 	commonTestUtils.ApplyRegistration(utils.ARadixRegistration().
 		WithName("any-app"))
