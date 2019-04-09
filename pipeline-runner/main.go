@@ -61,8 +61,8 @@ func prepareToRunPipeline() model.PipelineInfo {
 	imageTag := args["IMAGE_TAG"]
 	jobName := args["JOB_NAME"]
 	useCache := args["USE_CACHE"]
-	pipelineType := string(model.Build) //args["PIPELINE_TYPE"] // string(model.Build)
-	pushImage := "1"                    //args["PUSH_IMAGE"] // "0"
+	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
+	pushImage := args["PUSH_IMAGE"]       // "0"
 
 	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
