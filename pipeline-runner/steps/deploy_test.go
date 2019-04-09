@@ -29,6 +29,7 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+
 	return kubeclient, radixclient, testUtils
 }
 
@@ -90,7 +91,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli, _ := Init(kubeclient, radixclient, &monitoring.Clientset{})
+	cli := InitDeployHandler(kubeclient, radixclient, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	_, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")

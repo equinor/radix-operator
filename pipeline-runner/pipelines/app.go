@@ -5,7 +5,6 @@ import (
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -25,12 +24,8 @@ type RadixOnPushHandler struct {
 }
 
 // Init constructor
-func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) (RadixOnPushHandler, error) {
-	kube, err := kube.New(kubeclient)
-	if err != nil {
-		return RadixOnPushHandler{}, err
-	}
-
+func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) RadixOnPushHandler {
+	kube, _ := kube.New(kubeclient)
 	handler := RadixOnPushHandler{
 		kubeclient:               kubeclient,
 		radixclient:              radixclient,
@@ -38,7 +33,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, pr
 		kubeutil:                 kube,
 	}
 
-	return handler, nil
+	return handler
 }
 
 // Prepare Runs preparations before build
@@ -85,27 +80,20 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 	return radixRegistration, targetEnvironments, nil
 }
 
-// Run Runs the main pipeline
-func (cli *RadixOnPushHandler) Run(pipelineInfo model.PipelineInfo) error {
+func Run(pipelineInfo model.PipelineInfo) error {
 	appName := pipelineInfo.GetAppName()
 	branch := pipelineInfo.Branch
 	commitID := pipelineInfo.CommitID
 
-	stepsCli, _ := steps.Init(cli.kubeclient, cli.radixclient, cli.prometheusOperatorClient)
+	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", pipelineInfo.Type, appName, branch, commitID)
 
-	log.Infof("Start pipeline build and deploy for %s and branch %s and commit id %s", appName, branch, commitID)
-	err := stepsCli.Build(pipelineInfo)
-	if err != nil {
-		log.Errorf("failed to build app %s. Error: %v", appName, err)
-		return err
+	for _, step := range pipelineInfo.Steps {
+		err := step.Run(pipelineInfo)
+		if err != nil {
+			log.Errorf(step.ErrorMsg(pipelineInfo, err))
+			return err
+		}
+		log.Infof(step.SucceededMsg(pipelineInfo))
 	}
-	log.Infof("Succeeded: build docker image")
-
-	_, err = stepsCli.Deploy(pipelineInfo)
-	if err != nil {
-		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
-		return err
-	}
-	log.Infof("Succeeded: deploy application")
 	return nil
 }

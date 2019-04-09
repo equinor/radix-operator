@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -42,9 +43,9 @@ func init() {
 // - a secret git-ssh-keys containing deployment key to git repo provided in RR
 // - a secret radix-docker with credentials to access our private ACR
 func main() {
-	pipelineInfo, pushHandler := prepareToRunPipeline()
+	pipelineInfo := prepareToRunPipeline()
 
-	err := pushHandler.Run(pipelineInfo)
+	err := pipe.Run(pipelineInfo)
 	if err != nil {
 		os.Exit(2)
 	}
@@ -52,7 +53,7 @@ func main() {
 }
 
 // runs os.Exit(1) if error
-func prepareToRunPipeline() (model.PipelineInfo, pipe.RadixOnPushHandler) {
+func prepareToRunPipeline() model.PipelineInfo {
 	args := getArgs()
 	branch := args["BRANCH"]
 	commitID := args["COMMIT_ID"]
@@ -60,6 +61,8 @@ func prepareToRunPipeline() (model.PipelineInfo, pipe.RadixOnPushHandler) {
 	imageTag := args["IMAGE_TAG"]
 	jobName := args["JOB_NAME"]
 	useCache := args["USE_CACHE"]
+	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
+	pushImage := args["PUSH_IMAGE"]       // "0"
 
 	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
@@ -77,10 +80,7 @@ func prepareToRunPipeline() (model.PipelineInfo, pipe.RadixOnPushHandler) {
 	}
 
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
-	pushHandler, err := pipe.Init(client, radixClient, prometheusOperatorClient)
-	if err != nil {
-		os.Exit(1)
-	}
+	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
 
 	radixApplication, err := loadConfigFromFile(fileName)
 	if err != nil {
@@ -92,18 +92,15 @@ func prepareToRunPipeline() (model.PipelineInfo, pipe.RadixOnPushHandler) {
 		os.Exit(1)
 	}
 
-	pipelineInfo := model.PipelineInfo{
-		RadixRegistration:  radixRegistration,
-		RadixApplication:   radixApplication,
-		TargetEnvironments: targetEnvironments,
-		JobName:            jobName,
-		Branch:             branch,
-		CommitID:           commitID,
-		ImageTag:           imageTag,
-		UseCache:           useCache,
+	buildStep := steps.InitBuildHandler(client, radixClient)
+	deployStep := steps.InitDeployHandler(client, radixClient, prometheusOperatorClient)
+	pipelineInfo, err := model.Init(pipelineType, radixRegistration, radixApplication, targetEnvironments, jobName, branch, commitID, imageTag, useCache, pushImage, buildStep, deployStep)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
 	}
 
-	return pipelineInfo, pushHandler
+	return pipelineInfo
 }
 
 // LoadConfigFromFile loads radix config from appFileName

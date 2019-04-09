@@ -9,13 +9,39 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
-func (cli *RadixStepHandler) Build(pipelineInfo model.PipelineInfo) error {
+type BuildHandler struct {
+	kubeclient  kubernetes.Interface
+	radixclient radixclient.Interface
+	kubeutil    *kube.Kube
+}
+
+// Init constructor
+func InitBuildHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) BuildHandler {
+	kube, _ := kube.New(kubeclient)
+	return BuildHandler{
+		kubeclient:  kubeclient,
+		radixclient: radixclient,
+		kubeutil:    kube,
+	}
+}
+
+func (cli BuildHandler) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+	return fmt.Sprintf("Succeded: build docker image for application %s", pipelineInfo.GetAppName())
+}
+
+func (cli BuildHandler) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+	return fmt.Sprintf("Failed to build application %s. Error: %v", pipelineInfo.GetAppName(), err)
+}
+
+func (cli BuildHandler) Run(pipelineInfo model.PipelineInfo) error {
 	appName := pipelineInfo.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
 	containerRegistry, err := cli.kubeutil.GetContainerRegistry()
@@ -23,7 +49,7 @@ func (cli *RadixStepHandler) Build(pipelineInfo model.PipelineInfo) error {
 		return err
 	}
 
-	log.Infof("building app %s", appName)
+	log.Infof("Building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createACRBuildJob(containerRegistry, pipelineInfo)
 	if err != nil {
