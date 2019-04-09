@@ -8,4 +8,4 @@ if [[ -z "${SP_SECRET}" ]]; then
 fi
 
 az login --service-principal -u ${SP_USER} -p ${SP_SECRET} --tenant ${TENANT}
-az acr build -t ${IMAGE} -r ${DOCKER_REGISTRY} ${CONTEXT} -f ${CONTEXT}${DOCKER_FILE_NAME}
+az acr build -t ${IMAGE} ${NO_PUSH} -r ${DOCKER_REGISTRY} ${CONTEXT} -f ${CONTEXT}${DOCKER_FILE_NAME}

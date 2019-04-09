@@ -60,6 +60,8 @@ func prepareToRunPipeline() (model.PipelineInfo, pipe.RadixOnPushHandler) {
 	imageTag := args["IMAGE_TAG"]
 	jobName := args["JOB_NAME"]
 	useCache := args["USE_CACHE"]
+	pipelineType := args["PIPELINE_TYPE"]
+	pushImage := args["PUSH_IMAGE"]
 
 	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
@@ -92,15 +94,10 @@ func prepareToRunPipeline() (model.PipelineInfo, pipe.RadixOnPushHandler) {
 		os.Exit(1)
 	}
 
-	pipelineInfo := model.PipelineInfo{
-		RadixRegistration:  radixRegistration,
-		RadixApplication:   radixApplication,
-		TargetEnvironments: targetEnvironments,
-		JobName:            jobName,
-		Branch:             branch,
-		CommitID:           commitID,
-		ImageTag:           imageTag,
-		UseCache:           useCache,
+	pipelineInfo, err := model.Init(pipelineType, radixRegistration, radixApplication, targetEnvironments, jobName, branch, commitID, imageTag, useCache, pushImage)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
 	}
 
 	return pipelineInfo, pushHandler

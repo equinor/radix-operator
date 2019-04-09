@@ -91,12 +91,17 @@ func (cli *RadixOnPushHandler) Run(pipelineInfo model.PipelineInfo) error {
 	branch := pipelineInfo.Branch
 	commitID := pipelineInfo.CommitID
 
-	log.Infof("Start pipeline build and deploy for app %s. Branch=%s and commit=%s", appName, branch, commitID)
+	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", pipelineInfo.Type, appName, branch, commitID)
 	builder := steps.InitBuildHandler(cli.kubeclient, cli.radixclient, cli.kubeutil)
 	deployer := steps.InitDeployHandler(cli.kubeclient, cli.radixclient, cli.kubeutil, cli.prometheusOperatorClient)
 
-	err := cli.runSteps(pipelineInfo, builder, deployer)
-	return err
+	if pipelineInfo.Type == model.Build {
+		return cli.runSteps(pipelineInfo, builder)
+	} else if pipelineInfo.Type == model.BuildAndDeploy {
+		return cli.runSteps(pipelineInfo, builder, deployer)
+	}
+
+	return nil
 }
 
 func (cli *RadixOnPushHandler) runSteps(pipelineInfo model.PipelineInfo, steps ...steps.Step) error {
