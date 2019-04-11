@@ -67,9 +67,7 @@ affinity: {}
 
 prometheusName: kube-prometheus
 
-# By setting this to true we will add the
-# playground user group
-isPlaygroundCluster: false
+clusterType: development
 
 radixGroups:
   clusterAdmin: "a5dfa635-dc00-4a28-9ad9-9e7f1e56919d"
