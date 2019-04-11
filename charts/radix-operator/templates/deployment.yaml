@@ -35,14 +35,12 @@ spec:
               value: {{ .Values.dnsZone }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
-            {{if .Values.isPlaygroundCluster }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
-              value: "playground"
+              value: {{ .Values.clusterType }}
+            {{if eq .Values.clusterType "playground"}}
             - name: RADIXOPERATOR_DEFAULT_USER_GROUP
               value: "{{ .Values.radixGroups.playground }}"
             {{else}}
-            - name: RADIXOPERATOR_CLUSTER_TYPE
-              value: "production"
             - name: RADIXOPERATOR_DEFAULT_USER_GROUP
               value: "{{ .Values.radixGroups.user }}"
             {{end}}

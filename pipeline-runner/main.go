@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
@@ -40,6 +43,17 @@ func init() {
 // - a secret git-ssh-keys containing deployment key to git repo provided in RR
 // - a secret radix-docker with credentials to access our private ACR
 func main() {
+	pipelineInfo := prepareToRunPipeline()
+
+	err := pipe.Run(pipelineInfo)
+	if err != nil {
+		os.Exit(2)
+	}
+	os.Exit(0)
+}
+
+// runs os.Exit(1) if error
+func prepareToRunPipeline() model.PipelineInfo {
 	args := getArgs()
 	branch := args["BRANCH"]
 	commitID := args["COMMIT_ID"]
@@ -47,6 +61,8 @@ func main() {
 	imageTag := args["IMAGE_TAG"]
 	jobName := args["JOB_NAME"]
 	useCache := args["USE_CACHE"]
+	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
+	pushImage := args["PUSH_IMAGE"]       // "0"
 
 	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
@@ -64,12 +80,9 @@ func main() {
 	}
 
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
-	pushHandler, err := pipe.Init(client, radixClient, prometheusOperatorClient)
-	if err != nil {
-		os.Exit(1)
-	}
+	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
 
-	radixApplication, err := pipe.LoadConfigFromFile(fileName)
+	radixApplication, err := loadConfigFromFile(fileName)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -79,11 +92,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = pushHandler.Run(radixRegistration, radixApplication, targetEnvironments, jobName, branch, commitID, imageTag, useCache)
+	buildStep := steps.InitBuildHandler(client, radixClient)
+	deployStep := steps.InitDeployHandler(client, radixClient, prometheusOperatorClient)
+	pipelineInfo, err := model.Init(pipelineType, radixRegistration, radixApplication, targetEnvironments, jobName, branch, commitID, imageTag, useCache, pushImage, buildStep, deployStep)
 	if err != nil {
-		os.Exit(2)
+		log.Error(err.Error())
+		os.Exit(1)
 	}
-	os.Exit(0)
+
+	return pipelineInfo
+}
+
+// LoadConfigFromFile loads radix config from appFileName
+func loadConfigFromFile(appFileName string) (*v1.RadixApplication, error) {
+	radixApplication, err := utils.GetRadixApplication(appFileName)
+	if err != nil {
+		log.Errorf("Failed to get ra from file (%s) for app Error: %v", appFileName, err)
+		return nil, err
+	}
+
+	return radixApplication, nil
 }
 
 func getArgs() map[string]string {

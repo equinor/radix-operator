@@ -419,6 +419,41 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 }
 
+func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *testing.T) {
+	tu, client, radixclient := setupTest()
+
+	// Setup
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true)))
+
+	// Test
+	ingresses, _ := client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
+	assert.Equal(t, "any-app-url-alias", ingresses.Items[0].GetName(), "App should have had an app alias ingress")
+
+	// Remove app alias from dev
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(false)))
+
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "Alias ingress should have been removed")
+
+}
+
 func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	tu, client, radixclient := setupTest()
 

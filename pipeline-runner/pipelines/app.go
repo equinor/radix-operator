@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,12 +24,8 @@ type RadixOnPushHandler struct {
 }
 
 // Init constructor
-func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) (RadixOnPushHandler, error) {
-	kube, err := kube.New(kubeclient)
-	if err != nil {
-		return RadixOnPushHandler{}, err
-	}
-
+func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) RadixOnPushHandler {
+	kube, _ := kube.New(kubeclient)
 	handler := RadixOnPushHandler{
 		kubeclient:               kubeclient,
 		radixclient:              radixclient,
@@ -37,18 +33,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, pr
 		kubeutil:                 kube,
 	}
 
-	return handler, nil
-}
-
-// LoadConfigFromFile loads radix config from appFileName
-func LoadConfigFromFile(appFileName string) (*v1.RadixApplication, error) {
-	radixApplication, err := utils.GetRadixApplication(appFileName)
-	if err != nil {
-		log.Errorf("Failed to get ra from file (%s) for app Error: %v", appFileName, err)
-		return nil, err
-	}
-
-	return radixApplication, nil
+	return handler
 }
 
 // Prepare Runs preparations before build
@@ -66,7 +51,7 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 		return nil, nil, validate.ConcatErrors(errs)
 	}
 
-	appName := radixApplication.Name
+	appName := radixApplication.GetName()
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(appName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", appName, err)
@@ -95,25 +80,20 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 	return radixRegistration, targetEnvironments, nil
 }
 
-// Run Runs the main pipeline
-func (cli *RadixOnPushHandler) Run(radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication,
-	targetEnvironments map[string]bool, jobName, branch, commitID, imageTag, useCache string) error {
+func Run(pipelineInfo model.PipelineInfo) error {
+	appName := pipelineInfo.GetAppName()
+	branch := pipelineInfo.Branch
+	commitID := pipelineInfo.CommitID
 
-	appName := radixApplication.Name
+	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", pipelineInfo.Type, appName, branch, commitID)
 
-	log.Infof("Start pipeline build and deploy for %s and branch %s and commit id %s", appName, branch, commitID)
-	err := cli.build(jobName, radixRegistration, radixApplication, branch, commitID, imageTag, useCache)
-	if err != nil {
-		log.Errorf("failed to build app %s. Error: %v", appName, err)
-		return err
+	for _, step := range pipelineInfo.Steps {
+		err := step.Run(pipelineInfo)
+		if err != nil {
+			log.Errorf(step.ErrorMsg(pipelineInfo, err))
+			return err
+		}
+		log.Infof(step.SucceededMsg(pipelineInfo))
 	}
-	log.Infof("Succeeded: build docker image")
-
-	_, err = cli.Deploy(jobName, radixRegistration, radixApplication, imageTag, branch, commitID, targetEnvironments)
-	if err != nil {
-		log.Errorf("failed to deploy app %s. Error: %v", appName, err)
-		return err
-	}
-	log.Infof("Succeeded: deploy application")
 	return nil
 }
