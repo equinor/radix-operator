@@ -7,17 +7,6 @@ dnsZone: dev.radix.equinor.com
 
 imagePullSecretName: radix-docker
 
-imageCredentials:
-  registry: radixdev.azurecr.io
-  username: xx
-  password: xx
-
-cicdacr:
-  name: xx
-  id: x
-  password: xx
-  tenantId: xx
-
 app:
   # Limit range on app namespace
   limitrange:
@@ -26,7 +15,7 @@ app:
       cpu: 1
     defaultRequest:
       memory: 500M
-      cpu: 0.25
+      cpu: 40m
   env:
     # Limit range on env namespace
     limitrange:
@@ -35,7 +24,7 @@ app:
         cpu: 1
       defaultRequest:
         memory: 500M
-        cpu: 0.25
+        cpu: 40m
 
 rbac:
   enabled: true
@@ -43,8 +32,8 @@ rbac:
 replicaCount: 1
 
 image:
-  repository: radix-operator
-  tag: "release-latest"
+  repository: xx
+  tag: xx
   pullPolicy: Always
 
 service:

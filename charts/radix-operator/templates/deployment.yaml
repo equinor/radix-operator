@@ -22,7 +22,7 @@ spec:
       serviceAccount: "radix-operator"
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.imageCredentials.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: metrics
