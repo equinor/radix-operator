@@ -15,7 +15,7 @@ app:
       cpu: 1
     defaultRequest:
       memory: 500M
-      cpu: 0.25
+      cpu: 40m
   env:
     # Limit range on env namespace
     limitrange:
@@ -24,7 +24,7 @@ app:
         cpu: 1
       defaultRequest:
         memory: 500M
-        cpu: 0.25
+        cpu: 40m
 
 rbac:
   enabled: true
