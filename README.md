@@ -1,6 +1,8 @@
 # radix-operator
 
-## Process
+## Developer information
+
+### Process
 
 The operator is developed using trunk-based development. The two applications here are `radix-operator` and `radix-pipeline`. They are deployed by downloading and running the correct pre-built images from the container registry. 
 
@@ -16,9 +18,9 @@ For the `radix-operator`, instead of releasing to different environments, we rel
 
 **Important**: The `radix-api` repo has a dependency to the `radix-operator` repo. As they are currently separated from one another, any change to the `radix-operator` repo (especially related to *spec* change) should be copied to the `vendor` directory of the `radix-api` repo.
 
-## Procedure to release to cluster
+### Procedure to release to cluster
 
-### Radix-pipeline
+#### Radix-pipeline
 
 We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed.
 For each subscription:
@@ -28,7 +30,7 @@ For each subscription:
 2. make deploy-pipeline ENVIRONMENT=prod|dev
 ```
 
-### Radix-operator
+#### Radix-operator
 
 For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.
 
@@ -38,7 +40,7 @@ For development/staging we need to deploy from `master` branch while for product
 3. make helm-up ENVIRONMENT=prod|dev (this will build, push to ACR and release to cluster)
 ```
 
-### Operator helm chart
+#### Operator helm chart
 
 For changes to the chart the same procedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.
 
@@ -49,7 +51,7 @@ For changes to the chart the same procedure applies as for changes to the code. 
 4. make deploy-via-helm ENVIRONMENT=prod|dev (will release latest version of helm chart in ACR to cluster)
 ```
 
-## Updating RadixApplication CRD
+### Updating RadixApplication CRD
 
 The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
