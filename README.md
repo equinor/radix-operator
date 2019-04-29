@@ -40,13 +40,12 @@ For development/staging we need to deploy from `master` branch while for product
 
 #### Operator helm chart
 
-For changes to the chart the same procedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.
+For changes to the chart the same procedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed. We should never release Helm chart to `playground` or `prod` cluster, as this is now completely handled by Flux operator. If we want to test chart changes we need to disable Flux operator in the development cluster and use the following proceedure to release the chart into the cluster:
 
 ```
-1. Go to cluster inside correct subscription
+1. Go to development cluster
 2. git checkout <branch>
-3. make helm-upgrade-operator-chart ENVIRONMENT=prod|dev (will package and push to ACR)
-4. make deploy-via-helm ENVIRONMENT=prod|dev (will release latest version of helm chart in ACR to cluster)
+3. make helm-up ENVIRONMENT=dev (will release latest version of helm chart in ACR to cluster)
 ```
 
 ### Updating RadixApplication CRD
@@ -56,7 +55,9 @@ In order for these objects to work with the SDK, they need to implement certain 
 Make sure you `dep ensure` before doing this (you probably did this already to build the operator) as that will pull down the `code-generator` package.
 This will auto-generate some code and implement certain interfaces.
 
-        make code-gen
+```
+make code-gen
+```
 
 This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client` directory.
 
