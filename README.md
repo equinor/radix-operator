@@ -1,5 +1,7 @@
 # radix-operator
 
+The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform on [Kubernetes](https://kubernetes.io/). 
+
 ## Developer information
 
 ### Development Process
