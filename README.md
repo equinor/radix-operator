@@ -1,6 +1,10 @@
 # radix-operator
 
-The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform on [Kubernetes](https://kubernetes.io/). 
+The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform natively on [Kubernetes](https://kubernetes.io/). It manages three [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/):
+
+- RR - Application registrations
+- RA - Application definition/configuration
+- RD - Application deployment
 
 ## Developer information
 
