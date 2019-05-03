@@ -14,7 +14,9 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 type BuildHandler struct {
@@ -62,30 +64,46 @@ func (cli BuildHandler) Run(pipelineInfo model.PipelineInfo) error {
 		return err
 	}
 
-	// TODO: workaround watcher bug - pull job status instead of watching
-	done := make(chan error)
-	go func() {
-		for {
-			j, err := cli.kubeclient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
-			if err != nil {
-				done <- err
-				return
-			}
-			switch {
-			case j.Status.Succeeded == 1:
-				done <- nil
-				return
-			case j.Status.Failed == 1:
-				done <- fmt.Errorf("Build docker image failed")
-				return
-			default:
-				log.Debugf("Ongoing - build docker image")
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
-	err = <-done
+	return cli.watchJob(job)
+}
 
+func (cli BuildHandler) watchJob(job *batchv1.Job) error {
+	errChan := make(chan error)
+	stop := make(chan struct{})
+	defer close(stop)
+
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+		cli.kubeclient, 0, kubeinformers.WithNamespace(job.GetNamespace()))
+	informer := kubeInformerFactory.Batch().V1().Jobs().Informer()
+
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, new interface{}) {
+			j, success := new.(*batchv1.Job)
+			if success && job.GetName() == j.GetName() && job.GetNamespace() == j.GetNamespace() {
+				switch {
+				case j.Status.Succeeded == 1:
+					errChan <- nil
+				case j.Status.Failed == 1:
+					errChan <- fmt.Errorf("Build docker image failed. See build log")
+				default:
+					log.Debugf("Ongoing - build docker image")
+				}
+			}
+		},
+		DeleteFunc: func(old interface{}) {
+			j, success := old.(*batchv1.Job)
+			if success && j.GetName() == job.GetName() && job.GetNamespace() == j.GetNamespace() {
+				errChan <- fmt.Errorf("Build failed - Job deleted!")
+			}
+		},
+	})
+
+	go informer.Run(stop)
+	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
+		errChan <- fmt.Errorf("Timed out waiting for caches to sync")
+	}
+
+	err := <-errChan
 	return err
 }
 
