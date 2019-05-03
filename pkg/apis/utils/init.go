@@ -29,14 +29,14 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitor
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 
-	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
-		return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
-	}
 	if err != nil {
 		config, err = rest.InClusterConfig()
 		if err != nil {
 			log.Fatalf("getClusterConfig InClusterConfig: %v", err)
 		}
+	}
+	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+		return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
 	}
 
 	client, err := kubernetes.NewForConfig(config)

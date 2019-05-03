@@ -1,6 +1,6 @@
-FROM golang:alpine3.7 as builder
+FROM golang:alpine3.9 as builder
 
-RUN apk update && apk add git && apk add -y ca-certificates curl dep
+RUN apk update && apk add git && apk add ca-certificates curl dep
 
 RUN mkdir -p /go/src/github.com/equinor/radix-operator/
 WORKDIR /go/src/github.com/equinor/radix-operator/
