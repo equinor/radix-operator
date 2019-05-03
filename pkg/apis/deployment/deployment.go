@@ -97,7 +97,7 @@ func (deploy *Deployment) OnSync() error {
 
 	if !isLatest {
 		// Should not be put back on queue
-		log.Error(fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", deploy.radixDeployment.GetName()))
+		log.Warnf("RadixDeployment %s was not the latest. Ignoring", deploy.radixDeployment.GetName())
 		return nil
 	}
 
