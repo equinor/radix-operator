@@ -79,7 +79,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	}
 
 	// Update RA if different
-	log.Infof("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
+	log.Debugf("RadixApplication %s exists in namespace %s", app.config.Name, appNamespace)
 	if !reflect.DeepEqual(app.config.Spec, existingRA.Spec) {
 		log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
 		// For an update, ResourceVersion of the new object must be the same with the old object
@@ -90,7 +90,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		}
 		log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
 	} else {
-		log.Infof("RadixApplication %s exists in namespace %s and no change", app.config.Name, appNamespace)
+		log.Infof("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
 	}
 
 	return nil

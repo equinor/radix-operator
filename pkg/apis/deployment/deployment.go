@@ -97,7 +97,7 @@ func (deploy *Deployment) OnSync() error {
 
 	if !isLatest {
 		// Should not be put back on queue
-		log.Error(fmt.Errorf("RadixDeployment %s was not the latest. Ignoring", deploy.radixDeployment.GetName()))
+		log.Warnf("RadixDeployment %s was not the latest. Ignoring", deploy.radixDeployment.GetName())
 		return nil
 	}
 
@@ -131,7 +131,7 @@ func (deploy *Deployment) OnSync() error {
 			log.Infof("Failed to create service: %v", err)
 			return fmt.Errorf("Failed to create service: %v", err)
 		}
-		if v.Public {
+		if v.PublicPort != "" || v.Public {
 			err = deploy.createIngress(v)
 			if err != nil {
 				log.Infof("Failed to create ingress: %v", err)

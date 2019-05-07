@@ -107,7 +107,9 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 		deployment.Spec.Replicas = int32Ptr(int32(replicas))
 	}
 
-	environmentVariables := deploy.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, deployComponent.Public, deployComponent.Ports, deploy.radixDeployment.Name, deploy.radixDeployment.Namespace, environment, appName, componentName)
+	// For backwards compatibility
+	isDeployComponentPublic := deployComponent.PublicPort != "" || deployComponent.Public
+	environmentVariables := deploy.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, isDeployComponentPublic, deployComponent.Ports, deploy.radixDeployment.Name, deploy.radixDeployment.Namespace, environment, appName, componentName)
 
 	if environmentVariables != nil {
 		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables

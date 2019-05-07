@@ -24,7 +24,7 @@ spec:
       ports:
        - name: http
          port: 80
-      public: true
+      publicPort: http
       environmentConfig:
         - environment: prod
           monitoring: true
@@ -104,9 +104,9 @@ The folder where the Dockerfile can be found.
 
 Scales the component. Defaults to 1 if not set.
 
-#### public
+#### publicPort
 
-true/false - This will generate a public endpoint for the component if set to true.
+This will generate a public endpoint for the component if set to `<PORT_NAME>`. If specified, the `<PORT_NAME>` should exist in the `ports` field.
 
 #### ports
 
@@ -126,7 +126,7 @@ RADIX_COMPONENT
 RADIX_ENVIRONMENT
 RADIX_PORTS (only available if set in the config)
 RADIX_PORT_NAMES (only available if set in the config)
-RADIX_PUBLIC_DOMAIN_NAME (if public equals true is set)
+RADIX_PUBLIC_DOMAIN_NAME (if component.publicPort: <PORT_NAME>)
 ```
 
 #### secrets

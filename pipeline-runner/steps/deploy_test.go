@@ -1,10 +1,11 @@
-package onpush
+package steps
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
@@ -28,6 +29,7 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+
 	return kubeclient, radixclient, testUtils
 }
 
@@ -46,7 +48,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		WithComponents(
 			utils.AnApplicationComponent().
 				WithName("app").
-				WithPublic(true).
+				WithPublicPort("http").
 				WithPort("http", 8080).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
@@ -57,7 +59,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 						WithReplicas(4)),
 			utils.AnApplicationComponent().
 				WithName("redis").
-				WithPublic(false).
+				WithPublicPort("").
 				WithPort("http", 6379).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
@@ -89,12 +91,22 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli, _ := Init(kubeclient, radixclient, &monitoring.Clientset{})
+	cli := InitDeployHandler(kubeclient, radixclient, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	_, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
 
-	rds, err := cli.Deploy("any-job-name", rr, ra, "anytag", "master", "4faca8595c5283a9d0f17a623b9255a0d9866a2e", targetEnvs)
+	pipelineInfo := model.PipelineInfo{
+		RadixRegistration:  rr,
+		RadixApplication:   ra,
+		JobName:            "any-job-name",
+		ImageTag:           "anytag",
+		Branch:             "master",
+		CommitID:           "4faca8595c5283a9d0f17a623b9255a0d9866a2e",
+		TargetEnvironments: targetEnvs,
+	}
+
+	rds, err := cli.Deploy(pipelineInfo)
 	t.Run("validate deploy", func(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, len(rds) > 0)

@@ -1,10 +1,11 @@
-package onpush
+package steps
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -21,9 +22,14 @@ const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
 )
 
-func createACRBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
-	cloneContainer := CloneContainer(containerRegistry, cloneURL, branch)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, useCache, components)
+func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo) (*batchv1.Job, error) {
+	appName := pipelineInfo.GetAppName()
+	branch := pipelineInfo.Branch
+	imageTag := pipelineInfo.ImageTag
+	jobName := pipelineInfo.JobName
+
+	cloneContainer := CloneContainer(containerRegistry, pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
+	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PushImage, pipelineInfo.RadixApplication.Spec.Components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -84,10 +90,14 @@ func createACRBuildJob(containerRegistry, appName, jobName string, components []
 	return &job, nil
 }
 
-func createACRBuildContainers(containerRegistry, appName, imageTag, useCache string, components []v1.RadixComponent) []corev1.Container {
+func createACRBuildContainers(containerRegistry, appName, imageTag string, pushImage bool, components []v1.RadixComponent) []corev1.Container {
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
+	noPushFlag := "--no-push"
+	if pushImage {
+		noPushFlag = ""
+	}
 
 	for _, c := range components {
 		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
@@ -96,7 +106,7 @@ func createACRBuildContainers(containerRegistry, appName, imageTag, useCache str
 			dockerFile = "Dockerfile"
 		}
 		context := getContext(c.SourceFolder)
-		log.Infof("using dockerfile %s in context %s", dockerFile, context)
+		log.Debugf("using dockerfile %s in context %s", dockerFile, context)
 		container := corev1.Container{
 			Name:  fmt.Sprintf("build-%s", c.Name),
 			Image: fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
@@ -116,6 +126,10 @@ func createACRBuildContainers(containerRegistry, appName, imageTag, useCache str
 				{
 					Name:  "CONTEXT",
 					Value: context,
+				},
+				{
+					Name:  "NO_PUSH",
+					Value: noPushFlag,
 				},
 				{
 					Name:  "AZURE_CREDENTIALS",

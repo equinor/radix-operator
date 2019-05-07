@@ -1,31 +1,59 @@
-package onpush
+package steps
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
-func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.RadixRegistration, radixApplication *v1.RadixApplication, branch, commitID, imageTag, useCache string) error {
-	appName := radixRegistration.Name
-	cloneURL := radixRegistration.Spec.CloneURL
+type BuildHandler struct {
+	kubeclient  kubernetes.Interface
+	radixclient radixclient.Interface
+	kubeutil    *kube.Kube
+}
+
+// Init constructor
+func InitBuildHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) BuildHandler {
+	kube, _ := kube.New(kubeclient)
+	return BuildHandler{
+		kubeclient:  kubeclient,
+		radixclient: radixclient,
+		kubeutil:    kube,
+	}
+}
+
+func (cli BuildHandler) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+	return fmt.Sprintf("Succeded: build docker image for application %s", pipelineInfo.GetAppName())
+}
+
+func (cli BuildHandler) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+	return fmt.Sprintf("Failed to build application %s. Error: %v", pipelineInfo.GetAppName(), err)
+}
+
+func (cli BuildHandler) Run(pipelineInfo model.PipelineInfo) error {
+	appName := pipelineInfo.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
 	containerRegistry, err := cli.kubeutil.GetContainerRegistry()
 	if err != nil {
 		return err
 	}
 
-	log.Infof("building app %s", appName)
+	log.Infof("Building app %s", appName)
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createACRBuildJob(containerRegistry, appName, jobName, radixApplication.Spec.Components, cloneURL, branch, commitID, imageTag, useCache)
+	job, err := createACRBuildJob(containerRegistry, pipelineInfo)
 	if err != nil {
 		return err
 	}
@@ -36,35 +64,52 @@ func (cli *RadixOnPushHandler) build(jobName string, radixRegistration *v1.Radix
 		return err
 	}
 
-	// TODO: workaround watcher bug - pull job status instead of watching
-	done := make(chan error)
-	go func() {
-		for {
-			j, err := cli.kubeclient.BatchV1().Jobs(namespace).Get(job.Name, metav1.GetOptions{})
-			if err != nil {
-				done <- err
-				return
-			}
-			switch {
-			case j.Status.Succeeded == 1:
-				done <- nil
-				return
-			case j.Status.Failed == 1:
-				done <- fmt.Errorf("Build docker image failed")
-				return
-			default:
-				log.Debugf("Ongoing - build docker image")
-			}
-			time.Sleep(5 * time.Second)
-		}
-	}()
-	err = <-done
+	return cli.watchJob(job)
+}
 
+func (cli BuildHandler) watchJob(job *batchv1.Job) error {
+	errChan := make(chan error)
+	stop := make(chan struct{})
+	defer close(stop)
+
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+		cli.kubeclient, 0, kubeinformers.WithNamespace(job.GetNamespace()))
+	informer := kubeInformerFactory.Batch().V1().Jobs().Informer()
+
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, new interface{}) {
+			j, success := new.(*batchv1.Job)
+			if success && job.GetName() == j.GetName() && job.GetNamespace() == j.GetNamespace() {
+				switch {
+				case j.Status.Succeeded == 1:
+					errChan <- nil
+				case j.Status.Failed == 1:
+					errChan <- fmt.Errorf("Build docker image failed. See build log")
+				default:
+					log.Debugf("Ongoing - build docker image")
+				}
+			}
+		},
+		DeleteFunc: func(old interface{}) {
+			j, success := old.(*batchv1.Job)
+			if success && j.GetName() == job.GetName() && job.GetNamespace() == j.GetNamespace() {
+				errChan <- fmt.Errorf("Build failed - Job deleted!")
+			}
+		},
+	})
+
+	go informer.Run(stop)
+	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
+		errChan <- fmt.Errorf("Timed out waiting for caches to sync")
+	}
+
+	err := <-errChan
 	return err
 }
 
 const workspace = "/workspace"
 
+// builds using kaniko - not currently used because of slowness and bugs
 func createBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
 	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
