@@ -14,8 +14,8 @@ pool:
 variables:
   dockerRegistry: 'radixdev.azurecr.io'
   azureSubscriptionEndpoint: 'radix-cicd-azure-devops'
-  operatorImageName: 'radix-operator:$(build.SourceBranch)-$(build.buildId)'
-  pipelineImageName: 'radix-pipeline:$(build.SourceBranch)-latest'
+  operatorImageName: 'radix-operator:$(build.SourceBranchName)-$(build.buildId)'
+  pipelineImageName: 'radix-pipeline:$(build.SourceBranchName)-latest'
 
 steps:
 - task: Docker@1
