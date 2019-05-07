@@ -32,8 +32,3 @@ steps:
     azureContainerRegistry: '$(dockerRegistry)'
     imageName: '$(dockerRegistry)/$(imageName)'
     command: push
-
-- task: PublishPipelineArtifact@0
-  inputs:
-    artifactName: 'helmchart'
-    targetPath: 'charts'
