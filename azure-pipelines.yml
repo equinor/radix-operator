@@ -5,6 +5,7 @@
 
 trigger:
 - master
+- release
 
 pool:
   vmImage: 'Ubuntu-16.04'
@@ -12,23 +13,40 @@ pool:
 variables:
   dockerRegistry: 'radixdev.azurecr.io'
   azureSubscriptionEndpoint: 'radix-cicd-azure-devops'
-  imageName: 'radix-operator:$(build.buildId)'
-  helmDirectory: '.'
+  operatorImageName: 'radix-operator:$(build.SourceBranch)-$(build.buildId)'
+  pipelineImageName: 'radix-pipeline:$(build.SourceBranch)-latest'
 
 steps:
 - task: Docker@1
-  displayName: 'Build image'
+  displayName: 'Build operator image'
   inputs:
     azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
     azureContainerRegistry: '$(dockerRegistry)'
-    imageName: '$(dockerRegistry)/$(imageName)'
+    imageName: '$(dockerRegistry)/$(operatorImageName)'
     command: build
     dockerFile: 'operator.Dockerfile'
 
 - task: Docker@1
-  displayName: 'Push image'
+  displayName: 'Push operator image'
   inputs:
     azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
     azureContainerRegistry: '$(dockerRegistry)'
-    imageName: '$(dockerRegistry)/$(imageName)'
+    imageName: '$(dockerRegistry)/$(operatorImageName)'
+    command: push
+
+- task: Docker@1
+  displayName: 'Build pipeline image'
+  inputs:
+    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
+    azureContainerRegistry: '$(dockerRegistry)'
+    imageName: '$(dockerRegistry)/$(pipelineImageName)'
+    command: build
+    dockerFile: 'pipeline.Dockerfile'
+
+- task: Docker@1
+  displayName: 'Push pipeline image'
+  inputs:
+    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
+    azureContainerRegistry: '$(dockerRegistry)'
+    imageName: '$(dockerRegistry)/$(pipelineImageName)'
     command: push
