@@ -13,7 +13,7 @@ pool:
 
 variables:
   dockerRegistryDevSubscription: 'radixdev.azurecr.io'
-  servicePrincipalDevSubscription: 'radix-cr-cicd-dev'
+  servicePrincipalDevSubscription: 'radix-azure-devops-dev'
   operatorImageName: 'radix-operator:$(build.SourceBranchName)-$(build.buildId)'
   pipelineImageName: 'radix-pipeline:$(build.SourceBranchName)-latest'
 
