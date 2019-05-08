@@ -12,42 +12,42 @@ pool:
   vmImage: 'Ubuntu-16.04'
 
 variables:
-  dockerRegistry: 'radixdev.azurecr.io'
-  azureSubscriptionEndpoint: 'radix-cicd-azure-devops'
+  dockerRegistryDevSubscription: 'radixdev.azurecr.io'
+  servicePrincipalDevSubscription: 'radix-cr-cicd-dev'
   operatorImageName: 'radix-operator:$(build.SourceBranchName)-$(build.buildId)'
   pipelineImageName: 'radix-pipeline:$(build.SourceBranchName)-latest'
 
 steps:
 - task: Docker@1
-  displayName: 'Build operator image'
+  displayName: 'Build operator image in dev subscription'
   inputs:
-    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
-    azureContainerRegistry: '$(dockerRegistry)'
-    imageName: '$(dockerRegistry)/$(operatorImageName)'
+    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
+    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
+    imageName: '$(dockerRegistryDevSubscription)/$(operatorImageName)'
     command: build
     dockerFile: 'operator.Dockerfile'
 
 - task: Docker@1
-  displayName: 'Push operator image'
+  displayName: 'Push operator image in dev subscription'
   inputs:
-    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
-    azureContainerRegistry: '$(dockerRegistry)'
-    imageName: '$(dockerRegistry)/$(operatorImageName)'
+    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
+    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
+    imageName: '$(dockerRegistryDevSubscription)/$(operatorImageName)'
     command: push
 
 - task: Docker@1
-  displayName: 'Build pipeline image'
+  displayName: 'Build pipeline image in dev subscription'
   inputs:
-    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
-    azureContainerRegistry: '$(dockerRegistry)'
-    imageName: '$(dockerRegistry)/$(pipelineImageName)'
+    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
+    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
+    imageName: '$(dockerRegistryDevSubscription)/$(pipelineImageName)'
     command: build
     dockerFile: 'pipeline.Dockerfile'
 
 - task: Docker@1
-  displayName: 'Push pipeline image'
+  displayName: 'Push pipeline image in dev subscription'
   inputs:
-    azureSubscriptionEndpoint: '$(azureSubscriptionEndpoint)'
-    azureContainerRegistry: '$(dockerRegistry)'
-    imageName: '$(dockerRegistry)/$(pipelineImageName)'
+    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
+    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
+    imageName: '$(dockerRegistryDevSubscription)/$(pipelineImageName)'
     command: push
