@@ -14,7 +14,7 @@ pool:
 variables:
   dockerRegistryDevSubscription: 'radixdev.azurecr.io'
   servicePrincipalDevSubscription: 'radix-azure-devops-dev'
-  operatorImageName: 'radix-operator:$(build.SourceBranchName)-$(build.buildId)'
+  operatorImageName: 'radix-operator:$(build.SourceBranchName)-$(Build.SourceVersion)'
   pipelineImageName: 'radix-pipeline:$(build.SourceBranchName)-latest'
 
 steps:
@@ -24,16 +24,8 @@ steps:
     azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
     azureContainerRegistry: '$(dockerRegistryDevSubscription)'
     imageName: '$(dockerRegistryDevSubscription)/$(operatorImageName)'
-    command: build
+    command: buildAndPush
     dockerFile: 'operator.Dockerfile'
-
-- task: Docker@1
-  displayName: 'Push operator image in dev subscription'
-  inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
-    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
-    imageName: '$(dockerRegistryDevSubscription)/$(operatorImageName)'
-    command: push
 
 - task: Docker@1
   displayName: 'Build pipeline image in dev subscription'
