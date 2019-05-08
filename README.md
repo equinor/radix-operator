@@ -6,6 +6,8 @@ The radix-operator is the central piece of the [Radix platform](https://github.c
 - RA - Application definition/configuration
 - RD - Application deployment
 
+[![Build Status](https://dev.azure.com/omnia-radix/radix-operator/_apis/build/status/equinor.radix-operator?branchName=master)](https://dev.azure.com/omnia-radix/radix-operator/_build/latest?definitionId=1&branchName=master)
+
 ## Developer information
 
 ### Development Process
