@@ -6,7 +6,6 @@
 trigger:
 - master
 - release
-- test_azdevops
 
 # no PR builds
 pr: none

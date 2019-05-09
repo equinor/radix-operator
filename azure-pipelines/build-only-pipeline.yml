@@ -8,7 +8,6 @@ trigger:
     exclude:
       - master
       - release
-      - test_azdevops
 
 pool:
   vmImage: 'Ubuntu-16.04'
