@@ -8,6 +8,9 @@ trigger:
 - release
 - test_azdevops
 
+# no PR builds
+pr: none
+
 pool:
   vmImage: 'Ubuntu-16.04'
 
