@@ -12,8 +12,8 @@ pool:
   vmImage: 'Ubuntu-16.04'
 
 variables:
-  serviceConnectionDevSubscription: 'radix-azure-devops-dev'
-  serviceConnectionProdSubscription: 'radix-azure-devops-prod'
+  serviceConnectionDevSubscription: 'radix-azure-devops-dev-cr'
+  serviceConnectionProdSubscription: 'radix-azure-devops-prod-cr'
   operatorRepository: 'radix-operator'
   pipelineRepository: 'radix-pipeline'
 
