@@ -12,82 +12,34 @@ pool:
   vmImage: 'Ubuntu-16.04'
 
 variables:
-  dockerRegistryDevSubscription: 'radixdev.azurecr.io'
-  dockerRegistryProdSubscription: 'radixprod.azurecr.io'
-  servicePrincipalDevSubscription: 'radix-azure-devops-dev'
-  servicePrincipalProdSubscription: 'radix-azure-devops-prod'
-  operatorImageName: 'radix-operator:$(build.SourceBranchName)-$(Build.SourceVersion)'
-  pipelineImageName: 'radix-pipeline:$(build.SourceBranchName)-latest'
+  serviceConnectionDevSubscription: 'radix-azure-devops-dev'
+  serviceConnectionProdSubscription: 'radix-azure-devops-prod'
+  operatorRepository: 'radix-operator'
+  pipelineRepository: 'radix-pipeline'
 
 steps:
-- task: Docker@1
-  displayName: 'Build operator image in dev subscription'
-  condition: eq(variables['Build.SourceBranchName'], 'azure-pipelines')
+- task: Docker@2
+  displayName: 'Login to Dev Subscription'
   inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
-    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
-    imageName: '$(dockerRegistryDevSubscription)/$(operatorImageName)'
-    command: build
-    dockerFile: 'operator.Dockerfile'
-
-- task: Docker@1
-  displayName: 'Push operator image in dev subscription'
-  condition: eq(variables['Build.SourceBranchName'], 'azure-pipelines')
+    command: login
+    containerRegistry: '$(serviceConnectionDevSubscription)'
+- task: Docker@2
+  displayName: 'Login to Prod Subscription'
   inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
-    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
-    imageName: '$(dockerRegistryDevSubscription)/$(operatorImageName)'
-    command: push
-
-- task: Docker@1
-  displayName: 'Build pipeline image in dev subscription'
+    command: login
+    containerRegistry: '$(serviceConnectionProdSubscription)'
+    
+- task: Docker@2
+  displayName: 'Build and push operator image'
   inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
-    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
-    imageName: '$(dockerRegistryDevSubscription)/$(pipelineImageName)'
-    command: build
-    dockerFile: 'pipeline.Dockerfile'
-
-- task: Docker@1
-  displayName: 'Push pipeline image in dev subscription'
+    command: buildAndPush
+    repository: $(operatorRepository)
+    tags: |
+      '$(build.SourceBranchName)-$(Build.SourceVersion)''
+- task: Docker@2
+  displayName: 'Build and push pipeline image'
   inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalDevSubscription)'
-    azureContainerRegistry: '$(dockerRegistryDevSubscription)'
-    imageName: '$(dockerRegistryDevSubscription)/$(pipelineImageName)'
-    command: push
-
-- task: Docker@1
-  displayName: 'Build operator image in prod subscription'
-  condition: eq(variables['Build.SourceBranchName'], 'test_azdevops')
-  inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalProdSubscription)'
-    azureContainerRegistry: '$(dockerRegistryProdSubscription)'
-    imageName: '$(dockerRegistryProdSubscription)/$(operatorImageName)'
-    command: build
-    dockerFile: 'operator.Dockerfile'
-
-- task: Docker@1
-  displayName: 'Push operator image in prod subscription'
-  condition: eq(variables['Build.SourceBranchName'], 'test_azdevops')
-  inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalProdSubscription)'
-    azureContainerRegistry: '$(dockerRegistryProdSubscription)'
-    imageName: '$(dockerRegistryProdSubscription)/$(operatorImageName)'
-    command: push
-
-- task: Docker@1
-  displayName: 'Build pipeline image in prod subscription'
-  inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalProdSubscription)'
-    azureContainerRegistry: '$(dockerRegistryProdSubscription)'
-    imageName: '$(dockerRegistryProdSubscription)/$(pipelineImageName)'
-    command: build
-    dockerFile: 'pipeline.Dockerfile'
-
-- task: Docker@1
-  displayName: 'Push pipeline image in prod subscription'
-  inputs:
-    azureSubscriptionEndpoint: '$(servicePrincipalProdSubscription)'
-    azureContainerRegistry: '$(dockerRegistryProdSubscription)'
-    imageName: '$(dockerRegistryProdSubscription)/$(pipelineImageName)'
-    command: push
+    command: buildAndPush
+    repository: $(pipelineRepository)
+    tags: |
+      '$(build.SourceBranchName)-latest'
