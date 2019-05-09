@@ -8,7 +8,7 @@ The radix-operator is the central piece of the [Radix platform](https://github.c
 
 The `radix-operator` and `radix-pipeline` are built using [Azure Devops](https://dev.azure.com/omnia-radix/radix-operator), then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch.
 
-[![Build Status](https://dev.azure.com/omnia-radix/radix-operator/_apis/build/status/equinor.radix-operator?branchName=master)](https://dev.azure.com/omnia-radix/radix-operator/_build/latest?definitionId=1&branchName=master)
+[![Build Status](https://dev.azure.com/omnia-radix/radix-operator/_apis/build/status/equinor.radix-operator?branchName=master)](https://dev.azure.com/omnia-radix/radix-operator/_build/latest?definitionId=3&branchName=master)
 
 ## Developer information
 
