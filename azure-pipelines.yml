@@ -14,8 +14,6 @@ pool:
 variables:
   serviceConnectionDevSubscription: 'radix-azure-devops-dev-cr'
   serviceConnectionProdSubscription: 'radix-azure-devops-prod-cr'
-  operatorRepository: 'radix-operator'
-  pipelineRepository: 'radix-pipeline'
 
 steps:
 - task: Docker@2
@@ -33,13 +31,15 @@ steps:
   displayName: 'Build and push operator image'
   inputs:
     command: buildAndPush
-    repository: $(operatorRepository)
+    dockerFile: 'operator.Dockerfile'
+    repository: 'radix-operator'
     tags: |
       $(build.SourceBranchName)-$(Build.SourceVersion)
 - task: Docker@2
   displayName: 'Build and push pipeline image'
   inputs:
     command: buildAndPush
-    repository: $(pipelineRepository)
+    dockerFile: 'pipeline.Dockerfile'
+    repository: 'radix-pipeline'
     tags: |
       $(build.SourceBranchName)-latest
