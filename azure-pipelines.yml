@@ -35,11 +35,11 @@ steps:
     command: buildAndPush
     repository: $(operatorRepository)
     tags: |
-      '$(build.SourceBranchName)-$(Build.SourceVersion)'
+      $(build.SourceBranchName)-$(Build.SourceVersion)
 - task: Docker@2
   displayName: 'Build and push pipeline image'
   inputs:
     command: buildAndPush
     repository: $(pipelineRepository)
     tags: |
-      '$(build.SourceBranchName)-latest'
+      $(build.SourceBranchName)-latest
