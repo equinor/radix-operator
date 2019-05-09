@@ -1,0 +1,46 @@
+# Pipeline to release radix-operator. Will be released to Dev and Prod subscription
+# for both master and release. Flux will use master image in Dev while will use release
+# image in prod
+
+trigger:
+- master
+- release
+
+# no PR builds
+pr: none
+
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+variables:
+  serviceConnectionDevSubscription: 'radix-azure-devops-dev-cr'
+  serviceConnectionProdSubscription: 'radix-azure-devops-prod-cr'
+
+steps:
+- task: Docker@2
+  displayName: 'Login to Dev Subscription'
+  inputs:
+    command: login
+    containerRegistry: '$(serviceConnectionDevSubscription)'
+- task: Docker@2
+  displayName: 'Login to Prod Subscription'
+  inputs:
+    command: login
+    containerRegistry: '$(serviceConnectionProdSubscription)'
+
+- task: Docker@2
+  displayName: 'Build and push operator image'
+  inputs:
+    command: buildAndPush
+    dockerFile: 'operator.Dockerfile'
+    repository: 'radix-operator'
+    tags: |
+      $(build.SourceBranchName)-$(Build.SourceVersion)
+- task: Docker@2
+  displayName: 'Build and push pipeline image'
+  inputs:
+    command: buildAndPush
+    dockerFile: 'pipeline.Dockerfile'
+    repository: 'radix-pipeline'
+    tags: |
+      $(build.SourceBranchName)-latest

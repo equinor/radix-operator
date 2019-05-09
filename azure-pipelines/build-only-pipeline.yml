@@ -1,0 +1,32 @@
+# Used for handling pull requests from any branch to master, in order to verify that tests run fine and that it builds ok
+
+trigger:
+ branches:
+    exclude:
+      - master
+      - release
+
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+variables:
+  serviceConnectionDevSubscription: 'radix-azure-devops-dev-cr'
+  serviceConnectionProdSubscription: 'radix-azure-devops-prod-cr'
+
+steps:
+- task: Docker@2
+  displayName: 'Build operator image'
+  inputs:
+    command: build
+    dockerFile: 'operator.Dockerfile'
+    repository: 'radix-operator'
+    tags: |
+      $(build.SourceBranchName)-$(Build.SourceVersion)
+- task: Docker@2
+  displayName: 'Build pipeline image'
+  inputs:
+    command: build
+    dockerFile: 'pipeline.Dockerfile'
+    repository: 'radix-pipeline'
+    tags: |
+      $(build.SourceBranchName)-latest
