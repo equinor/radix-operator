@@ -6,16 +6,18 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+// Environment variables that define default resources (limits and requests) for containers and environments
+// See https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/
 const (
-	operatorEnvLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY"
-	operatorEnvLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU"
-	operatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
-	operatorEnvLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
+	OperatorEnvLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY"
+	OperatorEnvLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU"
+	OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
+	OperatorEnvLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
 )
 
 // GetDefaultCPULimit Gets the default container CPU limit defined as an environment variable
 func GetDefaultCPULimit() *resource.Quantity {
-	defaultCPULimitSetting := os.Getenv(operatorEnvLimitDefaultCPUEnvironmentVariable)
+	defaultCPULimitSetting := os.Getenv(OperatorEnvLimitDefaultCPUEnvironmentVariable)
 	if defaultCPULimitSetting == "" {
 		return nil
 	}
@@ -26,7 +28,7 @@ func GetDefaultCPULimit() *resource.Quantity {
 
 // GetDefaultMemoryLimit Gets the default container memory limit defined as an environment variable
 func GetDefaultMemoryLimit() *resource.Quantity {
-	defaultMemoryLimitSetting := os.Getenv(operatorEnvLimitDefaultMemoryEnvironmentVariable)
+	defaultMemoryLimitSetting := os.Getenv(OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 	if defaultMemoryLimitSetting == "" {
 		return nil
 	}
@@ -37,7 +39,7 @@ func GetDefaultMemoryLimit() *resource.Quantity {
 
 // GetDefaultCPURequest Gets the default container CPU request defined as an environment variable
 func GetDefaultCPURequest() *resource.Quantity {
-	defaultCPURequestSetting := os.Getenv(operatorEnvLimitDefaultReqestCPUEnvironmentVariable)
+	defaultCPURequestSetting := os.Getenv(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable)
 	if defaultCPURequestSetting == "" {
 		return nil
 	}
@@ -48,7 +50,7 @@ func GetDefaultCPURequest() *resource.Quantity {
 
 // GetDefaultMemoryRequest Gets the default container memory request defined as an environment variable
 func GetDefaultMemoryRequest() *resource.Quantity {
-	defaultMemoryRequestSetting := os.Getenv(operatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
+	defaultMemoryRequestSetting := os.Getenv(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
 	if defaultMemoryRequestSetting == "" {
 		return nil
 	}
