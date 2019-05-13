@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -26,6 +27,8 @@ func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 	// Setup
 	os.Setenv(OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(OperatorAppAliasBaseURLEnvironmentVariable, ".app.dev.radix.equinor.com")
+	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
+	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
