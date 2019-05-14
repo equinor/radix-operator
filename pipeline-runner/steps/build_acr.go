@@ -14,6 +14,8 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/equinor/radix-operator/pkg/apis/utils/github"
 )
 
 const (
@@ -28,7 +30,7 @@ func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo
 	imageTag := pipelineInfo.ImageTag
 	jobName := pipelineInfo.JobName
 
-	cloneContainer := CloneContainer(containerRegistry, pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
+	initContainers := github.CloneInitContainers(pipelineInfo.RadixRegistration.Spec.CloneURL, branch, buildContextVolumeName, workspace, gitSSHKeyVolumeName)
 	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PushImage, pipelineInfo.RadixApplication.Spec.Components)
 	timestamp := time.Now().Format("20060102150405")
 
@@ -56,11 +58,9 @@ func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo
 					},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy: "Never",
-					InitContainers: []corev1.Container{
-						cloneContainer,
-					},
-					Containers: buildContainers,
+					RestartPolicy:  "Never",
+					InitContainers: initContainers,
+					Containers:     buildContainers,
 					Volumes: []corev1.Volume{
 						{
 							Name: buildContextVolumeName,
@@ -151,29 +151,4 @@ func createACRBuildContainers(containerRegistry, appName, imageTag string, pushI
 		containers = append(containers, container)
 	}
 	return containers
-}
-
-// CloneContainer The sidecar for cloning repo
-func CloneContainer(containerRegistry, sshURL, branch string) corev1.Container {
-	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --progress .", sshURL, branch)
-
-	container := corev1.Container{
-		Name:    "clone",
-		Image:   fmt.Sprintf("%s/gitclone:latest", containerRegistry),
-		Command: []string{"/bin/sh", "-c", "-x"},
-		Args:    []string{gitCloneCommand},
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      buildContextVolumeName,
-				MountPath: workspace,
-			},
-			{
-				Name:      gitSSHKeyVolumeName,
-				MountPath: "/root/.ssh",
-				ReadOnly:  true,
-			},
-		},
-	}
-
-	return container
 }
