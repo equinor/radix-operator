@@ -10,7 +10,14 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func TestGetResourceRequirements_Provide_Requests_Limits(t *testing.T) {
+func setupTests() {
+	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
+	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+}
+
+func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
+	setupTests()
+
 	request := map[string]string{
 		"cpu":    "0.1",
 		"memory": "32Mi",
@@ -33,7 +40,9 @@ func TestGetResourceRequirements_Provide_Requests_Limits(t *testing.T) {
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("64Mi")), "Memory limit should be included")
 }
 
-func TestGetResourceRequirements_Provide_Requests_Only(t *testing.T) {
+func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing.T) {
+	setupTests()
+
 	request := map[string]string{
 		"cpu":    "0.2",
 		"memory": "128Mi",
@@ -51,7 +60,9 @@ func TestGetResourceRequirements_Provide_Requests_Only(t *testing.T) {
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
 }
 
-func TestGetResourceRequirements_Provide_Requests_Cpu_Only(t *testing.T) {
+func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *testing.T) {
+	setupTests()
+
 	request := map[string]string{
 		"cpu": "0.3",
 	}
@@ -68,9 +79,8 @@ func TestGetResourceRequirements_Provide_Requests_Cpu_Only(t *testing.T) {
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
 }
 
-func TestGetResourceRequirements_Provide_Requests_Over_Default_Limits(t *testing.T) {
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
+	setupTests()
 
 	request := map[string]string{
 		"cpu":    "5",
@@ -89,9 +99,8 @@ func TestGetResourceRequirements_Provide_Requests_Over_Default_Limits(t *testing
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("5Gi")), "Memory limit should be same as request")
 }
 
-func TestGetResourceRequirements_Provide_Requests_Cpu_Over_Default_Limits(t *testing.T) {
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing.T) {
+	setupTests()
 
 	request := map[string]string{
 		"cpu": "6",
@@ -107,7 +116,4 @@ func TestGetResourceRequirements_Provide_Requests_Cpu_Over_Default_Limits(t *tes
 
 	assert.Equal(t, 0, requirements.Limits.Cpu().Cmp(resource.MustParse("6")), "CPU limit should be same as request")
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
-}
-
-func TestGetResourceRequirements_Provide_Limits_Only(t *testing.T) {
 }
