@@ -23,6 +23,7 @@ func CloneInitContainers(sshURL, branch string) []corev1.Container {
 			Name:            "nslookup",
 			Image:           "alpine",
 			Args:            []string{waitForGithubToRespond},
+			Command:         []string{"/bin/sh", "-c"},
 			ImagePullPolicy: "Always",
 		},
 		{
