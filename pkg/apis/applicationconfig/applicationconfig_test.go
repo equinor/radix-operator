@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -239,10 +240,10 @@ func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimit
 	tu, client, radixclient := setupTest()
 
 	// Setup
-	os.Setenv(OperatorEnvLimitDefaultCPUEnvironmentVariable, "0.5")
-	os.Setenv(OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	os.Setenv(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
-	os.Setenv(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
+	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "0.5")
+	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
+	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
 
 	applyApplicationWithSync(tu, client, radixclient, utils.ARadixApplication().
 		WithAppName("any-app").
