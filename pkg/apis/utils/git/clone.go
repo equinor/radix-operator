@@ -13,7 +13,7 @@ const (
 	Workspace = "/workspace"
 
 	// The script to ensure that github reponds before cloning. It breaks after max attempts
-	waitForGithubToRespond = "n=1;max=10;delay=5;while true; do if [ '$n' -lt '$max' ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo 'The command has failed after $n attempts.'; break; fi done"
+	waitForGithubToRespond = "n=1;max=10;delay=5;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
 )
 
 // CloneInitContainers The sidecars for cloning repo
