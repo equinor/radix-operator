@@ -3,6 +3,7 @@ package deployment
 import (
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -165,14 +166,44 @@ func getSecurityContextForContainer() *corev1.SecurityContext {
 }
 
 func getResourceRequirements(deployComponent v1.RadixDeployComponent) *corev1.ResourceRequirements {
+
+	defaultLimits := map[corev1.ResourceName]resource.Quantity{
+		corev1.ResourceName("cpu"):    *defaults.GetDefaultCPULimit(),
+		corev1.ResourceName("memory"): *defaults.GetDefaultMemoryLimit(),
+	}
+
 	// if you only set limit, it will use the same values for request
 	limits := corev1.ResourceList{}
 	requests := corev1.ResourceList{}
+
 	for name, limit := range deployComponent.Resources.Limits {
-		limits[corev1.ResourceName(name)], _ = resource.ParseQuantity(limit)
+		resName := corev1.ResourceName(name)
+
+		if limit != "" {
+			limits[resName], _ = resource.ParseQuantity(limit)
+		}
+
+		// TODO: We probably should check some hard limit that cannot by exceeded here
 	}
+
 	for name, req := range deployComponent.Resources.Requests {
-		requests[corev1.ResourceName(name)], _ = resource.ParseQuantity(req)
+		resName := corev1.ResourceName(name)
+
+		if req != "" {
+			requests[resName], _ = resource.ParseQuantity(req)
+
+			if _, hasLimit := limits[resName]; !hasLimit {
+				// There is no defined limit, but there is a request
+				reqQuantity := requests[resName]
+				if reqQuantity.Cmp(defaultLimits[resName]) == 1 {
+					// Requested quantity is larger than the default limit
+					// We use the requested value as the limit
+					limits[resName] = requests[resName].DeepCopy()
+
+					// TODO: If we introduce a hard limit, that should not be exceeded here
+				}
+			}
+		}
 	}
 
 	if len(limits) <= 0 && len(requests) <= 0 {
