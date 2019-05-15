@@ -23,7 +23,7 @@ app:
         memory: 1G
         cpu: 1
       defaultRequest:
-        memory: 500M
+        memory: 50M
         cpu: 40m
 
 rbac:
