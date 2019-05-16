@@ -5,7 +5,6 @@
 trigger:
 - master
 - release
-- RA-295_HideNsLookupStep
 
 # no PR builds
 pr: none
