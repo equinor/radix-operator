@@ -39,25 +39,8 @@ var (
 	operatorBranch   string
 )
 
-func init() {
-	if operatorCommitid == "" {
-		operatorCommitid = "no commitid"
-	}
-
-	if operatorBranch == "" {
-		operatorBranch = "no branch"
-	}
-
-	if operatorDate == "" {
-		operatorDate = "(Mon YYYY)"
-	}
-}
-
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
-
-	logger.Infof("Starting Radix Operator from commit %s on branch %s built %s", operatorCommitid, operatorBranch, operatorDate)
-
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
 	stop := make(chan struct{})

@@ -21,20 +21,6 @@ var (
 	pipelineBranch   string
 )
 
-func init() {
-	if pipelineCommitid == "" {
-		pipelineCommitid = "no commitid"
-	}
-
-	if pipelineBranch == "" {
-		pipelineBranch = "no branch"
-	}
-
-	if pipelineDate == "" {
-		pipelineDate = "(Mon YYYY)"
-	}
-}
-
 // Requirements to run, pipeline must have:
 // - access to read RR of the app mention in "RADIX_FILE_NAME"
 // - access to create Jobs in "app" namespace it runs under
@@ -63,8 +49,6 @@ func prepareToRunPipeline() model.PipelineInfo {
 	useCache := args["USE_CACHE"]
 	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
 	pushImage := args["PUSH_IMAGE"]       // "0"
-
-	log.Infof("Starting Radix Pipeline from commit %s on branch %s built %s", pipelineCommitid, pipelineBranch, pipelineDate)
 
 	if branch == "" {
 		branch = "dev"

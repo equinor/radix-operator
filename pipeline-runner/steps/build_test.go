@@ -4,37 +4,39 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_dockerfile_from_build_folder(t *testing.T) {
 	dockerfile := getDockerfile(".", "")
 
-	assert.Equal(t, fmt.Sprintf("%s/Dockerfile", workspace), dockerfile)
+	assert.Equal(t, fmt.Sprintf("%s/Dockerfile", git.Workspace), dockerfile)
 }
 
 func Test_dockerfile_from_folder(t *testing.T) {
 	dockerfile := getDockerfile("/afolder/", "")
 
-	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", workspace), dockerfile)
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", git.Workspace), dockerfile)
 }
 
 func Test_dockerfile_from_folder_2(t *testing.T) {
 	dockerfile := getDockerfile("afolder", "")
 
-	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", workspace), dockerfile)
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", git.Workspace), dockerfile)
 }
 
 func Test_dockerfile_from_folder_special_char(t *testing.T) {
 	dockerfile := getDockerfile("./afolder/", "")
 
-	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", workspace), dockerfile)
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", git.Workspace), dockerfile)
 }
 
 func Test_dockerfile_from_folder_and_file(t *testing.T) {
 	dockerfile := getDockerfile("/afolder/", "Dockerfile.adockerfile")
 
-	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile.adockerfile", workspace), dockerfile)
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile.adockerfile", git.Workspace), dockerfile)
 }
 
 func Test_getGitCloneCommand(t *testing.T) {

@@ -205,6 +205,7 @@ type DeployComponentBuilder interface {
 	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
 	WithReplicas(int) DeployComponentBuilder
+	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
@@ -224,6 +225,13 @@ type deployComponentBuilder struct {
 	secrets     []string
 	dnsappalias bool
 	resources   v1.ResourceRequirements
+}
+
+func (dcb *deployComponentBuilder) WithResourceRequestsOnly(request map[string]string) DeployComponentBuilder {
+	dcb.resources = v1.ResourceRequirements{
+		Requests: request,
+	}
+	return dcb
 }
 
 func (dcb *deployComponentBuilder) WithResource(request map[string]string, limit map[string]string) DeployComponentBuilder {

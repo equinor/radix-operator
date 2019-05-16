@@ -7,6 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,8 +18,6 @@ import (
 )
 
 const (
-	gitSSHKeyVolumeName             = "git-ssh-keys"
-	buildContextVolumeName          = "build-context"
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
 )
 
@@ -28,7 +27,7 @@ func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo
 	imageTag := pipelineInfo.ImageTag
 	jobName := pipelineInfo.JobName
 
-	cloneContainer := CloneContainer(containerRegistry, pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
+	initContainers := git.CloneInitContainers(pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
 	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PushImage, pipelineInfo.RadixApplication.Spec.Components)
 	timestamp := time.Now().Format("20060102150405")
 
@@ -56,20 +55,18 @@ func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo
 					},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy: "Never",
-					InitContainers: []corev1.Container{
-						cloneContainer,
-					},
-					Containers: buildContainers,
+					RestartPolicy:  "Never",
+					InitContainers: initContainers,
+					Containers:     buildContainers,
 					Volumes: []corev1.Volume{
 						{
-							Name: buildContextVolumeName,
+							Name: git.BuildContextVolumeName,
 						},
 						corev1.Volume{
-							Name: gitSSHKeyVolumeName,
+							Name: git.GitSSHKeyVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName:  gitSSHKeyVolumeName,
+									SecretName:  git.GitSSHKeyVolumeName,
 									DefaultMode: &defaultMode,
 								},
 							},
@@ -138,8 +135,8 @@ func createACRBuildContainers(containerRegistry, appName, imageTag string, pushI
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      buildContextVolumeName,
-					MountPath: workspace,
+					Name:      git.BuildContextVolumeName,
+					MountPath: git.Workspace,
 				},
 				{
 					Name:      azureServicePrincipleSecretName,
@@ -151,29 +148,4 @@ func createACRBuildContainers(containerRegistry, appName, imageTag string, pushI
 		containers = append(containers, container)
 	}
 	return containers
-}
-
-// CloneContainer The sidecar for cloning repo
-func CloneContainer(containerRegistry, sshURL, branch string) corev1.Container {
-	gitCloneCommand := fmt.Sprintf("git clone %s -b %s --progress .", sshURL, branch)
-
-	container := corev1.Container{
-		Name:    "clone",
-		Image:   fmt.Sprintf("%s/gitclone:latest", containerRegistry),
-		Command: []string{"/bin/sh", "-c", "-x"},
-		Args:    []string{gitCloneCommand},
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      buildContextVolumeName,
-				MountPath: workspace,
-			},
-			{
-				Name:      gitSSHKeyVolumeName,
-				MountPath: "/root/.ssh",
-				ReadOnly:  true,
-			},
-		},
-	}
-
-	return container
 }

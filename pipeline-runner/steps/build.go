@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -107,12 +108,10 @@ func (cli BuildHandler) watchJob(job *batchv1.Job) error {
 	return err
 }
 
-const workspace = "/workspace"
-
 // builds using kaniko - not currently used because of slowness and bugs
 func createBuildJob(containerRegistry, appName, jobName string, components []v1.RadixComponent, cloneURL, branch, commitID, imageTag, useCache string) (*batchv1.Job, error) {
 	gitCloneCommand := getGitCloneCommand(cloneURL, branch)
-	argString := getInitContainerArgString(workspace, gitCloneCommand, commitID)
+	argString := getInitContainerArgString(git.Workspace, gitCloneCommand, commitID)
 	buildContainers := createBuildContainers(containerRegistry, appName, imageTag, useCache, components)
 	timestamp := time.Now().Format("20060102150405")
 
@@ -149,11 +148,11 @@ func createBuildJob(containerRegistry, appName, jobName string, components []v1.
 							Args:    []string{argString},
 							VolumeMounts: []corev1.VolumeMount{
 								{
-									Name:      "build-context",
-									MountPath: workspace,
+									Name:      git.BuildContextVolumeName,
+									MountPath: git.Workspace,
 								},
 								{
-									Name:      "git-ssh-keys",
+									Name:      git.GitSSHKeyVolumeName,
 									MountPath: "/root/.ssh",
 									ReadOnly:  true,
 								},
@@ -163,13 +162,13 @@ func createBuildJob(containerRegistry, appName, jobName string, components []v1.
 					Containers: buildContainers,
 					Volumes: []corev1.Volume{
 						{
-							Name: "build-context",
+							Name: git.BuildContextVolumeName,
 						},
 						{
-							Name: "git-ssh-keys",
+							Name: git.GitSSHKeyVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName:  "git-ssh-keys",
+									SecretName:  git.GitSSHKeyVolumeName,
 									DefaultMode: &defaultMode,
 								},
 							},
@@ -216,8 +215,8 @@ func createBuildContainers(containerRegistry, appName, imageTag, useCache string
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      "build-context",
-					MountPath: workspace,
+					Name:      git.BuildContextVolumeName,
+					MountPath: git.Workspace,
 				},
 				{
 					Name:      "docker-config",
@@ -244,9 +243,9 @@ func getContext(sourceFolder string) string {
 	sourceFolder = strings.Trim(sourceFolder, ".")
 	sourceFolder = strings.Trim(sourceFolder, "/")
 	if sourceFolder == "" {
-		return fmt.Sprintf("%s/", workspace)
+		return fmt.Sprintf("%s/", git.Workspace)
 	}
-	return fmt.Sprintf("%s/%s/", workspace, sourceFolder)
+	return fmt.Sprintf("%s/%s/", git.Workspace, sourceFolder)
 }
 
 func getGitCloneCommand(cloneURL, branch string) string {
