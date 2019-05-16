@@ -23,10 +23,7 @@ WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
 RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
 
 # Build
-ARG date
-ARG commitid
-ARG branch
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w -X main.operatorCommitid=${commitid} -X main.operatorBranch=${branch} -X main.operatorDate=${date}" -a -installsuffix cgo -o ./rootfs/radix-operator
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
 RUN adduser -D -g '' radix-operator
 
 # Run operator

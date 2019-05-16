@@ -1,8 +1,18 @@
 package git
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
+)
 
 const (
+	// InternalContainerPrefix To indicate that this is not for user interest
+	InternalContainerPrefix = "internal-"
+
+	// CloneContainerName Name of container
+	CloneContainerName = "clone"
+
 	// GitSSHKeyVolumeName Deploy key + known_hosts
 	GitSSHKeyVolumeName = "git-ssh-keys"
 
@@ -20,14 +30,14 @@ const (
 func CloneInitContainers(sshURL, branch string) []corev1.Container {
 	containers := []corev1.Container{
 		{
-			Name:            "nslookup",
+			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
 			Image:           "alpine",
 			Args:            []string{waitForGithubToRespond},
 			Command:         []string{"/bin/sh", "-c"},
 			ImagePullPolicy: "Always",
 		},
 		{
-			Name:  "clone",
+			Name:  CloneContainerName,
 			Image: "alpine/git",
 			Args: []string{
 				"clone",

@@ -43,7 +43,6 @@ CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 
-DATE = $(shell date +%F_%T)
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
@@ -71,7 +70,7 @@ test:
 
 define make-docker-build
   	build-$1:
-		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(TAG) --build-arg date="$(DATE)" --build-arg branch="$(BRANCH)" --build-arg commitid="$(HASH)" -f $1.Dockerfile .
+		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(TAG) -f $1.Dockerfile .
   	build:: build-$1
 endef
 
