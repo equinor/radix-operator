@@ -8,7 +8,7 @@ import (
 
 const (
 	// InternalContainerPrefix To indicate that this is not for user interest
-	InternalContainerPrefix = "internal_"
+	InternalContainerPrefix = "internal-"
 
 	// GitSSHKeyVolumeName Deploy key + known_hosts
 	GitSSHKeyVolumeName = "git-ssh-keys"
