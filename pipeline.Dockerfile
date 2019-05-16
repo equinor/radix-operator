@@ -23,10 +23,7 @@ WORKDIR /go/src/github.com/equinor/radix-operator/pipeline-runner/
 RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
 
 # Build
-ARG date
-ARG commitid
-ARG branch
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w -X main.pipelineCommitid=${commitid} -X main.pipelineBranch=${branch} -X main.pipelineDate=${date}" -a -installsuffix cgo -o ./rootfs/pipeline-runner
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/pipeline-runner
 RUN adduser -D -g '' radix-pipeline
 
 # Run operator
