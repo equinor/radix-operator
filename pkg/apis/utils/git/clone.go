@@ -10,6 +10,9 @@ const (
 	// InternalContainerPrefix To indicate that this is not for user interest
 	InternalContainerPrefix = "internal-"
 
+	// CloneContainerName Name of container
+	CloneContainerName = "clone"
+
 	// GitSSHKeyVolumeName Deploy key + known_hosts
 	GitSSHKeyVolumeName = "git-ssh-keys"
 
@@ -34,7 +37,7 @@ func CloneInitContainers(sshURL, branch string) []corev1.Container {
 			ImagePullPolicy: "Always",
 		},
 		{
-			Name:  "clone",
+			Name:  CloneContainerName,
 			Image: "alpine/git",
 			Args: []string{
 				"clone",
