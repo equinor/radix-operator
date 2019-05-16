@@ -5,6 +5,7 @@
 trigger:
 - master
 - release
+- RA-295_HideNsLookupStep
 
 # no PR builds
 pr: none
@@ -34,6 +35,7 @@ steps:
     command: buildAndPush
     dockerFile: 'operator.Dockerfile'
     repository: 'radix-operator'
+    arguments: --branch $(build.SourceBranchName) --commitid $(Build.SourceVersion)
     tags: |
       $(build.SourceBranchName)-$(Build.SourceVersion)
 - task: Docker@2
@@ -42,5 +44,6 @@ steps:
     command: buildAndPush
     dockerFile: 'pipeline.Dockerfile'
     repository: 'radix-pipeline'
+    arguments: --branch $(build.SourceBranchName) --commitid $(Build.SourceVersion)
     tags: |
       $(build.SourceBranchName)-latest
