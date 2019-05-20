@@ -155,7 +155,7 @@ func (c *Controller) syncHandler(key string) error {
 			"method":   "c_handler_sync",
 			"err_type": fmt.Sprintf("problems_sync_%s", key)},
 		).Inc()
-		return nil
+		return err
 	}
 
 	return nil
