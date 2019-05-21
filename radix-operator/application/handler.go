@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +65,13 @@ func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder rec
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(radixApplication.Name, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Failed to get RR for app %s. Error: %v", radixApplication.Name, err)
+		// The Registration resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			utilruntime.HandleError(fmt.Errorf("Failed to get RadixRegistartion object: %v", err))
+			return nil
+		}
+
 		return err
 	}
 

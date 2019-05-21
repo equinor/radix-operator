@@ -70,8 +70,14 @@ func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.E
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
-		logger.Errorf("Failed to get RadixRegistartion object: %v", err)
-		return fmt.Errorf("Failed to get RadixRegistartion object: %v", err)
+		// The Registration resource may no longer exist, in which case we stop
+		// processing.
+		if errors.IsNotFound(err) {
+			utilruntime.HandleError(fmt.Errorf("Failed to get RadixRegistartion object: %v", err))
+			return nil
+		}
+
+		return err
 	}
 
 	deployment, err := deployment.NewDeployment(t.kubeclient, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
