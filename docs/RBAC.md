@@ -156,13 +156,13 @@
       - Purpose: Give access to perform all required operations through the radix-operator clusterrole
       - Created by: Operator
 
-<sup><sup>1</sup></sup> Should be reviewed, as this access might not be needed (https://statoil.atlassian.net/browse/OR-1004)
+<sup><sup>1</sup></sup> Should be reviewed, as this access might not be needed. Ref. [RA-108 Deny platform users listing jobs across namespaces](https://equinor.atlassian.net/browse/RA-108)
 
 <sup><sup>2</sup></sup> radix-pipeline-runner will be removed if we move RDs into app namespace.
-radix-pipeline will need to be extended with ability to create RDs in app namespace  (https://statoil.atlassian.net/browse/OR-607)
+radix-pipeline will need to be extended with ability to create RDs in app namespace. Ref. [RA-55 Deny Platform users listing deployments across namespaces](https://equinor.atlassian.net/browse/RA-55)
 
-<sup><sup>3</sup></sup> Should be removed as they appear not to be used (https://statoil.atlassian.net/browse/OR-863)
+<sup><sup>3</sup></sup> Should be removed as they appear not to be used. Ref. [RA-182 Remove unused clusterroles RadixReader, RadixSecretReader and RadixAppAdmin](https://equinor.atlassian.net/browse/RA-182)
 
-<sup><sup>4</sup></sup> Will be redundant if we move to use environment variables entirely to control the operator (https://statoil.atlassian.net/browse/OR-511)
+<sup><sup>4</sup></sup> Will be redundant if we move to use environment variables entirely to control the operator. Ref. [RA-145 Technical: Create a configmap for global cluster settings which the operator can use](https://equinor.atlassian.net/browse/RA-145)
 
-<sup><sup>5</sup></sup> Should have been linked to radix-operator cluster role (https://statoil.atlassian.net/browse/OR-864)
+<sup><sup>5</sup></sup> Should have been linked to radix-operator cluster role. Ref. [RA-86 radix-operator clusterrolebinding is linked to cluster-admin clusterrole](https://equinor.atlassian.net/browse/RA-86)
