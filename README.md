@@ -75,6 +75,6 @@ This file/directory should NOT be edited.
 
 If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
 
-## Security Principals
+## Security Principle
 
 The radix-operator reacts on events to the custom resource types defined by the platform, the RadixRegistration, the RadixApplication and the RadixDeployment. It cannot be controlled directly by any platform user. It's main purpose is to create the core resources when the custom resources appears. One of these resources are the [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) rules, which main purpose is to isolate the platform user applications (the [namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/)) from one another. For more information on this see [this](./docs/RBAC.md). Another is to define the [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/), to ensure no [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) can access another pod, outside of its namespace.
