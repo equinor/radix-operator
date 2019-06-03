@@ -24,8 +24,6 @@ The `radix-pipeline` never gets deployed to cluster, but rather is invoked by th
 - `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, we should immediately release a new image to be used by the `qa` environment, by (1) checkout and pull `master` branch (2) `make deploy-pipeline ENVIRONMENT=prod|dev` which will create a `radix-pipeline:master-latest` image available in container registry of the subscription
 - `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) checkout and pull `release` branch (2) `make deploy-pipeline ENVIRONMENT=prod|dev` which will create a `radix-pipeline:release-latest` image available in ACR of the subscription
 
-**Important**: The `radix-api` repo has a dependency to the `radix-operator` repo. As they are currently separated from one another, any change to the `radix-operator` repo (especially related to *spec* change) should be copied to the `vendor` directory of the `radix-api` repo.
-
 ### Procedure to release to cluster
 
 #### Radix-pipeline
