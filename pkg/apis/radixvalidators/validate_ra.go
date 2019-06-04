@@ -1,6 +1,7 @@
 package radixvalidators
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -52,6 +53,11 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, dnsErrors...)
 	}
 
+	dnsErrors = validateDNSExternalAlias(app)
+	if len(dnsErrors) > 0 {
+		errs = append(errs, dnsErrors...)
+	}
+
 	if len(errs) <= 0 {
 		return true, nil
 	}
@@ -80,6 +86,29 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	if !doesComponentExist(app, alias.Component) {
 		errs = append(errs, fmt.Errorf("Component %s refered to by dnsAppAlias is not defined", alias.Component))
 	}
+	return errs
+}
+
+func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
+	errs := []error{}
+
+	for _, externalAlias := range app.Spec.DNSExternalAlias {
+		if externalAlias.Alias == "" && externalAlias.Component == "" && externalAlias.Environment == "" {
+			return errs
+		}
+
+		if externalAlias.Alias == "" {
+			errs = append(errs, errors.New("External alias cannot be empty"))
+		}
+
+		if !doesEnvExist(app, externalAlias.Environment) {
+			errs = append(errs, fmt.Errorf("Env %s refered to by dnsAppAlias is not defined", externalAlias.Environment))
+		}
+		if !doesComponentExist(app, externalAlias.Component) {
+			errs = append(errs, fmt.Errorf("Component %s refered to by dnsAppAlias is not defined", externalAlias.Component))
+		}
+	}
+
 	return errs
 }
 
