@@ -782,6 +782,40 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	assert.Equal(t, expectedPortValue, actualPortValue)
 }
 
+func TestObjectUpdated_WithExternalAliasRemoved_ExternalAliasIngressIsCorrectlyReconciled(t *testing.T) {
+	tu, client, radixclient := setupTest()
+
+	// Setup
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSExternalAlias("some.alias.com")))
+
+	// Test
+	ingresses, _ := client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
+	assert.Equal(t, "any-app-external-1", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
+
+	// Remove app alias from dev
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8080).
+				WithPublicPort("http")))
+
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "External alias ingress should have been removed")
+
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
