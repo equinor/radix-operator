@@ -42,6 +42,7 @@ func CloneInitContainers(sshURL, branch string) []corev1.Container {
 			Args: []string{
 				"clone",
 				sshURL,
+				"--single-branch",
 				"-b",
 				branch,
 				"--verbose",
