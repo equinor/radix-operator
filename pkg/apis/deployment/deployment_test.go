@@ -21,7 +21,7 @@ import (
 
 const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
-const containerRegistry = "any.container.registry"
+const anyContainerRegistry = "any.container.registry"
 
 func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 	// Setup
@@ -34,7 +34,7 @@ func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 	radixclient := radix.NewSimpleClientset()
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)
 	return &handlerTestUtils, kubeclient, radixclient
 }
 
@@ -85,7 +85,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, 9, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
-		assert.Equal(t, containerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
+		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
 		assert.Equal(t, RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, dnsZone, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Value)
 		assert.Equal(t, ClusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Name)
@@ -268,7 +268,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.Equal(t, ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, ClusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Name)
-		assert.Equal(t, containerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
+		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
 		assert.Equal(t, dnsZone, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Value)
 		assert.Equal(t, clusterName, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Value)
 		assert.Equal(t, EnvironmentnameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Name)

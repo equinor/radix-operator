@@ -14,6 +14,7 @@ type ApplicationBuilder interface {
 	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
 	WithComponents(...RadixApplicationComponentBuilder) ApplicationBuilder
 	WithDNSAppAlias(string, string) ApplicationBuilder
+	WithDNSExternalAlias(string, string, string) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *v1.RadixApplication
 }
@@ -25,6 +26,7 @@ type ApplicationBuilderStruct struct {
 	environments        []v1.Environment
 	components          []RadixApplicationComponentBuilder
 	dnsAppAlias         v1.AppAlias
+	externalAppAlias    []v1.ExternalAlias
 }
 
 // WithRadixRegistration Associates this builder with a registration builder
@@ -71,6 +73,21 @@ func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env string, component string
 	return ap
 }
 
+func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string) ApplicationBuilder {
+	if ap.externalAppAlias == nil {
+		ap.externalAppAlias = make([]v1.ExternalAlias, 0)
+	}
+
+	externalAlias := v1.ExternalAlias{
+		Alias:       alias,
+		Environment: env,
+		Component:   component,
+	}
+
+	ap.externalAppAlias = append(ap.externalAppAlias, externalAlias)
+	return ap
+}
+
 // WithComponent Appends application component to list of existing components
 func (ap *ApplicationBuilderStruct) WithComponent(component RadixApplicationComponentBuilder) ApplicationBuilder {
 	ap.components = append(ap.components, component)
@@ -109,9 +126,10 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 			Namespace: GetAppNamespace(ap.appName),
 		},
 		Spec: v1.RadixApplicationSpec{
-			Components:   components,
-			Environments: ap.environments,
-			DNSAppAlias:  ap.dnsAppAlias,
+			Components:       components,
+			Environments:     ap.environments,
+			DNSAppAlias:      ap.dnsAppAlias,
+			DNSExternalAlias: ap.externalAppAlias,
 		},
 	}
 	return radixApplication
