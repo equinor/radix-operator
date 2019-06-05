@@ -23,30 +23,42 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 
 	log.Debugf("Apply empty secrets based on radix deployment obj")
 	for _, component := range deployment.Spec.Components {
+		secretsToManage := make([]string, 0)
+
 		if len(component.Secrets) > 0 {
 			secretName := utils.GetComponentSecretName(component.Name)
 			if deploy.kubeutil.SecretExists(ns, secretName) {
 				continue
 			}
-			secret := v1.Secret{
-				Type: "Opaque",
-				ObjectMeta: metav1.ObjectMeta{
-					Name: secretName,
-					Labels: map[string]string{
-						kube.RadixAppLabel:       registration.Name,
-						kube.RadixComponentLabel: component.Name,
-					},
-				},
-			}
-			_, err = deploy.kubeutil.ApplySecret(ns, &secret)
+
+			err := deploy.createSecret(ns, registration.Name, component.Name, secretName)
 			if err != nil {
 				return err
 			}
 
-			err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component)
-			if err != nil {
-				return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
+			secretsToManage = append(secretsToManage, secretName)
+		}
+
+		if len(component.DNSExternalAlias) > 0 {
+			// Create secrets to hold TLS certificates
+			for n := range component.DNSExternalAlias {
+				secretName := fmt.Sprintf(externalAliasTLSCertificateFormat, component.Name, (n + 1))
+				if deploy.kubeutil.SecretExists(ns, secretName) {
+					continue
+				}
+
+				err := deploy.createSecret(ns, registration.Name, component.Name, secretName)
+				if err != nil {
+					return err
+				}
+
+				secretsToManage = append(secretsToManage, secretName)
 			}
+		}
+
+		err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component, secretsToManage)
+		if err != nil {
+			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
 		}
 	}
 	return nil
@@ -98,5 +110,24 @@ func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistra
 	}
 
 	log.Debugf("Created container registry credentials secret: %s in namespace %s", saveDockerSecret.Name, ns)
+	return nil
+}
+
+func (deploy *Deployment) createSecret(ns, app, component, secretName string) error {
+	secret := v1.Secret{
+		Type: "Opaque",
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+			Labels: map[string]string{
+				kube.RadixAppLabel:       app,
+				kube.RadixComponentLabel: component,
+			},
+		},
+	}
+	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -53,6 +53,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
+				WithDNSExternalAlias("some.alias.com").
+				WithDNSExternalAlias("another.alias.com").
 				WithResource(map[string]string{
 					"memory": "64Mi",
 					"cpu":    "250m",
@@ -136,28 +138,39 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate ingress", func(t *testing.T) {
 		t.Parallel()
 		ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 3, len(ingresses.Items), "Number of ingresses was not according to public components")
+		assert.Equal(t, 5, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
+
 		assert.Equal(t, "edcradix-url-alias", ingresses.Items[0].GetName(), "App should have had an app alias ingress")
 		assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 		assert.Equal(t, "true", ingresses.Items[0].Labels["radix-app-alias"], "Ingress should be an app alias")
 		assert.Equal(t, "app", ingresses.Items[0].Labels["radix-component"], "Ingress should have the corresponding component")
-		assert.Equal(t, "app", ingresses.Items[1].GetName(), "App should have had an ingress")
-		assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-		assert.Equal(t, "false", ingresses.Items[1].Labels["radix-app-alias"], "Ingress should not be an app alias")
-		assert.Equal(t, "app", ingresses.Items[1].Labels["radix-component"], "Ingress should have the corresponding component")
-		assert.Equal(t, "radixquote", ingresses.Items[2].GetName(), "Radixquote should have had an ingress")
-		assert.Equal(t, int32(3000), ingresses.Items[2].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-		assert.Equal(t, "false", ingresses.Items[2].Labels["radix-app-alias"], "Ingress should not be an app alias")
-		assert.Equal(t, "radixquote", ingresses.Items[2].Labels["radix-component"], "Ingress should have the corresponding component")
+
+		// External aliases
+		assert.Equal(t, "edcradix-external-1", ingresses.Items[1].GetName(), "App should have an external alias")
+		assert.Equal(t, "edcradix-external-2", ingresses.Items[2].GetName(), "App should have a second  external alias")
+
+		assert.Equal(t, "app", ingresses.Items[3].GetName(), "App should have had an ingress")
+		assert.Equal(t, int32(8080), ingresses.Items[3].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "false", ingresses.Items[3].Labels["radix-app-alias"], "Ingress should not be an app alias")
+		assert.Equal(t, "app", ingresses.Items[3].Labels["radix-component"], "Ingress should have the corresponding component")
+		assert.Equal(t, "radixquote", ingresses.Items[4].GetName(), "Radixquote should have had an ingress")
+		assert.Equal(t, int32(3000), ingresses.Items[4].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "false", ingresses.Items[4].Labels["radix-app-alias"], "Ingress should not be an app alias")
+		assert.Equal(t, "radixquote", ingresses.Items[4].Labels["radix-component"], "Ingress should have the corresponding component")
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
-		componentSecretName := utils.GetComponentSecretName("radixquote")
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
 		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
-		assert.Equal(t, componentSecretName, secrets.Items[1].GetName(), "Component secret is not as expected")
+
+		// External aliases TLS certificate secrets
+		assert.Equal(t, "app-external-1-tls-cert", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
+		assert.Equal(t, "app-external-2-tls-cert", secrets.Items[2].GetName(), "TLS certificate for second external alias is not properly defined")
+
+		componentSecretName := utils.GetComponentSecretName("radixquote")
+		assert.Equal(t, componentSecretName, secrets.Items[3].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
@@ -166,12 +179,30 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 	})
 
+	t.Run("validate roles", func(t *testing.T) {
+		t.Parallel()
+		roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+
+		assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
+
+		// External aliases
+		assert.Equal(t, "radix-app-adm-app", roles.Items[0].GetName(), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
+		assert.Equal(t, "secrets", roles.Items[0].Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
+		assert.Equal(t, "app-external-1-tls-cert", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
+		assert.Equal(t, "app-external-2-tls-cert", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+
+		assert.Equal(t, "radix-app-adm-radixquote", roles.Items[1].GetName(), "Expected role radix-app-adm-radixquote to be there to access secret")
+	})
+
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		//assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
-		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
+
+		// External aliases
+		assert.Equal(t, "radix-app-adm-app", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
+
+		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[1].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
 	})
 
 	t.Run("validate networkpolicy", func(t *testing.T) {
