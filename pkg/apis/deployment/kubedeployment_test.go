@@ -117,3 +117,41 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 	assert.Equal(t, 0, requirements.Limits.Cpu().Cmp(resource.MustParse("6")), "CPU limit should be same as request")
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
 }
+
+func TestGetReadinessProbe_Default(t *testing.T) {
+	port := int32(80)
+	probe := getReadinessProbe(port)
+
+	assert.Equal(t, int32(defaults.ReadinessProbeInitialDelaySecondsDefault), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(defaults.ReadinessProbePeriodSecondsDefault), probe.PeriodSeconds)
+	assert.Equal(t, port, probe.Handler.TCPSocket.Port.IntVal)
+}
+
+func TestGetReadinessProbe_Custom(t *testing.T) {
+	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "20")
+	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "30")
+
+	port := int32(80)
+	probe := getReadinessProbe(port)
+
+	assert.Equal(t, int32(20), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(30), probe.PeriodSeconds)
+	assert.Equal(t, port, probe.Handler.TCPSocket.Port.IntVal)
+}
+
+func TestGetDeploymentStrategy_Default(t *testing.T) {
+	deploymentStrategy := getDeploymentStrategy()
+
+	assert.Equal(t, defaults.RollingUpdateMaxUnavailableDefault, deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
+	assert.Equal(t, defaults.RollingUpdateMaxSurgeDefault, deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
+}
+
+func TestGetDeploymentStrategy_Custom(t *testing.T) {
+	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "10%")
+	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "20%")
+
+	deploymentStrategy := getDeploymentStrategy()
+
+	assert.Equal(t, "10%", deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
+	assert.Equal(t, "20%", deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
+}

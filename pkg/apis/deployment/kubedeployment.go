@@ -10,6 +10,7 @@ import (
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployComponent) error {
@@ -91,6 +92,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 					},
 				},
 			},
+			Strategy: getDeploymentStrategy(),
 		},
 	}
 
@@ -103,6 +105,10 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 		ports = append(ports, containerPort)
 	}
 	deployment.Spec.Template.Spec.Containers[0].Ports = ports
+
+	if len(ports) > 0 {
+		deployment.Spec.Template.Spec.Containers[0].ReadinessProbe = getReadinessProbe(ports[0].ContainerPort)
+	}
 
 	if replicas > 0 {
 		deployment.Spec.Replicas = int32Ptr(int32(replicas))
@@ -151,6 +157,35 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func getReadinessProbe(componentPort int32) *corev1.Probe {
+	return &corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: componentPort,
+				},
+			},
+		},
+		InitialDelaySeconds: defaults.GetDefaultReadinessProbeInitialDelaySeconds(),
+		PeriodSeconds:       defaults.GetDefaultReadinessProbePeriodSeconds(),
+	}
+}
+
+func getDeploymentStrategy() v1beta1.DeploymentStrategy {
+	return v1beta1.DeploymentStrategy{
+		RollingUpdate: &v1beta1.RollingUpdateDeployment{
+			MaxUnavailable: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: defaults.GetDefaultRollingUpdateMaxUnavailable(),
+			},
+			MaxSurge: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: defaults.GetDefaultRollingUpdateMaxSurge(),
+			},
+		},
+	}
 }
 
 func getSecurityContextForContainer() *corev1.SecurityContext {
