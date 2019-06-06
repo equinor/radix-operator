@@ -18,8 +18,7 @@ const (
 	RadixJobTypeLabel         = "radix-job-type"
 	RadixJobTypeBuild         = "build"
 	RadixAppAliasLabel        = "radix-app-alias"
-	RadixIsExternalAliasLabel = "radix-app-is-external-alias"
-	RadixExternalAliasLabel   = "radix-app-external-alias"
+	RadixIsExternalAliasLabel = "radix-app-external-alias"
 )
 
 type Kube struct {

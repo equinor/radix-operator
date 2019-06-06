@@ -32,7 +32,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 				continue
 			}
 
-			err := deploy.createSecret(ns, registration.Name, component.Name, secretName, "")
+			err := deploy.createSecret(ns, registration.Name, component.Name, secretName, false)
 			if err != nil {
 				return err
 			}
@@ -47,18 +47,17 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 			}
 
 			// Create secrets to hold TLS certificates
-			for n, externalAlias := range component.DNSExternalAlias {
-				secretName := fmt.Sprintf(externalAliasTLSCertificateFormat, component.Name, (n + 1))
-				if deploy.kubeutil.SecretExists(ns, secretName) {
+			for _, externalAlias := range component.DNSExternalAlias {
+				if deploy.kubeutil.SecretExists(ns, externalAlias) {
 					continue
 				}
 
-				err := deploy.createSecret(ns, registration.Name, component.Name, secretName, externalAlias)
+				err := deploy.createSecret(ns, registration.Name, component.Name, externalAlias, true)
 				if err != nil {
 					return err
 				}
 
-				secretsToManage = append(secretsToManage, secretName)
+				secretsToManage = append(secretsToManage, externalAlias)
 			}
 		}
 
@@ -110,7 +109,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(component radixv1.RadixDeployComponent) error {
-	secrets, err := deploy.listSecretsForComponent(component)
+	secrets, err := deploy.listSecretsForComponent(component, getLabelSelectorForComponent(component))
 	if err != nil {
 		return err
 	}
@@ -126,26 +125,24 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
-	secrets, err := deploy.listSecretsForComponent(component)
+	secrets, err := deploy.listSecretsForComponent(component, getLabelSelectorForExternalAlias(component))
 	if err != nil {
 		return err
 	}
 
 	for _, secret := range secrets.Items {
-		externalAliasForSecret := secret.Labels[kube.RadixExternalAliasLabel]
-		if externalAliasForSecret != "" {
-			garbageCollectSecret := true
-			for _, externalAlias := range component.DNSExternalAlias {
-				if externalAlias == externalAliasForSecret {
-					garbageCollectSecret = false
-				}
+		externalAliasForSecret := secret.Name
+		garbageCollectSecret := true
+		for _, externalAlias := range component.DNSExternalAlias {
+			if externalAlias == externalAliasForSecret {
+				garbageCollectSecret = false
 			}
+		}
 
-			if garbageCollectSecret {
-				err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
-				if err != nil {
-					return err
-				}
+		if garbageCollectSecret {
+			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
 			}
 		}
 	}
@@ -153,9 +150,9 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExte
 	return nil
 }
 
-func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
+func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent, labelSelector string) (*v1.SecretList, error) {
 	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+		LabelSelector: labelSelector,
 	})
 
 	if err != nil {
@@ -182,16 +179,20 @@ func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistra
 	return nil
 }
 
-func (deploy *Deployment) createSecret(ns, app, component, secretName, externalAlias string) error {
+func (deploy *Deployment) createSecret(ns, app, component, secretName string, isExternalAlias bool) error {
+	secretType := v1.SecretType("Opaque")
+	if isExternalAlias {
+		secretType = v1.SecretType("kubernetes.io/tls")
+	}
+
 	secret := v1.Secret{
-		Type: "Opaque",
+		Type: secretType,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
 				kube.RadixAppLabel:             app,
 				kube.RadixComponentLabel:       component,
-				kube.RadixExternalAliasLabel:   externalAlias,
-				kube.RadixIsExternalAliasLabel: strconv.FormatBool(externalAlias != ""),
+				kube.RadixIsExternalAliasLabel: strconv.FormatBool(isExternalAlias),
 			},
 		},
 	}

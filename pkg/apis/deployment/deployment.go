@@ -231,3 +231,11 @@ func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID 
 	}
 	return radixDeployment
 }
+
+func getLabelSelectorForComponent(component v1.RadixDeployComponent) string {
+	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name)
+}
+
+func getLabelSelectorForExternalAlias(component v1.RadixDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixIsExternalAliasLabel, "true")
+}

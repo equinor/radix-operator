@@ -12,6 +12,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -146,9 +147,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, "app", ingresses.Items[0].Labels["radix-component"], "Ingress should have the corresponding component")
 
 		// External aliases
-		assert.Equal(t, "edcradix-external-1", ingresses.Items[1].GetName(), "App should have an external alias")
+		assert.Equal(t, "some.alias.com", ingresses.Items[1].GetName(), "App should have an external alias")
 		assert.Equal(t, "some.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
-		assert.Equal(t, "edcradix-external-2", ingresses.Items[2].GetName(), "App should have a second  external alias")
+		assert.Equal(t, "another.alias.com", ingresses.Items[2].GetName(), "App should have a second  external alias")
 		assert.Equal(t, "another.alias.com", ingresses.Items[2].Spec.Rules[0].Host, "App should have an external alias")
 
 		assert.Equal(t, "app", ingresses.Items[3].GetName(), "App should have had an ingress")
@@ -168,8 +169,10 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
 
 		// External aliases TLS certificate secrets
-		assert.Equal(t, "app-external-1-tls-cert", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
-		assert.Equal(t, "app-external-2-tls-cert", secrets.Items[2].GetName(), "TLS certificate for second external alias is not properly defined")
+		assert.Equal(t, "some.alias.com", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
+		assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), secrets.Items[1].Type, "TLS certificate for external alias is not properly defined type")
+		assert.Equal(t, "another.alias.com", secrets.Items[2].GetName(), "TLS certificate for second external alias is not properly defined")
+		assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), secrets.Items[2].Type, "TLS certificate for external alias is not properly defined type")
 
 		componentSecretName := utils.GetComponentSecretName("radixquote")
 		assert.Equal(t, componentSecretName, secrets.Items[3].GetName(), "Component secret is not as expected")
@@ -190,8 +193,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		// External aliases
 		assert.Equal(t, "radix-app-adm-app", roles.Items[0].GetName(), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
 		assert.Equal(t, "secrets", roles.Items[0].Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
-		assert.Equal(t, "app-external-1-tls-cert", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
-		assert.Equal(t, "app-external-2-tls-cert", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+		assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
+		assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
 
 		assert.Equal(t, "radix-app-adm-radixquote", roles.Items[1].GetName(), "Expected role radix-app-adm-radixquote to be there to access secret")
 	})
@@ -807,7 +810,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
 
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
-	assert.Equal(t, "any-app-external-1", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
+	assert.Equal(t, "some.alias.com", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
 
 	assert.Equal(t, 1, len(roles.Items), "Environment should have one role for TLS cert")
 	assert.Equal(t, "radix-app-adm-frontend", roles.Items[0].GetName(), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
@@ -816,7 +819,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	assert.Equal(t, "radix-app-adm-frontend", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 
 	assert.Equal(t, 2, len(secrets.Items), "Environment should have one secret for TLS cert")
-	assert.Equal(t, "frontend-external-1-tls-cert", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
+	assert.Equal(t, "some.alias.com", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
 
 	// Remove app alias from dev
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
@@ -857,10 +860,10 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	// Test
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
-	assert.Equal(t, "any-app-external-1", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
+	assert.Equal(t, "some.alias.com", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
 	assert.Equal(t, "some.alias.com", ingresses.Items[0].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
-	assert.Equal(t, "any-app-external-2", ingresses.Items[1].GetName(), "App should have had another external alias ingress")
+	assert.Equal(t, "another.alias.com", ingresses.Items[1].GetName(), "App should have had another external alias ingress")
 	assert.Equal(t, "another.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
@@ -877,12 +880,12 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
-	assert.Equal(t, "any-app-external-1", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
+	assert.Equal(t, "some.alias.com", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
 	assert.Equal(t, "some.alias.com", ingresses.Items[0].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
 	// Since this has changed, it is removed and added back, and so ends up at the end of the list
-	assert.Equal(t, "any-app-external-2", ingresses.Items[2].GetName(), "App should have had another external alias ingress")
+	assert.Equal(t, "yet.another.alias.com", ingresses.Items[2].GetName(), "App should have had another external alias ingress")
 	assert.Equal(t, "yet.another.alias.com", ingresses.Items[2].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), ingresses.Items[2].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
@@ -898,7 +901,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
-	assert.Equal(t, "any-app-external-2", ingresses.Items[1].GetName(), "App should have had another external alias ingress")
+	assert.Equal(t, "yet.another.alias.com", ingresses.Items[1].GetName(), "App should have had another external alias ingress")
 	assert.Equal(t, "yet.another.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
