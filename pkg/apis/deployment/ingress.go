@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/extensions/v1beta1"
@@ -49,6 +50,11 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 	}
 
 	if len(deployComponent.DNSExternalAlias) > 0 {
+		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
+		if err != nil {
+			log.Errorf("Failed to garbage collect external alias ingress for app %s. Error was %s ", deploy.radixDeployment.Spec.AppName, err)
+		}
+
 		for n, externalAlias := range deployComponent.DNSExternalAlias {
 			externalAliasTLSCertificateName := fmt.Sprintf(externalAliasTLSCertificateFormat, deployComponent.Name, (n + 1))
 			externalAliasIngressName := fmt.Sprintf(externalAliasIngressNamePattern, deploy.radixDeployment.Spec.AppName, (n + 1))
@@ -99,7 +105,7 @@ func (deploy *Deployment) garbageCollectAppAliasIngressNoLongerInSpecForComponen
 }
 
 func (deploy *Deployment) garbageCollectExternalAliasIngressNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
-	return deploy.garbageCollectIngressByLabelSelectorForComponent(component.Name, fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixExternalAliasLabel, "true"))
+	return deploy.garbageCollectIngressByLabelSelectorForComponent(component.Name, fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixIsExternalAliasLabel, "true"))
 }
 
 func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
@@ -115,9 +121,41 @@ func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(compo
 	}
 
 	if len(ingresses.Items) > 0 {
-		err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses.Items[0].Name, &metav1.DeleteOptions{})
-		if err != nil {
-			return err
+		for n := range ingresses.Items {
+			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses.Items[n].Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
+	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, ingress := range ingresses.Items {
+		externalAliasForIngress := ingress.Labels[kube.RadixExternalAliasLabel]
+		if externalAliasForIngress != "" {
+			garbageCollectIngress := true
+			for _, externalAlias := range component.DNSExternalAlias {
+				if externalAlias == externalAliasForIngress {
+					garbageCollectIngress = false
+				}
+			}
+
+			if garbageCollectIngress {
+				err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingress.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -134,7 +172,7 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, appAliasTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(radixDeployment, componentName, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, true, false, ingressSpec)
+	return getIngressConfig(radixDeployment, componentName, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, true, "", ingressSpec)
 }
 
 func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, publicPortNumber int32) *v1beta1.Ingress {
@@ -146,14 +184,14 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, clusterDefaultTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(radixDeployment, componentName, componentName, ownerReference, false, false, ingressSpec)
+	return getIngressConfig(radixDeployment, componentName, componentName, ownerReference, false, "", ingressSpec)
 }
 
 func getExternalAliasIngressConfig(externalAlias, componentName string, radixDeployment *v1.RadixDeployment, namespace, ingressName, externalAliasTLSSecretName string, publicPortNumber int32) *v1beta1.Ingress {
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(externalAlias, componentName, externalAliasTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(radixDeployment, componentName, ingressName, ownerReference, false, true, ingressSpec)
+	return getIngressConfig(radixDeployment, componentName, ingressName, ownerReference, false, externalAlias, ingressSpec)
 }
 
 func getHostName(componentName, namespace, clustername, dnsZone string) string {
@@ -161,7 +199,7 @@ func getHostName(componentName, namespace, clustername, dnsZone string) string {
 	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
 
-func getIngressConfig(radixDeployment *v1.RadixDeployment, componentName, ingressName string, ownerReference []metav1.OwnerReference, isAlias, isExternalAlias bool, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
+func getIngressConfig(radixDeployment *v1.RadixDeployment, componentName, ingressName string, ownerReference []metav1.OwnerReference, isAlias bool, externalAlias string, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ingressName,
@@ -170,11 +208,12 @@ func getIngressConfig(radixDeployment *v1.RadixDeployment, componentName, ingres
 				"ingress.kubernetes.io/force-ssl-redirect": "true",
 			},
 			Labels: map[string]string{
-				"radixApp":                   radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
-				kube.RadixAppLabel:           radixDeployment.Spec.AppName,
-				kube.RadixComponentLabel:     componentName,
-				kube.RadixAppAliasLabel:      strconv.FormatBool(isAlias),
-				kube.RadixExternalAliasLabel: strconv.FormatBool(isExternalAlias),
+				"radixApp":                     radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:             radixDeployment.Spec.AppName,
+				kube.RadixComponentLabel:       componentName,
+				kube.RadixAppAliasLabel:        strconv.FormatBool(isAlias),
+				kube.RadixExternalAliasLabel:   externalAlias,
+				kube.RadixIsExternalAliasLabel: strconv.FormatBool(externalAlias != ""),
 			},
 			OwnerReferences: ownerReference,
 		},

@@ -147,7 +147,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 		// External aliases
 		assert.Equal(t, "edcradix-external-1", ingresses.Items[1].GetName(), "App should have an external alias")
+		assert.Equal(t, "some.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
 		assert.Equal(t, "edcradix-external-2", ingresses.Items[2].GetName(), "App should have a second  external alias")
+		assert.Equal(t, "another.alias.com", ingresses.Items[2].Spec.Rules[0].Host, "App should have an external alias")
 
 		assert.Equal(t, "app", ingresses.Items[3].GetName(), "App should have had an ingress")
 		assert.Equal(t, int32(8080), ingresses.Items[3].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
@@ -782,7 +784,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	assert.Equal(t, expectedPortValue, actualPortValue)
 }
 
-func TestObjectUpdated_WithExternalAliasRemoved_ExternalAliasIngressIsCorrectlyReconciled(t *testing.T) {
+func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrectlyReconciled(t *testing.T) {
 	tu, client, radixclient := setupTest()
 
 	// Setup
@@ -797,9 +799,108 @@ func TestObjectUpdated_WithExternalAliasRemoved_ExternalAliasIngressIsCorrectlyR
 				WithDNSExternalAlias("some.alias.com")))
 
 	// Test
-	ingresses, _ := client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	envNamespace := utils.GetEnvironmentNamespace("any-app", "dev")
+
+	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
 	assert.Equal(t, "any-app-external-1", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
+
+	assert.Equal(t, 1, len(roles.Items), "Environment should have one role for TLS cert")
+	assert.Equal(t, "radix-app-adm-frontend", roles.Items[0].GetName(), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
+
+	assert.Equal(t, 1, len(rolebindings.Items), "Environment should have one rolebinding for TLS cert")
+	assert.Equal(t, "radix-app-adm-frontend", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
+
+	assert.Equal(t, 2, len(secrets.Items), "Environment should have one secret for TLS cert")
+	assert.Equal(t, "frontend-external-1-tls-cert", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
+
+	// Remove app alias from dev
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8080).
+				WithPublicPort("http")))
+
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	secrets, _ = client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	rolebindings, _ = client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+
+	assert.Equal(t, 1, len(ingresses.Items), "External alias ingress should have been removed")
+	assert.Equal(t, 0, len(rolebindings.Items), "Role should have been removed")
+	assert.Equal(t, 0, len(rolebindings.Items), "Rolebinding should have been removed")
+	assert.Equal(t, 1, len(secrets.Items), "Secret should have been removed")
+
+}
+
+func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyReconciled(t *testing.T) {
+	tu, client, radixclient := setupTest()
+
+	// Setup
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSExternalAlias("some.alias.com").
+				WithDNSExternalAlias("another.alias.com")))
+
+	// Test
+	ingresses, _ := client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
+	assert.Equal(t, "any-app-external-1", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
+	assert.Equal(t, "some.alias.com", ingresses.Items[0].Spec.Rules[0].Host, "App should have an external alias")
+	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+	assert.Equal(t, "any-app-external-2", ingresses.Items[1].GetName(), "App should have had another external alias ingress")
+	assert.Equal(t, "another.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
+	assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithDNSExternalAlias("some.alias.com").
+				WithDNSExternalAlias("yet.another.alias.com")))
+
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
+	assert.Equal(t, "any-app-external-1", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
+	assert.Equal(t, "some.alias.com", ingresses.Items[0].Spec.Rules[0].Host, "App should have an external alias")
+	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+
+	// Since this has changed, it is removed and added back, and so ends up at the end of the list
+	assert.Equal(t, "any-app-external-2", ingresses.Items[2].GetName(), "App should have had another external alias ingress")
+	assert.Equal(t, "yet.another.alias.com", ingresses.Items[2].Spec.Rules[0].Host, "App should have an external alias")
+	assert.Equal(t, int32(8081), ingresses.Items[2].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("any-app").
+		WithEnvironment("dev").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("frontend").
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithDNSExternalAlias("yet.another.alias.com")))
+
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
+	assert.Equal(t, "any-app-external-2", ingresses.Items[1].GetName(), "App should have had another external alias ingress")
+	assert.Equal(t, "yet.another.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
+	assert.Equal(t, int32(8081), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
 	// Remove app alias from dev
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().

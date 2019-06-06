@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -31,7 +32,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 				continue
 			}
 
-			err := deploy.createSecret(ns, registration.Name, component.Name, secretName)
+			err := deploy.createSecret(ns, registration.Name, component.Name, secretName, "")
 			if err != nil {
 				return err
 			}
@@ -40,14 +41,19 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 		}
 
 		if len(component.DNSExternalAlias) > 0 {
+			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
+			if err != nil {
+				return err
+			}
+
 			// Create secrets to hold TLS certificates
-			for n := range component.DNSExternalAlias {
+			for n, externalAlias := range component.DNSExternalAlias {
 				secretName := fmt.Sprintf(externalAliasTLSCertificateFormat, component.Name, (n + 1))
 				if deploy.kubeutil.SecretExists(ns, secretName) {
 					continue
 				}
 
-				err := deploy.createSecret(ns, registration.Name, component.Name, secretName)
+				err := deploy.createSecret(ns, registration.Name, component.Name, secretName, externalAlias)
 				if err != nil {
 					return err
 				}
@@ -59,6 +65,13 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 		err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component, secretsToManage)
 		if err != nil {
 			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
+		}
+
+		if len(secretsToManage) == 0 {
+			err := deploy.garbageCollectSecretsNoLongerInSpecForComponent(component)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -96,6 +109,62 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 	return nil
 }
 
+func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(component radixv1.RadixDeployComponent) error {
+	secrets, err := deploy.listSecretsForComponent(component)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range secrets.Items {
+		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
+	secrets, err := deploy.listSecretsForComponent(component)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range secrets.Items {
+		externalAliasForSecret := secret.Labels[kube.RadixExternalAliasLabel]
+		if externalAliasForSecret != "" {
+			garbageCollectSecret := true
+			for _, externalAlias := range component.DNSExternalAlias {
+				if externalAlias == externalAliasForSecret {
+					garbageCollectSecret = false
+				}
+			}
+
+			if garbageCollectSecret {
+				err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
+	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return secrets, err
+}
+
 func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistration, ns string) error {
 	dockerSecret, err := deploy.kubeclient.CoreV1().Secrets("default").Get("radix-docker", metav1.GetOptions{})
 	if err != nil {
@@ -113,14 +182,16 @@ func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistra
 	return nil
 }
 
-func (deploy *Deployment) createSecret(ns, app, component, secretName string) error {
+func (deploy *Deployment) createSecret(ns, app, component, secretName, externalAlias string) error {
 	secret := v1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:       app,
-				kube.RadixComponentLabel: component,
+				kube.RadixAppLabel:             app,
+				kube.RadixComponentLabel:       component,
+				kube.RadixExternalAliasLabel:   externalAlias,
+				kube.RadixIsExternalAliasLabel: strconv.FormatBool(externalAlias != ""),
 			},
 		},
 	}

@@ -1,17 +1,24 @@
 package deployment
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent, secrets []string) error {
 	if len(secrets) <= 0 {
+		err := deploy.garbageCollectRoleBindingsNoLongerInSpecForComponent(component)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
@@ -23,6 +30,26 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 
 	rolebinding := rolebindingAppAdminSecrets(registration, role)
 	return deploy.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
+	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(roleBindings.Items) > 0 {
+		for n := range roleBindings.Items {
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBindings.Items[n].Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
