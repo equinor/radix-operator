@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
@@ -34,7 +33,7 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
 	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: getLabelSe,
+		LabelSelector: getLabelSelectorForComponent(*component),
 	})
 	if err != nil {
 		return err
