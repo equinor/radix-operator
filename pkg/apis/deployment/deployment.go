@@ -1,7 +1,5 @@
 package deployment
 
-// Force redeploy
-
 import (
 	"fmt"
 
