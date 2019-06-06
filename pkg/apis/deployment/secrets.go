@@ -13,8 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// xx base64 encoded
-const tlsSecretDefaultData = "eHgK"
+const tlsSecretDefaultData = "xx"
 
 func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
