@@ -13,6 +13,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// xx base64 encoded
+const tlsSecretDefaultData = "eHgK"
+
 func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
@@ -196,6 +199,18 @@ func (deploy *Deployment) createSecret(ns, app, component, secretName string, is
 			},
 		},
 	}
+
+	if isExternalAlias {
+		defaultValue := []byte(tlsSecretDefaultData)
+
+		// Will need to set fake data in order to apply the secret. The user then need to set data to real values
+		data := make(map[string][]byte)
+		data["tls.crt"] = defaultValue
+		data["tls.key"] = defaultValue
+
+		secret.Data = data
+	}
+
 	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
 	if err != nil {
 		return err
