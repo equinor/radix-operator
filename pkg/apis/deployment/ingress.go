@@ -58,6 +58,10 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 			externalAliasTLSCertificateName := fmt.Sprintf(externalAliasTLSCertificateFormat, deployComponent.Name, (n + 1))
 			externalAliasIngressName := fmt.Sprintf(externalAliasIngressNamePattern, deploy.radixDeployment.Spec.AppName, (n + 1))
 			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(externalAlias, deployComponent.Name, deploy.radixDeployment, namespace, externalAliasIngressName, externalAliasTLSCertificateName, publicPortNumber)
+			if err != nil {
+				return err
+			}
+
 			err = deploy.kubeutil.ApplyIngress(namespace, externalAliasIngress)
 			if err != nil {
 				return err
