@@ -34,7 +34,7 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
 	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name),
+		LabelSelector: getLabelSe,
 	})
 	if err != nil {
 		return err
