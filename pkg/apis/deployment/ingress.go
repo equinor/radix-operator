@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -42,7 +41,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		if appAliasIngress != nil {
 			err = deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
 			if err != nil {
-				log.Errorf("Failed to create app alias ingress for app %s. Error was %s ", deploy.radixDeployment.Spec.AppName, err)
+				return err
 			}
 		}
 	} else {
@@ -52,7 +51,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 	if len(deployComponent.DNSExternalAlias) > 0 {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
 		if err != nil {
-			log.Errorf("Failed to garbage collect external alias ingress for app %s. Error was %s ", deploy.radixDeployment.Spec.AppName, err)
+			return err
 		}
 
 		for n, externalAlias := range deployComponent.DNSExternalAlias {
@@ -61,7 +60,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(externalAlias, deployComponent.Name, deploy.radixDeployment, namespace, externalAliasIngressName, externalAliasTLSCertificateName, publicPortNumber)
 			err = deploy.kubeutil.ApplyIngress(namespace, externalAliasIngress)
 			if err != nil {
-				log.Errorf("Failed to create external alias ingress for app %s. Error was %s ", deploy.radixDeployment.Spec.AppName, err)
+				return err
 			}
 		}
 	} else {
