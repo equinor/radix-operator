@@ -58,7 +58,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		for n, externalAlias := range deployComponent.DNSExternalAlias {
 			externalAliasTLSCertificateName := fmt.Sprintf(externalAliasTLSCertificateFormat, deployComponent.Name, (n + 1))
 			externalAliasIngressName := fmt.Sprintf(externalAliasIngressNamePattern, deploy.radixDeployment.Spec.AppName, (n + 1))
-			externalAliasIngress := getExternalAliasIngressConfig(externalAlias, deployComponent.Name, deploy.radixDeployment, namespace, externalAliasIngressName, externalAliasTLSCertificateName, publicPortNumber)
+			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(externalAlias, deployComponent.Name, deploy.radixDeployment, namespace, externalAliasIngressName, externalAliasTLSCertificateName, publicPortNumber)
 			err = deploy.kubeutil.ApplyIngress(namespace, externalAliasIngress)
 			if err != nil {
 				log.Errorf("Failed to create external alias ingress for app %s. Error was %s ", deploy.radixDeployment.Spec.AppName, err)
@@ -187,11 +187,26 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 	return getIngressConfig(radixDeployment, componentName, componentName, ownerReference, false, "", ingressSpec)
 }
 
-func getExternalAliasIngressConfig(externalAlias, componentName string, radixDeployment *v1.RadixDeployment, namespace, ingressName, externalAliasTLSSecretName string, publicPortNumber int32) *v1beta1.Ingress {
+func (deploy *Deployment) getExternalAliasIngressConfig(externalAlias, componentName string, radixDeployment *v1.RadixDeployment, namespace, ingressName, externalAliasTLSSecretName string, publicPortNumber int32) (*v1beta1.Ingress, error) {
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(externalAlias, componentName, externalAliasTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(radixDeployment, componentName, ingressName, ownerReference, false, externalAlias, ingressSpec)
+	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, componentName, kube.RadixExternalAliasLabel, externalAlias),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ingresses.Items) > 0 {
+		// Update existing ingress with new spec
+		ingress := ingresses.Items[0].DeepCopy()
+		ingress.Spec = ingressSpec
+		return ingress, err
+
+	} else {
+		return getIngressConfig(radixDeployment, componentName, ingressName, ownerReference, false, externalAlias, ingressSpec), nil
+	}
 }
 
 func getHostName(componentName, namespace, clustername, dnsZone string) string {
