@@ -92,6 +92,18 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
+		{"dns external alias with no public port", func(ra *v1.RadixApplication) {
+			// Backward compatible setting
+			ra.Spec.Components[0].Public = false
+			ra.Spec.Components[0].PublicPort = ""
+			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
+				v1.ExternalAlias{
+					Alias:       "some.alias.com",
+					Component:   ra.Spec.Components[0].Name,
+					Environment: ra.Spec.Environments[0].Name,
+				},
+			}
+		}},
 		{"resource limit unsupported resource", func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["unsupportedResource"] = "250m"
 		}},
