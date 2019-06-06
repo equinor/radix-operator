@@ -11,10 +11,10 @@ app:
   # Limit range on app namespace
   limitrange:
     default:
-      memory: 1000M
+      memory: 1G
       cpu: 1
     defaultRequest:
-      memory: 500M
+      memory: 50M
       cpu: 40m
   env:
     # Limit range on env namespace
