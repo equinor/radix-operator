@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	ForcedChange                               = "IKNU"
 	OperatorDNSZoneEnvironmentVariable         = "DNS_ZONE"
 	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
 	OperatorClusterTypeEnvironmentVariable     = "RADIXOPERATOR_CLUSTER_TYPE"
