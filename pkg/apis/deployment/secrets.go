@@ -84,9 +84,14 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 		return err
 	}
 
-	for _, exisitingComponent := range secrets.Items {
+	for _, exisitingSecret := range secrets.Items {
+		if exisitingSecret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
+			// Not handled here
+			continue
+		}
+
 		garbageCollect := true
-		exisitingComponentName, exists := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+		exisitingComponentName, exists := exisitingSecret.ObjectMeta.Labels[kube.RadixComponentLabel]
 
 		if !exists {
 			continue
@@ -100,7 +105,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 		}
 
 		if garbageCollect {
-			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingSecret.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -117,6 +122,11 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 	}
 
 	for _, secret := range secrets.Items {
+		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
+			// Not handled here
+			continue
+		}
+
 		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
 		if err != nil {
 			return err
@@ -192,9 +202,9 @@ func (deploy *Deployment) createSecret(ns, app, component, secretName string, is
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:             app,
-				kube.RadixComponentLabel:       component,
-				kube.RadixIsExternalAliasLabel: strconv.FormatBool(isExternalAlias),
+				kube.RadixAppLabel:           app,
+				kube.RadixComponentLabel:     component,
+				kube.RadixExternalAliasLabel: strconv.FormatBool(isExternalAlias),
 			},
 		},
 	}

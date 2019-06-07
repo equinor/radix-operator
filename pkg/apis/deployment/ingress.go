@@ -205,11 +205,11 @@ func getIngressConfig(radixDeployment *v1.RadixDeployment, componentName, ingres
 				"ingress.kubernetes.io/force-ssl-redirect": "true",
 			},
 			Labels: map[string]string{
-				"radixApp":                     radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
-				kube.RadixAppLabel:             radixDeployment.Spec.AppName,
-				kube.RadixComponentLabel:       componentName,
-				kube.RadixAppAliasLabel:        strconv.FormatBool(isAlias),
-				kube.RadixIsExternalAliasLabel: strconv.FormatBool(isExternalAlias),
+				"radixApp":                   radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:           radixDeployment.Spec.AppName,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixAppAliasLabel:      strconv.FormatBool(isAlias),
+				kube.RadixExternalAliasLabel: strconv.FormatBool(isExternalAlias),
 			},
 			OwnerReferences: ownerReference,
 		},

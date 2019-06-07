@@ -104,6 +104,21 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
+		{"duplicate dns external alias", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Public = true
+			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
+				v1.ExternalAlias{
+					Alias:       "duplicate.alias.com",
+					Component:   ra.Spec.Components[0].Name,
+					Environment: ra.Spec.Environments[0].Name,
+				},
+				v1.ExternalAlias{
+					Alias:       "duplicate.alias.com",
+					Component:   ra.Spec.Components[0].Name,
+					Environment: ra.Spec.Environments[0].Name,
+				},
+			}
+		}},
 		{"resource limit unsupported resource", func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["unsupportedResource"] = "250m"
 		}},
