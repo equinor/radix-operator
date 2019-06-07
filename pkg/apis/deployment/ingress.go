@@ -10,7 +10,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -189,18 +188,7 @@ func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDepl
 func (deploy *Deployment) getExternalAliasIngressConfig(externalAlias, componentName string, radixDeployment *v1.RadixDeployment, namespace string, publicPortNumber int32) (*v1beta1.Ingress, error) {
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(externalAlias, componentName, externalAlias, publicPortNumber)
-
-	ingress, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Get(externalAlias, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		return getIngressConfig(radixDeployment, componentName, externalAlias, ownerReference, false, true, ingressSpec), nil
-	} else if err != nil {
-		return nil, err
-	} else {
-		// Update existing ingress with new spec
-		ingress.Spec = ingressSpec
-		return ingress, err
-
-	}
+	return getIngressConfig(radixDeployment, componentName, externalAlias, ownerReference, false, true, ingressSpec), nil
 }
 
 func getHostName(componentName, namespace, clustername, dnsZone string) string {
