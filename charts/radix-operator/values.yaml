@@ -26,9 +26,6 @@ app:
         memory: 50M
         cpu: 40m
 
-rbac:
-  enabled: true
-
 replicaCount: 1
 
 image:

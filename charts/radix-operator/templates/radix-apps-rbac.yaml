@@ -1,0 +1,81 @@
+# used to define rbac rules for radix api and webhook - that require special permissions
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: "radix-webhook"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  name: radix-webhook
+rules:
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixregistrations
+  - radixapplications
+  - radixdeployments
+  verbs:
+  - list
+  - read
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - ingresses
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: "radix-api"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  name: radix-api
+rules:
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixregistrations
+  - radixapplications
+  - radixdeployments
+  verbs:
+  - list
+  - read
+  - watch
+- apiGroups:
+  - '*'
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+---
