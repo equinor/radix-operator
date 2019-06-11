@@ -20,6 +20,17 @@ metadata:
   name: radix-operator
 rules:
 - apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixregistrations
+  - radixapplications
+  - radixdeployments
+  verbs:
+  - get
+  - list
+  - read
+  - watch
+- apiGroups:
   - '*'
   resources:
   - configmaps #remove 
