@@ -784,22 +784,25 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 }
 
 func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrectlyReconciled(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	anyComponentName := "frontend"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+
 	tu, client, radixclient := setupTest()
 
 	// Setup
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithName("frontend").
+				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSExternalAlias("some.alias.com")))
 
 	// Test
-	envNamespace := utils.GetEnvironmentNamespace("any-app", "dev")
-
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
 	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
@@ -819,11 +822,11 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 
 	// Remove app alias from dev
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithName("frontend").
+				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
@@ -839,22 +842,27 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 }
 
 func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyReconciled(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	anyComponentName := "frontend"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+
 	tu, client, radixclient := setupTest()
 
 	// Setup
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithName("frontend").
+				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSExternalAlias("some.alias.com").
 				WithDNSExternalAlias("another.alias.com")))
 
 	// Test
-	ingresses, _ := client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Equal(t, "some.alias.com", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
 	assert.Equal(t, "some.alias.com", ingresses.Items[0].Spec.Rules[0].Host, "App should have an external alias")
@@ -864,17 +872,17 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithName("frontend").
+				WithName(anyComponentName).
 				WithPort("http", 8081).
 				WithPublicPort("http").
 				WithDNSExternalAlias("some.alias.com").
 				WithDNSExternalAlias("yet.another.alias.com")))
 
-	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Equal(t, "some.alias.com", ingresses.Items[0].GetName(), "App should have had an external alias ingress")
 	assert.Equal(t, "some.alias.com", ingresses.Items[0].Spec.Rules[0].Host, "App should have an external alias")
@@ -886,16 +894,16 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, int32(8081), ingresses.Items[2].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithName("frontend").
+				WithName(anyComponentName).
 				WithPort("http", 8081).
 				WithPublicPort("http").
 				WithDNSExternalAlias("yet.another.alias.com")))
 
-	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
 	assert.Equal(t, "yet.another.alias.com", ingresses.Items[1].GetName(), "App should have had another external alias ingress")
 	assert.Equal(t, "yet.another.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
@@ -903,15 +911,15 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 
 	// Remove app alias from dev
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithName("frontend").
+				WithName(anyComponentName).
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
-	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "External alias ingress should have been removed")
 
 }
