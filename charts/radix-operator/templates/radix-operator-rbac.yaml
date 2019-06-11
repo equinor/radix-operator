@@ -33,7 +33,16 @@ rules:
 - apiGroups:
   - '*'
   resources:
-  - configmaps #remove 
+  - configmaps
+  verbs:
+  - get
+  - list
+  - read
+  - watch 
+- apiGroups:
+  - '*'
+  resources:
+  - limitranges
   - namespaces
   - secrets
   - serviceaccount
