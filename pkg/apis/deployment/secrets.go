@@ -61,6 +61,11 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 
 				secretsToManage = append(secretsToManage, externalAlias)
 			}
+		} else {
+			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component, secretsToManage)

@@ -1,23 +1,14 @@
 package deployment
 
 import (
-	"os"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func setupTests() {
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-}
-
 func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
-	setupTests()
-
 	request := map[string]string{
 		"cpu":    "0.1",
 		"memory": "32Mi",
@@ -41,8 +32,6 @@ func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 }
 
 func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing.T) {
-	setupTests()
-
 	request := map[string]string{
 		"cpu":    "0.2",
 		"memory": "128Mi",
@@ -61,8 +50,6 @@ func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *testing.T) {
-	setupTests()
-
 	request := map[string]string{
 		"cpu": "0.3",
 	}
@@ -80,8 +67,6 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 }
 
 func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
-	setupTests()
-
 	request := map[string]string{
 		"cpu":    "5",
 		"memory": "5Gi",
@@ -100,8 +85,6 @@ func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing.T) {
-	setupTests()
-
 	request := map[string]string{
 		"cpu": "6",
 	}
