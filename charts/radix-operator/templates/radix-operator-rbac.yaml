@@ -45,15 +45,15 @@ rules:
   - limitranges
   - namespaces
   - secrets
-  - serviceaccount
-  - role
-  - rolebinding
-  - clusterrole
-  - clusterrolebinding
-  - deployment
-  - service
-  - ingress
-  - servicemonitor
+  - serviceaccounts
+  - roles
+  - rolebindings
+  - clusterroles
+  - clusterrolebindings
+  - deployments
+  - services
+  - ingresses
+  - servicemonitors
   verbs:
   - get
   - list
