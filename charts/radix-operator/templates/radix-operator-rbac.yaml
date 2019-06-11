@@ -37,7 +37,6 @@ rules:
   - '*'
   resources:
   - configmaps
-  - events
   verbs:
   - get
   - list
@@ -45,6 +44,7 @@ rules:
 - apiGroups:
   - '*'
   resources:
+  - events
   - limitranges
   - namespaces
   - secrets
