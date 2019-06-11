@@ -65,7 +65,10 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 			}
 		}
 	} else {
-		deploy.garbageCollectExternalAliasIngressNoLongerInSpecForComponent(deployComponent)
+		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
+		if err != nil {
+			return err
+		}
 	}
 
 	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
