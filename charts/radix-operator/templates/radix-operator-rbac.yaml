@@ -30,6 +30,7 @@ rules:
   - list
   - read
   - watch
+  - patch # required since radix operator grants this to others
   - delete # required since radix operator grants this to others
   - create # required since radix operator grants this to others
   - update # required since radix operator grants this to others
