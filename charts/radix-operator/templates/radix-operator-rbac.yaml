@@ -28,7 +28,6 @@ rules:
   verbs:
   - get
   - list
-  - read
   - watch
   - patch # required since radix operator grants this to others
   - delete # required since radix operator grants this to others
@@ -41,7 +40,6 @@ rules:
   verbs:
   - get
   - list
-  - read
   - watch 
 - apiGroups:
   - '*'

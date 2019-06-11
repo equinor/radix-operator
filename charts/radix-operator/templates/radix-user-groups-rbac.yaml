@@ -93,9 +93,16 @@ metadata:
   name: radix-app-admin
 rules:
 - apiGroups:
-  - '*'
+  - radix.equinor.com
   resources:
   - radixapplications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - '*'
+  resources:
   - pods
   - pods/log
   verbs:
@@ -123,7 +130,7 @@ metadata:
   name: radix-app-admin-envs
 rules:
 - apiGroups:
-  - '*'
+  - radix.equinor.com
   resources:
   - radixdeployments
   verbs:
