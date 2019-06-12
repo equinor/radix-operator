@@ -1,8 +1,10 @@
 package deployment
 
 import (
+	"os"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -30,6 +32,13 @@ func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 	return &handlerTestUtils, client, radixClient
+}
+
+func teardownTest() {
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 }
 
 func Test_Controller_Calls_Handler(t *testing.T) {
@@ -82,6 +91,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		assert.True(t, ok)
 		assert.True(t, op)
 	}
+
+	teardownTest()
 }
 
 func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, handler RadixDeployHandler, stop chan struct{}) {

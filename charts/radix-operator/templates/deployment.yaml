@@ -62,6 +62,16 @@ spec:
               value: {{ .Values.app.env.limitrange.defaultRequest.memory | quote }}
             - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU
               value: {{ .Values.app.env.limitrange.defaultRequest.cpu | quote }}
+            # For configuring readiness probe
+            - name: RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS
+              value: {{ .Values.app.readinessProbe.initialDelaySeconds | quote }}
+            - name: RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
+              value: {{ .Values.app.readinessProbe.periodSeconds | quote }}
+            # For configuring rolling update
+            - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_UNAVAILABLE
+              value: {{ .Values.app.rollingUpdate.maxUnavailable | quote }}
+            - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE
+              value: {{ .Values.app.rollingUpdate.maxSurge | quote }}
           livenessProbe:
             httpGet:
               path: /healthz

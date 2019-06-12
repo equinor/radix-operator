@@ -102,13 +102,23 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuil
 	return nil
 }
 
-// CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry string) {
+// SetRequiredEnvironmentVariables  Sets the required environment
+// variables needed for the operator to run properly
+func SetRequiredEnvironmentVariables() {
 	os.Setenv("RADIXOPERATOR_DEFAULT_USER_GROUP", "1234-5678-91011")
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, ".app.dev.radix.equinor.com")
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
+	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
+	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
+}
+
+// CreateClusterPrerequisites Will do the needed setup which is part of radix boot
+func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry string) {
+	SetRequiredEnvironmentVariables()
 
 	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
 		Type: "Opaque",

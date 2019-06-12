@@ -10,18 +10,22 @@ import (
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	appName := deploy.radixDeployment.Spec.AppName
-	deployment := deploy.getDeploymentConfig(deployComponent)
+	deployment, err := deploy.getDeploymentConfig(deployComponent)
+	if err != nil {
+		return err
+	}
 
 	deploy.customSecuritySettings(appName, namespace, deployment)
 	return deploy.kubeutil.ApplyDeployment(namespace, deployment)
 }
 
-func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent) *v1beta1.Deployment {
+func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent) (*v1beta1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	environment := deploy.radixDeployment.Spec.Environment
 	componentName := deployComponent.Name
@@ -104,6 +108,20 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 	}
 	deployment.Spec.Template.Spec.Containers[0].Ports = ports
 
+	if len(ports) > 0 {
+		readinessProbe, err := getReadinessProbe(ports[0].ContainerPort)
+		if err != nil {
+			return nil, err
+		}
+		deployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
+	}
+
+	deploymentStrategy, err := getDeploymentStrategy()
+	if err != nil {
+		return nil, err
+	}
+	deployment.Spec.Strategy = deploymentStrategy
+
 	if replicas > 0 {
 		deployment.Spec.Replicas = int32Ptr(int32(replicas))
 	}
@@ -122,7 +140,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 		deployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
 	}
 
-	return deployment
+	return deployment, nil
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
@@ -151,6 +169,59 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {
+	initialDelaySeconds, err := defaults.GetDefaultReadinessProbeInitialDelaySeconds()
+	if err != nil {
+		return nil, err
+	}
+
+	periodSeconds, err := defaults.GetDefaultReadinessProbePeriodSeconds()
+	if err != nil {
+		return nil, err
+	}
+
+	probe := corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: componentPort,
+				},
+			},
+		},
+		InitialDelaySeconds: initialDelaySeconds,
+		PeriodSeconds:       periodSeconds,
+	}
+
+	return &probe, nil
+}
+
+func getDeploymentStrategy() (v1beta1.DeploymentStrategy, error) {
+	rollingUpdateMaxUnavailable, err := defaults.GetDefaultRollingUpdateMaxUnavailable()
+	if err != nil {
+		return v1beta1.DeploymentStrategy{}, err
+	}
+
+	rollingUpdateMaxSurge, err := defaults.GetDefaultRollingUpdateMaxSurge()
+	if err != nil {
+		return v1beta1.DeploymentStrategy{}, err
+	}
+
+	deploymentStrategy := v1beta1.DeploymentStrategy{
+		RollingUpdate: &v1beta1.RollingUpdateDeployment{
+			MaxUnavailable: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: rollingUpdateMaxUnavailable,
+			},
+			MaxSurge: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: rollingUpdateMaxSurge,
+			},
+		},
+	}
+
+	return deploymentStrategy, nil
 }
 
 func getSecurityContextForContainer() *corev1.SecurityContext {
