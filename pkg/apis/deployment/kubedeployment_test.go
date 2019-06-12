@@ -15,6 +15,26 @@ func setupTests() {
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 }
 
+func setupRollingUpdate() {
+	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "10%")
+	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "20%")
+}
+
+func teardownRollingUpdate() {
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+}
+
+func setupReadinessProbe() {
+	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "20")
+	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "30")
+}
+
+func teardownReadinessProbe() {
+	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+}
+
 func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 	setupTests()
 
@@ -116,4 +136,39 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 
 	assert.Equal(t, 0, requirements.Limits.Cpu().Cmp(resource.MustParse("6")), "CPU limit should be same as request")
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
+}
+
+func TestGetReadinessProbe_Default(t *testing.T) {
+	port := int32(80)
+	_, err := getReadinessProbe(port)
+	assert.NotNil(t, err)
+}
+
+func TestGetReadinessProbe_Custom(t *testing.T) {
+	setupReadinessProbe()
+
+	port := int32(80)
+	probe, _ := getReadinessProbe(port)
+
+	assert.Equal(t, int32(20), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(30), probe.PeriodSeconds)
+	assert.Equal(t, port, probe.Handler.TCPSocket.Port.IntVal)
+
+	teardownReadinessProbe()
+}
+
+func TestGetDeploymentStrategy_Default(t *testing.T) {
+	_, err := getDeploymentStrategy()
+	assert.NotNil(t, err)
+}
+
+func TestGetDeploymentStrategy_Custom(t *testing.T) {
+	setupRollingUpdate()
+
+	deploymentStrategy, _ := getDeploymentStrategy()
+
+	assert.Equal(t, "10%", deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
+	assert.Equal(t, "20%", deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
+
+	teardownRollingUpdate()
 }

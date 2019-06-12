@@ -33,12 +33,24 @@ func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 
+	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
+	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
+	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
+
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 	return &handlerTestUtils, client, radixClient
+}
+
+func teardownTest() {
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 }
 
 func Test_Controller_Calls_Handler(t *testing.T) {
@@ -91,6 +103,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		assert.True(t, ok)
 		assert.True(t, op)
 	}
+
+	teardownTest()
 }
 
 func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, handler RadixDeployHandler, stop chan struct{}) {

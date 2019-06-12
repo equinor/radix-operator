@@ -30,12 +30,25 @@ func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 
+	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
+	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
+	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
+
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 	return &handlerTestUtils, kubeclient, radixclient
+}
+
+func teardownTest() {
+	// Celanup setup
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 }
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
@@ -179,6 +192,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		np, _ := client.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
 	})
+
+	teardownTest()
 }
 
 func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
@@ -212,6 +227,8 @@ func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 	})
+
+	teardownTest()
 }
 
 func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing.T) {
@@ -243,6 +260,8 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Number of ingresses was not according to public components")
+
+	teardownTest()
 }
 
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
@@ -284,6 +303,8 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(secrets.Items), "Should only have default secret")
 	})
+
+	teardownTest()
 }
 
 func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
@@ -306,6 +327,7 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["radix-commit"])
 	})
 
+	teardownTest()
 }
 
 func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
@@ -388,6 +410,8 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
+
+	teardownTest()
 }
 
 func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
@@ -420,6 +444,8 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+
+	teardownTest()
 }
 
 func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *testing.T) {
@@ -455,6 +481,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Alias ingress should have been removed")
 
+	teardownTest()
 }
 
 func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
@@ -540,6 +567,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
 	})
+
+	teardownTest()
 }
 
 func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
@@ -606,6 +635,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
 
+	teardownTest()
 }
 
 func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testing.T) {
@@ -671,6 +701,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 			assert.Equal(t, testcase.expectedCPURequest, rd[0].Spec.Components[0].Resources.Requests["cpu"])
 		})
 	}
+
 }
 
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
@@ -749,6 +780,8 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	actualPortValue := ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue()
 	expectedPortValue := int(rd.Spec.Components[0].Ports[0].Port)
 	assert.Equal(t, expectedPortValue, actualPortValue)
+
+	teardownTest()
 }
 
 func parseQuantity(value string) resource.Quantity {
