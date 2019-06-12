@@ -57,6 +57,7 @@ rules:
   - services
   - ingresses
   - servicemonitors
+  - networkpolicies
   verbs:
   - get
   - list
