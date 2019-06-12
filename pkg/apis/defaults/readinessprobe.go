@@ -9,26 +9,24 @@ import (
 const (
 	OperatorReadinessProbeInitialDelaySeconds = "RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS"
 	OperatorReadinessProbePeriodSeconds       = "RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS"
-	ReadinessProbeInitialDelaySecondsDefault  = 5
-	ReadinessProbePeriodSecondsDefault        = 10
 )
 
 // GetDefaultReadinessProbeInitialDelaySeconds Gets the default readiness probe initial delay seconds defined as an environment variable
-func GetDefaultReadinessProbeInitialDelaySeconds() int32 {
+func GetDefaultReadinessProbeInitialDelaySeconds() (int32, error) {
 	initialDelaySecondsString := os.Getenv(OperatorReadinessProbeInitialDelaySeconds)
 	initialDelaySecondsInt, err := strconv.Atoi(initialDelaySecondsString)
 	if err != nil {
-		initialDelaySecondsInt = ReadinessProbeInitialDelaySecondsDefault
+		return 0, err
 	}
-	return int32(initialDelaySecondsInt)
+	return int32(initialDelaySecondsInt), nil
 }
 
 // GetDefaultReadinessProbePeriodSeconds Gets the default readiness probe period seconds defined as an environment variable
-func GetDefaultReadinessProbePeriodSeconds() int32 {
+func GetDefaultReadinessProbePeriodSeconds() (int32, error) {
 	periodSecondsString := os.Getenv(OperatorReadinessProbePeriodSeconds)
 	periodSecondsInt, err := strconv.Atoi(periodSecondsString)
 	if err != nil {
-		periodSecondsInt = ReadinessProbePeriodSecondsDefault
+		return 0, err
 	}
-	return int32(periodSecondsInt)
+	return int32(periodSecondsInt), nil
 }

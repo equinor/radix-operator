@@ -15,6 +15,26 @@ func setupTests() {
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 }
 
+func setupRollingUpdate() {
+	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "10%")
+	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "20%")
+}
+
+func teardownRollingUpdate() {
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+}
+
+func setupReadinessProbe() {
+	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "20")
+	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "30")
+}
+
+func teardownReadinessProbe() {
+	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+}
+
 func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 	setupTests()
 
@@ -120,38 +140,35 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 
 func TestGetReadinessProbe_Default(t *testing.T) {
 	port := int32(80)
-	probe := getReadinessProbe(port)
-
-	assert.Equal(t, int32(defaults.ReadinessProbeInitialDelaySecondsDefault), probe.InitialDelaySeconds)
-	assert.Equal(t, int32(defaults.ReadinessProbePeriodSecondsDefault), probe.PeriodSeconds)
-	assert.Equal(t, port, probe.Handler.TCPSocket.Port.IntVal)
+	_, err := getReadinessProbe(port)
+	assert.NotNil(t, err)
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
-	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "20")
-	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "30")
+	setupReadinessProbe()
 
 	port := int32(80)
-	probe := getReadinessProbe(port)
+	probe, _ := getReadinessProbe(port)
 
 	assert.Equal(t, int32(20), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(30), probe.PeriodSeconds)
 	assert.Equal(t, port, probe.Handler.TCPSocket.Port.IntVal)
+
+	teardownReadinessProbe()
 }
 
 func TestGetDeploymentStrategy_Default(t *testing.T) {
-	deploymentStrategy := getDeploymentStrategy()
-
-	assert.Equal(t, defaults.RollingUpdateMaxUnavailableDefault, deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
-	assert.Equal(t, defaults.RollingUpdateMaxSurgeDefault, deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
+	_, err := getDeploymentStrategy()
+	assert.NotNil(t, err)
 }
 
 func TestGetDeploymentStrategy_Custom(t *testing.T) {
-	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "10%")
-	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "20%")
+	setupRollingUpdate()
 
-	deploymentStrategy := getDeploymentStrategy()
+	deploymentStrategy, _ := getDeploymentStrategy()
 
 	assert.Equal(t, "10%", deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
 	assert.Equal(t, "20%", deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
+
+	teardownRollingUpdate()
 }
