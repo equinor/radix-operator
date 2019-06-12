@@ -18,7 +18,7 @@ rules:
   - radixdeployments
   verbs:
   - list
-  - read
+  - get
   - watch
 - apiGroups:
   - ""
@@ -59,7 +59,7 @@ rules:
   - radixdeployments
   verbs:
   - list
-  - read
+  - get
   - watch
 - apiGroups:
   - '*'

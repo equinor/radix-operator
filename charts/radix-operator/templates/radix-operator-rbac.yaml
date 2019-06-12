@@ -76,6 +76,7 @@ rules:
   - watch # required since radix operator grants this to others
   - create # required since radix operator grants this to others
   - delete # required since radix operator grants this to others
+  - patch # required since radix operator grants this to others
 - apiGroups: # required since radix operator grants this to others
   - '*'
   resources:
