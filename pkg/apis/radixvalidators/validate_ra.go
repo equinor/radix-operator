@@ -92,14 +92,14 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 	errs := []error{}
 
-	distictAlias := make(map[string]bool)
+	distinctAlias := make(map[string]bool)
 
 	for _, externalAlias := range app.Spec.DNSExternalAlias {
 		if externalAlias.Alias == "" && externalAlias.Component == "" && externalAlias.Environment == "" {
 			return errs
 		}
 
-		distictAlias[externalAlias.Alias] = true
+		distinctAlias[externalAlias.Alias] = true
 
 		if externalAlias.Alias == "" {
 			errs = append(errs, errors.New("External alias cannot be empty"))
@@ -117,7 +117,7 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 		}
 	}
 
-	if len(distictAlias) < len(app.Spec.DNSExternalAlias) {
+	if len(distinctAlias) < len(app.Spec.DNSExternalAlias) {
 		errs = append(errs, errors.New("Cannot have duplicate aliases for dnsExternalAlias"))
 	}
 
