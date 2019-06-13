@@ -121,7 +121,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(component radixv1.RadixDeployComponent) error {
-	secrets, err := deploy.listSecretsForComponent(component, getLabelSelectorForComponent(component))
+	secrets, err := deploy.listSecretsForComponent(component)
 	if err != nil {
 		return err
 	}
@@ -142,7 +142,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
-	secrets, err := deploy.listSecretsForComponent(component, getLabelSelectorForExternalAlias(component))
+	secrets, err := deploy.listSecretsForComponentExternalAlias(component)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,15 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExte
 	return nil
 }
 
-func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent, labelSelector string) (*v1.SecretList, error) {
+func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
+	return deploy.listSecrets(getLabelSelectorForComponent(component))
+}
+
+func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
+	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
+}
+
+func (deploy *Deployment) listSecrets(labelSelector string) (*v1.SecretList, error) {
 	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
