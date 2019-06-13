@@ -209,6 +209,7 @@ type DeployComponentBuilder interface {
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
+	WithDNSExternalAlias(string) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -218,13 +219,14 @@ type deployComponentBuilder struct {
 	ports                map[string]int32
 	environmentVariables map[string]string
 	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
-	public      bool
-	publicPort  string
-	monitoring  bool
-	replicas    int
-	secrets     []string
-	dnsappalias bool
-	resources   v1.ResourceRequirements
+	public           bool
+	publicPort       string
+	monitoring       bool
+	replicas         int
+	secrets          []string
+	dnsappalias      bool
+	externalAppAlias []string
+	resources        v1.ResourceRequirements
 }
 
 func (dcb *deployComponentBuilder) WithResourceRequestsOnly(request map[string]string) DeployComponentBuilder {
@@ -249,6 +251,15 @@ func (dcb *deployComponentBuilder) WithName(name string) DeployComponentBuilder 
 
 func (dcb *deployComponentBuilder) WithDNSAppAlias(createDNSAppAlias bool) DeployComponentBuilder {
 	dcb.dnsappalias = createDNSAppAlias
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithDNSExternalAlias(alias string) DeployComponentBuilder {
+	if dcb.externalAppAlias == nil {
+		dcb.externalAppAlias = make([]string, 0)
+	}
+
+	dcb.externalAppAlias = append(dcb.externalAppAlias, alias)
 	return dcb
 }
 
@@ -315,6 +326,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Secrets:              dcb.secrets,
 		EnvironmentVariables: dcb.environmentVariables,
 		DNSAppAlias:          dcb.dnsappalias,
+		DNSExternalAlias:     dcb.externalAppAlias,
 		Resources:            dcb.resources,
 	}
 }

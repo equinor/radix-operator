@@ -5,29 +5,15 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func setupTests() {
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-}
-
-func setupRollingUpdate() {
-	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "10%")
-	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "20%")
-}
-
 func teardownRollingUpdate() {
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-}
-
-func setupReadinessProbe() {
-	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "20")
-	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "30")
 }
 
 func teardownReadinessProbe() {
@@ -36,7 +22,7 @@ func teardownReadinessProbe() {
 }
 
 func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
-	setupTests()
+	test.SetRequiredEnvironmentVariables()
 
 	request := map[string]string{
 		"cpu":    "0.1",
@@ -61,7 +47,7 @@ func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 }
 
 func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing.T) {
-	setupTests()
+	test.SetRequiredEnvironmentVariables()
 
 	request := map[string]string{
 		"cpu":    "0.2",
@@ -81,7 +67,7 @@ func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *testing.T) {
-	setupTests()
+	test.SetRequiredEnvironmentVariables()
 
 	request := map[string]string{
 		"cpu": "0.3",
@@ -100,7 +86,7 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 }
 
 func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
-	setupTests()
+	test.SetRequiredEnvironmentVariables()
 
 	request := map[string]string{
 		"cpu":    "5",
@@ -120,7 +106,7 @@ func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
 }
 
 func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing.T) {
-	setupTests()
+	test.SetRequiredEnvironmentVariables()
 
 	request := map[string]string{
 		"cpu": "6",
@@ -139,36 +125,39 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 }
 
 func TestGetReadinessProbe_Default(t *testing.T) {
+	teardownReadinessProbe()
+
 	port := int32(80)
 	_, err := getReadinessProbe(port)
 	assert.NotNil(t, err)
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
-	setupReadinessProbe()
+	test.SetRequiredEnvironmentVariables()
 
 	port := int32(80)
 	probe, _ := getReadinessProbe(port)
 
-	assert.Equal(t, int32(20), probe.InitialDelaySeconds)
-	assert.Equal(t, int32(30), probe.PeriodSeconds)
+	assert.Equal(t, int32(5), probe.InitialDelaySeconds)
+	assert.Equal(t, int32(10), probe.PeriodSeconds)
 	assert.Equal(t, port, probe.Handler.TCPSocket.Port.IntVal)
 
 	teardownReadinessProbe()
 }
 
 func TestGetDeploymentStrategy_Default(t *testing.T) {
+	teardownRollingUpdate()
 	_, err := getDeploymentStrategy()
 	assert.NotNil(t, err)
 }
 
 func TestGetDeploymentStrategy_Custom(t *testing.T) {
-	setupRollingUpdate()
+	test.SetRequiredEnvironmentVariables()
 
 	deploymentStrategy, _ := getDeploymentStrategy()
 
-	assert.Equal(t, "10%", deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
-	assert.Equal(t, "20%", deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
+	assert.Equal(t, "25%", deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
+	assert.Equal(t, "25%", deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
 
 	teardownRollingUpdate()
 }

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -21,23 +20,12 @@ import (
 
 const (
 	clusterName       = "AnyClusterName"
-	dnsZone           = "dev.radix.equinor.com"
 	containerRegistry = "any.container.registry"
 )
 
 var synced chan bool
 
 func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
-	os.Setenv(deployment.OperatorDNSZoneEnvironmentVariable, dnsZone)
-	os.Setenv(deployment.OperatorAppAliasBaseURLEnvironmentVariable, ".app.dev.radix.equinor.com")
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-
-	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
-	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
-	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
-	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 

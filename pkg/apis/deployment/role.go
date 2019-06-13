@@ -5,13 +5,11 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) *auth.Role {
-	secretName := utils.GetComponentSecretName(component.Name)
+func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent, secrets []string) *auth.Role {
 	roleName := fmt.Sprintf("radix-app-adm-%s", component.Name)
 
 	role := &auth.Role{
@@ -31,7 +29,7 @@ func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *rad
 			{
 				APIGroups:     []string{""},
 				Resources:     []string{"secrets"},
-				ResourceNames: []string{secretName},
+				ResourceNames: secrets,
 				Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
 			},
 		},
