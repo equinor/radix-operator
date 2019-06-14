@@ -899,6 +899,11 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "another.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8080), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
+	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(roles.Items[0].Rules[0].ResourceNames))
+	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
+	assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
@@ -921,6 +926,11 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "yet.another.alias.com", ingresses.Items[2].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), ingresses.Items[2].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
+	roles, _ = client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(roles.Items[0].Rules[0].ResourceNames))
+	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
+	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
@@ -937,6 +947,10 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "yet.another.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), ingresses.Items[1].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
+	roles, _ = client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(roles.Items[0].Rules[0].ResourceNames))
+	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for second external alias")
+
 	// Remove app alias from dev
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
@@ -949,6 +963,9 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "External alias ingress should have been removed")
+
+	roles, _ = client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 0, len(roles.Items), "Role should have been removed")
 
 }
 
