@@ -34,9 +34,6 @@ app:
     maxUnavailable: 25%
     maxSurge: 25%
 
-rbac:
-  enabled: true
-
 replicaCount: 1
 
 image:
