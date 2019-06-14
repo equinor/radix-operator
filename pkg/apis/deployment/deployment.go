@@ -14,21 +14,7 @@ import (
 )
 
 const (
-	OperatorDNSZoneEnvironmentVariable         = "DNS_ZONE"
-	OperatorAppAliasBaseURLEnvironmentVariable = "APP_ALIAS_BASE_URL"
-	OperatorClusterTypeEnvironmentVariable     = "RADIXOPERATOR_CLUSTER_TYPE"
-
-	ClusternameEnvironmentVariable       = "RADIX_CLUSTERNAME"
-	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
-	EnvironmentnameEnvironmentVariable   = "RADIX_ENVIRONMENT"
-	PublicEndpointEnvironmentVariable    = "RADIX_PUBLIC_DOMAIN_NAME"
-	RadixAppEnvironmentVariable          = "RADIX_APP"
-	RadixComponentEnvironmentVariable    = "RADIX_COMPONENT"
-	RadixPortsEnvironmentVariable        = "RADIX_PORTS"
-	RadixPortNamesEnvironmentVariable    = "RADIX_PORT_NAMES"
-	RadixDNSZoneEnvironmentVariable      = "RADIX_DNS_ZONE"
-	RadixClusterTypeEnvironmentVariable  = "RADIX_CLUSTER_TYPE"
-	DefaultReplicas                      = 1
+	DefaultReplicas = 1
 
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
@@ -230,4 +216,12 @@ func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID 
 		},
 	}
 	return radixDeployment
+}
+
+func getLabelSelectorForComponent(component v1.RadixDeployComponent) string {
+	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name)
+}
+
+func getLabelSelectorForExternalAlias(component v1.RadixDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixExternalAliasLabel, "true")
 }

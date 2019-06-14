@@ -17,9 +17,10 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Environments []Environment    `json:"environments" yaml:"environments"`
-	Components   []RadixComponent `json:"components" yaml:"components"`
-	DNSAppAlias  AppAlias         `json:"dnsAppAlias" yaml:"dnsAppAlias"`
+	Environments     []Environment    `json:"environments" yaml:"environments"`
+	Components       []RadixComponent `json:"components" yaml:"components"`
+	DNSAppAlias      AppAlias         `json:"dnsAppAlias" yaml:"dnsAppAlias"`
+	DNSExternalAlias []ExternalAlias  `json:"dnsExternalAlias" yaml:"dnsExternalAlias"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -50,6 +51,13 @@ type EnvBuild struct {
 
 // AppAlias defines a URL alias for this application. The URL will be of form <app-name>.apps.radix.equinor.com
 type AppAlias struct {
+	Environment string `json:"environment,omitempty" yaml:"environment,omitempty"`
+	Component   string `json:"component,omitempty" yaml:"component,omitempty"`
+}
+
+// ExternalAlias defines a URL alias for this application with ability to bring-your-own certificate
+type ExternalAlias struct {
+	Alias       string `json:"alias,omitempty" yaml:"alias,omitempty"`
 	Environment string `json:"environment,omitempty" yaml:"environment,omitempty"`
 	Component   string `json:"component,omitempty" yaml:"component,omitempty"`
 }

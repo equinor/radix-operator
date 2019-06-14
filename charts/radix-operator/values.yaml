@@ -11,8 +11,8 @@ app:
   # Limit range on app namespace
   limitrange:
     default:
-      memory: 500M
-      cpu: 400m
+        memory: 1G
+        cpu: 1
     defaultRequest:
       memory: 50M
       cpu: 40m
@@ -20,11 +20,19 @@ app:
     # Limit range on env namespace
     limitrange:
       default:
-        memory: 500M
-        cpu: 400m
+        memory: 1G
+        cpu: 1
       defaultRequest:
         memory: 50M
         cpu: 40m
+  # Readiness probe parameters
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  # Rolling update parameters
+  rollingUpdate:
+    maxUnavailable: 25%
+    maxSurge: 25%
 
 replicaCount: 1
 
