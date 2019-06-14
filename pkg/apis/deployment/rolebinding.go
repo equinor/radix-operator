@@ -18,6 +18,11 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 			return err
 		}
 
+		err = deploy.garbageCollectRolesNoLongerInSpecForComponent(component)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 

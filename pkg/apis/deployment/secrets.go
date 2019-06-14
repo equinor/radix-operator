@@ -30,13 +30,11 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 
 		if len(component.Secrets) > 0 {
 			secretName := utils.GetComponentSecretName(component.Name)
-			if deploy.kubeutil.SecretExists(ns, secretName) {
-				continue
-			}
-
-			err := deploy.createSecret(ns, registration.Name, component.Name, secretName, false)
-			if err != nil {
-				return err
+			if !deploy.kubeutil.SecretExists(ns, secretName) {
+				err := deploy.createSecret(ns, registration.Name, component.Name, secretName, false)
+				if err != nil {
+					return err
+				}
 			}
 
 			secretsToManage = append(secretsToManage, secretName)
@@ -50,6 +48,8 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 
 			// Create secrets to hold TLS certificates
 			for _, externalAlias := range component.DNSExternalAlias {
+				secretsToManage = append(secretsToManage, externalAlias)
+
 				if deploy.kubeutil.SecretExists(ns, externalAlias) {
 					continue
 				}
@@ -58,8 +58,6 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 				if err != nil {
 					return err
 				}
-
-				secretsToManage = append(secretsToManage, externalAlias)
 			}
 		} else {
 			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
