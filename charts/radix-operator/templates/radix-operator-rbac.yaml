@@ -1,0 +1,107 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: radix-operator
+  labels:
+    app: "radix-operator"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: "radix-operator"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  name: radix-operator
+rules:
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixregistrations
+  - radixapplications
+  - radixdeployments
+  verbs:
+  - get
+  - list
+  - watch
+  - patch # required since radix operator grants this to others
+  - delete # required since radix operator grants this to others
+  - create # required since radix operator grants this to others
+  - update # required since radix operator grants this to others
+- apiGroups:
+  - '*'
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch 
+- apiGroups:
+  - '*'
+  resources:
+  - events
+  - limitranges
+  - namespaces
+  - secrets
+  - serviceaccounts
+  - roles
+  - rolebindings
+  - clusterroles
+  - clusterrolebindings
+  - deployments
+  - services
+  - ingresses
+  - servicemonitors
+  - networkpolicies
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list # required since radix operator grants this to others
+  - watch # required since radix operator grants this to others
+  - create # required since radix operator grants this to others
+  - delete # required since radix operator grants this to others
+  - patch # required since radix operator grants this to others
+- apiGroups: # required since radix operator grants this to others
+  - '*'
+  resources:
+  - pods
+  - pods/log
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: radix-operator
+  labels:
+    app: "radix-operator"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+subjects:
+- kind: ServiceAccount
+  namespace: default
+  name: radix-operator
+roleRef:
+  kind: ClusterRole
+  name: radix-operator
+  apiGroup: rbac.authorization.k8s.io

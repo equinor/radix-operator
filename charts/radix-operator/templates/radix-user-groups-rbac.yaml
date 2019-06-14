@@ -11,33 +11,6 @@ subjects:
   kind: Group
   name: "{{ .Values.radixGroups.clusterAdmin }}"
 ---
-# SECRURE SOLUTION for usergroup fg_radix_platform_users
-# limited access to list namespaces and create radixregistrations.
-# Radix operator grants other accesses when creating radix registration or radix applications.
-# apiVersion: rbac.authorization.k8s.io/v1
-# kind: ClusterRole
-# metadata:
-#   labels:
-#     group: fg_radix_platform_user
-#   name: radix-platform-user
-# rules:
-# - apiGroups:
-#   - radix.equinor.com
-#   resources:
-#   - radixregistrations
-#   verbs:
-#   - create
-# - apiGroups:
-#   - ""
-#   resources:
-#   - namespaces
-#   verbs:
-#   - list
-#   - watch
-# UNSECURE SOLUTION for usergroup fg_radix_platform_users
-# grants access to list radixregistrations, radixconfig, secrets, pods and ns for users in fg_radix_platform_user ad group
-# radix web portal and brigade term works with these settings
-# does NOT secure the kubernetes cluster, since listing also include get yaml def (therefore secrets).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -120,9 +93,16 @@ metadata:
   name: radix-app-admin
 rules:
 - apiGroups:
-  - '*'
+  - radix.equinor.com
   resources:
   - radixapplications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - '*'
+  resources:
   - pods
   - pods/log
   verbs:
@@ -150,7 +130,7 @@ metadata:
   name: radix-app-admin-envs
 rules:
 - apiGroups:
-  - '*'
+  - radix.equinor.com
   resources:
   - radixdeployments
   verbs:
