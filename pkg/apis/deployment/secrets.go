@@ -30,13 +30,11 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 
 		if len(component.Secrets) > 0 {
 			secretName := utils.GetComponentSecretName(component.Name)
-			if deploy.kubeutil.SecretExists(ns, secretName) {
-				continue
-			}
-
-			err := deploy.createSecret(ns, registration.Name, component.Name, secretName, false)
-			if err != nil {
-				return err
+			if !deploy.kubeutil.SecretExists(ns, secretName) {
+				err := deploy.createSecret(ns, registration.Name, component.Name, secretName, false)
+				if err != nil {
+					return err
+				}
 			}
 
 			secretsToManage = append(secretsToManage, secretName)
