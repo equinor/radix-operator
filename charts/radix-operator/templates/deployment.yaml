@@ -72,6 +72,9 @@ spec:
               value: {{ .Values.app.rollingUpdate.maxUnavailable | quote }}
             - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE
               value: {{ .Values.app.rollingUpdate.maxSurge | quote }}
+            # Active cluster name
+            - name: RADIX_ACTIVE_CLUSTERNAME
+              value: {{ .Values.activeClusterName }}
           livenessProbe:
             httpGet:
               path: /healthz

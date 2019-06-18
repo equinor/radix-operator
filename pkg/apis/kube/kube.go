@@ -7,18 +7,19 @@ import (
 
 // Radix Labels
 const (
-	RadixAppLabel           = "radix-app"
-	RadixEnvLabel           = "radix-env"
-	RadixComponentLabel     = "radix-component"
-	RadixJobNameLabel       = "radix-job-name"
-	RadixBuildLabel         = "radix-build"
-	RadixCommitLabel        = "radix-commit"
-	RadixImageTagLabel      = "radix-image-tag"
-	RadixBranchLabel        = "radix-branch"
-	RadixJobTypeLabel       = "radix-job-type"
-	RadixJobTypeBuild       = "build"
-	RadixAppAliasLabel      = "radix-app-alias"
-	RadixExternalAliasLabel = "radix-app-external-alias"
+	RadixAppLabel                = "radix-app"
+	RadixEnvLabel                = "radix-env"
+	RadixComponentLabel          = "radix-component"
+	RadixJobNameLabel            = "radix-job-name"
+	RadixBuildLabel              = "radix-build"
+	RadixCommitLabel             = "radix-commit"
+	RadixImageTagLabel           = "radix-image-tag"
+	RadixBranchLabel             = "radix-branch"
+	RadixJobTypeLabel            = "radix-job-type"
+	RadixJobTypeBuild            = "build"
+	RadixAppAliasLabel           = "radix-app-alias"
+	RadixExternalAliasLabel      = "radix-app-external-alias"
+	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
 )
 
 type Kube struct {
