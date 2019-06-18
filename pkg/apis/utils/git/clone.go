@@ -37,8 +37,9 @@ func CloneInitContainers(sshURL, branch string) []corev1.Container {
 			ImagePullPolicy: "Always",
 		},
 		{
-			Name:  CloneContainerName,
-			Image: "alpine/git",
+			Name:            CloneContainerName,
+			Image:           "alpine/git",
+			ImagePullPolicy: "IfNotPresent",
 			Args: []string{
 				"clone",
 				sshURL,

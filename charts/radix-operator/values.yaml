@@ -25,9 +25,14 @@ app:
       defaultRequest:
         memory: 50M
         cpu: 40m
-
-rbac:
-  enabled: true
+  # Readiness probe parameters
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  # Rolling update parameters
+  rollingUpdate:
+    maxUnavailable: 25%
+    maxSurge: 25%
 
 replicaCount: 1
 

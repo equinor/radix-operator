@@ -5,13 +5,12 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent) *auth.Role {
-	secretName := utils.GetComponentSecretName(component.Name)
+func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent, secrets []string) *auth.Role {
 	roleName := fmt.Sprintf("radix-app-adm-%s", component.Name)
 
 	role := &auth.Role{
@@ -31,10 +30,30 @@ func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *rad
 			{
 				APIGroups:     []string{""},
 				Resources:     []string{"secrets"},
-				ResourceNames: []string{secretName},
+				ResourceNames: secrets,
 				Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
 			},
 		},
 	}
 	return role
+}
+
+func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
+	roles, err := deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
+		LabelSelector: getLabelSelectorForComponent(*component),
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(roles.Items) > 0 {
+		for n := range roles.Items {
+			err = deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.GetNamespace()).Delete(roles.Items[n].Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

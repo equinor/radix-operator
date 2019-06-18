@@ -16,7 +16,7 @@ func (deploy *Deployment) customSecuritySettings(appName, namespace string, depl
 		if err != nil {
 			log.Warnf("Service account for running radix github webhook not made. %v", err)
 		} else {
-			_ = deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", serviceAccount, ownerReference)
+			_ = deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-webhook", serviceAccount, ownerReference)
 			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 		}
 		deployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
@@ -27,7 +27,7 @@ func (deploy *Deployment) customSecuritySettings(appName, namespace string, depl
 		if err != nil {
 			log.Warnf("Error creating Service account for radix api. %v", err)
 		} else {
-			_ = deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-operator", serviceAccount, ownerReference)
+			_ = deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-api", serviceAccount, ownerReference)
 			deployment.Spec.Template.Spec.ServiceAccountName = serviceAccountName
 		}
 		deployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken

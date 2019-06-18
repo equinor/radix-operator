@@ -11,65 +11,92 @@ const (
 	appName       = "app"
 	componentName = "comp"
 	// containerRegistry = "radixdev.azurecr.io"
-	env      = "dev"
-	imageTag = "latest"
+	env         = "dev"
+	anyImageTag = "latest"
 )
 
 func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	// New publicPort does not exist, old public does not exist
-	raBuilder := getRABuilder()
-	compBuilder := utils.NewApplicationComponentBuilder().
-		WithName(componentName).
-		WithPort("http", 80).
-		WithPort("https", 443)
-	ra := raBuilder.WithComponent(compBuilder).BuildRA()
-	deployComponent := getRadixComponentsForEnv(ra, containerRegistry, env, imageTag)
+	ra := utils.ARadixApplication().
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 80).
+				WithPort("https", 443)).BuildRA()
+	deployComponent := getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "", deployComponent[0].PublicPort)
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort exists, old public does not exist
-	raBuilder = getRABuilder()
-	compBuilder = utils.NewApplicationComponentBuilder().
-		WithName(componentName).
-		WithPort("http", 80).
-		WithPort("https", 443).
-		WithPublicPort("http")
-	ra = raBuilder.WithComponent(compBuilder).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, containerRegistry, env, imageTag)
+	ra = utils.ARadixApplication().
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 80).
+				WithPort("https", 443).
+				WithPublicPort("http")).BuildRA()
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort exists, old public exists (ignored)
-	raBuilder = getRABuilder()
-	compBuilder = utils.NewApplicationComponentBuilder().
-		WithName(componentName).
-		WithPort("http", 80).
-		WithPort("https", 443).
-		WithPublicPort("http").
-		WithPublic(true)
-	ra = raBuilder.WithComponent(compBuilder).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, containerRegistry, env, imageTag)
+	ra = utils.ARadixApplication().
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 80).
+				WithPort("https", 443).
+				WithPublicPort("http").
+				WithPublic(true)).BuildRA()
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
 	assert.Equal(t, false, deployComponent[0].Public)
 
 	// New publicPort does not exist, old public exists (used)
-	raBuilder = getRABuilder()
-	compBuilder = utils.NewApplicationComponentBuilder().
-		WithName(componentName).
-		WithPort("http", 80).
-		WithPort("https", 443).
-		WithPublic(true)
-	ra = raBuilder.WithComponent(compBuilder).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, containerRegistry, env, imageTag)
+	ra = utils.ARadixApplication().
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 80).
+				WithPort("https", 443).
+				WithPublic(true)).BuildRA()
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].Ports[0].Name, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, false, deployComponent[0].Public)
+}
+
+func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("componentA"),
+			utils.NewApplicationComponentBuilder().
+				WithName("componentB")).
+		WithDNSExternalAlias("some.alias.com", "prod", "componentA").
+		WithDNSExternalAlias("another.alias.com", "prod", "componentA").
+		WithDNSExternalAlias("athird.alias.com", "prod", "componentB").BuildRA()
+
+	deployComponent := getRadixComponentsForEnv(ra, anyContainerRegistry, "prod", anyImageTag)
+	assert.Equal(t, 2, len(deployComponent))
+	assert.Equal(t, 2, len(deployComponent[0].DNSExternalAlias))
+	assert.Equal(t, "some.alias.com", deployComponent[0].DNSExternalAlias[0])
+	assert.Equal(t, "another.alias.com", deployComponent[0].DNSExternalAlias[1])
+
+	assert.Equal(t, 1, len(deployComponent[1].DNSExternalAlias))
+	assert.Equal(t, "athird.alias.com", deployComponent[1].DNSExternalAlias[0])
+
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, "dev", anyImageTag)
+	assert.Equal(t, 2, len(deployComponent))
+	assert.Equal(t, 0, len(deployComponent[0].DNSExternalAlias))
 }
 
 func getRABuilder() utils.ApplicationBuilder {

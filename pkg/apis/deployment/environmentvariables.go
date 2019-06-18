@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
@@ -59,15 +60,15 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 		return environmentVariables
 	}
 
-	dnsZone := os.Getenv(OperatorDNSZoneEnvironmentVariable)
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		return nil
 	}
 
-	clusterType := os.Getenv(OperatorClusterTypeEnvironmentVariable)
+	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	if clusterType != "" {
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  RadixClusterTypeEnvironmentVariable,
+			Name:  defaults.RadixClusterTypeEnvironmentVariable,
 			Value: clusterType,
 		})
 	}
@@ -78,51 +79,51 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 	}
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  ContainerRegistryEnvironmentVariable,
+		Name:  defaults.ContainerRegistryEnvironmentVariable,
 		Value: containerRegistry,
 	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  RadixDNSZoneEnvironmentVariable,
+		Name:  defaults.RadixDNSZoneEnvironmentVariable,
 		Value: dnsZone,
 	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  ClusternameEnvironmentVariable,
+		Name:  defaults.ClusternameEnvironmentVariable,
 		Value: clusterName,
 	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  EnvironmentnameEnvironmentVariable,
+		Name:  defaults.EnvironmentnameEnvironmentVariable,
 		Value: currentEnvironment,
 	})
 
 	if isPublic {
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  PublicEndpointEnvironmentVariable,
+			Name:  defaults.PublicEndpointEnvironmentVariable,
 			Value: getHostName(componentName, namespace, clusterName, dnsZone),
 		})
 	}
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  RadixAppEnvironmentVariable,
+		Name:  defaults.RadixAppEnvironmentVariable,
 		Value: appName,
 	})
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  RadixComponentEnvironmentVariable,
+		Name:  defaults.RadixComponentEnvironmentVariable,
 		Value: componentName,
 	})
 
 	if len(ports) > 0 {
 		portNumbers, portNames := getPortNumbersAndNamesString(ports)
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  RadixPortsEnvironmentVariable,
+			Name:  defaults.RadixPortsEnvironmentVariable,
 			Value: portNumbers,
 		})
 
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  RadixPortNamesEnvironmentVariable,
+			Name:  defaults.RadixPortNamesEnvironmentVariable,
 			Value: portNames,
 		})
 	}

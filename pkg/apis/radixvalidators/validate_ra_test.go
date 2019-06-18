@@ -66,6 +66,59 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"dns alias non existing component", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = "non existing" }},
 		{"dns alias non existing env", func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Environment = "non existing" }},
+		{"dns external alias non existing component", func(ra *v1.RadixApplication) {
+			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
+				v1.ExternalAlias{
+					Alias:       "some.alias.com",
+					Component:   "non existing",
+					Environment: ra.Spec.Environments[0].Name,
+				},
+			}
+		}},
+		{"dns external alias non existing environment", func(ra *v1.RadixApplication) {
+			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
+				v1.ExternalAlias{
+					Alias:       "some.alias.com",
+					Component:   ra.Spec.Components[0].Name,
+					Environment: "non existing",
+				},
+			}
+		}},
+		{"dns external alias non existing alias", func(ra *v1.RadixApplication) {
+			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
+				v1.ExternalAlias{
+					Component:   ra.Spec.Components[0].Name,
+					Environment: ra.Spec.Environments[0].Name,
+				},
+			}
+		}},
+		{"dns external alias with no public port", func(ra *v1.RadixApplication) {
+			// Backward compatible setting
+			ra.Spec.Components[0].Public = false
+			ra.Spec.Components[0].PublicPort = ""
+			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
+				v1.ExternalAlias{
+					Alias:       "some.alias.com",
+					Component:   ra.Spec.Components[0].Name,
+					Environment: ra.Spec.Environments[0].Name,
+				},
+			}
+		}},
+		{"duplicate dns external alias", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Public = true
+			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
+				v1.ExternalAlias{
+					Alias:       "duplicate.alias.com",
+					Component:   ra.Spec.Components[0].Name,
+					Environment: ra.Spec.Environments[0].Name,
+				},
+				v1.ExternalAlias{
+					Alias:       "duplicate.alias.com",
+					Component:   ra.Spec.Components[0].Name,
+					Environment: ra.Spec.Environments[0].Name,
+				},
+			}
+		}},
 		{"resource limit unsupported resource", func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["unsupportedResource"] = "250m"
 		}},

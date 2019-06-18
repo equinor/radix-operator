@@ -1,6 +1,7 @@
 package radixvalidators
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -52,6 +53,11 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, dnsErrors...)
 	}
 
+	dnsErrors = validateDNSExternalAlias(app)
+	if len(dnsErrors) > 0 {
+		errs = append(errs, dnsErrors...)
+	}
+
 	if len(errs) <= 0 {
 		return true, nil
 	}
@@ -80,6 +86,41 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	if !doesComponentExist(app, alias.Component) {
 		errs = append(errs, fmt.Errorf("Component %s refered to by dnsAppAlias is not defined", alias.Component))
 	}
+	return errs
+}
+
+func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
+	errs := []error{}
+
+	distinctAlias := make(map[string]bool)
+
+	for _, externalAlias := range app.Spec.DNSExternalAlias {
+		if externalAlias.Alias == "" && externalAlias.Component == "" && externalAlias.Environment == "" {
+			return errs
+		}
+
+		distinctAlias[externalAlias.Alias] = true
+
+		if externalAlias.Alias == "" {
+			errs = append(errs, errors.New("External alias cannot be empty"))
+		}
+
+		if !doesEnvExist(app, externalAlias.Environment) {
+			errs = append(errs, fmt.Errorf("Env %s refered to by dnsExternalAlias is not defined", externalAlias.Environment))
+		}
+		if !doesComponentExist(app, externalAlias.Component) {
+			errs = append(errs, fmt.Errorf("Component %s refered to by dnsExternalAlias is not defined", externalAlias.Component))
+		}
+
+		if !doesComponentHaveAPublicPort(app, externalAlias.Component) {
+			errs = append(errs, fmt.Errorf("Component %s refered to by dnsExternalAlias is not marked as public", externalAlias.Component))
+		}
+	}
+
+	if len(distinctAlias) < len(app.Spec.DNSExternalAlias) {
+		errs = append(errs, errors.New("Cannot have duplicate aliases for dnsExternalAlias"))
+	}
+
 	return errs
 }
 
@@ -244,6 +285,19 @@ func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
 	for _, env := range app.Spec.Environments {
 		if env.Name == name {
 			return true
+		}
+	}
+	return false
+}
+
+func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
+	for _, component := range app.Spec.Components {
+		if component.Name == name {
+			if component.Public || component.PublicPort != "" {
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	return false
