@@ -34,7 +34,7 @@ func NewBuildStep() model.Step {
 
 // ImplementationForType Override of default step method
 func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
-	return pipeline.BuildStep
+	return cli.stepType
 }
 
 // SucceededMsg Override of default step method

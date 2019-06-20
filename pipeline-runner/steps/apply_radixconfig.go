@@ -23,7 +23,7 @@ func NewApplyConfigStep() model.Step {
 
 // ImplementationForType Override of default step method
 func (cli *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepType {
-	return pipeline.ApplyConfigStep
+	return cli.stepType
 }
 
 // SucceededMsg Override of default step method
