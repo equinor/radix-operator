@@ -37,7 +37,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, pr
 }
 
 // Prepare Runs preparations before build
-func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, branch string) (*v1.RadixRegistration, map[string]bool, error) {
+func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, branch string) (*v1.RadixRegistration, map[string]bool, bool, error) {
 	if validate.RAContainsOldPublic(radixApplication) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
 	}
@@ -48,25 +48,19 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 		for _, err := range errs {
 			log.Errorf("%v", err)
 		}
-		return nil, nil, validate.ConcatErrors(errs)
+		return nil, nil, false, validate.ConcatErrors(errs)
 	}
 
 	appName := radixApplication.GetName()
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(appName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", appName, err)
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, radixRegistration, radixApplication)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	err = applicationConfig.ApplyConfigToApplicationNamespace()
-	if err != nil {
-		log.Errorf("Failed to apply radix application. %v", err)
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(branch)
@@ -74,12 +68,13 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 	if !branchIsMapped {
 		errMsg := fmt.Sprintf("Failed to match environment to branch: %s", branch)
 		log.Warnf(errMsg)
-		return nil, nil, fmt.Errorf(errMsg)
+		return nil, nil, branchIsMapped, fmt.Errorf(errMsg)
 	}
 
-	return radixRegistration, targetEnvironments, nil
+	return radixRegistration, targetEnvironments, branchIsMapped, nil
 }
 
+// Run runs throught the steps in the defined pipeline
 func Run(pipelineInfo model.PipelineInfo) error {
 	appName := pipelineInfo.GetAppName()
 	branch := pipelineInfo.Branch
@@ -90,10 +85,10 @@ func Run(pipelineInfo model.PipelineInfo) error {
 	for _, step := range pipelineInfo.Steps {
 		err := step.Run(pipelineInfo)
 		if err != nil {
-			log.Errorf(step.ErrorMsg(pipelineInfo, err))
+			log.Errorf(step.ErrorMsg(err))
 			return err
 		}
-		log.Infof(step.SucceededMsg(pipelineInfo))
+		log.Infof(step.SucceededMsg())
 	}
 	return nil
 }

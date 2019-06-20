@@ -22,7 +22,7 @@ const (
 )
 
 func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo) (*batchv1.Job, error) {
-	appName := pipelineInfo.GetAppName()
+	appName := pipelineInfo.RadixRegistration.Name
 	branch := pipelineInfo.Branch
 	imageTag := pipelineInfo.ImageTag
 	jobName := pipelineInfo.JobName

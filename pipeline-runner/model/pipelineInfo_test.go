@@ -4,66 +4,79 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/stretchr/testify/assert"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	buildStep  = model.NullStep{SuccessMessage: "built"}
-	deployStep = model.NullStep{SuccessMessage: "deployed"}
+	applyConfigStep = &model.DefaultStepImplementation{StepType: pipeline.ApplyConfigStep, SuccessMessage: "config applied"}
+	buildStep       = &model.DefaultStepImplementation{StepType: pipeline.BuildStep, SuccessMessage: "built"}
+	deployStep      = &model.DefaultStepImplementation{StepType: pipeline.DeployStep, SuccessMessage: "deployed"}
 )
 
 func Test_DefaultPipeType(t *testing.T) {
-	p, _ := model.Init("", nil, nil, nil, "", "", "", "", "", "", buildStep, deployStep)
+	pipelineType, _ := pipeline.GetPipelineFromName("")
+	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, "", "", "", "", "", "", applyConfigStep, buildStep, deployStep)
 
-	assert.Equal(t, model.BuildAndDeploy, p.Type)
-	assert.Equal(t, 2, len(p.Steps))
-	assert.Equal(t, "built", p.Steps[0].SucceededMsg(p))
-	assert.Equal(t, "deployed", p.Steps[1].SucceededMsg(p))
+	assert.Equal(t, pipeline.BuildDeploy, p.Type.Name)
+	assert.Equal(t, 3, len(p.Steps))
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg())
 }
 
 func Test_BuildDeployPipeType(t *testing.T) {
-	p, _ := model.Init(string(model.BuildAndDeploy), nil, nil, nil, "", "", "", "", "", "", buildStep, deployStep)
+	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.BuildDeploy)
+	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, "", "", "", "", "", "", applyConfigStep, buildStep, deployStep)
 
-	assert.Equal(t, model.BuildAndDeploy, p.Type)
-	assert.Equal(t, 2, len(p.Steps))
-	assert.Equal(t, "built", p.Steps[0].SucceededMsg(p))
-	assert.Equal(t, "deployed", p.Steps[1].SucceededMsg(p))
+	assert.Equal(t, pipeline.BuildDeploy, p.Type.Name)
+	assert.Equal(t, 3, len(p.Steps))
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg())
 }
 
 func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
-	p, _ := model.Init(string(model.Build), nil, nil, nil, "", "", "", "", "", "", buildStep, deployStep)
-	assert.Equal(t, model.Build, p.Type)
+	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.Build)
+	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, "", "", "", "", "", "", applyConfigStep, buildStep, deployStep)
+	assert.Equal(t, pipeline.Build, p.Type.Name)
 	assert.True(t, p.PushImage)
-	assert.Equal(t, 1, len(p.Steps))
-	assert.Equal(t, "built", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, 2, len(p.Steps))
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
 }
 
 func Test_BuildOnlyPipeline(t *testing.T) {
-	p, _ := model.Init(string(model.Build), nil, nil, nil, "", "", "", "", "", "0", buildStep, deployStep)
-	assert.Equal(t, model.Build, p.Type)
+	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.Build)
+	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, "", "", "", "", "", "0", applyConfigStep, buildStep, deployStep)
+	assert.Equal(t, pipeline.Build, p.Type.Name)
 	assert.False(t, p.PushImage)
-	assert.Equal(t, 1, len(p.Steps))
-	assert.Equal(t, "built", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, 2, len(p.Steps))
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
 }
 
 func Test_BuildAndPushOnlyPipeline(t *testing.T) {
-	p, _ := model.Init(string(model.Build), nil, nil, nil, "", "", "", "", "", "1", buildStep, deployStep)
-	assert.Equal(t, model.Build, p.Type)
+	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.Build)
+	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, "", "", "", "", "", "1", applyConfigStep, buildStep, deployStep)
+	assert.Equal(t, pipeline.Build, p.Type.Name)
 	assert.True(t, p.PushImage)
-	assert.Equal(t, 1, len(p.Steps))
-	assert.Equal(t, "built", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, 2, len(p.Steps))
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
 }
 
 func Test_NonExistingPipelineType(t *testing.T) {
-	_, err := model.Init("non existing pipeline", nil, nil, nil, "", "", "", "", "", "", buildStep, deployStep)
+	_, err := pipeline.GetPipelineFromName("non existing pipeline")
 	assert.NotNil(t, err)
 }
 
 func Test_AppNameFromRR(t *testing.T) {
-	p, _ := model.Init(string(model.Build), &v1.RadixRegistration{
+	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.Build)
+	p, _ := model.InitPipeline(pipelineType, &v1.RadixRegistration{
 		ObjectMeta: meta_v1.ObjectMeta{Name: "an_app"},
-	}, nil, nil, "", "", "", "", "", "", buildStep, deployStep)
+	}, nil, nil, true, "", "", "", "", "", "", applyConfigStep, buildStep, deployStep)
 	assert.Equal(t, "an_app", p.GetAppName())
 }

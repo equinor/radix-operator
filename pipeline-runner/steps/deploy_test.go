@@ -7,6 +7,7 @@ import (
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -22,19 +23,20 @@ const (
 	containerRegistry  = "any.container.registry"
 )
 
-func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
+func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, test.Utils) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+	kubeUtil, _ := kube.New(kubeclient)
 
-	return kubeclient, radixclient, testUtils
+	return kubeclient, kubeUtil, radixclient, testUtils
 }
 
 func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
-	kubeclient, radixclient, _ := setupTest()
+	kubeclient, kube, radixclient, _ := setupTest()
 
 	rr := utils.ARadixRegistration().
 		WithName("any-app").
@@ -91,7 +93,12 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli := InitDeployHandler(kubeclient, radixclient, &monitoring.Clientset{})
+	cli := NewDeployStep()
+	cli.
+		WithKubeClient(kubeclient).
+		WithKubeUtil(kube).
+		WithRadixClient(radixclient).
+		WithPrometheusOperatorClient(&monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	_, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
@@ -102,17 +109,20 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		JobName:            "any-job-name",
 		ImageTag:           "anytag",
 		Branch:             "master",
+		BranchIsMapped:     true,
 		CommitID:           "4faca8595c5283a9d0f17a623b9255a0d9866a2e",
 		TargetEnvironments: targetEnvs,
 	}
 
-	rds, err := cli.Deploy(pipelineInfo)
+	err := cli.Run(pipelineInfo)
+	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(metav1.ListOptions{})
+
 	t.Run("validate deploy", func(t *testing.T) {
 		assert.NoError(t, err)
-		assert.True(t, len(rds) > 0)
+		assert.True(t, len(rds.Items) > 0)
 	})
 
-	rdNameDev := rds[0].Name
+	rdNameDev := rds.Items[0].Name
 
 	t.Run("validate deployment exist in only the namespace of the modified branch", func(t *testing.T) {
 		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})

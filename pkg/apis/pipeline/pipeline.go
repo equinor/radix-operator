@@ -2,39 +2,47 @@ package pipeline
 
 import "fmt"
 
-// Type Enumeration of the different pipelines we support
-type Type int
-
 const (
-	// BuildDeploy Will do build based on docker file and deploy to mapped environment
-	BuildDeploy Type = iota
+	// BuildDeploy Identifyer
+	BuildDeploy = "build-deploy"
 
-	// Build Will do build based on docker file
-	Build
+	// Build Identifyer
+	Build = "build"
 
-	// Promote Will promote a deployment from one environment to another,
-	// or an older deployment to an active
-	Promote
-
-	// end marker of the enum
-	numPipelines
+	// Promote Identifyer
+	Promote = "promote"
 )
 
-func (p Type) String() string {
-	return GetPipelines()[p]
+// Type Enumeration of the different pipelines we support
+type Type struct {
+	Name  string
+	Steps []StepType
 }
 
-func GetPipelines() []string {
-	return []string{"build-deploy", "build"}
+var buildDeployPipeline = Type{BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}}
+var buildPipeline = Type{Build, []StepType{ApplyConfigStep, BuildStep}}
+var promotePipeline = Type{Promote, []StepType{PromoteStep}}
+
+// GetSupportedPipelines Lists supported pipelines
+func GetSupportedPipelines() []Type {
+	return []Type{
+		buildDeployPipeline,
+		buildPipeline,
+		promotePipeline}
 }
 
 // GetPipelineFromName Gets pipeline from string
-func GetPipelineFromName(name string) (Type, error) {
-	for pipeline := BuildDeploy; pipeline < numPipelines; pipeline++ {
-		if pipeline.String() == name {
-			return pipeline, nil
+func GetPipelineFromName(name string) (*Type, error) {
+	// Default to build-deploy for backward compatibility
+	if name == "" {
+		return &buildDeployPipeline, nil
+	}
+
+	for _, pipeline := range GetSupportedPipelines() {
+		if pipeline.Name == name {
+			return &pipeline, nil
 		}
 	}
 
-	return numPipelines, fmt.Errorf("No pipeline found by name %s", name)
+	return nil, fmt.Errorf("No pipeline found by name %s", name)
 }
