@@ -86,6 +86,7 @@ func prepareToRunPipeline() model.PipelineInfo {
 	applyConfigStepImplementation := steps.NewApplyConfigStep()
 	buildStepImplementation := steps.NewBuildStep()
 	deployStepImplementation := steps.NewDeployStep()
+	promoteStepImplementation := steps.NewPromoteStep()
 
 	initStepImplementations(radixRegistration,
 		radixApplication,
@@ -95,7 +96,8 @@ func prepareToRunPipeline() model.PipelineInfo {
 		prometheusOperatorClient,
 		applyConfigStepImplementation,
 		buildStepImplementation,
-		deployStepImplementation)
+		deployStepImplementation,
+		promoteStepImplementation)
 
 	pipeType, err := pipeline.GetPipelineFromName(pipelineType)
 	if err != nil {
@@ -117,7 +119,8 @@ func prepareToRunPipeline() model.PipelineInfo {
 		pushImage,
 		applyConfigStepImplementation,
 		buildStepImplementation,
-		deployStepImplementation)
+		deployStepImplementation,
+		promoteStepImplementation)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)

@@ -33,9 +33,7 @@ func InitPipeline(pipelineType *pipeline.Type,
 	imageTag,
 	useCache,
 	pushImage string,
-	configApplier Step,
-	builder Step,
-	deployer Step) (PipelineInfo, error) {
+	stepImplementations ...Step) (PipelineInfo, error) {
 
 	pushImagebool := pipelineType.Name == pipeline.BuildDeploy || !(pushImage == "false" || pushImage == "0") // build and deploy require push
 
@@ -51,7 +49,7 @@ func InitPipeline(pipelineType *pipeline.Type,
 		ImageTag:           imageTag,
 		UseCache:           useCache,
 		PushImage:          pushImagebool,
-		Steps:              getStepstepImplementationsFromType(pipelineType, configApplier, builder, deployer),
+		Steps:              getStepstepImplementationsFromType(pipelineType, stepImplementations...),
 	}, nil
 }
 
