@@ -83,19 +83,19 @@ func prepareToRunPipeline() model.PipelineInfo {
 		os.Exit(1)
 	}
 
-	applyConfigStep := steps.NewApplyConfigStep()
-	buildStep := steps.NewBuildStep()
-	deployStep := steps.NewDeployStep()
+	applyConfigStepImplementation := steps.NewApplyConfigStep()
+	buildStepImplementation := steps.NewBuildStep()
+	deployStepImplementation := steps.NewDeployStep()
 
-	initSteps(radixRegistration,
+	initStepImplementations(radixRegistration,
 		radixApplication,
 		client,
 		radixClient,
 		kubeUtil,
 		prometheusOperatorClient,
-		applyConfigStep,
-		buildStep,
-		deployStep)
+		applyConfigStepImplementation,
+		buildStepImplementation,
+		deployStepImplementation)
 
 	pipeType, err := pipeline.GetPipelineFromName(pipelineType)
 	if err != nil {
@@ -103,7 +103,21 @@ func prepareToRunPipeline() model.PipelineInfo {
 		os.Exit(1)
 	}
 
-	pipelineInfo, err := model.InitPipeline(pipeType, radixRegistration, radixApplication, targetEnvironments, branchIsMapped, jobName, branch, commitID, imageTag, useCache, pushImage, applyConfigStep, buildStep, deployStep)
+	pipelineInfo, err := model.InitPipeline(
+		pipeType,
+		radixRegistration,
+		radixApplication,
+		targetEnvironments,
+		branchIsMapped,
+		jobName,
+		branch,
+		commitID,
+		imageTag,
+		useCache,
+		pushImage,
+		applyConfigStepImplementation,
+		buildStepImplementation,
+		deployStepImplementation)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -135,17 +149,17 @@ func getArgs() map[string]string {
 	return args
 }
 
-func initSteps(
+func initStepImplementations(
 	registration *v1.RadixRegistration,
 	applicationConfig *v1.RadixApplication,
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	kubeutil *kube.Kube,
 	prometheusOperatorClient monitoring.Interface,
-	steps ...model.Step) {
+	stepImplementations ...model.Step) {
 
-	for _, step := range steps {
-		step.
+	for _, stepImplementation := range stepImplementations {
+		stepImplementation.
 			WithRadixRegistration(registration).
 			WithRadixApplicationConfig(applicationConfig).
 			WithKubeClient(kubeclient).

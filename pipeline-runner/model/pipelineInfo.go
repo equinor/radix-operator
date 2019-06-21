@@ -51,11 +51,11 @@ func InitPipeline(pipelineType *pipeline.Type,
 		ImageTag:           imageTag,
 		UseCache:           useCache,
 		PushImage:          pushImagebool,
-		Steps:              getStepsFromType(pipelineType, configApplier, builder, deployer),
+		Steps:              getStepstepImplementationsFromType(pipelineType, configApplier, builder, deployer),
 	}, nil
 }
 
-func getStepsFromType(pipelineType *pipeline.Type, allStepImplementations ...Step) []Step {
+func getStepstepImplementationsFromType(pipelineType *pipeline.Type, allStepImplementations ...Step) []Step {
 	stepImplementations := make([]Step, 0)
 
 	for _, step := range pipelineType.Steps {
