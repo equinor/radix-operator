@@ -160,11 +160,6 @@ func initStepImplementations(
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			WithRadixRegistration(registration).
-			WithRadixApplicationConfig(applicationConfig).
-			WithKubeClient(kubeclient).
-			WithRadixClient(radixclient).
-			WithKubeUtil(kubeutil).
-			WithPrometheusOperatorClient(prometheusOperatorClient)
+			Init(registration, applicationConfig, kubeclient, radixclient, kubeutil, prometheusOperatorClient)
 	}
 }

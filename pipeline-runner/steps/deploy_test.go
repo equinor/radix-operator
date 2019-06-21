@@ -94,11 +94,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	// Prometheus doesn´t contain any fake
 	cli := NewDeployStep()
-	cli.
-		WithKubeClient(kubeclient).
-		WithKubeUtil(kube).
-		WithRadixClient(radixclient).
-		WithPrometheusOperatorClient(&monitoring.Clientset{})
+	cli.Init(rr, ra, kubeclient, radixclient, kube, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	_, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")

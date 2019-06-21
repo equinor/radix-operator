@@ -11,12 +11,7 @@ import (
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	WithRadixRegistration(*v1.RadixRegistration) Step
-	WithRadixApplicationConfig(*v1.RadixApplication) Step
-	WithKubeClient(kubernetes.Interface) Step
-	WithRadixClient(radixclient.Interface) Step
-	WithKubeUtil(*kube.Kube) Step
-	WithPrometheusOperatorClient(monitoring.Interface) Step
+	Init(*v1.RadixRegistration, *v1.RadixApplication, kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface)
 
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(err error) string
@@ -39,40 +34,15 @@ type DefaultStepImplementation struct {
 	Error          error
 }
 
-// WithRadixRegistration Setter for radix registration
-func (step *DefaultStepImplementation) WithRadixRegistration(registration *v1.RadixRegistration) Step {
+// Init Initialize step
+func (step *DefaultStepImplementation) Init(registration *v1.RadixRegistration, applicationConfig *v1.RadixApplication,
+	kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface) {
 	step.Registration = registration
-	return step
-}
-
-// WithRadixApplicationConfig Setter for radix config
-func (step *DefaultStepImplementation) WithRadixApplicationConfig(applicationConfig *v1.RadixApplication) Step {
 	step.ApplicationConfig = applicationConfig
-	return step
-}
-
-// WithKubeClient Setter for kubernetes client
-func (step *DefaultStepImplementation) WithKubeClient(kubeclient kubernetes.Interface) Step {
 	step.Kubeclient = kubeclient
-	return step
-}
-
-// WithRadixClient Setter for radix client
-func (step *DefaultStepImplementation) WithRadixClient(radixclient radixclient.Interface) Step {
 	step.Radixclient = radixclient
-	return step
-}
-
-// WithKubeUtil Setter for kubernetes utility
-func (step *DefaultStepImplementation) WithKubeUtil(kubeutil *kube.Kube) Step {
 	step.Kubeutil = kubeutil
-	return step
-}
-
-// WithPrometheusOperatorClient Setter for prom client
-func (step *DefaultStepImplementation) WithPrometheusOperatorClient(prometheusOperatorClient monitoring.Interface) Step {
 	step.PrometheusOperatorClient = prometheusOperatorClient
-	return step
 }
 
 // ImplementationForType Default implementation
