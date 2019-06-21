@@ -55,6 +55,10 @@ func prepareToRunPipeline() model.PipelineInfo {
 	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
 	pushImage := args["PUSH_IMAGE"]       // "0"
 
+	deploymentName := args["DEPLOYMENT_NAME"]   // For promotion pipeline
+	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
+	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion pipeline
+
 	if branch == "" {
 		branch = "dev"
 	}
@@ -117,6 +121,9 @@ func prepareToRunPipeline() model.PipelineInfo {
 		imageTag,
 		useCache,
 		pushImage,
+		deploymentName,
+		fromEnvironment,
+		toEnvironment,
 		applyConfigStepImplementation,
 		buildStepImplementation,
 		deployStepImplementation,

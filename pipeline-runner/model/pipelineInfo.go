@@ -18,6 +18,9 @@ type PipelineInfo struct {
 	ImageTag           string
 	UseCache           string
 	PushImage          bool
+	DeploymentName     string
+	FromEnvironment    string
+	ToEnvironment      string
 	Steps              []Step
 }
 
@@ -33,6 +36,9 @@ func InitPipeline(pipelineType *pipeline.Type,
 	imageTag,
 	useCache,
 	pushImage string,
+	deploymentName string,
+	fromEnvironment string,
+	toEnvironment string,
 	stepImplementations ...Step) (PipelineInfo, error) {
 
 	pushImagebool := pipelineType.Name == pipeline.BuildDeploy || !(pushImage == "false" || pushImage == "0") // build and deploy require push
@@ -49,6 +55,9 @@ func InitPipeline(pipelineType *pipeline.Type,
 		ImageTag:           imageTag,
 		UseCache:           useCache,
 		PushImage:          pushImagebool,
+		DeploymentName:     deploymentName,
+		FromEnvironment:    fromEnvironment,
+		ToEnvironment:      toEnvironment,
 		Steps:              getStepstepImplementationsFromType(pipelineType, stepImplementations...),
 	}, nil
 }
