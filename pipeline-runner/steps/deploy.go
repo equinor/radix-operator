@@ -40,17 +40,17 @@ func (cli *DeployStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *DeployStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
+	if !pipelineInfo.BranchIsMapped {
+		// Do nothing
+		return fmt.Errorf("Skip deploy step as branch %s is not mapped to any environment", pipelineInfo.Branch)
+	}
+
 	_, err := cli.deploy(pipelineInfo)
 	return err
 }
 
 // Deploy Handles deploy step of the pipeline
 func (cli *DeployStepImplementation) deploy(pipelineInfo model.PipelineInfo) ([]v1.RadixDeployment, error) {
-	if !pipelineInfo.BranchIsMapped {
-		// Do nothing
-		return nil, nil
-	}
-
 	appName := pipelineInfo.RadixRegistration.Name
 	containerRegistry, err := cli.DefaultStepImplementation.Kubeutil.GetContainerRegistry()
 	if err != nil {

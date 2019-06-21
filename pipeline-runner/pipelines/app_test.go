@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -42,25 +41,4 @@ func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 
 	_, _, _, err := cli.Prepare(ra, "master")
 	assert.Error(t, err)
-}
-
-func TestPrepare_MasterIsNotMappedToEnvironment_StillItsApplied(t *testing.T) {
-	t.Skip("TODO : ------------------- !!!!!!!!!!!!  Refactor this test")
-
-	kubeclient, radixclient, commonTestUtils := setupTest()
-	cli := Init(kubeclient, radixclient, &monitoring.Clientset{})
-
-	commonTestUtils.ApplyRegistration(utils.ARadixRegistration().
-		WithName("any-app"))
-
-	ra := utils.NewRadixApplicationBuilder().
-		WithAppName("any-app").
-		WithEnvironment("dev", "dev").
-		WithEnvironment("prod", "").
-		WithComponents(utils.AnApplicationComponent().WithPort("http", 8080)).
-		BuildRA()
-
-	cli.Prepare(ra, "master")
-	savedRadixApplication, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace("any-app")).Get(ra.Name, metav1.GetOptions{})
-	assert.NotNil(t, savedRadixApplication)
 }

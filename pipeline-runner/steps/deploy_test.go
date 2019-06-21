@@ -7,43 +7,72 @@ import (
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/test"
-	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
 const (
-	deployTestFilePath = "./testdata/radixconfig.variable.yaml"
-	clusterName        = "AnyClusterName"
-	containerRegistry  = "any.container.registry"
+	anyClusterName       = "AnyClusterName"
+	anyContainerRegistry = "any.container.registry"
+	anyAppName           = "any-app"
+	anyJobName           = "any-job-name"
+	anyImageTag          = "anytag"
+	anyCommitID          = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
 )
 
-func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, test.Utils) {
-	// Setup
-	kubeclient := kubernetes.NewSimpleClientset()
-	radixclient := radix.NewSimpleClientset()
+func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
+	kubeclient, kube, radixclient, _ := setupTest()
 
-	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
-	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	kubeUtil, _ := kube.New(kubeclient)
+	anyBranch := "master"
+	anyEnvironment := "dev"
+	anyComponentName := "app"
+	anyNoMappedBranch := "feature"
 
-	return kubeclient, kubeUtil, radixclient, testUtils
+	rr := utils.ARadixRegistration().
+		WithName(anyAppName).
+		BuildRR()
+
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment, anyBranch).
+		WithComponents(
+			utils.AnApplicationComponent().
+				WithName(anyComponentName)).
+		BuildRA()
+
+	// Prometheus doesn´t contain any fake
+	cli := NewDeployStep()
+	cli.Init(rr, ra, kubeclient, radixclient, kube, &monitoring.Clientset{})
+
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
+	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
+
+	pipelineInfo := model.PipelineInfo{
+		RadixRegistration:  rr,
+		RadixApplication:   ra,
+		JobName:            anyJobName,
+		ImageTag:           anyImageTag,
+		Branch:             anyNoMappedBranch,
+		BranchIsMapped:     branchIsMapped,
+		CommitID:           anyCommitID,
+		TargetEnvironments: targetEnvs,
+	}
+
+	err := cli.Run(pipelineInfo)
+	assert.Error(t, err)
+
 }
 
 func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
 	kubeclient, kube, radixclient, _ := setupTest()
 
 	rr := utils.ARadixRegistration().
-		WithName("any-app").
+		WithName(anyAppName).
 		BuildRR()
 
 	ra := utils.NewRadixApplicationBuilder().
-		WithAppName("any-app").
+		WithAppName(anyAppName).
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", "").
 		WithDNSAppAlias("dev", "app").
@@ -97,16 +126,16 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	cli.Init(rr, ra, kubeclient, radixclient, kube, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
-	_, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
+	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
 
 	pipelineInfo := model.PipelineInfo{
 		RadixRegistration:  rr,
 		RadixApplication:   ra,
-		JobName:            "any-job-name",
-		ImageTag:           "anytag",
+		JobName:            anyJobName,
+		ImageTag:           anyImageTag,
 		Branch:             "master",
-		BranchIsMapped:     true,
-		CommitID:           "4faca8595c5283a9d0f17a623b9255a0d9866a2e",
+		BranchIsMapped:     branchIsMapped,
+		CommitID:           anyCommitID,
 		TargetEnvironments: targetEnvs,
 	}
 
@@ -138,8 +167,8 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.NotEmpty(t, rdDev.Labels["radix-commit"])
 		assert.NotEmpty(t, rdDev.Labels["radix-job-name"])
 		assert.Equal(t, "master", rdDev.Labels["radix-branch"])
-		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", rdDev.Labels["radix-commit"])
-		assert.Equal(t, "any-job-name", rdDev.Labels["radix-job-name"])
+		assert.Equal(t, anyCommitID, rdDev.Labels["radix-commit"])
+		assert.Equal(t, anyJobName, rdDev.Labels["radix-job-name"])
 	})
 
 	t.Run("validate dns app alias", func(t *testing.T) {

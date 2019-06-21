@@ -1,8 +1,6 @@
 package onpush
 
 import (
-	"fmt"
-
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -64,13 +62,6 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 	}
 
 	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(branch)
-
-	if !branchIsMapped {
-		errMsg := fmt.Sprintf("Failed to match environment to branch: %s", branch)
-		log.Warnf(errMsg)
-		return nil, nil, branchIsMapped, fmt.Errorf(errMsg)
-	}
-
 	return radixRegistration, targetEnvironments, branchIsMapped, nil
 }
 
