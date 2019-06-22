@@ -118,10 +118,12 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 		}
 
 		environmentConfig := getEnvironmentConfig(raComp, environment)
-		radixDeployment.Spec.Components[index].Resources = environmentConfig.Resources
-		radixDeployment.Spec.Components[index].Monitoring = environmentConfig.Monitoring
-		radixDeployment.Spec.Components[index].Replicas = environmentConfig.Replicas
-		radixDeployment.Spec.Components[index].EnvironmentVariables = environmentConfig.Variables
+		if environmentConfig != nil {
+			radixDeployment.Spec.Components[index].Resources = environmentConfig.Resources
+			radixDeployment.Spec.Components[index].Monitoring = environmentConfig.Monitoring
+			radixDeployment.Spec.Components[index].Replicas = environmentConfig.Replicas
+			radixDeployment.Spec.Components[index].EnvironmentVariables = environmentConfig.Variables
+		}
 	}
 
 	return nil

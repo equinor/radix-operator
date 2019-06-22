@@ -171,3 +171,46 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
 	assert.Equal(t, "5678", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
 }
+
+func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
+	anyApp := "any-app"
+	anyDeploymentName := "deployment-1"
+	anyImageTag := "abcdef"
+	anyBuildDeployJobName := "any-build-deploy-job"
+	anyPromoteJobName := "any-promote-job"
+	anyDevEnvironment := "dev"
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+
+	commonTestUtils.ApplyDeployment(
+		builders.ARadixDeployment().
+			WithAppName(anyApp).
+			WithDeploymentName(anyDeploymentName).
+			WithEnvironment(anyDevEnvironment).
+			WithImageTag(anyImageTag).
+			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
+
+	cli := NewPromoteStep()
+	cli.Init(rr, ra, kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
+
+	pipelineInfo := model.PipelineInfo{
+		RadixRegistration: rr,
+		RadixApplication:  ra,
+		FromEnvironment:   anyDevEnvironment,
+		ToEnvironment:     anyDevEnvironment,
+		DeploymentName:    anyDeploymentName,
+		JobName:           anyPromoteJobName,
+		ImageTag:          anyImageTag,
+		CommitID:          anyCommitID,
+	}
+
+	err := cli.Run(pipelineInfo)
+	assert.NoError(t, err)
+
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyDevEnvironment)).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(rds.Items))
+}
