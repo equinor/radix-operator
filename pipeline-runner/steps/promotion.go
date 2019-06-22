@@ -85,6 +85,7 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo model.PipelineInfo) error
 		return NonExistingDeployment(pipelineInfo.DeploymentName)
 	}
 
+	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.GetAppName(), pipelineInfo.ToEnvironment, pipelineInfo.ImageTag)
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
 	radixDeployment.Labels[kube.RadixEnvLabel] = pipelineInfo.ToEnvironment

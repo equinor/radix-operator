@@ -1,6 +1,8 @@
 package steps
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
@@ -161,7 +163,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
-	assert.Equal(t, anyDeploymentName, rds.Items[0].Name)
+	assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
 	assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
 	assert.Equal(t, anyImageTag, rds.Items[0].Labels[kube.RadixImageTagLabel])
 	assert.Equal(t, anyPromoteJobName, rds.Items[0].Labels[kube.RadixJobNameLabel])
