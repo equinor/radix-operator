@@ -78,12 +78,14 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 			pipelineInfo := model.PipelineInfo{
 				RadixRegistration: rr,
 				RadixApplication:  ra,
-				FromEnvironment:   scenario.fromEnvironment,
-				ToEnvironment:     scenario.toEnvironment,
-				DeploymentName:    scenario.deploymentName,
-				JobName:           scenario.imageTag,
-				ImageTag:          scenario.imageTag,
-				CommitID:          anyCommitID,
+				PipelineArguments: model.PipelineArguments{
+					FromEnvironment: scenario.fromEnvironment,
+					ToEnvironment:   scenario.toEnvironment,
+					DeploymentName:  scenario.deploymentName,
+					JobName:         scenario.imageTag,
+					ImageTag:        scenario.imageTag,
+					CommitID:        anyCommitID,
+				},
 			}
 
 			err := cli.Run(pipelineInfo)
@@ -150,12 +152,14 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	pipelineInfo := model.PipelineInfo{
 		RadixRegistration: rr,
 		RadixApplication:  ra,
-		FromEnvironment:   anyDevEnvironment,
-		ToEnvironment:     anyProdEnvironment,
-		DeploymentName:    anyDeploymentName,
-		JobName:           anyPromoteJobName,
-		ImageTag:          anyImageTag,
-		CommitID:          anyCommitID,
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: anyDevEnvironment,
+			ToEnvironment:   anyProdEnvironment,
+			DeploymentName:  anyDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
 	}
 
 	err := cli.Run(pipelineInfo)
@@ -200,12 +204,14 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	pipelineInfo := model.PipelineInfo{
 		RadixRegistration: rr,
 		RadixApplication:  ra,
-		FromEnvironment:   anyDevEnvironment,
-		ToEnvironment:     anyDevEnvironment,
-		DeploymentName:    anyDeploymentName,
-		JobName:           anyPromoteJobName,
-		ImageTag:          anyImageTag,
-		CommitID:          anyCommitID,
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: anyDevEnvironment,
+			ToEnvironment:   anyDevEnvironment,
+			DeploymentName:  anyDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
 	}
 
 	err := cli.Run(pipelineInfo)

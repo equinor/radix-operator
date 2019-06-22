@@ -46,43 +46,22 @@ func main() {
 // runs os.Exit(1) if error
 func prepareToRunPipeline() model.PipelineInfo {
 	args := getArgs()
-	branch := args["BRANCH"]
-	commitID := args["COMMIT_ID"]
 	fileName := args["RADIX_FILE_NAME"]
-	imageTag := args["IMAGE_TAG"]
-	jobName := args["JOB_NAME"]
-	useCache := args["USE_CACHE"]
-	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
-	pushImage := args["PUSH_IMAGE"]       // "0"
-
-	deploymentName := args["DEPLOYMENT_NAME"]   // For promotion pipeline
-	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
-	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion pipeline
-
-	if branch == "" {
-		branch = "dev"
-	}
 	if fileName == "" {
 		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")
 	}
-	if imageTag == "" {
-		imageTag = "latest"
-	}
-	if useCache == "" {
-		useCache = "true"
-	}
 
+	pipelineArgs := model.GetPipelineArgsFromArguments(args)
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 	kubeUtil, _ := kube.New(client)
 
 	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
-
 	radixApplication, err := loadConfigFromFile(fileName)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	radixRegistration, targetEnvironments, branchIsMapped, err := pushHandler.Prepare(radixApplication, branch)
+	radixRegistration, targetEnvironments, branchIsMapped, err := pushHandler.Prepare(radixApplication, pipelineArgs.Branch)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -103,7 +82,7 @@ func prepareToRunPipeline() model.PipelineInfo {
 		deployStepImplementation,
 		promoteStepImplementation)
 
-	pipeType, err := pipeline.GetPipelineFromName(pipelineType)
+	pipeType, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -115,15 +94,7 @@ func prepareToRunPipeline() model.PipelineInfo {
 		radixApplication,
 		targetEnvironments,
 		branchIsMapped,
-		jobName,
-		branch,
-		commitID,
-		imageTag,
-		useCache,
-		pushImage,
-		deploymentName,
-		fromEnvironment,
-		toEnvironment,
+		pipelineArgs,
 		applyConfigStepImplementation,
 		buildStepImplementation,
 		deployStepImplementation,

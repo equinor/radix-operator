@@ -51,7 +51,7 @@ func (cli *BuildStepImplementation) ErrorMsg(err error) string {
 func (cli *BuildStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
-		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.Branch)
+		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
 	appName := cli.DefaultStepImplementation.Registration.Name

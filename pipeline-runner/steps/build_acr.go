@@ -23,9 +23,9 @@ const (
 
 func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo) (*batchv1.Job, error) {
 	appName := pipelineInfo.RadixRegistration.Name
-	branch := pipelineInfo.Branch
-	imageTag := pipelineInfo.ImageTag
-	jobName := pipelineInfo.JobName
+	branch := pipelineInfo.PipelineArguments.Branch
+	imageTag := pipelineInfo.PipelineArguments.ImageTag
+	jobName := pipelineInfo.PipelineArguments.JobName
 
 	initContainers := git.CloneInitContainers(pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
 	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PushImage, pipelineInfo.RadixApplication.Spec.Components)

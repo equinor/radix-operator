@@ -58,14 +58,16 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
 
 	pipelineInfo := model.PipelineInfo{
-		RadixRegistration:  rr,
-		RadixApplication:   ra,
-		JobName:            anyJobName,
-		ImageTag:           anyImageTag,
-		Branch:             anyNoMappedBranch,
-		BranchIsMapped:     branchIsMapped,
-		CommitID:           anyCommitID,
+		RadixRegistration: rr,
+		RadixApplication:  ra,
+		PipelineArguments: model.PipelineArguments{
+			JobName:  anyJobName,
+			ImageTag: anyImageTag,
+			Branch:   anyNoMappedBranch,
+			CommitID: anyCommitID,
+		},
 		TargetEnvironments: targetEnvs,
+		BranchIsMapped:     branchIsMapped,
 	}
 
 	err := cli.Run(pipelineInfo)

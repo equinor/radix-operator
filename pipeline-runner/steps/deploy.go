@@ -42,7 +42,7 @@ func (cli *DeployStepImplementation) ErrorMsg(err error) string {
 func (cli *DeployStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
-		return fmt.Errorf("Skip deploy step as branch %s is not mapped to any environment", pipelineInfo.Branch)
+		return fmt.Errorf("Skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
 	_, err := cli.deploy(pipelineInfo)
@@ -62,10 +62,10 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo model.PipelineInfo) ([]
 	radixDeployments, err := deployment.ConstructForTargetEnvironments(
 		pipelineInfo.RadixApplication,
 		containerRegistry,
-		pipelineInfo.JobName,
-		pipelineInfo.ImageTag,
-		pipelineInfo.Branch,
-		pipelineInfo.CommitID,
+		pipelineInfo.PipelineArguments.JobName,
+		pipelineInfo.PipelineArguments.ImageTag,
+		pipelineInfo.PipelineArguments.Branch,
+		pipelineInfo.PipelineArguments.CommitID,
 		pipelineInfo.TargetEnvironments)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)

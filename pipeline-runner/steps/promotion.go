@@ -66,33 +66,33 @@ func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
 func (cli *PromoteStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
 	var radixDeployment *v1.RadixDeployment
 
-	fromNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.FromEnvironment)
-	toNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.ToEnvironment)
+	fromNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
+	toNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
 
 	_, err := cli.DefaultStepImplementation.Kubeclient.CoreV1().Namespaces().Get(fromNs, metav1.GetOptions{})
 	if err != nil {
-		return NonExistingFromEnvironment(pipelineInfo.FromEnvironment)
+		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
 	}
 
 	_, err = cli.DefaultStepImplementation.Kubeclient.CoreV1().Namespaces().Get(toNs, metav1.GetOptions{})
 	if err != nil {
-		return NonExistingToEnvironment(pipelineInfo.ToEnvironment)
+		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
 	}
 
-	log.Infof("Promoting %s from %s to %s", pipelineInfo.GetAppName(), pipelineInfo.FromEnvironment, pipelineInfo.ToEnvironment)
-	radixDeployment, err = cli.DefaultStepImplementation.Radixclient.RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.DeploymentName, metav1.GetOptions{})
+	log.Infof("Promoting %s from %s to %s", pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
+	radixDeployment, err = cli.DefaultStepImplementation.Radixclient.RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
 	if err != nil {
-		return NonExistingDeployment(pipelineInfo.DeploymentName)
+		return NonExistingDeployment(pipelineInfo.PipelineArguments.DeploymentName)
 	}
 
-	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.GetAppName(), pipelineInfo.ToEnvironment, pipelineInfo.ImageTag)
+	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
-	radixDeployment.Labels[kube.RadixEnvLabel] = pipelineInfo.ToEnvironment
-	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.JobName
-	radixDeployment.Spec.Environment = pipelineInfo.ToEnvironment
+	radixDeployment.Labels[kube.RadixEnvLabel] = pipelineInfo.PipelineArguments.ToEnvironment
+	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
+	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(pipelineInfo.RadixApplication, radixDeployment, pipelineInfo.ToEnvironment)
+	err = mergeWithRadixApplication(pipelineInfo.RadixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
 	if err != nil {
 		return err
 	}
