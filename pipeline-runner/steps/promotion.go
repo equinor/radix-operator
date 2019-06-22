@@ -76,7 +76,7 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo model.PipelineInfo) error
 
 	_, err = cli.DefaultStepImplementation.Kubeclient.CoreV1().Namespaces().Get(toNs, metav1.GetOptions{})
 	if err != nil {
-		return NonExistingFromEnvironment(pipelineInfo.ToEnvironment)
+		return NonExistingToEnvironment(pipelineInfo.ToEnvironment)
 	}
 
 	log.Infof("Promoting %s from %s to %s", pipelineInfo.GetAppName(), pipelineInfo.FromEnvironment, pipelineInfo.ToEnvironment)
@@ -116,8 +116,11 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 			return NonExistingComponentName(radixConfig.GetName(), comp.Name)
 		}
 
-		environmentVariables := getEnvironmentVariables(raComp, environment)
-		radixDeployment.Spec.Components[index].EnvironmentVariables = environmentVariables
+		environmentConfig := getEnvironmentConfig(raComp, environment)
+		radixDeployment.Spec.Components[index].Resources = environmentConfig.Resources
+		radixDeployment.Spec.Components[index].Monitoring = environmentConfig.Monitoring
+		radixDeployment.Spec.Components[index].Replicas = environmentConfig.Replicas
+		radixDeployment.Spec.Components[index].EnvironmentVariables = environmentConfig.Variables
 	}
 
 	return nil
@@ -133,12 +136,12 @@ func getComponentConfig(radixConfig *v1.RadixApplication, componentName string) 
 	return nil
 }
 
-func getEnvironmentVariables(componentConfig *v1.RadixComponent, environment string) v1.EnvVarsMap {
+func getEnvironmentConfig(componentConfig *v1.RadixComponent, environment string) *v1.RadixEnvironmentConfig {
 	for _, environmentConfig := range componentConfig.EnvironmentConfig {
 		if strings.EqualFold(environmentConfig.Environment, environment) {
-			return environmentConfig.Variables
+			return &environmentConfig
 		}
 	}
 
-	return v1.EnvVarsMap{}
+	return nil
 }

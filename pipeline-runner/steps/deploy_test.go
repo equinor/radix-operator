@@ -7,6 +7,7 @@ import (
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,7 +23,7 @@ const (
 )
 
 func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
-	kubeclient, kube, radixclient, _ := setupTest()
+	kubeclient, kubeUtil, radixclient, _ := setupTest()
 
 	anyBranch := "master"
 	anyEnvironment := "dev"
@@ -41,9 +42,8 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 				WithName(anyComponentName)).
 		BuildRA()
 
-	// Prometheus doesn´t contain any fake
 	cli := NewDeployStep()
-	cli.Init(rr, ra, kubeclient, radixclient, kube, &monitoring.Clientset{})
+	cli.Init(rr, ra, kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
@@ -65,7 +65,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 }
 
 func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
-	kubeclient, kube, radixclient, _ := setupTest()
+	kubeclient, kubeUtil, radixclient, _ := setupTest()
 
 	rr := utils.ARadixRegistration().
 		WithName(anyAppName).
@@ -123,7 +123,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	// Prometheus doesn´t contain any fake
 	cli := NewDeployStep()
-	cli.Init(rr, ra, kubeclient, radixclient, kube, &monitoring.Clientset{})
+	cli.Init(rr, ra, kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
@@ -163,11 +163,11 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, 2, len(rdDev.Spec.Components[1].EnvironmentVariables))
 		assert.Equal(t, "db-dev", rdDev.Spec.Components[1].EnvironmentVariables["DB_HOST"])
 		assert.Equal(t, "1234", rdDev.Spec.Components[1].EnvironmentVariables["DB_PORT"])
-		assert.NotEmpty(t, rdDev.Labels["radix-branch"])
-		assert.NotEmpty(t, rdDev.Labels["radix-commit"])
+		assert.NotEmpty(t, rdDev.Labels[kube.RadixBranchLabel])
+		assert.NotEmpty(t, rdDev.Labels[kube.RadixCommitLabel])
 		assert.NotEmpty(t, rdDev.Labels["radix-job-name"])
-		assert.Equal(t, "master", rdDev.Labels["radix-branch"])
-		assert.Equal(t, anyCommitID, rdDev.Labels["radix-commit"])
+		assert.Equal(t, "master", rdDev.Labels[kube.RadixBranchLabel])
+		assert.Equal(t, anyCommitID, rdDev.Labels[kube.RadixCommitLabel])
 		assert.Equal(t, anyJobName, rdDev.Labels["radix-job-name"])
 	})
 
