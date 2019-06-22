@@ -14,6 +14,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// EmptyArgument Argument by name cannot be empty
+func EmptyArgument(argumentName string) error {
+	return fmt.Errorf("%s cannot be empty", argumentName)
+}
+
 // NonExistingFromEnvironment From environment does not exist
 func NonExistingFromEnvironment(environment string) error {
 	return fmt.Errorf("Non existing from environment %s", environment)
@@ -67,10 +72,15 @@ func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
 func (cli *PromoteStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
 	var radixDeployment *v1.RadixDeployment
 
+	err := areArgumentsValid(pipelineInfo.PipelineArguments)
+	if err != nil {
+		return err
+	}
+
 	fromNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
 	toNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
 
-	_, err := cli.DefaultStepImplementation.Kubeclient.CoreV1().Namespaces().Get(fromNs, metav1.GetOptions{})
+	_, err = cli.DefaultStepImplementation.Kubeclient.CoreV1().Namespaces().Get(fromNs, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
 	}
@@ -106,6 +116,30 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo model.PipelineInfo) error
 	radixDeployment, err = cli.DefaultStepImplementation.Radixclient.RadixV1().RadixDeployments(toNs).Create(radixDeployment)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func areArgumentsValid(arguments model.PipelineArguments) error {
+	if arguments.FromEnvironment == "" {
+		return EmptyArgument("From environment")
+	}
+
+	if arguments.ToEnvironment == "" {
+		return EmptyArgument("To environment")
+	}
+
+	if arguments.DeploymentName == "" {
+		return EmptyArgument("Deployment name")
+	}
+
+	if arguments.JobName == "" {
+		return EmptyArgument("Job name")
+	}
+
+	if arguments.ImageTag == "" {
+		return EmptyArgument("Image tag")
 	}
 
 	return nil

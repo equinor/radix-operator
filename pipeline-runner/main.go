@@ -18,12 +18,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	pipelineDate     string
-	pipelineCommitid string
-	pipelineBranch   string
+const (
+	appNameVariable  = "RADIX_APP"       // Required when repo is not cloned
+	fileNameVariable = "RADIX_FILE_NAME" // Required when repo is cloned to point to location of the config
 )
 
 // Requirements to run, pipeline must have:
@@ -46,8 +46,14 @@ func main() {
 // runs os.Exit(1) if error
 func prepareToRunPipeline() model.PipelineInfo {
 	args := getArgs()
-	fileName := args["RADIX_FILE_NAME"]
-	if fileName == "" {
+
+	appName := args[appNameVariable]
+	fileName := args[fileNameVariable]
+
+	// When we have deployment type pipelines
+	// radix config is not cloned and should therefore
+	// be retrived from cluster
+	if fileName == "" && appName == "" {
 		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")
 	}
 
@@ -56,7 +62,7 @@ func prepareToRunPipeline() model.PipelineInfo {
 	kubeUtil, _ := kube.New(client)
 
 	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
-	radixApplication, err := loadConfigFromFile(fileName)
+	radixApplication, err := getRadixApplicationFromFileOrFromCluster(appName, fileName, radixClient)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -105,6 +111,14 @@ func prepareToRunPipeline() model.PipelineInfo {
 	}
 
 	return pipelineInfo
+}
+
+func getRadixApplicationFromFileOrFromCluster(appName, fileName string, radixClient radixclient.Interface) (*v1.RadixApplication, error) {
+	if fileName != "" {
+		return loadConfigFromFile(fileName)
+	} else {
+		return radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Get(appName, metav1.GetOptions{})
+	}
 }
 
 // LoadConfigFromFile loads radix config from appFileName

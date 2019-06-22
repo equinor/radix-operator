@@ -12,6 +12,8 @@
             "program": "${workspaceFolder}/pipeline-runner/main.go",
             "env": {},
             "args": [
+                "RADIX_APP=radix-loadbalancer-html",
+                "RADIX_FILE_NAME=",
                 "BRANCH=master",
                 "COMMIT_ID=1234",
                 "IMAGE_TAG=abcdef",

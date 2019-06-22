@@ -26,6 +26,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	anyDevEnvironment := "dev"
 	anyQAEnvironment := "qa"
 	anyImageTag := "abcdef"
+	anyJobName := "radix-pipeline-abcdef"
 
 	// Setup
 	kubeclient, kube, radixclient, commonTestUtils := setupTest()
@@ -58,13 +59,19 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 		appName         string
 		fromEnvironment string
 		imageTag        string
+		jobName         string
 		toEnvironment   string
 		deploymentName  string
 		expectedError   error
 	}{
-		{"promote from non-existing environment", anyApp1, anyQAEnvironment, anyImageTag, anyProdEnvironment, anyDeployment2, NonExistingFromEnvironment(anyQAEnvironment)},
-		{"promote to non-existing environment", anyApp1, anyDevEnvironment, anyImageTag, anyQAEnvironment, anyDeployment2, NonExistingToEnvironment(anyQAEnvironment)},
-		{"promote non-existing deployment", anyApp2, anyDevEnvironment, "nopqrst", anyProdEnvironment, "non-existing", NonExistingDeployment("non-existing")},
+		{"empty from environment", anyApp1, "", anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, EmptyArgument("From environment")},
+		{"empty to environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, "", anyDeployment2, EmptyArgument("To environment")},
+		{"empty image tag", anyApp1, anyDevEnvironment, "", anyJobName, anyProdEnvironment, anyDeployment2, EmptyArgument("Image tag")},
+		{"empty job name", anyApp1, anyDevEnvironment, anyImageTag, "", anyProdEnvironment, anyDeployment2, EmptyArgument("Job name")},
+		{"empty deployment name", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyProdEnvironment, "", EmptyArgument("Deployment name")},
+		{"promote from non-existing environment", anyApp1, anyQAEnvironment, anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, NonExistingFromEnvironment(anyQAEnvironment)},
+		{"promote to non-existing environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyQAEnvironment, anyDeployment2, NonExistingToEnvironment(anyQAEnvironment)},
+		{"promote non-existing deployment", anyApp2, anyDevEnvironment, "nopqrst", anyJobName, anyProdEnvironment, "non-existing", NonExistingDeployment("non-existing")},
 	}
 
 	for _, scenario := range testScenarios {
@@ -82,7 +89,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 					FromEnvironment: scenario.fromEnvironment,
 					ToEnvironment:   scenario.toEnvironment,
 					DeploymentName:  scenario.deploymentName,
-					JobName:         scenario.imageTag,
+					JobName:         scenario.jobName,
 					ImageTag:        scenario.imageTag,
 					CommitID:        anyCommitID,
 				},
