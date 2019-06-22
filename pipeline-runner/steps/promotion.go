@@ -34,7 +34,8 @@ func NonExistingComponentName(appName, componentName string) error {
 	return fmt.Errorf("Unable to get application component %s for app %s", componentName, appName)
 }
 
-// PromoteStepImplementation Step to apply RA
+// PromoteStepImplementation Step to promote deployment to another environment,
+// or inside environment
 type PromoteStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
