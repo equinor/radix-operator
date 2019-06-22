@@ -28,7 +28,7 @@ func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo
 	jobName := pipelineInfo.PipelineArguments.JobName
 
 	initContainers := git.CloneInitContainers(pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PushImage, pipelineInfo.RadixApplication.Spec.Components)
+	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PipelineArguments.PushImage, pipelineInfo.RadixApplication.Spec.Components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)

@@ -40,9 +40,11 @@ func Test_BuildDeployPipeType(t *testing.T) {
 
 func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.Build)
-	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, model.PipelineArguments{}, applyConfigStep, buildStep, deployStep)
+
+	pipelineArgs := model.GetPipelineArgsFromArguments(make(map[string]string))
+	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
 	assert.Equal(t, pipeline.Build, p.Type.Name)
-	assert.True(t, p.PushImage)
+	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
 	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
@@ -52,12 +54,12 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.Build)
 
 	pipelineArgs := model.PipelineArguments{
-		PushImage: "0",
+		PushImage: false,
 	}
 
 	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
 	assert.Equal(t, pipeline.Build, p.Type.Name)
-	assert.False(t, p.PushImage)
+	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
 	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
@@ -67,12 +69,12 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(pipeline.Build)
 
 	pipelineArgs := model.PipelineArguments{
-		PushImage: "1",
+		PushImage: true,
 	}
 
 	p, _ := model.InitPipeline(pipelineType, nil, nil, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
 	assert.Equal(t, pipeline.Build, p.Type.Name)
-	assert.True(t, p.PushImage)
+	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
 	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[1].SucceededMsg())

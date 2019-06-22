@@ -12,7 +12,6 @@ type PipelineInfo struct {
 	RadixApplication   *v1.RadixApplication
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
-	PushImage          bool
 	PipelineArguments  PipelineArguments
 	Steps              []Step
 }
@@ -25,7 +24,7 @@ type PipelineArguments struct {
 	CommitID        string
 	ImageTag        string
 	UseCache        string
-	PushImage       string
+	PushImage       bool
 	DeploymentName  string
 	FromEnvironment string
 	ToEnvironment   string
@@ -55,6 +54,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		useCache = "true"
 	}
 
+	pushImagebool := pipelineType == pipeline.BuildDeploy || !(pushImage == "false" || pushImage == "0") // build and deploy require push
+
 	return PipelineArguments{
 		PipelineType:    pipelineType,
 		JobName:         jobName,
@@ -62,7 +63,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		CommitID:        commitID,
 		ImageTag:        imageTag,
 		UseCache:        useCache,
-		PushImage:       pushImage,
+		PushImage:       pushImagebool,
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
@@ -78,15 +79,12 @@ func InitPipeline(pipelineType *pipeline.Type,
 	pipelineArguments PipelineArguments,
 	stepImplementations ...Step) (PipelineInfo, error) {
 
-	pushImagebool := pipelineType.Name == pipeline.BuildDeploy || !(pipelineArguments.PushImage == "false" || pipelineArguments.PushImage == "0") // build and deploy require push
-
 	return PipelineInfo{
 		Type:               pipelineType,
 		RadixRegistration:  rr,
 		RadixApplication:   ra,
 		TargetEnvironments: targetEnv,
 		BranchIsMapped:     branchIsMapped,
-		PushImage:          pushImagebool,
 		PipelineArguments:  pipelineArguments,
 		Steps:              getStepstepImplementationsFromType(pipelineType, stepImplementations...),
 	}, nil
