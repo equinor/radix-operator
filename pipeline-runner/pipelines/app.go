@@ -71,7 +71,7 @@ func Run(pipelineInfo model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.PipelineArguments.CommitID
 
-	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", pipelineInfo.Type, appName, branch, commitID)
+	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", pipelineInfo.Type.Name, appName, branch, commitID)
 
 	for _, step := range pipelineInfo.Steps {
 		err := step.Run(pipelineInfo)

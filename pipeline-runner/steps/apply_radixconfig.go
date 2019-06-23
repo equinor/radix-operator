@@ -28,7 +28,7 @@ func (cli *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepT
 
 // SucceededMsg Override of default step method
 func (cli *ApplyConfigStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: applied new config for application %s", cli.DefaultStepImplementation.Registration.Name)
+	return fmt.Sprintf("Applied config for application %s", cli.DefaultStepImplementation.Registration.Name)
 }
 
 // ErrorMsg Override of default step method
