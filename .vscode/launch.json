@@ -17,11 +17,13 @@
                 "BRANCH=master",
                 "COMMIT_ID=1234",
                 "IMAGE_TAG=abcdef",
-                "JOB_NAME=radix-pipeline-test",
+                "JOB_NAME=radix-pipeline-promotion-2",
                 "USE_CACHE=0",
-                "PIPELINE_TYPE=build-deploy",
+                "PIPELINE_TYPE=promote",
                 "PUSH_IMAGE=0",
-                "DEPLOYMENT_NAME=some-deployment",
+                "FROM_ENVIRONMENT=qa",
+                "TO_ENVIRONMENT=prod",
+                "DEPLOYMENT_NAME=qa-etxkt-ac6rxchq",
             ]
         },
         {

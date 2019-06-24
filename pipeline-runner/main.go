@@ -72,39 +72,27 @@ func prepareToRunPipeline() model.PipelineInfo {
 		os.Exit(1)
 	}
 
-	applyConfigStepImplementation := steps.NewApplyConfigStep()
-	buildStepImplementation := steps.NewBuildStep()
-	deployStepImplementation := steps.NewDeployStep()
-	promoteStepImplementation := steps.NewPromoteStep()
-
-	initStepImplementations(radixRegistration,
+	stepImplementations := initStepImplementations(radixRegistration,
 		radixApplication,
 		client,
 		radixClient,
 		kubeUtil,
-		prometheusOperatorClient,
-		applyConfigStepImplementation,
-		buildStepImplementation,
-		deployStepImplementation,
-		promoteStepImplementation)
+		prometheusOperatorClient)
 
-	pipeType, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
+	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
 
 	pipelineInfo, err := model.InitPipeline(
-		pipeType,
+		pipelineDefinition,
 		radixRegistration,
 		radixApplication,
 		targetEnvironments,
 		branchIsMapped,
 		pipelineArgs,
-		applyConfigStepImplementation,
-		buildStepImplementation,
-		deployStepImplementation,
-		promoteStepImplementation)
+		stepImplementations...)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -150,11 +138,18 @@ func initStepImplementations(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	kubeutil *kube.Kube,
-	prometheusOperatorClient monitoring.Interface,
-	stepImplementations ...model.Step) {
+	prometheusOperatorClient monitoring.Interface) []model.Step {
+
+	stepImplementations := make([]model.Step, 0)
+	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
+	stepImplementations = append(stepImplementations, steps.NewBuildStep())
+	stepImplementations = append(stepImplementations, steps.NewDeployStep())
+	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
 			Init(registration, applicationConfig, kubeclient, radixclient, kubeutil, prometheusOperatorClient)
 	}
+
+	return stepImplementations
 }
