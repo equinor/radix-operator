@@ -13,29 +13,25 @@ const (
 	Promote = "promote"
 )
 
-// Type Enumeration of the different pipelines we support
-type Type struct {
+// Definition Holds pipeline definition
+type Definition struct {
 	Name  string
 	Steps []StepType
 }
 
-var buildDeployPipeline = Type{BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}}
-var buildPipeline = Type{Build, []StepType{ApplyConfigStep, BuildStep}}
-var promotePipeline = Type{Promote, []StepType{PromoteStep}}
-
 // GetSupportedPipelines Lists supported pipelines
-func GetSupportedPipelines() []Type {
-	return []Type{
-		buildDeployPipeline,
-		buildPipeline,
-		promotePipeline}
+func GetSupportedPipelines() []Definition {
+	return []Definition{
+		Definition{BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}},
+		Definition{Build, []StepType{ApplyConfigStep, BuildStep}},
+		Definition{Promote, []StepType{PromoteStep}}}
 }
 
 // GetPipelineFromName Gets pipeline from string
-func GetPipelineFromName(name string) (*Type, error) {
+func GetPipelineFromName(name string) (*Definition, error) {
 	// Default to build-deploy for backward compatibility
 	if name == "" {
-		return &buildDeployPipeline, nil
+		return &Definition{BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}}, nil
 	}
 
 	for _, pipeline := range GetSupportedPipelines() {

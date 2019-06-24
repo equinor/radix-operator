@@ -7,7 +7,7 @@ import (
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
-	Type               *pipeline.Type
+	Definition         *pipeline.Definition
 	RadixRegistration  *v1.RadixRegistration
 	RadixApplication   *v1.RadixApplication
 	TargetEnvironments map[string]bool
@@ -71,7 +71,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 }
 
 // InitPipeline Initialize pipeline with step implementations
-func InitPipeline(pipelineType *pipeline.Type,
+func InitPipeline(pipelineType *pipeline.Definition,
 	rr *v1.RadixRegistration,
 	ra *v1.RadixApplication,
 	targetEnv map[string]bool,
@@ -80,7 +80,7 @@ func InitPipeline(pipelineType *pipeline.Type,
 	stepImplementations ...Step) (PipelineInfo, error) {
 
 	return PipelineInfo{
-		Type:               pipelineType,
+		Definition:         pipelineType,
 		RadixRegistration:  rr,
 		RadixApplication:   ra,
 		TargetEnvironments: targetEnv,
@@ -90,7 +90,7 @@ func InitPipeline(pipelineType *pipeline.Type,
 	}, nil
 }
 
-func getStepstepImplementationsFromType(pipelineType *pipeline.Type, allStepImplementations ...Step) []Step {
+func getStepstepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) []Step {
 	stepImplementations := make([]Step, 0)
 
 	for _, step := range pipelineType.Steps {
