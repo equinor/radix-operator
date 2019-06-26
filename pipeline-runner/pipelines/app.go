@@ -76,10 +76,10 @@ func Run(pipelineInfo model.PipelineInfo) error {
 	for _, step := range pipelineInfo.Steps {
 		err := step.Run(pipelineInfo)
 		if err != nil {
-			log.Errorf(step.ErrorMsg(err))
+			log.Errorf(step.ErrorMsg(pipelineInfo, err))
 			return err
 		}
-		log.Infof(step.SucceededMsg())
+		log.Infof(step.SucceededMsg(pipelineInfo))
 	}
 	return nil
 }

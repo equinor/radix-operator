@@ -22,9 +22,9 @@ func Test_DefaultPipeType(t *testing.T) {
 
 	assert.Equal(t, pipeline.BuildDeploy, p.Definition.Name)
 	assert.Equal(t, 3, len(p.Steps))
-	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
-	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
-	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg())
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg(p))
+	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg(p))
 }
 
 func Test_BuildDeployPipeType(t *testing.T) {
@@ -33,9 +33,9 @@ func Test_BuildDeployPipeType(t *testing.T) {
 
 	assert.Equal(t, pipeline.BuildDeploy, p.Definition.Name)
 	assert.Equal(t, 3, len(p.Steps))
-	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
-	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
-	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg())
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg(p))
+	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg(p))
 }
 
 func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
@@ -46,8 +46,8 @@ func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
 	assert.Equal(t, pipeline.Build, p.Definition.Name)
 	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
-	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
-	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg(p))
 }
 
 func Test_BuildOnlyPipeline(t *testing.T) {
@@ -61,8 +61,8 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 	assert.Equal(t, pipeline.Build, p.Definition.Name)
 	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
-	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
-	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg(p))
 }
 
 func Test_BuildAndPushOnlyPipeline(t *testing.T) {
@@ -76,8 +76,8 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 	assert.Equal(t, pipeline.Build, p.Definition.Name)
 	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
-	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg())
-	assert.Equal(t, "built", p.Steps[1].SucceededMsg())
+	assert.Equal(t, "config applied", p.Steps[0].SucceededMsg(p))
+	assert.Equal(t, "built", p.Steps[1].SucceededMsg(p))
 }
 
 func Test_NonExistingPipelineType(t *testing.T) {

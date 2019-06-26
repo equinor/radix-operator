@@ -43,7 +43,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 		BuildRA()
 
 	cli := NewDeployStep()
-	cli.Init(rr, ra, kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
@@ -125,7 +125,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	// Prometheus doesn´t contain any fake
 	cli := NewDeployStep()
-	cli.Init(rr, ra, kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")

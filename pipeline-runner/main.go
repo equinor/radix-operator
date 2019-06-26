@@ -147,7 +147,7 @@ func initStepImplementations(
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(registration, applicationConfig, kubeclient, radixclient, kubeUtil, prometheusOperatorClient)
+			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient)
 	}
 
 	return stepImplementations

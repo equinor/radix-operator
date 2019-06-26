@@ -29,13 +29,13 @@ func (cli *DeployStepImplementation) ImplementationForType() pipeline.StepType {
 }
 
 // SucceededMsg Override of default step method
-func (cli *DeployStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: deploy application %s", cli.DefaultStepImplementation.Registration.Name)
+func (cli *DeployStepImplementation) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+	return fmt.Sprintf("Succeded: deploy application %s", pipelineInfo.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *DeployStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed to deploy application %s. Error: %v", cli.DefaultStepImplementation.Registration.Name, err)
+func (cli *DeployStepImplementation) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+	return fmt.Sprintf("Failed to deploy application %s. Error: %v", pipelineInfo.GetAppName(), err)
 }
 
 // Run Override of default step method

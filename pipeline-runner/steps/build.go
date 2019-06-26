@@ -38,13 +38,13 @@ func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
 }
 
 // SucceededMsg Override of default step method
-func (cli *BuildStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: build docker image for application %s", cli.DefaultStepImplementation.Registration.Name)
+func (cli *BuildStepImplementation) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+	return fmt.Sprintf("Succeded: build docker image for application %s", pipelineInfo.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *BuildStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed to build application %s. Error: %v", cli.DefaultStepImplementation.Registration.Name, err)
+func (cli *BuildStepImplementation) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+	return fmt.Sprintf("Failed to build application %s. Error: %v", pipelineInfo.GetAppName(), err)
 }
 
 // Run Override of default step method
@@ -54,21 +54,20 @@ func (cli *BuildStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
 		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
-	appName := cli.DefaultStepImplementation.Registration.Name
-	namespace := utils.GetAppNamespace(appName)
+	namespace := utils.GetAppNamespace(pipelineInfo.GetAppName())
 	containerRegistry, err := cli.DefaultStepImplementation.Kubeutil.GetContainerRegistry()
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Building app %s", appName)
+	log.Infof("Building app %s", pipelineInfo.GetAppName())
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createACRBuildJob(containerRegistry, pipelineInfo)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Apply job (%s) to build components for app %s", job.Name, appName)
+	log.Infof("Apply job (%s) to build components for app %s", job.Name, pipelineInfo.GetAppName())
 	job, err = cli.DefaultStepImplementation.Kubeclient.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
