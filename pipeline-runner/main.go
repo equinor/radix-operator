@@ -21,11 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	appNameVariable  = "RADIX_APP"       // Required when repo is not cloned
-	fileNameVariable = "RADIX_FILE_NAME" // Required when repo is cloned to point to location of the config
-)
-
 // Requirements to run, pipeline must have:
 // - access to read RR of the app mention in "RADIX_FILE_NAME"
 // - access to create Jobs in "app" namespace it runs under
@@ -47,19 +42,22 @@ func main() {
 func prepareToRunPipeline() model.PipelineInfo {
 	args := getArgs()
 
-	appName := args[appNameVariable]
-	fileName := args[fileNameVariable]
-
+	// Required when repo is not cloned
 	// When we have deployment-only type pipelines
 	// radix config is not cloned and should therefore
 	// be retrived from cluster
+	appName := args["RADIX_APP"]
+
+	// Required when repo is cloned to point to location of the config
+	fileName := args["RADIX_FILE_NAME"]
+
+	// For testing only
 	if fileName == "" && appName == "" {
 		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")
 	}
 
 	pipelineArgs := model.GetPipelineArgsFromArguments(args)
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
-	kubeUtil, _ := kube.New(client)
 
 	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
 	radixApplication, err := getRadixApplicationFromFileOrFromCluster(appName, fileName, radixClient)
@@ -78,7 +76,6 @@ func prepareToRunPipeline() model.PipelineInfo {
 		radixApplication,
 		client,
 		radixClient,
-		kubeUtil,
 		prometheusOperatorClient)
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
@@ -139,9 +136,9 @@ func initStepImplementations(
 	applicationConfig *v1.RadixApplication,
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
-	kubeutil *kube.Kube,
 	prometheusOperatorClient monitoring.Interface) []model.Step {
 
+	kubeUtil, _ := kube.New(kubeclient)
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
@@ -150,7 +147,7 @@ func initStepImplementations(
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(registration, applicationConfig, kubeclient, radixclient, kubeutil, prometheusOperatorClient)
+			Init(registration, applicationConfig, kubeclient, radixclient, kubeUtil, prometheusOperatorClient)
 	}
 
 	return stepImplementations
