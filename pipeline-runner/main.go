@@ -9,6 +9,7 @@ import (
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -65,18 +66,21 @@ func prepareToRunPipeline() *model.PipelineInfo {
 		os.Exit(1)
 	}
 
-	radixRegistration, targetEnvironments, branchIsMapped, err := pushHandler.Prepare(radixApplication, pipelineArgs.Branch)
+	radixRegistration, err := pushHandler.Prepare(radixApplication)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
 	}
 
-	stepImplementations := initStepImplementations(radixRegistration,
-		radixApplication,
-		client,
-		radixClient,
-		prometheusOperatorClient)
+	applicationConfig, err := application.NewApplicationConfig(client, radixClient, radixRegistration, radixApplication)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
 
+	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(pipelineArgs.Branch)
+
+	stepImplementations := initStepImplementations(client, radixClient, prometheusOperatorClient)
 	pipelineInfo, err := model.InitPipeline(
 		pipelineDefinition,
 		radixRegistration,
@@ -85,6 +89,7 @@ func prepareToRunPipeline() *model.PipelineInfo {
 		branchIsMapped,
 		pipelineArgs,
 		stepImplementations...)
+
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -137,8 +142,6 @@ func getArgs() map[string]string {
 }
 
 func initStepImplementations(
-	registration *v1.RadixRegistration,
-	applicationConfig *v1.RadixApplication,
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	prometheusOperatorClient monitoring.Interface) []model.Step {

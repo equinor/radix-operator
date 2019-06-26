@@ -3,7 +3,6 @@ package onpush
 import (
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
@@ -34,8 +33,8 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, pr
 	return handler
 }
 
-// Prepare Runs preparations before build. It returns the environments mapped for the branch and a flag indicating if branch is mapped
-func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, branch string) (*v1.RadixRegistration, map[string]bool, bool, error) {
+// Prepare Runs preparations before build
+func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication) (*v1.RadixRegistration, error) {
 	if validate.RAContainsOldPublic(radixApplication) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
 	}
@@ -46,23 +45,17 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 		for _, err := range errs {
 			log.Errorf("%v", err)
 		}
-		return nil, nil, false, validate.ConcatErrors(errs)
+		return nil, validate.ConcatErrors(errs)
 	}
 
 	appName := radixApplication.GetName()
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(appName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", appName, err)
-		return nil, nil, false, err
+		return nil, err
 	}
 
-	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, radixRegistration, radixApplication)
-	if err != nil {
-		return nil, nil, false, err
-	}
-
-	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(branch)
-	return radixRegistration, targetEnvironments, branchIsMapped, nil
+	return radixRegistration, nil
 }
 
 // Run runs throught the steps in the defined pipeline

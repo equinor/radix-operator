@@ -39,6 +39,6 @@ func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 		WithComponents(utils.AnApplicationComponent().WithPort("http", 8080)).
 		BuildRA()
 
-	_, _, _, err := cli.Prepare(ra, "master")
+	_, err := cli.Prepare(ra)
 	assert.Error(t, err)
 }
