@@ -5,7 +5,25 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch-pipeline",
+            "name": "Launch-build-deploy-pipeline",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/pipeline-runner/main.go",
+            "env": {},
+            "args": [
+                "RADIX_FILE_NAME=",
+                "BRANCH=master",
+                "COMMIT_ID=1234",
+                "IMAGE_TAG=abcdef",
+                "JOB_NAME=radix-pipeline-promotion-2",
+                "USE_CACHE=0",
+                "PIPELINE_TYPE=build-deploy",
+                "PUSH_IMAGE=0",
+            ]
+        },
+        {
+            "name": "Launch-promote-pipeline",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -14,13 +32,9 @@
             "args": [
                 "RADIX_APP=radix-loadbalancer-html",
                 "RADIX_FILE_NAME=",
-                "BRANCH=master",
-                "COMMIT_ID=1234",
                 "IMAGE_TAG=abcdef",
                 "JOB_NAME=radix-pipeline-promotion-2",
-                "USE_CACHE=0",
                 "PIPELINE_TYPE=promote",
-                "PUSH_IMAGE=0",
                 "FROM_ENVIRONMENT=qa",
                 "TO_ENVIRONMENT=prod",
                 "DEPLOYMENT_NAME=qa-etxkt-ac6rxchq",

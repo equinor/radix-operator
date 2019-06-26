@@ -50,7 +50,7 @@ func prepareToRunPipeline() model.PipelineInfo {
 	appName := args[appNameVariable]
 	fileName := args[fileNameVariable]
 
-	// When we have deployment type pipelines
+	// When we have deployment-only type pipelines
 	// radix config is not cloned and should therefore
 	// be retrived from cluster
 	if fileName == "" && appName == "" {
@@ -64,11 +64,13 @@ func prepareToRunPipeline() model.PipelineInfo {
 	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
 	radixApplication, err := getRadixApplicationFromFileOrFromCluster(appName, fileName, radixClient)
 	if err != nil {
+		log.Error(err.Error())
 		os.Exit(1)
 	}
 
 	radixRegistration, targetEnvironments, branchIsMapped, err := pushHandler.Prepare(radixApplication, pipelineArgs.Branch)
 	if err != nil {
+		log.Error(err.Error())
 		os.Exit(1)
 	}
 

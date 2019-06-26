@@ -34,7 +34,7 @@ func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, pr
 	return handler
 }
 
-// Prepare Runs preparations before build
+// Prepare Runs preparations before build. It returns the environments mapped for the branch and a flag indicating if branch is mapped
 func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, branch string) (*v1.RadixRegistration, map[string]bool, bool, error) {
 	if validate.RAContainsOldPublic(radixApplication) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
