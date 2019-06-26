@@ -40,7 +40,7 @@ func main() {
 }
 
 // runs os.Exit(1) if error
-func prepareToRunPipeline() model.PipelineInfo {
+func prepareToRunPipeline() *model.PipelineInfo {
 	args := getArgs()
 
 	// Required when repo is not cloned

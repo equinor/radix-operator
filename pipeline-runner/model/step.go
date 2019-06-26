@@ -13,9 +13,9 @@ type Step interface {
 	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface)
 
 	ImplementationForType() pipeline.StepType
-	ErrorMsg(PipelineInfo, error) string
-	SucceededMsg(PipelineInfo) string
-	Run(PipelineInfo) error
+	ErrorMsg(*PipelineInfo, error) string
+	SucceededMsg(*PipelineInfo) string
+	Run(*PipelineInfo) error
 }
 
 // DefaultStepImplementation Struct to hold the data common to all step implementations
@@ -46,16 +46,16 @@ func (step *DefaultStepImplementation) ImplementationForType() pipeline.StepType
 }
 
 // ErrorMsg Default implementation
-func (step *DefaultStepImplementation) ErrorMsg(pipelineInfo PipelineInfo, err error) string {
+func (step *DefaultStepImplementation) ErrorMsg(pipelineInfo *PipelineInfo, err error) string {
 	return step.ErrorMessage
 }
 
 // SucceededMsg Default implementation
-func (step *DefaultStepImplementation) SucceededMsg(pipelineInfo PipelineInfo) string {
+func (step *DefaultStepImplementation) SucceededMsg(pipelineInfo *PipelineInfo) string {
 	return step.SuccessMessage
 }
 
 // Run Default implementation
-func (step *DefaultStepImplementation) Run(pipelineInfo PipelineInfo) error {
+func (step *DefaultStepImplementation) Run(pipelineInfo *PipelineInfo) error {
 	return step.Error
 }

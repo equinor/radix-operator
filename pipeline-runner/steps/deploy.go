@@ -29,17 +29,17 @@ func (cli *DeployStepImplementation) ImplementationForType() pipeline.StepType {
 }
 
 // SucceededMsg Override of default step method
-func (cli *DeployStepImplementation) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+func (cli *DeployStepImplementation) SucceededMsg(pipelineInfo *model.PipelineInfo) string {
 	return fmt.Sprintf("Succeded: deploy application %s", pipelineInfo.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *DeployStepImplementation) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+func (cli *DeployStepImplementation) ErrorMsg(pipelineInfo *model.PipelineInfo, err error) string {
 	return fmt.Sprintf("Failed to deploy application %s. Error: %v", pipelineInfo.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *DeployStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
+func (cli *DeployStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
 		return fmt.Errorf("Skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
@@ -50,7 +50,7 @@ func (cli *DeployStepImplementation) Run(pipelineInfo model.PipelineInfo) error 
 }
 
 // Deploy Handles deploy step of the pipeline
-func (cli *DeployStepImplementation) deploy(pipelineInfo model.PipelineInfo) ([]v1.RadixDeployment, error) {
+func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([]v1.RadixDeployment, error) {
 	appName := pipelineInfo.RadixRegistration.Name
 	containerRegistry, err := cli.DefaultStepImplementation.Kubeutil.GetContainerRegistry()
 	if err != nil {

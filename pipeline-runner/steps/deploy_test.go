@@ -48,7 +48,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
 
-	pipelineInfo := model.PipelineInfo{
+	pipelineInfo := &model.PipelineInfo{
 		RadixRegistration: rr,
 		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{
@@ -130,7 +130,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
 
-	pipelineInfo := model.PipelineInfo{
+	pipelineInfo := &model.PipelineInfo{
 		RadixRegistration: rr,
 		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{

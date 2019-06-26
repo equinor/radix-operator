@@ -82,7 +82,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 			cli := NewPromoteStep()
 			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{})
 
-			pipelineInfo := model.PipelineInfo{
+			pipelineInfo := &model.PipelineInfo{
 				RadixRegistration: rr,
 				RadixApplication:  ra,
 				PipelineArguments: model.PipelineArguments{
@@ -156,7 +156,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	cli := NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
 
-	pipelineInfo := model.PipelineInfo{
+	pipelineInfo := &model.PipelineInfo{
 		RadixRegistration: rr,
 		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{
@@ -208,7 +208,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	cli := NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
 
-	pipelineInfo := model.PipelineInfo{
+	pipelineInfo := &model.PipelineInfo{
 		RadixRegistration: rr,
 		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{

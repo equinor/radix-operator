@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -77,34 +79,49 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	targetEnv map[string]bool,
 	branchIsMapped bool,
 	pipelineArguments PipelineArguments,
-	stepImplementations ...Step) (PipelineInfo, error) {
+	stepImplementations ...Step) (*PipelineInfo, error) {
 
-	return PipelineInfo{
+	stepImplementationsForType, err := getStepstepImplementationsFromType(pipelineType, stepImplementations...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PipelineInfo{
 		Definition:         pipelineType,
 		RadixRegistration:  rr,
 		RadixApplication:   ra,
 		TargetEnvironments: targetEnv,
 		BranchIsMapped:     branchIsMapped,
 		PipelineArguments:  pipelineArguments,
-		Steps:              getStepstepImplementationsFromType(pipelineType, stepImplementations...),
+		Steps:              stepImplementationsForType,
 	}, nil
 }
 
-func getStepstepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) []Step {
+func getStepstepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) ([]Step, error) {
 	stepImplementations := make([]Step, 0)
 
 	for _, step := range pipelineType.Steps {
-		for _, stepImplementation := range allStepImplementations {
-			stepType := stepImplementation.ImplementationForType()
+		stepImplementation := getStepImplementationForStepType(step, allStepImplementations)
+		if stepImplementation == nil {
+			return nil, fmt.Errorf("No step implementation found by type %s", stepImplementation)
+		}
 
-			if stepType == step {
-				stepImplementations = append(stepImplementations, stepImplementation)
-				break
-			}
+		stepImplementations = append(stepImplementations, stepImplementation)
+	}
+
+	return stepImplementations, nil
+}
+
+func getStepImplementationForStepType(stepType pipeline.StepType, allStepImplementations []Step) Step {
+	for _, stepImplementation := range allStepImplementations {
+		implementsType := stepImplementation.ImplementationForType()
+
+		if stepType == implementsType {
+			return stepImplementation
 		}
 	}
 
-	return stepImplementations
+	return nil
 }
 
 // GetAppName Gets name of app from registration

@@ -59,17 +59,17 @@ func (cli *PromoteStepImplementation) ImplementationForType() pipeline.StepType 
 }
 
 // SucceededMsg Override of default step method
-func (cli *PromoteStepImplementation) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+func (cli *PromoteStepImplementation) SucceededMsg(pipelineInfo *model.PipelineInfo) string {
 	return fmt.Sprintf("Succeded: promoted application %s", pipelineInfo.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *PromoteStepImplementation) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+func (cli *PromoteStepImplementation) ErrorMsg(pipelineInfo *model.PipelineInfo, err error) string {
 	return fmt.Sprintf("Failed to promote application %s. Error: %v", pipelineInfo.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *PromoteStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
+func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	var radixDeployment *v1.RadixDeployment
 
 	err := areArgumentsValid(pipelineInfo.PipelineArguments)

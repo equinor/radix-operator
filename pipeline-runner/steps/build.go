@@ -38,17 +38,17 @@ func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
 }
 
 // SucceededMsg Override of default step method
-func (cli *BuildStepImplementation) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+func (cli *BuildStepImplementation) SucceededMsg(pipelineInfo *model.PipelineInfo) string {
 	return fmt.Sprintf("Succeded: build docker image for application %s", pipelineInfo.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *BuildStepImplementation) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+func (cli *BuildStepImplementation) ErrorMsg(pipelineInfo *model.PipelineInfo, err error) string {
 	return fmt.Sprintf("Failed to build application %s. Error: %v", pipelineInfo.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *BuildStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
+func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
 		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)

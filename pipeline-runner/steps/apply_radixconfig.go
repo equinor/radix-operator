@@ -27,17 +27,17 @@ func (cli *ApplyConfigStepImplementation) ImplementationForType() pipeline.StepT
 }
 
 // SucceededMsg Override of default step method
-func (cli *ApplyConfigStepImplementation) SucceededMsg(pipelineInfo model.PipelineInfo) string {
+func (cli *ApplyConfigStepImplementation) SucceededMsg(pipelineInfo *model.PipelineInfo) string {
 	return fmt.Sprintf("Applied config for application %s", pipelineInfo.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *ApplyConfigStepImplementation) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
+func (cli *ApplyConfigStepImplementation) ErrorMsg(pipelineInfo *model.PipelineInfo, err error) string {
 	return fmt.Sprintf("Failed to apply config for application %s. Error: %v", pipelineInfo.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *ApplyConfigStepImplementation) Run(pipelineInfo model.PipelineInfo) error {
+func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	applicationConfig, err := application.NewApplicationConfig(cli.DefaultStepImplementation.Kubeclient, cli.DefaultStepImplementation.Radixclient, pipelineInfo.RadixRegistration, pipelineInfo.RadixApplication)
 	if err != nil {
 		return err

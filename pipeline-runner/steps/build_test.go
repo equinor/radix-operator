@@ -57,7 +57,7 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
 
-	pipelineInfo := model.PipelineInfo{
+	pipelineInfo := &model.PipelineInfo{
 		RadixRegistration: rr,
 		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{

@@ -66,7 +66,7 @@ func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication, br
 }
 
 // Run runs throught the steps in the defined pipeline
-func Run(pipelineInfo model.PipelineInfo) error {
+func Run(pipelineInfo *model.PipelineInfo) error {
 	appName := pipelineInfo.GetAppName()
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.PipelineArguments.CommitID

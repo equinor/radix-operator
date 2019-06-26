@@ -21,7 +21,7 @@ const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
 )
 
-func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo) (*batchv1.Job, error) {
+func createACRBuildJob(containerRegistry string, pipelineInfo *model.PipelineInfo) (*batchv1.Job, error) {
 	appName := pipelineInfo.RadixRegistration.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
