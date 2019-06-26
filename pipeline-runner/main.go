@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,24 +44,22 @@ func prepareToRunPipeline() model.PipelineInfo {
 	args := getArgs()
 
 	// Required when repo is not cloned
-	// When we have deployment-only type pipelines
-	// radix config is not cloned and should therefore
-	// be retrived from cluster
 	appName := args["RADIX_APP"]
 
 	// Required when repo is cloned to point to location of the config
 	fileName := args["RADIX_FILE_NAME"]
 
-	// For testing only
-	if fileName == "" && appName == "" {
-		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")
-	}
-
 	pipelineArgs := model.GetPipelineArgsFromArguments(args)
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
+	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
+
 	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
-	radixApplication, err := getRadixApplicationFromFileOrFromCluster(appName, fileName, radixClient)
+	radixApplication, err := getRadixApplicationFromFileOrFromCluster(pipelineDefinition, appName, fileName, radixClient)
 	if err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -78,12 +77,6 @@ func prepareToRunPipeline() model.PipelineInfo {
 		radixClient,
 		prometheusOperatorClient)
 
-	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
-
 	pipelineInfo, err := model.InitPipeline(
 		pipelineDefinition,
 		radixRegistration,
@@ -100,12 +93,24 @@ func prepareToRunPipeline() model.PipelineInfo {
 	return pipelineInfo
 }
 
-func getRadixApplicationFromFileOrFromCluster(appName, fileName string, radixClient radixclient.Interface) (*v1.RadixApplication, error) {
-	if fileName != "" {
-		return loadConfigFromFile(fileName)
-	} else {
+func getRadixApplicationFromFileOrFromCluster(pipelineDefinition *pipeline.Definition, appName, fileName string, radixClient radixclient.Interface) (*v1.RadixApplication, error) {
+	// When we have deployment-only type pipelines (currently only promote)
+	// radix config is not cloned and should therefore
+	// be retrived from cluster
+	if pipelineDefinition.Name == pipeline.Promote {
+		if appName == "" {
+			return nil, fmt.Errorf("App name is a required parameter for %s pipelines", pipelineDefinition.Name)
+		}
+
 		return radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Get(appName, metav1.GetOptions{})
 	}
+
+	if fileName == "" {
+		return nil, fmt.Errorf("Filename is a required parameter for %s pipelines", pipelineDefinition.Name)
+	}
+
+	filePath, _ := filepath.Abs(fileName)
+	return loadConfigFromFile(filePath)
 }
 
 // LoadConfigFromFile loads radix config from appFileName
