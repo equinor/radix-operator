@@ -29,13 +29,13 @@ func (cli *DeployStepImplementation) ImplementationForType() pipeline.StepType {
 }
 
 // SucceededMsg Override of default step method
-func (cli *DeployStepImplementation) SucceededMsg(pipelineInfo *model.PipelineInfo) string {
-	return fmt.Sprintf("Succeded: deploy application %s", pipelineInfo.GetAppName())
+func (cli *DeployStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: deploy application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *DeployStepImplementation) ErrorMsg(pipelineInfo *model.PipelineInfo, err error) string {
-	return fmt.Sprintf("Failed to deploy application %s. Error: %v", pipelineInfo.GetAppName(), err)
+func (cli *DeployStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed to deploy application %s. Error: %v", cli.GetAppName(), err)
 }
 
 // Run Override of default step method
@@ -51,8 +51,8 @@ func (cli *DeployStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 
 // Deploy Handles deploy step of the pipeline
 func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([]v1.RadixDeployment, error) {
-	appName := pipelineInfo.RadixRegistration.Name
-	containerRegistry, err := cli.DefaultStepImplementation.Kubeutil.GetContainerRegistry()
+	appName := cli.GetAppName()
+	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 	log.Infof("Deploying app %s", appName)
 
 	radixDeployments, err := deployment.ConstructForTargetEnvironments(
-		pipelineInfo.RadixApplication,
+		cli.GetApplicationConfig(),
 		containerRegistry,
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
@@ -73,10 +73,10 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 
 	for _, radixDeployment := range radixDeployments {
 		deployment, err := deployment.NewDeployment(
-			cli.DefaultStepImplementation.Kubeclient,
-			cli.DefaultStepImplementation.Radixclient,
-			cli.DefaultStepImplementation.PrometheusOperatorClient,
-			pipelineInfo.RadixRegistration,
+			cli.GetKubeclient(),
+			cli.GetRadixclient(),
+			cli.GetPrometheusOperatorClient(),
+			cli.GetRegistration(),
 			&radixDeployment)
 		if err != nil {
 			return nil, err

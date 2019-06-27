@@ -52,14 +52,12 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 	// Prometheus doesn´t contain any fake
 	cli := NewBuildStep()
-	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{})
+	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, ra)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
-		RadixRegistration: rr,
-		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{
 			JobName:  anyJobName,
 			ImageTag: anyImageTag,

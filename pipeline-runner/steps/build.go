@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -38,13 +39,13 @@ func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
 }
 
 // SucceededMsg Override of default step method
-func (cli *BuildStepImplementation) SucceededMsg(pipelineInfo *model.PipelineInfo) string {
-	return fmt.Sprintf("Succeded: build docker image for application %s", pipelineInfo.GetAppName())
+func (cli *BuildStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: build docker image for application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *BuildStepImplementation) ErrorMsg(pipelineInfo *model.PipelineInfo, err error) string {
-	return fmt.Sprintf("Failed to build application %s. Error: %v", pipelineInfo.GetAppName(), err)
+func (cli *BuildStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed to build application %s. Error: %v", cli.GetAppName(), err)
 }
 
 // Run Override of default step method
@@ -54,21 +55,21 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
-	namespace := utils.GetAppNamespace(pipelineInfo.GetAppName())
-	containerRegistry, err := cli.DefaultStepImplementation.Kubeutil.GetContainerRegistry()
+	namespace := utils.GetAppNamespace(cli.GetAppName())
+	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Building app %s", pipelineInfo.GetAppName())
+	log.Infof("Building app %s", cli.GetAppName())
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createACRBuildJob(containerRegistry, pipelineInfo)
+	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Apply job (%s) to build components for app %s", job.Name, pipelineInfo.GetAppName())
-	job, err = cli.DefaultStepImplementation.Kubeclient.BatchV1().Jobs(namespace).Create(job)
+	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
+	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
 	}
@@ -82,7 +83,7 @@ func (cli *BuildStepImplementation) watchJob(job *batchv1.Job) error {
 	defer close(stop)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		cli.DefaultStepImplementation.Kubeclient, 0, kubeinformers.WithNamespace(job.GetNamespace()))
+		cli.GetKubeclient(), 0, kubeinformers.WithNamespace(job.GetNamespace()))
 	informer := kubeInformerFactory.Batch().V1().Jobs().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -102,7 +103,7 @@ func (cli *BuildStepImplementation) watchJob(job *batchv1.Job) error {
 		DeleteFunc: func(old interface{}) {
 			j, success := old.(*batchv1.Job)
 			if success && j.GetName() == job.GetName() && job.GetNamespace() == j.GetNamespace() {
-				errChan <- fmt.Errorf("Build failed - Job deleted!")
+				errChan <- errors.New("Build failed - Job deleted")
 			}
 		},
 	})

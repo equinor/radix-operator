@@ -3,7 +3,10 @@ package onpush
 import (
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -12,67 +15,111 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// RadixOnPushHandler Instance variables
-type RadixOnPushHandler struct {
+// PipelineRunner Instance variables
+type PipelineRunner struct {
+	definfition              *pipeline.Definition
 	kubeclient               kubernetes.Interface
 	radixclient              radixclient.Interface
 	prometheusOperatorClient monitoring.Interface
-	kubeutil                 *kube.Kube
+	radixApplication         *v1.RadixApplication
+	pipelineInfo             *model.PipelineInfo
 }
 
-// Init constructor
-func Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface) RadixOnPushHandler {
-	kube, _ := kube.New(kubeclient)
-	handler := RadixOnPushHandler{
+// InitRunner constructor
+func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface,
+	definfition *pipeline.Definition, radixApplication *v1.RadixApplication) PipelineRunner {
+	handler := PipelineRunner{
+		definfition:              definfition,
 		kubeclient:               kubeclient,
 		radixclient:              radixclient,
 		prometheusOperatorClient: prometheusOperatorClient,
-		kubeutil:                 kube,
+		radixApplication:         radixApplication,
 	}
 
 	return handler
 }
 
-// Prepare Runs preparations before build
-func (cli *RadixOnPushHandler) Prepare(radixApplication *v1.RadixApplication) (*v1.RadixRegistration, error) {
-	if validate.RAContainsOldPublic(radixApplication) {
+// PrepareRun Runs preparations before build
+func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) error {
+	if validate.RAContainsOldPublic(cli.radixApplication) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
 	}
 
-	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.radixclient, radixApplication)
+	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.radixclient, cli.radixApplication)
 	if !isRAValid {
 		log.Errorf("Radix config not valid.")
 		for _, err := range errs {
 			log.Errorf("%v", err)
 		}
-		return nil, validate.ConcatErrors(errs)
+		return validate.ConcatErrors(errs)
 	}
 
-	appName := radixApplication.GetName()
+	appName := cli.radixApplication.GetName()
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(appName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", appName, err)
-		return nil, err
+		return err
 	}
 
-	return radixRegistration, nil
+	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, radixRegistration, cli.radixApplication)
+	if err != nil {
+		return err
+	}
+
+	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(pipelineArgs.Branch)
+
+	stepImplementations := initStepImplementations(cli.kubeclient, cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
+	cli.pipelineInfo, err = model.InitPipeline(
+		cli.definfition,
+		targetEnvironments,
+		branchIsMapped,
+		pipelineArgs,
+		stepImplementations...)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Run runs throught the steps in the defined pipeline
-func Run(pipelineInfo *model.PipelineInfo) error {
-	appName := pipelineInfo.GetAppName()
-	branch := pipelineInfo.PipelineArguments.Branch
-	commitID := pipelineInfo.PipelineArguments.CommitID
+func (cli *PipelineRunner) Run() error {
+	appName := cli.radixApplication.GetName()
+	branch := cli.pipelineInfo.PipelineArguments.Branch
+	commitID := cli.pipelineInfo.PipelineArguments.CommitID
 
-	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", pipelineInfo.Definition.Name, appName, branch, commitID)
+	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", cli.pipelineInfo.Definition.Name, appName, branch, commitID)
 
-	for _, step := range pipelineInfo.Steps {
-		err := step.Run(pipelineInfo)
+	for _, step := range cli.pipelineInfo.Steps {
+		err := step.Run(cli.pipelineInfo)
 		if err != nil {
-			log.Errorf(step.ErrorMsg(pipelineInfo, err))
+			log.Errorf(step.ErrorMsg(err))
 			return err
 		}
-		log.Infof(step.SucceededMsg(pipelineInfo))
+		log.Infof(step.SucceededMsg())
 	}
 	return nil
+}
+
+func initStepImplementations(
+	kubeclient kubernetes.Interface,
+	radixclient radixclient.Interface,
+	prometheusOperatorClient monitoring.Interface,
+	registration *v1.RadixRegistration,
+	radixApplication *v1.RadixApplication) []model.Step {
+
+	kubeUtil, _ := kube.New(kubeclient)
+	stepImplementations := make([]model.Step, 0)
+	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
+	stepImplementations = append(stepImplementations, steps.NewBuildStep())
+	stepImplementations = append(stepImplementations, steps.NewDeployStep())
+	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
+
+	for _, stepImplementation := range stepImplementations {
+		stepImplementation.
+			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, registration, radixApplication)
+	}
+
+	return stepImplementations
 }

@@ -6,14 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
-	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
@@ -31,9 +26,13 @@ import (
 // - a secret git-ssh-keys containing deployment key to git repo provided in RR
 // - a secret radix-docker with credentials to access our private ACR
 func main() {
-	pipelineInfo := prepareToRunPipeline()
+	runner, err := prepareRunner()
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
 
-	err := pipe.Run(pipelineInfo)
+	err = runner.Run()
 	if err != nil {
 		os.Exit(2)
 	}
@@ -41,7 +40,7 @@ func main() {
 }
 
 // runs os.Exit(1) if error
-func prepareToRunPipeline() *model.PipelineInfo {
+func prepareRunner() (*pipe.PipelineRunner, error) {
 	args := getArgs()
 
 	// Required when repo is not cloned
@@ -55,47 +54,22 @@ func prepareToRunPipeline() *model.PipelineInfo {
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
+		return nil, err
 	}
 
-	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
 	radixApplication, err := getRadixApplicationFromFileOrFromCluster(pipelineDefinition, appName, fileName, radixClient)
 	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
+		return nil, err
 	}
 
-	radixRegistration, err := pushHandler.Prepare(radixApplication)
+	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, radixApplication)
+
+	err = pipelineRunner.PrepareRun(pipelineArgs)
 	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
+		return nil, err
 	}
 
-	applicationConfig, err := application.NewApplicationConfig(client, radixClient, radixRegistration, radixApplication)
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
-
-	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(pipelineArgs.Branch)
-
-	stepImplementations := initStepImplementations(client, radixClient, prometheusOperatorClient)
-	pipelineInfo, err := model.InitPipeline(
-		pipelineDefinition,
-		radixRegistration,
-		radixApplication,
-		targetEnvironments,
-		branchIsMapped,
-		pipelineArgs,
-		stepImplementations...)
-
-	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
-	}
-
-	return pipelineInfo
+	return &pipelineRunner, err
 }
 
 func getRadixApplicationFromFileOrFromCluster(pipelineDefinition *pipeline.Definition, appName, fileName string, radixClient radixclient.Interface) (*v1.RadixApplication, error) {
@@ -139,24 +113,4 @@ func getArgs() map[string]string {
 		args[key] = value
 	}
 	return args
-}
-
-func initStepImplementations(
-	kubeclient kubernetes.Interface,
-	radixclient radixclient.Interface,
-	prometheusOperatorClient monitoring.Interface) []model.Step {
-
-	kubeUtil, _ := kube.New(kubeclient)
-	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
-	stepImplementations = append(stepImplementations, steps.NewBuildStep())
-	stepImplementations = append(stepImplementations, steps.NewDeployStep())
-	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
-
-	for _, stepImplementation := range stepImplementations {
-		stepImplementation.
-			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient)
-	}
-
-	return stepImplementations
 }

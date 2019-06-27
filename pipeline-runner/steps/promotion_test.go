@@ -80,11 +80,9 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 			ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(scenario.appName)).Get(scenario.appName, metav1.GetOptions{})
 
 			cli := NewPromoteStep()
-			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{})
+			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, ra)
 
 			pipelineInfo := &model.PipelineInfo{
-				RadixRegistration: rr,
-				RadixApplication:  ra,
 				PipelineArguments: model.PipelineArguments{
 					FromEnvironment: scenario.fromEnvironment,
 					ToEnvironment:   scenario.toEnvironment,
@@ -154,11 +152,9 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
 
 	pipelineInfo := &model.PipelineInfo{
-		RadixRegistration: rr,
-		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{
 			FromEnvironment: anyDevEnvironment,
 			ToEnvironment:   anyProdEnvironment,
@@ -206,11 +202,9 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{})
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
 
 	pipelineInfo := &model.PipelineInfo{
-		RadixRegistration: rr,
-		RadixApplication:  ra,
 		PipelineArguments: model.PipelineArguments{
 			FromEnvironment: anyDevEnvironment,
 			ToEnvironment:   anyDevEnvironment,

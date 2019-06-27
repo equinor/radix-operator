@@ -4,14 +4,11 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition         *pipeline.Definition
-	RadixRegistration  *v1.RadixRegistration
-	RadixApplication   *v1.RadixApplication
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
 	PipelineArguments  PipelineArguments
@@ -74,8 +71,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 
 // InitPipeline Initialize pipeline with step implementations
 func InitPipeline(pipelineType *pipeline.Definition,
-	rr *v1.RadixRegistration,
-	ra *v1.RadixApplication,
 	targetEnv map[string]bool,
 	branchIsMapped bool,
 	pipelineArguments PipelineArguments,
@@ -88,8 +83,6 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	return &PipelineInfo{
 		Definition:         pipelineType,
-		RadixRegistration:  rr,
-		RadixApplication:   ra,
 		TargetEnvironments: targetEnv,
 		BranchIsMapped:     branchIsMapped,
 		PipelineArguments:  pipelineArguments,
@@ -122,9 +115,4 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 	}
 
 	return nil
-}
-
-// GetAppName Gets name of app from registration
-func (pipelineInfo PipelineInfo) GetAppName() string {
-	return pipelineInfo.RadixRegistration.GetName()
 }

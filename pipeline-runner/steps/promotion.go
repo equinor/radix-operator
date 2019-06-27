@@ -59,13 +59,13 @@ func (cli *PromoteStepImplementation) ImplementationForType() pipeline.StepType 
 }
 
 // SucceededMsg Override of default step method
-func (cli *PromoteStepImplementation) SucceededMsg(pipelineInfo *model.PipelineInfo) string {
-	return fmt.Sprintf("Succeded: promoted application %s", pipelineInfo.GetAppName())
+func (cli *PromoteStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: promoted application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *PromoteStepImplementation) ErrorMsg(pipelineInfo *model.PipelineInfo, err error) string {
-	return fmt.Sprintf("Failed to promote application %s. Error: %v", pipelineInfo.GetAppName(), err)
+func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed to promote application %s. Error: %v", cli.GetAppName(), err)
 }
 
 // Run Override of default step method
@@ -77,43 +77,43 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 		return err
 	}
 
-	fromNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
-	toNs := utils.GetEnvironmentNamespace(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
+	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
+	toNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
 
-	_, err = cli.DefaultStepImplementation.Kubeclient.CoreV1().Namespaces().Get(fromNs, metav1.GetOptions{})
+	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(fromNs, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
 	}
 
-	_, err = cli.DefaultStepImplementation.Kubeclient.CoreV1().Namespaces().Get(toNs, metav1.GetOptions{})
+	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(toNs, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
 	}
 
-	log.Infof("Promoting %s from %s to %s", pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
-	radixDeployment, err = cli.DefaultStepImplementation.Radixclient.RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	log.Infof("Promoting %s from %s to %s", cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
+	radixDeployment, err = cli.GetRadixclient().RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingDeployment(pipelineInfo.PipelineArguments.DeploymentName)
 	}
 
-	radixDeployment.Name = utils.GetDeploymentName(pipelineInfo.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
+	radixDeployment.Name = utils.GetDeploymentName(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
 	radixDeployment.Labels[kube.RadixEnvLabel] = pipelineInfo.PipelineArguments.ToEnvironment
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(pipelineInfo.RadixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
+	err = mergeWithRadixApplication(cli.GetApplicationConfig(), radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
 	if err != nil {
 		return err
 	}
 
-	isValid, err := radixvalidators.CanRadixDeploymentBeInserted(cli.DefaultStepImplementation.Radixclient, radixDeployment)
+	isValid, err := radixvalidators.CanRadixDeploymentBeInserted(cli.GetRadixclient(), radixDeployment)
 	if !isValid {
 		return err
 	}
 
-	radixDeployment, err = cli.DefaultStepImplementation.Radixclient.RadixV1().RadixDeployments(toNs).Create(radixDeployment)
+	radixDeployment, err = cli.GetRadixclient().RadixV1().RadixDeployments(toNs).Create(radixDeployment)
 	if err != nil {
 		return err
 	}

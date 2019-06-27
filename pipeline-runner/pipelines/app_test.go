@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -30,8 +32,6 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
 
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, _ := setupTest()
-	cli := Init(kubeclient, radixclient, &monitoring.Clientset{})
-
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName("any-app").
 		WithEnvironment("dev", "dev").
@@ -39,6 +39,9 @@ func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 		WithComponents(utils.AnApplicationComponent().WithPort("http", 8080)).
 		BuildRA()
 
-	_, err := cli.Prepare(ra)
+	pipelineDefinition, _ := pipeline.GetPipelineFromName(pipeline.BuildDeploy)
+	cli := InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, pipelineDefinition, ra)
+
+	err := cli.PrepareRun(model.PipelineArguments{})
 	assert.Error(t, err)
 }
