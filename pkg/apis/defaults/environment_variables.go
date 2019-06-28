@@ -15,4 +15,5 @@ const (
 	RadixPortNamesEnvironmentVariable    = "RADIX_PORT_NAMES"
 	RadixDNSZoneEnvironmentVariable      = "RADIX_DNS_ZONE"
 	RadixClusterTypeEnvironmentVariable  = "RADIX_CLUSTER_TYPE"
+	ActiveClusternameEnvironmentVariable = "RADIX_ACTIVE_CLUSTERNAME"
 )
