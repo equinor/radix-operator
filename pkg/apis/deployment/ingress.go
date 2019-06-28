@@ -24,6 +24,9 @@ const (
 func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	clustername, err := deploy.kubeutil.GetClusterName()
+	if err != nil {
+		return err
+	}
 	activeClustername := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 
 	var publicPortNumber int32
