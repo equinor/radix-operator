@@ -21,14 +21,14 @@ const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
 )
 
-func createACRBuildJob(containerRegistry string, pipelineInfo model.PipelineInfo) (*batchv1.Job, error) {
-	appName := pipelineInfo.GetAppName()
-	branch := pipelineInfo.Branch
-	imageTag := pipelineInfo.ImageTag
-	jobName := pipelineInfo.JobName
+func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, containerRegistry string, pipelineInfo *model.PipelineInfo) (*batchv1.Job, error) {
+	appName := rr.Name
+	branch := pipelineInfo.PipelineArguments.Branch
+	imageTag := pipelineInfo.PipelineArguments.ImageTag
+	jobName := pipelineInfo.PipelineArguments.JobName
 
-	initContainers := git.CloneInitContainers(pipelineInfo.RadixRegistration.Spec.CloneURL, branch)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PushImage, pipelineInfo.RadixApplication.Spec.Components)
+	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
+	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PipelineArguments.PushImage, ra.Spec.Components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)

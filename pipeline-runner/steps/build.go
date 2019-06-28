@@ -1,66 +1,75 @@
 package steps
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
-type BuildHandler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
+// BuildStepImplementation Step to build docker image
+type BuildStepImplementation struct {
+	stepType pipeline.StepType
+	model.DefaultStepImplementation
 }
 
-// Init constructor
-func InitBuildHandler(kubeclient kubernetes.Interface, radixclient radixclient.Interface) BuildHandler {
-	kube, _ := kube.New(kubeclient)
-	return BuildHandler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kube,
+// NewBuildStep Constructor
+func NewBuildStep() model.Step {
+	return &BuildStepImplementation{
+		stepType: pipeline.BuildStep,
 	}
 }
 
-func (cli BuildHandler) SucceededMsg(pipelineInfo model.PipelineInfo) string {
-	return fmt.Sprintf("Succeded: build docker image for application %s", pipelineInfo.GetAppName())
+// ImplementationForType Override of default step method
+func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
+	return cli.stepType
 }
 
-func (cli BuildHandler) ErrorMsg(pipelineInfo model.PipelineInfo, err error) string {
-	return fmt.Sprintf("Failed to build application %s. Error: %v", pipelineInfo.GetAppName(), err)
+// SucceededMsg Override of default step method
+func (cli *BuildStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: build docker image for application %s", cli.GetAppName())
 }
 
-func (cli BuildHandler) Run(pipelineInfo model.PipelineInfo) error {
-	appName := pipelineInfo.GetAppName()
-	namespace := utils.GetAppNamespace(appName)
-	containerRegistry, err := cli.kubeutil.GetContainerRegistry()
+// ErrorMsg Override of default step method
+func (cli *BuildStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed to build application %s. Error: %v", cli.GetAppName(), err)
+}
+
+// Run Override of default step method
+func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+	if !pipelineInfo.BranchIsMapped {
+		// Do nothing
+		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+	}
+
+	namespace := utils.GetAppNamespace(cli.GetAppName())
+	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Building app %s", appName)
+	log.Infof("Building app %s", cli.GetAppName())
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createACRBuildJob(containerRegistry, pipelineInfo)
+	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Apply job (%s) to build components for app %s", job.Name, appName)
-	job, err = cli.kubeclient.BatchV1().Jobs(namespace).Create(job)
+	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
+	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
 	}
@@ -68,13 +77,13 @@ func (cli BuildHandler) Run(pipelineInfo model.PipelineInfo) error {
 	return cli.watchJob(job)
 }
 
-func (cli BuildHandler) watchJob(job *batchv1.Job) error {
+func (cli *BuildStepImplementation) watchJob(job *batchv1.Job) error {
 	errChan := make(chan error)
 	stop := make(chan struct{})
 	defer close(stop)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		cli.kubeclient, 0, kubeinformers.WithNamespace(job.GetNamespace()))
+		cli.GetKubeclient(), 0, kubeinformers.WithNamespace(job.GetNamespace()))
 	informer := kubeInformerFactory.Batch().V1().Jobs().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -94,7 +103,7 @@ func (cli BuildHandler) watchJob(job *batchv1.Job) error {
 		DeleteFunc: func(old interface{}) {
 			j, success := old.(*batchv1.Job)
 			if success && j.GetName() == job.GetName() && job.GetNamespace() == j.GetNamespace() {
-				errChan <- fmt.Errorf("Build failed - Job deleted!")
+				errChan <- errors.New("Build failed - Job deleted")
 			}
 		},
 	})
