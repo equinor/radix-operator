@@ -3,6 +3,7 @@ package utils
 import (
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -81,13 +82,14 @@ func (db *DeploymentBuilderStruct) WithLabel(label, value string) DeploymentBuil
 
 // WithImageTag Sets deployment tag to be appended to name
 func (db *DeploymentBuilderStruct) WithImageTag(imageTag string) DeploymentBuilder {
+	db.Labels[kube.RadixImageTagLabel] = imageTag
 	db.ImageTag = imageTag
 	return db
 }
 
 // WithEnvironment Sets environment name
 func (db *DeploymentBuilderStruct) WithEnvironment(environment string) DeploymentBuilder {
-	db.Labels["radix-env"] = environment
+	db.Labels[kube.RadixEnvLabel] = environment
 	db.Environment = environment
 	return db
 }
