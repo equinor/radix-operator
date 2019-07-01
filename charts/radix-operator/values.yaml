@@ -1,6 +1,7 @@
 # Default values for radix-operator.
 
-clusterName: clusterz
+clusterName: xx
+activeClusterName: xx
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com

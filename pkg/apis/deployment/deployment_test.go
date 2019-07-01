@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,7 @@ func teardownTest() {
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 }
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
@@ -970,6 +972,42 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	roles, _ = client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 0, len(roles.Items), "Role should have been removed")
 
+}
+
+func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	anyComponentName := "frontend"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+
+	tu, client, radixclient := setupTest()
+
+	radixDeployBuilder := utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+
+	// Current cluster is active cluster
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+	applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+
+	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
+	assert.False(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, clusterName))
+	assert.True(t, strings.Contains(ingresses.Items[1].Spec.Rules[0].Host, clusterName))
+
+	// Current cluster is not active cluster
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "newClusterName")
+	applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(ingresses.Items), "Environment should have one ingresses")
+	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, clusterName))
+
+	teardownTest()
 }
 
 func parseQuantity(value string) resource.Quantity {

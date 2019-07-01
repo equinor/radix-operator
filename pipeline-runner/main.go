@@ -1,24 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-)
-
-var (
-	pipelineDate     string
-	pipelineCommitid string
-	pipelineBranch   string
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Requirements to run, pipeline must have:
@@ -29,9 +26,13 @@ var (
 // - a secret git-ssh-keys containing deployment key to git repo provided in RR
 // - a secret radix-docker with credentials to access our private ACR
 func main() {
-	pipelineInfo := prepareToRunPipeline()
+	runner, err := prepareRunner()
+	if err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
+	}
 
-	err := pipe.Run(pipelineInfo)
+	err = runner.Run()
 	if err != nil {
 		os.Exit(2)
 	}
@@ -39,52 +40,56 @@ func main() {
 }
 
 // runs os.Exit(1) if error
-func prepareToRunPipeline() model.PipelineInfo {
+func prepareRunner() (*pipe.PipelineRunner, error) {
 	args := getArgs()
-	branch := args["BRANCH"]
-	commitID := args["COMMIT_ID"]
+
+	// Required when repo is not cloned
+	appName := args["RADIX_APP"]
+
+	// Required when repo is cloned to point to location of the config
 	fileName := args["RADIX_FILE_NAME"]
-	imageTag := args["IMAGE_TAG"]
-	jobName := args["JOB_NAME"]
-	useCache := args["USE_CACHE"]
-	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
-	pushImage := args["PUSH_IMAGE"]       // "0"
 
-	if branch == "" {
-		branch = "dev"
-	}
-	if fileName == "" {
-		fileName, _ = filepath.Abs("./pipelines/testdata/radixconfig.yaml")
-	}
-	if imageTag == "" {
-		imageTag = "latest"
-	}
-	if useCache == "" {
-		useCache = "true"
-	}
-
+	pipelineArgs := model.GetPipelineArgsFromArguments(args)
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
-	pushHandler := pipe.Init(client, radixClient, prometheusOperatorClient)
 
-	radixApplication, err := loadConfigFromFile(fileName)
+	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
-		os.Exit(1)
+		return nil, err
 	}
 
-	radixRegistration, targetEnvironments, err := pushHandler.Prepare(radixApplication, branch)
+	radixApplication, err := getRadixApplicationFromFileOrFromCluster(pipelineDefinition, appName, fileName, radixClient)
 	if err != nil {
-		os.Exit(1)
+		return nil, err
 	}
 
-	buildStep := steps.InitBuildHandler(client, radixClient)
-	deployStep := steps.InitDeployHandler(client, radixClient, prometheusOperatorClient)
-	pipelineInfo, err := model.Init(pipelineType, radixRegistration, radixApplication, targetEnvironments, jobName, branch, commitID, imageTag, useCache, pushImage, buildStep, deployStep)
+	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, radixApplication)
+
+	err = pipelineRunner.PrepareRun(pipelineArgs)
 	if err != nil {
-		log.Error(err.Error())
-		os.Exit(1)
+		return nil, err
 	}
 
-	return pipelineInfo
+	return &pipelineRunner, err
+}
+
+func getRadixApplicationFromFileOrFromCluster(pipelineDefinition *pipeline.Definition, appName, fileName string, radixClient radixclient.Interface) (*v1.RadixApplication, error) {
+	// When we have deployment-only type pipelines (currently only promote)
+	// radix config is not cloned and should therefore
+	// be retrived from cluster
+	if pipelineDefinition.Name == pipeline.Promote {
+		if appName == "" {
+			return nil, fmt.Errorf("App name is a required parameter for %s pipelines", pipelineDefinition.Name)
+		}
+
+		return radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Get(appName, metav1.GetOptions{})
+	}
+
+	if fileName == "" {
+		return nil, fmt.Errorf("Filename is a required parameter for %s pipelines", pipelineDefinition.Name)
+	}
+
+	filePath, _ := filepath.Abs(fileName)
+	return loadConfigFromFile(filePath)
 }
 
 // LoadConfigFromFile loads radix config from appFileName

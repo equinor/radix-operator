@@ -22,6 +22,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kubeinformers "k8s.io/client-go/informers"
 )
@@ -42,6 +43,9 @@ var (
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
+
+	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
+	logger.Printf("Active cluster name: %v", activeclusternameEnvVar)
 
 	stop := make(chan struct{})
 	defer close(stop)
