@@ -1,0 +1,8 @@
+
+version: v1.0.0
+steps:
+  - cmd: >-
+      {{.Values.REGISTRY}}/buildx
+      build {{.Values.PUSH}}
+      -t {{.Values.IMAGE}}
+      {{.Values.BUILD_CONTEXT}}

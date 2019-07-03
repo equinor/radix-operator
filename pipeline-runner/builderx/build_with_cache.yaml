@@ -1,0 +1,9 @@
+version: v1.0.0
+steps:
+  - cmd: >-
+      {{.Values.REGISTRY}}/buildx
+      build {{.Values.PUSH}}
+      -t {{.Values.IMAGE}}
+      --cache-from={{.Values.REGISTRY}}/{{.Values.REPOSITORY_NAME}}:cache
+      --cache-to=type=registry,ref={{.Values.REGISTRY}}/{{.Values.REPOSITORY_NAME}}:cache,mode=max
+      {{.Values.BUILD_CONTEXT}}

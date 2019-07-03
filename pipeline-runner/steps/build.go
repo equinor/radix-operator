@@ -63,7 +63,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 
 	log.Infof("Building app %s", cli.GetAppName())
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
+	job, err := createACRBuildXJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
 	if err != nil {
 		return err
 	}
