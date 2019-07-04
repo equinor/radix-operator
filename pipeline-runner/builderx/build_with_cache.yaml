@@ -4,6 +4,7 @@ steps:
       {{.Values.REGISTRY}}/buildx
       build {{.Values.PUSH}}
       -t {{.Values.IMAGE}}
+      -f {{.Values.DOCKER_FILE_NAME}}
       --cache-from={{.Values.REGISTRY}}/{{.Values.REPOSITORY_NAME}}:cache
       --cache-to=type=registry,ref={{.Values.REGISTRY}}/{{.Values.REPOSITORY_NAME}}:cache,mode=max
       {{.Values.BUILD_CONTEXT}}
