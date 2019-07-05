@@ -9,6 +9,7 @@ const (
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 	EnvironmentnameEnvironmentVariable   = "RADIX_ENVIRONMENT"
 	PublicEndpointEnvironmentVariable    = "RADIX_PUBLIC_DOMAIN_NAME"
+	CanonicalEndpointEnvironmentVariable = "RADIX_CANONICAL_DOMAIN_NAME"
 	RadixAppEnvironmentVariable          = "RADIX_APP"
 	RadixComponentEnvironmentVariable    = "RADIX_COMPONENT"
 	RadixPortsEnvironmentVariable        = "RADIX_PORTS"
