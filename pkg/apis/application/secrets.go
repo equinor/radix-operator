@@ -8,10 +8,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type DockerConfigJson struct {
-	Authentication map[string]interface{} `json:"auths"`
-}
-
 const (
 	spACRSecretName = "radix-sp-acr-azure" //also defined in ../pipeline-runner/build/build.go
 )
