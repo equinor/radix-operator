@@ -26,7 +26,7 @@ WORKDIR /go/src/github.com/equinor/radix-operator/pipeline-runner/
 RUN golint ../pkg/... && \
     go vet ../pkg/... && \
     golint `go list ./...` && \
-    go vet `go list ./...
+    go vet `go list ./...`
 
 # Avvoid getting signal: killed
 RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
