@@ -26,8 +26,10 @@ WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
 # Run tests
 RUN golint ../pkg/... && \
     golint `go list ./...` && \
-    go vet `go list ./...` ../pkg/... && \
-    CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
+    go vet `go list ./...` ../pkg/...
+
+# Avvoid getting signal: killed
+RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
