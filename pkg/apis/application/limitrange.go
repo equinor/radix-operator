@@ -8,10 +8,17 @@ import (
 )
 
 const (
-	OperatorLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY"
-	OperatorLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU"
+	// OperatorLimitDefaultMemoryEnvironmentVariable Environment variable used to define the default memory-limit on limitrange
+	OperatorLimitDefaultMemoryEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY"
+
+	// OperatorLimitDefaultCPUEnvironmentVariable Environment variable used to define the default cpu-limit on limitrange
+	OperatorLimitDefaultCPUEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU"
+
+	// OperatorLimitDefaultRequestMemoryEnvironmentVariable Environment variable used to define the default memory-request on limitrange
 	OperatorLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY"
-	OperatorLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU"
+
+	// OperatorLimitDefaultReqestCPUEnvironmentVariable Environment variable used to define the default cpu-request on limitrange
+	OperatorLimitDefaultReqestCPUEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU"
 
 	limitRangeName = "mem-cpu-limit-range-app"
 )

@@ -24,19 +24,20 @@ const (
 	MessageResourceSynced = "Radix Registration synced successfully"
 )
 
-type RadixRegistrationHandler struct {
+// Handler Handler for radix registrations
+type Handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	hasSynced   common.HasSynced
 }
 
-//NewRegistrationHandler creates a handler which deals with RadixRegistration resources
-func NewRegistrationHandler(
+//NewHandler creates a handler which deals with RadixRegistration resources
+func NewHandler(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) RadixRegistrationHandler {
+	hasSynced common.HasSynced) Handler {
 
-	handler := RadixRegistrationHandler{
+	handler := Handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		hasSynced:   hasSynced,
@@ -46,7 +47,7 @@ func NewRegistrationHandler(
 }
 
 // Sync Is created on sync of resource
-func (t *RadixRegistrationHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
 	registration, err := t.radixclient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
