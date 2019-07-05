@@ -26,8 +26,8 @@ const (
 	MessageResourceSynced = "Radix Deployment synced successfully"
 )
 
-// RadixDeployHandler Instance variables
-type RadixDeployHandler struct {
+// Handler Instance variables
+type Handler struct {
 	kubeclient              kubernetes.Interface
 	radixclient             radixclient.Interface
 	prometheusperatorclient monitoring.Interface
@@ -35,12 +35,12 @@ type RadixDeployHandler struct {
 	hasSynced               common.HasSynced
 }
 
-// NewDeployHandler Constructor
-func NewDeployHandler(kubeclient kubernetes.Interface,
-	radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, hasSynced common.HasSynced) RadixDeployHandler {
+// NewHandler Constructor
+func NewHandler(kubeclient kubernetes.Interface,
+	radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, hasSynced common.HasSynced) Handler {
 	kube, _ := kube.New(kubeclient)
 
-	handler := RadixDeployHandler{
+	handler := Handler{
 		kubeclient:              kubeclient,
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
@@ -52,7 +52,7 @@ func NewDeployHandler(kubeclient kubernetes.Interface,
 }
 
 // Sync Is created on sync of resource
-func (t *RadixDeployHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
 	rd, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop

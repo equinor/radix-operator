@@ -1,6 +1,10 @@
 FROM golang:alpine3.9 as builder
 
-RUN apk update && apk add git && apk add -y ca-certificates curl dep
+RUN apk update && \
+    apk add git && \
+    apk add -y ca-certificates curl dep  && \
+    apk add --no-cache gcc musl-dev && \
+    go get -u golang.org/x/lint/golint
 
 RUN mkdir -p /go/src/github.com/equinor/radix-operator/
 WORKDIR /go/src/github.com/equinor/radix-operator/
@@ -20,7 +24,10 @@ COPY ./pkg ./pkg
 WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
 
 # Run tests
-RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
+RUN golint ../pkg/... && \
+    golint `go list ./...` && \
+    go vet `go list ./...` ../pkg/... && \
+    CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator

@@ -10,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
 	errUniqueAppName := validateDoesNameAlreadyExist(client, radixRegistration.Name)
@@ -27,6 +28,7 @@ func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistrat
 	return false, ConcatErrors([]error{errUniqueAppName, err})
 }
 
+// CanRadixRegistrationBeUpdated Validates update of RR
 func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	errs := []error{}
 	err := validateAppName(radixRegistration.Name)
@@ -150,6 +152,7 @@ func validateDoesRRExist(client radixclient.Interface, appName string) error {
 	return nil
 }
 
+// ConcatErrors Creates a single error from a list of errors
 func ConcatErrors(errs []error) error {
 	var errstrings []string
 	for _, err := range errs {

@@ -8,10 +8,13 @@ import (
 )
 
 const (
-	MinReplica = 0 // default is 2
+	minReplica = 0 // default is 2
+
+	// MaxReplica Max number of replicas a deployment is allowed to have
 	MaxReplica = 64
 )
 
+// CanRadixDeploymentBeInserted Checks if RD is valid
 func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.RadixDeployment) (bool, error) {
 	// todo! ensure that all rules are valid
 	errors := []error{}
@@ -62,8 +65,8 @@ func validateReplicas(components []radixv1.RadixDeployComponent) error {
 }
 
 func validateReplica(replica int) error {
-	if replica > MaxReplica || replica < MinReplica {
-		return fmt.Errorf("replicas %v must be between %v and %v", replica, MinReplica, MaxReplica)
+	if replica > MaxReplica || replica < minReplica {
+		return fmt.Errorf("replicas %v must be between %v and %v", replica, minReplica, MaxReplica)
 	}
 	return nil
 }
