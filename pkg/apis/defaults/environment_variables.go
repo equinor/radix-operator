@@ -21,7 +21,7 @@ const (
 
 	// PublicEndpointEnvironmentVariable The environment variable holding the public endpoint of the component
 	PublicEndpointEnvironmentVariable = "RADIX_PUBLIC_DOMAIN_NAME"
-
+	CanonicalEndpointEnvironmentVariable = "RADIX_CANONICAL_DOMAIN_NAME"
 	// RadixAppEnvironmentVariable The environment variable holding the name of the app
 	RadixAppEnvironmentVariable = "RADIX_APP"
 
