@@ -82,11 +82,11 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	continueReconsiliation, err := deploy.syncStatuses()
+	stopReconciliation, err := deploy.syncStatuses()
 	if err != nil {
 		return err
 	}
-	if !continueReconsiliation {
+	if stopReconciliation {
 		log.Infof("stopping reconsiliation, status updated, triggering new sync")
 		return nil
 	}
@@ -109,8 +109,8 @@ func IsRadixDeploymentInactive(rd *v1.RadixDeployment) bool {
 	return rd == nil || rd.Status.Status == v1.DeploymentInactive
 }
 
-func (deploy *Deployment) syncStatuses() (continueReconsiliation bool, err error) {
-	continueReconsiliation = true
+func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
+	stopReconciliation = false
 
 	allRds, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.GetNamespace()).List(metav1.ListOptions{})
 	if err != nil {
@@ -118,8 +118,9 @@ func (deploy *Deployment) syncStatuses() (continueReconsiliation bool, err error
 	}
 
 	if deploy.isLatestInTheEnvironment(allRds.Items) {
-		// only continue reconsiliation if status is already set
-		continueReconsiliation = deploy.radixDeployment.Status.Status == v1.DeploymentActive
+		// Only continue reconciliation if Status = Active
+		// if not Status will be updated to Active, and a new reconciliation will take place
+		stopReconciliation = deploy.radixDeployment.Status.Status != v1.DeploymentActive
 		err = deploy.setRdToActive()
 		if err != nil {
 			log.Errorf("Failed to set rd (%s) status to active", deploy.GetName())
@@ -131,8 +132,8 @@ func (deploy *Deployment) syncStatuses() (continueReconsiliation bool, err error
 			log.Warnf("Failed to set old rds statuses to inactive")
 		}
 	} else {
-		// Should not be put back on queue
-		continueReconsiliation = false
+		// Inactive - Should not be put back on queue - stop reconciliation
+		stopReconciliation = true
 		log.Warnf("RadixDeployment %s was not the latest. Ignoring", deploy.GetName())
 		// rd is inactive - reflect in status field
 		err = deploy.setRdToInactive()
