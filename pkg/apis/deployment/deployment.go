@@ -91,12 +91,7 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	err = deploy.syncEnvironment()
-	if err != nil {
-		return err
-	}
-
-	return deploy.syncComponents()
+	return deploy.syncDeployment()
 }
 
 // GetNamespace gets the namespace of radixDeployment
@@ -145,7 +140,7 @@ func (deploy *Deployment) syncStatuses() (continueReconsiliation bool, err error
 	return
 }
 
-func (deploy *Deployment) syncEnvironment() error {
+func (deploy *Deployment) syncDeployment() error {
 	// can garbageCollectComponentsNoLongerInSpec be moved to syncComponents()?
 	err := deploy.garbageCollectComponentsNoLongerInSpec()
 	if err != nil {
@@ -164,10 +159,7 @@ func (deploy *Deployment) syncEnvironment() error {
 		log.Errorf("%s%v", errmsg, err)
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
-	return nil
-}
 
-func (deploy *Deployment) syncComponents() error {
 	for _, v := range deploy.radixDeployment.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
 		err := deploy.createDeployment(v)
