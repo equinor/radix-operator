@@ -106,7 +106,7 @@ func (deploy *Deployment) GetName() string {
 
 // IsRadixDeploymentInactive checks if deployment is inactive
 func IsRadixDeploymentInactive(rd *v1.RadixDeployment) bool {
-	return rd == nil || rd.Status.Status == v1.DeploymentInactive
+	return rd == nil || rd.Status.Condition == v1.DeploymentInactive
 }
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
@@ -120,7 +120,7 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 	if deploy.isLatestInTheEnvironment(allRds.Items) {
 		// Only continue reconciliation if Status = Active
 		// if not Status will be updated to Active, and a new reconciliation will take place
-		stopReconciliation = deploy.radixDeployment.Status.Status != v1.DeploymentActive
+		stopReconciliation = deploy.radixDeployment.Status.Condition != v1.DeploymentActive
 		err = deploy.setRdToActive()
 		if err != nil {
 			log.Errorf("Failed to set rd (%s) status to active", deploy.GetName())
@@ -200,11 +200,11 @@ func (deploy *Deployment) syncDeployment() error {
 }
 
 func (deploy *Deployment) setRdToActive() error {
-	if deploy.radixDeployment.Status.Status == v1.DeploymentActive {
+	if deploy.radixDeployment.Status.Condition == v1.DeploymentActive {
 		return nil
 	}
 
-	deploy.radixDeployment.Status.Status = v1.DeploymentActive
+	deploy.radixDeployment.Status.Condition = v1.DeploymentActive
 	deploy.radixDeployment.Status.ActiveFrom = metav1.NewTime(time.Now().UTC())
 	return saveStatusRd(deploy.radixclient, deploy.radixDeployment)
 }
@@ -214,11 +214,11 @@ func (deploy *Deployment) setRdToInactive() error {
 }
 
 func setRdToInactive(radixClient radixclient.Interface, rd *v1.RadixDeployment) error {
-	if rd.Status.Status == v1.DeploymentInactive {
+	if rd.Status.Condition == v1.DeploymentInactive {
 		return nil
 	}
 
-	rd.Status.Status = v1.DeploymentInactive
+	rd.Status.Condition = v1.DeploymentInactive
 	rd.Status.ActiveTo = metav1.NewTime(time.Now().UTC())
 	return saveStatusRd(radixClient, rd)
 }

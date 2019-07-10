@@ -17,9 +17,9 @@ type RadixDeployment struct {
 
 //RadixDeployStatus is the status for a rd
 type RadixDeployStatus struct {
-	ActiveFrom meta_v1.Time
-	ActiveTo   meta_v1.Time
-	Status     RadixDeployCondition
+	ActiveFrom meta_v1.Time         `json:"activeFrom" yaml:"activeFrom"`
+	ActiveTo   meta_v1.Time         `json:"activeTo" yaml:"activeTo"`
+	Condition  RadixDeployCondition `json:"condition" yaml:"condition"`
 }
 
 type RadixDeployCondition string
