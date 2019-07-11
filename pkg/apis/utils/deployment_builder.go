@@ -20,6 +20,7 @@ type DeploymentBuilder interface {
 	WithEnvironment(string) DeploymentBuilder
 	WithCreated(time.Time) DeploymentBuilder
 	WithUID(types.UID) DeploymentBuilder
+	WithEmptyStatus(bool) DeploymentBuilder
 	WithComponent(DeployComponentBuilder) DeploymentBuilder
 	WithComponents(...DeployComponentBuilder) DeploymentBuilder
 	GetApplicationBuilder() ApplicationBuilder
@@ -31,6 +32,7 @@ type DeploymentBuilderStruct struct {
 	applicationBuilder ApplicationBuilder
 	DeploymentName     string
 	AppName            string
+	emptyStatus        bool
 	Labels             map[string]string
 	ImageTag           string
 	Environment        string
@@ -48,6 +50,11 @@ func (db *DeploymentBuilderStruct) WithDeploymentName(name string) DeploymentBui
 // WithRadixApplication Links to RA builder
 func (db *DeploymentBuilderStruct) WithRadixApplication(applicationBuilder ApplicationBuilder) DeploymentBuilder {
 	db.applicationBuilder = applicationBuilder
+	return db
+}
+
+func (db *DeploymentBuilderStruct) WithEmptyStatus(rdStatus bool) DeploymentBuilder {
+	db.emptyStatus = rdStatus
 	return db
 }
 
@@ -149,6 +156,13 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	if deployName == "" {
 		deployName = GetDeploymentName(db.AppName, db.Environment, db.ImageTag)
 	}
+	status := v1.RadixDeployStatus{}
+	if !db.emptyStatus {
+		status = v1.RadixDeployStatus{
+			Condition:  v1.DeploymentActive,
+			ActiveFrom: metav1.NewTime(time.Now().UTC()),
+		}
+	}
 
 	radixDeployment := &v1.RadixDeployment{
 		TypeMeta: metav1.TypeMeta{
@@ -167,6 +181,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 			Components:  components,
 			Environment: db.Environment,
 		},
+		Status: status,
 	}
 	return radixDeployment
 }
@@ -175,7 +190,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 func NewDeploymentBuilder() DeploymentBuilder {
 	return &DeploymentBuilderStruct{
 		Labels:  make(map[string]string),
-		Created: time.Now(),
+		Created: time.Now().UTC(),
 	}
 }
 
