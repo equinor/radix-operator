@@ -554,7 +554,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	tu, client, radixclient := setupTest()
 
 	// Test
-	now := time.Now()
+	now := time.Now().UTC()
 	var firstUID, secondUID types.UID
 
 	firstUID = "fda3d224-3115-11e9-b189-06c15a8f2fbb"
@@ -1211,7 +1211,7 @@ func TestNewDeploymentStatus(t *testing.T) {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
-		WithCreated(time.Now().UTC()).
+		WithEmptyStatus(true).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName(anyComponentName).
@@ -1224,10 +1224,11 @@ func TestNewDeploymentStatus(t *testing.T) {
 	assert.True(t, rd.Status.ActiveTo.IsZero())
 
 	time.Sleep(2 * time.Millisecond)
+
 	radixDeployBuilder = utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
-		WithCreated(time.Now().UTC()).
+		WithEmptyStatus(true).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName(anyComponentName).
