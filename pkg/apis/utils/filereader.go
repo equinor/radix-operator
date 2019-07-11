@@ -9,6 +9,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// GetRadixApplication Reads radix config from file
 func GetRadixApplication(filename string) (*v1.RadixApplication, error) {
 	log.Debugf("get radix application yaml from %s", filename)
 	radixApp := v1.RadixApplication{}
@@ -24,6 +25,7 @@ func GetRadixApplication(filename string) (*v1.RadixApplication, error) {
 	return &radixApp, nil
 }
 
+// GetRadixRegistrationFromFile Reads radix registration from file
 func GetRadixRegistrationFromFile(file string) (*v1.RadixRegistration, error) {
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -37,6 +39,7 @@ func GetRadixRegistrationFromFile(file string) (*v1.RadixRegistration, error) {
 	return reg, nil
 }
 
+// GetRadixDeploy Reads radix deployment from file
 func GetRadixDeploy(filename string) (*v1.RadixDeployment, error) {
 	log.Debugf("get radix deploy yaml from %s", filename)
 	radixDeploy := v1.RadixDeployment{}

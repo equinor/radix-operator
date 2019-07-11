@@ -51,7 +51,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(stop)
 	defer close(synced)
 
-	deploymentHandler := NewDeployHandler(
+	deploymentHandler := NewHandler(
 		client,
 		radixClient,
 		nil,
@@ -95,13 +95,13 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, handler RadixDeployHandler, stop chan struct{}) {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
-	controller := NewDeployController(
+	controller := NewController(
 		client, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixDeployments(),
 		kubeInformerFactory.Core().V1().Services(),

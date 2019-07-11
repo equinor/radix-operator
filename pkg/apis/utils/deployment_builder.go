@@ -41,6 +41,7 @@ type DeploymentBuilderStruct struct {
 	components         []DeployComponentBuilder
 }
 
+// WithDeploymentName Sets name of the deployment
 func (db *DeploymentBuilderStruct) WithDeploymentName(name string) DeploymentBuilder {
 	db.DeploymentName = name
 	return db
@@ -101,7 +102,7 @@ func (db *DeploymentBuilderStruct) WithEnvironment(environment string) Deploymen
 	return db
 }
 
-// WithUUID Sets UUID
+// WithUID Sets UUID
 func (db *DeploymentBuilderStruct) WithUID(uid types.UID) DeploymentBuilder {
 	db.UID = uid
 	return db

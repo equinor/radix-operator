@@ -43,7 +43,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(stop)
 	defer close(synced)
 
-	applicationHandler := NewApplicationHandler(
+	applicationHandler := NewHandler(
 		client,
 		radixClient,
 		func(syncedOk bool) {
@@ -72,13 +72,13 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, op)
 }
 
-func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, handler RadixApplicationHandler, stop chan struct{}) {
+func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
-	controller := NewApplicationController(client, radixClient, &handler,
+	controller := NewController(client, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixApplications(),
 		kubeInformerFactory.Core().V1().Namespaces(), eventRecorder)
 

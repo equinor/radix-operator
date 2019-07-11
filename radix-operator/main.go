@@ -74,12 +74,12 @@ func startRegistrationController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
-	handler := registration.NewRegistrationHandler(
+	handler := registration.NewHandler(
 		client,
 		radixClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced
 
-	registrationController := registration.NewRegistrationController(
+	registrationController := registration.NewController(
 		client,
 		radixClient,
 		&handler,
@@ -103,9 +103,9 @@ func startApplicationController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
-	handler := application.NewApplicationHandler(client, radixClient,
+	handler := application.NewHandler(client, radixClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
-	applicationController := application.NewApplicationController(
+	applicationController := application.NewController(
 		client,
 		radixClient,
 		&handler,
@@ -130,9 +130,9 @@ func startDeploymentController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
-	handler := deployment.NewDeployHandler(client, radixClient, prometheusOperatorClient,
+	handler := deployment.NewHandler(client, radixClient, prometheusOperatorClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
-	deployController := deployment.NewDeployController(
+	deployController := deployment.NewController(
 		client,
 		radixClient,
 		&handler,
@@ -163,10 +163,12 @@ func startMetricsServer(stop <-chan struct{}) {
 	}
 }
 
+// HealthStatus Represents the data of the endpoint
 type HealthStatus struct {
 	Status int
 }
 
+// Healthz The health endpoint
 func Healthz(writer http.ResponseWriter, r *http.Request) {
 	health := HealthStatus{
 		Status: http.StatusOK,
