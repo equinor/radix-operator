@@ -1201,6 +1201,49 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 	teardownTest()
 }
 
+func TestNewDeploymentStatus(t *testing.T) {
+	anyApp := "any-app"
+	anyEnv := "dev"
+	anyComponentName := "frontend"
+
+	tu, client, radixclient := setupTest()
+
+	radixDeployBuilder := utils.ARadixDeployment().
+		WithAppName(anyApp).
+		WithEnvironment(anyEnv).
+		WithCreated(time.Now().UTC()).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+
+	rd, _ := applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+	assert.Equal(t, v1.DeploymentActive, rd.Status.Condition)
+	assert.True(t, !rd.Status.ActiveFrom.IsZero())
+	assert.True(t, rd.Status.ActiveTo.IsZero())
+
+	time.Sleep(2 * time.Millisecond)
+	radixDeployBuilder = utils.ARadixDeployment().
+		WithAppName(anyApp).
+		WithEnvironment(anyEnv).
+		WithCreated(time.Now().UTC()).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+
+	rd2, _ := applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+	rd, _ = radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
+
+	assert.Equal(t, v1.DeploymentInactive, rd.Status.Condition)
+	assert.Equal(t, rd.Status.ActiveTo, rd2.Status.ActiveFrom)
+
+	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
+	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
