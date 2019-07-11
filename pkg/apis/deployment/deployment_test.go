@@ -583,6 +583,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
+	time.Sleep(1 * time.Millisecond)
 	// This is one second newer deployment
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
 		WithAppName("app1").
@@ -1273,9 +1274,7 @@ func applyDeploymentWithSync(tu *test.Utils, client kube.Interface,
 
 func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface,
 	radixclient radixclient.Interface, deploymentBuilder utils.DeploymentBuilder) error {
-	rd := deploymentBuilder.BuildRD()
-
-	err := tu.ApplyDeploymentUpdate(deploymentBuilder)
+	rd, err := tu.ApplyDeploymentUpdate(deploymentBuilder)
 	if err != nil {
 		return err
 	}
