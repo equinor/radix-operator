@@ -2,6 +2,8 @@ package deployment
 
 import (
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -14,6 +16,7 @@ import (
 )
 
 const (
+	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
 	DefaultReplicas = 1
 
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
@@ -76,18 +79,72 @@ func (deploy *Deployment) Apply() error {
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync() error {
-	isLatest, err := deploy.isLatestInTheEnvironment()
-	if err != nil {
-		return fmt.Errorf("Failed to check if RadixDeployment was latest. Error was %v", err)
-	}
-
-	if !isLatest {
-		// Should not be put back on queue
-		log.Warnf("RadixDeployment %s was not the latest. Ignoring", deploy.radixDeployment.GetName())
+	if IsRadixDeploymentInactive(deploy.radixDeployment) {
+		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.GetNamespace(), deploy.GetName())
 		return nil
 	}
 
-	err = deploy.garbageCollectComponentsNoLongerInSpec()
+	stopReconciliation, err := deploy.syncStatuses()
+	if err != nil {
+		return err
+	}
+	if stopReconciliation {
+		log.Infof("stop reconciliation, status updated triggering new sync")
+		return nil
+	}
+
+	return deploy.syncDeployment()
+}
+
+// GetNamespace gets the namespace of radixDeployment
+func (deploy *Deployment) GetNamespace() string {
+	return deploy.radixDeployment.GetNamespace()
+}
+
+// GetName gets the name of radixDeployment
+func (deploy *Deployment) GetName() string {
+	return deploy.radixDeployment.GetName()
+}
+
+// IsRadixDeploymentInactive checks if deployment is inactive
+func IsRadixDeploymentInactive(rd *v1.RadixDeployment) bool {
+	return rd == nil || rd.Status.Condition == v1.DeploymentInactive
+}
+
+func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
+	stopReconciliation = false
+
+	allRDs, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+	}
+
+	if deploy.isLatestInTheEnvironment(allRDs.Items) {
+		// Only continue reconciliation if Status = Active
+		// if not Status will be updated to Active, and a new reconciliation will take place
+		stopReconciliation = deploy.radixDeployment.Status.Condition != v1.DeploymentActive
+		err = deploy.setRDToActive()
+		if err != nil {
+			log.Errorf("Failed to set rd (%s) status to active", deploy.GetName())
+			return false, err
+		}
+		err = deploy.setOtherRDsToInactive(allRDs.Items)
+		if err != nil {
+			// should this lead to new RD not being deployed?
+			log.Warnf("Failed to set old rds statuses to inactive")
+		}
+	} else {
+		// Inactive - Should not be put back on queue - stop reconciliation
+		// Inactive status is updated when latest rd reconciliation is triggered
+		stopReconciliation = true
+		log.Warnf("RadixDeployment %s was not the latest. Ignoring", deploy.GetName())
+	}
+	return
+}
+
+func (deploy *Deployment) syncDeployment() error {
+	// can garbageCollectComponentsNoLongerInSpec be moved to syncComponents()?
+	err := deploy.garbageCollectComponentsNoLongerInSpec()
 	if err != nil {
 		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
 	}
@@ -143,21 +200,80 @@ func (deploy *Deployment) OnSync() error {
 	return nil
 }
 
-// isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
-func (deploy *Deployment) isLatestInTheEnvironment() (bool, error) {
-	all, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
-	if err != nil {
-		return false, err
+func (deploy *Deployment) setRDToActive() error {
+	if deploy.radixDeployment.Status.Condition == v1.DeploymentActive {
+		return nil
 	}
 
-	for _, rd := range all.Items {
-		if rd.GetName() != deploy.radixDeployment.GetName() &&
-			rd.CreationTimestamp.Time.After(deploy.radixDeployment.CreationTimestamp.Time) {
-			return false, nil
+	deploy.radixDeployment.Status.Condition = v1.DeploymentActive
+	deploy.radixDeployment.Status.ActiveFrom = metav1.NewTime(time.Now().UTC())
+	return saveStatusRD(deploy.radixclient, deploy.radixDeployment)
+}
+
+func setRDToInactive(radixClient radixclient.Interface, rd *v1.RadixDeployment, activeTo metav1.Time) error {
+	if rd.Status.Condition == v1.DeploymentInactive {
+		return nil
+	}
+
+	rd.Status.Condition = v1.DeploymentInactive
+	rd.Status.ActiveTo = metav1.NewTime(activeTo.Time)
+	rd.Status.ActiveFrom = getActiveFrom(rd)
+	return saveStatusRD(radixClient, rd)
+}
+
+func saveStatusRD(radixClient radixclient.Interface, rd *v1.RadixDeployment) error {
+	_, err := radixClient.RadixV1().RadixDeployments(rd.GetNamespace()).UpdateStatus(rd)
+	return err
+}
+
+func (deploy *Deployment) setOtherRDsToInactive(allRDs []v1.RadixDeployment) error {
+	sortedRDs := sortRDsByActiveFromTimestampDesc(allRDs)
+	prevRDActiveFrom := metav1.Time{}
+
+	for _, rd := range sortedRDs {
+		if rd.GetName() != deploy.GetName() {
+			err := setRDToInactive(deploy.radixclient, &rd, prevRDActiveFrom)
+			if err != nil {
+				return err
+			}
+			prevRDActiveFrom = getActiveFrom(&rd)
+		} else {
+			prevRDActiveFrom = getActiveFrom(deploy.radixDeployment)
+		}
+	}
+	return nil
+}
+
+func sortRDsByActiveFromTimestampDesc(rds []v1.RadixDeployment) []v1.RadixDeployment {
+	sort.Slice(rds, func(i, j int) bool {
+		return isRD1ActiveBeforeRD2(&rds[j], &rds[i])
+	})
+	return rds
+}
+
+// isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
+func (deploy *Deployment) isLatestInTheEnvironment(allRDs []v1.RadixDeployment) bool {
+	for _, rd := range allRDs {
+		if rd.GetName() != deploy.GetName() && isRD1ActiveBeforeRD2(deploy.radixDeployment, &rd) {
+			return false
 		}
 	}
 
-	return true, nil
+	return true
+}
+
+func isRD1ActiveBeforeRD2(rd1 *v1.RadixDeployment, rd2 *v1.RadixDeployment) bool {
+	rd1ActiveFrom := getActiveFrom(rd1)
+	rd2ActiveFrom := getActiveFrom(rd2)
+
+	return rd1ActiveFrom.Before(&rd2ActiveFrom)
+}
+
+func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
+	if rd.Status.ActiveFrom.IsZero() {
+		return rd.CreationTimestamp
+	}
+	return rd.Status.ActiveFrom
 }
 
 func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {

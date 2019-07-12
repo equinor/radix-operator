@@ -25,6 +25,7 @@ rules:
   - radixregistrations
   - radixapplications
   - radixdeployments
+  - radixdeployments/status
   verbs:
   - get
   - list

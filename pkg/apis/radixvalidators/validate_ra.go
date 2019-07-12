@@ -12,6 +12,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
 
+// CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
 	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app)
 	if isValid {
@@ -21,6 +22,7 @@ func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.Ra
 	return false, ConcatErrors(errs)
 }
 
+// CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
 func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
 	errs := []error{}
 	err := validateAppName(app.Name)
@@ -64,6 +66,7 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	return false, errs
 }
 
+// RAContainsOldPublic Checks to see if the radix config is using the deprecated config for public port
 func RAContainsOldPublic(app *radixv1.RadixApplication) bool {
 	for _, component := range app.Spec.Components {
 		if component.Public {
@@ -295,9 +298,9 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 		if component.Name == name {
 			if component.Public || component.PublicPort != "" {
 				return true
-			} else {
-				return false
 			}
+
+			return false
 		}
 	}
 	return false

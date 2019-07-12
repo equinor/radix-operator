@@ -22,15 +22,18 @@ func hash(s string) int64 {
 	return int64(nr)
 }
 
+// RandString Returns a random string of given length
 func RandString(length int) string {
 	return RandStringSeed(length, defaultSrc)
 }
 
+// RandStringStrSeed Returns a random string of given length from seed
 func RandStringStrSeed(length int, src string) string {
 	seed := rand.NewSource(hash(src))
 	return RandStringSeed(length, seed)
 }
 
+// RandStringSeed Returns a random string of given length from seed
 func RandStringSeed(length int, src rand.Source) string {
 	b := make([]byte, length)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!

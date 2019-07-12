@@ -46,6 +46,7 @@ func teardownTest() {
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	tu, client, radixclient := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
 
 	// Test
 	_, err := applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
@@ -91,7 +92,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
 		assert.Equal(t, "app", deployments.Items[0].Name, "app deployment not there")
 		assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 9, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, 10, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
@@ -102,14 +103,16 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, "test", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Value)
 		assert.Equal(t, defaults.PublicEndpointEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Name)
 		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Value)
-		assert.Equal(t, defaults.RadixAppEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Name)
-		assert.Equal(t, "edcradix", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Value)
-		assert.Equal(t, defaults.RadixComponentEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Name)
-		assert.Equal(t, "app", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Value)
-		assert.Equal(t, defaults.RadixPortsEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Name)
-		assert.Equal(t, "(8080)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Value)
-		assert.Equal(t, defaults.RadixPortNamesEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Name)
-		assert.Equal(t, "(http)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Value)
+		assert.Equal(t, defaults.CanonicalEndpointEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Name)
+		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Value)
+		assert.Equal(t, defaults.RadixAppEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Name)
+		assert.Equal(t, "edcradix", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Value)
+		assert.Equal(t, defaults.RadixComponentEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Name)
+		assert.Equal(t, "app", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Value)
+		assert.Equal(t, defaults.RadixPortsEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Name)
+		assert.Equal(t, "(8080)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Value)
+		assert.Equal(t, defaults.RadixPortNamesEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[9].Name)
+		assert.Equal(t, "(http)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[9].Value)
 		assert.Equal(t, parseQuantity("128Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["memory"])
 		assert.Equal(t, parseQuantity("500m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["cpu"])
 		assert.Equal(t, parseQuantity("64Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["memory"])
@@ -129,7 +132,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[2].Name)
 		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[3].Name)
-		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[9].Name)
+		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[10].Name)
 	})
 
 	t.Run("validate service", func(t *testing.T) {
@@ -165,6 +168,194 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, int32(3000), ingresses.Items[4].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 		assert.Equal(t, "false", ingresses.Items[4].Labels["radix-app-alias"], "Ingress should not be an app alias")
 		assert.Equal(t, "radixquote", ingresses.Items[4].Labels["radix-component"], "Ingress should have the corresponding component")
+	})
+
+	t.Run("validate secrets", func(t *testing.T) {
+		t.Parallel()
+		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
+
+		// External aliases TLS certificate secrets
+		assert.Equal(t, "some.alias.com", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
+		assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), secrets.Items[1].Type, "TLS certificate for external alias is not properly defined type")
+		assert.Equal(t, "another.alias.com", secrets.Items[2].GetName(), "TLS certificate for second external alias is not properly defined")
+		assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), secrets.Items[2].Type, "TLS certificate for external alias is not properly defined type")
+
+		componentSecretName := utils.GetComponentSecretName("radixquote")
+		assert.Equal(t, componentSecretName, secrets.Items[3].GetName(), "Component secret is not as expected")
+	})
+
+	t.Run("validate service accounts", func(t *testing.T) {
+		t.Parallel()
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+	})
+
+	t.Run("validate roles", func(t *testing.T) {
+		t.Parallel()
+		roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+
+		assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
+
+		// External aliases
+		assert.Equal(t, "radix-app-adm-app", roles.Items[0].GetName(), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
+		assert.Equal(t, "secrets", roles.Items[0].Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
+		assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
+		assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+
+		assert.Equal(t, "radix-app-adm-radixquote", roles.Items[1].GetName(), "Expected role radix-app-adm-radixquote to be there to access secret")
+	})
+
+	t.Run("validate rolebindings", func(t *testing.T) {
+		t.Parallel()
+		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
+
+		// External aliases
+		assert.Equal(t, "radix-app-adm-app", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
+
+		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[1].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+	})
+
+	t.Run("validate networkpolicy", func(t *testing.T) {
+		t.Parallel()
+		np, _ := client.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+	})
+
+	teardownTest()
+}
+
+func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllElements(t *testing.T) {
+	tu, client, radixclient := setupTest()
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+
+	// Test
+	_, err := applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName("edcradix").
+		WithImageTag("axmz8").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
+				WithName("app").
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true).
+				WithDNSExternalAlias("some.alias.com").
+				WithDNSExternalAlias("another.alias.com").
+				WithResource(map[string]string{
+					"memory": "64Mi",
+					"cpu":    "250m",
+				}, map[string]string{
+					"memory": "128Mi",
+					"cpu":    "500m",
+				}).
+				WithReplicas(4),
+			utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
+				WithName("redis").
+				WithEnvironmentVariable("a_variable", "3001").
+				WithPort("http", 6379).
+				WithPublicPort("").
+				WithReplicas(0),
+			utils.NewDeployComponentBuilder().
+				WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
+				WithName("radixquote").
+				WithPort("http", 3000).
+				WithPublicPort("http").
+				WithSecrets([]string{"a_secret"})))
+
+	assert.NoError(t, err)
+	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
+	t.Run("validate deploy", func(t *testing.T) {
+		t.Parallel()
+		deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
+		assert.Equal(t, "app", deployments.Items[0].Name, "app deployment not there")
+		assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, 10, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
+		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
+		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
+		assert.Equal(t, dnsZone, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Value)
+		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Name)
+		assert.Equal(t, "AnyClusterName", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Value)
+		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Name)
+		assert.Equal(t, "test", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Value)
+		assert.Equal(t, defaults.PublicEndpointEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Name)
+		assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Value)
+		assert.Equal(t, defaults.CanonicalEndpointEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Name)
+		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Value)
+		assert.Equal(t, defaults.RadixAppEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Name)
+		assert.Equal(t, "edcradix", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Value)
+		assert.Equal(t, defaults.RadixComponentEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Name)
+		assert.Equal(t, "app", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Value)
+		assert.Equal(t, defaults.RadixPortsEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Name)
+		assert.Equal(t, "(8080)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Value)
+		assert.Equal(t, defaults.RadixPortNamesEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[9].Name)
+		assert.Equal(t, "(http)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[9].Value)
+		assert.Equal(t, parseQuantity("128Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["memory"])
+		assert.Equal(t, parseQuantity("500m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["cpu"])
+		assert.Equal(t, parseQuantity("64Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["memory"])
+		assert.Equal(t, parseQuantity("250m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["cpu"])
+		assert.Equal(t, "redis", deployments.Items[1].Name, "redis deployment not there")
+		assert.Equal(t, int32(DefaultReplicas), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, 9, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
+		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[1].Name)
+		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[2].Name)
+		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[3].Name)
+		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[4].Name)
+		assert.Equal(t, "3001", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Value)
+		assert.Equal(t, "radixquote", deployments.Items[2].Name, "radixquote deployment not there")
+		assert.Equal(t, int32(DefaultReplicas), *deployments.Items[2].Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[0].Name)
+		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
+		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[2].Name)
+		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[3].Name)
+		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[10].Name)
+	})
+
+	t.Run("validate service", func(t *testing.T) {
+		t.Parallel()
+		services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 3, len(services.Items), "Number of services wasn't as expected")
+		assert.Equal(t, "app", services.Items[0].Name, "app service not there")
+		assert.Equal(t, "redis", services.Items[1].Name, "redis service not there")
+		assert.Equal(t, "radixquote", services.Items[2].Name, "radixquote service not there")
+	})
+
+	t.Run("validate ingress", func(t *testing.T) {
+		t.Parallel()
+		ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 7, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
+
+		assert.Equal(t, "edcradix-url-alias", ingresses.Items[0].GetName(), "App should have had an app alias ingress")
+		assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "true", ingresses.Items[0].Labels["radix-app-alias"], "Ingress should be an app alias")
+		assert.Equal(t, "app", ingresses.Items[0].Labels["radix-component"], "Ingress should have the corresponding component")
+
+		// External aliases
+		assert.Equal(t, "some.alias.com", ingresses.Items[1].GetName(), "App should have an external alias")
+		assert.Equal(t, "some.alias.com", ingresses.Items[1].Spec.Rules[0].Host, "App should have an external alias")
+		assert.Equal(t, "another.alias.com", ingresses.Items[2].GetName(), "App should have a second  external alias")
+		assert.Equal(t, "another.alias.com", ingresses.Items[2].Spec.Rules[0].Host, "App should have an external alias")
+		assert.Equal(t, "app-active-cluster-url-alias", ingresses.Items[3].GetName(), "App should have a second  external alias")
+		assert.Equal(t, "app-edcradix-test.dev.radix.equinor.com", ingresses.Items[3].Spec.Rules[0].Host, "App should have an external alias")
+
+		assert.Equal(t, "app", ingresses.Items[4].GetName(), "App should have had an ingress")
+		assert.Equal(t, int32(8080), ingresses.Items[4].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "false", ingresses.Items[4].Labels["radix-app-alias"], "Ingress should not be an app alias")
+		assert.Equal(t, "app", ingresses.Items[4].Labels["radix-component"], "Ingress should have the corresponding component")
+
+		assert.Equal(t, "radixquote-active-cluster-url-alias", ingresses.Items[5].GetName(), "Radixquote should have had an ingress")
+
+		assert.Equal(t, "radixquote", ingresses.Items[6].GetName(), "Radixquote should have had an ingress")
+		assert.Equal(t, int32(3000), ingresses.Items[6].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+		assert.Equal(t, "false", ingresses.Items[6].Labels["radix-app-alias"], "Ingress should not be an app alias")
+		assert.Equal(t, "radixquote", ingresses.Items[6].Labels["radix-component"], "Ingress should have the corresponding component")
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {
@@ -363,7 +554,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	tu, client, radixclient := setupTest()
 
 	// Test
-	now := time.Now()
+	now := time.Now().UTC()
 	var firstUID, secondUID types.UID
 
 	firstUID = "fda3d224-3115-11e9-b189-06c15a8f2fbb"
@@ -392,6 +583,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
+	time.Sleep(1 * time.Millisecond)
 	// This is one second newer deployment
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
 		WithAppName("app1").
@@ -1010,6 +1202,50 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 	teardownTest()
 }
 
+func TestNewDeploymentStatus(t *testing.T) {
+	anyApp := "any-app"
+	anyEnv := "dev"
+	anyComponentName := "frontend"
+
+	tu, client, radixclient := setupTest()
+
+	radixDeployBuilder := utils.ARadixDeployment().
+		WithAppName(anyApp).
+		WithEnvironment(anyEnv).
+		WithEmptyStatus(true).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+
+	rd, _ := applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+	assert.Equal(t, v1.DeploymentActive, rd.Status.Condition)
+	assert.True(t, !rd.Status.ActiveFrom.IsZero())
+	assert.True(t, rd.Status.ActiveTo.IsZero())
+
+	time.Sleep(2 * time.Millisecond)
+
+	radixDeployBuilder = utils.ARadixDeployment().
+		WithAppName(anyApp).
+		WithEnvironment(anyEnv).
+		WithEmptyStatus(true).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+
+	rd2, _ := applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+	rd, _ = radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
+
+	assert.Equal(t, v1.DeploymentInactive, rd.Status.Condition)
+	assert.Equal(t, rd.Status.ActiveTo, rd2.Status.ActiveFrom)
+
+	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
+	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
@@ -1038,9 +1274,7 @@ func applyDeploymentWithSync(tu *test.Utils, client kube.Interface,
 
 func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface,
 	radixclient radixclient.Interface, deploymentBuilder utils.DeploymentBuilder) error {
-	rd := deploymentBuilder.BuildRD()
-
-	err := tu.ApplyDeploymentUpdate(deploymentBuilder)
+	rd, err := tu.ApplyDeploymentUpdate(deploymentBuilder)
 	if err != nil {
 		return err
 	}

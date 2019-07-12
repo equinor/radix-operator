@@ -17,3 +17,5 @@ spec:
     shortNames:
       - rd
   scope: Namespaced
+  subresources:
+    status: {}

@@ -99,9 +99,22 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 	})
 
 	if isPublic {
+		canonicalHostName := getHostName(componentName, namespace, clusterName, dnsZone)
+		publicHostName := ""
+
+		if isActiveCluster(clusterName) {
+			publicHostName = getActiveClusterHostName(componentName, namespace)
+		} else {
+			publicHostName = canonicalHostName
+		}
+
 		environmentVariables = append(environmentVariables, corev1.EnvVar{
 			Name:  defaults.PublicEndpointEnvironmentVariable,
-			Value: getHostName(componentName, namespace, clusterName, dnsZone),
+			Value: publicHostName,
+		})
+		environmentVariables = append(environmentVariables, corev1.EnvVar{
+			Name:  defaults.CanonicalEndpointEnvironmentVariable,
+			Value: canonicalHostName,
 		})
 	}
 

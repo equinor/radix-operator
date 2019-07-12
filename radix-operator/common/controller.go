@@ -220,10 +220,12 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 	}
 }
 
+// CustomResourceAdded Increments metric to count the number of cr added
 func (c *Controller) CustomResourceAdded(kind string) {
 	nrCrAdded.With(prometheus.Labels{"cr_type": kind}).Inc()
 }
 
+// CustomResourceDeleted Increments metric to count the number of cr deleted
 func (c *Controller) CustomResourceDeleted(kind string) {
 	nrCrDeleted.With(prometheus.Labels{"cr_type": kind}).Inc()
 }

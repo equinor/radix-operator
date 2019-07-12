@@ -44,7 +44,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(stop)
 	defer close(synced)
 
-	registrationHandler := NewRegistrationHandler(
+	registrationHandler := NewHandler(
 		client,
 		radixClient,
 		func(syncedOk bool) {
@@ -93,13 +93,13 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, op)
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, handler RadixRegistrationHandler, stop chan struct{}) {
+func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
-	controller := NewRegistrationController(client, radixClient, &handler,
+	controller := NewController(client, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixRegistrations(),
 		kubeInformerFactory.Core().V1().Namespaces(), eventRecorder)
 
