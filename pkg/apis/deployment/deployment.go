@@ -210,13 +210,13 @@ func (deploy *Deployment) setRDToActive() error {
 	return saveStatusRD(deploy.radixclient, deploy.radixDeployment)
 }
 
-func setRDToInactive(radixClient radixclient.Interface, rd *v1.RadixDeployment, nextActiveRD *v1.RadixDeployment) error {
+func setRDToInactive(radixClient radixclient.Interface, rd *v1.RadixDeployment, activeTo metav1.Time) error {
 	if rd.Status.Condition == v1.DeploymentInactive {
 		return nil
 	}
 
 	rd.Status.Condition = v1.DeploymentInactive
-	rd.Status.ActiveTo = getActiveFrom(nextActiveRD)
+	rd.Status.ActiveTo = metav1.NewTime(activeTo.Time)
 	rd.Status.ActiveFrom = getActiveFrom(rd)
 	return saveStatusRD(radixClient, rd)
 }
@@ -228,17 +228,17 @@ func saveStatusRD(radixClient radixclient.Interface, rd *v1.RadixDeployment) err
 
 func (deploy *Deployment) setOtherRDsToInactive(allRDs []v1.RadixDeployment) error {
 	sortedRDs := sortRDsByActiveFromTimestampDesc(allRDs)
-	prevRD := &v1.RadixDeployment{}
+	prevRDActiveFrom := metav1.Time{}
 
 	for _, rd := range sortedRDs {
 		if rd.GetName() != deploy.GetName() {
-			err := setRDToInactive(deploy.radixclient, &rd, prevRD)
+			err := setRDToInactive(deploy.radixclient, &rd, prevRDActiveFrom)
 			if err != nil {
 				return err
 			}
-			prevRD = &rd
+			prevRDActiveFrom = getActiveFrom(&rd)
 		} else {
-			prevRD = deploy.radixDeployment
+			prevRDActiveFrom = getActiveFrom(deploy.radixDeployment)
 		}
 	}
 	return nil
