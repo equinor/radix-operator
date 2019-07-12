@@ -28,7 +28,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			resources = environmentSpecificConfig.Resources
 		}
 
-		externalAlias := getExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
@@ -39,7 +39,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			Ports:                appComponent.Ports,
 			Secrets:              appComponent.Secrets,
 			EnvironmentVariables: variables, // todo: use single EnvVars instead
-			DNSAppAlias:          env == dnsAppAlias.Environment && componentName == dnsAppAlias.Component,
+			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
 			DNSExternalAlias:     externalAlias,
 			Monitoring:           monitoring,
 			Resources:            resources,
@@ -48,6 +48,10 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		components = append(components, deployComponent)
 	}
 	return components
+}
+
+func IsDNSAppAlias(env, componentName string, dnsAppAlias v1.AppAlias) bool {
+	return env == dnsAppAlias.Environment && componentName == dnsAppAlias.Component
 }
 
 func getEnvironmentSpecificConfigForComponent(component v1.RadixComponent, env string) *v1.RadixEnvironmentConfig {
@@ -71,7 +75,7 @@ func getPublicPortFromAppComponent(appComponent v1.RadixComponent) string {
 	return appComponent.PublicPort
 }
 
-func getExternalDNSAliasForComponentEnvironment(radixApplication *v1.RadixApplication, component, env string) []string {
+func GetExternalDNSAliasForComponentEnvironment(radixApplication *v1.RadixApplication, component, env string) []string {
 	dnsExternalAlias := make([]string, 0)
 
 	for _, externalAlias := range radixApplication.Spec.DNSExternalAlias {
