@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/prometheus/common/log"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -63,6 +64,10 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		}
 
 		return err
+	}
+	if deployment.IsRadixDeploymentInactive(rd) {
+		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
+		return nil
 	}
 
 	syncRD := rd.DeepCopy()
