@@ -120,7 +120,7 @@ func (cli *DeployStepImplementation) deploymentHasBeenModified(env, resourceVers
 		return true, err
 	}
 
-	if !strings.EqualFold(latestResourceVersion, resourceVersionAtStartOfPipeline) {
+	if !strings.EqualFold(latestResourceVersion, resourceVersionAtStartOfPipeline) && resourceVersionAtStartOfPipeline != "" {
 		return true, nil
 	}
 
