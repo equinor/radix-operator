@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// EmptyArgument Argument by name cannot be empty
+// DeploymentHasBeenModifiedError There is a new version of an RD in the environment
 func DeploymentHasBeenModifiedError(appName, envName string) error {
 	return fmt.Errorf("Newer version of deployment exists for app %s in environment %s", appName, envName)
 }

@@ -22,7 +22,7 @@ type DeploymentBuilder interface {
 	WithEnvironment(string) DeploymentBuilder
 	WithCreated(time.Time) DeploymentBuilder
 	WithUID(types.UID) DeploymentBuilder
-	WithEmptyStatus(bool) DeploymentBuilder
+	WithEmptyStatus() DeploymentBuilder
 	WithComponent(DeployComponentBuilder) DeploymentBuilder
 	WithComponents(...DeployComponentBuilder) DeploymentBuilder
 	GetApplicationBuilder() ApplicationBuilder
@@ -56,8 +56,9 @@ func (db *DeploymentBuilderStruct) WithRadixApplication(applicationBuilder Appli
 	return db
 }
 
-func (db *DeploymentBuilderStruct) WithEmptyStatus(rdStatus bool) DeploymentBuilder {
-	db.emptyStatus = rdStatus
+// WithEmptyStatus Indicates that the RD has no reconciled status
+func (db *DeploymentBuilderStruct) WithEmptyStatus() DeploymentBuilder {
+	db.emptyStatus = true
 	return db
 }
 

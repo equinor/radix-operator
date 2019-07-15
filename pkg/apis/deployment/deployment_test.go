@@ -1222,7 +1222,7 @@ func TestNewDeploymentStatus(t *testing.T) {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
-		WithEmptyStatus(true).
+		WithEmptyStatus().
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName(anyComponentName).
@@ -1239,7 +1239,7 @@ func TestNewDeploymentStatus(t *testing.T) {
 	radixDeployBuilder = utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
-		WithEmptyStatus(true).
+		WithEmptyStatus().
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName(anyComponentName).
@@ -1267,7 +1267,7 @@ func TestGetLatestResourceVersionOfTargetEnvironments_ThreeDeployments_ReturnsLa
 		utils.ARadixDeployment().
 			WithAppName(anyApp).
 			WithEnvironment(anyEnv).
-			WithEmptyStatus(true).
+			WithEmptyStatus().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).
@@ -1279,7 +1279,7 @@ func TestGetLatestResourceVersionOfTargetEnvironments_ThreeDeployments_ReturnsLa
 		utils.ARadixDeployment().
 			WithAppName(anyApp).
 			WithEnvironment(anyEnv).
-			WithEmptyStatus(true).
+			WithEmptyStatus().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).
@@ -1291,7 +1291,7 @@ func TestGetLatestResourceVersionOfTargetEnvironments_ThreeDeployments_ReturnsLa
 		utils.ARadixDeployment().
 			WithAppName(anyApp).
 			WithEnvironment(anyEnv).
-			WithEmptyStatus(true).
+			WithEmptyStatus().
 			WithComponents(
 				utils.NewDeployComponentBuilder().
 					WithName(anyComponentName).

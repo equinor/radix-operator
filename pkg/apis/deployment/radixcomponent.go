@@ -50,6 +50,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 	return components
 }
 
+// IsDNSAppAlias Checks if environment and component represents the DNS app alias
 func IsDNSAppAlias(env, componentName string, dnsAppAlias v1.AppAlias) bool {
 	return env == dnsAppAlias.Environment && componentName == dnsAppAlias.Component
 }
@@ -75,6 +76,7 @@ func getPublicPortFromAppComponent(appComponent v1.RadixComponent) string {
 	return appComponent.PublicPort
 }
 
+// GetExternalDNSAliasForComponentEnvironment Gets external DNS alias
 func GetExternalDNSAliasForComponentEnvironment(radixApplication *v1.RadixApplication, component, env string) []string {
 	dnsExternalAlias := make([]string, 0)
 
