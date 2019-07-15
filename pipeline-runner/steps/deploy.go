@@ -58,20 +58,26 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 	}
 
 	log.Infof("Deploying app %s", appName)
+	radixDeployments := []v1.RadixDeployment{}
 
-	radixDeployments, err := deployment.ConstructForTargetEnvironments(
-		cli.GetApplicationConfig(),
-		containerRegistry,
-		pipelineInfo.PipelineArguments.JobName,
-		pipelineInfo.PipelineArguments.ImageTag,
-		pipelineInfo.PipelineArguments.Branch,
-		pipelineInfo.PipelineArguments.CommitID,
-		pipelineInfo.TargetEnvironments)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
-	}
+	for _, env := range cli.GetApplicationConfig().Spec.Environments {
+		if !deployment.DeployToEnvironment(env, pipelineInfo.TargetEnvironments) {
+			continue
+		}
 
-	for _, radixDeployment := range radixDeployments {
+		radixDeployment, err := deployment.ConstructForTargetEnvironment(
+			cli.GetApplicationConfig(),
+			containerRegistry,
+			pipelineInfo.PipelineArguments.JobName,
+			pipelineInfo.PipelineArguments.ImageTag,
+			pipelineInfo.PipelineArguments.Branch,
+			pipelineInfo.PipelineArguments.CommitID,
+			env.Name)
+
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
+		}
+
 		deployment, err := deployment.NewDeployment(
 			cli.GetKubeclient(),
 			cli.GetRadixclient(),
@@ -86,6 +92,8 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 		if err != nil {
 			return nil, fmt.Errorf("Failed to apply radix deployments for app %s. %v", appName, err)
 		}
+
+		radixDeployments = append(radixDeployments, radixDeployment)
 	}
 
 	return radixDeployments, nil
