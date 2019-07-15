@@ -5,7 +5,6 @@ import (
 )
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // RadixDeployment describe a deployment
@@ -13,7 +12,25 @@ type RadixDeployment struct {
 	meta_v1.TypeMeta   `json:",inline" yaml:",inline"`
 	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 	Spec               RadixDeploymentSpec `json:"spec" yaml:"spec"`
+	Status             RadixDeployStatus   `json:"status" yaml:"status"`
 }
+
+//RadixDeployStatus is the status for a rd
+type RadixDeployStatus struct {
+	ActiveFrom meta_v1.Time         `json:"activeFrom" yaml:"activeFrom"`
+	ActiveTo   meta_v1.Time         `json:"activeTo" yaml:"activeTo"`
+	Condition  RadixDeployCondition `json:"condition" yaml:"condition"`
+}
+
+type RadixDeployCondition string
+
+// These are valid conditions of a deployment.
+const (
+	// Active means the radix deployment is active and should be consolidated
+	DeploymentActive RadixDeployCondition = "Active"
+	// Inactive means radix deployment is inactive and should not be consolidated
+	DeploymentInactive RadixDeployCondition = "Inactive"
+)
 
 //RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {

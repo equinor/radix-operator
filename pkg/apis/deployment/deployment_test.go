@@ -554,7 +554,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	tu, client, radixclient := setupTest()
 
 	// Test
-	now := time.Now()
+	now := time.Now().UTC()
 	var firstUID, secondUID types.UID
 
 	firstUID = "fda3d224-3115-11e9-b189-06c15a8f2fbb"
@@ -583,6 +583,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
+	time.Sleep(1 * time.Millisecond)
 	// This is one second newer deployment
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
 		WithAppName("app1").
@@ -1201,6 +1202,50 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 	teardownTest()
 }
 
+func TestNewDeploymentStatus(t *testing.T) {
+	anyApp := "any-app"
+	anyEnv := "dev"
+	anyComponentName := "frontend"
+
+	tu, client, radixclient := setupTest()
+
+	radixDeployBuilder := utils.ARadixDeployment().
+		WithAppName(anyApp).
+		WithEnvironment(anyEnv).
+		WithEmptyStatus(true).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+
+	rd, _ := applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+	assert.Equal(t, v1.DeploymentActive, rd.Status.Condition)
+	assert.True(t, !rd.Status.ActiveFrom.IsZero())
+	assert.True(t, rd.Status.ActiveTo.IsZero())
+
+	time.Sleep(2 * time.Millisecond)
+
+	radixDeployBuilder = utils.ARadixDeployment().
+		WithAppName(anyApp).
+		WithEnvironment(anyEnv).
+		WithEmptyStatus(true).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+
+	rd2, _ := applyDeploymentWithSync(tu, client, radixclient, radixDeployBuilder)
+	rd, _ = radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
+
+	assert.Equal(t, v1.DeploymentInactive, rd.Status.Condition)
+	assert.Equal(t, rd.Status.ActiveTo, rd2.Status.ActiveFrom)
+
+	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
+	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
@@ -1229,9 +1274,7 @@ func applyDeploymentWithSync(tu *test.Utils, client kube.Interface,
 
 func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface,
 	radixclient radixclient.Interface, deploymentBuilder utils.DeploymentBuilder) error {
-	rd := deploymentBuilder.BuildRD()
-
-	err := tu.ApplyDeploymentUpdate(deploymentBuilder)
+	rd, err := tu.ApplyDeploymentUpdate(deploymentBuilder)
 	if err != nil {
 		return err
 	}
