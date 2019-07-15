@@ -1256,11 +1256,10 @@ func TestNewDeploymentStatus(t *testing.T) {
 	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
 }
 
-func TestGetLatestDeploymentInNamespace_ThreeDeployments_ReturnsLatest(t *testing.T) {
+func TestGetLatestResourceVersionOfTargetEnvironments_ThreeDeployments_ReturnsLatest(t *testing.T) {
 	anyApp := "any-app"
 	anyEnv := "dev"
 	anyComponentName := "frontend"
-	envNamespace := utils.GetEnvironmentNamespace(anyApp, anyEnv)
 
 	// Setup
 	tu, client, radixclient := setupTest()
@@ -1300,12 +1299,15 @@ func TestGetLatestDeploymentInNamespace_ThreeDeployments_ReturnsLatest(t *testin
 					WithPublicPort("http")))
 
 	// Test
-	rd, err := GetLatestDeploymentInNamespace(radixclient, envNamespace)
+	targetEnvironments := make(map[string]bool)
+	targetEnvironments[anyEnv] = true
+
+	latestResourceVersions, err := GetLatestResourceVersionOfTargetEnvironments(radixclient, anyApp, targetEnvironments)
 	assert.NoError(t, err)
 
-	assert.NotEqual(t, rd1.Name, rd.Name)
-	assert.NotEqual(t, rd2.Name, rd.Name)
-	assert.Equal(t, rd3.Name, rd.Name)
+	assert.NotEqual(t, rd1.ResourceVersion, latestResourceVersions[anyEnv])
+	assert.NotEqual(t, rd2.ResourceVersion, latestResourceVersions[anyEnv])
+	assert.Equal(t, rd3.ResourceVersion, latestResourceVersions[anyEnv])
 }
 
 func parseQuantity(value string) resource.Quantity {

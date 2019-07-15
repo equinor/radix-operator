@@ -5,6 +5,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -67,11 +68,16 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	}
 
 	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(pipelineArgs.Branch)
+	latestResourceVersions, err := deployment.GetLatestResourceVersionOfTargetEnvironments(cli.radixclient, appName, targetEnvironments)
+	if err != nil {
+		return err
+	}
 
 	stepImplementations := initStepImplementations(cli.kubeclient, cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
 	cli.pipelineInfo, err = model.InitPipeline(
 		cli.definfition,
 		targetEnvironments,
+		latestResourceVersions,
 		branchIsMapped,
 		pipelineArgs,
 		stepImplementations...)

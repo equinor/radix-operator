@@ -62,12 +62,12 @@ func DeployToEnvironment(env v1.Environment, targetEnvs map[string]bool) bool {
 }
 
 // GetLatestResourceVersionOfTargetEnvironments Gets the latest resource version of target environments
-func (deploy *Deployment) GetLatestResourceVersionOfTargetEnvironments(targetEnvs map[string]bool) (map[string]string, error) {
+func GetLatestResourceVersionOfTargetEnvironments(radixclient radixclient.Interface, appName string, targetEnvs map[string]bool) (map[string]string, error) {
 	latestResourceVersions := make(map[string]string)
 
 	for envName, deployToEnvironment := range targetEnvs {
 		if deployToEnvironment {
-			latestResourceVersion, err := deploy.GetLatestResourceVersionOfTargetEnvironment(envName)
+			latestResourceVersion, err := GetLatestResourceVersionOfTargetEnvironment(radixclient, appName, envName)
 			if err != nil {
 				return nil, err
 			}
@@ -80,10 +80,15 @@ func (deploy *Deployment) GetLatestResourceVersionOfTargetEnvironments(targetEnv
 }
 
 // GetLatestResourceVersionOfTargetEnvironment Gets the latest resource version of specified target environment
-func (deploy *Deployment) GetLatestResourceVersionOfTargetEnvironment(envName string) (string, error) {
-	latestRD, err := GetLatestDeploymentInNamespace(deploy.radixclient, utils.GetEnvironmentNamespace(deploy.registration.Name, envName))
+func GetLatestResourceVersionOfTargetEnvironment(radixclient radixclient.Interface, appName, envName string) (string, error) {
+	latestRD, err := GetLatestDeploymentInNamespace(radixclient, utils.GetEnvironmentNamespace(appName, envName))
 	if err != nil {
 		return "", err
+	}
+
+	if latestRD == nil {
+		// No deployment exists in the environment
+		return "", nil
 	}
 
 	return latestRD.ResourceVersion, nil

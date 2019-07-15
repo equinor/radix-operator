@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -37,6 +39,7 @@ type DeploymentBuilderStruct struct {
 	ImageTag           string
 	Environment        string
 	Created            time.Time
+	ResourceVersion    string
 	UID                types.UID
 	components         []DeployComponentBuilder
 }
@@ -174,6 +177,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
 			Labels:            db.Labels,
 			CreationTimestamp: metav1.Time{Time: db.Created},
+			ResourceVersion:   db.ResourceVersion,
 			UID:               db.UID,
 		},
 		Spec: v1.RadixDeploymentSpec{
@@ -189,8 +193,9 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 // NewDeploymentBuilder Constructor for deployment builder
 func NewDeploymentBuilder() DeploymentBuilder {
 	return &DeploymentBuilderStruct{
-		Labels:  make(map[string]string),
-		Created: time.Now().UTC(),
+		Labels:          make(map[string]string),
+		Created:         time.Now().UTC(),
+		ResourceVersion: strconv.Itoa(rand.Intn(100)),
 	}
 }
 
