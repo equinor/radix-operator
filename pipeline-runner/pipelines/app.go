@@ -68,6 +68,8 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	}
 
 	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(pipelineArgs.Branch)
+
+	// Gather latest resource versions, before starting pipeline, in order to check that no other build comes in between
 	latestResourceVersions, err := deployment.GetLatestResourceVersionOfTargetEnvironments(cli.radixclient, appName, targetEnvironments)
 	if err != nil {
 		return err
