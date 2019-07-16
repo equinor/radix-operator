@@ -103,6 +103,11 @@ func (db *DeploymentBuilderStruct) WithImageTag(imageTag string) DeploymentBuild
 func (db *DeploymentBuilderStruct) WithEnvironment(environment string) DeploymentBuilder {
 	db.Labels[kube.RadixEnvLabel] = environment
 	db.Environment = environment
+
+	if db.applicationBuilder != nil {
+		db.applicationBuilder = db.applicationBuilder.WithEnvironmentNoBranch(environment)
+	}
+
 	return db
 }
 
