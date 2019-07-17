@@ -909,20 +909,30 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.environment, func(t *testing.T) {
-			targetEnvs := make(map[string]bool)
-			targetEnvs[testcase.environment] = true
-			rd, _ := ConstructForTargetEnvironments(ra, "anyreg", "anyjob", "anyimage", "anybranch", "anycommit", targetEnvs)
+			rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimage", "anybranch", "anycommit", testcase.environment)
 
-			assert.Equal(t, testcase.expectedReplicas, rd[0].Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
-			assert.Equal(t, testcase.expectedDbHost, rd[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
-			assert.Equal(t, testcase.expectedDbPort, rd[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
-			assert.Equal(t, testcase.expectedMemoryLimit, rd[0].Spec.Components[0].Resources.Limits["memory"])
-			assert.Equal(t, testcase.expectedCPULimit, rd[0].Spec.Components[0].Resources.Limits["cpu"])
-			assert.Equal(t, testcase.expectedMemoryRequest, rd[0].Spec.Components[0].Resources.Requests["memory"])
-			assert.Equal(t, testcase.expectedCPURequest, rd[0].Spec.Components[0].Resources.Requests["cpu"])
+			assert.Equal(t, testcase.expectedReplicas, rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
+			assert.Equal(t, testcase.expectedDbHost, rd.Spec.Components[0].EnvironmentVariables["DB_HOST"])
+			assert.Equal(t, testcase.expectedDbPort, rd.Spec.Components[0].EnvironmentVariables["DB_PORT"])
+			assert.Equal(t, testcase.expectedMemoryLimit, rd.Spec.Components[0].Resources.Limits["memory"])
+			assert.Equal(t, testcase.expectedCPULimit, rd.Spec.Components[0].Resources.Limits["cpu"])
+			assert.Equal(t, testcase.expectedMemoryRequest, rd.Spec.Components[0].Resources.Requests["memory"])
+			assert.Equal(t, testcase.expectedCPURequest, rd.Spec.Components[0].Resources.Requests["cpu"])
 		})
 	}
 
+}
+
+func TestDeployToEnvironment_WithMapping_ReturnsForMappedEnvironment(t *testing.T) {
+	// Setup
+	targetEnvs := make(map[string]bool)
+	targetEnvs["dev"] = true
+	targetEnvs["prod"] = false
+
+	// Test
+	assert.True(t, DeployToEnvironment(v1.Environment{Name: "dev"}, targetEnvs))
+	assert.False(t, DeployToEnvironment(v1.Environment{Name: "prod"}, targetEnvs))
+	assert.False(t, DeployToEnvironment(v1.Environment{Name: "orphaned"}, targetEnvs))
 }
 
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
@@ -1212,7 +1222,7 @@ func TestNewDeploymentStatus(t *testing.T) {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
-		WithEmptyStatus(true).
+		WithEmptyStatus().
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName(anyComponentName).
@@ -1229,7 +1239,7 @@ func TestNewDeploymentStatus(t *testing.T) {
 	radixDeployBuilder = utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
-		WithEmptyStatus(true).
+		WithEmptyStatus().
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName(anyComponentName).
@@ -1244,6 +1254,60 @@ func TestNewDeploymentStatus(t *testing.T) {
 
 	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
 	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
+}
+
+func TestGetLatestResourceVersionOfTargetEnvironments_ThreeDeployments_ReturnsLatest(t *testing.T) {
+	anyApp := "any-app"
+	anyEnv := "dev"
+	anyComponentName := "frontend"
+
+	// Setup
+	tu, client, radixclient := setupTest()
+	rd1, _ := applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithAppName(anyApp).
+			WithEnvironment(anyEnv).
+			WithEmptyStatus().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	time.Sleep(2 * time.Millisecond)
+	rd2, _ := applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithAppName(anyApp).
+			WithEnvironment(anyEnv).
+			WithEmptyStatus().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	time.Sleep(2 * time.Millisecond)
+	rd3, _ := applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithAppName(anyApp).
+			WithEnvironment(anyEnv).
+			WithEmptyStatus().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	// Test
+	targetEnvironments := make(map[string]bool)
+	targetEnvironments[anyEnv] = true
+
+	latestResourceVersions, err := GetLatestResourceVersionOfTargetEnvironments(radixclient, anyApp, targetEnvironments)
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, rd1.ResourceVersion, latestResourceVersions[anyEnv])
+	assert.NotEqual(t, rd2.ResourceVersion, latestResourceVersions[anyEnv])
+	assert.Equal(t, rd3.ResourceVersion, latestResourceVersions[anyEnv])
 }
 
 func parseQuantity(value string) resource.Quantity {
