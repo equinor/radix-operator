@@ -22,6 +22,7 @@ type RadixDeployStatus struct {
 	Condition  RadixDeployCondition `json:"condition" yaml:"condition"`
 }
 
+// RadixDeployCondition Holds the condition of a component
 type RadixDeployCondition string
 
 // These are valid conditions of a deployment.
