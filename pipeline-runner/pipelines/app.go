@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +53,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		for _, err := range errs {
 			log.Errorf("%v", err)
 		}
-		return validate.ConcatErrors(errs)
+		return errors.Concat(errs)
 	}
 
 	appName := cli.radixApplication.GetName()
