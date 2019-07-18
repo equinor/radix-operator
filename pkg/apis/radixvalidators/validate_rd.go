@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
 
@@ -22,31 +23,31 @@ func InvalidNumberOfReplicaError(replica int) error {
 // CanRadixDeploymentBeInserted Checks if RD is valid
 func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.RadixDeployment) (bool, error) {
 	// todo! ensure that all rules are valid
-	errors := []error{}
+	errs := []error{}
 	err := validateAppName(deploy.Name)
 	if err != nil {
-		errors = append(errors, err)
+		errs = append(errs, err)
 	}
 
 	err = validateReplicas(deploy.Spec.Components)
 	if err != nil {
-		errors = append(errors, err)
+		errs = append(errs, err)
 	}
 
 	err = validateComponentNames(deploy.Spec.Components)
 	if err != nil {
-		errors = append(errors, err)
+		errs = append(errs, err)
 	}
 
 	err = validateRequiredResourceName("env name", deploy.Spec.Environment)
 	if err != nil {
-		errors = append(errors, err)
+		errs = append(errs, err)
 	}
 
-	if len(errors) <= 0 {
+	if len(errs) <= 0 {
 		return true, nil
 	}
-	return false, ConcatErrors(errors)
+	return false, errors.Concat(errs)
 }
 
 func validateComponentNames(components []radixv1.RadixDeployComponent) error {
