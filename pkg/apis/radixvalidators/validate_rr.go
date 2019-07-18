@@ -10,6 +10,41 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// InvalidAppNameLengthError Invalid app length
+func InvalidAppNameLengthError(value string) error {
+	return InvalidResourceNameLengthError("app name", value)
+}
+
+// InvalidAppNameError Invalid app name
+func InvalidAppNameError(value string) error {
+	return InvalidResourceNameError("app name", value)
+}
+
+// AppNameCannotBeEmptyError App name cannot be empty
+func AppNameCannotBeEmptyError() error {
+	return ResourceNameCannotBeEmptyError("app name")
+}
+
+// InvalidResourceNameLengthError Invalid resource length
+func InvalidResourceNameLengthError(resourceName, value string) error {
+	return fmt.Errorf("%s (%s) max length is 253", resourceName, value)
+}
+
+// ResourceNameCannotBeEmptyError Resource name cannot be left empty
+func ResourceNameCannotBeEmptyError(resourceName string) error {
+	return fmt.Errorf("%s cannot be empty", resourceName)
+}
+
+// InvalidResourceNameError Invalid resource name
+func InvalidResourceNameError(resourceName, value string) error {
+	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
+}
+
+// NoRegistrationExistsForApplicationError No registration exists
+func NoRegistrationExistsForApplicationError(appName string) error {
+	return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
+}
+
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
@@ -72,11 +107,11 @@ func validateAppName(appName string) error {
 
 func validateRequiredResourceName(resourceName, value string) error {
 	if len(value) > 253 {
-		return fmt.Errorf("%s (%s) max length is 253", resourceName, value)
+		return InvalidResourceNameLengthError(resourceName, value)
 	}
 
 	if value == "" {
-		return fmt.Errorf("%s cannot be empty", resourceName)
+		return ResourceNameCannotBeEmptyError(resourceName)
 	}
 
 	re := regexp.MustCompile("^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$")
@@ -85,7 +120,8 @@ func validateRequiredResourceName(resourceName, value string) error {
 	if isValid {
 		return nil
 	}
-	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
+
+	return InvalidResourceNameError(resourceName, value)
 }
 
 func validateAdGroups(groups []string) error {
@@ -147,7 +183,7 @@ func validateSSHKey(deployKey string) error {
 func validateDoesRRExist(client radixclient.Interface, appName string) error {
 	rr, err := client.RadixV1().RadixRegistrations().Get(appName, metav1.GetOptions{})
 	if rr == nil || err != nil {
-		return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
+		return NoRegistrationExistsForApplicationError(appName)
 	}
 	return nil
 }

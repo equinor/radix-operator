@@ -14,6 +14,11 @@ const (
 	MaxReplica = 64
 )
 
+// InvalidNumberOfReplicaError Invalid number of replica
+func InvalidNumberOfReplicaError(replica int) error {
+	return fmt.Errorf("replicas %v must be between %v and %v", replica, minReplica, MaxReplica)
+}
+
 // CanRadixDeploymentBeInserted Checks if RD is valid
 func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.RadixDeployment) (bool, error) {
 	// todo! ensure that all rules are valid
@@ -66,7 +71,7 @@ func validateReplicas(components []radixv1.RadixDeployComponent) error {
 
 func validateReplica(replica int) error {
 	if replica > MaxReplica || replica < minReplica {
-		return fmt.Errorf("replicas %v must be between %v and %v", replica, minReplica, MaxReplica)
+		return InvalidNumberOfReplicaError(replica)
 	}
 	return nil
 }
