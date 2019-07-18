@@ -12,6 +12,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
 
+const cpuRegex = "^[0-9]+m$"
+
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
 	return fmt.Errorf("Env %s refered to by dnsAppAlias is not defined", env)
@@ -63,18 +65,23 @@ func MultipleMatchingPortNamesError(matchingPortName int, publicPortName, compon
 }
 
 // MemoryResourceRequirementFormatError Invalid memory resource requirement error
-func MemoryResourceRequirementFormatError(name, value string) error {
-	return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", name, value)
+func MemoryResourceRequirementFormatError(value string) error {
+	return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", "memory", value)
 }
 
 // CPUResourceRequirementFormatError Invalid CPU resource requirement
-func CPUResourceRequirementFormatError(name, value, regex string) error {
-	return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", name, value, regex)
+func CPUResourceRequirementFormatError(value string) error {
+	return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
 }
 
 // InvalidResourceError Invalid resource type
 func InvalidResourceError(name string) error {
 	return fmt.Errorf("Only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
+}
+
+// DuplicateExternalAliasError Cannot have duplicate external alias
+func DuplicateExternalAliasError() error {
+	return errors.New("Cannot have duplicate aliases for dnsExternalAlias")
 }
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -152,7 +159,7 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 		errs = append(errs, EnvForDNSAppAliasNotDefinedError(alias.Environment))
 	}
 	if !doesComponentExist(app, alias.Component) {
-		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Environment))
+		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Component))
 	}
 	return errs
 }
@@ -186,7 +193,7 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 	}
 
 	if len(distinctAlias) < len(app.Spec.DNSExternalAlias) {
-		errs = append(errs, errors.New("Cannot have duplicate aliases for dnsExternalAlias"))
+		errs = append(errs, DuplicateExternalAliasError())
 	}
 
 	return errs
@@ -285,15 +292,14 @@ func validateQuantity(name, value string) error {
 	if name == "memory" {
 		_, err := resource.ParseQuantity(value)
 		if err != nil {
-			return MemoryResourceRequirementFormatError(name, value)
+			return MemoryResourceRequirementFormatError(value)
 		}
 	} else if name == "cpu" {
-		regex := "^[0-9]+m$"
-		re := regexp.MustCompile(regex)
+		re := regexp.MustCompile(cpuRegex)
 
 		isValid := re.MatchString(value)
 		if !isValid {
-			return CPUResourceRequirementFormatError(name, value, regex)
+			return CPUResourceRequirementFormatError(value)
 		}
 	} else {
 		return InvalidResourceError(name)

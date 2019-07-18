@@ -35,7 +35,6 @@ func Test_missing_rr(t *testing.T) {
 type updateRAFunc func(rr *v1.RadixApplication)
 
 func Test_invalid_ra(t *testing.T) {
-	//validRAAppName := "testapp"
 	validRAFirstComponentName := "app"
 
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
@@ -43,12 +42,16 @@ func Test_invalid_ra(t *testing.T) {
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
 	invalidUpperCaseResourceName := "invalidUPPERCASE.resourcename"
+	nonExistingComponent := "non existing"
+	unsupportedResource := "unsupportedResource"
+	invalidResourceValue := "asdfasd"
 
 	var testScenarios = []struct {
 		name          string
 		expectedError error
 		updateRA      updateRAFunc
 	}{
+		{"no error", nil, func(ra *v1.RadixApplication) {}},
 		{"too long app name", radixvalidators.InvalidAppNameLengthError(wayTooLongName), func(ra *v1.RadixApplication) { ra.Name = wayTooLongName }},
 		{"invalid app name", radixvalidators.InvalidAppNameError(invalidResourceName), func(ra *v1.RadixApplication) { ra.Name = invalidResourceName }},
 		{"empty name", radixvalidators.AppNameCannotBeEmptyError(), func(ra *v1.RadixApplication) { ra.Name = "" }},
@@ -77,27 +80,27 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long branch name", radixvalidators.InvalidResourceNameLengthError("branch from", wayTooLongName), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = wayTooLongName
 		}},
-		{"dns alias non existing component", nil, func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = "non existing" }},
-		{"dns alias non existing env", nil, func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Environment = "non existing" }},
-		{"dns external alias non existing component", nil, func(ra *v1.RadixApplication) {
+		{"dns alias non existing component", radixvalidators.ComponentForDNSAppAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = nonExistingComponent }},
+		{"dns alias non existing env", radixvalidators.EnvForDNSAppAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Environment = noExistingEnvironment }},
+		{"dns external alias non existing component", radixvalidators.ComponentForDNSExternalAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
 				v1.ExternalAlias{
 					Alias:       "some.alias.com",
-					Component:   "non existing",
+					Component:   nonExistingComponent,
 					Environment: ra.Spec.Environments[0].Name,
 				},
 			}
 		}},
-		{"dns external alias non existing environment", nil, func(ra *v1.RadixApplication) {
+		{"dns external alias non existing environment", radixvalidators.EnvForDNSExternalAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
 				v1.ExternalAlias{
 					Alias:       "some.alias.com",
 					Component:   ra.Spec.Components[0].Name,
-					Environment: "non existing",
+					Environment: noExistingEnvironment,
 				},
 			}
 		}},
-		{"dns external alias non existing alias", nil, func(ra *v1.RadixApplication) {
+		{"dns external alias non existing alias", radixvalidators.ExternalAliasCannotBeEmptyError(), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
 				v1.ExternalAlias{
 					Component:   ra.Spec.Components[0].Name,
@@ -105,7 +108,7 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"dns external alias with no public port", nil, func(ra *v1.RadixApplication) {
+		{"dns external alias with no public port", radixvalidators.ComponentForDNSExternalAliasIsNotMarkedAsPublicError(validRAFirstComponentName), func(ra *v1.RadixApplication) {
 			// Backward compatible setting
 			ra.Spec.Components[0].Public = false
 			ra.Spec.Components[0].PublicPort = ""
@@ -117,7 +120,7 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"duplicate dns external alias", nil, func(ra *v1.RadixApplication) {
+		{"duplicate dns external alias", radixvalidators.DuplicateExternalAliasError(), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Public = true
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
 				v1.ExternalAlias{
@@ -132,17 +135,23 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"resource limit unsupported resource", nil, func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["unsupportedResource"] = "250m"
+		{"resource limit unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits[unsupportedResource] = "250m"
 		}},
-		{"resource limit wrong format", nil, func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "asdfasd"
+		{"memory resource limit wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = invalidResourceValue
 		}},
-		{"resource request wrong format", nil, func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "asdfasd"
+		{"memory resource request wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = invalidResourceValue
 		}},
-		{"resource request unsupported resource", nil, func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["unsupportedResource"] = "250m"
+		{"cpu resource limit wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["cpu"] = invalidResourceValue
+		}},
+		{"cpu resource request wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = invalidResourceValue
+		}},
+		{"resource request unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
 	}
 
@@ -153,11 +162,14 @@ func Test_invalid_ra(t *testing.T) {
 			testcase.updateRA(validRA)
 			isValid, errs := radixvalidators.CanRadixApplicationBeInsertedErrors(client, validRA)
 
-			assert.False(t, isValid)
-			assert.NotNil(t, errs)
-
 			if testcase.expectedError != nil {
+				assert.False(t, isValid)
+				assert.NotNil(t, errs)
+
 				assert.Truef(t, errors.Contains(errs, testcase.expectedError), "Expected error is not contained in list of errors")
+			} else {
+				assert.True(t, isValid)
+				assert.Nil(t, errs)
 			}
 		})
 	}
