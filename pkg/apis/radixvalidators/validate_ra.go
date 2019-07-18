@@ -12,7 +12,10 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
 
-const cpuRegex = "^[0-9]+m$"
+const (
+	maxPortNameLength = 15
+	cpuRegex          = "^[0-9]+m$"
+)
 
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
@@ -47,6 +50,11 @@ func ComponentForDNSExternalAliasIsNotMarkedAsPublicError(component string) erro
 // EnvironmentReferencedByComponentDoesNotExistError Environment does not exists
 func EnvironmentReferencedByComponentDoesNotExistError(environment, component string) error {
 	return fmt.Errorf("Env %s refered to by component %s is not defined", environment, component)
+}
+
+// InvalidPortNameLengthError Invalid resource length
+func InvalidPortNameLengthError(value string) error {
+	return fmt.Errorf("%s (%s) max length is %d", "port name", value, maxPortNameLength)
 }
 
 // PortSpecificationCannotBeEmptyForComponentError Port cannot be empty for component
@@ -242,6 +250,13 @@ func validatePorts(component radixv1.RadixComponent) []error {
 	}
 
 	for _, port := range component.Ports {
+		if len(port.Name) > maxPortNameLength {
+			err := InvalidPortNameLengthError(port.Name)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+
 		err := validateRequiredResourceName("port name", port.Name)
 		if err != nil {
 			errs = append(errs, err)

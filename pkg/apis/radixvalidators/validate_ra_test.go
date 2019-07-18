@@ -38,6 +38,7 @@ func Test_invalid_ra(t *testing.T) {
 	validRAFirstComponentName := "app"
 
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
+	tooLongPortName := "abcdefghijklmnop"
 	invalidResourceName := "invalid,char.resourcename"
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
@@ -68,9 +69,9 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid port specification. Nil value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = nil }},
 		{"invalid port specification. Empty value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = []v1.ComponentPort{} }},
 		{"invalid port name", radixvalidators.InvalidResourceNameError("port name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports[0].Name = invalidResourceName }},
-		{"too long port name", radixvalidators.InvalidResourceNameLengthError("port name", wayTooLongName), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].PublicPort = wayTooLongName
-			ra.Spec.Components[0].Ports[0].Name = wayTooLongName
+		{"too long port name", radixvalidators.InvalidPortNameLengthError(tooLongPortName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].PublicPort = tooLongPortName
+			ra.Spec.Components[0].Ports[0].Name = tooLongPortName
 		}},
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
