@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -25,7 +26,7 @@ func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistrat
 	if !isValid && errUniqueAppName == nil {
 		return false, err
 	}
-	return false, ConcatErrors([]error{errUniqueAppName, err})
+	return false, errors.Concat([]error{errUniqueAppName, err})
 }
 
 // CanRadixRegistrationBeUpdated Validates update of RR
@@ -55,7 +56,7 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 	if len(errs) <= 0 {
 		return true, nil
 	}
-	return false, ConcatErrors(errs)
+	return false, errors.Concat(errs)
 }
 
 func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
@@ -150,15 +151,4 @@ func validateDoesRRExist(client radixclient.Interface, appName string) error {
 		return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
 	}
 	return nil
-}
-
-// ConcatErrors Creates a single error from a list of errors
-func ConcatErrors(errs []error) error {
-	var errstrings []string
-	for _, err := range errs {
-		errstrings = append(errstrings, err.Error())
-	}
-
-	return fmt.Errorf(strings.Join(errstrings, "\n"))
-
 }

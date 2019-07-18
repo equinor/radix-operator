@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -208,29 +209,34 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 
+	errs := []error{}
 	for _, v := range deploy.radixDeployment.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
 		err := deploy.createDeployment(v)
 		if err != nil {
 			log.Infof("Failed to create deployment: %v", err)
-			return fmt.Errorf("Failed to create deployment: %v", err)
+			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
+			continue
 		}
 		err = deploy.createService(v)
 		if err != nil {
 			log.Infof("Failed to create service: %v", err)
-			return fmt.Errorf("Failed to create service: %v", err)
+			errs = append(errs, fmt.Errorf("Failed to create service: %v", err))
+			continue
 		}
 		if v.PublicPort != "" || v.Public {
 			err = deploy.createIngress(v)
 			if err != nil {
 				log.Infof("Failed to create ingress: %v", err)
-				return fmt.Errorf("Failed to create ingress: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to create ingress: %v", err))
+				continue
 			}
 		} else {
 			err = deploy.garbageCollectIngressNoLongerInSpecForComponent(v)
 			if err != nil {
 				log.Infof("Failed to delete ingress: %v", err)
-				return fmt.Errorf("Failed to delete ingress: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to delete ingress: %v", err))
+				continue
 			}
 		}
 
@@ -238,9 +244,15 @@ func (deploy *Deployment) syncDeployment() error {
 			err = deploy.createServiceMonitor(v)
 			if err != nil {
 				log.Infof("Failed to create service monitor: %v", err)
-				return fmt.Errorf("Failed to create service monitor: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
+				continue
 			}
 		}
+	}
+
+	// If any error occured when syncing of components
+	if len(errs) > 0 {
+		return errors.Concat(errs)
 	}
 
 	return nil

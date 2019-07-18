@@ -6,10 +6,10 @@ import (
 	"regexp"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -19,7 +19,7 @@ func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.Ra
 		return true, nil
 	}
 
-	return false, ConcatErrors(errs)
+	return false, errorUtils.Concat(errs)
 }
 
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
