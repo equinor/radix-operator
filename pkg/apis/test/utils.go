@@ -90,16 +90,22 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (
 }
 
 // ApplyDeploymentUpdate Will help update a deployment
-func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuilder) error {
+func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuilder) (*v1.RadixDeployment, error) {
 	rd := deploymentBuilder.BuildRD()
 	envNamespace := builders.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
 
-	_, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Update(rd)
+	rdPrev, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(rd.GetName(), metav1.GetOptions{})
 	if err != nil {
-		return err
+		return nil, err
+	}
+	rd.Status = rdPrev.Status
+
+	rd, err = tu.radixclient.RadixV1().RadixDeployments(envNamespace).Update(rd)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return rd, nil
 }
 
 // SetRequiredEnvironmentVariables  Sets the required environment

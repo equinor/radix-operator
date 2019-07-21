@@ -68,6 +68,7 @@ type ComponentPort struct {
 	Port int32  `json:"port"`
 }
 
+// ResourceList Placeholder for resouce specifications in the config
 type ResourceList map[string]string
 
 // ResourceRequirements describes the compute resource requirements.

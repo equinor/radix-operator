@@ -1,14 +1,17 @@
 package application
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -54,6 +57,29 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(serviceAccounts.Items))
 	assert.Equal(t, "radix-pipeline", serviceAccounts.Items[0].Name)
+}
+
+func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
+	// Setup
+	tu, client, radixClient := setupTest()
+
+	// Create namespaces manually
+	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "any-app-app",
+		},
+	})
+
+	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, "any-app")
+
+	// Test
+	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
+		WithName("any-app"))
+
+	namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
+		LabelSelector: label,
+	})
+	assert.Equal(t, 1, len(namespaces.Items))
 }
 
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {

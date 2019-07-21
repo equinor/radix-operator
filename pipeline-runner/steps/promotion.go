@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -91,7 +92,8 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	}
 
 	log.Infof("Promoting %s from %s to %s", cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
-	radixDeployment, err = cli.GetRadixclient().RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	rd, err := cli.GetRadixclient().RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
+	radixDeployment = rd.DeepCopy()
 	if err != nil {
 		return NonExistingDeployment(pipelineInfo.PipelineArguments.DeploymentName)
 	}
@@ -151,6 +153,11 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 		if raComp == nil {
 			return NonExistingComponentName(radixConfig.GetName(), comp.Name)
 		}
+
+		radixDeployment.Spec.Components[index].DNSAppAlias =
+			deployment.IsDNSAppAlias(environment, comp.Name, radixConfig.Spec.DNSAppAlias)
+		radixDeployment.Spec.Components[index].DNSExternalAlias =
+			deployment.GetExternalDNSAliasForComponentEnvironment(radixConfig, comp.Name, environment)
 
 		environmentConfig := getEnvironmentConfig(raComp, environment)
 		if environmentConfig != nil {

@@ -15,8 +15,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-// DeployController Instance variables
-type DeployController struct {
+// Controller Instance variables
+type Controller struct {
 	clientset   kubernetes.Interface
 	radixclient radixclient.Interface
 	queue       workqueue.RateLimitingInterface
@@ -35,8 +35,8 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
 }
 
-// NewDeployController creates a new controller that handles RadixDeployments
-func NewDeployController(client kubernetes.Interface,
+// NewController creates a new controller that handles RadixDeployments
+func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	deploymentInformer radixinformer.RadixDeploymentInformer,
 	serviceInformer coreinformers.ServiceInformer,

@@ -111,6 +111,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	anyPromoteJobName := "any-promote-job"
 	anyProdEnvironment := "prod"
 	anyDevEnvironment := "dev"
+	anyDNSAlias := "a-dns-alias"
 
 	// Setup
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
@@ -125,6 +126,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithAppName(anyApp).
 					WithEnvironment(anyDevEnvironment, "master").
 					WithEnvironment(anyProdEnvironment, "").
+					WithDNSAppAlias(anyProdEnvironment, "app").
+					WithDNSExternalAlias(anyDNSAlias, anyProdEnvironment, "app").
 					WithComponents(
 						utils.AnApplicationComponent().
 							WithName("app").
@@ -177,6 +180,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, 4, rds.Items[0].Spec.Components[0].Replicas)
 	assert.Equal(t, "db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
 	assert.Equal(t, "5678", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
+	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
+	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
 }
 
 func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {

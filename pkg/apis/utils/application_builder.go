@@ -57,6 +57,7 @@ func (ap *ApplicationBuilderStruct) WithEnvironment(environment, buildFrom strin
 	return ap
 }
 
+// WithEnvironmentNoBranch Appends environment with no branch mapping to config
 func (ap *ApplicationBuilderStruct) WithEnvironmentNoBranch(environment string) ApplicationBuilder {
 	ap.environments = append(ap.environments, v1.Environment{
 		Name: environment,
@@ -65,6 +66,7 @@ func (ap *ApplicationBuilderStruct) WithEnvironmentNoBranch(environment string) 
 	return ap
 }
 
+// WithDNSAppAlias Sets env + component to be the app alias
 func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env string, component string) ApplicationBuilder {
 	ap.dnsAppAlias = v1.AppAlias{
 		Environment: env,
@@ -73,6 +75,7 @@ func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env string, component string
 	return ap
 }
 
+// WithDNSExternalAlias Sets env + component to the the external alias
 func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string) ApplicationBuilder {
 	if ap.externalAppAlias == nil {
 		ap.externalAppAlias = make([]v1.ExternalAlias, 0)

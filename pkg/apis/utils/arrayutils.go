@@ -1,6 +1,6 @@
 package utils
 
-// Equal tells whether a and b contain the same elements at the same index.
+// ArrayEqual tells whether a and b contain the same elements at the same index.
 // A nil argument is equivalent to an empty slice.
 func ArrayEqual(a, b []string) bool {
 	if len(a) != len(b) {
@@ -14,7 +14,7 @@ func ArrayEqual(a, b []string) bool {
 	return true
 }
 
-// Equal tells whether a and b contain the same elements. Elements does not need to be in same index
+// ArrayEqualElements tells whether a and b contain the same elements. Elements does not need to be in same index
 // A nil argument is equivalent to an empty slice.
 func ArrayEqualElements(a, b []string) bool {
 	if len(a) != len(b) {

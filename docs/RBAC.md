@@ -96,14 +96,14 @@
   - Accesses:
     - Get, list, create and update RAs
     - Get, list and create jobs
-    - Get and list configmaps <sup><sup>4</sup></sup>
 - radix-pipeline-runner <sup><sup>2</sup></sup>
   - Purpose: Create environment namespaces and make deployments
   - Created by: Helm chart
   - Cluster role binding: radix-pipeline-runner-\<app\>
   - Accesses:
     - Get, list and create namespaces
-    - Get and create RDs
+    - Get, list and create RDs
+    - Get and list configmaps
 - radix-pipeline-rr-\<app\>
   - Purpose: Get access to read RR belonging to \<app\>
   - Created by: Operator
@@ -137,8 +137,8 @@
   - Accesses:
     - All access to RRs, RAs and RDs
     - All access to events, limitranges, namespaces, secrets, servicesaccounts, roles, rolebindings, clusterroles, clusterrolebindings, deployments, services, ingresses, servicemonitors, networkpolicies, jobs
-    - Get list configmaps <sup><sup>4</sup></sup>
-    - Get list delete pods and pods/log
+    - Get and list configmaps
+    - Get, list and delete pods, as well as pods/log
     
 
 #### Clusterrole bindings

@@ -15,6 +15,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -71,6 +72,44 @@ func Test_Create_Radix_Environments(t *testing.T) {
 		})
 		assert.Len(t, namespaces.Items, 2)
 	})
+}
+
+func Test_Reconciles_Radix_Environments(t *testing.T) {
+	// Setup
+	_, client, radixclient := setupTest()
+
+	// Create namespaces manually
+	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "any-app-qa",
+		},
+	})
+
+	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "any-app-prod",
+		},
+	})
+
+	rr := utils.NewRegistrationBuilder().
+		WithName("any-app").
+		BuildRR()
+
+	ra := utils.NewRadixApplicationBuilder().
+		WithAppName("any-app").
+		WithEnvironment("qa", "development").
+		WithEnvironment("prod", "master").
+		BuildRA()
+
+	app, _ := NewApplicationConfig(client, radixclient, rr, ra)
+	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
+
+	// Test
+	app.createEnvironments()
+	namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
+		LabelSelector: label,
+	})
+	assert.Equal(t, 2, len(namespaces.Items))
 }
 
 func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {

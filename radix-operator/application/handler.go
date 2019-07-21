@@ -24,22 +24,22 @@ const (
 	MessageResourceSynced = "Radix Application synced successfully"
 )
 
-// RadixApplicationHandler Instance variables
-type RadixApplicationHandler struct {
+// Handler Instance variables
+type Handler struct {
 	kubeclient  kubernetes.Interface
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	hasSynced   common.HasSynced
 }
 
-// NewApplicationHandler Constructor
-func NewApplicationHandler(
+// NewHandler Constructor
+func NewHandler(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) RadixApplicationHandler {
+	hasSynced common.HasSynced) Handler {
 	kube, _ := kube.New(kubeclient)
 
-	handler := RadixApplicationHandler{
+	handler := Handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kube,
@@ -50,7 +50,7 @@ func NewApplicationHandler(
 }
 
 // Sync Is created on sync of resource
-func (t *RadixApplicationHandler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
+func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
 	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		// The Application resource may no longer exist, in which case we stop

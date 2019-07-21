@@ -22,6 +22,7 @@ const (
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
 )
 
+// Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
 	kubeClient kubernetes.Interface
 }
@@ -32,6 +33,7 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "kube-api"})
 }
 
+// New Constructor
 func New(client kubernetes.Interface) (*Kube, error) {
 	kube := &Kube{
 		kubeClient: client,

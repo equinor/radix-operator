@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -20,6 +22,7 @@ type DeploymentBuilder interface {
 	WithEnvironment(string) DeploymentBuilder
 	WithCreated(time.Time) DeploymentBuilder
 	WithUID(types.UID) DeploymentBuilder
+	WithEmptyStatus() DeploymentBuilder
 	WithComponent(DeployComponentBuilder) DeploymentBuilder
 	WithComponents(...DeployComponentBuilder) DeploymentBuilder
 	GetApplicationBuilder() ApplicationBuilder
@@ -31,14 +34,17 @@ type DeploymentBuilderStruct struct {
 	applicationBuilder ApplicationBuilder
 	DeploymentName     string
 	AppName            string
+	emptyStatus        bool
 	Labels             map[string]string
 	ImageTag           string
 	Environment        string
 	Created            time.Time
+	ResourceVersion    string
 	UID                types.UID
 	components         []DeployComponentBuilder
 }
 
+// WithDeploymentName Sets name of the deployment
 func (db *DeploymentBuilderStruct) WithDeploymentName(name string) DeploymentBuilder {
 	db.DeploymentName = name
 	return db
@@ -47,6 +53,12 @@ func (db *DeploymentBuilderStruct) WithDeploymentName(name string) DeploymentBui
 // WithRadixApplication Links to RA builder
 func (db *DeploymentBuilderStruct) WithRadixApplication(applicationBuilder ApplicationBuilder) DeploymentBuilder {
 	db.applicationBuilder = applicationBuilder
+	return db
+}
+
+// WithEmptyStatus Indicates that the RD has no reconciled status
+func (db *DeploymentBuilderStruct) WithEmptyStatus() DeploymentBuilder {
+	db.emptyStatus = true
 	return db
 }
 
@@ -91,10 +103,15 @@ func (db *DeploymentBuilderStruct) WithImageTag(imageTag string) DeploymentBuild
 func (db *DeploymentBuilderStruct) WithEnvironment(environment string) DeploymentBuilder {
 	db.Labels[kube.RadixEnvLabel] = environment
 	db.Environment = environment
+
+	if db.applicationBuilder != nil {
+		db.applicationBuilder = db.applicationBuilder.WithEnvironmentNoBranch(environment)
+	}
+
 	return db
 }
 
-// WithUUID Sets UUID
+// WithUID Sets UUID
 func (db *DeploymentBuilderStruct) WithUID(uid types.UID) DeploymentBuilder {
 	db.UID = uid
 	return db
@@ -148,6 +165,13 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	if deployName == "" {
 		deployName = GetDeploymentName(db.AppName, db.Environment, db.ImageTag)
 	}
+	status := v1.RadixDeployStatus{}
+	if !db.emptyStatus {
+		status = v1.RadixDeployStatus{
+			Condition:  v1.DeploymentActive,
+			ActiveFrom: metav1.NewTime(time.Now().UTC()),
+		}
+	}
 
 	radixDeployment := &v1.RadixDeployment{
 		TypeMeta: metav1.TypeMeta{
@@ -159,6 +183,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
 			Labels:            db.Labels,
 			CreationTimestamp: metav1.Time{Time: db.Created},
+			ResourceVersion:   db.ResourceVersion,
 			UID:               db.UID,
 		},
 		Spec: v1.RadixDeploymentSpec{
@@ -166,6 +191,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 			Components:  components,
 			Environment: db.Environment,
 		},
+		Status: status,
 	}
 	return radixDeployment
 }
@@ -173,8 +199,9 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 // NewDeploymentBuilder Constructor for deployment builder
 func NewDeploymentBuilder() DeploymentBuilder {
 	return &DeploymentBuilderStruct{
-		Labels:  make(map[string]string),
-		Created: time.Now(),
+		Labels:          make(map[string]string),
+		Created:         time.Now().UTC(),
+		ResourceVersion: strconv.Itoa(rand.Intn(100)),
 	}
 }
 

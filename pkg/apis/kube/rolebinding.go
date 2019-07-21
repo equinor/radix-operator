@@ -23,6 +23,7 @@ func GetRoleBindingGroups(groups []string) []auth.Subject {
 	return subjects
 }
 
+// ApplyRoleBinding Creates or updates role-binding
 func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
 	logger = logger.WithFields(log.Fields{"roleBinding": rolebinding.ObjectMeta.Name})
 
@@ -43,6 +44,7 @@ func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding)
 	return nil
 }
 
+// ApplyClusterRoleBinding Creates or updates cluster-role-binding
 func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBinding) error {
 	logger = logger.WithFields(log.Fields{"clusterRoleBinding": clusterrolebinding.ObjectMeta.Name})
 
@@ -63,6 +65,7 @@ func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBindi
 	return nil
 }
 
+// ApplyClusterRoleToServiceAccount Creates cluster-role-binding as a link between role and service account
 func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{

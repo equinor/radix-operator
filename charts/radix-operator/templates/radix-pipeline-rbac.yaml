@@ -55,6 +55,7 @@ rules:
   - radixdeployments
   verbs:
   - get
+  - list
   - create
 - apiGroups:
   - "*"

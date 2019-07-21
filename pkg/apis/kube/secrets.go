@@ -21,6 +21,7 @@ func (k *Kube) SecretExists(namespace, secretName string) bool {
 	return true
 }
 
+// ApplySecret Creates or updates secret to namespace
 func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Secret, error) {
 	secretName := secret.ObjectMeta.Name
 	log.Debugf("Applies secret %s in namespace %s", secretName, namespace)

@@ -5,11 +5,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GetOwnerReferenceOfRegistration Gets owner reference given registration. Resources that an RR owns
+// GetOwnerReference Gets owner reference of application
 func (app Application) getOwnerReference() []metav1.OwnerReference {
 	return GetOwnerReferenceOfRegistration(app.registration)
 }
 
+// GetOwnerReferenceOfRegistration Gets owner reference given registration. Resources that an RR owns
 func GetOwnerReferenceOfRegistration(registration *v1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{

@@ -5,6 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
+// ApplyRole Creates or updates role
 func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	logger.Debugf("Apply role %s", role.Name)
 	_, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
@@ -21,6 +22,7 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	return nil
 }
 
+// ApplyClusterRole Creates or updates cluster-role
 func (k *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 	logger.Debugf("Apply clusterrole %s", clusterrole.Name)
 	_, err := k.kubeClient.RbacV1().ClusterRoles().Create(clusterrole)

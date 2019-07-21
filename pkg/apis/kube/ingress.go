@@ -47,7 +47,7 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 		if err != nil {
 			return fmt.Errorf("Failed to patch Ingress object: %v", err)
 		}
-		log.Debugf("Patched Service: %s in namespace %s", patchedIngress.Name, namespace)
+		log.Debugf("Patched Ingress: %s in namespace %s", patchedIngress.Name, namespace)
 		return nil
 	}
 	if err != nil {

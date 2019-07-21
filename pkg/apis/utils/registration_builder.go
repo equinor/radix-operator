@@ -34,6 +34,7 @@ type RegistrationBuilderStruct struct {
 	cloneURL     string
 }
 
+// WithRadixRegistration Re-enginers a builder from a registration
 func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1.RadixRegistration) RegistrationBuilder {
 	rb.WithName(radixRegistration.Name)
 	rb.WithCloneURL(radixRegistration.Spec.CloneURL)
@@ -44,46 +45,55 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	return rb
 }
 
+// WithUID Sets UID
 func (rb *RegistrationBuilderStruct) WithUID(uid types.UID) RegistrationBuilder {
 	rb.uid = uid
 	return rb
 }
 
+// WithName Sets name
 func (rb *RegistrationBuilderStruct) WithName(name string) RegistrationBuilder {
 	rb.name = name
 	return rb
 }
 
+// WithRepository Sets repository
 func (rb *RegistrationBuilderStruct) WithRepository(repository string) RegistrationBuilder {
 	rb.repository = repository
 	return rb
 }
 
+// WithCloneURL Sets clone url
 func (rb *RegistrationBuilderStruct) WithCloneURL(cloneURL string) RegistrationBuilder {
 	rb.cloneURL = cloneURL
 	return rb
 }
 
+// WithSharedSecret Sets shared secret
 func (rb *RegistrationBuilderStruct) WithSharedSecret(sharedSecret string) RegistrationBuilder {
 	rb.sharedSecret = sharedSecret
 	return rb
 }
 
+// WithAdGroups Sets ad group
 func (rb *RegistrationBuilderStruct) WithAdGroups(adGroups []string) RegistrationBuilder {
 	rb.adGroups = adGroups
 	return rb
 }
 
+// WithPublicKey Sets public key
 func (rb *RegistrationBuilderStruct) WithPublicKey(publicKey string) RegistrationBuilder {
 	rb.publicKey = strings.TrimSuffix(publicKey, "\n")
 	return rb
 }
 
+// WithPrivateKey Sets private key
 func (rb *RegistrationBuilderStruct) WithPrivateKey(privateKey string) RegistrationBuilder {
 	rb.privateKey = privateKey
 	return rb
 }
 
+// BuildRR Builds the radix registration
 func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	cloneURL := rb.cloneURL
 	if cloneURL == "" {

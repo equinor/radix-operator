@@ -21,6 +21,7 @@ func GetDeploymentName(appName, env, tag string) string {
 	return fmt.Sprintf("%s-%s-%s", env, tag, random)
 }
 
+// GetComponentSecretName Gets unique name of the component secret
 func GetComponentSecretName(componentame string) string {
 	// include a hash so that users cannot get access to a secret they should not ,
 	// by naming component the same as secret object

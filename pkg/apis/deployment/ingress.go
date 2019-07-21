@@ -27,7 +27,6 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 	if err != nil {
 		return err
 	}
-	activeClustername := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 
 	var publicPortNumber int32
 	// For backwards compatibility
@@ -73,7 +72,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		}
 	}
 
-	if strings.EqualFold(clustername, activeClustername) {
+	if isActiveCluster(clustername) {
 		// Create fixed active cluster ingress for this component
 		activeClusterAliasIngress := getActiveClusterAliasIngressConfig(deployComponent.Name, deploy.radixDeployment, namespace, publicPortNumber)
 		if activeClusterAliasIngress != nil {
@@ -92,6 +91,11 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 
 	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
 	return deploy.kubeutil.ApplyIngress(namespace, ingress)
+}
+
+func isActiveCluster(clustername string) bool {
+	activeClustername := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
+	return strings.EqualFold(clustername, activeClustername)
 }
 
 func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
@@ -201,11 +205,10 @@ func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDep
 }
 
 func getActiveClusterAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, namespace string, publicPortNumber int32) *v1beta1.Ingress {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
+	hostname := getActiveClusterHostName(componentName, namespace)
+	if hostname == "" {
 		return nil
 	}
-	hostname := fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(hostname, componentName, activeClusterTLSSecretName, publicPortNumber)
 	ingressName := fmt.Sprintf("%s-active-cluster-url-alias", componentName)
@@ -229,6 +232,14 @@ func (deploy *Deployment) getExternalAliasIngressConfig(externalAlias, component
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 	ingressSpec := getIngressSpec(externalAlias, componentName, externalAlias, publicPortNumber)
 	return getIngressConfig(radixDeployment, componentName, externalAlias, ownerReference, false, true, false, ingressSpec), nil
+}
+
+func getActiveClusterHostName(componentName, namespace string) string {
+	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	if dnsZone == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
 }
 
 func getHostName(componentName, namespace, clustername, dnsZone string) string {
