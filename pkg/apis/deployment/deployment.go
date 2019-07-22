@@ -162,6 +162,7 @@ func (deploy *Deployment) getName() string {
 	return deploy.radixDeployment.GetName()
 }
 
+// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 func (deploy *Deployment) restoreStatus() {
 	if restoredStatus, ok := deploy.radixDeployment.Annotations[restoredStatusAnnotation]; ok {
 		if deploy.radixDeployment.Status.Condition == "" {
