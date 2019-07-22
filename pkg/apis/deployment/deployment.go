@@ -19,10 +19,11 @@ import (
 
 const (
 	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
-	DefaultReplicas = 1
+	DefaultReplicas         = 1
+	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 
+	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	restoredStatusAnnotation = "equinor.com/velero-restored-status"
-	prometheusInstanceLabel  = "LABEL_PROMETHEUS_INSTANCE"
 )
 
 // Deployment Instance variables
