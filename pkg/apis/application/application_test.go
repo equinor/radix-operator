@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -99,20 +100,37 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 
 }
 
-func TestOnSync_UserGroupDefined_UserGroupSet(t *testing.T) {
+func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModified(t *testing.T) {
+	anyAppName := "any-app"
+
 	// Setup
 	tu, client, radixClient := setupTest()
 	os.Setenv(OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
 
 	// Test
-	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
-		WithName("any-app").
+	rr, _ := applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
+		WithName(anyAppName).
 		WithAdGroups([]string{"5678-91011-1234"}))
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(rolebindings.Items))
 	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
 	assert.Equal(t, "5678-91011-1234", rolebindings.Items[1].Subjects[0].Name)
+
+	platformUser, err := client.RbacV1().ClusterRoleBindings().Get(fmt.Sprintf("radix-platform-user-rr-%s", anyAppName), metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "5678-91011-1234", platformUser.Subjects[0].Name)
+
+	rr.Spec.AdGroups = []string{"1234-56789-0123"}
+	updateRegistrationWithSync(tu, client, radixClient, rr)
+
+	rolebindings, _ = client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
+	assert.Equal(t, 2, len(rolebindings.Items))
+	assert.Equal(t, "1234-56789-0123", rolebindings.Items[1].Subjects[0].Name)
+
+	platformUser, err = client.RbacV1().ClusterRoleBindings().Get(fmt.Sprintf("radix-platform-user-rr-%s", anyAppName), metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "1234-56789-0123", platformUser.Subjects[0].Name)
 
 }
 
@@ -152,10 +170,26 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 }
 
 func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface,
-	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder) error {
+	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	err := tu.ApplyRegistration(registrationBuilder)
 
 	rr := registrationBuilder.BuildRR()
+	application, _ := NewApplication(client, radixclient, rr)
+	err = application.OnSync()
+	if err != nil {
+		return nil, err
+	}
+
+	return rr, nil
+}
+
+func updateRegistrationWithSync(tu test.Utils, client kubernetes.Interface,
+	radixclient radixclient.Interface, rr *v1.RadixRegistration) error {
+	_, err := radixclient.RadixV1().RadixRegistrations().Update(rr)
+	if err != nil {
+		return err
+	}
+
 	application, _ := NewApplication(client, radixclient, rr)
 	err = application.OnSync()
 	if err != nil {
