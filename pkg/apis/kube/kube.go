@@ -48,3 +48,7 @@ func New(client kubernetes.Interface) (*Kube, error) {
 	}
 	return kube, nil
 }
+
+func isEmptyPatch(patchBytes []byte) bool {
+	return string(patchBytes) == "{}"
+}

@@ -53,12 +53,17 @@ func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, lab
 			return fmt.Errorf("Failed to create two way merge patch namespace objects: %v", err)
 		}
 
-		patchedNamespace, err := kube.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
-		if err != nil {
-			return fmt.Errorf("Failed to patch namespace object: %v", err)
+		if !isEmptyPatch(patchBytes) {
+			patchedNamespace, err := kube.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
+			if err != nil {
+				return fmt.Errorf("Failed to patch namespace object: %v", err)
+			}
+
+			log.Debugf("Patched namespace: %s ", patchedNamespace.Name)
+		} else {
+			log.Debugf("No need to patch namespace: %s ", name)
 		}
 
-		log.Debugf("Patched namespace: %s ", patchedNamespace.Name)
 		return nil
 	}
 
