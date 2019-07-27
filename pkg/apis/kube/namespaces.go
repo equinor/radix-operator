@@ -13,13 +13,14 @@ import (
 )
 
 // ApplyNamespace Creates a new namespace, if not exists allready
-func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	log.Debugf("Create namespace: %s", name)
 
 	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			OwnerReferences: ownerRefs,
+			Annotations:     annotations,
 			Labels:          labels,
 		},
 	}
@@ -35,6 +36,7 @@ func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRef
 		newNamespace := oldNamespace.DeepCopy()
 		newNamespace.ObjectMeta.OwnerReferences = ownerRefs
 		newNamespace.ObjectMeta.Labels = labels
+		newNamespace.ObjectMeta.Annotations = annotations
 
 		oldNamespaceJSON, err := json.Marshal(oldNamespace)
 		if err != nil {

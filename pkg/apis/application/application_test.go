@@ -1,6 +1,7 @@
 package application
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -108,21 +109,34 @@ func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModified(t *testing.T) 
 	os.Setenv(OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
 
 	// Test
+	firstAdGroups := []string{"5678-91011-1234", "9876-54321-0987"}
+
 	rr, _ := applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
 		WithName(anyAppName).
-		WithAdGroups([]string{"5678-91011-1234"}))
+		WithAdGroups(firstAdGroups))
+
+	appNs, _ := client.CoreV1().Namespaces().Get(utils.GetAppNamespace(anyAppName), metav1.GetOptions{})
+	var setAdGroupsAnnotation []string
+	json.Unmarshal([]byte(appNs.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
+	assert.Equal(t, firstAdGroups, setAdGroupsAnnotation)
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(rolebindings.Items))
 	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
 	assert.Equal(t, "5678-91011-1234", rolebindings.Items[1].Subjects[0].Name)
+	assert.Equal(t, "9876-54321-0987", rolebindings.Items[1].Subjects[1].Name)
 
 	platformUser, err := client.RbacV1().ClusterRoleBindings().Get(fmt.Sprintf("radix-platform-user-rr-%s", anyAppName), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "5678-91011-1234", platformUser.Subjects[0].Name)
 
-	rr.Spec.AdGroups = []string{"1234-56789-0123"}
+	secondAdGroups := []string{"1234-56789-0123"}
+	rr.Spec.AdGroups = secondAdGroups
 	updateRegistrationWithSync(tu, client, radixClient, rr)
+
+	appNs, _ = client.CoreV1().Namespaces().Get(utils.GetAppNamespace(anyAppName), metav1.GetOptions{})
+	json.Unmarshal([]byte(appNs.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
+	assert.Equal(t, secondAdGroups, setAdGroupsAnnotation)
 
 	rolebindings, _ = client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(rolebindings.Items))

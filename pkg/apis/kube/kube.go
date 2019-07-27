@@ -5,6 +5,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Radix Annotations
+const (
+	AdGroupsAnnotation = "radix-app-adgroups"
+
+	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
+	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
+)
+
 // Radix Labels
 const (
 	RadixAppLabel                = "radix-app"
