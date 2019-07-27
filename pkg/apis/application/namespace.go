@@ -72,15 +72,21 @@ func (app Application) getNamespaceAnnotations() (map[string]string, error) {
 
 // GetNamespaceAnnotationsOfRegistration Gets the namespace annotation for a RR
 func GetNamespaceAnnotationsOfRegistration(registration *v1.RadixRegistration) (map[string]string, error) {
-	adGroups, err := json.Marshal(registration.Spec.AdGroups)
+	adGroups, err := GetAdGroups(registration)
 	if err != nil {
 		logger.Errorf("Failed to create namespace %s: %v", registration.Name, err)
 		return nil, err
 	}
 
-	// Use this annotation to communicate with sync of RA and RD
+	adGroupsAnnotation, err := json.Marshal(adGroups)
+	if err != nil {
+		logger.Errorf("Failed to create namespace %s: %v", registration.Name, err)
+		return nil, err
+	}
+
+	// Use this annotation to1' communicate with sync of RA and RD
 	annotations := map[string]string{
-		kube.AdGroupsAnnotation: string(adGroups),
+		kube.AdGroupsAnnotation: string(adGroupsAnnotation),
 	}
 
 	return annotations, nil

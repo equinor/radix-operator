@@ -34,8 +34,44 @@ func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding)
 
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
-		_, err = k.kubeClient.RbacV1().RoleBindings(namespace).Update(rolebinding)
-		logger.Debugf("Rolebinding %s already exists. Updating", rolebinding.Name)
+		logger.Debugf("Rolebinding %s already exists, updating the object now", rolebinding.Name)
+		oldRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Get(rolebinding.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Failed to get old role binding object: %v", err)
+		}
+
+		newRoleBinding := oldRoleBinding.DeepCopy()
+		newRoleBinding.ObjectMeta.OwnerReferences = rolebinding.OwnerReferences
+		newRoleBinding.ObjectMeta.Labels = rolebinding.Labels
+		newRoleBinding.Subjects = rolebinding.Subjects
+
+		oldRoleBindingJSON, err := json.Marshal(oldRoleBinding)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal old role binding object: %v", err)
+		}
+
+		newRoleBindingJSON, err := json.Marshal(newRoleBinding)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal new role binding object: %v", err)
+		}
+
+		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, auth.RoleBinding{})
+		if err != nil {
+			return fmt.Errorf("Failed to create two way merge patch role binding objects: %v", err)
+		}
+
+		if !isEmptyPatch(patchBytes) {
+			patchedRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Patch(rolebinding.Name, types.StrategicMergePatchType, patchBytes)
+			if err != nil {
+				return fmt.Errorf("Failed to patch role binding object: %v", err)
+			}
+
+			log.Debugf("Patched role binding: %s ", patchedRoleBinding.Name)
+		} else {
+			log.Debugf("No need to patch role binding: %s ", rolebinding.Name)
+		}
+
+		return nil
 	}
 
 	if err != nil {
@@ -81,12 +117,17 @@ func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBindi
 			return fmt.Errorf("Failed to create two way merge patch clusterrole binding objects: %v", err)
 		}
 
-		patchedClusterRoleBinding, err := k.kubeClient.RbacV1().ClusterRoleBindings().Patch(clusterrolebinding.Name, types.StrategicMergePatchType, patchBytes)
-		if err != nil {
-			return fmt.Errorf("Failed to patch clusterrole binding object: %v", err)
+		if !isEmptyPatch(patchBytes) {
+			patchedClusterRoleBinding, err := k.kubeClient.RbacV1().ClusterRoleBindings().Patch(clusterrolebinding.Name, types.StrategicMergePatchType, patchBytes)
+			if err != nil {
+				return fmt.Errorf("Failed to patch clusterrole binding object: %v", err)
+			}
+
+			log.Debugf("Patched clusterrole binding: %s ", patchedClusterRoleBinding.Name)
+		} else {
+			log.Debugf("No need to patch clusterrole binding: %s ", clusterrolebinding.Name)
 		}
 
-		log.Debugf("Patched clusterrole binding: %s ", patchedClusterRoleBinding.Name)
 		return nil
 	}
 
