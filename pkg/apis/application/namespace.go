@@ -2,16 +2,17 @@ package application
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // createAppNamespace creates an app namespace with RadixRegistration as owner
 func (app Application) createAppNamespace() error {
 	registration := app.registration
-	envName := "app"
 	name := utils.GetAppNamespace(registration.Name)
 
 	annotations, err := app.getNamespaceAnnotations()
@@ -23,7 +24,7 @@ func (app Application) createAppNamespace() error {
 	labels := map[string]string{
 		"radixApp":         registration.Name, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel: registration.Name,
-		kube.RadixEnvLabel: envName,
+		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
 	}
 
 	ownerRef := app.getOwnerReference()
@@ -35,6 +36,32 @@ func (app Application) createAppNamespace() error {
 	}
 
 	logger.Infof("Created namespace %s", name)
+	return nil
+}
+
+// synchEnvironmentNamespaces Sync environment namespaces in order to communicate change to ad-groups with
+// RA and RD controller
+func (app Application) synchEnvironmentNamespaces() error {
+	appName := app.registration.Name
+	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, appName)
+
+	annotations, err := app.getNamespaceAnnotations()
+	if err != nil {
+		logger.Errorf("Failed to sync environment namespace for app %s: %v", appName, err)
+		return err
+	}
+
+	namespaces, _ := app.kubeclient.CoreV1().Namespaces().List(metav1.ListOptions{
+		LabelSelector: label,
+	})
+
+	for _, namespace := range namespaces.Items {
+		if namespace.Labels[kube.RadixEnvLabel] != utils.AppNamespaceEnvName {
+			namespace.Annotations = annotations
+			err = app.kubeutil.ApplyNamespace(namespace.Name, annotations, namespace.Labels, namespace.OwnerReferences)
+		}
+	}
+
 	return nil
 }
 

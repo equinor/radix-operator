@@ -106,7 +106,6 @@ func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModified(t *testing.T) 
 
 	// Setup
 	tu, client, radixClient := setupTest()
-	os.Setenv(OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
 
 	// Test
 	firstAdGroups := []string{"5678-91011-1234", "9876-54321-0987"}
@@ -146,6 +145,52 @@ func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModified(t *testing.T) 
 	assert.NoError(t, err)
 	assert.Equal(t, "1234-56789-0123", platformUser.Subjects[0].Name)
 
+}
+
+func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModifiedOnEnvironmentNamespace(t *testing.T) {
+	anyAppName := "any-app"
+
+	// Setup
+	tu, client, radixClient := setupTest()
+
+	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "any-app-qa",
+			Labels: map[string]string{
+				kube.RadixAppLabel: anyAppName,
+				kube.RadixEnvLabel: "qa",
+			},
+		},
+	})
+
+	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "any-app-prod",
+			Labels: map[string]string{
+				kube.RadixAppLabel: anyAppName,
+				kube.RadixEnvLabel: "prod",
+			},
+		},
+	})
+
+	// Test
+	adGroups := []string{"5678-91011-1234", "9876-54321-0987"}
+
+	applyRegistrationWithSync(tu, client, radixClient, utils.ARadixRegistration().
+		WithName(anyAppName).
+		WithAdGroups(adGroups))
+
+	namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, anyAppName),
+	})
+
+	assert.Equal(t, 3, len(namespaces.Items))
+
+	for _, namespace := range namespaces.Items {
+		var setAdGroupsAnnotation []string
+		json.Unmarshal([]byte(namespace.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
+		assert.Equal(t, adGroups, setAdGroupsAnnotation)
+	}
 }
 
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
