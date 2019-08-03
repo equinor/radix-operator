@@ -128,6 +128,7 @@ func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModified(t *testing.T) 
 	platformUser, err := client.RbacV1().ClusterRoleBindings().Get(fmt.Sprintf("radix-platform-user-rr-%s", anyAppName), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "5678-91011-1234", platformUser.Subjects[0].Name)
+	assert.Equal(t, "9876-54321-0987", platformUser.Subjects[1].Name)
 
 	secondAdGroups := []string{"1234-56789-0123"}
 	rr.Spec.AdGroups = secondAdGroups
