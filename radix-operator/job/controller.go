@@ -1,14 +1,17 @@
 package job
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	batchinformers "k8s.io/client-go/informers/batch/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -40,6 +43,7 @@ func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	jobInformer radixinformer.RadixJobInformer,
 	kubernetesJobInformer batchinformers.JobInformer,
+	podInformer coreinformers.PodInformer,
 	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{
@@ -73,10 +77,6 @@ func NewController(client kubernetes.Interface,
 	})
 
 	kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			job := obj.(*batchv1.Job)
-			logger.Debugf("Service object added event received for %s. Do nothing", job.Name)
-		},
 		UpdateFunc: func(old, new interface{}) {
 			newJob := new.(*batchv1.Job)
 			oldJob := old.(*batchv1.Job)
@@ -85,8 +85,30 @@ func NewController(client kubernetes.Interface,
 			}
 			controller.HandleObject(new, "RadixJob", getObject)
 		},
-		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixJob", getObject)
+	})
+
+	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, new interface{}) {
+			newPod := new.(*corev1.Pod)
+			oldPod := old.(*corev1.Pod)
+			if newPod.ResourceVersion == oldPod.ResourceVersion {
+				return
+			}
+
+			if ownerRef := metav1.GetControllerOf(newPod); ownerRef != nil {
+				if ownerRef.Kind != "Job" || newPod.Labels[kube.RadixJobNameLabel] == "" {
+					return
+				}
+
+				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
+				if err != nil {
+					// Nothing more to do than escape
+					logger.Errorf("Could not find owning job of pod %s due to %v", newPod.Name, err)
+					return
+				}
+
+				controller.HandleObject(job, "RadixJob", getObject)
+			}
 		},
 	})
 
