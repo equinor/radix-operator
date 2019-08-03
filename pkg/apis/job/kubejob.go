@@ -7,6 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
@@ -16,9 +17,11 @@ import (
 )
 
 const (
-	workerImage     = "radix-pipeline"
-	dockerRegistry  = "radixdev.azurecr.io"
-	radixJobTypeJob = "job"
+	workerImage    = "radix-pipeline"
+	dockerRegistry = "radixdev.azurecr.io"
+
+	// RadixJobTypeJob Outer job
+	RadixJobTypeJob = "job"
 )
 
 func (job *Job) createJob() error {
@@ -145,7 +148,7 @@ func getPipelineJobLabels(appName, jobName, randomStr, branch, commitID string, 
 	// Base labels for all types of pipeline
 	labels := map[string]string{
 		kube.RadixJobNameLabel: jobName,
-		kube.RadixJobTypeLabel: radixJobTypeJob,
+		kube.RadixJobTypeLabel: RadixJobTypeJob,
 		"radix-pipeline":       pipeline.Name,
 		"radix-app-name":       appName, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel:     appName,
@@ -206,4 +209,19 @@ func getPushImageTag(pushImage bool) string {
 	}
 
 	return "0"
+}
+
+func getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) v1.RadixJobCondition {
+	var status v1.RadixJobCondition
+	if jobStatus.Active > 0 {
+		status = v1.JobRunning
+
+	} else if jobStatus.Succeeded > 0 {
+		status = v1.JobSucceeded
+
+	} else if jobStatus.Failed > 0 {
+		status = v1.JobFailed
+	}
+
+	return status
 }

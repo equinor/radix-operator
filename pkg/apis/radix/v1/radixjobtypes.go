@@ -18,8 +18,8 @@ type RadixJob struct {
 //RadixJobStatus is the status for a Radix job
 type RadixJobStatus struct {
 	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
-	Started    meta_v1.Time      `json:"started" yaml:"started"`
-	Ended      meta_v1.Time      `json:"ended" yaml:"ended"`
+	Started    *meta_v1.Time     `json:"started" yaml:"started"`
+	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
 	TargetEnvs []string          `json:"targetEnvironments" yaml:"targetEnvironments"`
 	Steps      []RadixJobStep    `json:"steps" yaml:"steps"`
 }
@@ -71,6 +71,7 @@ type RadixJobList struct {
 type RadixJobStep struct {
 	Name      string            `json:"name" yaml:"name"`
 	Condition RadixJobCondition `json:"condition" yaml:"condition"`
-	Started   meta_v1.Time      `json:"started" yaml:"started"`
-	Ended     meta_v1.Time      `json:"ended" yaml:"ended"`
+	Started   *meta_v1.Time     `json:"started" yaml:"started"`
+	Ended     *meta_v1.Time     `json:"ended" yaml:"ended"`
+	PodName   string            `json:"podName" yaml:"podName"`
 }
