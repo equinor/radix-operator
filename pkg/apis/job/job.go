@@ -56,6 +56,11 @@ func (job *Job) OnSync() error {
 		return nil
 	}
 
+	if isRadixJobQueued(job.radixJob) {
+		log.Warnf("Ignoring RadixJob %s/%s as it's queued.", job.radixJob.Namespace, job.radixJob.Name)
+		return nil
+	}
+
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(job.radixJob.Name, metav1.GetOptions{})
 
 	if errors.IsNotFound(err) {
@@ -76,7 +81,16 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 	}
 
 	if job.noOtherRunningJob(allJobs.Items) {
-		job.setStatusOfJob()
+		err = job.setStatusOfJob()
+		if err != nil {
+			return false, err
+		}
+
+	} else {
+		err = job.queueJob()
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return
@@ -96,9 +110,12 @@ func isOtherJobRunning(job *v1.RadixJob, allJobs []v1.RadixJob) bool {
 	return false
 }
 
-// isRadixJobDone checks if job is inactive
 func isRadixJobDone(rj *v1.RadixJob) bool {
 	return rj == nil || rj.Status.Condition == v1.JobFailed || rj.Status.Condition == v1.JobSucceeded
+}
+
+func isRadixJobQueued(rj *v1.RadixJob) bool {
+	return rj == nil || rj.Status.Condition == v1.JobQueued
 }
 
 func (job *Job) setStatusOfJob() error {
@@ -133,6 +150,27 @@ func (job *Job) setStatusOfJob() error {
 
 	job.radixJob.Status.Steps = steps
 	job.radixJob.Status.TargetEnvs = environments
+	err = saveStatus(job.radixclient, job.radixJob)
+
+	if job.radixJob.Status.Condition == v1.JobSucceeded {
+		rjs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		for _, otherRj := range rjs.Items {
+			if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued {
+				otherRj.Status.Condition = v1.JobRunning
+				err = saveStatus(job.radixclient, &otherRj)
+			}
+		}
+	}
+
+	return err
+}
+
+func (job *Job) queueJob() error {
+	job.radixJob.Status.Condition = v1.JobQueued
 	return saveStatus(job.radixclient, job.radixJob)
 }
 
