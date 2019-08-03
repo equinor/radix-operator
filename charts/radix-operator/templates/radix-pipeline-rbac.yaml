@@ -14,6 +14,7 @@ rules:
   - radix.equinor.com
   resources:
   - radixapplications
+  - radixjobs
   verbs:
   - get
   - list

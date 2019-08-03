@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
+	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/client-go/kubernetes"
@@ -59,6 +60,7 @@ func main() {
 	go startRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
 	go startApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
+	go startJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -144,6 +146,32 @@ func startDeploymentController(
 	radixInformerFactory.Start(stop)
 
 	if err := deployController.Run(threadiness, stop); err != nil {
+		logger.Fatalf("Error running controller: %s", err.Error())
+	}
+}
+
+func startJobController(
+	client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	radixInformerFactory informers.SharedInformerFactory,
+	recorder record.EventRecorder,
+	stop <-chan struct{}) {
+
+	handler := job.NewHandler(client, radixClient,
+		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
+	jobController := job.NewController(
+		client,
+		radixClient,
+		&handler,
+		radixInformerFactory.Radix().V1().RadixJobs(),
+		kubeInformerFactory.Batch().V1().Jobs(),
+		recorder)
+
+	kubeInformerFactory.Start(stop)
+	radixInformerFactory.Start(stop)
+
+	if err := jobController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }

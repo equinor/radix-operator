@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -62,11 +63,19 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	}
 
 	log.Infof("Building app %s", cli.GetAppName())
+
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
 	if err != nil {
 		return err
 	}
+
+	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	if err != nil {
+		return err
+	}
+
+	job.OwnerReferences = ownerReference
 
 	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
 	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
