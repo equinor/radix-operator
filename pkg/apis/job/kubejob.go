@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	workerImage    = "radix-pipeline"
-	dockerRegistry = "radixdev.azurecr.io"
+	workerImage = "radix-pipeline"
 
 	// RadixJobTypeJob Outer job
 	RadixJobTypeJob = "job"
@@ -44,7 +43,7 @@ func (job *Job) createJob() error {
 }
 
 func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
-	imageTag := fmt.Sprintf("%s/%s:%s", dockerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
+	imageTag := fmt.Sprintf("%s/%s:%s", job.radixJob.Spec.DockerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
 
 	log.Infof("Using image: %s", imageTag)
 

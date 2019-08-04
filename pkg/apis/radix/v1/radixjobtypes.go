@@ -38,11 +38,12 @@ const (
 
 //RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	PipelineImage string            `json:"pipelineImage" yaml:"pipelineImage"`
-	AppName       string            `json:"appName" yaml:"appName"`
-	PipeLineType  RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
-	Build         RadixBuildSpec    `json:"build" yaml:"build"`
-	Promote       RadixPromoteSpec  `json:"promote" yaml:"promote"`
+	AppName        string            `json:"appName" yaml:"appName"`
+	PipeLineType   RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
+	DockerRegistry string            `json:"dockerRegistry" yaml:"dockerRegistry"`
+	PipelineImage  string            `json:"pipelineImage" yaml:"pipelineImage"`
+	Build          RadixBuildSpec    `json:"build" yaml:"build"`
+	Promote        RadixPromoteSpec  `json:"promote" yaml:"promote"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
