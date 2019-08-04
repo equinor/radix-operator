@@ -40,6 +40,16 @@ rules:
   - watch
   - patch
   - create
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -77,5 +87,15 @@ rules:
   - get
   - list
   - watch
+  - create
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
   - create
 ---

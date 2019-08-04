@@ -106,8 +106,8 @@ func getCurrentTimestamp() string {
 func getPipelineJobInitContainers(sshURL string, pipeline *pipelineJob.Definition) []corev1.Container {
 	var initContainers []corev1.Container
 
-	switch pipeline.Name {
-	case pipelineJob.BuildDeploy, pipelineJob.Build:
+	switch pipeline.Type {
+	case v1.BuildDeploy, v1.Build:
 		initContainers = git.CloneInitContainers(sshURL, "master")
 	}
 	return initContainers
@@ -117,19 +117,19 @@ func getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, p
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("JOB_NAME=%s", jobName),
-		fmt.Sprintf("PIPELINE_TYPE=%s", pipeline.Name),
+		fmt.Sprintf("PIPELINE_TYPE=%s", pipeline.Type),
 	}
 
-	switch pipeline.Name {
-	case pipelineJob.BuildDeploy:
+	switch pipeline.Type {
+	case v1.BuildDeploy:
 		args = append(args, fmt.Sprintf("IMAGE_TAG=%s", jobSpec.Build.ImageTag))
 		fallthrough
-	case pipelineJob.Build:
+	case v1.Build:
 		args = append(args, fmt.Sprintf("BRANCH=%s", jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("COMMIT_ID=%s", jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"))
-	case pipelineJob.Promote:
+	case v1.Promote:
 		args = append(args, fmt.Sprintf("RADIX_APP=%s", appName))
 		args = append(args, fmt.Sprintf("DEPLOYMENT_NAME=%s", jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("FROM_ENVIRONMENT=%s", jobSpec.Promote.FromEnvironment))
@@ -144,16 +144,16 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 	labels := map[string]string{
 		kube.RadixJobNameLabel: jobName,
 		kube.RadixJobTypeLabel: RadixJobTypeJob,
-		"radix-pipeline":       pipeline.Name,
+		"radix-pipeline":       string(pipeline.Type),
 		"radix-app-name":       appName, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel:     appName,
 	}
 
-	switch pipeline.Name {
-	case pipelineJob.BuildDeploy:
+	switch pipeline.Type {
+	case v1.BuildDeploy:
 		labels[kube.RadixImageTagLabel] = jobSpec.Build.ImageTag
 		fallthrough
-	case pipelineJob.Build:
+	case v1.Build:
 		labels[kube.RadixBranchLabel] = jobSpec.Build.Branch
 		labels[kube.RadixCommitLabel] = jobSpec.Build.CommitID
 	}
@@ -164,8 +164,8 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 func getPipelineJobContainerVolumeMounts(pipeline *pipelineJob.Definition) []corev1.VolumeMount {
 	var volumeMounts []corev1.VolumeMount
 
-	switch pipeline.Name {
-	case pipelineJob.BuildDeploy, pipelineJob.Build:
+	switch pipeline.Type {
+	case v1.BuildDeploy, v1.Build:
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      git.BuildContextVolumeName,
 			MountPath: git.Workspace,
@@ -179,8 +179,8 @@ func getPipelineJobVolumes(pipeline *pipelineJob.Definition) []corev1.Volume {
 	var volumes []corev1.Volume
 	defaultMode := int32(256)
 
-	switch pipeline.Name {
-	case pipelineJob.BuildDeploy, pipelineJob.Build:
+	switch pipeline.Type {
+	case v1.BuildDeploy, v1.Build:
 		volumes = append(volumes, corev1.Volume{
 			Name: git.BuildContextVolumeName,
 		})

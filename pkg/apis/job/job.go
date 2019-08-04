@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -191,9 +190,9 @@ func (job *Job) getJobSteps(kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, erro
 	pipelineType := job.radixJob.Spec.PipeLineType
 
 	switch pipelineType {
-	case pipelineJob.Build, pipelineJob.BuildDeploy:
+	case v1.Build, v1.BuildDeploy:
 		return job.getJobStepsBuildPipeline(pipelinePod, kubernetesJob)
-	case pipelineJob.Promote:
+	case v1.Promote:
 		return job.getJobStepsPromotePipeline(pipelinePod, kubernetesJob)
 	}
 

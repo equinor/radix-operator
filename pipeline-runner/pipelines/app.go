@@ -98,7 +98,7 @@ func (cli *PipelineRunner) Run() error {
 	branch := cli.pipelineInfo.PipelineArguments.Branch
 	commitID := cli.pipelineInfo.PipelineArguments.CommitID
 
-	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", cli.pipelineInfo.Definition.Name, appName, branch, commitID)
+	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", cli.pipelineInfo.Definition.Type, appName, branch, commitID)
 
 	for _, step := range cli.pipelineInfo.Steps {
 		err := step.Run(cli.pipelineInfo)

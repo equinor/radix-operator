@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // PipelineInfo Holds info about the pipeline to run
@@ -54,7 +55,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		useCache = "true"
 	}
 
-	pushImagebool := pipelineType == pipeline.BuildDeploy || !(pushImage == "false" || pushImage == "0") // build and deploy require push
+	pushImagebool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
 
 	return PipelineArguments{
 		PipelineType:    pipelineType,
