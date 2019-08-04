@@ -52,10 +52,6 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 
 	appName := job.radixJob.Spec.AppName
 	jobName := job.radixJob.Name
-	randomStr := job.radixJob.Spec.ImageTag
-	branch := job.radixJob.Spec.Branch
-	commitID := job.radixJob.Spec.CommitID
-	pushImage := job.radixJob.Spec.PushImage
 
 	pipeline, err := pipelineJob.GetPipelineFromName(string(job.radixJob.Spec.PipeLineType))
 	if err != nil {
@@ -65,7 +61,7 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   jobName,
-			Labels: getPipelineJobLabels(appName, jobName, randomStr, branch, commitID, pipeline),
+			Labels: getPipelineJobLabels(appName, jobName, job.radixJob.Spec, pipeline),
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
@@ -78,7 +74,7 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 							Name:            workerImage,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
-							Args:            getPipelineJobArguments(appName, jobName, randomStr, branch, commitID, pushImage, pipeline),
+							Args:            getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
 							VolumeMounts:    getPipelineJobContainerVolumeMounts(pipeline),
 						},
 					},
@@ -118,7 +114,7 @@ func getPipelineJobInitContainers(sshURL string, pipeline *pipelineJob.Definitio
 	return initContainers
 }
 
-func getPipelineJobArguments(appName, jobName, randomStr, branch, commitID string, pushImage bool, pipeline *pipelineJob.Definition) []string {
+func getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("JOB_NAME=%s", jobName),
@@ -127,24 +123,24 @@ func getPipelineJobArguments(appName, jobName, randomStr, branch, commitID strin
 
 	switch pipeline.Name {
 	case pipelineJob.BuildDeploy:
-		args = append(args, fmt.Sprintf("IMAGE_TAG=%s", randomStr))
+		args = append(args, fmt.Sprintf("IMAGE_TAG=%s", jobSpec.Build.ImageTag))
 		fallthrough
 	case pipelineJob.Build:
-		args = append(args, fmt.Sprintf("BRANCH=%s", branch))
-		args = append(args, fmt.Sprintf("COMMIT_ID=%s", commitID))
-		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(pushImage)))
+		args = append(args, fmt.Sprintf("BRANCH=%s", jobSpec.Build.Branch))
+		args = append(args, fmt.Sprintf("COMMIT_ID=%s", jobSpec.Build.CommitID))
+		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"))
 	case pipelineJob.Promote:
 		args = append(args, fmt.Sprintf("RADIX_APP=%s", appName))
-		args = append(args, fmt.Sprintf("DEPLOYMENT_NAME=%s", "TODO"))
-		args = append(args, fmt.Sprintf("FROM_ENVIRONMENT=%s", "TODO"))
-		args = append(args, fmt.Sprintf("TO_ENVIRONMENT=%s", "TODO"))
+		args = append(args, fmt.Sprintf("DEPLOYMENT_NAME=%s", jobSpec.Promote.DeploymentName))
+		args = append(args, fmt.Sprintf("FROM_ENVIRONMENT=%s", jobSpec.Promote.FromEnvironment))
+		args = append(args, fmt.Sprintf("TO_ENVIRONMENT=%s", jobSpec.Promote.ToEnvironment))
 	}
 
 	return args
 }
 
-func getPipelineJobLabels(appName, jobName, randomStr, branch, commitID string, pipeline *pipelineJob.Definition) map[string]string {
+func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) map[string]string {
 	// Base labels for all types of pipeline
 	labels := map[string]string{
 		kube.RadixJobNameLabel: jobName,
@@ -156,11 +152,11 @@ func getPipelineJobLabels(appName, jobName, randomStr, branch, commitID string, 
 
 	switch pipeline.Name {
 	case pipelineJob.BuildDeploy:
-		labels[kube.RadixImageTagLabel] = randomStr
+		labels[kube.RadixImageTagLabel] = jobSpec.Build.ImageTag
 		fallthrough
 	case pipelineJob.Build:
-		labels[kube.RadixBranchLabel] = branch
-		labels[kube.RadixCommitLabel] = commitID
+		labels[kube.RadixBranchLabel] = jobSpec.Build.Branch
+		labels[kube.RadixCommitLabel] = jobSpec.Build.CommitID
 	}
 
 	return labels

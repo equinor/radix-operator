@@ -41,11 +41,8 @@ type RadixJobSpec struct {
 	PipelineImage string            `json:"pipelineImage" yaml:"pipelineImage"`
 	AppName       string            `json:"appName" yaml:"appName"`
 	PipeLineType  RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
-	ImageTag      string            `json:"imageTag" yaml:"imageTag"`
-	Branch        string            `json:"branch" yaml:"branch"`
-	CommitID      string            `json:"commitID" yaml:"commitID"`
-	PushImage     bool              `json:"pushImage" yaml:"pushImage"`
-	RadixFileName string            `json:"radixFileName" yaml:"radixFileName"`
+	Build         RadixBuildSpec    `json:"build" yaml:"build"`
+	Promote       RadixPromoteSpec  `json:"promote" yaml:"promote"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
@@ -57,6 +54,22 @@ const (
 	BuildDeploy RadixPipelineType = "build-deploy"
 	Promote     RadixPipelineType = "promote"
 )
+
+//RadixBuildSpec is the spec for a build job
+type RadixBuildSpec struct {
+	ImageTag      string `json:"imageTag" yaml:"imageTag"`
+	Branch        string `json:"branch" yaml:"branch"`
+	CommitID      string `json:"commitID" yaml:"commitID"`
+	PushImage     bool   `json:"pushImage" yaml:"pushImage"`
+	RadixFileName string `json:"radixFileName" yaml:"radixFileName"`
+}
+
+//RadixPromoteSpec is the spec for a promote job
+type RadixPromoteSpec struct {
+	DeploymentName  string `json:"deploymentName" yaml:"deploymentName"`
+	FromEnvironment string `json:"fromEnvironment" yaml:"fromEnvironment"`
+	ToEnvironment   string `json:"toEnvironment" yaml:"toEnvironment"`
+}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
