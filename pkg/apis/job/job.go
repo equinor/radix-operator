@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -152,20 +153,36 @@ func (job *Job) setStatusOfJob() error {
 	err = saveStatus(job.radixclient, job.radixJob)
 
 	if job.radixJob.Status.Condition == v1.JobSucceeded {
-		rjs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(metav1.ListOptions{})
+		rjList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
 
-		for _, otherRj := range rjs.Items {
+		rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
+		for _, otherRj := range rjs {
 			if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued {
 				otherRj.Status.Condition = v1.JobRunning
 				err = saveStatus(job.radixclient, &otherRj)
+				break
 			}
 		}
 	}
 
 	return err
+}
+
+func sortJobsByActiveFromTimestampAsc(rjs []v1.RadixJob) []v1.RadixJob {
+	sort.Slice(rjs, func(i, j int) bool {
+		return isRJ1ActiveAfterRJ2(&rjs[j], &rjs[i])
+	})
+	return rjs
+}
+
+func isRJ1ActiveAfterRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
+	rj1ActiveFrom := rj1.CreationTimestamp
+	rj2ActiveFrom := rj2.CreationTimestamp
+
+	return rj2ActiveFrom.Before(&rj1ActiveFrom)
 }
 
 func (job *Job) queueJob() error {
