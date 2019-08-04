@@ -166,6 +166,7 @@ func startJobController(
 		&handler,
 		radixInformerFactory.Radix().V1().RadixJobs(),
 		kubeInformerFactory.Batch().V1().Jobs(),
+		kubeInformerFactory.Core().V1().Pods(),
 		recorder)
 
 	kubeInformerFactory.Start(stop)
