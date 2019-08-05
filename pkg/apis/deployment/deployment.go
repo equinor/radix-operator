@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,9 +19,11 @@ import (
 
 const (
 	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
-	DefaultReplicas = 1
-
+	DefaultReplicas         = 1
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
+
+	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
+	restoredStatusAnnotation = "equinor.com/velero-restored-status"
 )
 
 // Deployment Instance variables
@@ -107,6 +111,8 @@ func (deploy *Deployment) Apply() error {
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync() error {
+	deploy.restoreStatus()
+
 	if IsRadixDeploymentInactive(deploy.radixDeployment) {
 		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.getNamespace(), deploy.getName())
 		return nil
@@ -155,6 +161,29 @@ func (deploy *Deployment) getNamespace() string {
 // getName gets the name of radixDeployment
 func (deploy *Deployment) getName() string {
 	return deploy.radixDeployment.GetName()
+}
+
+// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
+func (deploy *Deployment) restoreStatus() {
+	if restoredStatus, ok := deploy.radixDeployment.Annotations[restoredStatusAnnotation]; ok {
+		if deploy.radixDeployment.Status.Condition == "" {
+			var status v1.RadixDeployStatus
+			err := json.Unmarshal([]byte(restoredStatus), &status)
+			if err != nil {
+				log.Error("Unable to get status from annotation", err)
+				return
+			}
+
+			deploy.radixDeployment.Status.Condition = status.Condition
+			deploy.radixDeployment.Status.ActiveFrom = status.ActiveFrom
+			deploy.radixDeployment.Status.ActiveTo = status.ActiveTo
+			err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
+			if err != nil {
+				log.Error("Unable to restore status", err)
+				return
+			}
+		}
+	}
 }
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
@@ -208,29 +237,34 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 
+	errs := []error{}
 	for _, v := range deploy.radixDeployment.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
 		err := deploy.createDeployment(v)
 		if err != nil {
 			log.Infof("Failed to create deployment: %v", err)
-			return fmt.Errorf("Failed to create deployment: %v", err)
+			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
+			continue
 		}
 		err = deploy.createService(v)
 		if err != nil {
 			log.Infof("Failed to create service: %v", err)
-			return fmt.Errorf("Failed to create service: %v", err)
+			errs = append(errs, fmt.Errorf("Failed to create service: %v", err))
+			continue
 		}
 		if v.PublicPort != "" || v.Public {
 			err = deploy.createIngress(v)
 			if err != nil {
 				log.Infof("Failed to create ingress: %v", err)
-				return fmt.Errorf("Failed to create ingress: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to create ingress: %v", err))
+				continue
 			}
 		} else {
 			err = deploy.garbageCollectIngressNoLongerInSpecForComponent(v)
 			if err != nil {
 				log.Infof("Failed to delete ingress: %v", err)
-				return fmt.Errorf("Failed to delete ingress: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to delete ingress: %v", err))
+				continue
 			}
 		}
 
@@ -238,9 +272,15 @@ func (deploy *Deployment) syncDeployment() error {
 			err = deploy.createServiceMonitor(v)
 			if err != nil {
 				log.Infof("Failed to create service monitor: %v", err)
-				return fmt.Errorf("Failed to create service monitor: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
+				continue
 			}
 		}
+	}
+
+	// If any error occured when syncing of components
+	if len(errs) > 0 {
+		return errors.Concat(errs)
 	}
 
 	return nil
