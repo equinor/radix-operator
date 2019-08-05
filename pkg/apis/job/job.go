@@ -1,6 +1,7 @@
 package job
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -16,6 +17,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+const restoredStatusAnnotation = "equinor.com/velero-restored-status"
 
 // Job Instance variables
 type Job struct {
@@ -42,6 +45,8 @@ func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (job *Job) OnSync() error {
+	job.restoreStatus()
+
 	if isRadixJobDone(job.radixJob) {
 		log.Warnf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
@@ -70,6 +75,32 @@ func (job *Job) OnSync() error {
 	}
 
 	return nil
+}
+
+// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
+func (job *Job) restoreStatus() {
+	if restoredStatus, ok := job.radixJob.Annotations[restoredStatusAnnotation]; ok {
+		if job.radixJob.Status.Condition == "" {
+			var status v1.RadixJobStatus
+			err := json.Unmarshal([]byte(restoredStatus), &status)
+			if err != nil {
+				log.Error("Unable to get status from annotation", err)
+				return
+			}
+
+			job.radixJob.Status.Condition = status.Condition
+			job.radixJob.Status.Started = status.Started
+			job.radixJob.Status.Ended = status.Ended
+			job.radixJob.Status.Steps = status.Steps
+			job.radixJob.Status.TargetEnvs = status.TargetEnvs
+
+			err = saveStatus(job.radixclient, job.radixJob)
+			if err != nil {
+				log.Error("Unable to restore status", err)
+				return
+			}
+		}
+	}
 }
 
 func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
