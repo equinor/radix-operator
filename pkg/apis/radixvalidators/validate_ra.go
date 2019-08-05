@@ -12,6 +12,86 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+const (
+	maxPortNameLength = 15
+	cpuRegex          = "^[0-9]+m$"
+)
+
+// EnvForDNSAppAliasNotDefinedError Error when env not defined
+func EnvForDNSAppAliasNotDefinedError(env string) error {
+	return fmt.Errorf("Env %s refered to by dnsAppAlias is not defined", env)
+}
+
+// ComponentForDNSAppAliasNotDefinedError Error when env not defined
+func ComponentForDNSAppAliasNotDefinedError(component string) error {
+	return fmt.Errorf("Component %s refered to by dnsAppAlias is not defined", component)
+}
+
+// ExternalAliasCannotBeEmptyError Structure cannot be left empty
+func ExternalAliasCannotBeEmptyError() error {
+	return errors.New("External alias cannot be empty")
+}
+
+// EnvForDNSExternalAliasNotDefinedError Error when env not defined
+func EnvForDNSExternalAliasNotDefinedError(env string) error {
+	return fmt.Errorf("Env %s refered to by dnsExternalAlias is not defined", env)
+}
+
+// ComponentForDNSExternalAliasNotDefinedError Error when env not defined
+func ComponentForDNSExternalAliasNotDefinedError(component string) error {
+	return fmt.Errorf("Component %s refered to by dnsExternalAlias is not defined", component)
+}
+
+// ComponentForDNSExternalAliasIsNotMarkedAsPublicError Component is not marked as public
+func ComponentForDNSExternalAliasIsNotMarkedAsPublicError(component string) error {
+	return fmt.Errorf("Component %s refered to by dnsExternalAlias is not marked as public", component)
+}
+
+// EnvironmentReferencedByComponentDoesNotExistError Environment does not exists
+func EnvironmentReferencedByComponentDoesNotExistError(environment, component string) error {
+	return fmt.Errorf("Env %s refered to by component %s is not defined", environment, component)
+}
+
+// InvalidPortNameLengthError Invalid resource length
+func InvalidPortNameLengthError(value string) error {
+	return fmt.Errorf("%s (%s) max length is %d", "port name", value, maxPortNameLength)
+}
+
+// PortSpecificationCannotBeEmptyForComponentError Port cannot be empty for component
+func PortSpecificationCannotBeEmptyForComponentError(component string) error {
+	return fmt.Errorf("Port specification cannot be empty for %s", component)
+}
+
+// PortNameIsRequiredForPublicComponentError Port name cannot be empty
+func PortNameIsRequiredForPublicComponentError(publicPortName, component string) error {
+	return fmt.Errorf("%s port name is required for public component %s", publicPortName, component)
+}
+
+// MultipleMatchingPortNamesError Multiple matching port names
+func MultipleMatchingPortNamesError(matchingPortName int, publicPortName, component string) error {
+	return fmt.Errorf("There are %d ports with name %s for component %s. Only 1 is allowed", matchingPortName, publicPortName, component)
+}
+
+// MemoryResourceRequirementFormatError Invalid memory resource requirement error
+func MemoryResourceRequirementFormatError(value string) error {
+	return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", "memory", value)
+}
+
+// CPUResourceRequirementFormatError Invalid CPU resource requirement
+func CPUResourceRequirementFormatError(value string) error {
+	return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
+}
+
+// InvalidResourceError Invalid resource type
+func InvalidResourceError(name string) error {
+	return fmt.Errorf("Only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
+}
+
+// DuplicateExternalAliasError Cannot have duplicate external alias
+func DuplicateExternalAliasError() error {
+	return errors.New("Cannot have duplicate aliases for dnsExternalAlias")
+}
+
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
 	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app)
@@ -84,10 +164,10 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	}
 
 	if !doesEnvExist(app, alias.Environment) {
-		errs = append(errs, fmt.Errorf("Env %s refered to by dnsAppAlias is not defined", alias.Environment))
+		errs = append(errs, EnvForDNSAppAliasNotDefinedError(alias.Environment))
 	}
 	if !doesComponentExist(app, alias.Component) {
-		errs = append(errs, fmt.Errorf("Component %s refered to by dnsAppAlias is not defined", alias.Component))
+		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Component))
 	}
 	return errs
 }
@@ -105,23 +185,23 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 		distinctAlias[externalAlias.Alias] = true
 
 		if externalAlias.Alias == "" {
-			errs = append(errs, errors.New("External alias cannot be empty"))
+			errs = append(errs, ExternalAliasCannotBeEmptyError())
 		}
 
 		if !doesEnvExist(app, externalAlias.Environment) {
-			errs = append(errs, fmt.Errorf("Env %s refered to by dnsExternalAlias is not defined", externalAlias.Environment))
+			errs = append(errs, EnvForDNSExternalAliasNotDefinedError(externalAlias.Environment))
 		}
 		if !doesComponentExist(app, externalAlias.Component) {
-			errs = append(errs, fmt.Errorf("Component %s refered to by dnsExternalAlias is not defined", externalAlias.Component))
+			errs = append(errs, ComponentForDNSExternalAliasNotDefinedError(externalAlias.Component))
 		}
 
 		if !doesComponentHaveAPublicPort(app, externalAlias.Component) {
-			errs = append(errs, fmt.Errorf("Component %s refered to by dnsExternalAlias is not marked as public", externalAlias.Component))
+			errs = append(errs, ComponentForDNSExternalAliasIsNotMarkedAsPublicError(externalAlias.Component))
 		}
 	}
 
 	if len(distinctAlias) < len(app.Spec.DNSExternalAlias) {
-		errs = append(errs, errors.New("Cannot have duplicate aliases for dnsExternalAlias"))
+		errs = append(errs, DuplicateExternalAliasError())
 	}
 
 	return errs
@@ -142,7 +222,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
-				err = fmt.Errorf("Env %s refered to by component %s is not defined", environment.Environment, component.Name)
+				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, component.Name)
 				errs = append(errs, err)
 			}
 
@@ -165,11 +245,18 @@ func validatePorts(component radixv1.RadixComponent) []error {
 	errs := []error{}
 
 	if component.Ports == nil || len(component.Ports) == 0 {
-		err := fmt.Errorf("Port specification cannot be empty for %s", component.Name)
+		err := PortSpecificationCannotBeEmptyForComponentError(component.Name)
 		errs = append(errs, err)
 	}
 
 	for _, port := range component.Ports {
+		if len(port.Name) > maxPortNameLength {
+			err := InvalidPortNameLengthError(port.Name)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+
 		err := validateRequiredResourceName("port name", port.Name)
 		if err != nil {
 			errs = append(errs, err)
@@ -185,10 +272,10 @@ func validatePorts(component radixv1.RadixComponent) []error {
 			}
 		}
 		if matchingPortName < 1 {
-			errs = append(errs, fmt.Errorf("%s port name is required for public component %s", publicPortName, component.Name))
+			errs = append(errs, PortNameIsRequiredForPublicComponentError(publicPortName, component.Name))
 		}
 		if matchingPortName > 1 {
-			errs = append(errs, fmt.Errorf("There are %d ports with name %s for component %s. Only 1 is allowed", matchingPortName, publicPortName, component.Name))
+			errs = append(errs, MultipleMatchingPortNamesError(matchingPortName, publicPortName, component.Name))
 		}
 	}
 
@@ -220,18 +307,17 @@ func validateQuantity(name, value string) error {
 	if name == "memory" {
 		_, err := resource.ParseQuantity(value)
 		if err != nil {
-			return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", name, value)
+			return MemoryResourceRequirementFormatError(value)
 		}
 	} else if name == "cpu" {
-		regex := "^[0-9]+m$"
-		re := regexp.MustCompile(regex)
+		re := regexp.MustCompile(cpuRegex)
 
 		isValid := re.MatchString(value)
 		if !isValid {
-			return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", name, value, regex)
+			return CPUResourceRequirementFormatError(value)
 		}
 	} else {
-		return fmt.Errorf("Only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
+		return InvalidResourceError(name)
 	}
 
 	return nil
@@ -263,7 +349,7 @@ func validateEnvNames(app *radixv1.RadixApplication) error {
 
 func validateLabelName(resourceName, value string) error {
 	if len(value) > 253 {
-		return fmt.Errorf("%s (%s) max length is 253", resourceName, value)
+		return InvalidResourceNameLengthError(resourceName, value)
 	}
 
 	re := regexp.MustCompile("^(([A-Za-z0-9][-A-Za-z0-9.]*)?[A-Za-z0-9])?$")
@@ -272,7 +358,7 @@ func validateLabelName(resourceName, value string) error {
 	if isValid {
 		return nil
 	}
-	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
+	return InvalidResourceNameError(resourceName, value)
 }
 
 func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
