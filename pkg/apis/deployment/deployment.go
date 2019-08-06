@@ -21,9 +21,6 @@ const (
 	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
 	DefaultReplicas         = 1
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
-
-	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
-	restoredStatusAnnotation = "equinor.com/velero-restored-status"
 )
 
 // Deployment Instance variables
@@ -165,7 +162,7 @@ func (deploy *Deployment) getName() string {
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 func (deploy *Deployment) restoreStatus() {
-	if restoredStatus, ok := deploy.radixDeployment.Annotations[restoredStatusAnnotation]; ok {
+	if restoredStatus, ok := deploy.radixDeployment.Annotations[kube.RestoredStatusAnnotation]; ok {
 		if deploy.radixDeployment.Status.Condition == "" {
 			var status v1.RadixDeployStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)

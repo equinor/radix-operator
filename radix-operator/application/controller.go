@@ -1,8 +1,8 @@
 package application
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -74,27 +74,27 @@ func NewController(client kubernetes.Interface,
 	})
 
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			ns := obj.(*corev1.Namespace)
-			logger.Infof("Namespace object added event received for %s. Do nothing", ns.Name)
-		},
 		UpdateFunc: func(old, new interface{}) {
 			newNs := new.(*corev1.Namespace)
 			oldNs := old.(*corev1.Namespace)
 			if newNs.ResourceVersion == oldNs.ResourceVersion {
 				return
 			}
-			controller.HandleObject(new, "RadixRegistration", getObject)
-		},
-		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixRegistration", getObject)
+
+			if newNs.Annotations[kube.AdGroupsAnnotation] == oldNs.Annotations[kube.AdGroupsAnnotation] {
+				return
+			}
+
+			// Trigger sync of RA, living in the namespace
+			ra, err := radixClient.RadixV1().RadixApplications(newNs.Name).List(metav1.ListOptions{})
+			if err == nil && len(ra.Items) == 1 {
+				// Will sync the RA (there can only be one)
+				var obj metav1.Object
+				obj = &ra.Items[0]
+				controller.Enqueue(obj)
+			}
 		},
 	})
 
 	return controller
-}
-
-func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	appNamespace := utils.GetAppNamespace(name)
-	return radixClient.RadixV1().RadixApplications(appNamespace).Get(name, metav1.GetOptions{})
 }

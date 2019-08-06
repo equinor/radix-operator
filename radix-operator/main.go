@@ -138,6 +138,7 @@ func startDeploymentController(
 		&handler,
 		radixInformerFactory.Radix().V1().RadixDeployments(),
 		kubeInformerFactory.Core().V1().Services(),
+		kubeInformerFactory.Core().V1().Namespaces(),
 		recorder)
 
 	kubeInformerFactory.Start(stop)
