@@ -50,9 +50,6 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.radixclient, cli.radixApplication)
 	if !isRAValid {
 		log.Errorf("Radix config not valid.")
-		for _, err := range errs {
-			log.Errorf("%v", err)
-		}
 		return errors.Concat(errs)
 	}
 
