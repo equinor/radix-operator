@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// AppNamespaceEnvName Name of environment for app namespace
+const AppNamespaceEnvName = "app"
+
 // GetAppNamespace Function to get namespace from app name
 func GetAppNamespace(appName string) string {
 	return fmt.Sprintf("%s-app", appName)
