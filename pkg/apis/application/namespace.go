@@ -15,6 +15,7 @@ func (app Application) createAppNamespace() error {
 	registration := app.registration
 	name := utils.GetAppNamespace(registration.Name)
 
+	// This annotation is used for syncing any RA living below the app namespace
 	annotations, err := app.getNamespaceAnnotations()
 	if err != nil {
 		logger.Errorf("Failed to create namespace %s: %v", name, err)
@@ -84,7 +85,7 @@ func GetNamespaceAnnotationsOfRegistration(registration *v1.RadixRegistration) (
 		return nil, err
 	}
 
-	// Use this annotation to1' communicate with sync of RA and RD
+	// Use this annotation to communicate with sync of RA and RD
 	annotations := map[string]string{
 		kube.AdGroupsAnnotation: string(adGroupsAnnotation),
 	}

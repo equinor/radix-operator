@@ -3,7 +3,6 @@ package application
 import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -98,9 +97,4 @@ func NewController(client kubernetes.Interface,
 	})
 
 	return controller
-}
-
-func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	appNamespace := utils.GetAppNamespace(name)
-	return radixClient.RadixV1().RadixApplications(appNamespace).Get(name, metav1.GetOptions{})
 }
