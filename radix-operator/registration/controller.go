@@ -67,7 +67,9 @@ func NewController(client kubernetes.Interface,
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			ns := obj.(*corev1.Namespace)
-			logger.Debugf("Namespace object added event received for %s. Do nothing", ns.Name)
+
+			// May need to sync ad-groups
+			controller.HandleObject(ns, "RadixRegistration", getObject)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			newNs := new.(*corev1.Namespace)

@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"encoding/json"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -8,6 +9,8 @@ import (
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // GetRoleBindingGroups Get subjects for list of ad groups
@@ -31,8 +34,44 @@ func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding)
 
 	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
 	if errors.IsAlreadyExists(err) {
-		_, err = k.kubeClient.RbacV1().RoleBindings(namespace).Update(rolebinding)
-		logger.Debugf("Rolebinding %s already exists. Updating", rolebinding.Name)
+		logger.Debugf("Rolebinding %s already exists, updating the object now", rolebinding.Name)
+		oldRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Get(rolebinding.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Failed to get old role binding object: %v", err)
+		}
+
+		newRoleBinding := oldRoleBinding.DeepCopy()
+		newRoleBinding.ObjectMeta.OwnerReferences = rolebinding.OwnerReferences
+		newRoleBinding.ObjectMeta.Labels = rolebinding.Labels
+		newRoleBinding.Subjects = rolebinding.Subjects
+
+		oldRoleBindingJSON, err := json.Marshal(oldRoleBinding)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal old role binding object: %v", err)
+		}
+
+		newRoleBindingJSON, err := json.Marshal(newRoleBinding)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal new role binding object: %v", err)
+		}
+
+		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, auth.RoleBinding{})
+		if err != nil {
+			return fmt.Errorf("Failed to create two way merge patch role binding objects: %v", err)
+		}
+
+		if !isEmptyPatch(patchBytes) {
+			patchedRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Patch(rolebinding.Name, types.StrategicMergePatchType, patchBytes)
+			if err != nil {
+				return fmt.Errorf("Failed to patch role binding object: %v", err)
+			}
+
+			log.Debugf("Patched role binding: %s ", patchedRoleBinding.Name)
+		} else {
+			log.Debugf("No need to patch role binding: %s ", rolebinding.Name)
+		}
+
+		return nil
 	}
 
 	if err != nil {
@@ -52,7 +91,43 @@ func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBindi
 
 	_, err := k.kubeClient.RbacV1().ClusterRoleBindings().Create(clusterrolebinding)
 	if errors.IsAlreadyExists(err) {
-		logger.Debugf("ClusterRolebinding %s already exists", clusterrolebinding.Name)
+		logger.Debugf("ClusterRolebinding %s already exists, updating the object now", clusterrolebinding.Name)
+		oldClusterRoleBinding, err := k.kubeClient.RbacV1().ClusterRoleBindings().Get(clusterrolebinding.Name, metav1.GetOptions{})
+		if err != nil {
+			return fmt.Errorf("Failed to get old clusterrole binding object: %v", err)
+		}
+
+		newClusterRoleBinding := oldClusterRoleBinding.DeepCopy()
+		newClusterRoleBinding.ObjectMeta.OwnerReferences = clusterrolebinding.OwnerReferences
+		newClusterRoleBinding.ObjectMeta.Labels = clusterrolebinding.Labels
+		newClusterRoleBinding.Subjects = clusterrolebinding.Subjects
+
+		oldClusterRoleBindingJSON, err := json.Marshal(oldClusterRoleBinding)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal old clusterrole binding object: %v", err)
+		}
+
+		newClusterRoleBindingJSON, err := json.Marshal(newClusterRoleBinding)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal new clusterrole binding object: %v", err)
+		}
+
+		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleBindingJSON, newClusterRoleBindingJSON, auth.ClusterRoleBinding{})
+		if err != nil {
+			return fmt.Errorf("Failed to create two way merge patch clusterrole binding objects: %v", err)
+		}
+
+		if !isEmptyPatch(patchBytes) {
+			patchedClusterRoleBinding, err := k.kubeClient.RbacV1().ClusterRoleBindings().Patch(clusterrolebinding.Name, types.StrategicMergePatchType, patchBytes)
+			if err != nil {
+				return fmt.Errorf("Failed to patch clusterrole binding object: %v", err)
+			}
+
+			log.Debugf("Patched clusterrole binding: %s ", patchedClusterRoleBinding.Name)
+		} else {
+			log.Debugf("No need to patch clusterrole binding: %s ", clusterrolebinding.Name)
+		}
+
 		return nil
 	}
 

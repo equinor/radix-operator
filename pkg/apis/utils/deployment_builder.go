@@ -22,6 +22,9 @@ type DeploymentBuilder interface {
 	WithEnvironment(string) DeploymentBuilder
 	WithCreated(time.Time) DeploymentBuilder
 	WithUID(types.UID) DeploymentBuilder
+	WithCondition(v1.RadixDeployCondition) DeploymentBuilder
+	WithActiveFrom(time.Time) DeploymentBuilder
+	WithActiveTo(time.Time) DeploymentBuilder
 	WithEmptyStatus() DeploymentBuilder
 	WithComponent(DeployComponentBuilder) DeploymentBuilder
 	WithComponents(...DeployComponentBuilder) DeploymentBuilder
@@ -39,6 +42,9 @@ type DeploymentBuilderStruct struct {
 	ImageTag           string
 	Environment        string
 	Created            time.Time
+	Condition          v1.RadixDeployCondition
+	ActiveFrom         metav1.Time
+	ActiveTo           metav1.Time
 	ResourceVersion    string
 	UID                types.UID
 	components         []DeployComponentBuilder
@@ -123,6 +129,24 @@ func (db *DeploymentBuilderStruct) WithCreated(created time.Time) DeploymentBuil
 	return db
 }
 
+// WithCondition Sets the condition of the deployment
+func (db *DeploymentBuilderStruct) WithCondition(condition v1.RadixDeployCondition) DeploymentBuilder {
+	db.Condition = condition
+	return db
+}
+
+// WithActiveFrom Sets active from
+func (db *DeploymentBuilderStruct) WithActiveFrom(activeFrom time.Time) DeploymentBuilder {
+	db.ActiveFrom = metav1.NewTime(activeFrom.UTC())
+	return db
+}
+
+// WithActiveTo Sets active to
+func (db *DeploymentBuilderStruct) WithActiveTo(activeTo time.Time) DeploymentBuilder {
+	db.ActiveTo = metav1.NewTime(activeTo.UTC())
+	return db
+}
+
 // WithComponent Appends component to list of components
 func (db *DeploymentBuilderStruct) WithComponent(component DeployComponentBuilder) DeploymentBuilder {
 	db.components = append(db.components, component)
@@ -168,8 +192,9 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 	status := v1.RadixDeployStatus{}
 	if !db.emptyStatus {
 		status = v1.RadixDeployStatus{
-			Condition:  v1.DeploymentActive,
-			ActiveFrom: metav1.NewTime(time.Now().UTC()),
+			Condition:  db.Condition,
+			ActiveFrom: db.ActiveFrom,
+			ActiveTo:   db.ActiveTo,
 		}
 	}
 
@@ -201,6 +226,8 @@ func NewDeploymentBuilder() DeploymentBuilder {
 	return &DeploymentBuilderStruct{
 		Labels:          make(map[string]string),
 		Created:         time.Now().UTC(),
+		Condition:       v1.DeploymentActive,
+		ActiveFrom:      metav1.NewTime(time.Now().UTC()),
 		ResourceVersion: strconv.Itoa(rand.Intn(100)),
 	}
 }
