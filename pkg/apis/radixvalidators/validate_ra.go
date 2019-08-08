@@ -120,6 +120,16 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
+	err = validateSecretNames(app)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = validateEnvironmentVaraibleNames(app)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
 	err = validateBranchNames(app)
 	if err != nil {
 		errs = append(errs, err)
@@ -323,6 +333,32 @@ func validateQuantity(name, value string) error {
 	return nil
 }
 
+func validateSecretNames(app *radixv1.RadixApplication) error {
+	for _, component := range app.Spec.Components {
+		for _, secret := range component.Secrets {
+			err := validateVariableName("secret name", secret)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateEnvironmentVaraibleNames(app *radixv1.RadixApplication) error {
+	for _, component := range app.Spec.Components {
+		for _, envConfig := range component.EnvironmentConfig {
+			for environmentVariable := range envConfig.Variables {
+				err := validateVariableName("environment variable name", environmentVariable)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func validateBranchNames(app *radixv1.RadixApplication) error {
 	for _, env := range app.Spec.Environments {
 		if env.Build.From == "" {
@@ -348,11 +384,19 @@ func validateEnvNames(app *radixv1.RadixApplication) error {
 }
 
 func validateLabelName(resourceName, value string) error {
+	return validateResourceWithRegexp(resourceName, value, "^(([A-Za-z0-9][-A-Za-z0-9.]*)?[A-Za-z0-9])?$")
+}
+
+func validateVariableName(resourceName, value string) error {
+	return validateResourceWithRegexp(resourceName, value, "^(([A-Za-z0-9][-._A-Za-z0-9.]*)?[A-Za-z0-9])?$")
+}
+
+func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
 	if len(value) > 253 {
 		return InvalidResourceNameLengthError(resourceName, value)
 	}
 
-	re := regexp.MustCompile("^(([A-Za-z0-9][-A-Za-z0-9.]*)?[A-Za-z0-9])?$")
+	re := regexp.MustCompile(regexpExpression)
 
 	isValid := re.MatchString(value)
 	if isValid {
