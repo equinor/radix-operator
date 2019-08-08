@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -61,11 +62,6 @@ func (job *Job) OnSync() error {
 		return nil
 	}
 
-	if isRadixJobQueued(job.radixJob) {
-		log.Warnf("Ignoring RadixJob %s/%s as it's queued.", job.radixJob.Namespace, job.radixJob.Name)
-		return nil
-	}
-
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(job.radixJob.Name, metav1.GetOptions{})
 
 	if errors.IsNotFound(err) {
@@ -111,7 +107,15 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 		err = fmt.Errorf("Failed to get all RadixJobs. Error was %v", err)
 	}
 
-	if job.noOtherRunningJob(allJobs.Items) {
+	if job.radixJob.Spec.Stop {
+		err = job.stopJob()
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
+
+	} else if job.noOtherRunningJob(allJobs.Items) {
 		err = job.setStatusOfJob()
 		if err != nil {
 			return false, err
@@ -122,6 +126,8 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 		if err != nil {
 			return false, err
 		}
+
+		return true, nil
 	}
 
 	return
@@ -142,7 +148,7 @@ func isOtherJobRunning(job *v1.RadixJob, allJobs []v1.RadixJob) bool {
 }
 
 func isRadixJobDone(rj *v1.RadixJob) bool {
-	return rj == nil || rj.Status.Condition == v1.JobFailed || rj.Status.Condition == v1.JobSucceeded
+	return rj == nil || rj.Status.Condition == v1.JobFailed || rj.Status.Condition == v1.JobSucceeded || rj.Status.Condition == v1.JobStopped
 }
 
 func isRadixJobQueued(rj *v1.RadixJob) bool {
@@ -184,22 +190,85 @@ func (job *Job) setStatusOfJob() error {
 	err = saveStatus(job.radixclient, job.radixJob)
 
 	if job.radixJob.Status.Condition == v1.JobSucceeded {
-		rjList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(metav1.ListOptions{})
-		if err != nil {
-			return err
+		err = job.setNextJobToRunning()
+	}
+
+	return err
+}
+
+func (job *Job) stopJob() error {
+	// Delete pipeline job
+	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(job.radixJob.Name, &metav1.DeleteOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	err = job.deleteStepJobs()
+	if err != nil {
+		return err
+	}
+
+	job.radixJob.Status.Condition = v1.JobStopped
+	job.radixJob.Status.Ended = &metav1.Time{Time: time.Now()}
+
+	stoppedSteps := make([]v1.RadixJobStep, 0)
+	for _, step := range job.radixJob.Status.Steps {
+		if step.Condition != v1.JobSucceeded && step.Condition != v1.JobFailed {
+			step.Condition = v1.JobStopped
 		}
 
-		rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
-		for _, otherRj := range rjs {
-			if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued {
-				otherRj.Status.Condition = v1.JobRunning
-				err = saveStatus(job.radixclient, &otherRj)
-				break
+		stoppedSteps = append(stoppedSteps, step)
+	}
+
+	job.radixJob.Status.Steps = stoppedSteps
+	err = saveStatus(job.radixclient, job.radixJob)
+	if err == nil {
+		err = job.setNextJobToRunning()
+	}
+
+	return err
+}
+
+func (job *Job) deleteStepJobs() error {
+	jobs, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s, %s!=%s", kube.RadixJobNameLabel, job.radixJob.Name, kube.RadixJobTypeLabel, RadixJobTypeJob),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if len(jobs.Items) > 0 {
+		for _, kubernetesJob := range jobs.Items {
+			// Delete jobs
+			err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(kubernetesJob.Name, &metav1.DeleteOptions{})
+
+			if err != nil {
+				return err
 			}
 		}
 	}
 
-	return err
+	return nil
+}
+
+func (job *Job) setNextJobToRunning() error {
+	rjList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
+	for _, otherRj := range rjs {
+		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued {
+			otherRj.Status.Condition = v1.JobRunning
+			err = saveStatus(job.radixclient, &otherRj)
+			break
+		}
+	}
+
+	return nil
 }
 
 func sortJobsByActiveFromTimestampAsc(rjs []v1.RadixJob) []v1.RadixJob {

@@ -34,6 +34,7 @@ const (
 	JobRunning   RadixJobCondition = "Running"
 	JobSucceeded RadixJobCondition = "Succeeded"
 	JobFailed    RadixJobCondition = "Failed"
+	JobStopped   RadixJobCondition = "Stopped"
 )
 
 //RadixJobSpec is the spec for a job
@@ -44,6 +45,7 @@ type RadixJobSpec struct {
 	PipelineImage  string            `json:"pipelineImage" yaml:"pipelineImage"`
 	Build          RadixBuildSpec    `json:"build" yaml:"build"`
 	Promote        RadixPromoteSpec  `json:"promote" yaml:"promote"`
+	Stop           bool              `json:"stop" yaml:"stop"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
