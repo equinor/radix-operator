@@ -51,6 +51,10 @@ func (cli *BuildStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+	branch := pipelineInfo.PipelineArguments.Branch
+	commitID := pipelineInfo.PipelineArguments.CommitID
+	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, commitID)
+
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
 		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
@@ -62,7 +66,6 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	log.Infof("Building app %s", cli.GetAppName())
 
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
