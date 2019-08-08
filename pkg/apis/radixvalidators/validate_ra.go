@@ -125,7 +125,7 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	err = validateEnvironmentVaraibleNames(app)
+	err = validateEnvironmentVariableNames(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -345,7 +345,7 @@ func validateSecretNames(app *radixv1.RadixApplication) error {
 	return nil
 }
 
-func validateEnvironmentVaraibleNames(app *radixv1.RadixApplication) error {
+func validateEnvironmentVariableNames(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
 		for _, envConfig := range component.EnvironmentConfig {
 			for environmentVariable := range envConfig.Variables {
