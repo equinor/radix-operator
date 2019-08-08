@@ -92,10 +92,8 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 // Run runs throught the steps in the defined pipeline
 func (cli *PipelineRunner) Run() error {
 	appName := cli.radixApplication.GetName()
-	branch := cli.pipelineInfo.PipelineArguments.Branch
-	commitID := cli.pipelineInfo.PipelineArguments.CommitID
 
-	log.Infof("Start pipeline %s for app %s. Branch=%s and commit=%s", cli.pipelineInfo.Definition.Name, appName, branch, commitID)
+	log.Infof("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Name, appName)
 
 	for _, step := range cli.pipelineInfo.Steps {
 		err := step.Run(cli.pipelineInfo)
