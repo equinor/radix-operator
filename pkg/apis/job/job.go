@@ -197,33 +197,38 @@ func (job *Job) setStatusOfJob() error {
 }
 
 func (job *Job) stopJob() error {
-	// Delete pipeline job
-	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(job.radixJob.Name, &metav1.DeleteOptions{})
+	isRunning := job.radixJob.Status.Condition == v1.JobRunning
 
-	if err != nil {
-		return err
-	}
+	if isRunning {
+		// Delete pipeline job
+		err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(job.radixJob.Name, &metav1.DeleteOptions{})
 
-	err = job.deleteStepJobs()
-	if err != nil {
-		return err
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+
+		err = job.deleteStepJobs()
+		if err != nil {
+			return err
+		}
+
+		stoppedSteps := make([]v1.RadixJobStep, 0)
+		for _, step := range job.radixJob.Status.Steps {
+			if step.Condition != v1.JobSucceeded && step.Condition != v1.JobFailed {
+				step.Condition = v1.JobStopped
+			}
+
+			stoppedSteps = append(stoppedSteps, step)
+		}
+
+		job.radixJob.Status.Steps = stoppedSteps
 	}
 
 	job.radixJob.Status.Condition = v1.JobStopped
 	job.radixJob.Status.Ended = &metav1.Time{Time: time.Now()}
 
-	stoppedSteps := make([]v1.RadixJobStep, 0)
-	for _, step := range job.radixJob.Status.Steps {
-		if step.Condition != v1.JobSucceeded && step.Condition != v1.JobFailed {
-			step.Condition = v1.JobStopped
-		}
-
-		stoppedSteps = append(stoppedSteps, step)
-	}
-
-	job.radixJob.Status.Steps = stoppedSteps
-	err = saveStatus(job.radixclient, job.radixJob)
-	if err == nil {
+	err := saveStatus(job.radixclient, job.radixJob)
+	if err == nil && isRunning {
 		err = job.setNextJobToRunning()
 	}
 
