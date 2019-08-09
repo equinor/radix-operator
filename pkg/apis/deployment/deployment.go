@@ -408,9 +408,11 @@ func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID 
 				"radixApp":             appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:     appName,
 				kube.RadixEnvLabel:     env,
-				kube.RadixBranchLabel:  branch,
 				kube.RadixCommitLabel:  commitID,
 				kube.RadixJobNameLabel: jobName,
+			},
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: branch,
 			},
 		},
 		Spec: v1.RadixDeploymentSpec{
