@@ -93,6 +93,11 @@ func DuplicateExternalAliasError() error {
 	return errors.New("Cannot have duplicate aliases for dnsExternalAlias")
 }
 
+// InvalidBranchNameError Indicates that branch name is invalid
+func InvalidBranchNameError(branch string) error {
+	return fmt.Errorf("Invalid branch name %s. See documentation for more info", branch)
+}
+
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
 	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app)
@@ -372,7 +377,7 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 
 		isValid := branch.IsValidPattern(env.Build.From)
 		if !isValid {
-			return InvalidResourceNameError("branch from", env.Build.From)
+			return InvalidBranchNameError(env.Build.From)
 		}
 	}
 	return nil

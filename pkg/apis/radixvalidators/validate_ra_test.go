@@ -89,7 +89,7 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
 		}},
 		{"invalid env name", radixvalidators.InvalidResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = invalidResourceName }},
-		{"invalid branch name", radixvalidators.InvalidResourceNameError("branch from", invalidBranchName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Build.From = invalidBranchName }},
+		{"invalid branch name", radixvalidators.InvalidBranchNameError(invalidBranchName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Build.From = invalidBranchName }},
 		{"too long branch name", radixvalidators.InvalidResourceNameLengthError("branch from", wayTooLongName), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = wayTooLongName
 		}},
