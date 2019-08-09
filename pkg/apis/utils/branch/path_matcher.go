@@ -1,4 +1,4 @@
-package antpath
+package branch
 
 import (
 	"regexp"
@@ -15,8 +15,8 @@ var (
 	patternReplacer = strings.NewReplacer("*", ".*", "?", ".")
 )
 
-// IsValidBranchPattern Checks that the path is a branch pattern
-func IsValidBranchPattern(pattern string) bool {
+// IsValidPattern Checks that the path is a branch pattern
+func IsValidPattern(pattern string) bool {
 	if len(pattern) == 0 ||
 		string(pattern[0]) == defaultPathSeparator {
 		return false
@@ -27,8 +27,8 @@ func IsValidBranchPattern(pattern string) bool {
 	return err == nil
 }
 
-// BranchMatchesPattern Checks that the branch maches the pattern
-func BranchMatchesPattern(pattern, branch string) bool {
+// MatchesPattern Checks that the branch maches the pattern
+func MatchesPattern(pattern, branch string) bool {
 	pattern = patternReplacer.Replace(pattern)
 
 	branchPattern := regexp.MustCompile(pattern)

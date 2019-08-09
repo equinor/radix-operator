@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -365,9 +366,13 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 			continue
 		}
 
-		err := validateLabelName("branch from", env.Build.From)
-		if err != nil {
-			return err
+		if len(env.Build.From) > 253 {
+			return InvalidResourceNameLengthError("branch from", env.Build.From)
+		}
+
+		isValid := branch.IsValidPattern(env.Build.From)
+		if !isValid {
+			return InvalidResourceNameError("branch from", env.Build.From)
 		}
 	}
 	return nil
