@@ -108,6 +108,11 @@ func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.Ra
 	return false, errorUtils.Concat(errs)
 }
 
+// PublicImageComponentCannotHaveSourceOrDockerfileSet Error if image is set and radix config contains src or dockerfile
+func PublicImageComponentCannotHaveSourceOrDockerfileSet(componentName string) error {
+	return fmt.Errorf("Component %s cannot have neither 'src' nor 'Dockerfile' set", componentName)
+}
+
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
 func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
 	errs := []error{}
@@ -226,6 +231,11 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 func validateComponents(app *radixv1.RadixApplication) []error {
 	errs := []error{}
 	for _, component := range app.Spec.Components {
+		if component.Image != "" &&
+			(component.SourceFolder != "" || component.DockerfileName != "") {
+			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(component.Name))
+		}
+
 		err := validateRequiredResourceName("component name", component.Name)
 		if err != nil {
 			errs = append(errs, err)

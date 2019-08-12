@@ -166,6 +166,11 @@ func Test_invalid_ra(t *testing.T) {
 		{"resource request unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
+		{"wrong public image config", radixvalidators.PublicImageComponentCannotHaveSourceOrDockerfileSet(validRAFirstComponentName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Image = "redis:5.0-alpine"
+			ra.Spec.Components[0].SourceFolder = "./api"
+			ra.Spec.Components[0].DockerfileName = ".Dockerfile"
+		}},
 	}
 
 	_, client := validRASetup()
