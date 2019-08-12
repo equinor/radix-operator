@@ -97,6 +97,11 @@ func createACRBuildContainers(containerRegistry, appName, imageTag string, pushI
 	}
 
 	for _, c := range components {
+		if c.Image != "" {
+			// Using public image. Nothing to build
+			continue
+		}
+
 		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
 		dockerFile := c.DockerfileName
 		if dockerFile == "" {

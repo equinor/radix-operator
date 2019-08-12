@@ -89,6 +89,7 @@ type ResourceRequirements struct {
 type RadixComponent struct {
 	Name           string          `json:"name" yaml:"name"`
 	SourceFolder   string          `json:"src" yaml:"src"`
+	Image          string          `json:"image" yaml:"image"`
 	DockerfileName string          `json:"dockerfileName" yaml:"dockerfileName"`
 	Ports          []ComponentPort `json:"ports" yaml:"ports"`
 	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
