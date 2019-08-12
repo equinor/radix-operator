@@ -42,8 +42,10 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 				"radix-app-name":        appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
-				kube.RadixBranchLabel:   branch,
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
+			},
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: branch,
 			},
 		},
 		Spec: batchv1.JobSpec{

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -90,6 +91,11 @@ func InvalidResourceError(name string) error {
 // DuplicateExternalAliasError Cannot have duplicate external alias
 func DuplicateExternalAliasError() error {
 	return errors.New("Cannot have duplicate aliases for dnsExternalAlias")
+}
+
+// InvalidBranchNameError Indicates that branch name is invalid
+func InvalidBranchNameError(branch string) error {
+	return fmt.Errorf("Invalid branch name %s. See documentation for more info", branch)
 }
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -375,9 +381,13 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 			continue
 		}
 
-		err := validateLabelName("branch from", env.Build.From)
-		if err != nil {
-			return err
+		if len(env.Build.From) > 253 {
+			return InvalidResourceNameLengthError("branch from", env.Build.From)
+		}
+
+		isValid := branch.IsValidPattern(env.Build.From)
+		if !isValid {
+			return InvalidBranchNameError(env.Build.From)
 		}
 	}
 	return nil
