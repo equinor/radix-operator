@@ -40,6 +40,7 @@ func Test_invalid_ra(t *testing.T) {
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
 	tooLongPortName := "abcdefghijklmnop"
 	invalidResourceName := "invalid,char.resourcename"
+	invalidVariableName := "invalid:variable"
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
 	invalidUpperCaseResourceName := "invalidUPPERCASE.resourcename"
@@ -72,6 +73,16 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long port name", radixvalidators.InvalidPortNameLengthError(tooLongPortName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].PublicPort = tooLongPortName
 			ra.Spec.Components[0].Ports[0].Name = tooLongPortName
+		}},
+		{"invalid secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) { ra.Spec.Components[1].Secrets[0] = invalidVariableName }},
+		{"too long secret name", radixvalidators.InvalidResourceNameLengthError("secret name", wayTooLongName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].Secrets[0] = wayTooLongName
+		}},
+		{"invalid environment variable name", radixvalidators.InvalidResourceNameError("environment variable name", invalidVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].EnvironmentConfig[0].Variables[invalidVariableName] = "Any value"
+		}},
+		{"too long environment variable name", radixvalidators.InvalidResourceNameLengthError("environment variable name", wayTooLongName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
 		}},
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
