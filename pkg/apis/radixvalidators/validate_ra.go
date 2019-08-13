@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -92,6 +93,11 @@ func DuplicateExternalAliasError() error {
 	return errors.New("Cannot have duplicate aliases for dnsExternalAlias")
 }
 
+// InvalidBranchNameError Indicates that branch name is invalid
+func InvalidBranchNameError(branch string) error {
+	return fmt.Errorf("Invalid branch name %s. See documentation for more info", branch)
+}
+
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
 	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app)
@@ -100,6 +106,11 @@ func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.Ra
 	}
 
 	return false, errorUtils.Concat(errs)
+}
+
+// PublicImageComponentCannotHaveSourceOrDockerfileSet Error if image is set and radix config contains src or dockerfile
+func PublicImageComponentCannotHaveSourceOrDockerfileSet(componentName string) error {
+	return fmt.Errorf("Component %s cannot have neither 'src' nor 'Dockerfile' set", componentName)
 }
 
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
@@ -220,6 +231,11 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 func validateComponents(app *radixv1.RadixApplication) []error {
 	errs := []error{}
 	for _, component := range app.Spec.Components {
+		if component.Image != "" &&
+			(component.SourceFolder != "" || component.DockerfileName != "") {
+			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(component.Name))
+		}
+
 		err := validateRequiredResourceName("component name", component.Name)
 		if err != nil {
 			errs = append(errs, err)
@@ -365,9 +381,13 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 			continue
 		}
 
-		err := validateLabelName("branch from", env.Build.From)
-		if err != nil {
-			return err
+		if len(env.Build.From) > 253 {
+			return InvalidResourceNameLengthError("branch from", env.Build.From)
+		}
+
+		isValid := branch.IsValidPattern(env.Build.From)
+		if !isValid {
+			return InvalidBranchNameError(env.Build.From)
 		}
 	}
 	return nil
