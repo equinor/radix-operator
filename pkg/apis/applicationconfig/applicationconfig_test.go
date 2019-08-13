@@ -219,6 +219,23 @@ func TestIsBranchMappedToEnvironment_promotionScheme_ListsBothButOnlyOneShouldBe
 	assert.Equal(t, targetEnvs["qa"], true)
 }
 
+func TestIsBranchMappedToEnvironment_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
+	branch := "feature/RA-123-Test"
+
+	ra := utils.NewRadixApplicationBuilder().
+		WithEnvironment("feature", "feature/*").
+		WithEnvironment("prod", "master").
+		BuildRA()
+
+	application := getApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+
+	assert.True(t, branchMapped)
+	assert.Equal(t, 2, len(targetEnvs))
+	assert.Equal(t, targetEnvs["prod"], false)
+	assert.Equal(t, targetEnvs["feature"], true)
+}
+
 func TestIsTargetEnvsEmpty_noEntry(t *testing.T) {
 	targetEnvs := map[string]bool{}
 	assert.Equal(t, true, isTargetEnvsEmpty(targetEnvs))

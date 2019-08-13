@@ -53,8 +53,10 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 				"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:       appName,
 				kube.RadixComponentLabel: componentName,
-				kube.RadixBranchLabel:    branch,
 				kube.RadixCommitLabel:    commitID,
+			},
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: branch,
 			},
 			OwnerReferences: ownerReference,
 		},
@@ -71,12 +73,12 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 						"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
 						kube.RadixAppLabel:       appName,
 						kube.RadixComponentLabel: componentName,
-						kube.RadixBranchLabel:    branch,
 						kube.RadixCommitLabel:    commitID,
 					},
 					Annotations: map[string]string{
 						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
 						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
+						kube.RadixBranchAnnotation:                 branch,
 					},
 				},
 				Spec: corev1.PodSpec{
