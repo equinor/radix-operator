@@ -6,7 +6,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getOwnerReference(radixJob *v1.RadixJob) []metav1.OwnerReference {
+// GetOwnerReference Gets owner reference of radix job
+func GetOwnerReference(radixJob *v1.RadixJob) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
 		metav1.OwnerReference{
@@ -26,5 +27,5 @@ func GetOwnerReferenceOfJob(radixclient radixclient.Interface, namespace, name s
 		return nil, err
 	}
 
-	return getOwnerReference(job), nil
+	return GetOwnerReference(job), nil
 }

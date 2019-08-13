@@ -27,7 +27,7 @@ func (job *Job) createJob() error {
 	namespace := job.radixJob.Namespace
 	name := job.radixJob.Name
 
-	ownerReference := getOwnerReference(job.radixJob)
+	ownerReference := GetOwnerReference(job.radixJob)
 	jobConfig, err := job.getJobConfig(name)
 	if err != nil {
 		return err
@@ -61,6 +61,9 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   jobName,
 			Labels: getPipelineJobLabels(appName, jobName, job.radixJob.Spec, pipeline),
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: job.radixJob.Spec.Build.Branch,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: &backOffLimit,
@@ -154,7 +157,6 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 		labels[kube.RadixImageTagLabel] = jobSpec.Build.ImageTag
 		fallthrough
 	case v1.Build:
-		labels[kube.RadixBranchLabel] = jobSpec.Build.Branch
 		labels[kube.RadixCommitLabel] = jobSpec.Build.CommitID
 	}
 
