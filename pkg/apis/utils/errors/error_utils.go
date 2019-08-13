@@ -13,5 +13,14 @@ func Concat(errs []error) error {
 	}
 
 	return fmt.Errorf(strings.Join(errstrings, "\n"))
+}
 
+// Contains Check if error is contained in slice
+func Contains(errs []error, err error) bool {
+	for _, a := range errs {
+		if a.Error() == err.Error() {
+			return true
+		}
+	}
+	return false
 }

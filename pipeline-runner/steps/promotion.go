@@ -61,18 +61,19 @@ func (cli *PromoteStepImplementation) ImplementationForType() pipeline.StepType 
 
 // SucceededMsg Override of default step method
 func (cli *PromoteStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: promoted application %s", cli.GetAppName())
+	return fmt.Sprintf("Successful promotion for application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
 func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed to promote application %s. Error: %v", cli.GetAppName(), err)
+	return fmt.Sprintf("Promotion failed for application %s. Error: %v", cli.GetAppName(), err)
 }
 
 // Run Override of default step method
 func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	var radixDeployment *v1.RadixDeployment
 
+	log.Infof("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.DeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
 	err := areArgumentsValid(pipelineInfo.PipelineArguments)
 	if err != nil {
 		return err
@@ -91,7 +92,6 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
 	}
 
-	log.Infof("Promoting %s from %s to %s", cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
 	rd, err := cli.GetRadixclient().RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
 	radixDeployment = rd.DeepCopy()
 	if err != nil {

@@ -5,6 +5,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Radix Annotations
+const (
+	AdGroupsAnnotation    = "radix-app-adgroups"
+	RadixBranchAnnotation = "radix-branch"
+
+	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
+	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
+)
+
 // Radix Labels
 const (
 	RadixAppLabel                = "radix-app"
@@ -14,12 +23,14 @@ const (
 	RadixBuildLabel              = "radix-build"
 	RadixCommitLabel             = "radix-commit"
 	RadixImageTagLabel           = "radix-image-tag"
-	RadixBranchLabel             = "radix-branch"
 	RadixJobTypeLabel            = "radix-job-type"
 	RadixJobTypeBuild            = "build"
 	RadixAppAliasLabel           = "radix-app-alias"
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
+
+	// Only for backward compatibility
+	RadixBranchDeprecated = "radix-branch"
 )
 
 // Kube  Stuct for accessing lower level kubernetes functions
@@ -39,4 +50,8 @@ func New(client kubernetes.Interface) (*Kube, error) {
 		kubeClient: client,
 	}
 	return kube, nil
+}
+
+func isEmptyPatch(patchBytes []byte) bool {
+	return string(patchBytes) == "{}"
 }

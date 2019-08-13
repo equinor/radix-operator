@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
+
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -115,6 +117,12 @@ func (app *ApplicationConfig) createEnvironments() error {
 
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(app.config.Name, env)
+
+		annotations, err := application.GetNamespaceAnnotationsOfRegistration(app.registration)
+		if err != nil {
+			return err
+		}
+
 		ownerRef := application.GetOwnerReferenceOfRegistration(app.registration)
 		labels := map[string]string{
 			"sync":                         "cluster-wildcard-tls-cert",
@@ -125,7 +133,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 			kube.RadixEnvLabel:             env,
 		}
 
-		err := app.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
+		err = app.kubeutil.ApplyNamespace(namespaceName, annotations, labels, ownerRef)
 		if err != nil {
 			return err
 		}
@@ -144,10 +152,10 @@ func (app *ApplicationConfig) createEnvironments() error {
 	return nil
 }
 
-func getTargetEnvironmentsAsMap(branch string, radixApplication *radixv1.RadixApplication) map[string]bool {
+func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *radixv1.RadixApplication) map[string]bool {
 	targetEnvs := make(map[string]bool)
 	for _, env := range radixApplication.Spec.Environments {
-		if branch == env.Build.From {
+		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
 			// Deploy environment
 			targetEnvs[env.Name] = true
 		} else {

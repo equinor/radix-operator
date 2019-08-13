@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -91,8 +92,10 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		},
 	})
 
+	adGroups := []string{"5678-91011-1234", "9876-54321-0987"}
 	rr := utils.NewRegistrationBuilder().
 		WithName("any-app").
+		WithAdGroups(adGroups).
 		BuildRR()
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -110,6 +113,12 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		LabelSelector: label,
 	})
 	assert.Equal(t, 2, len(namespaces.Items))
+
+	for _, namespace := range namespaces.Items {
+		var setAdGroupsAnnotation []string
+		json.Unmarshal([]byte(namespace.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
+		assert.Equal(t, adGroups, setAdGroupsAnnotation)
+	}
 }
 
 func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
@@ -208,6 +217,23 @@ func TestIsBranchMappedToEnvironment_promotionScheme_ListsBothButOnlyOneShouldBe
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["qa"], true)
+}
+
+func TestIsBranchMappedToEnvironment_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
+	branch := "feature/RA-123-Test"
+
+	ra := utils.NewRadixApplicationBuilder().
+		WithEnvironment("feature", "feature/*").
+		WithEnvironment("prod", "master").
+		BuildRA()
+
+	application := getApplication(ra)
+	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+
+	assert.True(t, branchMapped)
+	assert.Equal(t, 2, len(targetEnvs))
+	assert.Equal(t, targetEnvs["prod"], false)
+	assert.Equal(t, targetEnvs["feature"], true)
 }
 
 func TestIsTargetEnvsEmpty_noEntry(t *testing.T) {

@@ -30,9 +30,17 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 
+		var image string
+		if appComponent.Image != "" {
+			// Use public image in deployment
+			image = appComponent.Image
+		} else {
+			image = utils.GetImagePath(containerRegistry, appName, componentName, imageTag)
+		}
+
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
-			Image:                utils.GetImagePath(containerRegistry, appName, componentName, imageTag),
+			Image:                image,
 			Replicas:             replicas,
 			Public:               false,
 			PublicPort:           getPublicPortFromAppComponent(appComponent),

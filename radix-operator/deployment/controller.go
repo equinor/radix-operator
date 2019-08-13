@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
@@ -40,6 +42,7 @@ func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	deploymentInformer radixinformer.RadixDeploymentInformer,
 	serviceInformer coreinformers.ServiceInformer,
+	namespaceInformer coreinformers.NamespaceInformer,
 	recorder record.EventRecorder) *common.Controller {
 
 	controller := &common.Controller{
@@ -89,6 +92,34 @@ func NewController(client kubernetes.Interface,
 		},
 		DeleteFunc: func(obj interface{}) {
 			controller.HandleObject(obj, "RadixDeployment", getObject)
+		},
+	})
+
+	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, new interface{}) {
+			newNs := new.(*corev1.Namespace)
+			oldNs := old.(*corev1.Namespace)
+			if newNs.ResourceVersion == oldNs.ResourceVersion {
+				return
+			}
+
+			if newNs.Annotations[kube.AdGroupsAnnotation] == oldNs.Annotations[kube.AdGroupsAnnotation] {
+				return
+			}
+
+			// Trigger sync of active RD, living in the namespace
+			rds, err := radixClient.RadixV1().RadixDeployments(newNs.Name).List(metav1.ListOptions{})
+
+			if err == nil && len(rds.Items) > 0 {
+				// Will sync the active RD (there can only be one)
+				for _, rd := range rds.Items {
+					if !deployment.IsRadixDeploymentInactive(&rd) {
+						var obj metav1.Object
+						obj = &rd
+						controller.Enqueue(obj)
+					}
+				}
+			}
 		},
 	})
 

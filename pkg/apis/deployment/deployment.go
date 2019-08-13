@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -18,8 +19,7 @@ import (
 
 const (
 	// DefaultReplicas Hold the default replicas for the deployment if nothing is stated in the radix config
-	DefaultReplicas = 1
-
+	DefaultReplicas         = 1
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
 
@@ -108,6 +108,8 @@ func (deploy *Deployment) Apply() error {
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync() error {
+	deploy.restoreStatus()
+
 	if IsRadixDeploymentInactive(deploy.radixDeployment) {
 		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.getNamespace(), deploy.getName())
 		return nil
@@ -156,6 +158,29 @@ func (deploy *Deployment) getNamespace() string {
 // getName gets the name of radixDeployment
 func (deploy *Deployment) getName() string {
 	return deploy.radixDeployment.GetName()
+}
+
+// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
+func (deploy *Deployment) restoreStatus() {
+	if restoredStatus, ok := deploy.radixDeployment.Annotations[kube.RestoredStatusAnnotation]; ok {
+		if deploy.radixDeployment.Status.Condition == "" {
+			var status v1.RadixDeployStatus
+			err := json.Unmarshal([]byte(restoredStatus), &status)
+			if err != nil {
+				log.Error("Unable to get status from annotation", err)
+				return
+			}
+
+			deploy.radixDeployment.Status.Condition = status.Condition
+			deploy.radixDeployment.Status.ActiveFrom = status.ActiveFrom
+			deploy.radixDeployment.Status.ActiveTo = status.ActiveTo
+			err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
+			if err != nil {
+				log.Error("Unable to restore status", err)
+				return
+			}
+		}
+	}
 }
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
@@ -383,9 +408,11 @@ func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID 
 				"radixApp":             appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:     appName,
 				kube.RadixEnvLabel:     env,
-				kube.RadixBranchLabel:  branch,
 				kube.RadixCommitLabel:  commitID,
 				kube.RadixJobNameLabel: jobName,
+			},
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: branch,
 			},
 		},
 		Spec: v1.RadixDeploymentSpec{

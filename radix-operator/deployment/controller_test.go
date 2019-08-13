@@ -1,16 +1,19 @@
 package deployment
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -42,8 +45,25 @@ func teardownTest() {
 }
 
 func Test_Controller_Calls_Handler(t *testing.T) {
+	anyAppName := "test-app"
+	anyEnvironment := "qa"
+	initialAdGroup, _ := json.Marshal([]string{"12345-6789-01234"})
+
 	// Setup
 	tu, client, radixClient := setupTest()
+
+	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: utils.GetEnvironmentNamespace(anyAppName, anyEnvironment),
+			Labels: map[string]string{
+				kube.RadixAppLabel: anyAppName,
+				kube.RadixEnvLabel: anyEnvironment,
+			},
+			Annotations: map[string]string{
+				kube.AdGroupsAnnotation: string(initialAdGroup),
+			},
+		},
+	})
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -64,9 +84,10 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Test
 
 	// Create deployment should sync
-	rd, _ := tu.ApplyDeployment(utils.
-		ARadixDeployment().
-		WithAppName("test-app"))
+	rd, _ := tu.ApplyDeployment(
+		utils.ARadixDeployment().
+			WithAppName(anyAppName).
+			WithEnvironment(anyEnvironment))
 
 	op, ok := <-synced
 	assert.True(t, ok)
@@ -92,6 +113,17 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		assert.True(t, op)
 	}
 
+	// Update ad group of env namespace should sync
+	newAdGroups, _ := json.Marshal([]string{"98765-4321-09876"})
+	envNamespace, _ := client.CoreV1().Namespaces().Get(utils.GetEnvironmentNamespace(anyAppName, anyEnvironment), metav1.GetOptions{})
+	envNamespace.ResourceVersion = "12345"
+	envNamespace.Annotations[kube.AdGroupsAnnotation] = string(newAdGroups)
+	client.CoreV1().Namespaces().Update(envNamespace)
+
+	op, ok = <-synced
+	assert.True(t, ok)
+	assert.True(t, op)
+
 	teardownTest()
 }
 
@@ -105,6 +137,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		client, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixDeployments(),
 		kubeInformerFactory.Core().V1().Services(),
+		kubeInformerFactory.Core().V1().Namespaces(),
 		eventRecorder)
 
 	kubeInformerFactory.Start(stop)
