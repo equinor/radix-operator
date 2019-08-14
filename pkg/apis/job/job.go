@@ -19,8 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const restoredStatusAnnotation = "equinor.com/velero-restored-status"
-
 // Job Instance variables
 type Job struct {
 	kubeclient   kubernetes.Interface
@@ -75,7 +73,7 @@ func (job *Job) OnSync() error {
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 func (job *Job) restoreStatus() {
-	if restoredStatus, ok := job.radixJob.Annotations[restoredStatusAnnotation]; ok {
+	if restoredStatus, ok := job.radixJob.Annotations[kube.RestoredStatusAnnotation]; ok {
 		if job.radixJob.Status.Condition == "" {
 			var status v1.RadixJobStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)
@@ -115,7 +113,7 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 
 		return true, nil
 
-	} else if job.noOtherRunningJob(allJobs.Items) {
+	} else if job.noOtherRunningJobOnBranch(allJobs.Items) {
 		err = job.setStatusOfJob()
 		if err != nil {
 			return false, err
@@ -133,13 +131,15 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 	return
 }
 
-func (job *Job) noOtherRunningJob(allJobs []v1.RadixJob) bool {
-	return !isOtherJobRunning(job.radixJob, allJobs)
+func (job *Job) noOtherRunningJobOnBranch(allJobs []v1.RadixJob) bool {
+	return !isOtherJobRunningOnBranch(job.radixJob, allJobs)
 }
 
-func isOtherJobRunning(job *v1.RadixJob, allJobs []v1.RadixJob) bool {
+func isOtherJobRunningOnBranch(job *v1.RadixJob, allJobs []v1.RadixJob) bool {
 	for _, rj := range allJobs {
-		if rj.GetName() != job.GetName() && rj.Status.Condition == v1.JobRunning {
+		if rj.GetName() != job.GetName() &&
+			(job.Spec.Build.Branch != "" && job.Spec.Build.Branch == rj.Spec.Build.Branch) &&
+			rj.Status.Condition == v1.JobRunning {
 			return true
 		}
 	}

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -16,7 +17,9 @@ type JobBuilder interface {
 	WithPipeline(v1.RadixPipelineType) JobBuilder
 	WithBranch(string) JobBuilder
 	WithDeploymentName(string) JobBuilder
+	WithStatusOnAnnotation(JobStatusBuilder) JobBuilder
 	WithEmptyStatus() JobBuilder
+	WithStatus(JobStatusBuilder) JobBuilder
 	WithCreated(time.Time) JobBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRJ() *v1.RadixJob
@@ -28,7 +31,9 @@ type JobBuilderStruct struct {
 	appName            string
 	jobName            string
 	pipeline           v1.RadixPipelineType
+	restoredStatus     string
 	emptyStatus        bool
+	status             v1.RadixJobStatus
 	branch             string
 	deploymentName     string
 	buildSpec          v1.RadixBuildSpec
@@ -87,9 +92,22 @@ func (jb *JobBuilderStruct) WithDeploymentName(deploymentName string) JobBuilder
 	return jb
 }
 
+// WithStatusOnAnnotation Emulates velero plugin
+func (jb *JobBuilderStruct) WithStatusOnAnnotation(jobStatus JobStatusBuilder) JobBuilder {
+	restoredStatus, _ := json.Marshal(jobStatus.Build())
+	jb.restoredStatus = string(restoredStatus)
+	return jb
+}
+
 // WithEmptyStatus Indicates that the RJ has no reconciled status
 func (jb *JobBuilderStruct) WithEmptyStatus() JobBuilder {
 	jb.emptyStatus = true
+	return jb
+}
+
+// WithStatus Sets status on job
+func (jb *JobBuilderStruct) WithStatus(jobStatus JobStatusBuilder) JobBuilder {
+	jb.status = jobStatus.Build()
 	return jb
 }
 
@@ -113,11 +131,6 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 	anyPipelineImageVersion := "any-latest"
 	anyDockerRegistry := "any.azurecr.io"
 
-	var status v1.RadixJobStatus
-	if !jb.emptyStatus {
-		status = v1.RadixJobStatus{}
-	}
-
 	radixJob := &v1.RadixJob{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "radix.equinor.com/v1",
@@ -130,7 +143,8 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 				kube.RadixAppLabel: jb.appName,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: jb.branch,
+				kube.RadixBranchAnnotation:    jb.branch,
+				kube.RestoredStatusAnnotation: jb.restoredStatus,
 			},
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
@@ -142,8 +156,12 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			Build:          jb.buildSpec,
 			Promote:        jb.promoteSpec,
 		},
-		Status: status,
 	}
+
+	if !jb.emptyStatus {
+		radixJob.Status = jb.status
+	}
+
 	return radixJob
 }
 
@@ -164,6 +182,153 @@ func ARadixBuildDeployJob() JobBuilder {
 		WithJobName("somejob").
 		WithPipeline(v1.BuildDeploy).
 		WithBranch("master")
+
+	return builder
+}
+
+// AStartedBuildDeployJob Constructor for radix job builder containing test data
+func AStartedBuildDeployJob() JobBuilder {
+	builder := ARadixBuildDeployJob().
+		WithCreated(time.Now().UTC()).
+		WithStatus(AStartedJobStatus())
+
+	return builder
+}
+
+// JobStatusBuilder Handles construction of job status
+type JobStatusBuilder interface {
+	WithCondition(v1.RadixJobCondition) JobStatusBuilder
+	WithSteps(...JobStepBuilder) JobStatusBuilder
+	Build() v1.RadixJobStatus
+}
+
+type jobStatusBuilder struct {
+	condition v1.RadixJobCondition
+	steps     []JobStepBuilder
+}
+
+func (jsb *jobStatusBuilder) WithCondition(condition v1.RadixJobCondition) JobStatusBuilder {
+	jsb.condition = condition
+	return jsb
+}
+
+func (jsb *jobStatusBuilder) WithSteps(steps ...JobStepBuilder) JobStatusBuilder {
+	jsb.steps = steps
+	return jsb
+}
+
+func (jsb *jobStatusBuilder) Build() v1.RadixJobStatus {
+	return v1.RadixJobStatus{
+		Condition: jsb.condition,
+	}
+}
+
+// NewJobStatusBuilder Constructor for job status builder
+func NewJobStatusBuilder() JobStatusBuilder {
+	return &jobStatusBuilder{}
+}
+
+// AStartedJobStatus Constructor build-app
+func AStartedJobStatus() JobStatusBuilder {
+	builder := NewJobStatusBuilder().
+		WithCondition(v1.JobRunning).
+		WithSteps(
+			ACloneConfigStep().
+				WithCondition(v1.JobSucceeded).
+				WithStarted(time.Now().UTC()).
+				WithEnded(time.Now().UTC()),
+			ARadixPipelineStep().
+				WithCondition(v1.JobRunning).
+				WithStarted(time.Now().UTC()),
+			ACloneStep().
+				WithCondition(v1.JobSucceeded).
+				WithStarted(time.Now().UTC()).
+				WithEnded(time.Now().UTC()),
+			ABuildAppStep().
+				WithCondition(v1.JobRunning).
+				WithStarted(time.Now().UTC()))
+
+	return builder
+}
+
+// JobStepBuilder Handles construction of job status step
+type JobStepBuilder interface {
+	WithCondition(v1.RadixJobCondition) JobStepBuilder
+	WithName(string) JobStepBuilder
+	WithStarted(time.Time) JobStepBuilder
+	WithEnded(time.Time) JobStepBuilder
+	Build() v1.RadixJobStep
+}
+
+type jobStepBuilder struct {
+	condition v1.RadixJobCondition
+	name      string
+	started   time.Time
+	ended     time.Time
+}
+
+func (sb *jobStepBuilder) WithCondition(condition v1.RadixJobCondition) JobStepBuilder {
+	sb.condition = condition
+	return sb
+}
+
+func (sb *jobStepBuilder) WithName(name string) JobStepBuilder {
+	sb.name = name
+	return sb
+}
+
+func (sb *jobStepBuilder) WithStarted(started time.Time) JobStepBuilder {
+	sb.started = started
+	return sb
+}
+
+func (sb *jobStepBuilder) WithEnded(ended time.Time) JobStepBuilder {
+	sb.ended = ended
+	return sb
+}
+
+func (sb *jobStepBuilder) Build() v1.RadixJobStep {
+	return v1.RadixJobStep{
+		Condition: sb.condition,
+		Started:   &metav1.Time{Time: sb.started},
+		Ended:     &metav1.Time{Time: sb.ended},
+		Name:      sb.name,
+	}
+}
+
+// NewJobStepBuilder Constructor for job step builder
+func NewJobStepBuilder() JobStepBuilder {
+	return &jobStepBuilder{}
+}
+
+// ACloneConfigStep Constructor clone-config
+func ACloneConfigStep() JobStepBuilder {
+	builder := NewJobStepBuilder().
+		WithName("clone-config")
+
+	return builder
+}
+
+// ARadixPipelineStep Constructor radix-pipeline
+func ARadixPipelineStep() JobStepBuilder {
+	builder := NewJobStepBuilder().
+		WithName("radix-pipeline")
+
+	return builder
+}
+
+// ACloneStep Constructor radix-pipeline
+func ACloneStep() JobStepBuilder {
+	builder := NewJobStepBuilder().
+		WithName("clone")
+
+	return builder
+}
+
+// ABuildAppStep Constructor build-app
+func ABuildAppStep() JobStepBuilder {
+	builder := NewJobStepBuilder().
+		WithName("build-app")
 
 	return builder
 }
