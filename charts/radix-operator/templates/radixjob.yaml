@@ -17,3 +17,5 @@ spec:
     shortNames:
       - rj
   scope: Namespaced
+  subresources:
+    status: {}
