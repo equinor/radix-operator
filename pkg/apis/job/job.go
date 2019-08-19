@@ -83,6 +83,7 @@ func (job *Job) restoreStatus() {
 			}
 
 			job.radixJob.Status.Condition = status.Condition
+			job.radixJob.Status.Created = status.Created
 			job.radixJob.Status.Started = status.Started
 			job.radixJob.Status.Ended = status.Ended
 			job.radixJob.Status.Steps = status.Steps
@@ -169,6 +170,7 @@ func (job *Job) setStatusOfJob() error {
 	jobStatus := getJobConditionFromJobStatus(pipelinejob.Status)
 
 	job.radixJob.Status.Condition = jobStatus
+	job.radixJob.Status.Created = &job.radixJob.CreationTimestamp
 	job.radixJob.Status.Started = pipelinejob.Status.StartTime
 
 	if len(pipelinejob.Status.Conditions) > 0 {
@@ -224,6 +226,7 @@ func (job *Job) stopJob() error {
 		job.radixJob.Status.Steps = stoppedSteps
 	}
 
+	job.radixJob.Status.Created = &job.radixJob.CreationTimestamp
 	job.radixJob.Status.Condition = v1.JobStopped
 	job.radixJob.Status.Ended = &metav1.Time{Time: time.Now()}
 
@@ -291,6 +294,7 @@ func isRJ1ActiveAfterRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
 }
 
 func (job *Job) queueJob() error {
+	job.radixJob.Status.Created = &job.radixJob.CreationTimestamp
 	job.radixJob.Status.Condition = v1.JobQueued
 	return saveStatus(job.radixclient, job.radixJob)
 }

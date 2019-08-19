@@ -18,6 +18,7 @@ type RadixJob struct {
 //RadixJobStatus is the status for a Radix job
 type RadixJobStatus struct {
 	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
+	Created    *meta_v1.Time     `json:"created" yaml:"created"`
 	Started    *meta_v1.Time     `json:"started" yaml:"started"`
 	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
 	TargetEnvs []string          `json:"targetEnvironments" yaml:"targetEnvironments"`
