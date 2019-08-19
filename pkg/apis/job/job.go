@@ -82,13 +82,7 @@ func (job *Job) restoreStatus() {
 				return
 			}
 
-			job.radixJob.Status.Condition = status.Condition
-			job.radixJob.Status.Created = status.Created
-			job.radixJob.Status.Started = status.Started
-			job.radixJob.Status.Ended = status.Ended
-			job.radixJob.Status.Steps = status.Steps
-			job.radixJob.Status.TargetEnvs = status.TargetEnvs
-
+			job.radixJob.Status = status
 			err = saveStatus(job.radixclient, job.radixJob)
 			if err != nil {
 				log.Error("Unable to restore status", err)
@@ -104,6 +98,7 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 	allJobs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(metav1.ListOptions{})
 	if err != nil {
 		err = fmt.Errorf("Failed to get all RadixJobs. Error was %v", err)
+		return false, err
 	}
 
 	if job.radixJob.Spec.Stop {
