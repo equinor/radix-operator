@@ -130,7 +130,8 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
 	for _, rj := range allJobs {
 		if rj.GetName() != job.radixJob.GetName() &&
-			(job.radixJob.Spec.Build.Branch != "" && job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch) &&
+			job.radixJob.Spec.Build.Branch != "" &&
+			job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch &&
 			rj.Status.Condition == v1.JobRunning {
 			return true
 		}
