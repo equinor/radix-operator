@@ -31,16 +31,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-- apiGroups:
   - radix.equinor.com
   resources:
   - radixjobs
@@ -87,7 +77,6 @@ rules:
   - get
   - list
   - watch
-  - create
 - apiGroups:
   - radix.equinor.com
   resources:
