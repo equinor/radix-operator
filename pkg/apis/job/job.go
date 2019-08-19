@@ -110,13 +110,7 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 		return false, err
 	}
 
-	if job.noOtherRunningJobOnBranch(allJobs.Items) {
-		err = job.setStatusOfJob()
-		if err != nil {
-			return false, err
-		}
-
-	} else {
+	if job.isOtherJobRunningOnBranch(allJobs.Items) {
 		err = job.queueJob()
 		if err != nil {
 			return false, err
@@ -125,17 +119,18 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 		return true, nil
 	}
 
+	err = job.setStatusOfJob()
+	if err != nil {
+		return false, err
+	}
+
 	return
 }
 
-func (job *Job) noOtherRunningJobOnBranch(allJobs []v1.RadixJob) bool {
-	return !isOtherJobRunningOnBranch(job.radixJob, allJobs)
-}
-
-func isOtherJobRunningOnBranch(job *v1.RadixJob, allJobs []v1.RadixJob) bool {
+func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
 	for _, rj := range allJobs {
-		if rj.GetName() != job.GetName() &&
-			(job.Spec.Build.Branch != "" && job.Spec.Build.Branch == rj.Spec.Build.Branch) &&
+		if rj.GetName() != job.radixJob.GetName() &&
+			(job.radixJob.Spec.Build.Branch != "" && job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch) &&
 			rj.Status.Condition == v1.JobRunning {
 			return true
 		}
