@@ -210,14 +210,16 @@ func getPushImageTag(pushImage bool) string {
 
 func getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) v1.RadixJobCondition {
 	var status v1.RadixJobCondition
-	if jobStatus.Active > 0 {
+
+	if jobStatus.Failed > 0 {
+		status = v1.JobFailed
+
+	} else if jobStatus.Active > 0 {
 		status = v1.JobRunning
 
 	} else if jobStatus.Succeeded > 0 {
 		status = v1.JobSucceeded
 
-	} else if jobStatus.Failed > 0 {
-		status = v1.JobFailed
 	}
 
 	return status
