@@ -21,15 +21,14 @@ import (
 
 // Job Instance variables
 type Job struct {
-	kubeclient   kubernetes.Interface
-	radixclient  radixclient.Interface
-	kubeutil     *kube.Kube
-	registration *v1.RadixRegistration
-	radixJob     *v1.RadixJob
+	kubeclient  kubernetes.Interface
+	radixclient radixclient.Interface
+	kubeutil    *kube.Kube
+	radixJob    *v1.RadixJob
 }
 
 // NewJob Constructor
-func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, registration *v1.RadixRegistration, radixJob *v1.RadixJob) (Job, error) {
+func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, radixJob *v1.RadixJob) (Job, error) {
 	kubeutil, err := kube.New(kubeclient)
 	if err != nil {
 		return Job{}, err
@@ -38,7 +37,7 @@ func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, 
 	return Job{
 		kubeclient,
 		radixclient,
-		kubeutil, registration, radixJob}, nil
+		kubeutil, radixJob}, nil
 }
 
 // OnSync compares the actual state with the desired, and attempts to

@@ -70,7 +70,7 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					ServiceAccountName: "radix-pipeline",
-					InitContainers:     getPipelineJobInitContainers(job.registration.Spec.CloneURL, pipeline),
+					InitContainers:     getPipelineJobInitContainers(job.radixJob.Spec.CloneURL, pipeline),
 					Containers: []corev1.Container{
 						{
 							Name:            workerImage,

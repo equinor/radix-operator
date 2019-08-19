@@ -65,19 +65,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncJob := radixJob.DeepCopy()
 	logger.Infof("Sync job %s", syncJob.Name)
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(syncJob.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		// The Registration resource may no longer exist, in which case we stop
-		// processing.
-		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("Failed to get RadixRegistartion object: %v", err))
-			return nil
-		}
-
-		return err
-	}
-
-	job, err := job.NewJob(t.kubeclient, t.radixclient, radixRegistration, syncJob)
+	job, err := job.NewJob(t.kubeclient, t.radixclient, syncJob)
 	if err != nil {
 		return err
 	}
