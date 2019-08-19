@@ -28,16 +28,13 @@ type Job struct {
 }
 
 // NewJob Constructor
-func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, radixJob *v1.RadixJob) (Job, error) {
-	kubeutil, err := kube.New(kubeclient)
-	if err != nil {
-		return Job{}, err
-	}
+func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, radixJob *v1.RadixJob) Job {
+	kubeutil, _ := kube.New(kubeclient)
 
 	return Job{
 		kubeclient,
 		radixclient,
-		kubeutil, radixJob}, nil
+		kubeutil, radixJob}
 }
 
 // OnSync compares the actual state with the desired, and attempts to

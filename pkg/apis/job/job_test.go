@@ -104,8 +104,8 @@ func applyJobWithSync(tu *test.Utils, client kube.Interface,
 }
 
 func runSync(client kube.Interface, radixclient radixclient.Interface, rj *v1.RadixJob) error {
-	job, err := NewJob(client, radixclient, rj)
-	err = job.OnSync()
+	job := NewJob(client, radixclient, rj)
+	err := job.OnSync()
 	if err != nil {
 		return err
 	}
