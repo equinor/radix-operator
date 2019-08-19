@@ -24,7 +24,7 @@ func GetSupportedPipelines() []Definition {
 func GetPipelineFromName(name string) (*Definition, error) {
 	// Default to build-deploy for backward compatibility
 	if name == "" {
-		return &Definition{v1.BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}}, nil
+		name = string(v1.BuildDeploy)
 	}
 
 	for _, pipeline := range GetSupportedPipelines() {
