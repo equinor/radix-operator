@@ -12,7 +12,7 @@ const (
 var (
 	wildcardChars   = []string{"*", "**", "?"}
 	variablePattern = regexp.MustCompile("^(([A-Za-z0-9][-A-Za-z0-9.]*)?[A-Za-z0-9])?$")
-`´	patternReplacer = strings.NewReplacer("*", ".*", "?", ".", "/", "")
+	patternReplacer = strings.NewReplacer("*", ".*", "?", ".", "/", "")
 )
 
 // IsValidPattern Checks that the path is a branch pattern
