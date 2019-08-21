@@ -7,12 +7,14 @@ import (
 
 const (
 	defaultPathSeparator = "/"
+	startOfWord          = "^"
+	endOfWord            = "$"
 )
 
 var (
 	wildcardChars   = []string{"*", "**", "?"}
 	variablePattern = regexp.MustCompile("^(([A-Za-z0-9][-A-Za-z0-9.]*)?[A-Za-z0-9])?$")
-	patternReplacer = strings.NewReplacer("*", ".*", "?", ".", "/", "")
+	patternReplacer = strings.NewReplacer("/**/", "/.*", "*", "[^/]*", "?", ".")
 )
 
 // IsValidPattern Checks that the path is a branch pattern
@@ -29,7 +31,8 @@ func IsValidPattern(pattern string) bool {
 
 // MatchesPattern Checks that the branch maches the pattern
 func MatchesPattern(pattern, branch string) bool {
-	pattern = patternReplacer.Replace(pattern)
+	pattern = enclosePattern(patternReplacer.Replace(pattern))
+	branch = patternReplacer.Replace(branch)
 
 	branchPattern := regexp.MustCompile(pattern)
 	isValidBranch := branchPattern.MatchString(branch)
@@ -43,4 +46,8 @@ func replaceWildcardChars(token string) string {
 	}
 
 	return token
+}
+
+func enclosePattern(pattern string) string {
+	return startOfWord + pattern + endOfWord
 }
