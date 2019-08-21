@@ -1,41 +1,34 @@
 package pipeline
 
-import "fmt"
+import (
+	"fmt"
 
-const (
-	// BuildDeploy Identifyer
-	BuildDeploy = "build-deploy"
-
-	// Build Identifyer
-	Build = "build"
-
-	// Promote Identifyer
-	Promote = "promote"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // Definition Holds pipeline definition
 type Definition struct {
-	Name  string
+	Type  v1.RadixPipelineType
 	Steps []StepType
 }
 
 // GetSupportedPipelines Lists supported pipelines
 func GetSupportedPipelines() []Definition {
 	return []Definition{
-		Definition{BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}},
-		Definition{Build, []StepType{ApplyConfigStep, BuildStep}},
-		Definition{Promote, []StepType{PromoteStep}}}
+		Definition{v1.BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}},
+		Definition{v1.Build, []StepType{ApplyConfigStep, BuildStep}},
+		Definition{v1.Promote, []StepType{PromoteStep}}}
 }
 
 // GetPipelineFromName Gets pipeline from string
 func GetPipelineFromName(name string) (*Definition, error) {
 	// Default to build-deploy for backward compatibility
 	if name == "" {
-		return &Definition{BuildDeploy, []StepType{ApplyConfigStep, BuildStep, DeployStep}}, nil
+		name = string(v1.BuildDeploy)
 	}
 
 	for _, pipeline := range GetSupportedPipelines() {
-		if pipeline.Name == name {
+		if string(pipeline.Type) == name {
 			return &pipeline, nil
 		}
 	}
