@@ -40,6 +40,17 @@ rules:
   - watch
   - patch
   - create
+# Remove as part of https://equinor.atlassian.net/browse/RA-725
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -86,5 +97,15 @@ rules:
   - list
   - watch
   - patch
+  - create
+# Remove as part of https://equinor.atlassian.net/browse/RA-725
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
   - create
 ---
