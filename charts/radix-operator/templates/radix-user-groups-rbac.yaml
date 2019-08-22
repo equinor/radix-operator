@@ -38,6 +38,14 @@ rules:
   verbs:
   - list
 - apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixjobs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ""
   resources:
   - namespaces

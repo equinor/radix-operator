@@ -26,6 +26,8 @@ rules:
   - radixapplications
   - radixdeployments
   - radixdeployments/status
+  - radixjobs
+  - radixjobs/status
   verbs:
   - get
   - list

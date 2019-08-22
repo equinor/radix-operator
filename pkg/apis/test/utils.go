@@ -108,6 +108,43 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuil
 	return rd, nil
 }
 
+// ApplyJob Will help persist a radixjob
+func (tu *Utils) ApplyJob(jobBuilder builders.JobBuilder) (*v1.RadixJob, error) {
+	if jobBuilder.GetApplicationBuilder() != nil {
+		tu.ApplyApplication(jobBuilder.GetApplicationBuilder())
+	}
+
+	rj := jobBuilder.BuildRJ()
+
+	appNamespace := CreateAppNamespace(tu.client, rj.Spec.AppName)
+	newRj, err := tu.radixclient.RadixV1().RadixJobs(appNamespace).Create(rj)
+	if err != nil {
+		return nil, err
+	}
+
+	return newRj, nil
+}
+
+// ApplyJobUpdate Will help update a radixjob
+func (tu *Utils) ApplyJobUpdate(jobBuilder builders.JobBuilder) (*v1.RadixJob, error) {
+	rj := jobBuilder.BuildRJ()
+
+	appNamespace := CreateAppNamespace(tu.client, rj.Spec.AppName)
+
+	rjPrev, err := tu.radixclient.RadixV1().RadixJobs(appNamespace).Get(rj.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	rj.Status = rjPrev.Status
+
+	rj, err = tu.radixclient.RadixV1().RadixJobs(appNamespace).Update(rj)
+	if err != nil {
+		return nil, err
+	}
+
+	return rj, nil
+}
+
 // SetRequiredEnvironmentVariables  Sets the required environment
 // variables needed for the operator to run properly
 func SetRequiredEnvironmentVariables() {

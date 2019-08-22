@@ -155,7 +155,7 @@
   - Accesses:
     - Get and list RRs, RAs and RDs
     - Get and list ingresses, namespaces, deployments
-    - Get list and create jobs
+    - Get list and create radix jobs
 
 #### Clusterrole bindings
 - \<env-namespace\>-radix-github-webhook
@@ -171,7 +171,8 @@
   - Accesses:
     - Get and list RRs, RAs and RDs
     - Get and list namespaces
-    - Get list and create jobs
+    - Get and list jobs
+    - Get list and create radix jobs
 
 #### Clusterrole bindings
 - \<env-namespace\>-radix-api

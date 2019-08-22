@@ -29,6 +29,12 @@ rules:
   - list
   - watch
   - create
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixjobs
+  verbs:
+  - get
 ---
 # used to grant pipeline access to create new namespaces and deployments
 apiVersion: rbac.authorization.k8s.io/v1
