@@ -76,16 +76,16 @@ func getRadixApplicationFromFileOrFromCluster(pipelineDefinition *pipeline.Defin
 	// When we have deployment-only type pipelines (currently only promote)
 	// radix config is not cloned and should therefore
 	// be retrived from cluster
-	if pipelineDefinition.Name == pipeline.Promote {
+	if pipelineDefinition.Type == v1.Promote {
 		if appName == "" {
-			return nil, fmt.Errorf("App name is a required parameter for %s pipelines", pipelineDefinition.Name)
+			return nil, fmt.Errorf("App name is a required parameter for %s pipelines", pipelineDefinition.Type)
 		}
 
 		return radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Get(appName, metav1.GetOptions{})
 	}
 
 	if fileName == "" {
-		return nil, fmt.Errorf("Filename is a required parameter for %s pipelines", pipelineDefinition.Name)
+		return nil, fmt.Errorf("Filename is a required parameter for %s pipelines", pipelineDefinition.Type)
 	}
 
 	filePath, _ := filepath.Abs(fileName)

@@ -38,8 +38,10 @@ func createACRBuildXJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, conta
 				"radix-app-name":        appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
-				kube.RadixBranchLabel:   branch,
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
+			},
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: branch,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -94,6 +96,11 @@ func createACRBuildXContainers(containerRegistry, appName, imageTag string, push
 	}
 
 	for _, c := range components {
+		if c.Image != "" {
+			// Using public image. Nothing to build
+			continue
+		}
+
 		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
 		dockerFile := c.DockerfileName
 		if dockerFile == "" {

@@ -29,6 +29,7 @@ type RadixV1Interface interface {
 	RESTClient() rest.Interface
 	RadixApplicationsGetter
 	RadixDeploymentsGetter
+	RadixJobsGetter
 	RadixRegistrationsGetter
 }
 
@@ -43,6 +44,10 @@ func (c *RadixV1Client) RadixApplications(namespace string) RadixApplicationInte
 
 func (c *RadixV1Client) RadixDeployments(namespace string) RadixDeploymentInterface {
 	return newRadixDeployments(c, namespace)
+}
+
+func (c *RadixV1Client) RadixJobs(namespace string) RadixJobInterface {
+	return newRadixJobs(c, namespace)
 }
 
 func (c *RadixV1Client) RadixRegistrations() RadixRegistrationInterface {

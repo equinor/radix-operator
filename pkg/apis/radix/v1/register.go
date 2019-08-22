@@ -41,6 +41,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&RadixDeploymentList{},
 		&RadixRegistration{},
 		&RadixRegistrationList{},
+		&RadixJob{},
+		&RadixJobList{},
 	)
 
 	// register the type in the scheme

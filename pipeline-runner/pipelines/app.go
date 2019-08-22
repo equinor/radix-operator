@@ -93,7 +93,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 func (cli *PipelineRunner) Run() error {
 	appName := cli.radixApplication.GetName()
 
-	log.Infof("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Name, appName)
+	log.Infof("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, appName)
 
 	for _, step := range cli.pipelineInfo.Steps {
 		err := step.Run(cli.pipelineInfo)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
@@ -64,6 +65,13 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
+	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	if err != nil {
+		return err
+	}
+
+	job.OwnerReferences = ownerReference
+
 	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
 	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
@@ -112,11 +120,3 @@ func (cli *BuildStepImplementation) watchJob(job *batchv1.Job) error {
 	err := <-errChan
 	return err
 }
-
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: branch,
-			},
-		if c.Image != "" {
-			// Using public image. Nothing to build
-			continue
-		}

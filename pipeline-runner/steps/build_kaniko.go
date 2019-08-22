@@ -38,8 +38,10 @@ func createKanikoBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, con
 				"radix-app-name":        appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
-				kube.RadixBranchLabel:   branch,
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
+			},
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: branch,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -87,6 +89,11 @@ func createBuildContainers(containerRegistry, appName, imageTag, useCache string
 	containers := []corev1.Container{}
 
 	for _, c := range components {
+		if c.Image != "" {
+			// Using public image. Nothing to build
+			continue
+		}
+
 		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
 		dockerFile := getDockerfile(c.SourceFolder, c.DockerfileName)
 		context := getContext(c.SourceFolder)
