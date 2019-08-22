@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
@@ -140,6 +141,11 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 			Value: portNames,
 		})
 	}
+
+	environmentVariables = append(environmentVariables, corev1.EnvVar{
+		Name:  defaults.RadixCommitHashEnvironmentVariable,
+		Value: deploy.radixDeployment.Labels[kube.RadixCommitLabel],
+	})
 
 	return environmentVariables
 }

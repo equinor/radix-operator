@@ -45,4 +45,7 @@ const (
 
 	// ActiveClusternameEnvironmentVariable The name of the active cluster. If ActiveClusternameEnvironmentVariable == ClusternameEnvironmentVariable, this is the active cluster
 	ActiveClusternameEnvironmentVariable = "RADIX_ACTIVE_CLUSTERNAME"
+
+	// RadixCommitHashEnvironmentVariable Contains the commit id of the build
+	RadixCommitHashEnvironmentVariable = "RADIX_COMMIT"
 )
