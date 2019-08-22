@@ -47,5 +47,5 @@ const (
 	ActiveClusternameEnvironmentVariable = "RADIX_ACTIVE_CLUSTERNAME"
 
 	// RadixCommitHashEnvironmentVariable Contains the commit id of the build
-	RadixCommitHashEnvironmentVariable = "RADIX_COMMIT"
+	RadixCommitHashEnvironmentVariable = "RADIX_GIT_COMMIT_HASH"
 )
