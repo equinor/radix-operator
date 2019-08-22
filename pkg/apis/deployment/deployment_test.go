@@ -94,7 +94,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
 		assert.Equal(t, "app", deployments.Items[0].Name, "app deployment not there")
 		assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 11, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, 10, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
@@ -121,7 +121,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, parseQuantity("250m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["cpu"])
 		assert.Equal(t, "redis", deployments.Items[1].Name, "redis deployment not there")
 		assert.Equal(t, int32(DefaultReplicas), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 10, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, 9, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[2].Name)
@@ -134,7 +134,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[2].Name)
 		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[3].Name)
-		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[11].Name)
+		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[10].Name)
 	})
 
 	t.Run("validate service", func(t *testing.T) {
@@ -277,7 +277,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllElements(t *testin
 		assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
 		assert.Equal(t, "app", deployments.Items[0].Name, "app deployment not there")
 		assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 11, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, 10, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
@@ -304,7 +304,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllElements(t *testin
 		assert.Equal(t, parseQuantity("250m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["cpu"])
 		assert.Equal(t, "redis", deployments.Items[1].Name, "redis deployment not there")
 		assert.Equal(t, int32(DefaultReplicas), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 10, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, 9, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[2].Name)
@@ -317,7 +317,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllElements(t *testin
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[2].Name)
 		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[3].Name)
-		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[11].Name)
+		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[10].Name)
 	})
 
 	t.Run("validate service", func(t *testing.T) {
@@ -504,7 +504,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 7, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "Should only have default environment variables")
+		assert.Equal(t, 6, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "Should only have default environment variables")
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
 		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Name)

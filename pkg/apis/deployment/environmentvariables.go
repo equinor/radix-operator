@@ -142,10 +142,13 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 		})
 	}
 
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixCommitHashEnvironmentVariable,
-		Value: deploy.radixDeployment.Labels[kube.RadixCommitLabel],
-	})
+	commit := deploy.radixDeployment.Labels[kube.RadixCommitLabel]
+	if commit != "" {
+		environmentVariables = append(environmentVariables, corev1.EnvVar{
+			Name:  defaults.RadixCommitHashEnvironmentVariable,
+			Value: commit,
+		})
+	}
 
 	return environmentVariables
 }
