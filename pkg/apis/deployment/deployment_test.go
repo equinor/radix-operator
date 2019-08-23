@@ -16,6 +16,7 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	extension "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -92,49 +93,40 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
-		assert.Equal(t, "app", deployments.Items[0].Name, "app deployment not there")
-		assert.Equal(t, int32(4), *deployments.Items[0].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 11, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
-		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
-		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
-		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
-		assert.Equal(t, dnsZone, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Value)
-		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Name)
-		assert.Equal(t, "AnyClusterName", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Value)
-		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Name)
-		assert.Equal(t, "test", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Value)
-		assert.Equal(t, defaults.PublicEndpointEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Name)
-		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Value)
-		assert.Equal(t, defaults.CanonicalEndpointEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Name)
-		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Value)
-		assert.Equal(t, defaults.RadixAppEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Name)
-		assert.Equal(t, "edcradix", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[6].Value)
-		assert.Equal(t, defaults.RadixComponentEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Name)
-		assert.Equal(t, "app", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[7].Value)
-		assert.Equal(t, defaults.RadixPortsEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Name)
-		assert.Equal(t, "(8080)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[8].Value)
-		assert.Equal(t, defaults.RadixPortNamesEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[9].Name)
-		assert.Equal(t, "(http)", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[9].Value)
-		assert.Equal(t, parseQuantity("128Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["memory"])
-		assert.Equal(t, parseQuantity("500m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Limits["cpu"])
-		assert.Equal(t, parseQuantity("64Mi"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["memory"])
-		assert.Equal(t, parseQuantity("250m"), deployments.Items[0].Spec.Template.Spec.Containers[0].Resources.Requests["cpu"])
-		assert.Equal(t, "redis", deployments.Items[1].Name, "redis deployment not there")
-		assert.Equal(t, int32(DefaultReplicas), *deployments.Items[1].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 10, len(deployments.Items[1].Spec.Template.Spec.Containers[0].Env), "number of environment variables was unexpected for component. It should contain default and custom")
-		assert.Equal(t, "a_variable", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Name)
-		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[1].Name)
-		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[2].Name)
-		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[3].Name)
-		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[1].Spec.Template.Spec.Containers[0].Env[4].Name)
-		assert.Equal(t, "3001", deployments.Items[1].Spec.Template.Spec.Containers[0].Env[0].Value)
-		assert.Equal(t, "radixquote", deployments.Items[2].Name, "radixquote deployment not there")
-		assert.Equal(t, int32(DefaultReplicas), *deployments.Items[2].Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[0].Name)
-		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[1].Name)
-		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[2].Name)
-		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[2].Spec.Template.Spec.Containers[0].Env[3].Name)
-		assert.Equal(t, "a_secret", deployments.Items[2].Spec.Template.Spec.Containers[0].Env[11].Name)
+		assert.Equal(t, "app", getDeploymentByName("app", deployments).Name, "app deployment not there")
+		assert.Equal(t, int32(4), *getDeploymentByName("app", deployments).Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, 11, len(getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, "app", deployments))
+		assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "test", getEnvVariableByNameOnDeployment(defaults.EnvironmentnameEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.PublicEndpointEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.CanonicalEndpointEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "edcradix", getEnvVariableByNameOnDeployment(defaults.RadixAppEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "app", getEnvVariableByNameOnDeployment(defaults.RadixComponentEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "(8080)", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, "app", deployments))
+		assert.Equal(t, "(http)", getEnvVariableByNameOnDeployment(defaults.RadixPortNamesEnvironmentVariable, "app", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, "app", deployments))
+		assert.Equal(t, parseQuantity("128Mi"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Limits["memory"])
+		assert.Equal(t, parseQuantity("500m"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Limits["cpu"])
+		assert.Equal(t, parseQuantity("64Mi"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Requests["memory"])
+		assert.Equal(t, parseQuantity("250m"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Requests["cpu"])
+		assert.Equal(t, "redis", getDeploymentByName("redis", deployments).Name, "redis deployment not there")
+		assert.Equal(t, int32(DefaultReplicas), *getDeploymentByName("redis", deployments).Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, 10, len(getContainerByName("redis", getDeploymentByName("redis", deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+		assert.True(t, envVariableByNameExistOnDeployment("a_variable", "redis", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, "redis", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, "redis", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, "redis", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, "redis", deployments))
+		assert.Equal(t, "3001", getEnvVariableByNameOnDeployment("a_variable", "redis", deployments))
+		assert.True(t, deploymentByNameExists("radixquote", deployments), "radixquote deployment not there")
+		assert.Equal(t, int32(DefaultReplicas), *getDeploymentByName("radixquote", deployments).Spec.Replicas, "number of replicas was unexpected")
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, "radixquote", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, "radixquote", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, "radixquote", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, "radixquote", deployments))
+		assert.True(t, envVariableByNameExistOnDeployment("a_secret", "radixquote", deployments))
 	})
 
 	t.Run("validate service", func(t *testing.T) {
@@ -1357,4 +1349,56 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface,
 	}
 
 	return nil
+}
+
+func envVariableByNameExistOnDeployment(name, deploymentName string, deployments *extension.DeploymentList) bool {
+	return envVariableByNameExist(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
+}
+
+func getEnvVariableByNameOnDeployment(name, deploymentName string, deployments *extension.DeploymentList) string {
+	return getEnvVariableByName(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
+}
+
+func deploymentByNameExists(name string, deployments *extension.DeploymentList) bool {
+	return getDeploymentByName(name, deployments) != nil
+}
+
+func getDeploymentByName(name string, deployments *extension.DeploymentList) *extension.Deployment {
+	for _, deployment := range deployments.Items {
+		if deployment.Name == name {
+			return &deployment
+		}
+	}
+
+	return nil
+}
+
+func getContainerByName(name string, containers []corev1.Container) *corev1.Container {
+	for _, container := range containers {
+		if container.Name == name {
+			return &container
+		}
+	}
+
+	return nil
+}
+
+func envVariableByNameExist(name string, envVars []corev1.EnvVar) bool {
+	for _, envVar := range envVars {
+		if envVar.Name == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func getEnvVariableByName(name string, envVars []corev1.EnvVar) string {
+	for _, envVar := range envVars {
+		if envVar.Name == name {
+			return envVar.Value
+		}
+	}
+
+	return ""
 }
