@@ -10,6 +10,9 @@ const (
 	// InternalContainerPrefix To indicate that this is not for user interest
 	InternalContainerPrefix = "internal-"
 
+	// CloneConfigContainerName Name of container for clone in the outer pipeline
+	CloneConfigContainerName = "clone-config"
+
 	// CloneContainerName Name of container
 	CloneContainerName = "clone"
 
@@ -28,6 +31,11 @@ const (
 
 // CloneInitContainers The sidecars for cloning repo
 func CloneInitContainers(sshURL, branch string) []corev1.Container {
+	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName)
+}
+
+// CloneInitContainersWithContainerName The sidecars for cloning repo
+func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string) []corev1.Container {
 	containers := []corev1.Container{
 		{
 			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
@@ -37,7 +45,7 @@ func CloneInitContainers(sshURL, branch string) []corev1.Container {
 			ImagePullPolicy: "Always",
 		},
 		{
-			Name:            CloneContainerName,
+			Name:            cloneContainerName,
 			Image:           "alpine/git",
 			ImagePullPolicy: "IfNotPresent",
 			Args: []string{

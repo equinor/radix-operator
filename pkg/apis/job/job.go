@@ -320,15 +320,13 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 	}
 
 	pipelineJobStep := getPipelineJobStep(pipelinePod)
-	cloneContainerStatus := getCloneContainerStatus(pipelinePod)
+	cloneContainerStatus := getCloneContainerStatus(pipelinePod, git.CloneConfigContainerName)
 	if cloneContainerStatus == nil {
 		return steps, nil
 	}
 
 	// Clone of radix config should be represented
 	pipelineCloneStep := getJobStep(pipelinePod.GetName(), cloneContainerStatus)
-	pipelineCloneStep.Name = "clone-config"
-
 	jobStepsLabelSelector := fmt.Sprintf("%s=%s, %s!=%s", kube.RadixImageTagLabel, kubernetesJob.Labels[kube.RadixImageTagLabel], kube.RadixJobTypeLabel, RadixJobTypeJob)
 
 	jobStepList, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(metav1.ListOptions{
@@ -397,7 +395,7 @@ func (job *Job) getPipelinePod() (*corev1.Pod, error) {
 func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
 	var pipelineJobStep v1.RadixJobStep
 
-	cloneContainerStatus := getCloneContainerStatus(pipelinePod)
+	cloneContainerStatus := getCloneContainerStatus(pipelinePod, git.CloneConfigContainerName)
 	if cloneContainerStatus == nil {
 		return v1.RadixJobStep{}
 	}
@@ -413,7 +411,7 @@ func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
 	return pipelineJobStep
 }
 
-func getCloneContainerStatus(pipelinePod *corev1.Pod) *corev1.ContainerStatus {
+func getCloneContainerStatus(pipelinePod *corev1.Pod, cloneContainerName string) *corev1.ContainerStatus {
 	for _, containerStatus := range pipelinePod.Status.InitContainerStatuses {
 		if containerStatus.Name == git.CloneContainerName {
 			return &containerStatus

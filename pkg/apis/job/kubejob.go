@@ -111,7 +111,7 @@ func getPipelineJobInitContainers(sshURL string, pipeline *pipelineJob.Definitio
 
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
-		initContainers = git.CloneInitContainers(sshURL, "master")
+		initContainers = git.CloneInitContainersWithContainerName(sshURL, "master", git.CloneConfigContainerName)
 	}
 	return initContainers
 }
