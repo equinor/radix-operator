@@ -320,7 +320,7 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 	}
 
 	pipelineJobStep := getPipelineJobStep(pipelinePod)
-	cloneContainerStatus := getCloneContainerStatus(pipelinePod, git.CloneConfigContainerName)
+	cloneContainerStatus := getCloneConfigContainerStatus(pipelinePod)
 	if cloneContainerStatus == nil {
 		return steps, nil
 	}
@@ -395,7 +395,7 @@ func (job *Job) getPipelinePod() (*corev1.Pod, error) {
 func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
 	var pipelineJobStep v1.RadixJobStep
 
-	cloneContainerStatus := getCloneContainerStatus(pipelinePod, git.CloneConfigContainerName)
+	cloneContainerStatus := getCloneConfigContainerStatus(pipelinePod)
 	if cloneContainerStatus == nil {
 		return v1.RadixJobStep{}
 	}
@@ -411,9 +411,9 @@ func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
 	return pipelineJobStep
 }
 
-func getCloneContainerStatus(pipelinePod *corev1.Pod, cloneContainerName string) *corev1.ContainerStatus {
+func getCloneConfigContainerStatus(pipelinePod *corev1.Pod) *corev1.ContainerStatus {
 	for _, containerStatus := range pipelinePod.Status.InitContainerStatuses {
-		if containerStatus.Name == git.CloneContainerName {
+		if containerStatus.Name == git.CloneConfigContainerName {
 			return &containerStatus
 		}
 	}
