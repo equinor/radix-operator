@@ -153,9 +153,8 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 
 	switch pipeline.Type {
 	case v1.BuildDeploy:
-		labels[kube.RadixImageTagLabel] = jobSpec.Build.ImageTag
-		fallthrough
 	case v1.Build:
+		labels[kube.RadixImageTagLabel] = jobSpec.Build.ImageTag
 		labels[kube.RadixCommitLabel] = jobSpec.Build.CommitID
 	}
 
