@@ -125,9 +125,8 @@ func getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, p
 
 	switch pipeline.Type {
 	case v1.BuildDeploy:
-		args = append(args, fmt.Sprintf("IMAGE_TAG=%s", jobSpec.Build.ImageTag))
-		fallthrough
 	case v1.Build:
+		args = append(args, fmt.Sprintf("IMAGE_TAG=%s", jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("BRANCH=%s", jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("COMMIT_ID=%s", jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
