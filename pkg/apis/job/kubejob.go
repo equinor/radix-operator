@@ -111,7 +111,7 @@ func getPipelineJobInitContainers(sshURL string, pipeline *pipelineJob.Definitio
 
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
-		initContainers = git.CloneInitContainers(sshURL, "master")
+		initContainers = git.CloneInitContainersWithContainerName(sshURL, "master", git.CloneConfigContainerName)
 	}
 	return initContainers
 }
@@ -124,10 +124,8 @@ func getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, p
 	}
 
 	switch pipeline.Type {
-	case v1.BuildDeploy:
+	case v1.BuildDeploy, v1.Build:
 		args = append(args, fmt.Sprintf("IMAGE_TAG=%s", jobSpec.Build.ImageTag))
-		fallthrough
-	case v1.Build:
 		args = append(args, fmt.Sprintf("BRANCH=%s", jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("COMMIT_ID=%s", jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
@@ -153,10 +151,8 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 	}
 
 	switch pipeline.Type {
-	case v1.BuildDeploy:
+	case v1.BuildDeploy, v1.Build:
 		labels[kube.RadixImageTagLabel] = jobSpec.Build.ImageTag
-		fallthrough
-	case v1.Build:
 		labels[kube.RadixCommitLabel] = jobSpec.Build.CommitID
 	}
 
