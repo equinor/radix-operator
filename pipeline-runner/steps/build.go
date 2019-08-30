@@ -66,7 +66,6 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-
 	// TODO - what about build secrets, e.g. credentials for private npm repository?
 	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
 	if err != nil {
@@ -165,7 +164,7 @@ func createBuildJob(containerRegistry, appName, jobName string, components []v1.
 					RestartPolicy: "Never",
 					InitContainers: []corev1.Container{
 						{
-							Name:    "clone",
+							Name:    git.CloneContainerName,
 							Image:   "alpine:3.7",
 							Command: []string{"/bin/sh", "-c"},
 							Args:    []string{argString},
