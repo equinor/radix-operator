@@ -34,3 +34,23 @@ func ArrayEqualElements(a, b []string) bool {
 	}
 	return true
 }
+
+// ContainsString return if a string is contained in the slice
+func ContainsString(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+// GetKeysFromByteMap Returns keys
+func GetKeysFromByteMap(mapData map[string][]byte) []string {
+	keys := []string{}
+	for k := range mapData {
+		keys = append(keys, k)
+	}
+
+	return keys
+}

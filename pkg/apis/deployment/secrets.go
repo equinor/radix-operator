@@ -35,6 +35,11 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 				if err != nil {
 					return err
 				}
+			} else {
+				err := deploy.removeOrphanedSecrets(ns, registration.Name, component.Name, secretName, component.Secrets)
+				if err != nil {
+					return err
+				}
 			}
 
 			secretsToManage = append(secretsToManage, secretName)
@@ -234,6 +239,30 @@ func (deploy *Deployment) createSecret(ns, app, component, secretName string, is
 	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) removeOrphanedSecrets(ns, app, component, secretName string, secrets []string) error {
+	secret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	orphanRemoved := false
+	for secretName := range secret.Data {
+		if !utils.ContainsString(secrets, secretName) {
+			delete(secret.Data, secretName)
+			orphanRemoved = true
+		}
+	}
+
+	if orphanRemoved {
+		_, err = deploy.kubeclient.CoreV1().Secrets(ns).Update(secret)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

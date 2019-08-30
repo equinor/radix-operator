@@ -1198,6 +1198,61 @@ func TestGetLatestResourceVersionOfTargetEnvironments_ThreeDeployments_ReturnsLa
 	assert.Equal(t, rd3.ResourceVersion, latestResourceVersions[anyEnv])
 }
 
+func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
+	anyAppName := "any-app"
+	anyEnvironment := "dev"
+	anyComponentName := "frontend"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+
+	tu, client, radixclient := setupTest()
+
+	// Setup
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSExternalAlias("some.alias.com").
+				WithDNSExternalAlias("another.alias.com").
+				WithSecrets([]string{"a_secret", "another_secret", "a_third_secret"})))
+
+	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	anyComponentSecret := secrets.Items[1]
+	assert.Equal(t, utils.GetComponentSecretName(anyComponentName), anyComponentSecret.GetName(), "Component secret is not as expected")
+
+	// Secret is initially empty but get filled with data from the API
+	assert.Equal(t, []string{}, utils.GetKeysFromByteMap(anyComponentSecret.Data), "Component secret data is not as expected")
+
+	// Will emulate that data is set from the API
+	anySecretValue := "anySecretValue"
+	secretData := make(map[string][]byte)
+	secretData["a_secret"] = []byte(anySecretValue)
+	secretData["another_secret"] = []byte(anySecretValue)
+	secretData["a_third_secret"] = []byte(anySecretValue)
+
+	anyComponentSecret.Data = secretData
+	client.CoreV1().Secrets(envNamespace).Update(&anyComponentSecret)
+
+	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSExternalAlias("some.alias.com").
+				WithDNSExternalAlias("another.alias.com").
+				WithSecrets([]string{"a_secret", "a_third_secret"})))
+
+	secrets, _ = client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	anyComponentSecret = secrets.Items[1]
+	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, utils.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
