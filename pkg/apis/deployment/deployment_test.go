@@ -1237,6 +1237,8 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	anyComponentSecret.Data = secretData
 	client.CoreV1().Secrets(envNamespace).Update(&anyComponentSecret)
 
+	// Removing one secret from config and therefor from the deployment
+	// should cause it to disappear
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironment).
