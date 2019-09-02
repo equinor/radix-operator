@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -252,7 +253,7 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, app, component, secretName s
 
 	orphanRemoved := false
 	for secretName := range secret.Data {
-		if !utils.ContainsString(secrets, secretName) {
+		if !slice.ContainsString(secrets, secretName) {
 			delete(secret.Data, secretName)
 			orphanRemoved = true
 		}

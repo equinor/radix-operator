@@ -7,6 +7,7 @@ import (
 	"time"
 
 	kubeUtils "github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/utils/maps"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -1224,7 +1225,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	assert.Equal(t, utils.GetComponentSecretName(anyComponentName), anyComponentSecret.GetName(), "Component secret is not as expected")
 
 	// Secret is initially empty but get filled with data from the API
-	assert.Equal(t, []string{}, utils.GetKeysFromByteMap(anyComponentSecret.Data), "Component secret data is not as expected")
+	assert.Equal(t, []string{}, maps.GetKeysFromByteMap(anyComponentSecret.Data), "Component secret data is not as expected")
 
 	// Will emulate that data is set from the API
 	anySecretValue := "anySecretValue"
@@ -1250,7 +1251,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
 	anyComponentSecret = secrets.Items[1]
-	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, utils.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
+	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, maps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 
 func parseQuantity(value string) resource.Quantity {

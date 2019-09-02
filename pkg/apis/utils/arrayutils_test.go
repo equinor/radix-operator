@@ -6,24 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_GetKeysFromMap(t *testing.T) {
-	a := make(map[string][]byte)
-	a["a"] = []byte("x")
-	a["b"] = []byte("y")
-	a["c"] = []byte("z")
-
-	assert.Equal(t, []string{"a", "b", "c"}, GetKeysFromByteMap(a))
-}
-
-func Test_Contains(t *testing.T) {
-	a := []string{"a", "b", "c"}
-
-	assert.True(t, ContainsString(a, "a"))
-	assert.True(t, ContainsString(a, "b"))
-	assert.True(t, ContainsString(a, "c"))
-	assert.False(t, ContainsString(a, "d"))
-}
-
 func Test_array_equals(t *testing.T) {
 	a := []string{"a", "b", "c"}
 	b := []string{"a", "b", "c"}
