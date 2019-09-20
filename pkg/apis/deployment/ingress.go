@@ -36,7 +36,8 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		publicPortNumber = getPublicPortNumber(deployComponent.Ports, deployComponent.PublicPort)
 	}
 
-	if deployComponent.DNSAppAlias {
+	// Only the active cluster should have the DNS alias, not to cause conflics between clusters
+	if deployComponent.DNSAppAlias && isActiveCluster(clustername) {
 		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
 		if appAliasIngress != nil {
 			err = deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
@@ -48,7 +49,8 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		deploy.garbageCollectAppAliasIngressNoLongerInSpecForComponent(deployComponent)
 	}
 
-	if len(deployComponent.DNSExternalAlias) > 0 {
+	// Only the active cluster should have the DNS external alias, not to cause conflics between clusters
+	if len(deployComponent.DNSExternalAlias) > 0 && isActiveCluster(clustername) {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
 		if err != nil {
 			return err
