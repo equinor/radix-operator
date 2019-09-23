@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	extension "k8s.io/api/extensions/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -142,17 +143,11 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
 		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
 
-		// External aliases TLS certificate secrets
-		assert.Equal(t, "some.alias.com", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
-		assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), secrets.Items[1].Type, "TLS certificate for external alias is not properly defined type")
-		assert.Equal(t, "another.alias.com", secrets.Items[2].GetName(), "TLS certificate for second external alias is not properly defined")
-		assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), secrets.Items[2].Type, "TLS certificate for external alias is not properly defined type")
-
 		componentSecretName := utils.GetComponentSecretName("radixquote")
-		assert.Equal(t, componentSecretName, secrets.Items[3].GetName(), "Component secret is not as expected")
+		assert.Equal(t, componentSecretName, secrets.Items[1].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
@@ -165,26 +160,16 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		t.Parallel()
 		roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
 
-		assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
-
-		// External aliases
-		assert.Equal(t, "radix-app-adm-app", roles.Items[0].GetName(), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
-		assert.Equal(t, "secrets", roles.Items[0].Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
-		assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
-		assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
-
-		assert.Equal(t, "radix-app-adm-radixquote", roles.Items[1].GetName(), "Expected role radix-app-adm-radixquote to be there to access secret")
+		assert.Equal(t, 1, len(roles.Items), "Number of roles was not expected")
+		assert.Equal(t, "radix-app-adm-radixquote", roles.Items[0].GetName(), "Expected role radix-app-adm-radixquote to be there to access secret")
 	})
 
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
 
-		// External aliases
-		assert.Equal(t, "radix-app-adm-app", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
-
-		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[1].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
 	})
 
 	t.Run("validate networkpolicy", func(t *testing.T) {
@@ -247,7 +232,7 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 
 }
 
-func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliases(t *testing.T) {
+func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupportingObjects(t *testing.T) {
 	tu, client, radixclient := setupTest()
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
 
@@ -322,6 +307,24 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliases(t *testing
 	assert.Equal(t, "false", quoteActiveClusterIngress.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "true", quoteActiveClusterIngress.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+
+	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
+
+	appAdmAppRole := getRoleByName("radix-app-adm-app", roles)
+	assert.Equal(t, "secrets", appAdmAppRole.Rules[0].Resources[0], "Expected role radix-app-adm-app should be able to access secrets")
+	assert.Equal(t, "some.alias.com", appAdmAppRole.Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
+	assert.Equal(t, "another.alias.com", appAdmAppRole.Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
+
+	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
+	assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
+
+	assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), getSecretByName("some.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
+	assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), getSecretByName("another.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
+
+	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+	assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 
 	teardownTest()
 }
@@ -963,13 +966,13 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
 
 	assert.Equal(t, 1, len(roles.Items), "Environment should have one role for TLS cert")
-	assert.Equal(t, "radix-app-adm-frontend", roles.Items[0].GetName(), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
+	assert.True(t, roleByNameExists("radix-app-adm-frontend", roles), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
 
 	assert.Equal(t, 1, len(rolebindings.Items), "Environment should have one rolebinding for TLS cert")
-	assert.Equal(t, "radix-app-adm-frontend", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
+	assert.True(t, roleBindingByNameExists("radix-app-adm-frontend", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 
 	assert.Equal(t, 2, len(secrets.Items), "Environment should have one secret for TLS cert")
-	assert.Equal(t, "some.alias.com", secrets.Items[1].GetName(), "TLS certificate for external alias is not properly defined")
+	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
 
 	// Remove app alias from dev
 	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
@@ -1430,6 +1433,63 @@ func getIngressByName(name string, ingresses *extension.IngressList) *extension.
 func ingressByNameExists(name string, ingresses *extension.IngressList) bool {
 	ingress := getIngressByName(name, ingresses)
 	if ingress != nil {
+		return true
+	}
+
+	return false
+}
+
+func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
+	for _, role := range roles.Items {
+		if role.Name == name {
+			return &role
+		}
+	}
+
+	return nil
+}
+
+func roleByNameExists(name string, roles *rbacv1.RoleList) bool {
+	role := getRoleByName(name, roles)
+	if role != nil {
+		return true
+	}
+
+	return false
+}
+
+func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
+	for _, secret := range secrets.Items {
+		if secret.Name == name {
+			return &secret
+		}
+	}
+
+	return nil
+}
+
+func secretByNameExists(name string, secrets *corev1.SecretList) bool {
+	secret := getSecretByName(name, secrets)
+	if secret != nil {
+		return true
+	}
+
+	return false
+}
+
+func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rbacv1.RoleBinding {
+	for _, roleBinding := range roleBindings.Items {
+		if roleBinding.Name == name {
+			return &roleBinding
+		}
+	}
+
+	return nil
+}
+
+func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
+	role := getRoleBindingByName(name, roleBindings)
+	if role != nil {
 		return true
 	}
 
