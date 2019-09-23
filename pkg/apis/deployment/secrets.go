@@ -20,7 +20,12 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 	envName := deployment.Spec.Environment
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
-	err := deploy.createDockerSecret(registration, ns)
+	clustername, err := deploy.kubeutil.GetClusterName()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.createDockerSecret(registration, ns)
 	if err != nil {
 		return err
 	}
@@ -46,7 +51,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 			secretsToManage = append(secretsToManage, secretName)
 		}
 
-		if len(component.DNSExternalAlias) > 0 {
+		if len(component.DNSExternalAlias) > 0 && isActiveCluster(clustername) {
 			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 			if err != nil {
 				return err
@@ -66,7 +71,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 				}
 			}
 		} else {
-			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
+			err := deploy.garbageCollectAllSecretsForComponentAndExternalAlias(component)
 			if err != nil {
 				return err
 			}
@@ -145,18 +150,29 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 	return nil
 }
 
+func (deploy *Deployment) garbageCollectAllSecretsForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
+	return deploy.garbageCollectSecretsForComponentAndExternalAlias(component, true)
+}
+
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
+	return deploy.garbageCollectSecretsForComponentAndExternalAlias(component, false)
+}
+
+func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(component radixv1.RadixDeployComponent, all bool) error {
 	secrets, err := deploy.listSecretsForComponentExternalAlias(component)
 	if err != nil {
 		return err
 	}
 
 	for _, secret := range secrets.Items {
-		externalAliasForSecret := secret.Name
 		garbageCollectSecret := true
-		for _, externalAlias := range component.DNSExternalAlias {
-			if externalAlias == externalAliasForSecret {
-				garbageCollectSecret = false
+
+		if !all {
+			externalAliasForSecret := secret.Name
+			for _, externalAlias := range component.DNSExternalAlias {
+				if externalAlias == externalAliasForSecret {
+					garbageCollectSecret = false
+				}
 			}
 		}
 

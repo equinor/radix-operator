@@ -68,7 +68,7 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 			}
 		}
 	} else {
-		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
+		err = deploy.garbageCollectAllExternalAliasIngressesForComponent(deployComponent)
 		if err != nil {
 			return err
 		}
@@ -164,7 +164,15 @@ func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(compo
 	return nil
 }
 
+func (deploy *Deployment) garbageCollectAllExternalAliasIngressesForComponent(component radixv1.RadixDeployComponent) error {
+	return deploy.garbageCollectIngressForComponentAndExternalAlias(component, true)
+}
+
 func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
+	return deploy.garbageCollectIngressForComponentAndExternalAlias(component, false)
+}
+
+func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(component radixv1.RadixDeployComponent, all bool) error {
 	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
 		LabelSelector: getLabelSelectorForExternalAlias(component),
 	})
@@ -173,12 +181,14 @@ func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExte
 	}
 
 	for _, ingress := range ingresses.Items {
-		externalAliasForIngress := ingress.Name
 		garbageCollectIngress := true
 
-		for _, externalAlias := range component.DNSExternalAlias {
-			if externalAlias == externalAliasForIngress {
-				garbageCollectIngress = false
+		if !all {
+			externalAliasForIngress := ingress.Name
+			for _, externalAlias := range component.DNSExternalAlias {
+				if externalAlias == externalAliasForIngress {
+					garbageCollectIngress = false
+				}
 			}
 		}
 
