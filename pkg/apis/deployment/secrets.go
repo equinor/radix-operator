@@ -51,7 +51,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 			secretsToManage = append(secretsToManage, secretName)
 		}
 
-		if len(component.DNSExternalAlias) > 0 && isActiveCluster(clustername) {
+		if len(component.DNSExternalAlias) > 0 {
 			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 			if err != nil {
 				return err
