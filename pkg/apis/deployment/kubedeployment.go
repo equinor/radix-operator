@@ -124,8 +124,8 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 	}
 	deployment.Spec.Strategy = deploymentStrategy
 
-	if replicas > 0 {
-		deployment.Spec.Replicas = int32Ptr(int32(replicas))
+	if replicas != nil && *replicas >= 0 {
+		deployment.Spec.Replicas = int32Ptr(int32(*replicas))
 	}
 
 	// For backwards compatibility

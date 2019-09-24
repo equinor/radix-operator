@@ -134,12 +134,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
-									WithReplicas(2).
+									WithReplicas(test.IntPtr(2)).
 									WithEnvironmentVariable("DB_HOST", "db-dev").
 									WithEnvironmentVariable("DB_PORT", "1234"),
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyProdEnvironment).
-									WithReplicas(4).
+									WithReplicas(test.IntPtr(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
 									WithEnvironmentVariable("DB_PORT", "5678")))).
 			WithAppName(anyApp).
@@ -177,7 +177,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
 	assert.Equal(t, anyImageTag, rds.Items[0].Labels[kube.RadixImageTagLabel])
 	assert.Equal(t, anyPromoteJobName, rds.Items[0].Labels[kube.RadixJobNameLabel])
-	assert.Equal(t, 4, rds.Items[0].Spec.Components[0].Replicas)
+	assert.Equal(t, 4, *rds.Items[0].Spec.Components[0].Replicas)
 	assert.Equal(t, "db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
 	assert.Equal(t, "5678", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
 	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])

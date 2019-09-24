@@ -19,7 +19,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		var resources v1.ResourceRequirements
 
 		// Will later be overriden by default replicas if not set specifically
-		replicas := 0
+		var replicas *int
 
 		if environmentSpecificConfig != nil {
 			replicas = environmentSpecificConfig.Replicas

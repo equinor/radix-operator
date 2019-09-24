@@ -70,9 +70,13 @@ func validateReplicas(components []radixv1.RadixDeployComponent) error {
 	return nil
 }
 
-func validateReplica(replica int) error {
-	if replica > MaxReplica || replica < minReplica {
-		return InvalidNumberOfReplicaError(replica)
+func validateReplica(replica *int) error {
+	if replica == nil {
+		return nil
+	}
+	replicaValue := *replica
+	if replicaValue > MaxReplica || replicaValue < minReplica {
+		return InvalidNumberOfReplicaError(replicaValue)
 	}
 	return nil
 }
