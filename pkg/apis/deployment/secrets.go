@@ -20,7 +20,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 	envName := deployment.Spec.Environment
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
-	err = deploy.createDockerSecret(registration, ns)
+	err := deploy.createDockerSecret(registration, ns)
 	if err != nil {
 		return err
 	}
