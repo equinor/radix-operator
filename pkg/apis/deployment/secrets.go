@@ -20,12 +20,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 	envName := deployment.Spec.Environment
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
-	clustername, err := deploy.kubeutil.GetClusterName()
-	if err != nil {
-		return err
-	}
-
-	err = deploy.createDockerSecret(registration, ns)
+	err := deploy.createDockerSecret(registration, ns)
 	if err != nil {
 		return err
 	}
@@ -51,7 +46,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 			secretsToManage = append(secretsToManage, secretName)
 		}
 
-		if len(component.DNSExternalAlias) > 0 && isActiveCluster(clustername) {
+		if len(component.DNSExternalAlias) > 0 {
 			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 			if err != nil {
 				return err

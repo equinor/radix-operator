@@ -143,11 +143,15 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
 		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
 
 		componentSecretName := utils.GetComponentSecretName("radixquote")
-		assert.Equal(t, componentSecretName, secrets.Items[1].GetName(), "Component secret is not as expected")
+		assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
+
+		// Exists due to external DNS, even though this is not acive cluster
+		assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
+		assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
@@ -160,16 +164,22 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		t.Parallel()
 		roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
 
-		assert.Equal(t, 1, len(roles.Items), "Number of roles was not expected")
-		assert.Equal(t, "radix-app-adm-radixquote", roles.Items[0].GetName(), "Expected role radix-app-adm-radixquote to be there to access secret")
+		assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
+		assert.True(t, roleByNameExists("radix-app-adm-radixquote", roles), "Expected role radix-app-adm-radixquote to be there to access secret")
+
+		// Exists due to external DNS, even though this is not acive cluster
+		assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
 	})
 
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
-		assert.Equal(t, "radix-app-adm-radixquote", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+		assert.True(t, roleBindingByNameExists("radix-app-adm-radixquote", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+
+		// Exists due to external DNS, even though this is not acive cluster
+		assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 	})
 
 	t.Run("validate networkpolicy", func(t *testing.T) {
