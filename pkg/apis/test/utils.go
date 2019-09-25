@@ -150,7 +150,7 @@ func (tu *Utils) ApplyJobUpdate(jobBuilder builders.JobBuilder) (*v1.RadixJob, e
 func SetRequiredEnvironmentVariables() {
 	os.Setenv("RADIXOPERATOR_DEFAULT_USER_GROUP", "1234-5678-91011")
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
-	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, ".app.dev.radix.equinor.com")
+	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
 	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
