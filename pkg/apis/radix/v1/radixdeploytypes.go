@@ -54,7 +54,7 @@ type RadixDeployComponent struct {
 	Name     string          `json:"name" yaml:"name"`
 	Image    string          `json:"image" yaml:"image"`
 	Ports    []ComponentPort `json:"ports" yaml:"ports"`
-	Replicas int             `json:"replicas" yaml:"replicas"`
+	Replicas *int            `json:"replicas" yaml:"replicas"`
 	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
 	Public               bool                 `json:"public" yaml:"public"`
 	PublicPort           string               `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`

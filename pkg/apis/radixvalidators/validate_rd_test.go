@@ -34,8 +34,8 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 		}},
 		{"invalid app name", func(rd *v1.RadixDeployment) { rd.Name = "invalid,char.appname" }},
 		{"empty app name", func(rd *v1.RadixDeployment) { rd.Name = "" }},
-		{"invalid nr replicas", func(rd *v1.RadixDeployment) { rd.Spec.Components[0].Replicas = -1 }},
-		{"invalid nr replicas", func(rd *v1.RadixDeployment) { rd.Spec.Components[0].Replicas = 200 }},
+		{"invalid nr replicas", func(rd *v1.RadixDeployment) { *rd.Spec.Components[0].Replicas = -1 }},
+		{"invalid nr replicas", func(rd *v1.RadixDeployment) { *rd.Spec.Components[0].Replicas = 200 }},
 		{"invalid component name", func(rd *v1.RadixDeployment) { rd.Spec.Components[0].Name = "invalid,char.appname" }},
 		{"invalid env name", func(rd *v1.RadixDeployment) { rd.Spec.Environment = "invalid,char.appname" }},
 	}
