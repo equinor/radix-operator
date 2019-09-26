@@ -5,6 +5,7 @@ The radix-operator is the central piece of the [Radix platform](https://github.c
 - RR - Application registrations
 - RA - Application definition/configuration
 - RD - Application deployment
+- RJ - Application build/deploy jobs
 
 The `radix-operator` and `radix-pipeline` are built using [Azure Devops](https://dev.azure.com/omnia-radix/radix-operator/_build?definitionId=3), then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch. There is also a [build-only](https://dev.azure.com/omnia-radix/radix-operator/_build?definitionId=4) pipeline used for checking pull requests.
 
@@ -16,35 +17,24 @@ The `radix-operator` and `radix-pipeline` are built using [Azure Devops](https:/
 
 The operator is developed using trunk-based development. The two main components here are `radix-operator` and `radix-pipeline`. There is a different setup for each cluster:
 
-- `master` branch should be used for deployment to the `dev` and `playground` clusters. When a pull request is approved and merged to `master`, we should immediately release those changes to the clusters, by (1) checkout and pull `master` branch (2) `make deploy-operator ENVIRONMENT=dev` which will create a `radix-operator:master-latest` image and install it into the clusters using Flux
-- `release` branch should be used for deployment to the `prod` cluster. When a pull request is approved and merged to `master`, and tested ok in `dev` cluster we should immediately merge `master` into `release` and deploy those changes to the `prod` cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) checkout and pull `release` branch (2) `make deploy-operator ENVIRONMENT=prod` which will create a `radix-operator:release-latest` image and install it into the cluster using Flux
+- `master` branch should be used for deployment to `dev` clusters. When a pull request is approved and merged to `master`, Azure DevOps will create a `radix-operator:master-latest` image and push it to ACR. Flux then installs it into the cluster.
+- `release` branch should be used for deployment to `playground` and `prod` clusters. When a pull request is approved and merged to `master`, and tested ok in `dev` cluster, we should immediately merge `master` into `release` and deploy those changes to `playground` and `prod` clusters, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Azure DevOps will create a `radix-operator:release-latest` image and push it to ACR. Flux then installs it into the clusters.
 
 The `radix-pipeline` never gets deployed to cluster, but rather is invoked by the `radix-api`, and the environment mentioned below is the Radix environment of `radix-api` (different environments for `radix-api` therefore use different images of `radix-pipeline`). Both environments are relevant for both `dev`/`playground` as well as `prod`. The process for deploying `radix-pipeline` is this:
 
-- `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, we should immediately release a new image to be used by the `qa` environment, by (1) checkout and pull `master` branch (2) `make deploy-pipeline ENVIRONMENT=prod|dev` which will create a `radix-pipeline:master-latest` image available in container registry of the subscription
-- `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless these are breaking changes which needs to be coordinated with release of our other components. Release by (1) checkout and pull `release` branch (2) `make deploy-pipeline ENVIRONMENT=prod|dev` which will create a `radix-pipeline:release-latest` image available in ACR of the subscription.
+- `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, Azure DevOps will create a will create a `radix-pipeline:master-latest` image available in ACR of the subscription
+- `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster, we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Azure DevOps will create a `radix-pipeline:release-latest` image available in ACR of the subscription.
 
 ### Procedure to release to cluster
 
 #### Radix-pipeline
 
-We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed.
-For each subscription:
-
-```
-1. git checkout <branch>
-2. make deploy-pipeline ENVIRONMENT=prod|dev
-```
+We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Azure DevOps that handles this procedure.
 
 #### Radix-operator
 
-For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed.
+For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Azure DevOps that handles this procedure.
 
-```
-1. Go to cluster inside correct subscription
-2. git checkout <branch>
-3. make deploy-operator ENVIRONMENT=prod|dev
-```
 
 #### Operator helm chart
 
