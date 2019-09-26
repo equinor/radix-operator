@@ -252,7 +252,7 @@ func AnApplicationComponent() RadixApplicationComponentBuilder {
 // RadixEnvironmentConfigBuilder Handles construction of RA component environment
 type RadixEnvironmentConfigBuilder interface {
 	WithEnvironment(string) RadixEnvironmentConfigBuilder
-	WithReplicas(int) RadixEnvironmentConfigBuilder
+	WithReplicas(*int) RadixEnvironmentConfigBuilder
 	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
@@ -261,7 +261,7 @@ type RadixEnvironmentConfigBuilder interface {
 type radixEnvironmentConfigBuilder struct {
 	environment string
 	variables   v1.EnvVarsMap
-	replicas    int
+	replicas    *int
 	ports       map[string]int32
 	secrets     []string
 	resources   v1.ResourceRequirements
@@ -280,7 +280,7 @@ func (ceb *radixEnvironmentConfigBuilder) WithEnvironment(environment string) Ra
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithReplicas(replicas int) RadixEnvironmentConfigBuilder {
+func (ceb *radixEnvironmentConfigBuilder) WithReplicas(replicas *int) RadixEnvironmentConfigBuilder {
 	ceb.replicas = replicas
 	return ceb
 }

@@ -74,14 +74,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					"memory": "128Mi",
 					"cpu":    "500m",
 				}).
-				WithReplicas(4),
+				WithReplicas(test.IntPtr(4)),
 			utils.NewDeployComponentBuilder().
 				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
 				WithName("redis").
 				WithEnvironmentVariable("a_variable", "3001").
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(0),
+				WithReplicas(test.IntPtr(0)),
 			utils.NewDeployComponentBuilder().
 				WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
 				WithName("radixquote").
@@ -114,7 +114,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, parseQuantity("64Mi"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Requests["memory"])
 		assert.Equal(t, parseQuantity("250m"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Requests["cpu"])
 		assert.Equal(t, "redis", getDeploymentByName("redis", deployments).Name, "redis deployment not there")
-		assert.Equal(t, int32(DefaultReplicas), *getDeploymentByName("redis", deployments).Spec.Replicas, "number of replicas was unexpected")
+		assert.Equal(t, int32(0), *getDeploymentByName("redis", deployments).Spec.Replicas, "number of replicas was unexpected")
 		assert.Equal(t, 10, len(getContainerByName("redis", getDeploymentByName("redis", deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 		assert.True(t, envVariableByNameExistOnDeployment("a_variable", "redis", deployments))
 		assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, "redis", deployments))
@@ -652,12 +652,12 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
-				WithReplicas(4),
+				WithReplicas(test.IntPtr(4)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(0),
+				WithReplicas(test.IntPtr(0)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
@@ -675,7 +675,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(0)))
+				WithReplicas(test.IntPtr(0))))
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -807,7 +807,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 							"memory": "128Mi",
 							"cpu":    "500m",
 						}).
-						WithReplicas(4),
+						WithReplicas(test.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithEnvironmentVariable("DB_HOST", "db-dev").
@@ -819,7 +819,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 							"memory": "64Mi",
 							"cpu":    "250m",
 						}).
-						WithReplicas(3))).
+						WithReplicas(test.IntPtr(3)))).
 		BuildRA()
 
 	var testScenarios = []struct {
@@ -840,7 +840,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		t.Run(testcase.environment, func(t *testing.T) {
 			rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimage", "anybranch", "anycommit", testcase.environment)
 
-			assert.Equal(t, testcase.expectedReplicas, rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
+			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
 			assert.Equal(t, testcase.expectedDbHost, rd.Spec.Components[0].EnvironmentVariables["DB_HOST"])
 			assert.Equal(t, testcase.expectedDbPort, rd.Spec.Components[0].EnvironmentVariables["DB_PORT"])
 			assert.Equal(t, testcase.expectedMemoryLimit, rd.Spec.Components[0].Resources.Limits["memory"])

@@ -225,3 +225,8 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 
 	kubeclient.CoreV1().Namespaces().Create(&namespace)
 }
+
+// IntPtr Helper function to get the pointer of an int
+func IntPtr(i int) *int {
+	return &i
+}

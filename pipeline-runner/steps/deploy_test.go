@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,10 +85,10 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
-						WithReplicas(4),
+						WithReplicas(test.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
-						WithReplicas(4)),
+						WithReplicas(test.IntPtr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
 				WithPublicPort("").

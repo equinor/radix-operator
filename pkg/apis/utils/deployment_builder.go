@@ -234,6 +234,7 @@ func NewDeploymentBuilder() DeploymentBuilder {
 
 // ARadixDeployment Constructor for deployment builder containing test data
 func ARadixDeployment() DeploymentBuilder {
+	replicas := 1
 	builder := NewDeploymentBuilder().
 		WithRadixApplication(ARadixApplication()).
 		WithAppName("someapp").
@@ -244,7 +245,7 @@ func ARadixDeployment() DeploymentBuilder {
 			WithName("app").
 			WithPort("http", 8080).
 			WithPublicPort("http").
-			WithReplicas(1))
+			WithReplicas(&replicas))
 
 	return builder
 }
@@ -260,7 +261,7 @@ type DeployComponentBuilder interface {
 	WithPublic(bool) DeployComponentBuilder
 	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
-	WithReplicas(int) DeployComponentBuilder
+	WithReplicas(*int) DeployComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
@@ -278,7 +279,7 @@ type deployComponentBuilder struct {
 	public           bool
 	publicPort       string
 	monitoring       bool
-	replicas         int
+	replicas         *int
 	secrets          []string
 	dnsappalias      bool
 	externalAppAlias []string
@@ -345,7 +346,7 @@ func (dcb *deployComponentBuilder) WithMonitoring(monitoring bool) DeployCompone
 	return dcb
 }
 
-func (dcb *deployComponentBuilder) WithReplicas(replicas int) DeployComponentBuilder {
+func (dcb *deployComponentBuilder) WithReplicas(replicas *int) DeployComponentBuilder {
 	dcb.replicas = replicas
 	return dcb
 }
