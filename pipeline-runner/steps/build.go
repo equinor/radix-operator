@@ -41,7 +41,7 @@ func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
 
 // SucceededMsg Override of default step method
 func (cli *BuildStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: build docker image for application %s", cli.GetAppName())
+	return fmt.Sprintf("Succeded: build step for application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
