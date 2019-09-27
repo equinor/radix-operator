@@ -99,6 +99,12 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	}
 
 	radixDeployment.Name = utils.GetDeploymentName(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
+
+	if _, isRestored := radixDeployment.Annotations[kube.RestoredStatusAnnotation]; isRestored {
+		// RA-817: Promotion reuses annotation - RD get inactive status
+		radixDeployment.Annotations[kube.RestoredStatusAnnotation] = ""
+	}
+
 	radixDeployment.ResourceVersion = ""
 	radixDeployment.Namespace = toNs
 	radixDeployment.Labels[kube.RadixEnvLabel] = pipelineInfo.PipelineArguments.ToEnvironment
