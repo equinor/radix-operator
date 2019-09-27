@@ -95,6 +95,7 @@ func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
 	ns, _ := watcher.client.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
 	if ns != nil {
 		// Namespace already exists
+		log.Infof("Namespace %s already exists", namespace)
 		return nil
 	}
 
