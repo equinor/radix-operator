@@ -3,6 +3,7 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -10,9 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 // ApplyNamespace Creates a new namespace, if not exists allready
@@ -92,41 +91,20 @@ func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
 
 // WaitFor Waits for namespace to appear
 func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
-	err := waitForNamespace(watcher.client, namespace)
-	if err != nil {
-		return err
-	}
-
-	// Namespace already exists
+	log.Infof("Waiting for namespace %s", namespace)
+	waitForNamespace(watcher.client, namespace)
 	log.Infof("Namespace %s exists and is active", namespace)
 	return nil
 
 }
 
-func waitForNamespace(client kubernetes.Interface, namespace string) error {
-	log.Infof("Waiting for namespace %s", namespace)
-	errChan := make(chan error)
-	stop := make(chan struct{})
-	defer close(stop)
+func waitForNamespace(client kubernetes.Interface, namespace string) {
+	for {
+		ns, _ := client.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+		if ns != nil && ns.Status.Phase == corev1.NamespaceActive {
+			break
+		}
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		client, 0)
-	informer := kubeInformerFactory.Core().V1().Namespaces().Informer()
-
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			ns, success := new.(*corev1.Namespace)
-			if success && namespace == ns.GetName() && ns.Status.Phase == corev1.NamespaceActive {
-				errChan <- nil
-			}
-		},
-	})
-
-	go informer.Run(stop)
-	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
-		errChan <- fmt.Errorf("Timed out waiting for caches to sync")
+		time.Sleep(time.Second)
 	}
-
-	err := <-errChan
-	return err
 }
