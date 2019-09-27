@@ -10,6 +10,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 // ApplyNamespace Creates a new namespace, if not exists allready
@@ -67,5 +70,57 @@ func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, lab
 		return nil
 	}
 
+	return err
+}
+
+// NamespaceWatcher Watcher to wait for namespace to be created
+type NamespaceWatcher interface {
+	WaitFor(namespace string) error
+}
+
+// NamespaceWatcherImpl Implementation of watcher
+type NamespaceWatcherImpl struct {
+	client kubernetes.Interface
+}
+
+// NewNamespaceWatcherImpl Constructor
+func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
+	return NamespaceWatcherImpl{
+		client,
+	}
+}
+
+// WaitFor Waits for namespace to appear
+func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
+	ns, _ := watcher.client.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+	if ns != nil {
+		// Namespace already exists
+		return nil
+	}
+
+	log.Infof("Waiting for namespace %s", namespace)
+	errChan := make(chan error)
+	stop := make(chan struct{})
+	defer close(stop)
+
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+		watcher.client, 0)
+	informer := kubeInformerFactory.Core().V1().Namespaces().Informer()
+
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(new interface{}) {
+			ns, success := new.(*corev1.Namespace)
+			if success && namespace == ns.GetName() {
+				errChan <- nil
+			}
+		},
+	})
+
+	go informer.Run(stop)
+	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
+		errChan <- fmt.Errorf("Timed out waiting for caches to sync")
+	}
+
+	err := <-errChan
 	return err
 }
