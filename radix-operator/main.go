@@ -146,7 +146,7 @@ func startDeploymentController(
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := deployController.Run(threadiness, stop); err != nil {
+	if err := deployController.Run(10, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -173,7 +173,7 @@ func startJobController(
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := jobController.Run(threadiness, stop); err != nil {
+	if err := jobController.Run(10, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }

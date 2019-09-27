@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/prometheus/common/log"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -60,6 +61,11 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		}
 
 		return err
+	}
+
+	if job.IsRadixJobDone(radixJob) {
+		log.Warnf("Ignoring RadixJob %s/%s as it's inactive.", radixJob.GetNamespace(), radixJob.GetName())
+		return nil
 	}
 
 	syncJob := radixJob.DeepCopy()

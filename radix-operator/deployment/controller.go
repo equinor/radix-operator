@@ -1,6 +1,9 @@
 package deployment
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -127,5 +130,12 @@ func NewController(client kubernetes.Interface,
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
+	rd, err := radixClient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
+	if deployment.IsRadixDeploymentInactive(rd) {
+		errorMessage := fmt.Sprintf("Ignoring RadixDeployment %s/%s as it's inactive", rd.GetNamespace(), rd.GetName())
+		logger.Debugf(errorMessage)
+		return nil, errors.New(errorMessage)
+	}
+
+	return rd, err
 }

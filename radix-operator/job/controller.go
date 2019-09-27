@@ -1,6 +1,10 @@
 package job
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -116,5 +120,12 @@ func NewController(client kubernetes.Interface,
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixJobs(namespace).Get(name, metav1.GetOptions{})
+	rj, err := radixClient.RadixV1().RadixJobs(namespace).Get(name, metav1.GetOptions{})
+	if job.IsRadixJobDone(rj) {
+		errorMessage := fmt.Sprintf("Ignoring RadixJob %s/%s as it's done", rj.GetNamespace(), rj.GetName())
+		logger.Debugf(errorMessage)
+		return nil, errors.New(errorMessage)
+	}
+
+	return rj, err
 }

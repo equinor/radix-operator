@@ -42,7 +42,7 @@ func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, 
 func (job *Job) OnSync() error {
 	job.restoreStatus()
 
-	if isRadixJobDone(job.radixJob) {
+	if IsRadixJobDone(job.radixJob) {
 		log.Warnf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
@@ -136,7 +136,8 @@ func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
 	return false
 }
 
-func isRadixJobDone(rj *v1.RadixJob) bool {
+// IsRadixJobDone Checks if job is done
+func IsRadixJobDone(rj *v1.RadixJob) bool {
 	return rj == nil || rj.Status.Condition == v1.JobFailed || rj.Status.Condition == v1.JobSucceeded || rj.Status.Condition == v1.JobStopped
 }
 
