@@ -64,10 +64,22 @@ func NewController(client kubernetes.Interface,
 	logger.Info("Setting up event handlers")
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
+			radixJob, _ := new.(*v1.RadixJob)
+			if job.IsRadixJobDone(radixJob) {
+				logger.Infof("#########Skip RJ: %s", radixJob.GetName())
+				return
+			}
+
 			controller.Enqueue(new)
 			controller.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, new interface{}) {
+			radixJob, _ := new.(*v1.RadixJob)
+			if job.IsRadixJobDone(radixJob) {
+				logger.Infof("#########Skip RJ: %s", radixJob.GetName())
+				return
+			}
+
 			controller.Enqueue(new)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -127,6 +139,5 @@ func getObject(radixClient radixclient.Interface, namespace, name string) (inter
 		return nil, errors.New(errorMessage)
 	}
 
-	logger.Infof("#########Got RJ: %s", name)
 	return rj, err
 }

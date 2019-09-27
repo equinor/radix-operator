@@ -62,10 +62,22 @@ func NewController(client kubernetes.Interface,
 	logger.Info("Setting up event handlers")
 	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
+			radixDeployment, _ := new.(*v1.RadixDeployment)
+			if deployment.IsRadixDeploymentInactive(radixDeployment) {
+				logger.Infof("#########Skip RD: %s", radixDeployment.GetName())
+				return
+			}
+
 			controller.Enqueue(new)
 			controller.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, new interface{}) {
+			radixDeployment, _ := new.(*v1.RadixDeployment)
+			if deployment.IsRadixDeploymentInactive(radixDeployment) {
+				logger.Infof("#########Skip RD: %s", radixDeployment.GetName())
+				return
+			}
+
 			controller.Enqueue(new)
 		},
 		DeleteFunc: func(obj interface{}) {
