@@ -92,26 +92,31 @@ func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
 
 // WaitFor Waits for namespace to appear
 func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
-	ns, _ := watcher.client.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
-	if ns != nil {
-		// Namespace already exists
-		log.Infof("Namespace %s already exists", namespace)
-		return nil
+	err := waitForNamespace(watcher.client, namespace)
+	if err != nil {
+		return err
 	}
 
+	// Namespace already exists
+	log.Infof("Namespace %s exists and is active", namespace)
+	return nil
+
+}
+
+func waitForNamespace(client kubernetes.Interface, namespace string) error {
 	log.Infof("Waiting for namespace %s", namespace)
 	errChan := make(chan error)
 	stop := make(chan struct{})
 	defer close(stop)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		watcher.client, 0)
+		client, 0)
 	informer := kubeInformerFactory.Core().V1().Namespaces().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(new interface{}) {
+		UpdateFunc: func(old, new interface{}) {
 			ns, success := new.(*corev1.Namespace)
-			if success && namespace == ns.GetName() {
+			if success && namespace == ns.GetName() && ns.Status.Phase == corev1.NamespaceActive {
 				errChan <- nil
 			}
 		},
