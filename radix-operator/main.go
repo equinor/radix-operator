@@ -53,14 +53,12 @@ func main() {
 
 	go startMetricsServer(stop)
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
-	go startRegistrationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
-	go startApplicationController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
-	go startDeploymentController(client, radixClient, prometheusOperatorClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
-	go startJobController(client, radixClient, kubeInformerFactory, radixInformerFactory, eventRecorder, stop)
+	go startRegistrationController(client, radixClient, eventRecorder, stop)
+	go startApplicationController(client, radixClient, eventRecorder, stop)
+	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
+	go startJobController(client, radixClient, eventRecorder, stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -71,11 +69,11 @@ func main() {
 func startRegistrationController(
 	client kubernetes.Interface,
 	radixClient radixclient.Interface,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 	handler := registration.NewHandler(
 		client,
 		radixClient,
@@ -100,11 +98,11 @@ func startRegistrationController(
 func startApplicationController(
 	client kubernetes.Interface,
 	radixClient radixclient.Interface,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 	handler := application.NewHandler(client, radixClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 	applicationController := application.NewController(
@@ -127,11 +125,11 @@ func startDeploymentController(
 	client kubernetes.Interface,
 	radixClient radixclient.Interface,
 	prometheusOperatorClient monitoring.Interface,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 	handler := deployment.NewHandler(client, radixClient, prometheusOperatorClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 	deployController := deployment.NewController(
@@ -154,11 +152,11 @@ func startDeploymentController(
 func startJobController(
 	client kubernetes.Interface,
 	radixClient radixclient.Interface,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 	handler := job.NewHandler(client, radixClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 	jobController := job.NewController(
