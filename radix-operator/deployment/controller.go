@@ -133,9 +133,10 @@ func getObject(radixClient radixclient.Interface, namespace, name string) (inter
 	rd, err := radixClient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
 	if deployment.IsRadixDeploymentInactive(rd) {
 		errorMessage := fmt.Sprintf("Ignoring RadixDeployment %s/%s as it's inactive", rd.GetNamespace(), rd.GetName())
-		logger.Debugf(errorMessage)
+		logger.Info(errorMessage)
 		return nil, errors.New(errorMessage)
 	}
 
+	logger.Infof("#########Got RD: %s", name)
 	return rd, err
 }

@@ -123,9 +123,10 @@ func getObject(radixClient radixclient.Interface, namespace, name string) (inter
 	rj, err := radixClient.RadixV1().RadixJobs(namespace).Get(name, metav1.GetOptions{})
 	if job.IsRadixJobDone(rj) {
 		errorMessage := fmt.Sprintf("Ignoring RadixJob %s/%s as it's done", rj.GetNamespace(), rj.GetName())
-		logger.Debugf(errorMessage)
+		logger.Info(errorMessage)
 		return nil, errors.New(errorMessage)
 	}
 
+	logger.Infof("#########Got RJ: %s", name)
 	return rj, err
 }
