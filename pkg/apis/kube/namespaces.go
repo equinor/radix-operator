@@ -64,9 +64,9 @@ func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, lab
 			return fmt.Errorf("Failed to patch namespace object: %v", err)
 		}
 
-		log.Debugf("#########YALLA##########Patched namespace: %s ", patchedNamespace.Name)
+		log.Infof("#########YALLA##########Patched namespace: %s ", patchedNamespace.Name)
 	} else {
-		log.Debugf("#########YALLA##########No need to patch namespace: %s ", name)
+		log.Infof("#########YALLA##########No need to patch namespace: %s ", name)
 	}
 
 	return nil
