@@ -3,6 +3,7 @@ package kube
 import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	coreListers "k8s.io/client-go/listers/core/v1"
 )
 
 // Radix Annotations
@@ -35,7 +36,8 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient kubernetes.Interface
+	kubeClient      kubernetes.Interface
+	namespaceLister coreListers.NamespaceLister
 }
 
 var logger *log.Entry
@@ -48,6 +50,17 @@ func init() {
 func New(client kubernetes.Interface) (*Kube, error) {
 	kube := &Kube{
 		kubeClient: client,
+	}
+	return kube, nil
+}
+
+// NewWithListers Constructor
+func NewWithListers(
+	client kubernetes.Interface,
+	namespaceLister coreListers.NamespaceLister) (*Kube, error) {
+	kube := &Kube{
+		kubeClient:      client,
+		namespaceLister: namespaceLister,
 	}
 	return kube, nil
 }

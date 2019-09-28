@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	coreListers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -26,21 +27,24 @@ const (
 
 // Handler Handler for radix registrations
 type Handler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	hasSynced   common.HasSynced
+	kubeclient      kubernetes.Interface
+	radixclient     radixclient.Interface
+	namespaceLister coreListers.NamespaceLister
+	hasSynced       common.HasSynced
 }
 
 //NewHandler creates a handler which deals with RadixRegistration resources
 func NewHandler(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) Handler {
+	hasSynced common.HasSynced,
+	namespaceLister coreListers.NamespaceLister) Handler {
 
 	handler := Handler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		hasSynced:   hasSynced,
+		kubeclient:      kubeclient,
+		radixclient:     radixclient,
+		namespaceLister: namespaceLister,
+		hasSynced:       hasSynced,
 	}
 
 	return handler
@@ -62,7 +66,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncRegistration := registration.DeepCopy()
 	logger.Infof("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.radixclient, syncRegistration)
+	application, _ := application.NewApplication(t.kubeclient, t.radixclient, t.namespaceLister, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
 		// Put back on queue.
