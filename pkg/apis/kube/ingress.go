@@ -26,7 +26,7 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 		if err != nil {
 			return fmt.Errorf("Failed to create Ingress object: %v", err)
 		}
-		log.Debugf("Created Ingress: %s in namespace %s", ingressName, namespace)
+		log.Debugf("#########YALLA##########Created Ingress: %s in namespace %s", ingressName, namespace)
 		return nil
 	}
 
