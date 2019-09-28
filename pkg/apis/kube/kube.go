@@ -38,6 +38,7 @@ const (
 type Kube struct {
 	kubeClient      kubernetes.Interface
 	namespaceLister coreListers.NamespaceLister
+	secretLister    coreListers.SecretLister
 }
 
 var logger *log.Entry
@@ -57,10 +58,12 @@ func New(client kubernetes.Interface) (*Kube, error) {
 // NewWithListers Constructor
 func NewWithListers(
 	client kubernetes.Interface,
-	namespaceLister coreListers.NamespaceLister) (*Kube, error) {
+	namespaceLister coreListers.NamespaceLister,
+	secretLister coreListers.SecretLister) (*Kube, error) {
 	kube := &Kube{
 		kubeClient:      client,
 		namespaceLister: namespaceLister,
+		secretLister:    secretLister,
 	}
 	return kube, nil
 }

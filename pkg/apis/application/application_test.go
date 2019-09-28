@@ -234,7 +234,7 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface,
 	err := tu.ApplyRegistration(registrationBuilder)
 
 	rr := registrationBuilder.BuildRR()
-	application, _ := NewApplication(client, radixclient, nil, rr)
+	application, _ := NewApplication(client, radixclient, nil, nil, rr)
 	err = application.OnSync()
 	if err != nil {
 		return nil, err
@@ -250,7 +250,7 @@ func updateRegistrationWithSync(tu test.Utils, client kubernetes.Interface,
 		return err
 	}
 
-	application, _ := NewApplication(client, radixclient, nil, rr)
+	application, _ := NewApplication(client, radixclient, nil, nil, rr)
 	err = application.OnSync()
 	if err != nil {
 		return err

@@ -30,6 +30,7 @@ type Handler struct {
 	kubeclient      kubernetes.Interface
 	radixclient     radixclient.Interface
 	namespaceLister coreListers.NamespaceLister
+	secretLister    coreListers.SecretLister
 	hasSynced       common.HasSynced
 }
 
@@ -38,12 +39,14 @@ func NewHandler(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	hasSynced common.HasSynced,
-	namespaceLister coreListers.NamespaceLister) Handler {
+	namespaceLister coreListers.NamespaceLister,
+	secretLister coreListers.SecretLister) Handler {
 
 	handler := Handler{
 		kubeclient:      kubeclient,
 		radixclient:     radixclient,
 		namespaceLister: namespaceLister,
+		secretLister:    secretLister,
 		hasSynced:       hasSynced,
 	}
 
@@ -66,7 +69,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncRegistration := registration.DeepCopy()
 	logger.Infof("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.radixclient, t.namespaceLister, syncRegistration)
+	application, _ := application.NewApplication(t.kubeclient, t.radixclient, t.namespaceLister, t.secretLister, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
 		// Put back on queue.

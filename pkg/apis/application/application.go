@@ -24,6 +24,7 @@ type Application struct {
 	radixclient     radixclient.Interface
 	kubeutil        *kube.Kube
 	namespaceLister coreListers.NamespaceLister
+	secretLister    coreListers.SecretLister
 	registration    *v1.RadixRegistration
 }
 
@@ -32,8 +33,9 @@ func NewApplication(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	namespaceLister coreListers.NamespaceLister,
+	secretLister coreListers.SecretLister,
 	registration *v1.RadixRegistration) (Application, error) {
-	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister)
+	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister, secretLister)
 	if err != nil {
 		return Application{}, err
 	}
@@ -43,6 +45,7 @@ func NewApplication(
 		radixclient,
 		kubeutil,
 		namespaceLister,
+		secretLister,
 		registration}, nil
 }
 

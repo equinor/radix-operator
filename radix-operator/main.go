@@ -79,6 +79,7 @@ func startRegistrationController(
 		radixClient,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 		kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		kubeInformerFactory.Core().V1().Secrets().Lister(),
 	)
 
 	registrationController := registration.NewController(

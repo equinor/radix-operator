@@ -54,6 +54,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 		kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		kubeInformerFactory.Core().V1().Secrets().Lister(),
 	)
 	go startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
 

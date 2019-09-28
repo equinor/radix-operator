@@ -11,9 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
-	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 const tlsSecretDefaultData = "xx"
@@ -90,7 +88,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
-	secrets, err := deploy.listSecrets()
+	secrets, err := deploy.kubeutil.ListSecrets(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
@@ -186,12 +184,12 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 
 func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
 	labelSelector := getLabelSelectorForComponent(component)
-	return deploy.listSecretsWithSelector(&labelSelector)
+	return deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 }
 
 func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
 	labelSelector := getLabelSelectorForExternalAlias(component)
-	return deploy.listSecretsWithSelector(&labelSelector)
+	return deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 }
 
 func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistration, ns string) error {
@@ -270,50 +268,4 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, app, component, secretName s
 	}
 
 	return nil
-}
-
-func (deploy *Deployment) listSecrets() ([]*v1.Secret, error) {
-	return deploy.listSecretsWithSelector(nil)
-}
-
-func (deploy *Deployment) listSecretsWithSelector(labelSelectorString *string) ([]*v1.Secret, error) {
-	var secrets []*v1.Secret
-	var err error
-
-	if deploy.secretLister != nil {
-		var selector labels.Selector
-		if labelSelectorString != nil {
-			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
-			if err != nil {
-				return nil, err
-			}
-
-			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
-			if err != nil {
-				return nil, err
-			}
-
-		} else {
-			selector = labels.NewSelector()
-		}
-
-		secrets, err = deploy.secretLister.Secrets(deploy.radixDeployment.GetNamespace()).List(selector)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		listOptions := metav1.ListOptions{}
-		if labelSelectorString != nil {
-			listOptions.LabelSelector = *labelSelectorString
-		}
-
-		list, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(listOptions)
-		if err != nil {
-			return nil, err
-		}
-
-		secrets = slice.PointersOf(list.Items).([]*v1.Secret)
-	}
-
-	return secrets, nil
 }
