@@ -23,18 +23,18 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 
 	oldService, err := deploy.getService(deployComponent.Name)
 	if err != nil && errors.IsNotFound(err) {
-		log.Debugf("#########YALLA##########Creating Service object %s in namespace %s", deployComponent.Name, namespace)
+		log.Infof("#########YALLA##########Creating Service object %s in namespace %s", deployComponent.Name, namespace)
 		createdService, err := deploy.kubeclient.CoreV1().Services(namespace).Create(service)
 
 		if err != nil {
 			return fmt.Errorf("Failed to create Service object: %v", err)
 		}
 
-		log.Debugf("#########YALLA##########Created Service: %s in namespace %s", createdService.Name, namespace)
+		log.Infof("#########YALLA##########Created Service: %s in namespace %s", createdService.Name, namespace)
 		return nil
 	}
 
-	log.Debugf("Service object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
+	log.Infof("Service object %s already exists in namespace %s, updating the object now", deployComponent.Name, namespace)
 	newService := oldService.DeepCopy()
 	ports := buildServicePorts(deployComponent.Ports)
 
@@ -61,9 +61,9 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
 		}
-		log.Debugf("#########YALLA##########Patched Service: %s in namespace %s", patchedService.Name, namespace)
+		log.Infof("#########YALLA##########Patched Service: %s in namespace %s", patchedService.Name, namespace)
 	} else {
-		log.Debugf("#########YALLA##########No need to patch service: %s ", deployComponent.Name)
+		log.Infof("#########YALLA##########No need to patch service: %s ", deployComponent.Name)
 	}
 
 	return nil
