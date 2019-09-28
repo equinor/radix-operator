@@ -130,8 +130,16 @@ func startDeploymentController(
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
+
 	handler := deployment.NewHandler(client, radixClient, prometheusOperatorClient,
-		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
+		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
+		kubeInformerFactory.Core().V1().Services().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		kubeInformerFactory.Core().V1().Secrets().Lister(),
+		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
+	)
 	deployController := deployment.NewController(
 		client,
 		radixClient,
@@ -144,7 +152,7 @@ func startDeploymentController(
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := deployController.Run(10, stop); err != nil {
+	if err := deployController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -171,7 +179,7 @@ func startJobController(
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := jobController.Run(10, stop); err != nil {
+	if err := jobController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }

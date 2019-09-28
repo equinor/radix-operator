@@ -10,11 +10,15 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/prometheus/common/log"
 
+	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	coreListers "k8s.io/client-go/listers/core/v1"
+	extensionlisters "k8s.io/client-go/listers/extensions/v1beta1"
+	rbacListers "k8s.io/client-go/listers/rbac/v1"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -33,12 +37,26 @@ type Handler struct {
 	radixclient             radixclient.Interface
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
+	rdLister                v1Lister.RadixDeploymentLister
+	deploymentLister        extensionlisters.DeploymentLister
+	serviceLister           coreListers.ServiceLister
+	ingressLister           extensionlisters.IngressLister
+	secretLister            coreListers.SecretLister
+	roleBindingLister       rbacListers.RoleBindingLister
 	hasSynced               common.HasSynced
 }
 
 // NewHandler Constructor
 func NewHandler(kubeclient kubernetes.Interface,
-	radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, hasSynced common.HasSynced) Handler {
+	radixclient radixclient.Interface,
+	prometheusperatorclient monitoring.Interface,
+	hasSynced common.HasSynced,
+	rdLister v1Lister.RadixDeploymentLister,
+	deploymentLister extensionlisters.DeploymentLister,
+	serviceLister coreListers.ServiceLister,
+	ingressLister extensionlisters.IngressLister,
+	secretLister coreListers.SecretLister,
+	roleBindingLister rbacListers.RoleBindingLister) Handler {
 	kube, _ := kube.New(kubeclient)
 
 	handler := Handler{
@@ -47,6 +65,12 @@ func NewHandler(kubeclient kubernetes.Interface,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kube,
 		hasSynced:               hasSynced,
+		rdLister:                rdLister,
+		deploymentLister:        deploymentLister,
+		serviceLister:           serviceLister,
+		ingressLister:           ingressLister,
+		secretLister:            secretLister,
+		roleBindingLister:       roleBindingLister,
 	}
 
 	return handler
@@ -85,7 +109,19 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	deployment, err := deployment.NewDeployment(t.kubeclient, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
+	deployment, err := deployment.NewDeploymentWithLister(
+		t.kubeclient,
+		t.radixclient,
+		t.prometheusperatorclient,
+		radixRegistration,
+		syncRD,
+		t.rdLister,
+		t.deploymentLister,
+		t.serviceLister,
+		t.ingressLister,
+		t.secretLister,
+		t.roleBindingLister,
+	)
 	if err != nil {
 		return err
 	}
@@ -96,6 +132,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
+	logger.Infof("########################Done syncing deployment %s", syncRD.Name)
 	t.hasSynced(true)
 	eventRecorder.Event(syncRD, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil

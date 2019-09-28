@@ -6,10 +6,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -146,12 +148,12 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
-	deployments, err := deploy.kubeclient.ExtensionsV1beta1().Deployments(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	deployments, err := deploy.listDeployments()
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range deployments.Items {
+	for _, exisitingComponent := range deployments {
 		garbageCollect := true
 		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
@@ -171,6 +173,27 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) listDeployments() ([]*v1beta1.Deployment, error) {
+	var deployments []*v1beta1.Deployment
+	var err error
+
+	if deploy.deploymentLister != nil {
+		deployments, err = deploy.deploymentLister.Deployments(deploy.radixDeployment.GetNamespace()).List(labels.NewSelector())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		list, err := deploy.kubeclient.ExtensionsV1beta1().Deployments(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		deployments = slice.PointersOf(list.Items).([]*v1beta1.Deployment)
+	}
+
+	return deployments, nil
 }
 
 func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {

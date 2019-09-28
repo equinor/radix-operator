@@ -7,10 +7,12 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
@@ -62,12 +64,12 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 }
 
 func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
-	services, err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	services, err := deploy.listServices()
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range services.Items {
+	for _, exisitingComponent := range services {
 		garbageCollect := true
 		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
@@ -87,6 +89,27 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) listServices() ([]*corev1.Service, error) {
+	var services []*corev1.Service
+	var err error
+
+	if deploy.serviceLister != nil {
+		services, err = deploy.serviceLister.Services(deploy.radixDeployment.GetNamespace()).List(labels.NewSelector())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		list, err := deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		services = slice.PointersOf(list.Items).([]*corev1.Service)
+	}
+
+	return services, nil
 }
 
 func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {

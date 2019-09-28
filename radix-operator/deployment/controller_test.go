@@ -71,6 +71,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(stop)
 	defer close(synced)
 
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
+
 	deploymentHandler := NewHandler(
 		client,
 		radixClient,
@@ -78,8 +81,14 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
+		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
+		kubeInformerFactory.Core().V1().Services().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		kubeInformerFactory.Core().V1().Secrets().Lister(),
+		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
 	)
-	go startDeploymentController(client, radixClient, deploymentHandler, stop)
+	go startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
 
 	// Test
 
@@ -127,10 +136,12 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
+func startDeploymentController(client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	radixInformerFactory informers.SharedInformerFactory,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	handler Handler, stop chan struct{}) {
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
 	controller := NewController(

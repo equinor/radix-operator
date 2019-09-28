@@ -63,7 +63,7 @@
                 "RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE": "25%",
                 "RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS": "5",
                 "RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS": "10",
-                "RADIX_ACTIVE_CLUSTERNAME": "weekly-37",
+                "RADIX_ACTIVE_CLUSTERNAME": "weekly-39v2",
             },
             "args": [
                 "--useOutClusterClient=false"

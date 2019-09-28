@@ -10,8 +10,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"k8s.io/api/extensions/v1beta1"
+	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -101,12 +104,12 @@ func isActiveCluster(clustername string) bool {
 }
 
 func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
-	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	ingresses, err := deploy.listIngresses()
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range ingresses.Items {
+	for _, exisitingComponent := range ingresses {
 		garbageCollect := true
 		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
@@ -145,16 +148,14 @@ func (deploy *Deployment) garbageCollectNonActiveClusterIngress(component v1.Rad
 }
 
 func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(componentName, labelSelector string) error {
-	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
+	ingresses, err := deploy.listIngressesWithSelector(&labelSelector)
 	if err != nil {
 		return err
 	}
 
-	if len(ingresses.Items) > 0 {
-		for n := range ingresses.Items {
-			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses.Items[n].Name, &metav1.DeleteOptions{})
+	if len(ingresses) > 0 {
+		for n := range ingresses {
+			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses[n].Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -173,14 +174,13 @@ func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExte
 }
 
 func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(component radixv1.RadixDeployComponent, all bool) error {
-	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: getLabelSelectorForExternalAlias(component),
-	})
+	labelSelector := getLabelSelectorForExternalAlias(component)
+	ingresses, err := deploy.listIngressesWithSelector(&labelSelector)
 	if err != nil {
 		return err
 	}
 
-	for _, ingress := range ingresses.Items {
+	for _, ingress := range ingresses {
 		garbageCollectIngress := true
 
 		if !all {
@@ -323,4 +323,50 @@ func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
 		}
 	}
 	return 0
+}
+
+func (deploy *Deployment) listIngresses() ([]*v1beta1.Ingress, error) {
+	return deploy.listIngressesWithSelector(nil)
+}
+
+func (deploy *Deployment) listIngressesWithSelector(labelSelectorString *string) ([]*v1beta1.Ingress, error) {
+	var ingresses []*v1beta1.Ingress
+	var err error
+
+	if deploy.deploymentLister != nil {
+		var selector labels.Selector
+		if labelSelectorString != nil {
+			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
+			if err != nil {
+				return nil, err
+			}
+
+			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
+			if err != nil {
+				return nil, err
+			}
+
+		} else {
+			selector = labels.NewSelector()
+		}
+
+		ingresses, err = deploy.ingressLister.Ingresses(deploy.radixDeployment.GetNamespace()).List(selector)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		listOptions := metav1.ListOptions{}
+		if labelSelectorString != nil {
+			listOptions.LabelSelector = *labelSelectorString
+		}
+
+		list, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(listOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		ingresses = slice.PointersOf(list.Items).([]*v1beta1.Ingress)
+	}
+
+	return ingresses, nil
 }

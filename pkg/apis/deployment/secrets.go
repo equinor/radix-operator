@@ -11,7 +11,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const tlsSecretDefaultData = "xx"
@@ -88,12 +90,12 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
-	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	secrets, err := deploy.listSecrets()
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingSecret := range secrets.Items {
+	for _, exisitingSecret := range secrets {
 		if exisitingSecret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
 			// Not handled here
 			continue
@@ -130,7 +132,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 		return err
 	}
 
-	for _, secret := range secrets.Items {
+	for _, secret := range secrets {
 		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
 			// Not handled here
 			continue
@@ -159,7 +161,7 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 		return err
 	}
 
-	for _, secret := range secrets.Items {
+	for _, secret := range secrets {
 		garbageCollectSecret := true
 
 		if !all {
@@ -182,24 +184,14 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 	return nil
 }
 
-func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
-	return deploy.listSecrets(getLabelSelectorForComponent(component))
+func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
+	labelSelector := getLabelSelectorForComponent(component)
+	return deploy.listSecretsWithSelector(&labelSelector)
 }
 
-func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
-	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
-}
-
-func (deploy *Deployment) listSecrets(labelSelector string) (*v1.SecretList, error) {
-	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return secrets, err
+func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
+	labelSelector := getLabelSelectorForExternalAlias(component)
+	return deploy.listSecretsWithSelector(&labelSelector)
 }
 
 func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistration, ns string) error {
@@ -278,4 +270,50 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, app, component, secretName s
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) listSecrets() ([]*v1.Secret, error) {
+	return deploy.listSecretsWithSelector(nil)
+}
+
+func (deploy *Deployment) listSecretsWithSelector(labelSelectorString *string) ([]*v1.Secret, error) {
+	var secrets []*v1.Secret
+	var err error
+
+	if deploy.secretLister != nil {
+		var selector labels.Selector
+		if labelSelectorString != nil {
+			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
+			if err != nil {
+				return nil, err
+			}
+
+			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
+			if err != nil {
+				return nil, err
+			}
+
+		} else {
+			selector = labels.NewSelector()
+		}
+
+		secrets, err = deploy.secretLister.Secrets(deploy.radixDeployment.GetNamespace()).List(selector)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		listOptions := metav1.ListOptions{}
+		if labelSelectorString != nil {
+			listOptions.LabelSelector = *labelSelectorString
+		}
+
+		list, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(listOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		secrets = slice.PointersOf(list.Items).([]*v1.Secret)
+	}
+
+	return secrets, nil
 }

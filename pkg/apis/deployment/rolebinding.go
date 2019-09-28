@@ -7,8 +7,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	auth "k8s.io/api/rbac/v1"
+	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent, secrets []string) error {
@@ -37,16 +40,15 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
-	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: getLabelSelectorForComponent(*component),
-	})
+	labelSelector := getLabelSelectorForComponent(*component)
+	roleBindings, err := deploy.listRoleBindingsWithSelector(&labelSelector)
 	if err != nil {
 		return err
 	}
 
-	if len(roleBindings.Items) > 0 {
-		for n := range roleBindings.Items {
-			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBindings.Items[n].Name, &metav1.DeleteOptions{})
+	if len(roleBindings) > 0 {
+		for n := range roleBindings {
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBindings[n].Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -57,12 +59,12 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(c
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
-	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	roleBindings, err := deploy.listRoleBindings()
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range roleBindings.Items {
+	for _, exisitingComponent := range roleBindings {
 		garbageCollect := true
 		exisitingComponentName, exists := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
@@ -111,4 +113,50 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 	}
 
 	return rolebinding
+}
+
+func (deploy *Deployment) listRoleBindings() ([]*auth.RoleBinding, error) {
+	return deploy.listRoleBindingsWithSelector(nil)
+}
+
+func (deploy *Deployment) listRoleBindingsWithSelector(labelSelectorString *string) ([]*auth.RoleBinding, error) {
+	var roleBindings []*auth.RoleBinding
+	var err error
+
+	if deploy.roleBindingLister != nil {
+		var selector labels.Selector
+		if labelSelectorString != nil {
+			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
+			if err != nil {
+				return nil, err
+			}
+
+			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
+			if err != nil {
+				return nil, err
+			}
+
+		} else {
+			selector = labels.NewSelector()
+		}
+
+		roleBindings, err = deploy.roleBindingLister.RoleBindings(deploy.radixDeployment.GetNamespace()).List(selector)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		listOptions := metav1.ListOptions{}
+		if labelSelectorString != nil {
+			listOptions.LabelSelector = *labelSelectorString
+		}
+
+		list, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(listOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		roleBindings = slice.PointersOf(list.Items).([]*auth.RoleBinding)
+	}
+
+	return roleBindings, nil
 }
