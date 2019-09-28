@@ -10,11 +10,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	"k8s.io/api/extensions/v1beta1"
-	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -104,7 +101,7 @@ func isActiveCluster(clustername string) bool {
 }
 
 func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
-	ingresses, err := deploy.listIngresses()
+	ingresses, err := deploy.kubeutil.ListIngresses(deploy.radixDeployment.Namespace)
 	if err != nil {
 		return err
 	}
@@ -148,7 +145,7 @@ func (deploy *Deployment) garbageCollectNonActiveClusterIngress(component v1.Rad
 }
 
 func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(componentName, labelSelector string) error {
-	ingresses, err := deploy.listIngressesWithSelector(&labelSelector)
+	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 	if err != nil {
 		return err
 	}
@@ -175,7 +172,7 @@ func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExte
 
 func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(component radixv1.RadixDeployComponent, all bool) error {
 	labelSelector := getLabelSelectorForExternalAlias(component)
-	ingresses, err := deploy.listIngressesWithSelector(&labelSelector)
+	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 	if err != nil {
 		return err
 	}
@@ -323,50 +320,4 @@ func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
 		}
 	}
 	return 0
-}
-
-func (deploy *Deployment) listIngresses() ([]*v1beta1.Ingress, error) {
-	return deploy.listIngressesWithSelector(nil)
-}
-
-func (deploy *Deployment) listIngressesWithSelector(labelSelectorString *string) ([]*v1beta1.Ingress, error) {
-	var ingresses []*v1beta1.Ingress
-	var err error
-
-	if deploy.deploymentLister != nil {
-		var selector labels.Selector
-		if labelSelectorString != nil {
-			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
-			if err != nil {
-				return nil, err
-			}
-
-			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
-			if err != nil {
-				return nil, err
-			}
-
-		} else {
-			selector = labels.NewSelector()
-		}
-
-		ingresses, err = deploy.ingressLister.Ingresses(deploy.radixDeployment.GetNamespace()).List(selector)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		listOptions := metav1.ListOptions{}
-		if labelSelectorString != nil {
-			listOptions.LabelSelector = *labelSelectorString
-		}
-
-		list, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(listOptions)
-		if err != nil {
-			return nil, err
-		}
-
-		ingresses = slice.PointersOf(list.Items).([]*v1beta1.Ingress)
-	}
-
-	return ingresses, nil
 }

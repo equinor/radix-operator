@@ -35,7 +35,7 @@ func NewApplication(
 	namespaceLister coreListers.NamespaceLister,
 	secretLister coreListers.SecretLister,
 	registration *v1.RadixRegistration) (Application, error) {
-	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister, secretLister)
+	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister, secretLister, nil)
 	if err != nil {
 		return Application{}, err
 	}

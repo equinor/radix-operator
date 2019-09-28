@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	coreListers "k8s.io/client-go/listers/core/v1"
+	extensionListers "k8s.io/client-go/listers/extensions/v1beta1"
 )
 
 // Radix Annotations
@@ -39,6 +40,7 @@ type Kube struct {
 	kubeClient      kubernetes.Interface
 	namespaceLister coreListers.NamespaceLister
 	secretLister    coreListers.SecretLister
+	ingressLister   extensionListers.IngressLister
 }
 
 var logger *log.Entry
@@ -59,7 +61,8 @@ func New(client kubernetes.Interface) (*Kube, error) {
 func NewWithListers(
 	client kubernetes.Interface,
 	namespaceLister coreListers.NamespaceLister,
-	secretLister coreListers.SecretLister) (*Kube, error) {
+	secretLister coreListers.SecretLister,
+	ingressLister extensionListers.IngressLister) (*Kube, error) {
 	kube := &Kube{
 		kubeClient:      client,
 		namespaceLister: namespaceLister,
