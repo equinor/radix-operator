@@ -158,7 +158,7 @@ func (deploy *Deployment) OnSync() error {
 	}
 
 	stopReconciliation, err := deploy.syncStatuses()
-	log.Info("########################Done syncing statuses")
+	log.Info("#########YALLA##########Done syncing statuses")
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	log.Info("########################Start syncing deployment")
+	log.Info("#########YALLA##########Start syncing deployment")
 	return deploy.syncDeployment()
 }
 
@@ -277,14 +277,14 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
 	}
 
-	log.Info("########################Done garbage collecting")
+	log.Info("#########YALLA##########Done garbage collecting")
 	err = deploy.createSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)
 	}
 
-	log.Info("########################Done creating secrets")
+	log.Info("#########YALLA##########Done creating secrets")
 	err = deploy.denyTrafficFromOtherNamespaces()
 	if err != nil {
 		errmsg := "Failed to setup NSP whitelist: "
@@ -292,7 +292,7 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 
-	log.Info("########################Sync components")
+	log.Info("#########YALLA##########Sync components")
 
 	errs := []error{}
 	for _, v := range deploy.radixDeployment.Spec.Components {
@@ -303,7 +303,7 @@ func (deploy *Deployment) syncDeployment() error {
 			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
 			continue
 		}
-		log.Info("########################Created deployment")
+		log.Info("#########YALLA##########Created deployment")
 
 		err = deploy.createService(v)
 		if err != nil {
@@ -312,7 +312,7 @@ func (deploy *Deployment) syncDeployment() error {
 			continue
 		}
 
-		log.Info("########################Created service")
+		log.Info("#########YALLA##########Created service")
 
 		if v.PublicPort != "" || v.Public {
 			err = deploy.createIngress(v)
@@ -330,7 +330,7 @@ func (deploy *Deployment) syncDeployment() error {
 			}
 		}
 
-		log.Info("########################Created ingress")
+		log.Info("#########YALLA##########Created ingress")
 
 		if v.Monitoring {
 			err = deploy.createServiceMonitor(v)
@@ -341,7 +341,7 @@ func (deploy *Deployment) syncDeployment() error {
 			}
 		}
 
-		log.Info("########################Created service monitors")
+		log.Info("#########YALLA##########Created service monitors")
 
 	}
 
