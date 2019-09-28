@@ -57,6 +57,8 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 	}
 
 	if !isEmptyPatch(patchBytes) {
+		log.Infof("#########YALLA##########Patch service with %s", string(patchBytes))
+
 		patchedService, err := deploy.kubeclient.CoreV1().Services(namespace).Patch(deployComponent.Name, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
