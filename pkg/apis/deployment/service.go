@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
@@ -170,8 +171,10 @@ func buildServicePorts(componentPorts []v1.ComponentPort) []corev1.ServicePort {
 	var ports []corev1.ServicePort
 	for _, v := range componentPorts {
 		servicePort := corev1.ServicePort{
-			Name: v.Name,
-			Port: int32(v.Port),
+			Name:       v.Name,
+			Port:       int32(v.Port),
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(int(v.Port)),
 		}
 		ports = append(ports, servicePort)
 	}
