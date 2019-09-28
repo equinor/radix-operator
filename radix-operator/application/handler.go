@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	coreListers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -26,24 +27,27 @@ const (
 
 // Handler Instance variables
 type Handler struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
-	hasSynced   common.HasSynced
+	kubeclient      kubernetes.Interface
+	radixclient     radixclient.Interface
+	kubeutil        *kube.Kube
+	namespaceLister coreListers.NamespaceLister
+	hasSynced       common.HasSynced
 }
 
 // NewHandler Constructor
 func NewHandler(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced) Handler {
+	hasSynced common.HasSynced,
+	namespaceLister coreListers.NamespaceLister) Handler {
 	kube, _ := kube.New(kubeclient)
 
 	handler := Handler{
-		kubeclient:  kubeclient,
-		radixclient: radixclient,
-		kubeutil:    kube,
-		hasSynced:   hasSynced,
+		kubeclient:      kubeclient,
+		radixclient:     radixclient,
+		kubeutil:        kube,
+		namespaceLister: namespaceLister,
+		hasSynced:       hasSynced,
 	}
 
 	return handler
@@ -77,7 +81,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncApplication := radixApplication.DeepCopy()
 	logger.Infof("Sync application %s", syncApplication.Name)
-	applicationConfig, err := application.NewApplicationConfig(t.kubeclient, t.radixclient, radixRegistration, radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(t.kubeclient, t.radixclient, t.namespaceLister, radixRegistration, radixApplication)
 	if err != nil {
 		// Put back on queue
 		return err

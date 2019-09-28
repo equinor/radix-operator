@@ -44,7 +44,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
 
 func getApplication(ra *radixv1.RadixApplication) *ApplicationConfig {
 	// The other arguments are not relevant for this test
-	application, _ := NewApplicationConfig(nil, nil, nil, ra)
+	application, _ := NewApplicationConfig(nil, nil, nil, nil, ra)
 	return application
 }
 
@@ -53,7 +53,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplication(sampleApp)
-	app, _ := NewApplicationConfig(client, radixclient, radixRegistration, radixApp)
+	app, _ := NewApplicationConfig(client, radixclient, nil, radixRegistration, radixApp)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
@@ -104,7 +104,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	app, _ := NewApplicationConfig(client, radixclient, rr, ra)
+	app, _ := NewApplicationConfig(client, radixclient, nil, rr, ra)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -338,7 +338,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface,
 		return err
 	}
 
-	applicationconfig, err := NewApplicationConfig(client, radixclient, radixRegistration, ra)
+	applicationconfig, err := NewApplicationConfig(client, radixclient, nil, radixRegistration, ra)
 
 	err = applicationconfig.OnSync()
 	if err != nil {

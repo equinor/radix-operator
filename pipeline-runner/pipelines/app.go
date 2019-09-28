@@ -60,7 +60,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, radixRegistration, cli.radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, nil, radixRegistration, cli.radixApplication)
 	if err != nil {
 		return err
 	}

@@ -106,7 +106,9 @@ func startApplicationController(
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 	handler := application.NewHandler(client, radixClient,
-		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
+		kubeInformerFactory.Core().V1().Namespaces().Lister(),
+	)
 	applicationController := application.NewController(
 		client,
 		radixClient,
