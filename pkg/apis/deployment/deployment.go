@@ -150,7 +150,6 @@ func (deploy *Deployment) Apply() error {
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync() error {
-	log.Info("Start onSync")
 	deploy.restoreStatus()
 
 	if IsRadixDeploymentInactive(deploy.radixDeployment) {
@@ -158,9 +157,8 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	log.Info("Sync statuses")
 	stopReconciliation, err := deploy.syncStatuses()
-	log.Info("Done syncing statuses")
+	log.Info("########################Done syncing statuses")
 	if err != nil {
 		return err
 	}
@@ -169,7 +167,7 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	log.Info("Start syncing deployment")
+	log.Info("########################Start syncing deployment")
 	return deploy.syncDeployment()
 }
 
@@ -279,12 +277,14 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
 	}
 
+	log.Info("########################Done garbage collecting")
 	err = deploy.createSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)
 	}
 
+	log.Info("########################Done creating secrets")
 	err = deploy.denyTrafficFromOtherNamespaces()
 	if err != nil {
 		errmsg := "Failed to setup NSP whitelist: "
@@ -292,7 +292,7 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 
-	log.Info("Sync components")
+	log.Info("########################Sync components")
 
 	errs := []error{}
 	for _, v := range deploy.radixDeployment.Spec.Components {
@@ -303,12 +303,17 @@ func (deploy *Deployment) syncDeployment() error {
 			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
 			continue
 		}
+		log.Info("########################Created deployment")
+
 		err = deploy.createService(v)
 		if err != nil {
 			log.Infof("Failed to create service: %v", err)
 			errs = append(errs, fmt.Errorf("Failed to create service: %v", err))
 			continue
 		}
+
+		log.Info("########################Created service")
+
 		if v.PublicPort != "" || v.Public {
 			err = deploy.createIngress(v)
 			if err != nil {
@@ -325,6 +330,8 @@ func (deploy *Deployment) syncDeployment() error {
 			}
 		}
 
+		log.Info("########################Created ingress")
+
 		if v.Monitoring {
 			err = deploy.createServiceMonitor(v)
 			if err != nil {
@@ -333,6 +340,9 @@ func (deploy *Deployment) syncDeployment() error {
 				continue
 			}
 		}
+
+		log.Info("########################Created service monitors")
+
 	}
 
 	log.Info("Done syncing components")
