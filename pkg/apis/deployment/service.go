@@ -23,14 +23,14 @@ func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent)
 
 	oldService, err := deploy.getService(deployComponent.Name)
 	if err != nil && errors.IsNotFound(err) {
-		log.Debugf("Creating Service object %s in namespace %s", deployComponent.Name, namespace)
+		log.Debugf("#########YALLA##########Creating Service object %s in namespace %s", deployComponent.Name, namespace)
 		createdService, err := deploy.kubeclient.CoreV1().Services(namespace).Create(service)
 
 		if err != nil {
 			return fmt.Errorf("Failed to create Service object: %v", err)
 		}
 
-		log.Debugf("Created Service: %s in namespace %s", createdService.Name, namespace)
+		log.Debugf("#########YALLA##########Created Service: %s in namespace %s", createdService.Name, namespace)
 		return nil
 	}
 
