@@ -76,7 +76,7 @@ func NewDeploymentWithLister(kubeclient kubernetes.Interface,
 	secretLister coreListers.SecretLister,
 	roleBindingLister rbacListers.RoleBindingLister) (Deployment, error) {
 
-	kubeutil, err := kube.NewWithListers(kubeclient, nil, secretLister, ingressLister)
+	kubeutil, err := kube.NewWithListers(kubeclient, nil, secretLister, deploymentLister, ingressLister)
 	if err != nil {
 		return Deployment{}, err
 	}

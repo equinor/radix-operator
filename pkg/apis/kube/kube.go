@@ -37,10 +37,11 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient      kubernetes.Interface
-	namespaceLister coreListers.NamespaceLister
-	secretLister    coreListers.SecretLister
-	ingressLister   extensionListers.IngressLister
+	kubeClient       kubernetes.Interface
+	namespaceLister  coreListers.NamespaceLister
+	secretLister     coreListers.SecretLister
+	deploymentLister extensionListers.DeploymentLister
+	ingressLister    extensionListers.IngressLister
 }
 
 var logger *log.Entry
@@ -62,11 +63,14 @@ func NewWithListers(
 	client kubernetes.Interface,
 	namespaceLister coreListers.NamespaceLister,
 	secretLister coreListers.SecretLister,
+	deploymentLister extensionListers.DeploymentLister,
 	ingressLister extensionListers.IngressLister) (*Kube, error) {
 	kube := &Kube{
-		kubeClient:      client,
-		namespaceLister: namespaceLister,
-		secretLister:    secretLister,
+		kubeClient:       client,
+		namespaceLister:  namespaceLister,
+		secretLister:     secretLister,
+		deploymentLister: deploymentLister,
+		ingressLister:    ingressLister,
 	}
 	return kube, nil
 }

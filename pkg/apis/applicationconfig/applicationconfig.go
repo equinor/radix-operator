@@ -39,7 +39,7 @@ func NewApplicationConfig(
 	namespaceLister coreListers.NamespaceLister,
 	registration *v1.RadixRegistration,
 	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
-	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister, nil, nil)
+	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister, nil, nil, nil)
 	if err != nil {
 		log.Errorf("Failed initializing ApplicationConfig")
 		return nil, err

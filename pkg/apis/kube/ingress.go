@@ -52,7 +52,7 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		log.Infof("#########YALLA##########Patch namespace with %s", string(patchBytes))
+		log.Infof("#########YALLA##########Patch ingress with %s", string(patchBytes))
 		patchedIngress, err := kube.kubeClient.ExtensionsV1beta1().Ingresses(namespace).Patch(ingressName, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Ingress object: %v", err)
