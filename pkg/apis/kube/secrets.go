@@ -46,6 +46,12 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 		return nil, fmt.Errorf("Failed to marshal old secret object: %v", err)
 	}
 
+	// Avvoid uneccessary patching
+	secret.ObjectMeta.CreationTimestamp = oldSecret.GetCreationTimestamp()
+	secret.ObjectMeta.ResourceVersion = oldSecret.GetResourceVersion()
+	secret.ObjectMeta.SelfLink = oldSecret.GetSelfLink()
+	secret.ObjectMeta.UID = oldSecret.GetUID()
+
 	newSecretJSON, err := json.Marshal(secret)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to marshal new secret object: %v", err)
