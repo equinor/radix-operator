@@ -66,10 +66,9 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 		log.Infof("#########YALLA##########Patched secret: %s ", patchedSecret.Name)
 		return patchedSecret, nil
 
-	} else {
-		log.Infof("#########YALLA##########No need to patch secret: %s ", secretName)
 	}
 
+	log.Infof("#########YALLA##########No need to patch secret: %s ", secretName)
 	return oldSecret, nil
 }
 
