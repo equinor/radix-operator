@@ -2,17 +2,20 @@ package kube
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8errs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 )
+
+const waitTimeout = 10 * time.Second
 
 // ApplyNamespace Creates a new namespace, if not exists allready
 func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
@@ -92,19 +95,40 @@ func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
 // WaitFor Waits for namespace to appear
 func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
 	log.Infof("Waiting for namespace %s", namespace)
-	waitForNamespace(watcher.client, namespace)
+	err := waitForNamespace(watcher.client, namespace)
+	if err != nil {
+		return err
+	}
+
 	log.Infof("Namespace %s exists and is active", namespace)
 	return nil
 
 }
 
-func waitForNamespace(client kubernetes.Interface, namespace string) {
-	for {
-		ns, _ := client.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
-		if ns != nil && ns.Status.Phase == corev1.NamespaceActive {
-			break
-		}
+func waitForNamespace(client kubernetes.Interface, namespace string) error {
+	errorCh := make(chan error, 1)
+	timer := time.NewTimer(waitTimeout)
+	defer timer.Stop()
 
-		time.Sleep(time.Second)
+	for {
+		go func() {
+			ns, err := client.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+			if !k8errs.IsNotFound(err) {
+				errorCh <- err
+			}
+
+			if ns != nil && ns.Status.Phase == corev1.NamespaceActive {
+				errorCh <- nil
+			}
+
+			time.Sleep(time.Second)
+		}()
+
+		select {
+		case <-timer.C:
+			errors.New("Timed out waiting for namespace")
+		}
 	}
+
+	return nil
 }
