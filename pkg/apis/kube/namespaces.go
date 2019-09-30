@@ -31,7 +31,7 @@ func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, lab
 	}
 	_, err := kube.kubeClient.CoreV1().Namespaces().Create(&namespace)
 
-	if errors.IsAlreadyExists(err) {
+	if k8errs.IsAlreadyExists(err) {
 		log.Debugf("Namespace object %s already exists, updating the object now", name)
 		oldNamespace, err := kube.kubeClient.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
 		if err != nil {
@@ -126,9 +126,7 @@ func waitForNamespace(client kubernetes.Interface, namespace string) error {
 
 		select {
 		case <-timer.C:
-			errors.New("Timed out waiting for namespace")
+			return errors.New("Timed out waiting for namespace")
 		}
 	}
-
-	return nil
 }
