@@ -106,6 +106,7 @@ func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
 }
 
 func waitForNamespace(client kubernetes.Interface, namespace string) error {
+	checkDone := make(chan bool, 1)
 	errorCh := make(chan error, 1)
 	timer := time.NewTimer(waitTimeout)
 	defer timer.Stop()
@@ -122,9 +123,14 @@ func waitForNamespace(client kubernetes.Interface, namespace string) error {
 			}
 
 			time.Sleep(time.Second)
+			checkDone <- true
 		}()
 
 		select {
+		case <-checkDone:
+			log.Debugf("Namespace %s still doesn't exists", namespace)
+		case err := <-errorCh:
+			return err
 		case <-timer.C:
 			return errors.New("Timed out waiting for namespace")
 		}
