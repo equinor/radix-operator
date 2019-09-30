@@ -41,7 +41,7 @@ func (cli *BuildStepImplementation) ImplementationForType() pipeline.StepType {
 
 // SucceededMsg Override of default step method
 func (cli *BuildStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: build docker image for application %s", cli.GetAppName())
+	return fmt.Sprintf("Succeded: build step for application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
@@ -53,12 +53,19 @@ func (cli *BuildStepImplementation) ErrorMsg(err error) string {
 func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.PipelineArguments.CommitID
-	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, commitID)
 
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
 		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
+
+	if noBuildComponents(cli.GetApplicationConfig()) {
+		// Do nothing and no error
+		log.Infof("No component in app %s requires building", cli.GetAppName())
+		return nil
+	}
+
+	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, commitID)
 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
 	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
@@ -286,4 +293,14 @@ func getInitContainerArgString(workspace, gitCloneCommand, commitID string) stri
 		argString += " && " + checkoutString
 	}
 	return argString
+}
+
+func noBuildComponents(ra *v1.RadixApplication) bool {
+	for _, c := range ra.Spec.Components {
+		if c.Image == "" {
+			return false
+		}
+	}
+
+	return true
 }
