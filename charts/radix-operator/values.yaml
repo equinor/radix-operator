@@ -21,11 +21,11 @@ app:
     # Limit range on env namespace
     limitrange:
       default:
-        memory: 1G
-        cpu: 1
+        memory: 500M
+        cpu: 250m
       defaultRequest:
         memory: 50M
-        cpu: 40m
+        cpu: 20m
   # Readiness probe parameters
   readinessProbe:
     initialDelaySeconds: 5
