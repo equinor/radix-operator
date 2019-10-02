@@ -237,7 +237,8 @@ func (deploy *Deployment) syncDeployment() error {
 	errs := []error{}
 	for _, v := range deploy.radixDeployment.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
-		err := deploy.createDeployment(v)
+		restarted := deploy.radixDeployment.GetObjectMeta().GetLabels()[kube.RadixRestartDeploymentLabel]
+		err := deploy.createDeployment(v, restarted)
 		if err != nil {
 			log.Infof("Failed to create deployment: %v", err)
 			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
