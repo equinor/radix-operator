@@ -13,10 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployComponent, restarted string) error {
+func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	appName := deploy.radixDeployment.Spec.AppName
-	deployment, err := deploy.getDeploymentConfig(deployComponent, restarted)
+	deployment, err := deploy.getDeploymentConfig(deployComponent)
 	if err != nil {
 		return err
 	}
@@ -25,7 +25,7 @@ func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployCompone
 	return deploy.kubeutil.ApplyDeployment(namespace, deployment)
 }
 
-func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent, restarted string) (*v1beta1.Deployment, error) {
+func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent) (*v1beta1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	environment := deploy.radixDeployment.Spec.Environment
 	componentName := deployComponent.Name
@@ -98,12 +98,6 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 				},
 			},
 		},
-	}
-
-	// If Radix Deployment has a triggered restart, append this to deployment
-	// NOTE: Only when restarted has a new value, i.e. number of restarts, will a actual restart take place
-	if !strings.EqualFold(restarted, "") {
-		deployment.Spec.Template.ObjectMeta.Labels[kube.RadixRestartDeploymentLabel] = restarted
 	}
 
 	var ports []corev1.ContainerPort
