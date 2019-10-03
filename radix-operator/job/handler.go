@@ -63,7 +63,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncJob := radixJob.DeepCopy()
-	logger.Infof("Sync job %s", syncJob.Name)
+	logger.Debugf("Sync job %s", syncJob.Name)
 
 	job := job.NewJob(t.kubeclient, t.radixclient, syncJob)
 	err = job.OnSync()

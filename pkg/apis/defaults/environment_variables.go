@@ -50,5 +50,5 @@ const (
 	RadixCommitHashEnvironmentVariable = "RADIX_GIT_COMMIT_HASH"
 
 	// RadixRestartEnvironmentVariable Custom environment variable put on the RD by the Radix API
-	RadixRestartEnvironmentVariable = "RADIX_RESTARTED"
+	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 )
