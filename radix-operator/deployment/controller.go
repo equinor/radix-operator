@@ -3,6 +3,8 @@ package deployment
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -64,7 +66,7 @@ func NewController(client kubernetes.Interface,
 		AddFunc: func(new interface{}) {
 			radixDeployment, _ := new.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(radixDeployment) {
-				logger.Infof("#########Skip RD: %s", radixDeployment.GetName())
+				logger.Debugf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
 				return
 			}
 
@@ -72,9 +74,15 @@ func NewController(client kubernetes.Interface,
 			controller.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, new interface{}) {
-			radixDeployment, _ := new.(*v1.RadixDeployment)
-			if deployment.IsRadixDeploymentInactive(radixDeployment) {
-				logger.Infof("#########Skip RD: %s", radixDeployment.GetName())
+			newRD := new.(*v1.RadixDeployment)
+			oldRD := old.(*v1.RadixDeployment)
+			if deployment.IsRadixDeploymentInactive(newRD) {
+				logger.Debugf("Skip deployment object %s as it is inactive", newRD.GetName())
+				return
+			}
+
+			if deepEqual(oldRD, newRD) {
+				logger.Debugf("Deployment object is equal to old for %s. Do nothing", newRD.GetName())
 				return
 			}
 
@@ -139,6 +147,16 @@ func NewController(client kubernetes.Interface,
 	})
 
 	return controller
+}
+
+func deepEqual(old, new *v1.RadixDeployment) bool {
+	if !reflect.DeepEqual(new.Spec, old.Spec) ||
+		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
+		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
+		return false
+	}
+
+	return true
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {

@@ -95,7 +95,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncRD := rd.DeepCopy()
-	logger.Infof("#########YALLA##########Sync deployment %s", syncRD.Name)
+	logger.Debugf("Sync deployment %s", syncRD.Name)
 
 	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {

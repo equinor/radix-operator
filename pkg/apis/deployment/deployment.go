@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
@@ -86,6 +87,17 @@ func NewDeploymentWithLister(kubeclient kubernetes.Interface,
 		radixclient,
 		kubeutil, prometheusperatorclient, registration,
 		radixDeployment, rdLister, deploymentLister, serviceLister, ingressLister, secretLister, roleBindingLister}, nil
+}
+
+// GetDeploymentComponent Gets the index  of and the component given name
+func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
+	for index, component := range rd.Spec.Components {
+		if strings.EqualFold(component.Name, name) {
+			return index, &component
+		}
+	}
+
+	return -1, nil
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
@@ -350,6 +362,12 @@ func (deploy *Deployment) syncDeployment() error {
 	// If any error occured when syncing of components
 	if len(errs) > 0 {
 		return errors.Concat(errs)
+	}
+
+	deploy.radixDeployment.Status.Reconciled = metav1.NewTime(time.Now().UTC())
+	err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
+	if err != nil {
+		return err
 	}
 
 	return nil

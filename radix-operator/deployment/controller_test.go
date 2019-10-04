@@ -102,12 +102,22 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, op)
 
-	// Update deployment should sync
+	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	lastReconciled := syncedRd.Status.Reconciled
+	assert.NotNil(t, lastReconciled)
+
+	// Update deployment should sync. Only actual updates will be handled by the controller
+	noReplicas := 0
+	rd.Spec.Components[0].Replicas = &noReplicas
 	radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(rd)
 
 	op, ok = <-synced
 	assert.True(t, ok)
 	assert.True(t, op)
+
+	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
+	lastReconciled = syncedRd.Status.Reconciled
 
 	// Delete service should sync
 	services, _ := client.CoreV1().Services(rd.ObjectMeta.Namespace).List(metav1.ListOptions{
@@ -122,6 +132,10 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		assert.True(t, op)
 	}
 
+	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
+	lastReconciled = syncedRd.Status.Reconciled
+
 	// Update ad group of env namespace should sync
 	newAdGroups, _ := json.Marshal([]string{"98765-4321-09876"})
 	envNamespace, _ := client.CoreV1().Namespaces().Get(utils.GetEnvironmentNamespace(anyAppName, anyEnvironment), metav1.GetOptions{})
@@ -132,6 +146,10 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	op, ok = <-synced
 	assert.True(t, ok)
 	assert.True(t, op)
+
+	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
+	lastReconciled = syncedRd.Status.Reconciled
 
 	teardownTest()
 }

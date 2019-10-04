@@ -53,6 +53,41 @@ func NewApplicationConfig(
 		config}, nil
 }
 
+// GetComponent Gets the component for a provided name
+func GetComponent(ra *v1.RadixApplication, name string) *v1.RadixComponent {
+	for _, component := range ra.Spec.Components {
+		if strings.EqualFold(component.Name, name) {
+			return &component
+		}
+	}
+
+	return nil
+}
+
+// GetComponentEnvironmentConfig Gets environment config of component
+func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) *v1.RadixEnvironmentConfig {
+	componentDefinition := GetComponent(ra, componentName)
+
+	if componentDefinition == nil {
+		return nil
+	}
+
+	return GetEnvironment(componentDefinition, envName)
+}
+
+// GetEnvironment Gets environment config of component
+func GetEnvironment(component *v1.RadixComponent, envName string) *v1.RadixEnvironmentConfig {
+	if component != nil {
+		for _, environment := range component.EnvironmentConfig {
+			if strings.EqualFold(environment.Environment, envName) {
+				return &environment
+			}
+		}
+	}
+
+	return nil
+}
+
 // IsMagicBranch Checks if given branch is were radix config lives
 func IsMagicBranch(branch string) bool {
 	return strings.EqualFold(branch, MagicBranch)

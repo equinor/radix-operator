@@ -68,7 +68,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	syncRegistration := registration.DeepCopy()
-	logger.Infof("Sync registration %s", syncRegistration.Name)
+	logger.Debugf("Sync registration %s", syncRegistration.Name)
 	application, _ := application.NewApplication(t.kubeclient, t.radixclient, t.namespaceLister, t.secretLister, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
