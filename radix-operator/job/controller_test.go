@@ -74,7 +74,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, op)
 
-	// Update  radix job should sync
+	// Update  radix job should sync. Controller will skip if an update
+	// changes nothing, except for spec or metadata, labels or annotations
+	rj.Spec.Stop = true
 	radixClient.RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(rj)
 
 	op, ok = <-synced
@@ -88,7 +90,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		},
 	}
 
+	// Only update of Kubernetes Job is something that the job-controller handles
 	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(&childJob)
+	childJob.ObjectMeta.ResourceVersion = "1234"
+	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(&childJob)
+
 	op, ok = <-synced
 	assert.True(t, ok)
 	assert.True(t, op)
