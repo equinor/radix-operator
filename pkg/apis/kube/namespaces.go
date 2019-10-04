@@ -31,7 +31,7 @@ func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, lab
 	}
 
 	oldNamespace, err := kube.getNamespace(name)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && k8errs.IsNotFound(err) {
 		log.Debugf("Namespace object %s doesn't exists, create the object", name)
 		_, err := kube.kubeClient.CoreV1().Namespaces().Create(&namespace)
 		return err
