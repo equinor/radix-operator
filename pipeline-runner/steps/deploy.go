@@ -6,8 +6,10 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -18,14 +20,16 @@ func DeploymentHasBeenModifiedError(appName, envName string) error {
 
 // DeployStepImplementation Step to deploy RD into environment
 type DeployStepImplementation struct {
-	stepType pipeline.StepType
+	stepType         pipeline.StepType
+	namespaceWatcher kube.NamespaceWatcher
 	model.DefaultStepImplementation
 }
 
 // NewDeployStep Constructor
-func NewDeployStep() model.Step {
+func NewDeployStep(namespaceWatcher kube.NamespaceWatcher) model.Step {
 	return &DeployStepImplementation{
-		stepType: pipeline.DeployStep,
+		stepType:         pipeline.DeployStep,
+		namespaceWatcher: namespaceWatcher,
 	}
 }
 
@@ -101,6 +105,11 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 
 		if deploymentHasBeenModified {
 			return nil, DeploymentHasBeenModifiedError(appName, env.Name)
+		}
+
+		err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env.Name))
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get environment namespace, %s, for app %s. %v", env, appName, err)
 		}
 
 		err = deployment.Apply()

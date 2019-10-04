@@ -117,7 +117,7 @@ func initStepImplementations(
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
-	stepImplementations = append(stepImplementations, steps.NewDeployStep())
+	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(kubeclient)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {

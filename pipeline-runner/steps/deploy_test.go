@@ -23,6 +23,15 @@ const (
 	anyCommitID          = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
 )
 
+// FakeNamespaceWatcher Unit tests doesn't handle muliti-threading well
+type FakeNamespaceWatcher struct {
+}
+
+// WaitFor Waits for namespace to appear
+func (watcher FakeNamespaceWatcher) WaitFor(namespace string) error {
+	return nil
+}
+
 func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, _ := setupTest()
 
@@ -43,7 +52,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 				WithName(anyComponentName)).
 		BuildRA()
 
-	cli := NewDeployStep()
+	cli := NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, nil, rr, ra)
@@ -123,7 +132,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		BuildRA()
 
 	// Prometheus doesn´t contain any fake
-	cli := NewDeployStep()
+	cli := NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, nil, rr, ra)
@@ -232,7 +241,7 @@ func TestDeploy_WrongResourceVersion_ShouldFailDeployment(t *testing.T) {
 					WithPublicPort("http")))
 
 	// Test
-	cli := NewDeployStep()
+	cli := NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
 
 	pipelineInfo := &model.PipelineInfo{
