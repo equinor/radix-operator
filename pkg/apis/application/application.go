@@ -10,7 +10,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
-	coreListers "k8s.io/client-go/listers/core/v1"
 )
 
 var logger *log.Entry
@@ -20,32 +19,23 @@ const OperatorDefaultUserGroupEnvironmentVariable = "RADIXOPERATOR_DEFAULT_USER_
 
 // Application Instance variables
 type Application struct {
-	kubeclient      kubernetes.Interface
-	radixclient     radixclient.Interface
-	kubeutil        *kube.Kube
-	namespaceLister coreListers.NamespaceLister
-	secretLister    coreListers.SecretLister
-	registration    *v1.RadixRegistration
+	kubeclient   kubernetes.Interface
+	radixclient  radixclient.Interface
+	kubeutil     *kube.Kube
+	registration *v1.RadixRegistration
 }
 
 // NewApplication Constructor
 func NewApplication(
 	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	namespaceLister coreListers.NamespaceLister,
-	secretLister coreListers.SecretLister,
 	registration *v1.RadixRegistration) (Application, error) {
-	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister, secretLister, nil, nil)
-	if err != nil {
-		return Application{}, err
-	}
 
 	return Application{
 		kubeclient,
 		radixclient,
 		kubeutil,
-		namespaceLister,
-		secretLister,
 		registration}, nil
 }
 

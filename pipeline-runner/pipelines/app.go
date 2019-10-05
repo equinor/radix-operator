@@ -21,6 +21,7 @@ import (
 type PipelineRunner struct {
 	definfition              *pipeline.Definition
 	kubeclient               kubernetes.Interface
+	kubeUtil                 *kube.Kube
 	radixclient              radixclient.Interface
 	prometheusOperatorClient monitoring.Interface
 	radixApplication         *v1.RadixApplication
@@ -30,9 +31,12 @@ type PipelineRunner struct {
 // InitRunner constructor
 func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface,
 	definfition *pipeline.Definition, radixApplication *v1.RadixApplication) PipelineRunner {
+
+	kubeUtil, _ := kube.New(kubeclient)
 	handler := PipelineRunner{
 		definfition:              definfition,
 		kubeclient:               kubeclient,
+		kubeUtil:                 kubeUtil,
 		radixclient:              radixclient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		radixApplication:         radixApplication,
@@ -60,7 +64,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.radixclient, nil, radixRegistration, cli.radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.kubeUtil, cli.radixclient, radixRegistration, cli.radixApplication)
 	if err != nil {
 		return err
 	}
@@ -73,7 +77,8 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	stepImplementations := initStepImplementations(cli.kubeclient, cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
+	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil,
+		cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
 	cli.pipelineInfo, err = model.InitPipeline(
 		cli.definfition,
 		targetEnvironments,
@@ -108,12 +113,12 @@ func (cli *PipelineRunner) Run() error {
 
 func initStepImplementations(
 	kubeclient kubernetes.Interface,
+	kubeUtil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusOperatorClient monitoring.Interface,
 	registration *v1.RadixRegistration,
 	radixApplication *v1.RadixApplication) []model.Step {
 
-	kubeUtil, _ := kube.New(kubeclient)
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())

@@ -82,8 +82,8 @@ func (k *Kube) getSecret(namespace, name string) (*corev1.Secret, error) {
 	var secret *corev1.Secret
 	var err error
 
-	if k.secretLister != nil {
-		secret, err = k.secretLister.Secrets(namespace).Get(name)
+	if k.SecretLister != nil {
+		secret, err = k.SecretLister.Secrets(namespace).Get(name)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +107,7 @@ func (k *Kube) ListSecretsWithSelector(namespace string, labelSelectorString *st
 	var secrets []*v1.Secret
 	var err error
 
-	if k.secretLister != nil {
+	if k.SecretLister != nil {
 		var selector labels.Selector
 		if labelSelectorString != nil {
 			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
@@ -124,7 +124,7 @@ func (k *Kube) ListSecretsWithSelector(namespace string, labelSelectorString *st
 			selector = labels.NewSelector()
 		}
 
-		secrets, err = k.secretLister.Secrets(namespace).List(selector)
+		secrets, err = k.SecretLister.Secrets(namespace).List(selector)
 		if err != nil {
 			return nil, err
 		}

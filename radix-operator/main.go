@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/application"
@@ -74,12 +75,23 @@ func startRegistrationController(
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-	handler := registration.NewHandler(
+
+	kubeUtil, _ := kube.NewWithListers(
 		client,
-		radixClient,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		kubeInformerFactory.Core().V1().Namespaces().Lister(),
 		kubeInformerFactory.Core().V1().Secrets().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
+		kubeInformerFactory.Core().V1().Services().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
+	)
+
+	handler := registration.NewHandler(
+		client,
+		kubeUtil,
+		radixClient,
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
 	registrationController := registration.NewController(
@@ -106,9 +118,22 @@ func startApplicationController(
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-	handler := application.NewHandler(client, radixClient,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
+
+	kubeUtil, _ := kube.NewWithListers(
+		client,
+		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		kubeInformerFactory.Core().V1().Secrets().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
+		kubeInformerFactory.Core().V1().Services().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
+	)
+
+	handler := application.NewHandler(client,
+		kubeUtil,
+		radixClient,
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
 	)
 	applicationController := application.NewController(
 		client,
@@ -136,14 +161,21 @@ func startDeploymentController(
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
-	handler := deployment.NewHandler(client, radixClient, prometheusOperatorClient,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
+	kubeUtil, _ := kube.NewWithListers(
+		client,
 		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		kubeInformerFactory.Core().V1().Secrets().Lister(),
 		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
 		kubeInformerFactory.Core().V1().Services().Lister(),
 		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
-		kubeInformerFactory.Core().V1().Secrets().Lister(),
 		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
+	)
+
+	handler := deployment.NewHandler(client,
+		kubeUtil,
+		radixClient, prometheusOperatorClient,
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
 	)
 	deployController := deployment.NewController(
 		client,
@@ -170,8 +202,23 @@ func startJobController(
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
-	handler := job.NewHandler(client, radixClient,
+
+	kubeUtil, _ := kube.NewWithListers(
+		client,
+		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		kubeInformerFactory.Core().V1().Secrets().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
+		kubeInformerFactory.Core().V1().Services().Lister(),
+		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
+	)
+
+	handler := job.NewHandler(client,
+		kubeUtil,
+		radixClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
+
 	jobController := job.NewController(
 		client,
 		radixClient,

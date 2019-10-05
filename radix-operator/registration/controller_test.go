@@ -3,6 +3,7 @@ package registration
 import (
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -25,18 +26,19 @@ const (
 
 var synced chan bool
 
-func setupTest() (kubernetes.Interface, radixclient.Interface) {
+func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
+	kubeUtil, _ := kube.New(client)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return client, radixClient
+	return client, kubeUtil, radixClient
 }
 
 func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
-	client, radixClient := setupTest()
+	client, kubeUtil, radixClient := setupTest()
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -49,12 +51,11 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 	registrationHandler := NewHandler(
 		client,
+		kubeUtil,
 		radixClient,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
-		kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		kubeInformerFactory.Core().V1().Secrets().Lister(),
 	)
 	go startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
 

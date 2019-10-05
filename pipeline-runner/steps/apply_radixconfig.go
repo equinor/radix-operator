@@ -38,7 +38,7 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	applicationConfig, err := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetRadixclient(), nil, cli.GetRegistration(), cli.GetApplicationConfig())
+	applicationConfig, err := application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(), cli.GetRadixclient(), cli.GetRegistration(), cli.GetApplicationConfig())
 	if err != nil {
 		return err
 	}

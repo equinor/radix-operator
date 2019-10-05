@@ -1,10 +1,12 @@
 package kube
 
 import (
+	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	coreListers "k8s.io/client-go/listers/core/v1"
 	extensionListers "k8s.io/client-go/listers/extensions/v1beta1"
+	rbacListers "k8s.io/client-go/listers/rbac/v1"
 )
 
 // Radix Annotations
@@ -37,11 +39,14 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient       kubernetes.Interface
-	namespaceLister  coreListers.NamespaceLister
-	secretLister     coreListers.SecretLister
-	deploymentLister extensionListers.DeploymentLister
-	ingressLister    extensionListers.IngressLister
+	kubeClient        kubernetes.Interface
+	RdLister          v1Lister.RadixDeploymentLister
+	NamespaceLister   coreListers.NamespaceLister
+	SecretLister      coreListers.SecretLister
+	DeploymentLister  extensionListers.DeploymentLister
+	ServiceLister     coreListers.ServiceLister
+	IngressLister     extensionListers.IngressLister
+	RoleBindingLister rbacListers.RoleBindingLister
 }
 
 var logger *log.Entry
@@ -59,18 +64,23 @@ func New(client kubernetes.Interface) (*Kube, error) {
 }
 
 // NewWithListers Constructor
-func NewWithListers(
-	client kubernetes.Interface,
+func NewWithListers(client kubernetes.Interface,
+	rdLister v1Lister.RadixDeploymentLister,
 	namespaceLister coreListers.NamespaceLister,
 	secretLister coreListers.SecretLister,
 	deploymentLister extensionListers.DeploymentLister,
-	ingressLister extensionListers.IngressLister) (*Kube, error) {
+	serviceLister coreListers.ServiceLister,
+	ingressLister extensionListers.IngressLister,
+	roleBindingLister rbacListers.RoleBindingLister) (*Kube, error) {
 	kube := &Kube{
-		kubeClient:       client,
-		namespaceLister:  namespaceLister,
-		secretLister:     secretLister,
-		deploymentLister: deploymentLister,
-		ingressLister:    ingressLister,
+		kubeClient:        client,
+		RdLister:          rdLister,
+		NamespaceLister:   namespaceLister,
+		SecretLister:      secretLister,
+		DeploymentLister:  deploymentLister,
+		ServiceLister:     serviceLister,
+		IngressLister:     ingressLister,
+		RoleBindingLister: roleBindingLister,
 	}
 	return kube, nil
 }

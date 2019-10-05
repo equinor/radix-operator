@@ -69,8 +69,8 @@ func (kube *Kube) getIngress(namespace, name string) (*v1beta1.Ingress, error) {
 	var ingress *v1beta1.Ingress
 	var err error
 
-	if kube.ingressLister != nil {
-		ingress, err = kube.ingressLister.Ingresses(namespace).Get(name)
+	if kube.IngressLister != nil {
+		ingress, err = kube.IngressLister.Ingresses(namespace).Get(name)
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +94,7 @@ func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorStrin
 	var ingresses []*v1beta1.Ingress
 	var err error
 
-	if kube.ingressLister != nil {
+	if kube.IngressLister != nil {
 		var selector labels.Selector
 		if labelSelectorString != nil {
 			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
@@ -111,7 +111,7 @@ func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorStrin
 			selector = labels.NewSelector()
 		}
 
-		ingresses, err = kube.ingressLister.Ingresses(namespace).List(selector)
+		ingresses, err = kube.IngressLister.Ingresses(namespace).List(selector)
 		if err != nil {
 			return nil, err
 		}

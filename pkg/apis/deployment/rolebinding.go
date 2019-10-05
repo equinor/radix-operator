@@ -123,7 +123,7 @@ func (deploy *Deployment) listRoleBindingsWithSelector(labelSelectorString *stri
 	var roleBindings []*auth.RoleBinding
 	var err error
 
-	if deploy.roleBindingLister != nil {
+	if deploy.kubeutil.RoleBindingLister != nil {
 		var selector labels.Selector
 		if labelSelectorString != nil {
 			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
@@ -140,7 +140,7 @@ func (deploy *Deployment) listRoleBindingsWithSelector(labelSelectorString *stri
 			selector = labels.NewSelector()
 		}
 
-		roleBindings, err = deploy.roleBindingLister.RoleBindings(deploy.radixDeployment.GetNamespace()).List(selector)
+		roleBindings, err = deploy.kubeutil.RoleBindingLister.RoleBindings(deploy.radixDeployment.GetNamespace()).List(selector)
 		if err != nil {
 			return nil, err
 		}

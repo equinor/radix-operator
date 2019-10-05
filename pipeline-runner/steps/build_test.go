@@ -54,7 +54,7 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	cli := NewBuildStep()
 	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, ra)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, nil, rr, ra)
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kube, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{

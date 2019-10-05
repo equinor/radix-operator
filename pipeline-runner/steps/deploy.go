@@ -90,6 +90,7 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 
 		deployment, err := deployment.NewDeployment(
 			cli.GetKubeclient(),
+			cli.GetKubeutil(),
 			cli.GetRadixclient(),
 			cli.GetPrometheusOperatorClient(),
 			cli.GetRegistration(),

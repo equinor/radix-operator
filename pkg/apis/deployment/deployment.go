@@ -14,14 +14,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	coreListers "k8s.io/client-go/listers/core/v1"
-	extensionListers "k8s.io/client-go/listers/extensions/v1beta1"
-	rbacListers "k8s.io/client-go/listers/rbac/v1"
 )
 
 const (
@@ -38,55 +34,20 @@ type Deployment struct {
 	prometheusperatorclient monitoring.Interface
 	registration            *v1.RadixRegistration
 	radixDeployment         *v1.RadixDeployment
-	rdLister                v1Lister.RadixDeploymentLister
-	deploymentLister        extensionListers.DeploymentLister
-	serviceLister           coreListers.ServiceLister
-	ingressLister           extensionListers.IngressLister
-	secretLister            coreListers.SecretLister
-	roleBindingLister       rbacListers.RoleBindingLister
 }
 
 // NewDeployment Constructor
 func NewDeployment(kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment) (Deployment, error) {
 
-	kubeutil, err := kube.New(kubeclient)
-	if err != nil {
-		return Deployment{}, err
-	}
-
 	return Deployment{
 		kubeclient,
 		radixclient,
-		kubeutil, prometheusperatorclient, registration, radixDeployment, nil, nil, nil, nil, nil, nil}, nil
-}
-
-// NewDeploymentWithLister Constructor
-func NewDeploymentWithLister(kubeclient kubernetes.Interface,
-	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
-	registration *v1.RadixRegistration,
-	radixDeployment *v1.RadixDeployment,
-	rdLister v1Lister.RadixDeploymentLister,
-	deploymentLister extensionListers.DeploymentLister,
-	serviceLister coreListers.ServiceLister,
-	ingressLister extensionListers.IngressLister,
-	secretLister coreListers.SecretLister,
-	roleBindingLister rbacListers.RoleBindingLister) (Deployment, error) {
-
-	kubeutil, err := kube.NewWithListers(kubeclient, nil, secretLister, deploymentLister, ingressLister)
-	if err != nil {
-		return Deployment{}, err
-	}
-
-	return Deployment{
-		kubeclient,
-		radixclient,
-		kubeutil, prometheusperatorclient, registration,
-		radixDeployment, rdLister, deploymentLister, serviceLister, ingressLister, secretLister, roleBindingLister}, nil
+		kubeutil, prometheusperatorclient, registration, radixDeployment}, nil
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name
@@ -241,21 +202,7 @@ func (deploy *Deployment) restoreStatus() {
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 	stopReconciliation = false
-	var allRDs []*v1.RadixDeployment
-
-	if deploy.rdLister != nil {
-		allRDs, err = deploy.rdLister.RadixDeployments(deploy.getNamespace()).List(labels.NewSelector())
-		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-		}
-	} else {
-		rds, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).List(metav1.ListOptions{})
-		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-		}
-
-		allRDs = slice.PointersOf(rds.Items).([]*v1.RadixDeployment)
-	}
+	allRDs, err := deploy.listRadixDeployments()
 
 	log.Info("Done listing deployments")
 
@@ -452,6 +399,27 @@ func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
 		return rd.CreationTimestamp
 	}
 	return rd.Status.ActiveFrom
+}
+
+func (deploy *Deployment) listRadixDeployments() ([]*v1.RadixDeployment, error) {
+	var allRDs []*v1.RadixDeployment
+	var err error
+
+	if deploy.kubeutil.RdLister != nil {
+		allRDs, err = deploy.kubeutil.RdLister.RadixDeployments(deploy.getNamespace()).List(labels.NewSelector())
+		if err != nil {
+			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+		}
+	} else {
+		rds, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).List(metav1.ListOptions{})
+		if err != nil {
+			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+		}
+
+		allRDs = slice.PointersOf(rds.Items).([]*v1.RadixDeployment)
+	}
+
+	return allRDs, err
 }
 
 func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {

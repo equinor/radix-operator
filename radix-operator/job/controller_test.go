@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -27,13 +28,14 @@ const (
 
 var synced chan bool
 
-func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
+func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
+	kubeUtil, _ := kube.New(client)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return &handlerTestUtils, client, radixClient
+	return &handlerTestUtils, client, kubeUtil, radixClient
 }
 
 func teardownTest() {
@@ -47,7 +49,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	anyAppName := "test-app"
 
 	// Setup
-	tu, client, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest()
 	stop := make(chan struct{})
 	synced := make(chan bool)
 
@@ -56,6 +58,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 	jobHandler := NewHandler(
 		client,
+		kubeUtil,
 		radixClient,
 		func(syncedOk bool) {
 			synced <- syncedOk

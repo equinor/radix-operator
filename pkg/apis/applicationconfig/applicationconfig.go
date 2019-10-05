@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	coreListers "k8s.io/client-go/listers/core/v1"
 )
 
 // MagicBranch The branch that radix config lives on
@@ -35,15 +34,10 @@ type ApplicationConfig struct {
 // NewApplicationConfig Constructor
 func NewApplicationConfig(
 	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	namespaceLister coreListers.NamespaceLister,
 	registration *v1.RadixRegistration,
 	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
-	kubeutil, err := kube.NewWithListers(kubeclient, namespaceLister, nil, nil, nil)
-	if err != nil {
-		log.Errorf("Failed initializing ApplicationConfig")
-		return nil, err
-	}
 
 	return &ApplicationConfig{
 		kubeclient,

@@ -6,13 +6,13 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	coreListers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -27,27 +27,24 @@ const (
 
 // Handler Handler for radix registrations
 type Handler struct {
-	kubeclient      kubernetes.Interface
-	radixclient     radixclient.Interface
-	namespaceLister coreListers.NamespaceLister
-	secretLister    coreListers.SecretLister
-	hasSynced       common.HasSynced
+	kubeclient  kubernetes.Interface
+	kubeutil    *kube.Kube
+	radixclient radixclient.Interface
+	hasSynced   common.HasSynced
 }
 
 //NewHandler creates a handler which deals with RadixRegistration resources
 func NewHandler(
 	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	hasSynced common.HasSynced,
-	namespaceLister coreListers.NamespaceLister,
-	secretLister coreListers.SecretLister) Handler {
+	hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
-		kubeclient:      kubeclient,
-		radixclient:     radixclient,
-		namespaceLister: namespaceLister,
-		secretLister:    secretLister,
-		hasSynced:       hasSynced,
+		kubeclient:  kubeclient,
+		kubeutil:    kubeutil,
+		radixclient: radixclient,
+		hasSynced:   hasSynced,
 	}
 
 	return handler
@@ -69,7 +66,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncRegistration := registration.DeepCopy()
 	logger.Debugf("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.radixclient, t.namespaceLister, t.secretLister, syncRegistration)
+	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
 		// Put back on queue.

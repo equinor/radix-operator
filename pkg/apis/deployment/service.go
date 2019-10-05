@@ -104,8 +104,8 @@ func (deploy *Deployment) listServices() ([]*corev1.Service, error) {
 	var services []*corev1.Service
 	var err error
 
-	if deploy.serviceLister != nil {
-		services, err = deploy.serviceLister.Services(deploy.radixDeployment.GetNamespace()).List(labels.NewSelector())
+	if deploy.kubeutil.ServiceLister != nil {
+		services, err = deploy.kubeutil.ServiceLister.Services(deploy.radixDeployment.GetNamespace()).List(labels.NewSelector())
 		if err != nil {
 			return nil, err
 		}
@@ -125,8 +125,8 @@ func (deploy *Deployment) getService(name string) (*corev1.Service, error) {
 	var service *corev1.Service
 	var err error
 
-	if deploy.serviceLister != nil {
-		service, err = deploy.serviceLister.Services(deploy.radixDeployment.GetNamespace()).Get(name)
+	if deploy.kubeutil.ServiceLister != nil {
+		service, err = deploy.kubeutil.ServiceLister.Services(deploy.radixDeployment.GetNamespace()).Get(name)
 		if err != nil {
 			return nil, err
 		}

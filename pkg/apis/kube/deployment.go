@@ -69,8 +69,8 @@ func (kube *Kube) ListDeployments(namespace string) ([]*v1beta1.Deployment, erro
 	var deployments []*v1beta1.Deployment
 	var err error
 
-	if kube.deploymentLister != nil {
-		deployments, err = kube.deploymentLister.Deployments(namespace).List(labels.NewSelector())
+	if kube.DeploymentLister != nil {
+		deployments, err = kube.DeploymentLister.Deployments(namespace).List(labels.NewSelector())
 		if err != nil {
 			return nil, err
 		}
@@ -90,8 +90,8 @@ func (kube *Kube) getDeployment(namespace, name string) (*v1beta1.Deployment, er
 	var deployment *v1beta1.Deployment
 	var err error
 
-	if kube.deploymentLister != nil {
-		deployment, err = kube.deploymentLister.Deployments(namespace).Get(name)
+	if kube.DeploymentLister != nil {
+		deployment, err = kube.DeploymentLister.Deployments(namespace).Get(name)
 		if err != nil {
 			return nil, err
 		}

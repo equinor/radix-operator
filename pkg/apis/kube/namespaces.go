@@ -82,8 +82,8 @@ func (kube *Kube) getNamespace(name string) (*corev1.Namespace, error) {
 	var namespace *corev1.Namespace
 	var err error
 
-	if kube.namespaceLister != nil {
-		namespace, err = kube.namespaceLister.Get(name)
+	if kube.NamespaceLister != nil {
+		namespace, err = kube.NamespaceLister.Get(name)
 		if err != nil {
 			return nil, err
 		}
