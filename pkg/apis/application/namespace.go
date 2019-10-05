@@ -36,7 +36,7 @@ func (app Application) createAppNamespace() error {
 		return err
 	}
 
-	logger.Infof("Created namespace %s", name)
+	logger.Debugf("Created namespace %s", name)
 	return nil
 }
 

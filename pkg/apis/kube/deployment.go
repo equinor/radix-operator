@@ -51,14 +51,14 @@ func (kube *Kube) ApplyDeployment(namespace string, deployment *v1beta1.Deployme
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		log.Infof("#########YALLA##########Patch deployment with %s", string(patchBytes))
+		log.Debugf("#########YALLA##########Patch deployment with %s", string(patchBytes))
 		patchedDeployment, err := kube.kubeClient.ExtensionsV1beta1().Deployments(namespace).Patch(deployment.GetName(), types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch deployment object: %v", err)
 		}
-		log.Infof("#########YALLA##########Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
+		log.Debugf("#########YALLA##########Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	} else {
-		log.Infof("#########YALLA##########No need to patch deployment: %s ", deployment.GetName())
+		log.Debugf("#########YALLA##########No need to patch deployment: %s ", deployment.GetName())
 	}
 
 	return nil

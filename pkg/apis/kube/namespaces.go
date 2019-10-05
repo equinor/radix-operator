@@ -63,15 +63,15 @@ func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, lab
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		log.Infof("#########YALLA##########Patch namespace with %s", string(patchBytes))
+		log.Debugf("#########YALLA##########Patch namespace with %s", string(patchBytes))
 		patchedNamespace, err := kube.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch namespace object: %v", err)
 		}
 
-		log.Infof("#########YALLA##########Patched namespace: %s ", patchedNamespace.Name)
+		log.Debugf("#########YALLA##########Patched namespace: %s ", patchedNamespace.Name)
 	} else {
-		log.Infof("#########YALLA##########No need to patch namespace: %s ", name)
+		log.Debugf("#########YALLA##########No need to patch namespace: %s ", name)
 	}
 
 	return nil
@@ -116,13 +116,13 @@ func NewNamespaceWatcherImpl(client kubernetes.Interface) NamespaceWatcherImpl {
 
 // WaitFor Waits for namespace to appear
 func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
-	log.Infof("Waiting for namespace %s", namespace)
+	log.Debugf("Waiting for namespace %s", namespace)
 	err := waitForNamespace(watcher.client, namespace)
 	if err != nil {
 		return err
 	}
 
-	log.Infof("Namespace %s exists and is active", namespace)
+	log.Debugf("Namespace %s exists and is active", namespace)
 	return nil
 
 }

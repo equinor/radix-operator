@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -167,6 +166,6 @@ func getObject(radixClient radixclient.Interface, namespace, name string) (inter
 		return nil, errors.New(errorMessage)
 	}
 
-	logger.Infof("#########Got RD: %s", name)
+	logger.Debugf("#########Got RD: %s", name)
 	return rd, err
 }

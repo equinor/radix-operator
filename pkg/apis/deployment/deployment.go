@@ -112,7 +112,7 @@ func GetLatestResourceVersionOfTargetEnvironment(radixclient radixclient.Interfa
 
 // Apply Will make deployment effective
 func (deploy *Deployment) Apply() error {
-	log.Infof("Apply radix deployment %s on env %s", deploy.radixDeployment.ObjectMeta.Name, deploy.radixDeployment.ObjectMeta.Namespace)
+	log.Debugf("Apply radix deployment %s on env %s", deploy.radixDeployment.ObjectMeta.Name, deploy.radixDeployment.ObjectMeta.Namespace)
 	_, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.ObjectMeta.Namespace).Create(deploy.radixDeployment)
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func (deploy *Deployment) OnSync() error {
 		return err
 	}
 	if stopReconciliation {
-		log.Infof("stop reconciliation, status updated triggering new sync")
+		log.Debugf("stop reconciliation, status updated triggering new sync")
 		return nil
 	}
 
@@ -258,7 +258,7 @@ func (deploy *Deployment) syncDeployment() error {
 		// Deploy to current radixDeploy object's namespace
 		err := deploy.createDeployment(v)
 		if err != nil {
-			log.Infof("Failed to create deployment: %v", err)
+			log.Debugf("Failed to create deployment: %v", err)
 			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
 			continue
 		}
@@ -266,7 +266,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 		err = deploy.createService(v)
 		if err != nil {
-			log.Infof("Failed to create service: %v", err)
+			log.Debugf("Failed to create service: %v", err)
 			errs = append(errs, fmt.Errorf("Failed to create service: %v", err))
 			continue
 		}
@@ -276,14 +276,14 @@ func (deploy *Deployment) syncDeployment() error {
 		if v.PublicPort != "" || v.Public {
 			err = deploy.createIngress(v)
 			if err != nil {
-				log.Infof("Failed to create ingress: %v", err)
+				log.Debugf("Failed to create ingress: %v", err)
 				errs = append(errs, fmt.Errorf("Failed to create ingress: %v", err))
 				continue
 			}
 		} else {
 			err = deploy.garbageCollectIngressNoLongerInSpecForComponent(v)
 			if err != nil {
-				log.Infof("Failed to delete ingress: %v", err)
+				log.Debugf("Failed to delete ingress: %v", err)
 				errs = append(errs, fmt.Errorf("Failed to delete ingress: %v", err))
 				continue
 			}
@@ -294,7 +294,7 @@ func (deploy *Deployment) syncDeployment() error {
 		if v.Monitoring {
 			err = deploy.createServiceMonitor(v)
 			if err != nil {
-				log.Infof("Failed to create service monitor: %v", err)
+				log.Debugf("Failed to create service monitor: %v", err)
 				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
 				continue
 			}

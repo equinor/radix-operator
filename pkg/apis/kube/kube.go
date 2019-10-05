@@ -39,14 +39,20 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient        kubernetes.Interface
-	RdLister          v1Lister.RadixDeploymentLister
-	NamespaceLister   coreListers.NamespaceLister
-	SecretLister      coreListers.SecretLister
-	DeploymentLister  extensionListers.DeploymentLister
-	ServiceLister     coreListers.ServiceLister
-	IngressLister     extensionListers.IngressLister
-	RoleBindingLister rbacListers.RoleBindingLister
+	kubeClient               kubernetes.Interface
+	RdLister                 v1Lister.RadixDeploymentLister
+	NamespaceLister          coreListers.NamespaceLister
+	ConfigMapLister          coreListers.ConfigMapLister
+	SecretLister             coreListers.SecretLister
+	DeploymentLister         extensionListers.DeploymentLister
+	ServiceLister            coreListers.ServiceLister
+	IngressLister            extensionListers.IngressLister
+	RoleBindingLister        rbacListers.RoleBindingLister
+	ClusterRoleBindingLister rbacListers.ClusterRoleBindingLister
+	RoleLister               rbacListers.RoleLister
+	ClusterRoleLister        rbacListers.ClusterRoleLister
+	ServiceAccountLister     coreListers.ServiceAccountLister
+	LimitRangeLister         coreListers.LimitRangeLister
 }
 
 var logger *log.Entry
@@ -67,20 +73,32 @@ func New(client kubernetes.Interface) (*Kube, error) {
 func NewWithListers(client kubernetes.Interface,
 	rdLister v1Lister.RadixDeploymentLister,
 	namespaceLister coreListers.NamespaceLister,
+	configMapLister coreListers.ConfigMapLister,
 	secretLister coreListers.SecretLister,
 	deploymentLister extensionListers.DeploymentLister,
 	serviceLister coreListers.ServiceLister,
 	ingressLister extensionListers.IngressLister,
-	roleBindingLister rbacListers.RoleBindingLister) (*Kube, error) {
+	roleBindingLister rbacListers.RoleBindingLister,
+	clusterRoleBindingLister rbacListers.ClusterRoleBindingLister,
+	roleLister rbacListers.RoleLister,
+	clusterRoleLister rbacListers.ClusterRoleLister,
+	serviceAccountLister coreListers.ServiceAccountLister,
+	limitRangeLister coreListers.LimitRangeLister) (*Kube, error) {
 	kube := &Kube{
-		kubeClient:        client,
-		RdLister:          rdLister,
-		NamespaceLister:   namespaceLister,
-		SecretLister:      secretLister,
-		DeploymentLister:  deploymentLister,
-		ServiceLister:     serviceLister,
-		IngressLister:     ingressLister,
-		RoleBindingLister: roleBindingLister,
+		kubeClient:               client,
+		RdLister:                 rdLister,
+		NamespaceLister:          namespaceLister,
+		ConfigMapLister:          configMapLister,
+		SecretLister:             secretLister,
+		DeploymentLister:         deploymentLister,
+		ServiceLister:            serviceLister,
+		IngressLister:            ingressLister,
+		RoleBindingLister:        roleBindingLister,
+		ClusterRoleBindingLister: clusterRoleBindingLister,
+		RoleLister:               roleLister,
+		ClusterRoleLister:        clusterRoleLister,
+		ServiceAccountLister:     serviceAccountLister,
+		LimitRangeLister:         limitRangeLister,
 	}
 	return kube, nil
 }

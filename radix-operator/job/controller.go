@@ -84,7 +84,7 @@ func NewController(client kubernetes.Interface,
 			}
 
 			if deepEqual(oldRJ, newRJ) {
-				logger.Infof("Job object is equal to old for %s. Do nothing", newRJ.GetName())
+				logger.Debugf("Job object is equal to old for %s. Do nothing", newRJ.GetName())
 				return
 			}
 

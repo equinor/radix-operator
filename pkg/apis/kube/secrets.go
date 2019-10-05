@@ -63,18 +63,18 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		log.Infof("#########YALLA##########Patch secret with %s", string(patchBytes))
+		log.Debugf("#########YALLA##########Patch secret with %s", string(patchBytes))
 		patchedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Patch(secretName, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to patch secret object: %v", err)
 		}
 
-		log.Infof("#########YALLA##########Patched secret: %s ", patchedSecret.Name)
+		log.Debugf("#########YALLA##########Patched secret: %s ", patchedSecret.Name)
 		return patchedSecret, nil
 
 	}
 
-	log.Infof("#########YALLA##########No need to patch secret: %s ", secretName)
+	log.Debugf("#########YALLA##########No need to patch secret: %s ", secretName)
 	return oldSecret, nil
 }
 

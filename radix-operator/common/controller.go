@@ -201,9 +201,9 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			}).Inc()
 			return
 		}
-		c.Log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
+		c.Log.Debugf("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	c.Log.Infof("Processing object: %s", object.GetName())
+	c.Log.Debugf("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		if ownerRef.Kind != ownerKind {
 			return
@@ -211,7 +211,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 
 		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
-			c.Log.Infof("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
+			c.Log.Debugf("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return
 		}
 

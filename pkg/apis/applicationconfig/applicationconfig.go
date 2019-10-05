@@ -109,7 +109,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 			if err != nil {
 				return fmt.Errorf("failed to create radix application. %v", err)
 			}
-			log.Infof("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
+			log.Debugf("RadixApplication %s saved to ns %s", app.config.Name, appNamespace)
 			return nil
 		}
 		return fmt.Errorf("failed to get radix application. %v", err)
@@ -125,9 +125,9 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		if err != nil {
 			return fmt.Errorf("failed to update existing radix application. %v", err)
 		}
-		log.Infof("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
+		log.Debugf("RadixApplication %s updated in namespace %s", app.config.Name, appNamespace)
 	} else {
-		log.Infof("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
+		log.Debugf("No changes to RadixApplication %s in namespace %s", app.config.Name, appNamespace)
 	}
 
 	return nil

@@ -105,7 +105,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	logger.Infof("#########YALLA##########Done syncing deployment %s", syncRD.Name)
+	logger.Debugf("#########YALLA##########Done syncing deployment %s", syncRD.Name)
 	t.hasSynced(true)
 	eventRecorder.Event(syncRD, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil

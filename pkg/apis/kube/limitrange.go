@@ -1,11 +1,18 @@
 package kube
 
 import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // ApplyLimitRange Applies limit range to namespace
@@ -14,18 +21,49 @@ func (k *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) 
 
 	logger.Debugf("Apply limit range %s", limitRange.Name)
 
-	_, err := k.kubeClient.CoreV1().LimitRanges(namespace).Create(limitRange)
-	if errors.IsAlreadyExists(err) {
-		_, err = k.kubeClient.CoreV1().LimitRanges(namespace).Update(limitRange)
-		logger.Debugf("Limit range %s already exists. Updating", limitRange.Name)
+	oldLimitRange, err := k.getLimitRange(namespace, limitRange.GetName())
+	if err != nil && errors.IsNotFound(err) {
+		createdLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Create(limitRange)
+		if err != nil {
+			return fmt.Errorf("Failed to create LimitRange object: %v", err)
+		}
+
+		log.Debugf("Created LimitRange: %s in namespace %s", createdLimitRange.Name, namespace)
+		return nil
 	}
 
+	log.Debugf("LimitRange object %s already exists in namespace %s, updating the object now", limitRange.GetName(), namespace)
+
+	newLimitRange := oldLimitRange.DeepCopy()
+	newLimitRange.ObjectMeta.OwnerReferences = limitRange.ObjectMeta.OwnerReferences
+	newLimitRange.Spec = limitRange.Spec
+
+	oldLimitRangeJSON, err := json.Marshal(oldLimitRange)
 	if err != nil {
-		logger.Errorf("Failed to save limit range in [%s]: %v", namespace, err)
-		return err
+		return fmt.Errorf("Failed to marshal old limitRange object: %v", err)
 	}
 
-	logger.Debugf("Created roleBinding %s in %s", limitRange.Name, namespace)
+	newLimitRangeJSON, err := json.Marshal(newLimitRange)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal new limitRange object: %v", err)
+	}
+
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldLimitRangeJSON, newLimitRangeJSON, corev1.LimitRange{})
+	if err != nil {
+		return fmt.Errorf("Failed to create two way merge patch limitRange objects: %v", err)
+	}
+
+	if !isEmptyPatch(patchBytes) {
+		log.Debugf("#########YALLA##########Patch limitRange with %s", string(patchBytes))
+		patchedLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Patch(limitRange.GetName(), types.StrategicMergePatchType, patchBytes)
+		if err != nil {
+			return fmt.Errorf("Failed to patch limitRange object: %v", err)
+		}
+		log.Debugf("#########YALLA##########Patched limitRange: %s in namespace %s", patchedLimitRange.Name, namespace)
+	} else {
+		log.Debugf("#########YALLA##########No need to patch limitRange: %s ", limitRange.GetName())
+	}
+
 	return nil
 }
 
@@ -65,4 +103,45 @@ func (k *Kube) BuildLimitRange(namespace, name, appName string,
 	}
 
 	return limitRange
+}
+
+// ListLimitRanges List limit ranges
+func (k *Kube) ListLimitRanges(namespace string) ([]*corev1.LimitRange, error) {
+	var limitRanges []*corev1.LimitRange
+	var err error
+
+	if k.LimitRangeLister != nil {
+		limitRanges, err = k.LimitRangeLister.LimitRanges(namespace).List(labels.NewSelector())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		list, err := k.kubeClient.CoreV1().LimitRanges(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		limitRanges = slice.PointersOf(list.Items).([]*corev1.LimitRange)
+	}
+
+	return limitRanges, nil
+}
+
+func (k *Kube) getLimitRange(namespace, name string) (*corev1.LimitRange, error) {
+	var limitRange *corev1.LimitRange
+	var err error
+
+	if k.LimitRangeLister != nil {
+		limitRange, err = k.LimitRangeLister.LimitRanges(namespace).Get(name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		limitRange, err = k.kubeClient.CoreV1().LimitRanges(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return limitRange, nil
 }

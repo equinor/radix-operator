@@ -54,7 +54,7 @@ func (job *Job) OnSync() error {
 		return err
 	}
 	if stopReconciliation {
-		log.Infof("stop reconciliation, status updated triggering new sync")
+		log.Debugf("stop reconciliation, status updated triggering new sync")
 		return nil
 	}
 
