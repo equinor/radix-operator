@@ -105,8 +105,8 @@ func (cli *BuildStepImplementation) watchJob(job *batchv1.Job) error {
 	informer := kubeInformerFactory.Batch().V1().Jobs().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			j, success := new.(*batchv1.Job)
+		UpdateFunc: func(old, cur interface{}) {
+			j, success := cur.(*batchv1.Job)
 			if success && job.GetName() == j.GetName() && job.GetNamespace() == j.GetNamespace() {
 				switch {
 				case j.Status.Succeeded == 1:
