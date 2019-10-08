@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
+	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,6 +45,17 @@ func NewDeployment(kubeclient kubernetes.Interface, radixclient radixclient.Inte
 		kubeclient,
 		radixclient,
 		kubeutil, prometheusperatorclient, registration, radixDeployment}, nil
+}
+
+// GetDeploymentComponent Gets the index  of and the component given name
+func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
+	for index, component := range rd.Spec.Components {
+		if strings.EqualFold(component.Name, name) {
+			return index, &component
+		}
+	}
+
+	return -1, nil
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
@@ -108,11 +120,17 @@ func (deploy *Deployment) Apply() error {
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync() error {
-	deploy.restoreStatus()
+	requeue := deploy.restoreStatus()
 
 	if IsRadixDeploymentInactive(deploy.radixDeployment) {
 		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.getNamespace(), deploy.getName())
 		return nil
+	}
+
+	if requeue {
+		// If this is an active deployment restored from status, it is important that the other inactive RDs are restored
+		// before this is reprocessed, as the code will now skip OnSync if only a status has changed on the RD
+		return fmt.Errorf("Requeue, status was restored for active deployment, %s, and we need to trigger a new sync", deploy.getName())
 	}
 
 	stopReconciliation, err := deploy.syncStatuses()
@@ -161,14 +179,16 @@ func (deploy *Deployment) getName() string {
 }
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
-func (deploy *Deployment) restoreStatus() {
+func (deploy *Deployment) restoreStatus() bool {
+	requeue := false
+
 	if restoredStatus, ok := deploy.radixDeployment.Annotations[kube.RestoredStatusAnnotation]; ok {
 		if deploy.radixDeployment.Status.Condition == "" {
 			var status v1.RadixDeployStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)
 			if err != nil {
 				log.Error("Unable to get status from annotation", err)
-				return
+				return false
 			}
 
 			deploy.radixDeployment.Status.Condition = status.Condition
@@ -177,10 +197,15 @@ func (deploy *Deployment) restoreStatus() {
 			err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
 			if err != nil {
 				log.Error("Unable to restore status", err)
-				return
+				return false
 			}
+
+			// Need to requeue
+			requeue = true
 		}
 	}
+
+	return requeue
 }
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
@@ -277,7 +302,13 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occured when syncing of components
 	if len(errs) > 0 {
-		return errors.Concat(errs)
+		return errorUtils.Concat(errs)
+	}
+
+	deploy.radixDeployment.Status.Reconciled = metav1.NewTime(time.Now().UTC())
+	err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
+	if err != nil {
+		return err
 	}
 
 	return nil

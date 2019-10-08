@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"reflect"
+
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -58,12 +60,30 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(new interface{}) {
-			controller.Enqueue(new)
+		AddFunc: func(cur interface{}) {
+			radixDeployment, _ := cur.(*v1.RadixDeployment)
+			if deployment.IsRadixDeploymentInactive(radixDeployment) {
+				logger.Debugf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
+				return
+			}
+
+			controller.Enqueue(cur)
 			controller.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			controller.Enqueue(new)
+		UpdateFunc: func(old, cur interface{}) {
+			newRD := cur.(*v1.RadixDeployment)
+			oldRD := old.(*v1.RadixDeployment)
+			if deployment.IsRadixDeploymentInactive(newRD) {
+				logger.Debugf("Skip deployment object %s as it is inactive", newRD.GetName())
+				return
+			}
+
+			if deepEqual(oldRD, newRD) {
+				logger.Debugf("Deployment object is equal to old for %s. Do nothing", newRD.GetName())
+				return
+			}
+
+			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixDeployment, _ := obj.(*v1.RadixDeployment)
@@ -82,13 +102,13 @@ func NewController(client kubernetes.Interface,
 			service := obj.(*corev1.Service)
 			logger.Debugf("Service object added event received for %s. Do nothing", service.Name)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			newService := new.(*corev1.Service)
+		UpdateFunc: func(old, cur interface{}) {
+			newService := cur.(*corev1.Service)
 			oldService := old.(*corev1.Service)
 			if newService.ResourceVersion == oldService.ResourceVersion {
 				return
 			}
-			controller.HandleObject(new, "RadixDeployment", getObject)
+			controller.HandleObject(cur, "RadixDeployment", getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
 			controller.HandleObject(obj, "RadixDeployment", getObject)
@@ -96,8 +116,8 @@ func NewController(client kubernetes.Interface,
 	})
 
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			newNs := new.(*corev1.Namespace)
+		UpdateFunc: func(old, cur interface{}) {
+			newNs := cur.(*corev1.Namespace)
 			oldNs := old.(*corev1.Namespace)
 			if newNs.ResourceVersion == oldNs.ResourceVersion {
 				return
@@ -124,6 +144,16 @@ func NewController(client kubernetes.Interface,
 	})
 
 	return controller
+}
+
+func deepEqual(old, new *v1.RadixDeployment) bool {
+	if !reflect.DeepEqual(new.Spec, old.Spec) ||
+		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
+		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
+		return false
+	}
+
+	return true
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {

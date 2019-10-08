@@ -56,12 +56,12 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(new interface{}) {
-			controller.Enqueue(new)
+		AddFunc: func(cur interface{}) {
+			controller.Enqueue(cur)
 			controller.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			controller.Enqueue(new)
+		UpdateFunc: func(old, cur interface{}) {
+			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixApplication, _ := obj.(*v1.RadixApplication)
@@ -74,8 +74,8 @@ func NewController(client kubernetes.Interface,
 	})
 
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			newNs := new.(*corev1.Namespace)
+		UpdateFunc: func(old, cur interface{}) {
+			newNs := cur.(*corev1.Namespace)
 			oldNs := old.(*corev1.Namespace)
 			if newNs.ResourceVersion == oldNs.ResourceVersion {
 				return

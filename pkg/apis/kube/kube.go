@@ -7,8 +7,9 @@ import (
 
 // Radix Annotations
 const (
-	AdGroupsAnnotation    = "radix-app-adgroups"
-	RadixBranchAnnotation = "radix-branch"
+	AdGroupsAnnotation                = "radix-app-adgroups"
+	RadixBranchAnnotation             = "radix-branch"
+	RadixRestartEnvironmentAnnotation = "radix-restart-triggered"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"

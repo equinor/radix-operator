@@ -323,6 +323,7 @@ func (in *RadixDeployStatus) DeepCopyInto(out *RadixDeployStatus) {
 	*out = *in
 	in.ActiveFrom.DeepCopyInto(&out.ActiveFrom)
 	in.ActiveTo.DeepCopyInto(&out.ActiveTo)
+	in.Reconciled.DeepCopyInto(&out.Reconciled)
 	return
 }
 

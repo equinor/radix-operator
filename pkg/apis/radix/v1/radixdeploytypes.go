@@ -20,6 +20,7 @@ type RadixDeployStatus struct {
 	ActiveFrom meta_v1.Time         `json:"activeFrom" yaml:"activeFrom"`
 	ActiveTo   meta_v1.Time         `json:"activeTo" yaml:"activeTo"`
 	Condition  RadixDeployCondition `json:"condition" yaml:"condition"`
+	Reconciled meta_v1.Time         `json:"reconciled" yaml:"reconciled"`
 }
 
 // RadixDeployCondition Holds the condition of a component
