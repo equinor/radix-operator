@@ -48,4 +48,7 @@ const (
 
 	// RadixCommitHashEnvironmentVariable Contains the commit id of the build
 	RadixCommitHashEnvironmentVariable = "RADIX_GIT_COMMIT_HASH"
+
+	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
+	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 )

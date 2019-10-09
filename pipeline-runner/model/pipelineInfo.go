@@ -9,12 +9,11 @@ import (
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
-	Definition            *pipeline.Definition
-	TargetEnvironments    map[string]bool
-	LatestResourceVersion map[string]string
-	BranchIsMapped        bool
-	PipelineArguments     PipelineArguments
-	Steps                 []Step
+	Definition         *pipeline.Definition
+	TargetEnvironments map[string]bool
+	BranchIsMapped     bool
+	PipelineArguments  PipelineArguments
+	Steps              []Step
 }
 
 // PipelineArguments Holds arguments for the pipeline
@@ -74,7 +73,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 // InitPipeline Initialize pipeline with step implementations
 func InitPipeline(pipelineType *pipeline.Definition,
 	targetEnv map[string]bool,
-	latestResourceVersion map[string]string,
 	branchIsMapped bool,
 	pipelineArguments PipelineArguments,
 	stepImplementations ...Step) (*PipelineInfo, error) {
@@ -85,12 +83,11 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	}
 
 	return &PipelineInfo{
-		Definition:            pipelineType,
-		TargetEnvironments:    targetEnv,
-		LatestResourceVersion: latestResourceVersion,
-		BranchIsMapped:        branchIsMapped,
-		PipelineArguments:     pipelineArguments,
-		Steps:                 stepImplementationsForType,
+		Definition:         pipelineType,
+		TargetEnvironments: targetEnv,
+		BranchIsMapped:     branchIsMapped,
+		PipelineArguments:  pipelineArguments,
+		Steps:              stepImplementationsForType,
 	}, nil
 }
 

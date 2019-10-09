@@ -1,6 +1,7 @@
 package job
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -59,12 +60,24 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(new interface{}) {
-			controller.Enqueue(new)
+		AddFunc: func(cur interface{}) {
+			radixJob, _ := cur.(*v1.RadixJob)
+			if job.IsRadixJobDone(radixJob) {
+				logger.Debugf("Skip job object %s as it is complete", radixJob.GetName())
+				return
+			}
+
+			controller.Enqueue(cur)
 			controller.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			controller.Enqueue(new)
+		UpdateFunc: func(old, cur interface{}) {
+			newRJ := cur.(*v1.RadixJob)
+			if job.IsRadixJobDone(newRJ) {
+				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
+				return
+			}
+
+			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, _ := obj.(*v1.RadixJob)
@@ -77,19 +90,19 @@ func NewController(client kubernetes.Interface,
 	})
 
 	kubernetesJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			newJob := new.(*batchv1.Job)
+		UpdateFunc: func(old, cur interface{}) {
+			newJob := cur.(*batchv1.Job)
 			oldJob := old.(*batchv1.Job)
 			if newJob.ResourceVersion == oldJob.ResourceVersion {
 				return
 			}
-			controller.HandleObject(new, "RadixJob", getObject)
+			controller.HandleObject(cur, "RadixJob", getObject)
 		},
 	})
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			newPod := new.(*corev1.Pod)
+		UpdateFunc: func(old, cur interface{}) {
+			newPod := cur.(*corev1.Pod)
 			oldPod := old.(*corev1.Pod)
 			if newPod.ResourceVersion == oldPod.ResourceVersion {
 				return

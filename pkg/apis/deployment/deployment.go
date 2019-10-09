@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
+	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +47,17 @@ func NewDeployment(kubeclient kubernetes.Interface, radixclient radixclient.Inte
 		kubeutil, prometheusperatorclient, registration, radixDeployment}, nil
 }
 
+// GetDeploymentComponent Gets the index  of and the component given name
+func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
+	for index, component := range rd.Spec.Components {
+		if strings.EqualFold(component.Name, name) {
+			return index, &component
+		}
+	}
+
+	return -1, nil
+}
+
 // ConstructForTargetEnvironment Will build a deployment for target environment
 func ConstructForTargetEnvironment(config *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, env string) (v1.RadixDeployment, error) {
 	radixComponents := getRadixComponentsForEnv(config, containerRegistry, env, imageTag)
@@ -62,39 +74,6 @@ func DeployToEnvironment(env v1.Environment, targetEnvs map[string]bool) bool {
 	return false
 }
 
-// GetLatestResourceVersionOfTargetEnvironments Gets the latest resource version of target environments
-func GetLatestResourceVersionOfTargetEnvironments(radixclient radixclient.Interface, appName string, targetEnvs map[string]bool) (map[string]string, error) {
-	latestResourceVersions := make(map[string]string)
-
-	for envName, deployToEnvironment := range targetEnvs {
-		if deployToEnvironment {
-			latestResourceVersion, err := GetLatestResourceVersionOfTargetEnvironment(radixclient, appName, envName)
-			if err != nil {
-				return nil, err
-			}
-
-			latestResourceVersions[envName] = latestResourceVersion
-		}
-	}
-
-	return latestResourceVersions, nil
-}
-
-// GetLatestResourceVersionOfTargetEnvironment Gets the latest resource version of specified target environment
-func GetLatestResourceVersionOfTargetEnvironment(radixclient radixclient.Interface, appName, envName string) (string, error) {
-	latestRD, err := GetLatestDeploymentInNamespace(radixclient, utils.GetEnvironmentNamespace(appName, envName))
-	if err != nil {
-		return "", err
-	}
-
-	if latestRD == nil {
-		// No deployment exists in the environment
-		return "", nil
-	}
-
-	return latestRD.ResourceVersion, nil
-}
-
 // Apply Will make deployment effective
 func (deploy *Deployment) Apply() error {
 	log.Infof("Apply radix deployment %s on env %s", deploy.radixDeployment.ObjectMeta.Name, deploy.radixDeployment.ObjectMeta.Namespace)
@@ -108,11 +87,17 @@ func (deploy *Deployment) Apply() error {
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync() error {
-	deploy.restoreStatus()
+	requeue := deploy.restoreStatus()
 
 	if IsRadixDeploymentInactive(deploy.radixDeployment) {
 		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.getNamespace(), deploy.getName())
 		return nil
+	}
+
+	if requeue {
+		// If this is an active deployment restored from status, it is important that the other inactive RDs are restored
+		// before this is reprocessed, as the code will now skip OnSync if only a status has changed on the RD
+		return fmt.Errorf("Requeue, status was restored for active deployment, %s, and we need to trigger a new sync", deploy.getName())
 	}
 
 	stopReconciliation, err := deploy.syncStatuses()
@@ -161,14 +146,16 @@ func (deploy *Deployment) getName() string {
 }
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
-func (deploy *Deployment) restoreStatus() {
+func (deploy *Deployment) restoreStatus() bool {
+	requeue := false
+
 	if restoredStatus, ok := deploy.radixDeployment.Annotations[kube.RestoredStatusAnnotation]; ok {
 		if deploy.radixDeployment.Status.Condition == "" {
 			var status v1.RadixDeployStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)
 			if err != nil {
 				log.Error("Unable to get status from annotation", err)
-				return
+				return false
 			}
 
 			deploy.radixDeployment.Status.Condition = status.Condition
@@ -177,10 +164,15 @@ func (deploy *Deployment) restoreStatus() {
 			err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
 			if err != nil {
 				log.Error("Unable to restore status", err)
-				return
+				return false
 			}
+
+			// Need to requeue
+			requeue = true
 		}
 	}
+
+	return requeue
 }
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
@@ -192,10 +184,9 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 	}
 
 	if deploy.isLatestInTheEnvironment(allRDs.Items) {
-		// Only continue reconciliation if Status = Active
-		// if not Status will be updated to Active, and a new reconciliation will take place
-		stopReconciliation = deploy.radixDeployment.Status.Condition != v1.DeploymentActive
-		err = deploy.setRDToActive()
+		// Should always reconcile, because we now skip sync if only status on RD has been modified
+		stopReconciliation = false
+		err = deploy.updateStatusOnActiveDeployment()
 		if err != nil {
 			log.Errorf("Failed to set rd (%s) status to active", deploy.getName())
 			return false, err
@@ -277,19 +268,20 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occured when syncing of components
 	if len(errs) > 0 {
-		return errors.Concat(errs)
+		return errorUtils.Concat(errs)
 	}
 
 	return nil
 }
 
-func (deploy *Deployment) setRDToActive() error {
+func (deploy *Deployment) updateStatusOnActiveDeployment() error {
 	if deploy.radixDeployment.Status.Condition == v1.DeploymentActive {
-		return nil
+		deploy.radixDeployment.Status.Reconciled = metav1.NewTime(time.Now().UTC())
+	} else {
+		deploy.radixDeployment.Status.Condition = v1.DeploymentActive
+		deploy.radixDeployment.Status.ActiveFrom = metav1.NewTime(time.Now().UTC())
 	}
 
-	deploy.radixDeployment.Status.Condition = v1.DeploymentActive
-	deploy.radixDeployment.Status.ActiveFrom = metav1.NewTime(time.Now().UTC())
 	return saveStatusRD(deploy.radixclient, deploy.radixDeployment)
 }
 
