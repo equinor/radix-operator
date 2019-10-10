@@ -17,7 +17,7 @@ var (
 
 func Test_DefaultPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName("")
-	p, _ := model.InitPipeline(pipelineType, nil, nil, true, model.PipelineArguments{}, applyConfigStep, buildStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, nil, true, model.PipelineArguments{}, applyConfigStep, buildStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 3, len(p.Steps))
@@ -28,7 +28,7 @@ func Test_DefaultPipeType(t *testing.T) {
 
 func Test_BuildDeployPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	p, _ := model.InitPipeline(pipelineType, nil, nil, true, model.PipelineArguments{}, applyConfigStep, buildStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, nil, true, model.PipelineArguments{}, applyConfigStep, buildStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 3, len(p.Steps))
@@ -41,7 +41,7 @@ func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
 	pipelineArgs := model.GetPipelineArgsFromArguments(make(map[string]string))
-	p, _ := model.InitPipeline(pipelineType, nil, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
@@ -56,7 +56,7 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 		PushImage: false,
 	}
 
-	p, _ := model.InitPipeline(pipelineType, nil, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))
@@ -71,7 +71,7 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 		PushImage: true,
 	}
 
-	p, _ := model.InitPipeline(pipelineType, nil, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
+	p, _ := model.InitPipeline(pipelineType, nil, true, pipelineArgs, applyConfigStep, buildStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 2, len(p.Steps))

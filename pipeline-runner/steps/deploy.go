@@ -2,7 +2,6 @@ package steps
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -12,11 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 )
-
-// DeploymentHasBeenModifiedError There is a new version of an RD in the environment
-func DeploymentHasBeenModifiedError(appName, envName string) error {
-	return fmt.Errorf("Newer version of deployment exists for app %s in environment %s", appName, envName)
-}
 
 // DeployStepImplementation Step to deploy RD into environment
 type DeployStepImplementation struct {
@@ -98,15 +92,6 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 			return nil, err
 		}
 
-		deploymentHasBeenModified, err := cli.deploymentHasBeenModified(env.Name, pipelineInfo.LatestResourceVersion[env.Name])
-		if err != nil {
-			return nil, err
-		}
-
-		if deploymentHasBeenModified {
-			return nil, DeploymentHasBeenModifiedError(appName, env.Name)
-		}
-
 		err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env.Name))
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get environment namespace, %s, for app %s. %v", env, appName, err)
@@ -121,17 +106,4 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 	}
 
 	return radixDeployments, nil
-}
-
-func (cli *DeployStepImplementation) deploymentHasBeenModified(env, resourceVersionAtStartOfPipeline string) (bool, error) {
-	latestResourceVersion, err := deployment.GetLatestResourceVersionOfTargetEnvironment(cli.GetRadixclient(), cli.GetAppName(), env)
-	if err != nil {
-		return true, err
-	}
-
-	if !strings.EqualFold(latestResourceVersion, resourceVersionAtStartOfPipeline) && resourceVersionAtStartOfPipeline != "" {
-		return true, nil
-	}
-
-	return false, nil
 }

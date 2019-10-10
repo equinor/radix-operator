@@ -74,39 +74,6 @@ func DeployToEnvironment(env v1.Environment, targetEnvs map[string]bool) bool {
 	return false
 }
 
-// GetLatestResourceVersionOfTargetEnvironments Gets the latest resource version of target environments
-func GetLatestResourceVersionOfTargetEnvironments(radixclient radixclient.Interface, appName string, targetEnvs map[string]bool) (map[string]string, error) {
-	latestResourceVersions := make(map[string]string)
-
-	for envName, deployToEnvironment := range targetEnvs {
-		if deployToEnvironment {
-			latestResourceVersion, err := GetLatestResourceVersionOfTargetEnvironment(radixclient, appName, envName)
-			if err != nil {
-				return nil, err
-			}
-
-			latestResourceVersions[envName] = latestResourceVersion
-		}
-	}
-
-	return latestResourceVersions, nil
-}
-
-// GetLatestResourceVersionOfTargetEnvironment Gets the latest resource version of specified target environment
-func GetLatestResourceVersionOfTargetEnvironment(radixclient radixclient.Interface, appName, envName string) (string, error) {
-	latestRD, err := GetLatestDeploymentInNamespace(radixclient, utils.GetEnvironmentNamespace(appName, envName))
-	if err != nil {
-		return "", err
-	}
-
-	if latestRD == nil {
-		// No deployment exists in the environment
-		return "", nil
-	}
-
-	return latestRD.ResourceVersion, nil
-}
-
 // Apply Will make deployment effective
 func (deploy *Deployment) Apply() error {
 	log.Infof("Apply radix deployment %s on env %s", deploy.radixDeployment.ObjectMeta.Name, deploy.radixDeployment.ObjectMeta.Namespace)
@@ -217,10 +184,9 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 	}
 
 	if deploy.isLatestInTheEnvironment(allRDs.Items) {
-		// Only continue reconciliation if Status = Active
-		// if not Status will be updated to Active, and a new reconciliation will take place
-		stopReconciliation = deploy.radixDeployment.Status.Condition != v1.DeploymentActive
-		err = deploy.setRDToActive()
+		// Should always reconcile, because we now skip sync if only status on RD has been modified
+		stopReconciliation = false
+		err = deploy.updateStatusOnActiveDeployment()
 		if err != nil {
 			log.Errorf("Failed to set rd (%s) status to active", deploy.getName())
 			return false, err
@@ -305,22 +271,17 @@ func (deploy *Deployment) syncDeployment() error {
 		return errorUtils.Concat(errs)
 	}
 
-	deploy.radixDeployment.Status.Reconciled = metav1.NewTime(time.Now().UTC())
-	err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (deploy *Deployment) setRDToActive() error {
+func (deploy *Deployment) updateStatusOnActiveDeployment() error {
 	if deploy.radixDeployment.Status.Condition == v1.DeploymentActive {
-		return nil
+		deploy.radixDeployment.Status.Reconciled = metav1.NewTime(time.Now().UTC())
+	} else {
+		deploy.radixDeployment.Status.Condition = v1.DeploymentActive
+		deploy.radixDeployment.Status.ActiveFrom = metav1.NewTime(time.Now().UTC())
 	}
 
-	deploy.radixDeployment.Status.Condition = v1.DeploymentActive
-	deploy.radixDeployment.Status.ActiveFrom = metav1.NewTime(time.Now().UTC())
 	return saveStatusRD(deploy.radixclient, deploy.radixDeployment)
 }
 

@@ -1210,60 +1210,6 @@ func TestNewDeploymentStatus(t *testing.T) {
 	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
 }
 
-func TestGetLatestResourceVersionOfTargetEnvironments_ThreeDeployments_ReturnsLatest(t *testing.T) {
-	anyApp := "any-app"
-	anyEnv := "dev"
-	anyComponentName := "frontend"
-
-	// Setup
-	tu, client, radixclient := setupTest()
-	rd1, _ := applyDeploymentWithSync(tu, client, radixclient,
-		utils.ARadixDeployment().
-			WithAppName(anyApp).
-			WithEnvironment(anyEnv).
-			WithEmptyStatus().
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")))
-
-	time.Sleep(2 * time.Millisecond)
-	rd2, _ := applyDeploymentWithSync(tu, client, radixclient,
-		utils.ARadixDeployment().
-			WithAppName(anyApp).
-			WithEnvironment(anyEnv).
-			WithEmptyStatus().
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")))
-
-	time.Sleep(2 * time.Millisecond)
-	rd3, _ := applyDeploymentWithSync(tu, client, radixclient,
-		utils.ARadixDeployment().
-			WithAppName(anyApp).
-			WithEnvironment(anyEnv).
-			WithEmptyStatus().
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName(anyComponentName).
-					WithPort("http", 8080).
-					WithPublicPort("http")))
-
-	// Test
-	targetEnvironments := make(map[string]bool)
-	targetEnvironments[anyEnv] = true
-
-	latestResourceVersions, err := GetLatestResourceVersionOfTargetEnvironments(radixclient, anyApp, targetEnvironments)
-	assert.NoError(t, err)
-
-	assert.NotEqual(t, rd1.ResourceVersion, latestResourceVersions[anyEnv])
-	assert.NotEqual(t, rd2.ResourceVersion, latestResourceVersions[anyEnv])
-	assert.Equal(t, rd3.ResourceVersion, latestResourceVersions[anyEnv])
-}
-
 func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	anyAppName := "any-app"
 	anyEnvironment := "dev"
