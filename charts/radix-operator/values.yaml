@@ -53,6 +53,17 @@ resources:
     cpu: 100m
     memory: 300Mi
 
+ingress:
+  configuration:
+    socket:
+      nginx.ingress.kubernetes.io/proxy-connect-timeout: 3600
+      nginx.ingress.kubernetes.io/proxy-send-timeout: 3600
+      nginx.ingress.kubernetes.io/proxy-read-timeout: 3600
+    round-robin:
+      nginx.ingress.kubernetes.io/load-balance: "round_robin"
+    ewma:
+      nginx.ingress.kubernetes.io/load-balance: "ewma"
+
 nodeSelector: {}
 
 tolerations: []
