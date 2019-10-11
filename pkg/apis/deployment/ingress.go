@@ -310,7 +310,7 @@ func getIngressConfig(appName string,
 	isAlias, isExternalAlias, isActiveClusterAlias bool,
 	ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
 
-	annotations := getAnnotationsFromConfigurations(component.IngressConfiguration, config)
+	annotations := getAnnotationsFromConfigurations(config, component.IngressConfiguration...)
 	annotations["kubernetes.io/ingress.class"] = "nginx"
 	annotations["ingress.kubernetes.io/force-ssl-redirect"] = "true"
 
@@ -377,21 +377,25 @@ func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
 }
 
 func loadIngressConfigFromMap(kubeutil *kube.Kube) IngressConfiguration {
-	config := IngressConfiguration{}
+
 	configMap, err := kubeutil.GetConfigMap(corev1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
-		return config
+		return IngressConfiguration{}
 	}
 
-	ingressConfiguration := configMap.Data["ingressConfiguration"]
-	err = yaml.Unmarshal([]byte(ingressConfiguration), &config)
+	return getConfigFromStringData(configMap.Data["ingressConfiguration"])
+}
+
+func getConfigFromStringData(data string) IngressConfiguration {
+	config := IngressConfiguration{}
+	err := yaml.Unmarshal([]byte(data), &config)
 	if err != nil {
 		return config
 	}
 	return config
 }
 
-func getAnnotationsFromConfigurations(configurations []string, config IngressConfiguration) map[string]string {
+func getAnnotationsFromConfigurations(config IngressConfiguration, configurations ...string) map[string]string {
 	allAnnotations := make(map[string]string)
 
 	if config.AnnotationConfigurations != nil &&
