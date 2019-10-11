@@ -10,5 +10,5 @@ metadata:
     heritage: "{{ .Release.Service }}"
 data:
   ingressConfiguration: |
-{{ toYaml .Values.ingress.configuration | indent 4 }}
+{{ toYaml .Values.ingress | indent 4 }}
 {{- end }}
