@@ -60,22 +60,18 @@ func GetComponent(ra *v1.RadixApplication, name string) *v1.RadixComponent {
 
 // GetComponentEnvironmentConfig Gets environment config of component
 func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) *v1.RadixEnvironmentConfig {
-	componentDefinition := GetComponent(ra, componentName)
-
-	if componentDefinition == nil {
-		return nil
-	}
-
-	return GetEnvironment(componentDefinition, envName)
+	return GetEnvironment(GetComponent(ra, componentName), envName)
 }
 
 // GetEnvironment Gets environment config of component
 func GetEnvironment(component *v1.RadixComponent, envName string) *v1.RadixEnvironmentConfig {
-	if component != nil {
-		for _, environment := range component.EnvironmentConfig {
-			if strings.EqualFold(environment.Environment, envName) {
-				return &environment
-			}
+	if component == nil {
+		return nil
+	}
+
+	for _, environment := range component.EnvironmentConfig {
+		if strings.EqualFold(environment.Environment, envName) {
+			return &environment
 		}
 	}
 

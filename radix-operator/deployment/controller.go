@@ -62,18 +62,18 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(new interface{}) {
-			radixDeployment, _ := new.(*v1.RadixDeployment)
+		AddFunc: func(cur interface{}) {
+			radixDeployment, _ := cur.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(radixDeployment) {
 				logger.Debugf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
 				return
 			}
 
-			controller.Enqueue(new)
+			controller.Enqueue(cur)
 			controller.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			newRD := new.(*v1.RadixDeployment)
+		UpdateFunc: func(old, cur interface{}) {
+			newRD := cur.(*v1.RadixDeployment)
 			oldRD := old.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(newRD) {
 				logger.Debugf("Skip deployment object %s as it is inactive", newRD.GetName())
@@ -85,7 +85,7 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(new)
+			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixDeployment, _ := obj.(*v1.RadixDeployment)
@@ -104,13 +104,13 @@ func NewController(client kubernetes.Interface,
 			service := obj.(*corev1.Service)
 			logger.Debugf("Service object added event received for %s. Do nothing", service.Name)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			newService := new.(*corev1.Service)
+		UpdateFunc: func(old, cur interface{}) {
+			newService := cur.(*corev1.Service)
 			oldService := old.(*corev1.Service)
 			if newService.ResourceVersion == oldService.ResourceVersion {
 				return
 			}
-			controller.HandleObject(new, "RadixDeployment", getObject)
+			controller.HandleObject(cur, "RadixDeployment", getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
 			controller.HandleObject(obj, "RadixDeployment", getObject)
@@ -118,8 +118,8 @@ func NewController(client kubernetes.Interface,
 	})
 
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			newNs := new.(*corev1.Namespace)
+		UpdateFunc: func(old, cur interface{}) {
+			newNs := cur.(*corev1.Namespace)
 			oldNs := old.(*corev1.Namespace)
 			if newNs.ResourceVersion == oldNs.ResourceVersion {
 				return

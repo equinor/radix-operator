@@ -49,12 +49,12 @@ func NewController(client kubernetes.Interface,
 	logger.Info("Setting up event handlers")
 
 	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(new interface{}) {
-			controller.Enqueue(new)
+		AddFunc: func(cur interface{}) {
+			controller.Enqueue(cur)
 			controller.CustomResourceAdded(crType)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			newRR := new.(*v1.RadixRegistration)
+		UpdateFunc: func(old, cur interface{}) {
+			newRR := cur.(*v1.RadixRegistration)
 			oldRR := old.(*v1.RadixRegistration)
 
 			if deepEqual(oldRR, newRR) {
@@ -62,7 +62,7 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.Enqueue(new)
+			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixRegistration, _ := obj.(*v1.RadixRegistration)
@@ -81,13 +81,13 @@ func NewController(client kubernetes.Interface,
 			// May need to sync ad-groups
 			controller.HandleObject(ns, "RadixRegistration", getObject)
 		},
-		UpdateFunc: func(old, new interface{}) {
-			newNs := new.(*corev1.Namespace)
+		UpdateFunc: func(old, cur interface{}) {
+			newNs := cur.(*corev1.Namespace)
 			oldNs := old.(*corev1.Namespace)
 			if newNs.ResourceVersion == oldNs.ResourceVersion {
 				return
 			}
-			controller.HandleObject(new, "RadixRegistration", getObject)
+			controller.HandleObject(cur, "RadixRegistration", getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
 			controller.HandleObject(obj, "RadixRegistration", getObject)

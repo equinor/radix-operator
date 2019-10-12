@@ -115,7 +115,7 @@ endif
 	    --set dnsZone=$(DNS_ZONE) \
 		--set appAliasBaseURL=$(APP_ALIAS_BASE_URL) \
 		--set prometheusName=radix-stage1 \
-		--set imageRegistry=$(DOCKER_REGISTRY) \
+		--set image.repository=$(DOCKER_REGISTRY) \
 		--set clusterName=$(CLUSTER_NAME) \
 		--set image.tag=$(BRANCH)-$(VERSION) \
     	--set clusterType="development" \
