@@ -148,7 +148,9 @@ func (k *Kube) ListRolesWithSelector(namespace string, labelSelectorString *stri
 			return nil, err
 		}
 	} else {
-		list, err := k.kubeClient.RbacV1().Roles(namespace).List(metav1.ListOptions{})
+		list, err := k.kubeClient.RbacV1().Roles(namespace).List(metav1.ListOptions{
+			LabelSelector: *labelSelectorString,
+		})
 		if err != nil {
 			return nil, err
 		}

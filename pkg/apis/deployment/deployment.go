@@ -186,7 +186,7 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 
 	log.Info("Done listing deployments")
 
-	if deploy.isLatestInTheEnvironment(allRDs.Items) {
+	if deploy.isLatestInTheEnvironment(allRDs) {
 		// Should always reconcile, because we now skip sync if only status on RD has been modified
 		stopReconciliation = false
 		err = deploy.updateStatusOnActiveDeployment()
