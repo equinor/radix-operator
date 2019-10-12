@@ -290,12 +290,6 @@ func (deploy *Deployment) syncDeployment() error {
 		return errorUtils.Concat(errs)
 	}
 
-	deploy.radixDeployment.Status.Reconciled = metav1.NewTime(time.Now().UTC())
-	err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
