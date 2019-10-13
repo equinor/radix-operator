@@ -216,7 +216,7 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount 
 	rolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
+			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
@@ -224,7 +224,7 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount 
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRoleBinding",
+			Kind:     "ClusterRole",
 			Name:     roleName,
 		},
 		Subjects: []auth.Subject{
