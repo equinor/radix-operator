@@ -10,6 +10,12 @@ const (
 	// OperatorClusterTypeEnvironmentVariable The type of cluster dev|playground|prod
 	OperatorClusterTypeEnvironmentVariable = "RADIXOPERATOR_CLUSTER_TYPE"
 
+	// MaxDeploymentsEnvironmentVariable Controls the number of RDs we can have in a environment
+	MaxDeploymentsEnvironmentVariable = "RADIX_MAX_DEPLOYMENTS_PER_ENVIRONMENT"
+
+	// MaxJobEnvironmentVariable Controls the number of RJs we can have in a app namespace
+	MaxJobEnvironmentVariable = "RADIX_MAX_JOBS_PER_APP"
+
 	// ClusternameEnvironmentVariable The name of the cluster
 	ClusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
 

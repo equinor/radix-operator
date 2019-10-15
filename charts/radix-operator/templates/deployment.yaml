@@ -75,6 +75,11 @@ spec:
             # Active cluster name
             - name: RADIX_ACTIVE_CLUSTERNAME
               value: {{ .Values.activeClusterName }}
+            # Maximum custom resources
+            - name: RADIX_MAX_DEPLOYMENTS_PER_ENVIRONMENT
+              value: {{ .Values.maxDeploymentsPerEnvironment }}
+            - name: RADIX_MAX_JOBS_PER_APP
+              value: {{ .Values.maxJobsPerApp }}
           livenessProbe:
             httpGet:
               path: /healthz
