@@ -55,12 +55,6 @@ resources:
 
 ingress:
   configuration:
-    - name: ewma
-      annotations:
-        nginx.ingress.kubernetes.io/load-balance: ewma
-    - name: round-robin
-      annotations:
-        nginx.ingress.kubernetes.io/load-balance: round_robin
     - name: socket
       annotations:
         nginx.ingress.kubernetes.io/proxy-connect-timeout: 3600
