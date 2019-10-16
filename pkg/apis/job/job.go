@@ -507,37 +507,11 @@ func (job *Job) maintainHistoryLimit() {
 				return
 			}
 
-			sort.Sort(byCreated(jobs))
+			jobs = sortJobsByActiveFromTimestampAsc(jobs)
 			for i := 0; i < numToDelete; i++ {
 				log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
 				job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(jobs[i].Name, &metav1.DeleteOptions{})
 			}
 		}
 	}
-}
-
-// byCreated sorts a list of jobs by created timestamp
-type byCreated []v1.RadixJob
-
-func (o byCreated) Len() int      { return len(o) }
-func (o byCreated) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-
-func (o byCreated) Less(i, j int) bool {
-	if o[i].Status.Created == nil && o[j].Status.Created == nil {
-		return false
-	}
-	if o[i].Status.Created == nil && o[j].Status.Created != nil {
-		return false
-	}
-	if o[i].Status.Created != nil && o[j].Status.Created == nil {
-		return true
-	}
-	if o[i].Status.Created.Time.IsZero() && !o[j].Status.Created.Time.IsZero() {
-		return false
-	}
-	if !o[i].Status.Created.Time.IsZero() && o[j].Status.Created.Time.IsZero() {
-		return true
-	}
-
-	return o[i].Status.Created.Before(o[j].Status.Created)
 }

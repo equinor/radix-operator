@@ -113,7 +113,11 @@ func (deploy *Deployment) OnSync() error {
 	}
 
 	err = deploy.syncDeployment()
-	deploy.maintainHistoryLimit()
+
+	if err == nil {
+		// Only remove old RDs if deployment is successful
+		deploy.maintainHistoryLimit()
+	}
 
 	return err
 }
@@ -332,6 +336,13 @@ func sortRDsByActiveFromTimestampDesc(rds []v1.RadixDeployment) []v1.RadixDeploy
 	return rds
 }
 
+func sortRDsByActiveFromTimestampAsc(rds []v1.RadixDeployment) []v1.RadixDeployment {
+	sort.Slice(rds, func(i, j int) bool {
+		return isRD1ActiveBeforeRD2(&rds[i], &rds[j])
+	})
+	return rds
+}
+
 // isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
 func (deploy *Deployment) isLatestInTheEnvironment(allRDs []v1.RadixDeployment) bool {
 	return isLatest(deploy.radixDeployment, allRDs)
@@ -452,28 +463,11 @@ func (deploy *Deployment) maintainHistoryLimit() {
 				return
 			}
 
-			sort.Sort(byActiveFrom(deployments))
+			deployments = sortRDsByActiveFromTimestampAsc(deployments)
 			for i := 0; i < numToDelete; i++ {
 				log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
 				deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(deployments[i].Name, &metav1.DeleteOptions{})
 			}
 		}
 	}
-}
-
-// byActiveFrom sorts a list of deployments by active from timestamp
-type byActiveFrom []v1.RadixDeployment
-
-func (o byActiveFrom) Len() int      { return len(o) }
-func (o byActiveFrom) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
-
-func (o byActiveFrom) Less(i, j int) bool {
-	if o[i].Status.ActiveFrom.Time.IsZero() && !o[j].Status.ActiveFrom.Time.IsZero() {
-		return false
-	}
-	if !o[i].Status.ActiveFrom.Time.IsZero() && o[j].Status.ActiveFrom.Time.IsZero() {
-		return true
-	}
-
-	return o[i].Status.ActiveFrom.Before(&o[j].Status.ActiveFrom)
 }
