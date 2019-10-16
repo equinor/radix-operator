@@ -162,6 +162,7 @@ type RadixApplicationComponentBuilder interface {
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
+	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
@@ -170,11 +171,12 @@ type RadixApplicationComponentBuilder interface {
 type radixApplicationComponentBuilder struct {
 	name string
 	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
-	public            bool
-	publicPort        string
-	ports             map[string]int32
-	secrets           []string
-	environmentConfig []RadixEnvironmentConfigBuilder
+	public               bool
+	publicPort           string
+	ports                map[string]int32
+	secrets              []string
+	ingressConfiguration []string
+	environmentConfig    []RadixEnvironmentConfigBuilder
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -195,6 +197,11 @@ func (rcb *radixApplicationComponentBuilder) WithPublicPort(publicPort string) R
 
 func (rcb *radixApplicationComponentBuilder) WithSecrets(secrets ...string) RadixApplicationComponentBuilder {
 	rcb.secrets = secrets
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithIngressConfiguration(ingressConfiguration ...string) RadixApplicationComponentBuilder {
+	rcb.ingressConfiguration = ingressConfiguration
 	return rcb
 }
 
@@ -225,12 +232,13 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 	}
 
 	return v1.RadixComponent{
-		Name:              rcb.name,
-		Ports:             componentPorts,
-		Secrets:           rcb.secrets,
-		Public:            rcb.public,
-		PublicPort:        rcb.publicPort,
-		EnvironmentConfig: environmentConfig,
+		Name:                 rcb.name,
+		Ports:                componentPorts,
+		Secrets:              rcb.secrets,
+		IngressConfiguration: rcb.ingressConfiguration,
+		Public:               rcb.public,
+		PublicPort:           rcb.publicPort,
+		EnvironmentConfig:    environmentConfig,
 	}
 }
 

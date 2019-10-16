@@ -24,11 +24,24 @@ func (kube *Kube) GetContainerRegistry() (string, error) {
 }
 
 func (kube *Kube) getConfigFromMap(config string) (string, error) {
-	radixconfigmap, err := kube.kubeClient.CoreV1().ConfigMaps(corev1.NamespaceDefault).Get(configMapName, metav1.GetOptions{})
+	radixconfigmap, err := kube.GetConfigMap(corev1.NamespaceDefault, configMapName)
 	if err != nil {
 		return "", fmt.Errorf("Failed to get radix config map: %v", err)
 	}
 	configValue := radixconfigmap.Data[config]
 	logger.Debugf("%s: %s", config, configValue)
 	return configValue, nil
+}
+
+// GetConfigMap Gets config map by name
+func (kube *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, error) {
+	var configMap *corev1.ConfigMap
+	var err error
+
+	configMap, err = kube.kubeClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return configMap, nil
 }
