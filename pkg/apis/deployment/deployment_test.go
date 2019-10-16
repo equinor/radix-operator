@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,7 @@ func teardownTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
+	os.Unsetenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
 }
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
@@ -1267,6 +1269,93 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, maps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 
+func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
+	anyAppName := "any-app"
+	anyComponentName := "frontend"
+	anyEnvironment := "dev"
+	anyLimit := 3
+
+	tu, client, radixclient := setupTest()
+
+	// Current cluster is active cluster
+	os.Setenv(defaults.DeploymentsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
+
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
+	applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithDeploymentName("firstdeployment").
+			WithAppName(anyAppName).
+			WithEnvironment(anyEnvironment).
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithDeploymentName("seconddeployment").
+			WithAppName(anyAppName).
+			WithEnvironment(anyEnvironment).
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithDeploymentName("thirddeployment").
+			WithAppName(anyAppName).
+			WithEnvironment(anyEnvironment).
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithDeploymentName("fourthdeployment").
+			WithAppName(anyAppName).
+			WithEnvironment(anyEnvironment).
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
+
+	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
+	assert.True(t, radixDeploymentByNameExists("seconddeployment", deployments))
+	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
+	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
+
+	applyDeploymentWithSync(tu, client, radixclient,
+		utils.ARadixDeployment().
+			WithDeploymentName("fifthdeployment").
+			WithAppName(anyAppName).
+			WithEnvironment(anyEnvironment).
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(anyComponentName).
+					WithPort("http", 8080).
+					WithPublicPort("http")))
+
+	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
+
+	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
+	assert.False(t, radixDeploymentByNameExists("seconddeployment", deployments))
+	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
+	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
+	assert.True(t, radixDeploymentByNameExists("fifthdeployment", deployments))
+
+	teardownTest()
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
@@ -1320,6 +1409,20 @@ func envVariableByNameExistOnDeployment(name, deploymentName string, deployments
 
 func getEnvVariableByNameOnDeployment(name, deploymentName string, deployments *extension.DeploymentList) string {
 	return getEnvVariableByName(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
+}
+
+func radixDeploymentByNameExists(name string, deployments *v1.RadixDeploymentList) bool {
+	return getRadixDeploymentByName(name, deployments) != nil
+}
+
+func getRadixDeploymentByName(name string, deployments *v1.RadixDeploymentList) *v1.RadixDeployment {
+	for _, deployment := range deployments.Items {
+		if deployment.Name == name {
+			return &deployment
+		}
+	}
+
+	return nil
 }
 
 func deploymentByNameExists(name string, deployments *extension.DeploymentList) bool {

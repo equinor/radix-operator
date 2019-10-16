@@ -3,11 +3,14 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -109,7 +112,10 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	return deploy.syncDeployment()
+	err = deploy.syncDeployment()
+	deploy.maintainHistoryLimit()
+
+	return err
 }
 
 // IsRadixDeploymentInactive checks if deployment is inactive
@@ -422,4 +428,52 @@ func getLabelSelectorForComponent(component v1.RadixDeployComponent) string {
 
 func getLabelSelectorForExternalAlias(component v1.RadixDeployComponent) string {
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixExternalAliasLabel, "true")
+}
+
+func (deploy *Deployment) maintainHistoryLimit() {
+	historyLimit := os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
+	if historyLimit != "" {
+		limit, err := strconv.Atoi(historyLimit)
+		if err != nil {
+			log.Warnf("'%s' is not set to a proper number, %s, and cannot be parsed.", defaults.DeploymentsHistoryLimitEnvironmentVariable, historyLimit)
+			return
+		}
+
+		allRDs, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).List(metav1.ListOptions{})
+		if err != nil {
+			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+			return
+		}
+
+		if len(allRDs.Items) > limit {
+			deployments := allRDs.Items
+			numToDelete := len(deployments) - limit
+			if numToDelete <= 0 {
+				return
+			}
+
+			sort.Sort(byActiveFrom(deployments))
+			for i := 0; i < numToDelete; i++ {
+				log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
+				deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(deployments[i].Name, &metav1.DeleteOptions{})
+			}
+		}
+	}
+}
+
+// byActiveFrom sorts a list of deployments by active from timestamp
+type byActiveFrom []v1.RadixDeployment
+
+func (o byActiveFrom) Len() int      { return len(o) }
+func (o byActiveFrom) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+
+func (o byActiveFrom) Less(i, j int) bool {
+	if o[i].Status.ActiveFrom.Time.IsZero() && !o[j].Status.ActiveFrom.Time.IsZero() {
+		return false
+	}
+	if !o[i].Status.ActiveFrom.Time.IsZero() && o[j].Status.ActiveFrom.Time.IsZero() {
+		return true
+	}
+
+	return o[i].Status.ActiveFrom.Before(&o[j].Status.ActiveFrom)
 }

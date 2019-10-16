@@ -3,10 +3,13 @@ package job
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
@@ -59,12 +62,12 @@ func (job *Job) OnSync() error {
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(job.radixJob.Name, metav1.GetOptions{})
 
 	if errors.IsNotFound(err) {
-		return job.createJob()
-	} else if err != nil {
-		return err
+		err = job.createJob()
 	}
 
-	return nil
+	job.maintainHistoryLimit()
+
+	return err
 }
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -480,4 +483,61 @@ func (job *Job) getJobEnvironments() ([]string, error) {
 func saveStatus(radixClient radixclient.Interface, rj *v1.RadixJob) error {
 	_, err := radixClient.RadixV1().RadixJobs(rj.GetNamespace()).UpdateStatus(rj)
 	return err
+}
+
+func (job *Job) maintainHistoryLimit() {
+	historyLimit := os.Getenv(defaults.JobsHistoryLimitEnvironmentVariable)
+	if historyLimit != "" {
+		limit, err := strconv.Atoi(historyLimit)
+		if err != nil {
+			log.Warnf("'%s' is not set to a proper number, %s, and cannot be parsed.", defaults.JobsHistoryLimitEnvironmentVariable, historyLimit)
+			return
+		}
+
+		allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(metav1.ListOptions{})
+		if err != nil {
+			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+			return
+		}
+
+		if len(allRJs.Items) > limit {
+			jobs := allRJs.Items
+			numToDelete := len(jobs) - limit
+			if numToDelete <= 0 {
+				return
+			}
+
+			sort.Sort(byCreated(jobs))
+			for i := 0; i < numToDelete; i++ {
+				log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
+				job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(jobs[i].Name, &metav1.DeleteOptions{})
+			}
+		}
+	}
+}
+
+// byCreated sorts a list of jobs by created timestamp
+type byCreated []v1.RadixJob
+
+func (o byCreated) Len() int      { return len(o) }
+func (o byCreated) Swap(i, j int) { o[i], o[j] = o[j], o[i] }
+
+func (o byCreated) Less(i, j int) bool {
+	if o[i].Status.Created == nil && o[j].Status.Created == nil {
+		return false
+	}
+	if o[i].Status.Created == nil && o[j].Status.Created != nil {
+		return false
+	}
+	if o[i].Status.Created != nil && o[j].Status.Created == nil {
+		return true
+	}
+	if o[i].Status.Created.Time.IsZero() && !o[j].Status.Created.Time.IsZero() {
+		return false
+	}
+	if !o[i].Status.Created.Time.IsZero() && o[j].Status.Created.Time.IsZero() {
+		return true
+	}
+
+	return o[i].Status.Created.Before(o[j].Status.Created)
 }

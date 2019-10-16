@@ -2,6 +2,7 @@ package job
 
 import (
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -37,6 +38,7 @@ func teardownTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
+	os.Unsetenv(defaults.JobsHistoryLimitEnvironmentVariable)
 }
 
 func TestObjectSynced_StatusMissing_StatusFromAnnotation(t *testing.T) {
@@ -88,6 +90,49 @@ func TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning(t *testing.T)
 	assert.True(t, secondJob.Status.Condition != v1.JobQueued)
 }
 
+func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
+	anyLimit := 3
+
+	tu, client, radixclient := setupTest()
+
+	// Current cluster is active cluster
+	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
+
+	firstJob, _ := applyJobWithSync(tu, client, radixclient,
+		utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
+
+	applyJobWithSync(tu, client, radixclient,
+		utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
+
+	applyJobWithSync(tu, client, radixclient,
+		utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
+
+	applyJobWithSync(tu, client, radixclient,
+		utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
+
+	jobs, _ := radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
+	assert.Equal(t, anyLimit, len(jobs.Items), "Number of jobs should match limit")
+
+	assert.False(t, radixJobByNameExists("FirstJob", jobs))
+	assert.True(t, radixJobByNameExists("SecondJob", jobs))
+	assert.True(t, radixJobByNameExists("ThirdJob", jobs))
+	assert.True(t, radixJobByNameExists("FourthJob", jobs))
+
+	applyJobWithSync(tu, client, radixclient,
+		utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
+
+	jobs, _ = radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
+	assert.Equal(t, anyLimit, len(jobs.Items), "Number of jobs should match limit")
+
+	assert.False(t, radixJobByNameExists("FirstJob", jobs))
+	assert.False(t, radixJobByNameExists("SecondJob", jobs))
+	assert.True(t, radixJobByNameExists("ThirdJob", jobs))
+	assert.True(t, radixJobByNameExists("FourthJob", jobs))
+	assert.True(t, radixJobByNameExists("FifthJob", jobs))
+
+	teardownTest()
+}
+
 func applyJobWithSync(tu *test.Utils, client kube.Interface,
 	radixclient radixclient.Interface, jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
 	rj, err := tu.ApplyJob(jobBuilder)
@@ -108,6 +153,20 @@ func runSync(client kube.Interface, radixclient radixclient.Interface, rj *v1.Ra
 	err := job.OnSync()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func radixJobByNameExists(name string, jobs *v1.RadixJobList) bool {
+	return getRadixJobByName(name, jobs) != nil
+}
+
+func getRadixJobByName(name string, jobs *v1.RadixJobList) *v1.RadixJob {
+	for _, job := range jobs.Items {
+		if job.Name == name {
+			return &job
+		}
 	}
 
 	return nil
