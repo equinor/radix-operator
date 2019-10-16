@@ -77,9 +77,9 @@ spec:
               value: {{ .Values.activeClusterName }}
             # Maximum custom resources
             - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
-              value: {{ .Values.deploymentsPerEnvironmentHistoryLimit }}
+              value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
             - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
-              value: {{ .Values.jobsPerAppHistoryLimit }}
+              value: {{ .Values.jobsPerAppHistoryLimit | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
