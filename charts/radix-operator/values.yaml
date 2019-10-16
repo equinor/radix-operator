@@ -69,4 +69,4 @@ radixGroups:
   playground: "4b8ec60e-714c-4a9d-8e0a-3e4cfb3c3d31"
 
 deploymentsPerEnvironmentHistoryLimit: 10
-jobsPerAppHistoryLimit: 10
+jobsPerAppHistoryLimit: 20
