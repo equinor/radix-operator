@@ -25,6 +25,8 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 			return fmt.Errorf("Failed to get old Ingress object: %v", err)
 		}
 		newIngress := oldIngress.DeepCopy()
+		newIngress.ObjectMeta.Labels = ingress.ObjectMeta.Labels
+		newIngress.ObjectMeta.Annotations = ingress.ObjectMeta.Annotations
 		newIngress.ObjectMeta.OwnerReferences = ingress.ObjectMeta.OwnerReferences
 		newIngress.Spec = ingress.Spec
 
