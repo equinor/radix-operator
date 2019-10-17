@@ -3,11 +3,14 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -109,7 +112,14 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	return deploy.syncDeployment()
+	err = deploy.syncDeployment()
+
+	if err == nil {
+		// Only remove old RDs if deployment is successful
+		deploy.maintainHistoryLimit()
+	}
+
+	return err
 }
 
 // IsRadixDeploymentInactive checks if deployment is inactive
@@ -326,6 +336,13 @@ func sortRDsByActiveFromTimestampDesc(rds []v1.RadixDeployment) []v1.RadixDeploy
 	return rds
 }
 
+func sortRDsByActiveFromTimestampAsc(rds []v1.RadixDeployment) []v1.RadixDeployment {
+	sort.Slice(rds, func(i, j int) bool {
+		return isRD1ActiveBeforeRD2(&rds[i], &rds[j])
+	})
+	return rds
+}
+
 // isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
 func (deploy *Deployment) isLatestInTheEnvironment(allRDs []v1.RadixDeployment) bool {
 	return isLatest(deploy.radixDeployment, allRDs)
@@ -422,4 +439,35 @@ func getLabelSelectorForComponent(component v1.RadixDeployComponent) string {
 
 func getLabelSelectorForExternalAlias(component v1.RadixDeployComponent) string {
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixExternalAliasLabel, "true")
+}
+
+func (deploy *Deployment) maintainHistoryLimit() {
+	historyLimit := os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
+	if historyLimit != "" {
+		limit, err := strconv.Atoi(historyLimit)
+		if err != nil {
+			log.Warnf("'%s' is not set to a proper number, %s, and cannot be parsed.", defaults.DeploymentsHistoryLimitEnvironmentVariable, historyLimit)
+			return
+		}
+
+		allRDs, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).List(metav1.ListOptions{})
+		if err != nil {
+			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+			return
+		}
+
+		if len(allRDs.Items) > limit {
+			deployments := allRDs.Items
+			numToDelete := len(deployments) - limit
+			if numToDelete <= 0 {
+				return
+			}
+
+			deployments = sortRDsByActiveFromTimestampAsc(deployments)
+			for i := 0; i < numToDelete; i++ {
+				log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
+				deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(deployments[i].Name, &metav1.DeleteOptions{})
+			}
+		}
+	}
 }
