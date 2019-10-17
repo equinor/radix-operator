@@ -1269,7 +1269,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 }
 
 func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T) {
-	tu, client, radixclient := setupTest()
+	tu, client, kubeUtil, radixclient := setupTest()
 
 	// Setup
 	client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(&corev1.ConfigMap{
@@ -1283,7 +1283,7 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 	})
 
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
-	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
 		WithAppName("any-app").
 		WithEnvironment("dev").
 		WithComponents(
@@ -1294,7 +1294,7 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 				WithDNSAppAlias(true).
 				WithIngressConfiguration("non-existing")))
 
-	applyDeploymentWithSync(tu, client, radixclient, utils.ARadixDeployment().
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
 		WithAppName("any-app-2").
 		WithEnvironment("dev").
 		WithComponents(

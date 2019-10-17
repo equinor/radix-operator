@@ -374,7 +374,6 @@ func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
 }
 
 func loadIngressConfigFromMap(kubeutil *kube.Kube) IngressConfiguration {
-
 	configMap, err := kubeutil.GetConfigMap(corev1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
 		return IngressConfiguration{}
