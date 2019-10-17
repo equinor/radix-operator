@@ -264,6 +264,7 @@ type DeployComponentBuilder interface {
 	WithReplicas(*int) DeployComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
+	WithIngressConfiguration(...string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
@@ -276,14 +277,15 @@ type deployComponentBuilder struct {
 	ports                map[string]int32
 	environmentVariables map[string]string
 	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
-	public           bool
-	publicPort       string
-	monitoring       bool
-	replicas         *int
-	secrets          []string
-	dnsappalias      bool
-	externalAppAlias []string
-	resources        v1.ResourceRequirements
+	public               bool
+	publicPort           string
+	monitoring           bool
+	replicas             *int
+	ingressConfiguration []string
+	secrets              []string
+	dnsappalias          bool
+	externalAppAlias     []string
+	resources            v1.ResourceRequirements
 }
 
 func (dcb *deployComponentBuilder) WithResourceRequestsOnly(request map[string]string) DeployComponentBuilder {
@@ -366,6 +368,11 @@ func (dcb *deployComponentBuilder) WithSecrets(secrets []string) DeployComponent
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration ...string) DeployComponentBuilder {
+	dcb.ingressConfiguration = ingressConfiguration
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range dcb.ports {
@@ -381,6 +388,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Monitoring:           dcb.monitoring,
 		Replicas:             dcb.replicas,
 		Secrets:              dcb.secrets,
+		IngressConfiguration: dcb.ingressConfiguration,
 		EnvironmentVariables: dcb.environmentVariables,
 		DNSAppAlias:          dcb.dnsappalias,
 		DNSExternalAlias:     dcb.externalAppAlias,

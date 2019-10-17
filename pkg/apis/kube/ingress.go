@@ -31,8 +31,9 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 	}
 
 	log.Debugf("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
-
 	newIngress := oldIngress.DeepCopy()
+	newIngress.ObjectMeta.Labels = ingress.ObjectMeta.Labels
+	newIngress.ObjectMeta.Annotations = ingress.ObjectMeta.Annotations
 	newIngress.ObjectMeta.OwnerReferences = ingress.ObjectMeta.OwnerReferences
 	newIngress.Spec = ingress.Spec
 

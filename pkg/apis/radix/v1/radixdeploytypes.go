@@ -61,6 +61,7 @@ type RadixDeployComponent struct {
 	PublicPort           string               `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	EnvironmentVariables EnvVarsMap           `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets              []string             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	IngressConfiguration []string             `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	DNSAppAlias          bool                 `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
 	DNSExternalAlias     []string             `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
 	Monitoring           bool                 `json:"monitoring" yaml:"monitoring"`

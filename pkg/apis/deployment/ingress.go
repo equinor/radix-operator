@@ -10,15 +10,29 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// IngressConfiguration Holds all ingress annotation confurations
+type IngressConfiguration struct {
+	AnnotationConfigurations []AnnotationConfiguration `yaml:"configuration"`
+}
+
+// AnnotationConfiguration Holds annotations for a single configuration
+type AnnotationConfiguration struct {
+	Name        string
+	Annotations map[string]string
+}
+
 const (
 	appAliasTLSSecretName       = "app-wildcard-tls-cert"
 	clusterDefaultTLSSecretName = "cluster-wildcard-tls-cert"
 	activeClusterTLSSecretName  = "active-cluster-wildcard-tls-cert"
+	ingressConfigurationMap     = "radix-operator-ingress-configmap"
 )
 
 func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent) error {
@@ -36,9 +50,13 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		publicPortNumber = getPublicPortNumber(deployComponent.Ports, deployComponent.PublicPort)
 	}
 
+	config := loadIngressConfigFromMap(deploy.kubeutil)
+	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
+
 	// Only the active cluster should have the DNS alias, not to cause conflics between clusters
 	if deployComponent.DNSAppAlias && isActiveCluster(clustername) {
-		appAliasIngress := getAppAliasIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
+		appAliasIngress := getAppAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
+			ownerReference, config, deployComponent, clustername, namespace, publicPortNumber)
 		if appAliasIngress != nil {
 			err = deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
 			if err != nil {
@@ -57,7 +75,8 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		}
 
 		for _, externalAlias := range deployComponent.DNSExternalAlias {
-			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(externalAlias, deployComponent.Name, deploy.radixDeployment, namespace, publicPortNumber)
+			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
+				ownerReference, config, externalAlias, deployComponent, namespace, publicPortNumber)
 			if err != nil {
 				return err
 			}
@@ -76,7 +95,8 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 
 	if isActiveCluster(clustername) {
 		// Create fixed active cluster ingress for this component
-		activeClusterAliasIngress := getActiveClusterAliasIngressConfig(deployComponent.Name, deploy.radixDeployment, namespace, publicPortNumber)
+		activeClusterAliasIngress := getActiveClusterAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
+			ownerReference, config, deployComponent, namespace, publicPortNumber)
 		if activeClusterAliasIngress != nil {
 			err = deploy.kubeutil.ApplyIngress(namespace, activeClusterAliasIngress)
 			if err != nil {
@@ -91,7 +111,8 @@ func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent)
 		}
 	}
 
-	ingress := getDefaultIngressConfig(deployComponent.Name, deploy.radixDeployment, clustername, namespace, publicPortNumber)
+	ingress := getDefaultIngressConfig(deploy.radixDeployment.Spec.AppName,
+		ownerReference, config, deployComponent, clustername, namespace, publicPortNumber)
 	return deploy.kubeutil.ApplyIngress(namespace, ingress)
 }
 
@@ -200,47 +221,69 @@ func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(comp
 	return nil
 }
 
-func getAppAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, publicPortNumber int32) *v1beta1.Ingress {
+func getAppAliasIngressConfig(
+	appName string,
+	ownerReference []metav1.OwnerReference,
+	config IngressConfiguration,
+	component v1.RadixDeployComponent,
+	clustername, namespace string,
+	publicPortNumber int32) *v1beta1.Ingress {
 	appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
 		return nil
 	}
 
-	hostname := fmt.Sprintf("%s.%s", radixDeployment.Spec.AppName, appAlias)
-	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
-	ingressSpec := getIngressSpec(hostname, componentName, appAliasTLSSecretName, publicPortNumber)
+	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
+	ingressSpec := getIngressSpec(hostname, component.Name, appAliasTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(radixDeployment, componentName, fmt.Sprintf("%s-url-alias", radixDeployment.Spec.AppName), ownerReference, true, false, false, ingressSpec)
+	return getIngressConfig(appName, component, fmt.Sprintf("%s-url-alias", appName), ownerReference, config, true, false, false, ingressSpec)
 }
 
-func getActiveClusterAliasIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, namespace string, publicPortNumber int32) *v1beta1.Ingress {
-	hostname := getActiveClusterHostName(componentName, namespace)
+func getActiveClusterAliasIngressConfig(
+	appName string,
+	ownerReference []metav1.OwnerReference,
+	config IngressConfiguration,
+	component v1.RadixDeployComponent,
+	namespace string,
+	publicPortNumber int32) *v1beta1.Ingress {
+	hostname := getActiveClusterHostName(component.Name, namespace)
 	if hostname == "" {
 		return nil
 	}
-	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
-	ingressSpec := getIngressSpec(hostname, componentName, activeClusterTLSSecretName, publicPortNumber)
-	ingressName := fmt.Sprintf("%s-active-cluster-url-alias", componentName)
+	ingressSpec := getIngressSpec(hostname, component.Name, activeClusterTLSSecretName, publicPortNumber)
+	ingressName := fmt.Sprintf("%s-active-cluster-url-alias", component.Name)
 
-	return getIngressConfig(radixDeployment, componentName, ingressName, ownerReference, false, false, true, ingressSpec)
+	return getIngressConfig(appName, component, ingressName, ownerReference, config, false, false, true, ingressSpec)
 }
 
-func getDefaultIngressConfig(componentName string, radixDeployment *v1.RadixDeployment, clustername, namespace string, publicPortNumber int32) *v1beta1.Ingress {
+func getDefaultIngressConfig(
+	appName string,
+	ownerReference []metav1.OwnerReference,
+	config IngressConfiguration,
+	component v1.RadixDeployComponent,
+	clustername, namespace string,
+	publicPortNumber int32) *v1beta1.Ingress {
 	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		return nil
 	}
-	hostname := getHostName(componentName, namespace, clustername, dnsZone)
-	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
-	ingressSpec := getIngressSpec(hostname, componentName, clusterDefaultTLSSecretName, publicPortNumber)
+	hostname := getHostName(component.Name, namespace, clustername, dnsZone)
+	ingressSpec := getIngressSpec(hostname, component.Name, clusterDefaultTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(radixDeployment, componentName, componentName, ownerReference, false, false, false, ingressSpec)
+	return getIngressConfig(appName, component, component.Name, ownerReference, config, false, false, false, ingressSpec)
 }
 
-func (deploy *Deployment) getExternalAliasIngressConfig(externalAlias, componentName string, radixDeployment *v1.RadixDeployment, namespace string, publicPortNumber int32) (*v1beta1.Ingress, error) {
-	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
-	ingressSpec := getIngressSpec(externalAlias, componentName, externalAlias, publicPortNumber)
-	return getIngressConfig(radixDeployment, componentName, externalAlias, ownerReference, false, true, false, ingressSpec), nil
+func (deploy *Deployment) getExternalAliasIngressConfig(
+	appName string,
+	ownerReference []metav1.OwnerReference,
+	config IngressConfiguration,
+	externalAlias string,
+	component v1.RadixDeployComponent,
+	namespace string,
+	publicPortNumber int32) (*v1beta1.Ingress, error) {
+
+	ingressSpec := getIngressSpec(externalAlias, component.Name, externalAlias, publicPortNumber)
+	return getIngressConfig(appName, component, externalAlias, ownerReference, config, false, true, false, ingressSpec), nil
 }
 
 func getActiveClusterHostName(componentName, namespace string) string {
@@ -256,18 +299,26 @@ func getHostName(componentName, namespace, clustername, dnsZone string) string {
 	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
 
-func getIngressConfig(radixDeployment *v1.RadixDeployment, componentName, ingressName string, ownerReference []metav1.OwnerReference, isAlias, isExternalAlias, isActiveClusterAlias bool, ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
+func getIngressConfig(appName string,
+	component v1.RadixDeployComponent,
+	ingressName string,
+	ownerReference []metav1.OwnerReference,
+	config IngressConfiguration,
+	isAlias, isExternalAlias, isActiveClusterAlias bool,
+	ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
+
+	annotations := getAnnotationsFromConfigurations(config, component.IngressConfiguration...)
+	annotations["kubernetes.io/ingress.class"] = "nginx"
+	annotations["ingress.kubernetes.io/force-ssl-redirect"] = "true"
+
 	ingress := &v1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ingressName,
-			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":              "nginx",
-				"ingress.kubernetes.io/force-ssl-redirect": "true",
-			},
+			Name:        ingressName,
+			Annotations: annotations,
 			Labels: map[string]string{
-				"radixApp":                        radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
-				kube.RadixAppLabel:                radixDeployment.Spec.AppName,
-				kube.RadixComponentLabel:          componentName,
+				"radixApp":                        appName, // For backwards compatibility. Remove when cluster is migrated
+				kube.RadixAppLabel:                appName,
+				kube.RadixComponentLabel:          component.Name,
 				kube.RadixAppAliasLabel:           strconv.FormatBool(isAlias),
 				kube.RadixExternalAliasLabel:      strconv.FormatBool(isExternalAlias),
 				kube.RadixActiveClusterAliasLabel: strconv.FormatBool(isActiveClusterAlias),
@@ -320,4 +371,51 @@ func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
 		}
 	}
 	return 0
+}
+
+func loadIngressConfigFromMap(kubeutil *kube.Kube) IngressConfiguration {
+
+	configMap, err := kubeutil.GetConfigMap(corev1.NamespaceDefault, ingressConfigurationMap)
+	if err != nil {
+		return IngressConfiguration{}
+	}
+
+	return getConfigFromStringData(configMap.Data["ingressConfiguration"])
+}
+
+func getConfigFromStringData(data string) IngressConfiguration {
+	config := IngressConfiguration{}
+	err := yaml.Unmarshal([]byte(data), &config)
+	if err != nil {
+		return config
+	}
+	return config
+}
+
+func getAnnotationsFromConfigurations(config IngressConfiguration, configurations ...string) map[string]string {
+	allAnnotations := make(map[string]string)
+
+	if config.AnnotationConfigurations != nil &&
+		len(config.AnnotationConfigurations) > 0 {
+		for _, configuration := range configurations {
+			annotations := getAnnotationsFromConfiguration(configuration, config)
+			if annotations != nil {
+				for key, value := range annotations {
+					allAnnotations[key] = value
+				}
+			}
+		}
+	}
+
+	return allAnnotations
+}
+
+func getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
+	for _, ingressConfig := range config.AnnotationConfigurations {
+		if strings.EqualFold(ingressConfig.Name, name) {
+			return ingressConfig.Annotations
+		}
+	}
+
+	return nil
 }

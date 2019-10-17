@@ -1,0 +1,14 @@
+{{- if .Values.ingress.configuration}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: radix-operator-ingress-configmap
+  labels:
+    app: "radix-operator"
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+data:
+  ingressConfiguration: |
+{{ toYaml .Values.ingress | indent 4 }}
+{{- end }}

@@ -93,10 +93,11 @@ type RadixComponent struct {
 	DockerfileName string          `json:"dockerfileName" yaml:"dockerfileName"`
 	Ports          []ComponentPort `json:"ports" yaml:"ports"`
 	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
-	Public            bool                     `json:"public" yaml:"public"`
-	PublicPort        string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
-	Secrets           []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	EnvironmentConfig []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
+	Public               bool                     `json:"public" yaml:"public"`
+	PublicPort           string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
+	Secrets              []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	IngressConfiguration []string                 `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
+	EnvironmentConfig    []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 }
 
 //RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
