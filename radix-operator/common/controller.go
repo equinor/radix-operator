@@ -26,6 +26,7 @@ type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
 // Controller Instance variables
 type Controller struct {
 	Name        string
+	HandlerOf   string
 	KubeClient  kubernetes.Interface
 	RadixClient radixclient.Interface
 	WorkQueue   workqueue.RateLimitingInterface
@@ -92,12 +93,13 @@ func (c *Controller) processNextWorkItem() bool {
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
-			metrics.OperatorError("work_queue", "error_workqueue_type")
+			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
 			return nil
 		}
 
 		if err := c.syncHandler(key); err != nil {
 			c.WorkQueue.AddRateLimited(key)
+			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 		}
 
@@ -108,7 +110,7 @@ func (c *Controller) processNextWorkItem() bool {
 
 	if err != nil {
 		utilruntime.HandleError(err)
-		metrics.OperatorError("process_next_work_item", "unhandled")
+		metrics.OperatorError(c.HandlerOf, "process_next_work_item", "unhandled")
 		return true
 	}
 
@@ -116,10 +118,17 @@ func (c *Controller) processNextWorkItem() bool {
 }
 
 func (c *Controller) syncHandler(key string) error {
+	start := time.Now()
+
+	defer func() {
+		duration := time.Since(start)
+		metrics.AddDurrationOfReconciliation(c.HandlerOf, duration)
+	}()
+
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Invalid resource key: %s", key))
-		metrics.OperatorError("split_meta_namespace_key", "invalid_resource_key")
+		metrics.OperatorError(c.HandlerOf, "split_meta_namespace_key", "invalid_resource_key")
 		return nil
 	}
 
@@ -129,7 +138,7 @@ func (c *Controller) syncHandler(key string) error {
 		log.Errorf("Error while syncing: %v", err)
 
 		utilruntime.HandleError(fmt.Errorf("Problems syncing: %s", key))
-		metrics.OperatorError("c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
+		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err
 	}
 
@@ -143,7 +152,7 @@ func (c *Controller) Enqueue(obj interface{}) {
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 		utilruntime.HandleError(err)
-		metrics.OperatorError("enqueue", fmt.Sprintf("problems_sync_%s", key))
+		metrics.OperatorError(c.HandlerOf, "enqueue", fmt.Sprintf("problems_sync_%s", key))
 		return
 	}
 	c.WorkQueue.AddRateLimited(key)
@@ -158,13 +167,13 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-			metrics.OperatorError("handle_object", "error_decoding_object")
+			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object")
 			return
 		}
 		object, ok = tombstone.Obj.(metav1.Object)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
-			metrics.OperatorError("handle_object", "error_decoding_object_tombstone")
+			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object_tombstone")
 			return
 		}
 		c.Log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())

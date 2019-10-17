@@ -36,6 +36,7 @@ func NewController(client kubernetes.Interface,
 
 	controller := &common.Controller{
 		Name:        controllerAgentName,
+		HandlerOf:   crType,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    registrationInformer.Informer(),
@@ -54,6 +55,7 @@ func NewController(client kubernetes.Interface,
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			controller.Enqueue(cur)
+			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixRegistration, _ := obj.(*v1.RadixRegistration)

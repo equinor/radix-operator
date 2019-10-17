@@ -50,6 +50,7 @@ func NewController(client kubernetes.Interface,
 
 	controller := &common.Controller{
 		Name:        controllerAgentName,
+		HandlerOf:   crType,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    deploymentInformer.Informer(),
@@ -65,26 +66,31 @@ func NewController(client kubernetes.Interface,
 			radixDeployment, _ := cur.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(radixDeployment) {
 				logger.Debugf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
+				metrics.CustomResourceAddedButSkipped(crType)
 				return
 			}
 
 			controller.Enqueue(cur)
 			metrics.CustomResourceAdded(crType)
+
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRD := cur.(*v1.RadixDeployment)
 			oldRD := old.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(newRD) {
 				logger.Debugf("Skip deployment object %s as it is inactive", newRD.GetName())
+				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
 
 			if deepEqual(oldRD, newRD) {
 				logger.Debugf("Deployment object is equal to old for %s. Do nothing", newRD.GetName())
+				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
 
 			controller.Enqueue(cur)
+			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixDeployment, _ := obj.(*v1.RadixDeployment)

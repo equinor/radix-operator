@@ -50,6 +50,7 @@ func NewController(client kubernetes.Interface,
 
 	controller := &common.Controller{
 		Name:        controllerAgentName,
+		HandlerOf:   crType,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    jobInformer.Informer(),
@@ -65,6 +66,7 @@ func NewController(client kubernetes.Interface,
 			radixJob, _ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(radixJob) {
 				logger.Debugf("Skip job object %s as it is complete", radixJob.GetName())
+				metrics.CustomResourceAddedButSkipped(crType)
 				return
 			}
 
@@ -75,10 +77,12 @@ func NewController(client kubernetes.Interface,
 			newRJ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(newRJ) {
 				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
+				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
 
 			controller.Enqueue(cur)
+			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, _ := obj.(*v1.RadixJob)
