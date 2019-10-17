@@ -90,11 +90,6 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 							SecurityContext: securityContext,
 						},
 					},
-					ImagePullSecrets: []corev1.LocalObjectReference{
-						{
-							Name: "radix-docker",
-						},
-					},
 				},
 			},
 		},

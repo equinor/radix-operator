@@ -6,8 +6,6 @@ activeClusterName: xx
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 
-imagePullSecretName: radix-docker
-
 app:
   # Limit range on app namespace
   limitrange:
