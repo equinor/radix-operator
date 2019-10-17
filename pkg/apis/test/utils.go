@@ -166,17 +166,6 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry strin
 	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-docker",
-			Namespace: corev1.NamespaceDefault,
-		},
-		Data: map[string][]byte{
-			"config.json": []byte("abcd"),
-		},
-	})
-
-	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
-		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
 			Name:      "radix-known-hosts-git",
 			Namespace: corev1.NamespaceDefault,
 		},

@@ -145,8 +145,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
-		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
+		assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
 
 		componentSecretName := utils.GetComponentSecretName("radixquote")
 		assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
@@ -446,7 +445,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(secrets.Items), "Should only have default secret")
+		assert.Equal(t, 0, len(secrets.Items), "Should have no secrets")
 	})
 
 	teardownTest()
@@ -703,9 +702,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
-		assert.Equal(t, "radix-docker", secrets.Items[0].GetName(), "Component secret is not as expected")
-		assert.Equal(t, utils.GetComponentSecretName(componentThreeName), secrets.Items[1].GetName(), "Component secret is not as expected")
+		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
+		assert.Equal(t, utils.GetComponentSecretName(componentThreeName), secrets.Items[0].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
@@ -983,7 +981,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 	assert.Equal(t, 1, len(rolebindings.Items), "Environment should have one rolebinding for TLS cert")
 	assert.True(t, roleBindingByNameExists("radix-app-adm-frontend", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 
-	assert.Equal(t, 2, len(secrets.Items), "Environment should have one secret for TLS cert")
+	assert.Equal(t, 1, len(secrets.Items), "Environment should have one secret for TLS cert")
 	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
 
 	// Remove app alias from dev
@@ -1006,7 +1004,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 
 	assert.Equal(t, 0, len(rolebindings.Items), "Role should have been removed")
 	assert.Equal(t, 0, len(rolebindings.Items), "Rolebinding should have been removed")
-	assert.Equal(t, 1, len(secrets.Items), "Secret should have been removed")
+	assert.Equal(t, 0, len(secrets.Items), "Secret should have been removed")
 
 }
 
@@ -1234,7 +1232,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithSecrets([]string{"a_secret", "another_secret", "a_third_secret"})))
 
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-	anyComponentSecret := secrets.Items[1]
+	anyComponentSecret := secrets.Items[0]
 	assert.Equal(t, utils.GetComponentSecretName(anyComponentName), anyComponentSecret.GetName(), "Component secret is not as expected")
 
 	// Secret is initially empty but get filled with data from the API
@@ -1265,7 +1263,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithSecrets([]string{"a_secret", "a_third_secret"})))
 
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-	anyComponentSecret = secrets.Items[1]
+	anyComponentSecret = secrets.Items[0]
 	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, maps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 

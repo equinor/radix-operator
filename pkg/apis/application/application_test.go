@@ -52,9 +52,8 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
-	assert.Equal(t, 2, len(secrets.Items))
-	assert.Equal(t, "radix-docker", secrets.Items[0].Name)
-	assert.Equal(t, "git-ssh-keys", secrets.Items[1].Name)
+	assert.Equal(t, 1, len(secrets.Items))
+	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(serviceAccounts.Items))
