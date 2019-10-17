@@ -7,6 +7,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -68,7 +69,7 @@ func NewController(client kubernetes.Interface,
 			}
 
 			controller.Enqueue(cur)
-			controller.CustomResourceAdded(crType)
+			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
@@ -85,7 +86,7 @@ func NewController(client kubernetes.Interface,
 			if err == nil {
 				logger.Debugf("Job object deleted event received for %s. Do nothing", key)
 			}
-			controller.CustomResourceDeleted(crType)
+			metrics.CustomResourceDeleted(crType)
 		},
 	})
 
