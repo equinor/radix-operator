@@ -70,10 +70,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			requeued, err := controller.Enqueue(cur)
-			if err == nil && !requeued {
-				metrics.CustomResourceAdded(crType)
-			}
+			controller.Enqueue(cur)
+			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
@@ -83,10 +81,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			requeued, err := controller.Enqueue(cur)
-			if err == nil && !requeued {
-				metrics.CustomResourceUpdated(crType)
-			}
+			controller.Enqueue(cur)
+			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixJob, _ := obj.(*v1.RadixJob)

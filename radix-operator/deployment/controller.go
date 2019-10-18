@@ -70,11 +70,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			requeued, err := controller.Enqueue(cur)
-			if err == nil && !requeued {
-				metrics.CustomResourceAdded(crType)
-			}
-
+			controller.Enqueue(cur)
+			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRD := cur.(*v1.RadixDeployment)
@@ -91,10 +88,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			requeued, err := controller.Enqueue(cur)
-			if err == nil && !requeued {
-				metrics.CustomResourceUpdated(crType)
-			}
+			controller.Enqueue(cur)
+			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixDeployment, _ := obj.(*v1.RadixDeployment)
@@ -147,10 +142,7 @@ func NewController(client kubernetes.Interface,
 					if !deployment.IsRadixDeploymentInactive(&rd) {
 						var obj metav1.Object
 						obj = &rd
-						requeued, err := controller.Enqueue(obj)
-						if err == nil && !requeued {
-							metrics.CustomResourceUpdatedAndRequeued(crType)
-						}
+						controller.Enqueue(obj)
 					}
 				}
 			}
