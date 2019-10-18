@@ -59,12 +59,16 @@ func NewController(client kubernetes.Interface,
 	logger.Info("Setting up event handlers")
 	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
-			metrics.CustomResourceAdded(crType)
+			err := controller.Enqueue(cur)
+			if err == nil {
+				metrics.CustomResourceAdded(crType)
+			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			controller.Enqueue(cur)
-			metrics.CustomResourceUpdated(crType)
+			err := controller.Enqueue(cur)
+			if err == nil {
+				metrics.CustomResourceUpdated(crType)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixApplication, _ := obj.(*v1.RadixApplication)
@@ -94,8 +98,10 @@ func NewController(client kubernetes.Interface,
 				// Will sync the RA (there can only be one)
 				var obj metav1.Object
 				obj = &ra.Items[0]
-				controller.Enqueue(obj)
-				metrics.CustomResourceUpdatedAndRequeued(crType)
+				err := controller.Enqueue(obj)
+				if err == nil {
+					metrics.CustomResourceUpdatedAndRequeued(crType)
+				}
 			}
 		},
 	})

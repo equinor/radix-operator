@@ -50,12 +50,16 @@ func NewController(client kubernetes.Interface,
 
 	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			controller.Enqueue(cur)
-			metrics.CustomResourceAdded(crType)
+			err := controller.Enqueue(cur)
+			if err == nil {
+				metrics.CustomResourceAdded(crType)
+			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			controller.Enqueue(cur)
-			metrics.CustomResourceUpdated(crType)
+			err := controller.Enqueue(cur)
+			if err == nil {
+				metrics.CustomResourceUpdated(crType)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixRegistration, _ := obj.(*v1.RadixRegistration)
