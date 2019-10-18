@@ -15,7 +15,7 @@ var (
 	nrErrors = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_errors",
 		Help: "The total number of radix operator errors",
-	}, []string{"err_type", "method"})
+	}, []string{"cr_type", "err_type", "method"})
 	nrCrDeQueued = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_cr_de_queued",
 		Help: "The total number of radix custom resources removed from queue",
