@@ -12,6 +12,10 @@ var (
 		Name: "radix_operator_cr_queued",
 		Help: "The total number of radix custom resources added, updated or deleted in queue",
 	}, []string{"cr_type", "operation", "skipped", "requeued"})
+	nrCrDeleted = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "radix_operator_cr_deleted",
+		Help: "The total number of radix custom resources deleted",
+	}, []string{"cr_type"})
 	nrErrors = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_errors",
 		Help: "The total number of radix operator errors",
@@ -66,7 +70,7 @@ func CustomResourceUpdatedButSkipped(kind string) {
 
 // CustomResourceDeleted Increments metric to count the number of cr deleted
 func CustomResourceDeleted(kind string) {
-	nrCrQueued.With(prometheus.Labels{"cr_type": kind, "operation": "update", "skipped": "true", "requeued": "false"}).Inc()
+	nrCrDeleted.With(prometheus.Labels{"cr_type": kind}).Inc()
 }
 
 // CustomResourceRemovedFromQueue Decrements metric to count the number of cr in queue
