@@ -101,6 +101,9 @@ func (c *Controller) processNextWorkItem() bool {
 		if err := c.syncHandler(key); err != nil {
 			c.WorkQueue.AddRateLimited(key)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
+			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
+			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
+
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 		}
 
@@ -158,6 +161,7 @@ func (c *Controller) Enqueue(obj interface{}) {
 		return
 	}
 	c.WorkQueue.AddRateLimited(key)
+	metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
 }
 
 // HandleObject ensures that when anything happens to object which any

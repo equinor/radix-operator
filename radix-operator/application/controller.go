@@ -95,6 +95,7 @@ func NewController(client kubernetes.Interface,
 				var obj metav1.Object
 				obj = &ra.Items[0]
 				controller.Enqueue(obj)
+				metrics.CustomResourceUpdatedAndRequeued(crType)
 			}
 		},
 	})
