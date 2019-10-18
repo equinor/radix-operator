@@ -90,8 +90,6 @@ spec:
               port: metrics
           resources:
 {{ toYaml .Values.resources | indent 12 }}
-      imagePullSecrets:
-        - name: {{ .Values.imagePullSecretName }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{ toYaml . | indent 8 }}
