@@ -59,14 +59,14 @@ func NewController(client kubernetes.Interface,
 	logger.Info("Setting up event handlers")
 	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			err := controller.Enqueue(cur)
-			if err == nil {
+			requeued, err := controller.Enqueue(cur)
+			if err == nil && !requeued {
 				metrics.CustomResourceAdded(crType)
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			err := controller.Enqueue(cur)
-			if err == nil {
+			requeued, err := controller.Enqueue(cur)
+			if err == nil && !requeued {
 				metrics.CustomResourceUpdated(crType)
 			}
 		},
@@ -98,8 +98,8 @@ func NewController(client kubernetes.Interface,
 				// Will sync the RA (there can only be one)
 				var obj metav1.Object
 				obj = &ra.Items[0]
-				err := controller.Enqueue(obj)
-				if err == nil {
+				requeued, err := controller.Enqueue(obj)
+				if err == nil && !requeued {
 					metrics.CustomResourceUpdatedAndRequeued(crType)
 				}
 			}

@@ -152,16 +152,23 @@ func (c *Controller) syncHandler(key string) error {
 
 // Enqueue takes a resource and converts it into a namespace/name
 // string which is then put onto the work queue
-func (c *Controller) Enqueue(obj interface{}) error {
+func (c *Controller) Enqueue(obj interface{}) (bool, error) {
 	var key string
 	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 		utilruntime.HandleError(err)
 		metrics.OperatorError(c.HandlerOf, "enqueue", fmt.Sprintf("problems_sync_%s", key))
-		return err
+		return false, err
 	}
+
 	c.WorkQueue.AddRateLimited(key)
-	return nil
+
+	requeues := c.WorkQueue.NumRequeues(key)
+	if requeues > 0 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // HandleObject ensures that when anything happens to object which any
@@ -196,8 +203,8 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			return
 		}
 
-		err = c.Enqueue(obj)
-		if err == nil {
+		requeued, err := c.Enqueue(obj)
+		if err == nil && !requeued {
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
 		}
 

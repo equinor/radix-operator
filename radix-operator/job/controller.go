@@ -70,8 +70,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			err := controller.Enqueue(cur)
-			if err == nil {
+			requeued, err := controller.Enqueue(cur)
+			if err == nil && !requeued {
 				metrics.CustomResourceAdded(crType)
 			}
 		},
@@ -83,8 +83,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			err := controller.Enqueue(cur)
-			if err == nil {
+			requeued, err := controller.Enqueue(cur)
+			if err == nil && !requeued {
 				metrics.CustomResourceUpdated(crType)
 			}
 		},

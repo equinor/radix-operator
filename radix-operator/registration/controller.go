@@ -50,13 +50,13 @@ func NewController(client kubernetes.Interface,
 
 	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
-			err := controller.Enqueue(cur)
+			requeued, err := controller.Enqueue(cur)
 			if err == nil {
 				metrics.CustomResourceAdded(crType)
 			}
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			err := controller.Enqueue(cur)
+			requeued, err := controller.Enqueue(cur)
 			if err == nil {
 				metrics.CustomResourceUpdated(crType)
 			}

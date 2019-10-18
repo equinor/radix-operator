@@ -70,8 +70,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			err := controller.Enqueue(cur)
-			if err == nil {
+			requeued, err := controller.Enqueue(cur)
+			if err == nil && !requeued {
 				metrics.CustomResourceAdded(crType)
 			}
 
@@ -91,8 +91,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			err := controller.Enqueue(cur)
-			if err == nil {
+			requeued, err := controller.Enqueue(cur)
+			if err == nil && !requeued {
 				metrics.CustomResourceUpdated(crType)
 			}
 		},
@@ -147,8 +147,8 @@ func NewController(client kubernetes.Interface,
 					if !deployment.IsRadixDeploymentInactive(&rd) {
 						var obj metav1.Object
 						obj = &rd
-						err := controller.Enqueue(obj)
-						if err == nil {
+						requeued, err := controller.Enqueue(obj)
+						if err == nil && !requeued {
 							metrics.CustomResourceUpdatedAndRequeued(crType)
 						}
 					}
