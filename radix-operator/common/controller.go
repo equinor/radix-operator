@@ -92,6 +92,7 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
+			metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
@@ -100,6 +101,7 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if err := c.syncHandler(key); err != nil {
 			c.WorkQueue.AddRateLimited(key)
+			metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
@@ -108,6 +110,7 @@ func (c *Controller) processNextWorkItem() bool {
 		}
 
 		c.WorkQueue.Forget(obj)
+		metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
 		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 		c.Log.Infof("Successfully synced '%s'", key)
 		return nil
@@ -162,6 +165,7 @@ func (c *Controller) Enqueue(obj interface{}) {
 	}
 
 	c.WorkQueue.AddRateLimited(key)
+	metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
 }
 
 // HandleObject ensures that when anything happens to object which any

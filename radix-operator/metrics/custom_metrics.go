@@ -24,6 +24,10 @@ var (
 		Name: "radix_operator_cr_de_queued",
 		Help: "The total number of radix custom resources removed from queue",
 	}, []string{"cr_type"})
+	nrCrInQueue = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "radix_operator_cr_in_queue",
+		Help: "The distinct number of radix custom resources currently in queue.",
+	}, []string{"cr_type"})
 	recTimeBucket = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "radix_operator_reconciliation_duration_seconds_hist",
@@ -35,12 +39,18 @@ var (
 )
 
 func init() {
+	prometheus.MustRegister(nrCrInQueue)
 	prometheus.MustRegister(recTimeBucket)
 }
 
 // DefaultBuckets Holds the buckets used as default
 func DefaultBuckets() []float64 {
 	return []float64{0.03, 0.1, 0.3, 1, 2, 3, 5, 8, 15, 23}
+}
+
+// CustomResourceInQueue Sets the current size of the queue
+func CustomResourceInQueue(kind string, length int) {
+	nrCrInQueue.With(prometheus.Labels{"cr_type": kind}).Set(float64(length))
 }
 
 // CustomResourceAdded Increments metric to count the number of cr added
