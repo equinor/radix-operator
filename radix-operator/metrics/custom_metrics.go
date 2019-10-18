@@ -24,6 +24,10 @@ var (
 		Name: "radix_operator_errors",
 		Help: "The total number of radix operator errors",
 	}, []string{"err_type", "method"})
+	nrCrDeQueued = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "radix_operator_cr_de_queued",
+		Help: "The total number of radix custom resources removed from queue",
+	}, []string{"cr_type"})
 	recTimeBucket = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "radix_operator_reconciliation_duration_seconds_hist",
@@ -34,9 +38,13 @@ var (
 	)
 )
 
+func init() {
+	prometheus.MustRegister(recTimeBucket)
+}
+
 // DefaultBuckets Holds the buckets used as default
 func DefaultBuckets() []float64 {
-	return []float64{0.03, 0.1, 0.3, 1, 2, 3, 5, 8, 15}
+	return []float64{0.03, 0.1, 0.3, 1, 2, 3, 5, 8, 15, 23}
 }
 
 // CustomResourceAdded Increments metric to count the number of cr added
@@ -62,6 +70,11 @@ func CustomResourceUpdatedButSkipped(kind string) {
 // CustomResourceDeleted Increments metric to count the number of cr deleted
 func CustomResourceDeleted(kind string) {
 	nrCrDeleted.With(prometheus.Labels{"cr_type": kind}).Inc()
+}
+
+// CustomResourceRemovedFromQueue Decrements metric to count the number of cr in queue
+func CustomResourceRemovedFromQueue(kind string) {
+	nrCrDeQueued.With(prometheus.Labels{"cr_type": kind}).Inc()
 }
 
 // OperatorError Add error

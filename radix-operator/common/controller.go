@@ -92,6 +92,7 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
+			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
 			return nil
@@ -104,6 +105,7 @@ func (c *Controller) processNextWorkItem() bool {
 		}
 
 		c.WorkQueue.Forget(obj)
+		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 		c.Log.Infof("Successfully synced '%s'", key)
 		return nil
 	}(obj)
