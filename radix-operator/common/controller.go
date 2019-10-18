@@ -164,7 +164,7 @@ func (c *Controller) Enqueue(obj interface{}) (bool, error) {
 	c.WorkQueue.AddRateLimited(key)
 
 	requeues := c.WorkQueue.NumRequeues(key)
-	if requeues > 0 {
+	if requeues > 1 {
 		return true, nil
 	}
 
