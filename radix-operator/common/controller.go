@@ -92,7 +92,7 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
-			//metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
+			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
 			return nil
@@ -101,7 +101,7 @@ func (c *Controller) processNextWorkItem() bool {
 		if err := c.syncHandler(key); err != nil {
 			c.WorkQueue.AddRateLimited(key)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
-			//metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
+			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
 
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
