@@ -36,7 +36,7 @@ func init() {
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	kubeclient := fake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient)
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)

@@ -31,7 +31,7 @@ var synced chan bool
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client)
+	kubeUtil, _ := kube.New(client, radixClient)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
@@ -84,7 +84,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 	)
-	go startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
+	go startDeploymentController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
 
 	// Test
 
@@ -154,6 +154,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 }
 
 func startDeploymentController(client kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -162,7 +163,7 @@ func startDeploymentController(client kubernetes.Interface,
 	eventRecorder := &record.FakeRecorder{}
 
 	controller := NewController(
-		client, radixClient, &handler,
+		client, kubeutil, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixDeployments(),
 		kubeInformerFactory.Core().V1().Services(),
 		kubeInformerFactory.Core().V1().Namespaces(),

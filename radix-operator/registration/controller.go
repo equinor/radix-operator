@@ -3,6 +3,7 @@ package registration
 import (
 	"reflect"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
@@ -31,6 +32,7 @@ func init() {
 
 //NewController creates a new controller that handles RadixRegistrations
 func NewController(client kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixClient radixclient.Interface, handler common.Handler,
 	registrationInformer radixinformer.RadixRegistrationInformer,
 	namespaceInformer coreinformers.NamespaceInformer,

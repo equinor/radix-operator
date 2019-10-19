@@ -35,7 +35,7 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 	secretName := secret.ObjectMeta.Name
 	log.Debugf("Applies secret %s in namespace %s", secretName, namespace)
 
-	oldSecret, err := k.getSecret(namespace, secretName)
+	oldSecret, err := k.GetSecret(namespace, secretName)
 	if err != nil && errors.IsNotFound(err) {
 		savedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Create(secret)
 		return savedSecret, err
@@ -63,22 +63,23 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (*corev1.Sec
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		log.Debugf("#########YALLA##########Patch secret with %s", string(patchBytes))
+		log.Infof("#########YALLA##########Patch secret with %s", string(patchBytes))
 		patchedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Patch(secretName, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to patch secret object: %v", err)
 		}
 
-		log.Debugf("#########YALLA##########Patched secret: %s ", patchedSecret.Name)
+		log.Infof("#########YALLA##########Patched secret: %s ", patchedSecret.Name)
 		return patchedSecret, nil
 
 	}
 
-	log.Debugf("#########YALLA##########No need to patch secret: %s ", secretName)
+	log.Infof("#########YALLA##########No need to patch secret: %s ", secretName)
 	return oldSecret, nil
 }
 
-func (k *Kube) getSecret(namespace, name string) (*corev1.Secret, error) {
+// GetSecret Get secret from cache, if lister exist
+func (k *Kube) GetSecret(namespace, name string) (*corev1.Secret, error) {
 	var secret *corev1.Secret
 	var err error
 

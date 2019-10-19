@@ -31,7 +31,7 @@ var synced chan bool
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client)
+	kubeUtil, _ := kube.New(client, radixClient)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
@@ -64,7 +64,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(client, radixClient, jobHandler, stop)
+	go startJobController(client, kubeUtil, radixClient, jobHandler, stop)
 
 	// Test
 
@@ -105,14 +105,15 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
+func startJobController(client kubernetes.Interface, kubeutil *kube.Kube,
+	radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
 	controller := NewController(
-		client, radixClient, &handler,
+		client, kubeutil, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixJobs(),
 		kubeInformerFactory.Batch().V1().Jobs(),
 		kubeInformerFactory.Core().V1().Pods(),

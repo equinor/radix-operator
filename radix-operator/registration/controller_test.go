@@ -29,7 +29,7 @@ var synced chan bool
 func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client)
+	kubeUtil, _ := kube.New(client, radixClient)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
@@ -57,7 +57,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 	)
-	go startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+	go startRegistrationController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
 
 	// Test
 
@@ -101,6 +101,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 func startRegistrationController(
 	client kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -108,7 +109,7 @@ func startRegistrationController(
 
 	eventRecorder := &record.FakeRecorder{}
 
-	controller := NewController(client, radixClient, &handler,
+	controller := NewController(client, kubeutil, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixRegistrations(),
 		kubeInformerFactory.Core().V1().Namespaces(), eventRecorder)
 

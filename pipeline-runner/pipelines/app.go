@@ -31,7 +31,7 @@ type PipelineRunner struct {
 func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface,
 	definfition *pipeline.Definition, radixApplication *v1.RadixApplication) PipelineRunner {
 
-	kubeUtil, _ := kube.New(kubeclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient)
 	handler := PipelineRunner{
 		definfition:              definfition,
 		kubeclient:               kubeclient,

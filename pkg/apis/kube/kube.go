@@ -65,9 +65,10 @@ func init() {
 }
 
 // New Constructor
-func New(client kubernetes.Interface) (*Kube, error) {
+func New(client kubernetes.Interface, radixClient radixclient.Interface) (*Kube, error) {
 	kube := &Kube{
-		kubeClient: client,
+		kubeClient:  client,
+		radixclient: radixClient,
 	}
 	return kube, nil
 }
