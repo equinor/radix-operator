@@ -1274,13 +1274,13 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	anyEnvironment := "dev"
 	anyLimit := 3
 
-	tu, client, radixclient := setupTest()
+	tu, client, kubeUtils, radixclient := setupTest()
 
 	// Current cluster is active cluster
 	os.Setenv(defaults.DeploymentsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironment)
-	applyDeploymentWithSync(tu, client, radixclient,
+	applyDeploymentWithSync(tu, client, kubeUtils, radixclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("firstdeployment").
 			WithAppName(anyAppName).
@@ -1291,7 +1291,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")))
 
-	applyDeploymentWithSync(tu, client, radixclient,
+	applyDeploymentWithSync(tu, client, kubeUtils, radixclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("seconddeployment").
 			WithAppName(anyAppName).
@@ -1302,7 +1302,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")))
 
-	applyDeploymentWithSync(tu, client, radixclient,
+	applyDeploymentWithSync(tu, client, kubeUtils, radixclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("thirddeployment").
 			WithAppName(anyAppName).
@@ -1313,7 +1313,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")))
 
-	applyDeploymentWithSync(tu, client, radixclient,
+	applyDeploymentWithSync(tu, client, kubeUtils, radixclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("fourthdeployment").
 			WithAppName(anyAppName).
@@ -1332,7 +1332,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	assert.True(t, radixDeploymentByNameExists("thirddeployment", deployments))
 	assert.True(t, radixDeploymentByNameExists("fourthdeployment", deployments))
 
-	applyDeploymentWithSync(tu, client, radixclient,
+	applyDeploymentWithSync(tu, client, kubeUtils, radixclient,
 		utils.ARadixDeployment().
 			WithDeploymentName("fifthdeployment").
 			WithAppName(anyAppName).

@@ -95,21 +95,21 @@ func TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning(t *testing.T)
 func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	anyLimit := 3
 
-	tu, client, radixclient := setupTest()
+	tu, client, kubeutils, radixclient := setupTest()
 
 	// Current cluster is active cluster
 	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
 
-	firstJob, _ := applyJobWithSync(tu, client, radixclient,
+	firstJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
 
 	jobs, _ := radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
@@ -120,7 +120,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	assert.True(t, radixJobByNameExists("ThirdJob", jobs))
 	assert.True(t, radixJobByNameExists("FourthJob", jobs))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
 
 	jobs, _ = radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
@@ -135,7 +135,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	teardownTest()
 }
 
-func applyJobWithSync(tu *test.Utils, client kube.Interface,
+func applyJobWithSync(tu *test.Utils, client kube.Interface, kubeutils *kubeUtils.Kube,
 	radixclient radixclient.Interface, jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
 	rj, err := tu.ApplyJob(jobBuilder)
 	if err != nil {
