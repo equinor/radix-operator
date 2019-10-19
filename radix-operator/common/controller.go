@@ -92,7 +92,6 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
-			metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
@@ -101,7 +100,6 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if err := c.syncHandler(key); err != nil {
 			c.WorkQueue.AddRateLimited(key)
-			metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
@@ -110,7 +108,6 @@ func (c *Controller) processNextWorkItem() bool {
 		}
 
 		c.WorkQueue.Forget(obj)
-		metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
 		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 		c.Log.Infof("Successfully synced '%s'", key)
 		return nil
@@ -155,17 +152,17 @@ func (c *Controller) syncHandler(key string) error {
 
 // Enqueue takes a resource and converts it into a namespace/name
 // string which is then put onto the work queue
-func (c *Controller) Enqueue(obj interface{}) {
+func (c *Controller) Enqueue(obj interface{}) (requed bool, err error) {
 	var key string
-	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 		utilruntime.HandleError(err)
 		metrics.OperatorError(c.HandlerOf, "enqueue", fmt.Sprintf("problems_sync_%s", key))
-		return
+		return requed, err
 	}
 
+	requed = (c.WorkQueue.NumRequeues(key) > 0)
 	c.WorkQueue.AddRateLimited(key)
-	metrics.CustomResourceInQueue(c.HandlerOf, c.WorkQueue.Len())
+	return requed, nil
 }
 
 // HandleObject ensures that when anything happens to object which any
@@ -200,7 +197,11 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			return
 		}
 
-		c.Enqueue(obj)
+		requed, err := c.Enqueue(obj)
+		if err == nil && !requed {
+			metrics.CustomResourceUpdated(c.HandlerOf)
+		}
+
 		return
 	}
 }
