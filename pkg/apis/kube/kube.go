@@ -1,6 +1,7 @@
 package kube
 
 import (
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
@@ -40,6 +41,8 @@ const (
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
 	kubeClient               kubernetes.Interface
+	radixclient              radixclient.Interface
+	RrLister                 v1Lister.RadixRegistrationLister
 	RdLister                 v1Lister.RadixDeploymentLister
 	NamespaceLister          coreListers.NamespaceLister
 	ConfigMapLister          coreListers.ConfigMapLister
@@ -71,6 +74,8 @@ func New(client kubernetes.Interface) (*Kube, error) {
 
 // NewWithListers Constructor
 func NewWithListers(client kubernetes.Interface,
+	radixclient radixclient.Interface,
+	rrLister v1Lister.RadixRegistrationLister,
 	rdLister v1Lister.RadixDeploymentLister,
 	namespaceLister coreListers.NamespaceLister,
 	configMapLister coreListers.ConfigMapLister,
@@ -86,6 +91,8 @@ func NewWithListers(client kubernetes.Interface,
 	limitRangeLister coreListers.LimitRangeLister) (*Kube, error) {
 	kube := &Kube{
 		kubeClient:               client,
+		radixclient:              radixclient,
+		RrLister:                 rrLister,
 		RdLister:                 rdLister,
 		NamespaceLister:          namespaceLister,
 		ConfigMapLister:          configMapLister,
