@@ -92,7 +92,7 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
-			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
+			//metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
 			return nil
@@ -160,7 +160,7 @@ func (c *Controller) Enqueue(obj interface{}) (requed bool, err error) {
 		return requed, err
 	}
 
-	requed = (c.WorkQueue.NumRequeues(key) > 1)
+	requed = (c.WorkQueue.NumRequeues(key) > 0)
 	c.WorkQueue.AddRateLimited(key)
 	return requed, nil
 }
