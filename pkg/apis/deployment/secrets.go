@@ -20,11 +20,6 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 	envName := deployment.Spec.Environment
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
-	err := deploy.createDockerSecret(registration, ns)
-	if err != nil {
-		return err
-	}
-
 	log.Debugf("Apply empty secrets based on radix deployment obj")
 	for _, component := range deployment.Spec.Components {
 		secretsToManage := make([]string, 0)
@@ -72,7 +67,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 			}
 		}
 
-		err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component, secretsToManage)
+		err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component, secretsToManage)
 		if err != nil {
 			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
 		}
@@ -190,23 +185,6 @@ func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployC
 func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
 	labelSelector := getLabelSelectorForExternalAlias(component)
 	return deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
-}
-
-func (deploy *Deployment) createDockerSecret(registration *radixv1.RadixRegistration, ns string) error {
-	dockerSecret, err := deploy.kubeclient.CoreV1().Secrets("default").Get("radix-docker", metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("Could not find container registry credentials: %v", err)
-	}
-	dockerSecret.ResourceVersion = ""
-	dockerSecret.Namespace = ns
-	dockerSecret.UID = ""
-	saveDockerSecret, err := deploy.kubeutil.ApplySecret(ns, dockerSecret)
-	if err != nil {
-		return fmt.Errorf("Failed to create container registry credentials secret in %s: %v", ns, err)
-	}
-
-	log.Debugf("Created container registry credentials secret: %s in namespace %s", saveDockerSecret.Name, ns)
-	return nil
 }
 
 func (deploy *Deployment) createSecret(ns, app, component, secretName string, isExternalAlias bool) error {

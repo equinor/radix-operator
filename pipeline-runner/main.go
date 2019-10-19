@@ -24,7 +24,7 @@ import (
 // - access to create RD in all namespaces
 // - access to create new namespaces
 // - a secret git-ssh-keys containing deployment key to git repo provided in RR
-// - a secret radix-docker with credentials to access our private ACR
+// - a secret radix-sp-acr-azure with credentials to access our private ACR
 func main() {
 	runner, err := prepareRunner()
 	if err != nil {

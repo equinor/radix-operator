@@ -11,6 +11,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,6 +52,7 @@ func NewController(client kubernetes.Interface,
 
 	controller := &common.Controller{
 		Name:        controllerAgentName,
+		HandlerOf:   crType,
 		KubeClient:  client,
 		RadixClient: radixClient,
 		Informer:    deploymentInformer.Informer(),
@@ -66,26 +68,30 @@ func NewController(client kubernetes.Interface,
 			radixDeployment, _ := cur.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(radixDeployment) {
 				logger.Debugf("Skip deployment object %s as it is inactive", radixDeployment.GetName())
+				metrics.CustomResourceAddedButSkipped(crType)
 				return
 			}
 
 			controller.Enqueue(cur)
-			controller.CustomResourceAdded(crType)
+			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRD := cur.(*v1.RadixDeployment)
 			oldRD := old.(*v1.RadixDeployment)
 			if deployment.IsRadixDeploymentInactive(newRD) {
 				logger.Debugf("Skip deployment object %s as it is inactive", newRD.GetName())
+				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
 
 			if deepEqual(oldRD, newRD) {
 				logger.Debugf("Deployment object is equal to old for %s. Do nothing", newRD.GetName())
+				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
 
 			controller.Enqueue(cur)
+			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
 			radixDeployment, _ := obj.(*v1.RadixDeployment)
@@ -93,7 +99,7 @@ func NewController(client kubernetes.Interface,
 			if err == nil {
 				logger.Debugf("Deployment object deleted event received for %s. Do nothing", key)
 			}
-			controller.CustomResourceDeleted(crType)
+			metrics.CustomResourceDeleted(crType)
 		},
 	})
 
