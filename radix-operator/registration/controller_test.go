@@ -110,8 +110,7 @@ func startRegistrationController(
 	eventRecorder := &record.FakeRecorder{}
 
 	controller := NewController(client, kubeutil, radixClient, &handler,
-		radixInformerFactory.Radix().V1().RadixRegistrations(),
-		kubeInformerFactory.Core().V1().Namespaces(), eventRecorder)
+		kubeInformerFactory, radixInformerFactory, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)

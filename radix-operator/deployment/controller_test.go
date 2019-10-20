@@ -164,9 +164,8 @@ func startDeploymentController(client kubernetes.Interface,
 
 	controller := NewController(
 		client, kubeutil, radixClient, &handler,
-		radixInformerFactory.Radix().V1().RadixDeployments(),
-		kubeInformerFactory.Core().V1().Services(),
-		kubeInformerFactory.Core().V1().Namespaces(),
+		kubeInformerFactory,
+		radixInformerFactory,
 		eventRecorder)
 
 	kubeInformerFactory.Start(stop)

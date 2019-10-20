@@ -114,9 +114,8 @@ func startJobController(client kubernetes.Interface, kubeutil *kube.Kube,
 
 	controller := NewController(
 		client, kubeutil, radixClient, &handler,
-		radixInformerFactory.Radix().V1().RadixJobs(),
-		kubeInformerFactory.Batch().V1().Jobs(),
-		kubeInformerFactory.Core().V1().Pods(),
+		kubeInformerFactory,
+		radixInformerFactory,
 		eventRecorder)
 
 	kubeInformerFactory.Start(stop)
