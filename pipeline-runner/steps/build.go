@@ -202,14 +202,6 @@ func createBuildJob(containerRegistry, appName, jobName string, components []v1.
 								},
 							},
 						},
-						{
-							Name: "docker-config",
-							VolumeSource: corev1.VolumeSource{
-								Secret: &corev1.SecretVolumeSource{
-									SecretName: "radix-docker",
-								},
-							},
-						},
 					},
 				},
 			},
