@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -50,7 +49,7 @@ func NewHandler(
 
 // Sync Is created on sync of resource
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(name, metav1.GetOptions{})
+	radixApplication, err := t.kubeutil.GetApplication(namespace, name)
 	if err != nil {
 		// The Application resource may no longer exist, in which case we stop
 		// processing.
@@ -62,7 +61,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(radixApplication.Name, metav1.GetOptions{})
+	radixRegistration, err := t.kubeutil.GetRegistration(radixApplication.Name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.

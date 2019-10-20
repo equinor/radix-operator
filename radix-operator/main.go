@@ -78,19 +78,9 @@ func startRegistrationController(
 
 	kubeUtil, _ := kube.NewWithListers(
 		client,
-		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
-		kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
-		kubeInformerFactory.Core().V1().Secrets().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
-		kubeInformerFactory.Core().V1().Services().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
-		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().Roles().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoles().Lister(),
-		kubeInformerFactory.Core().V1().ServiceAccounts().Lister(),
-		kubeInformerFactory.Core().V1().LimitRanges().Lister(),
+		radixClient,
+		kubeInformerFactory,
+		radixInformerFactory,
 	)
 
 	handler := registration.NewHandler(
@@ -102,10 +92,11 @@ func startRegistrationController(
 
 	registrationController := registration.NewController(
 		client,
+		kubeUtil,
 		radixClient,
 		&handler,
-		radixInformerFactory.Radix().V1().RadixRegistrations(),
-		kubeInformerFactory.Core().V1().Namespaces(),
+		kubeInformerFactory,
+		radixInformerFactory,
 		recorder)
 
 	kubeInformerFactory.Start(stop)
@@ -127,19 +118,9 @@ func startApplicationController(
 
 	kubeUtil, _ := kube.NewWithListers(
 		client,
-		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
-		kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
-		kubeInformerFactory.Core().V1().Secrets().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
-		kubeInformerFactory.Core().V1().Services().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
-		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().Roles().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoles().Lister(),
-		kubeInformerFactory.Core().V1().ServiceAccounts().Lister(),
-		kubeInformerFactory.Core().V1().LimitRanges().Lister(),
+		radixClient,
+		kubeInformerFactory,
+		radixInformerFactory,
 	)
 
 	handler := application.NewHandler(client,
@@ -149,10 +130,11 @@ func startApplicationController(
 	)
 	applicationController := application.NewController(
 		client,
+		kubeUtil,
 		radixClient,
 		&handler,
-		radixInformerFactory.Radix().V1().RadixApplications(),
-		kubeInformerFactory.Core().V1().Namespaces(),
+		kubeInformerFactory,
+		radixInformerFactory,
 		recorder)
 
 	kubeInformerFactory.Start(stop)
@@ -175,19 +157,9 @@ func startDeploymentController(
 
 	kubeUtil, _ := kube.NewWithListers(
 		client,
-		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
-		kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
-		kubeInformerFactory.Core().V1().Secrets().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
-		kubeInformerFactory.Core().V1().Services().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
-		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().Roles().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoles().Lister(),
-		kubeInformerFactory.Core().V1().ServiceAccounts().Lister(),
-		kubeInformerFactory.Core().V1().LimitRanges().Lister(),
+		radixClient,
+		kubeInformerFactory,
+		radixInformerFactory,
 	)
 
 	handler := deployment.NewHandler(client,
@@ -197,11 +169,11 @@ func startDeploymentController(
 	)
 	deployController := deployment.NewController(
 		client,
+		kubeUtil,
 		radixClient,
 		&handler,
-		radixInformerFactory.Radix().V1().RadixDeployments(),
-		kubeInformerFactory.Core().V1().Services(),
-		kubeInformerFactory.Core().V1().Namespaces(),
+		kubeInformerFactory,
+		radixInformerFactory,
 		recorder)
 
 	kubeInformerFactory.Start(stop)
@@ -223,19 +195,9 @@ func startJobController(
 
 	kubeUtil, _ := kube.NewWithListers(
 		client,
-		radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
-		kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
-		kubeInformerFactory.Core().V1().Secrets().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Deployments().Lister(),
-		kubeInformerFactory.Core().V1().Services().Lister(),
-		kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
-		kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
-		kubeInformerFactory.Rbac().V1().Roles().Lister(),
-		kubeInformerFactory.Rbac().V1().ClusterRoles().Lister(),
-		kubeInformerFactory.Core().V1().ServiceAccounts().Lister(),
-		kubeInformerFactory.Core().V1().LimitRanges().Lister(),
+		radixClient,
+		kubeInformerFactory,
+		radixInformerFactory,
 	)
 
 	handler := job.NewHandler(client,
@@ -245,11 +207,11 @@ func startJobController(
 
 	jobController := job.NewController(
 		client,
+		kubeUtil,
 		radixClient,
 		&handler,
-		radixInformerFactory.Radix().V1().RadixJobs(),
-		kubeInformerFactory.Batch().V1().Jobs(),
-		kubeInformerFactory.Core().V1().Pods(),
+		kubeInformerFactory,
+		radixInformerFactory,
 		recorder)
 
 	kubeInformerFactory.Start(stop)

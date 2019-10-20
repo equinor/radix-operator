@@ -19,7 +19,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -191,7 +190,7 @@ func (deploy *Deployment) restoreStatus() bool {
 
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 	stopReconciliation = false
-	allRDs, err := deploy.listRadixDeployments()
+	allRDs, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
 
 	log.Info("Done listing deployments")
 
@@ -389,27 +388,6 @@ func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
 		return rd.CreationTimestamp
 	}
 	return rd.Status.ActiveFrom
-}
-
-func (deploy *Deployment) listRadixDeployments() ([]*v1.RadixDeployment, error) {
-	var allRDs []*v1.RadixDeployment
-	var err error
-
-	if deploy.kubeutil.RdLister != nil {
-		allRDs, err = deploy.kubeutil.RdLister.RadixDeployments(deploy.getNamespace()).List(labels.NewSelector())
-		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-		}
-	} else {
-		rds, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).List(metav1.ListOptions{})
-		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-		}
-
-		allRDs = slice.PointersOf(rds.Items).([]*v1.RadixDeployment)
-	}
-
-	return allRDs, err
 }
 
 func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {

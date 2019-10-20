@@ -11,7 +11,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -51,7 +50,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 
 // Sync Is created on sync of resource
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(name, metav1.GetOptions{})
+	radixJob, err := t.kubeutil.GetJob(namespace, name)
 	if err != nil {
 		// The Job resource may no longer exist, in which case we stop
 		// processing.

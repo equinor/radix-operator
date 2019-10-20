@@ -24,3 +24,13 @@ func PointersOf(v interface{}) interface{} {
 	}
 	return out.Interface()
 }
+
+// ValuesOf Returnes a value of
+func ValuesOf(v interface{}) interface{} {
+	in := reflect.ValueOf(v)
+	out := reflect.MakeSlice(reflect.SliceOf(in.Type().Elem()), in.Len(), in.Len())
+	for i := 0; i < in.Len(); i++ {
+		out.Index(i).Set(in.Index(i))
+	}
+	return out.Interface()
+}

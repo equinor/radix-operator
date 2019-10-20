@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -496,14 +498,14 @@ func (job *Job) maintainHistoryLimit() {
 			return
 		}
 
-		allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(metav1.ListOptions{})
+		allJobs, err := job.kubeutil.ListRadixJobs(job.radixJob.Namespace)
 		if err != nil {
 			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
 			return
 		}
 
-		if len(allRJs.Items) > limit {
-			jobs := allRJs.Items
+		if len(allJobs) > limit {
+			jobs := slice.ValuesOf(allJobs).([]v1.RadixJob)
 			numToDelete := len(jobs) - limit
 			if numToDelete <= 0 {
 				return
