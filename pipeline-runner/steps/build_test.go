@@ -25,7 +25,7 @@ func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, test.Util
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(anyClusterName, anyContainerRegistry)
-	kubeUtil, _ := kube.New(kubeclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient)
 
 	return kubeclient, kubeUtil, radixclient, testUtils
 }

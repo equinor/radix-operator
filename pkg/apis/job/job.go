@@ -32,7 +32,7 @@ type Job struct {
 
 // NewJob Constructor
 func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, radixJob *v1.RadixJob) Job {
-	kubeutil, _ := kube.New(kubeclient)
+	kubeutil, _ := kube.New(kubeclient, radixclient)
 
 	return Job{
 		kubeclient,

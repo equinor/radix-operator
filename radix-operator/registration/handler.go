@@ -6,6 +6,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,6 +28,7 @@ const (
 // Handler Handler for radix registrations
 type Handler struct {
 	kubeclient  kubernetes.Interface
+	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
 	hasSynced   common.HasSynced
 }
@@ -34,11 +36,13 @@ type Handler struct {
 //NewHandler creates a handler which deals with RadixRegistration resources
 func NewHandler(
 	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:  kubeclient,
+		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		hasSynced:   hasSynced,
 	}

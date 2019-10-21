@@ -3,6 +3,7 @@ package registration
 import (
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -25,18 +26,19 @@ const (
 
 var synced chan bool
 
-func setupTest() (kubernetes.Interface, radixclient.Interface) {
+func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
+	kubeUtil, _ := kube.New(client, radixClient)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return client, radixClient
+	return client, kubeUtil, radixClient
 }
 
 func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
-	client, radixClient := setupTest()
+	client, kubeUtil, radixClient := setupTest()
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -44,14 +46,18 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	defer close(stop)
 	defer close(synced)
 
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
+
 	registrationHandler := NewHandler(
 		client,
+		kubeUtil,
 		radixClient,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
 	)
-	go startRegistrationController(client, radixClient, registrationHandler, stop)
+	go startRegistrationController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
 
 	// Test
 
@@ -93,15 +99,20 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, op)
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
+func startRegistrationController(
+	client kubernetes.Interface,
+	kubeutil *kube.Kube,
+	radixClient radixclient.Interface,
+	radixInformerFactory informers.SharedInformerFactory,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	handler Handler,
+	stop chan struct{}) {
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
-	controller := NewController(client, radixClient, &handler,
-		radixInformerFactory.Radix().V1().RadixRegistrations(),
-		kubeInformerFactory.Core().V1().Namespaces(), eventRecorder)
+	waitForChildrenToSync := false
+	controller := NewController(client, kubeutil, radixClient, &handler,
+		kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)

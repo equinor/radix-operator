@@ -30,7 +30,7 @@ func NewApplication(
 	kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	registration *v1.RadixRegistration) (Application, error) {
-	kubeutil, err := kube.New(kubeclient)
+	kubeutil, err := kube.New(kubeclient, radixclient)
 	if err != nil {
 		return Application{}, err
 	}

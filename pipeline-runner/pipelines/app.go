@@ -105,7 +105,7 @@ func initStepImplementations(
 	registration *v1.RadixRegistration,
 	radixApplication *v1.RadixApplication) []model.Step {
 
-	kubeUtil, _ := kube.New(kubeclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient)
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())

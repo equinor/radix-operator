@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -25,15 +26,17 @@ type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
 
 // Controller Instance variables
 type Controller struct {
-	Name        string
-	HandlerOf   string
-	KubeClient  kubernetes.Interface
-	RadixClient radixclient.Interface
-	WorkQueue   workqueue.RateLimitingInterface
-	Informer    cache.SharedIndexInformer
-	Handler     Handler
-	Log         *log.Entry
-	Recorder    record.EventRecorder
+	Name                  string
+	HandlerOf             string
+	KubeClient            kubernetes.Interface
+	RadixClient           radixclient.Interface
+	WorkQueue             workqueue.RateLimitingInterface
+	Informer              cache.SharedIndexInformer
+	KubeInformerFactory   kubeinformers.SharedInformerFactory
+	Handler               Handler
+	Log                   *log.Entry
+	WaitForChildrenToSync bool
+	Recorder              record.EventRecorder
 }
 
 // NewEventRecorder Creates an event recorder for controller
@@ -54,9 +57,21 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	// Start the informer factories to begin populating the informer caches
 	c.Log.Debugf("Starting %s", c.Name)
 
+	cacheSyncs := []cache.InformerSynced{
+		c.hasSynced,
+		c.Informer.HasSynced,
+	}
+
+	if c.WaitForChildrenToSync {
+		cacheSyncs = append(cacheSyncs,
+			c.KubeInformerFactory.Core().V1().Namespaces().Informer().HasSynced,
+			c.KubeInformerFactory.Core().V1().Secrets().Informer().HasSynced)
+	}
+
 	// Wait for the caches to be synced before starting workers
 	c.Log.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.hasSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh,
+		cacheSyncs...); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
