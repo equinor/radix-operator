@@ -50,6 +50,7 @@ func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
+	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 
 	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
@@ -57,16 +58,17 @@ func NewController(client kubernetes.Interface,
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	controller := &common.Controller{
-		Name:                controllerAgentName,
-		HandlerOf:           crType,
-		KubeClient:          client,
-		RadixClient:         radixClient,
-		Informer:            jobInformer.Informer(),
-		KubeInformerFactory: kubeInformerFactory,
-		WorkQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
-		Handler:             handler,
-		Log:                 logger,
-		Recorder:            recorder,
+		Name:                  controllerAgentName,
+		HandlerOf:             crType,
+		KubeClient:            client,
+		RadixClient:           radixClient,
+		Informer:              jobInformer.Informer(),
+		KubeInformerFactory:   kubeInformerFactory,
+		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		Handler:               handler,
+		Log:                   logger,
+		WaitForChildrenToSync: waitForChildrenToSync,
+		Recorder:              recorder,
 	}
 
 	logger.Info("Setting up event handlers")

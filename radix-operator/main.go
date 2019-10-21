@@ -90,6 +90,7 @@ func startRegistrationController(
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
 	)
 
+	waitForChildrenToSync := true
 	registrationController := registration.NewController(
 		client,
 		kubeUtil,
@@ -97,6 +98,7 @@ func startRegistrationController(
 		&handler,
 		kubeInformerFactory,
 		radixInformerFactory,
+		waitForChildrenToSync,
 		recorder)
 
 	kubeInformerFactory.Start(stop)
@@ -128,6 +130,8 @@ func startApplicationController(
 		radixClient,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
 	)
+
+	waitForChildrenToSync := true
 	applicationController := application.NewController(
 		client,
 		kubeUtil,
@@ -135,6 +139,7 @@ func startApplicationController(
 		&handler,
 		kubeInformerFactory,
 		radixInformerFactory,
+		waitForChildrenToSync,
 		recorder)
 
 	kubeInformerFactory.Start(stop)
@@ -167,6 +172,8 @@ func startDeploymentController(
 		radixClient, prometheusOperatorClient,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
 	)
+
+	waitForChildrenToSync := true
 	deployController := deployment.NewController(
 		client,
 		kubeUtil,
@@ -174,6 +181,7 @@ func startDeploymentController(
 		&handler,
 		kubeInformerFactory,
 		radixInformerFactory,
+		waitForChildrenToSync,
 		recorder)
 
 	kubeInformerFactory.Start(stop)
@@ -205,6 +213,7 @@ func startJobController(
 		radixClient,
 		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 
+	waitForChildrenToSync := true
 	jobController := job.NewController(
 		client,
 		kubeUtil,
@@ -212,6 +221,7 @@ func startJobController(
 		&handler,
 		kubeInformerFactory,
 		radixInformerFactory,
+		waitForChildrenToSync,
 		recorder)
 
 	kubeInformerFactory.Start(stop)

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -258,16 +256,16 @@ func (job *Job) deleteStepJobs() error {
 }
 
 func (job *Job) setNextJobToRunning() error {
-	rjList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(metav1.ListOptions{})
+	jobs, err := job.kubeutil.ListRadixJobs(job.radixJob.GetNamespace())
 	if err != nil {
 		return err
 	}
 
-	rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
-	for _, otherRj := range rjs {
+	jobs = sortJobsByActiveFromTimestampAsc(jobs)
+	for _, otherRj := range jobs {
 		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued {
 			otherRj.Status.Condition = v1.JobRunning
-			err = saveStatus(job.radixclient, &otherRj)
+			err = saveStatus(job.radixclient, otherRj)
 			break
 		}
 	}
@@ -275,9 +273,9 @@ func (job *Job) setNextJobToRunning() error {
 	return nil
 }
 
-func sortJobsByActiveFromTimestampAsc(rjs []v1.RadixJob) []v1.RadixJob {
+func sortJobsByActiveFromTimestampAsc(rjs []*v1.RadixJob) []*v1.RadixJob {
 	sort.Slice(rjs, func(i, j int) bool {
-		return isRJ1ActiveAfterRJ2(&rjs[j], &rjs[i])
+		return isRJ1ActiveAfterRJ2(rjs[j], rjs[i])
 	})
 	return rjs
 }
@@ -498,14 +496,13 @@ func (job *Job) maintainHistoryLimit() {
 			return
 		}
 
-		allJobs, err := job.kubeutil.ListRadixJobs(job.radixJob.Namespace)
+		jobs, err := job.kubeutil.ListRadixJobs(job.radixJob.Namespace)
 		if err != nil {
 			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
 			return
 		}
 
-		if len(allJobs) > limit {
-			jobs := slice.ValuesOf(allJobs).([]v1.RadixJob)
+		if len(jobs) > limit {
 			numToDelete := len(jobs) - limit
 			if numToDelete <= 0 {
 				return

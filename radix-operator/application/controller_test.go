@@ -109,8 +109,9 @@ func startApplicationController(
 	handler Handler, stop chan struct{}) {
 	eventRecorder := &record.FakeRecorder{}
 
+	waitForChildrenToSync := false
 	controller := NewController(client, kubeutil, radixClient, &handler,
-		kubeInformerFactory, radixInformerFactory, eventRecorder)
+		kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)

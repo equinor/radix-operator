@@ -162,10 +162,12 @@ func startDeploymentController(client kubernetes.Interface,
 
 	eventRecorder := &record.FakeRecorder{}
 
+	waitForChildrenToSync := false
 	controller := NewController(
 		client, kubeutil, radixClient, &handler,
 		kubeInformerFactory,
 		radixInformerFactory,
+		waitForChildrenToSync,
 		eventRecorder)
 
 	kubeInformerFactory.Start(stop)

@@ -112,10 +112,12 @@ func startJobController(client kubernetes.Interface, kubeutil *kube.Kube,
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
+	waitForChildrenToSync := false
 	controller := NewController(
 		client, kubeutil, radixClient, &handler,
 		kubeInformerFactory,
 		radixInformerFactory,
+		waitForChildrenToSync,
 		eventRecorder)
 
 	kubeInformerFactory.Start(stop)
