@@ -65,7 +65,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncJob := radixJob.DeepCopy()
 	logger.Debugf("Sync job %s", syncJob.Name)
 
-	job := job.NewJob(t.kubeclient, t.radixclient, syncJob)
+	job := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob)
 	err = job.OnSync()
 	if err != nil {
 		// Put back on queue

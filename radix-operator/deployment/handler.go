@@ -87,7 +87,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	deployment, err := deployment.NewDeployment(t.kubeclient, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
+	deployment, err := deployment.NewDeployment(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
 	if err != nil {
 		return err
 	}

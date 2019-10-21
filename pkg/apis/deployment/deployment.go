@@ -38,11 +38,12 @@ type Deployment struct {
 }
 
 // NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment) (Deployment, error) {
-	kubeutil, err := kube.New(kubeclient, radixclient)
-	if err != nil {
-		return Deployment{}, err
-	}
+func NewDeployment(kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
+	radixclient radixclient.Interface,
+	prometheusperatorclient monitoring.Interface,
+	registration *v1.RadixRegistration,
+	radixDeployment *v1.RadixDeployment) (Deployment, error) {
 
 	return Deployment{
 		kubeclient,

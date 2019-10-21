@@ -31,8 +31,11 @@ type Job struct {
 }
 
 // NewJob Constructor
-func NewJob(kubeclient kubernetes.Interface, radixclient radixclient.Interface, radixJob *v1.RadixJob) Job {
-	kubeutil, _ := kube.New(kubeclient, radixclient)
+func NewJob(
+	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
+	radixclient radixclient.Interface,
+	radixJob *v1.RadixJob) Job {
 
 	return Job{
 		kubeclient,

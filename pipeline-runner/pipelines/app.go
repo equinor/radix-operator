@@ -63,14 +63,15 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.kubeUtil, cli.radixclient, radixRegistration, cli.radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(cli.kubeclient, cli.kubeUtil,
+		cli.radixclient, radixRegistration, cli.radixApplication)
 	if err != nil {
 		return err
 	}
 
 	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(pipelineArgs.Branch)
 
-	stepImplementations := initStepImplementations(cli.kubeclient, cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
+	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
 	cli.pipelineInfo, err = model.InitPipeline(
 		cli.definfition,
 		targetEnvironments,
@@ -104,12 +105,12 @@ func (cli *PipelineRunner) Run() error {
 
 func initStepImplementations(
 	kubeclient kubernetes.Interface,
+	kubeUtil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusOperatorClient monitoring.Interface,
 	registration *v1.RadixRegistration,
 	radixApplication *v1.RadixApplication) []model.Step {
 
-	kubeUtil, _ := kube.New(kubeclient, radixclient)
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
