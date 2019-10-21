@@ -55,7 +55,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	cli := NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{
@@ -135,7 +135,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	cli := NewDeployStep(FakeNamespaceWatcher{})
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
 
 	pipelineInfo := &model.PipelineInfo{

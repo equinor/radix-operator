@@ -38,11 +38,6 @@ func NewApplicationConfig(
 	radixclient radixclient.Interface,
 	registration *v1.RadixRegistration,
 	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
-	if err != nil {
-		log.Errorf("Failed initializing ApplicationConfig")
-		return nil, err
-	}
-
 	return &ApplicationConfig{
 		kubeclient,
 		radixclient,

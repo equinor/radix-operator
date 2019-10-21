@@ -66,7 +66,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncRegistration := registration.DeepCopy()
 	logger.Debugf("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.radixclient, syncRegistration)
+	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
 		// Put back on queue.

@@ -35,13 +35,13 @@ type Handler struct {
 
 // NewHandler Constructor
 func NewHandler(kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface, hasSynced common.HasSynced) Handler {
-	kube, _ := kube.New(kubeclient, radixclient)
 
 	handler := Handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
-		kubeutil:    kube,
+		kubeutil:    kubeutil,
 		hasSynced:   hasSynced,
 	}
 
