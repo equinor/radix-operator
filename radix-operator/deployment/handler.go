@@ -12,7 +12,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -75,7 +74,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncRD := rd.DeepCopy()
 	logger.Debugf("Sync deployment %s", syncRD.Name)
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(syncRD.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.kubeutil.GetRegistration(syncRD.Spec.AppName)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
