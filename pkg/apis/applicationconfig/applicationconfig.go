@@ -38,7 +38,6 @@ func NewApplicationConfig(
 	radixclient radixclient.Interface,
 	registration *v1.RadixRegistration,
 	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
-
 	return &ApplicationConfig{
 		kubeclient,
 		radixclient,

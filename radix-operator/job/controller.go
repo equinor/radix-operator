@@ -10,6 +10,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
