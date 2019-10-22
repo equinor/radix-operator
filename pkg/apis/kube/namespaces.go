@@ -29,50 +29,70 @@ func (kube *Kube) ApplyNamespace(name string, annotations map[string]string, lab
 			Labels:          labels,
 		},
 	}
-	_, err := kube.kubeClient.CoreV1().Namespaces().Create(&namespace)
 
-	if k8errs.IsAlreadyExists(err) {
-		log.Debugf("Namespace object %s already exists, updating the object now", name)
-		oldNamespace, err := kube.kubeClient.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("Failed to get old Ingress object: %v", err)
-		}
-
-		newNamespace := oldNamespace.DeepCopy()
-		newNamespace.ObjectMeta.OwnerReferences = ownerRefs
-		newNamespace.ObjectMeta.Labels = labels
-		newNamespace.ObjectMeta.Annotations = annotations
-
-		oldNamespaceJSON, err := json.Marshal(oldNamespace)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal old namespace object: %v", err)
-		}
-
-		newNamespaceJSON, err := json.Marshal(newNamespace)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal new namespace object: %v", err)
-		}
-
-		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldNamespaceJSON, newNamespaceJSON, corev1.Namespace{})
-		if err != nil {
-			return fmt.Errorf("Failed to create two way merge patch namespace objects: %v", err)
-		}
-
-		if !isEmptyPatch(patchBytes) {
-			patchedNamespace, err := kube.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
-			if err != nil {
-				return fmt.Errorf("Failed to patch namespace object: %v", err)
-			}
-
-			log.Debugf("Patched namespace: %s ", patchedNamespace.Name)
-		} else {
-			log.Debugf("No need to patch namespace: %s ", name)
-		}
-
-		return nil
+	oldNamespace, err := kube.getNamespace(name)
+	if err != nil && k8errs.IsNotFound(err) {
+		log.Debugf("Namespace object %s doesn't exists, create the object", name)
+		_, err := kube.kubeClient.CoreV1().Namespaces().Create(&namespace)
+		return err
 	}
 
-	return err
+	log.Debugf("Namespace object %s already exists, updating the object now", name)
+	if err != nil {
+		return fmt.Errorf("Failed to get old Ingress object: %v", err)
+	}
+
+	newNamespace := oldNamespace.DeepCopy()
+	newNamespace.ObjectMeta.OwnerReferences = ownerRefs
+	newNamespace.ObjectMeta.Labels = labels
+	newNamespace.ObjectMeta.Annotations = annotations
+
+	oldNamespaceJSON, err := json.Marshal(oldNamespace)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal old namespace object: %v", err)
+	}
+
+	newNamespaceJSON, err := json.Marshal(newNamespace)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal new namespace object: %v", err)
+	}
+
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldNamespaceJSON, newNamespaceJSON, corev1.Namespace{})
+	if err != nil {
+		return fmt.Errorf("Failed to create two way merge patch namespace objects: %v", err)
+	}
+
+	if !isEmptyPatch(patchBytes) {
+		patchedNamespace, err := kube.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
+		if err != nil {
+			return fmt.Errorf("Failed to patch namespace object: %v", err)
+		}
+
+		log.Debugf("Patched namespace: %s ", patchedNamespace.Name)
+	} else {
+		log.Debugf("No need to patch namespace: %s ", name)
+	}
+
+	return nil
+}
+
+func (kube *Kube) getNamespace(name string) (*corev1.Namespace, error) {
+	var namespace *corev1.Namespace
+	var err error
+
+	if kube.NamespaceLister != nil {
+		namespace, err = kube.NamespaceLister.Get(name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		namespace, err = kube.kubeClient.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return namespace, nil
 }
 
 // NamespaceWatcher Watcher to wait for namespace to be created
