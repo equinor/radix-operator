@@ -1,7 +1,6 @@
 package application
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -99,99 +98,6 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
 	assert.Equal(t, "9876-54321-09876", rolebindings.Items[1].Subjects[0].Name)
 
-}
-
-func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModified(t *testing.T) {
-	anyAppName := "any-app"
-
-	// Setup
-	tu, client, kubeUtil, radixClient := setupTest()
-
-	// Test
-	firstAdGroups := []string{"5678-91011-1234", "9876-54321-0987"}
-
-	rr, _ := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName(anyAppName).
-		WithAdGroups(firstAdGroups))
-
-	appNs, _ := client.CoreV1().Namespaces().Get(utils.GetAppNamespace(anyAppName), metav1.GetOptions{})
-	var setAdGroupsAnnotation []string
-	json.Unmarshal([]byte(appNs.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
-	assert.Equal(t, firstAdGroups, setAdGroupsAnnotation)
-
-	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
-	assert.Equal(t, 2, len(rolebindings.Items))
-	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
-	assert.Equal(t, "5678-91011-1234", rolebindings.Items[1].Subjects[0].Name)
-	assert.Equal(t, "9876-54321-0987", rolebindings.Items[1].Subjects[1].Name)
-
-	platformUser, err := client.RbacV1().ClusterRoleBindings().Get(fmt.Sprintf("radix-platform-user-rr-%s", anyAppName), metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, "5678-91011-1234", platformUser.Subjects[0].Name)
-	assert.Equal(t, "9876-54321-0987", platformUser.Subjects[1].Name)
-
-	secondAdGroups := []string{"1234-56789-0123"}
-	rr.Spec.AdGroups = secondAdGroups
-	updateRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
-
-	appNs, _ = client.CoreV1().Namespaces().Get(utils.GetAppNamespace(anyAppName), metav1.GetOptions{})
-	json.Unmarshal([]byte(appNs.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
-	assert.Equal(t, secondAdGroups, setAdGroupsAnnotation)
-
-	rolebindings, _ = client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
-	assert.Equal(t, 2, len(rolebindings.Items))
-	assert.Equal(t, "1234-56789-0123", rolebindings.Items[1].Subjects[0].Name)
-
-	platformUser, err = client.RbacV1().ClusterRoleBindings().Get(fmt.Sprintf("radix-platform-user-rr-%s", anyAppName), metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, "1234-56789-0123", platformUser.Subjects[0].Name)
-
-}
-
-func TestOnSync_UserGroupDefinedOrModified_UserGroupSetOrModifiedOnEnvironmentNamespace(t *testing.T) {
-	anyAppName := "any-app"
-
-	// Setup
-	tu, client, kubeUtil, radixClient := setupTest()
-
-	client.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "any-app-qa",
-			Labels: map[string]string{
-				kube.RadixAppLabel: anyAppName,
-				kube.RadixEnvLabel: "qa",
-			},
-		},
-	})
-
-	client.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "any-app-prod",
-			Labels: map[string]string{
-				kube.RadixAppLabel: anyAppName,
-				kube.RadixEnvLabel: "prod",
-			},
-		},
-	})
-
-	// Test
-	adGroups := []string{"5678-91011-1234", "9876-54321-0987"}
-
-	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName(anyAppName).
-		WithAdGroups(adGroups))
-
-	namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, anyAppName),
-	})
-
-	assert.Equal(t, 3, len(namespaces.Items))
-
-	for _, namespace := range namespaces.Items {
-		var setAdGroupsAnnotation []string
-		json.Unmarshal([]byte(namespace.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
-		assert.Equal(t, adGroups, setAdGroupsAnnotation)
-	}
 }
 
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {

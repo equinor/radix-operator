@@ -55,7 +55,6 @@ func NewController(client kubernetes.Interface,
 
 	deploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
-
 	serviceInformer := kubeInformerFactory.Core().V1().Services()
 
 	controller := &common.Controller{
@@ -145,19 +144,21 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			// // Trigger sync of active RD, living in the namespace
-			// rds, err := radixClient.RadixV1().RadixDeployments(newNs.Name).List(metav1.ListOptions{})
+			// Trigger sync of active RD, living in the namespaces of the app
+			rds, err := radixClient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
+			})
 
-			// if err == nil && len(rds.Items) > 0 {
-			// 	// Will sync the active RD (there can only be one)
-			// 	for _, rd := range rds.Items {
-			// 		if !deployment.IsRadixDeploymentInactive(&rd) {
-			// 			var obj metav1.Object
-			// 			obj = &rd
-			// 			controller.Enqueue(obj)
-			// 		}
-			// 	}
-			// }
+			if err == nil && len(rds.Items) > 0 {
+				// Will sync the active RD (there can only be one within each namespace)
+				for _, rd := range rds.Items {
+					if !deployment.IsRadixDeploymentInactive(&rd) {
+						var obj metav1.Object
+						obj = &rd
+						controller.Enqueue(obj)
+					}
+				}
+			}
 		},
 	})
 

@@ -3,12 +3,12 @@ package application
 import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -47,7 +47,7 @@ func NewController(client kubernetes.Interface,
 	recorder record.EventRecorder) *common.Controller {
 
 	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
-	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
+	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -82,20 +82,20 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
-			newNs := cur.(*corev1.Namespace)
-			oldNs := old.(*corev1.Namespace)
-			if newNs.ResourceVersion == oldNs.ResourceVersion {
+			newRr := cur.(*v1.RadixRegistration)
+			oldRr := old.(*v1.RadixRegistration)
+			if newRr.ResourceVersion == oldRr.ResourceVersion {
 				return
 			}
 
-			if newNs.Annotations[kube.AdGroupsAnnotation] == oldNs.Annotations[kube.AdGroupsAnnotation] {
+			if utils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) {
 				return
 			}
 
 			// Trigger sync of RA, living in the namespace
-			ra, err := radixClient.RadixV1().RadixApplications(newNs.Name).List(metav1.ListOptions{})
+			ra, err := radixClient.RadixV1().RadixDeployments(utils.GetAppNamespace(newRr.Name)).List(metav1.ListOptions{})
 			if err == nil && len(ra.Items) == 1 {
 				// Will sync the RA (there can only be one)
 				var obj metav1.Object

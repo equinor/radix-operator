@@ -1,7 +1,6 @@
 package applicationconfig
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -114,12 +113,6 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		LabelSelector: label,
 	})
 	assert.Equal(t, 2, len(namespaces.Items))
-
-	for _, namespace := range namespaces.Items {
-		var setAdGroupsAnnotation []string
-		json.Unmarshal([]byte(namespace.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
-		assert.Equal(t, adGroups, setAdGroupsAnnotation)
-	}
 }
 
 func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {

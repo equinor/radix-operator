@@ -101,14 +101,6 @@ func (app Application) OnSync() error {
 
 	logger.Debugf("Applied access to ci/cd logs")
 
-	err = app.synchEnvironmentNamespaces()
-	if err != nil {
-		logger.Errorf("Failed to sync environment namespaces: %v", err)
-		return err
-	}
-
-	logger.Debugf("Synched environment namespaces")
-
 	return nil
 }
 

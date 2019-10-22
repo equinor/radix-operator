@@ -1,7 +1,6 @@
 package application
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -39,7 +38,6 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 
 func Test_Controller_Calls_Handler(t *testing.T) {
 	anyAppName := "test-app"
-	initialAdGroup, _ := json.Marshal([]string{"12345-6789-01234"})
 
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
@@ -50,9 +48,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			Labels: map[string]string{
 				kube.RadixAppLabel: anyAppName,
 				kube.RadixEnvLabel: "app",
-			},
-			Annotations: map[string]string{
-				kube.AdGroupsAnnotation: string(initialAdGroup),
 			},
 		},
 	})
@@ -85,17 +80,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			WithEnvironment("dev", "master"))
 
 	op, ok := <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
-
-	// Update ad group of app namespace should sync
-	newAdGroups, _ := json.Marshal([]string{"98765-4321-09876"})
-	appNamespace, _ := client.CoreV1().Namespaces().Get(utils.GetAppNamespace(anyAppName), metav1.GetOptions{})
-	appNamespace.ResourceVersion = "12345"
-	appNamespace.Annotations[kube.AdGroupsAnnotation] = string(newAdGroups)
-	client.CoreV1().Namespaces().Update(appNamespace)
-
-	op, ok = <-synced
 	assert.True(t, ok)
 	assert.True(t, op)
 }

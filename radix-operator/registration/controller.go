@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -86,20 +85,6 @@ func NewController(client kubernetes.Interface,
 
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			ns := obj.(*corev1.Namespace)
-
-			// May need to sync ad-groups
-			controller.HandleObject(ns, "RadixRegistration", getObject)
-		},
-		UpdateFunc: func(old, cur interface{}) {
-			newNs := cur.(*corev1.Namespace)
-			oldNs := old.(*corev1.Namespace)
-			if newNs.ResourceVersion == oldNs.ResourceVersion {
-				return
-			}
-			controller.HandleObject(cur, "RadixRegistration", getObject)
-		},
 		DeleteFunc: func(obj interface{}) {
 			controller.HandleObject(obj, "RadixRegistration", getObject)
 		},
