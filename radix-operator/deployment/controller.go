@@ -55,15 +55,17 @@ func NewController(client kubernetes.Interface,
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 
 	controller := &common.Controller{
-		Name:        controllerAgentName,
-		HandlerOf:   crType,
-		KubeClient:  client,
-		RadixClient: radixClient,
-		Informer:    deploymentInformer.Informer(),
-		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
-		Handler:     handler,
-		Log:         logger,
-		Recorder:    recorder,
+		Name:                  controllerAgentName,
+		HandlerOf:             crType,
+		KubeClient:            client,
+		RadixClient:           radixClient,
+		Informer:              deploymentInformer.Informer(),
+		KubeInformerFactory:   kubeInformerFactory,
+		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		Handler:               handler,
+		Log:                   logger,
+		WaitForChildrenToSync: waitForChildrenToSync,
+		Recorder:              recorder,
 	}
 
 	logger.Info("Setting up event handlers")
