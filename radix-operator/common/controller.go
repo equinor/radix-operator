@@ -64,8 +64,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	if c.WaitForChildrenToSync {
 		cacheSyncs = append(cacheSyncs,
-			c.KubeInformerFactory.Core().V1().Namespaces().Informer().HasSynced,
-			c.KubeInformerFactory.Core().V1().Secrets().Informer().HasSynced)
+			c.KubeInformerFactory.Core().V1().Namespaces().Informer().HasSynced)
 	}
 
 	// Wait for the caches to be synced before starting workers
