@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"encoding/json"
 	"os"
 	"testing"
 
@@ -47,7 +46,6 @@ func teardownTest() {
 func Test_Controller_Calls_Handler(t *testing.T) {
 	anyAppName := "test-app"
 	anyEnvironment := "qa"
-	initialAdGroup, _ := json.Marshal([]string{"12345-6789-01234"})
 
 	// Setup
 	tu, client, radixClient := setupTest()
@@ -58,9 +56,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			Labels: map[string]string{
 				kube.RadixAppLabel: anyAppName,
 				kube.RadixEnvLabel: anyEnvironment,
-			},
-			Annotations: map[string]string{
-				kube.AdGroupsAnnotation: string(initialAdGroup),
 			},
 		},
 	})
@@ -129,22 +124,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
 	lastReconciled = syncedRd.Status.Reconciled
 
-	// Update ad group of env namespace should sync
-	newAdGroups, _ := json.Marshal([]string{"98765-4321-09876"})
-	envNamespace, _ := client.CoreV1().Namespaces().Get(utils.GetEnvironmentNamespace(anyAppName, anyEnvironment), metav1.GetOptions{})
-	envNamespace.ResourceVersion = "12345"
-	envNamespace.Annotations[kube.AdGroupsAnnotation] = string(newAdGroups)
-	client.CoreV1().Namespaces().Update(envNamespace)
-
-	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
-
-	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
-	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
-	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
-	lastReconciled = syncedRd.Status.Reconciled
-
 	teardownTest()
 }
 
@@ -158,7 +137,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		client, radixClient, &handler,
 		radixInformerFactory.Radix().V1().RadixDeployments(),
 		kubeInformerFactory.Core().V1().Services(),
-		kubeInformerFactory.Core().V1().Namespaces(),
+		radixInformerFactory.Radix().V1().RadixRegistrations(),
 		eventRecorder)
 
 	kubeInformerFactory.Start(stop)

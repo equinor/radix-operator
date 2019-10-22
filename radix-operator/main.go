@@ -112,7 +112,7 @@ func startApplicationController(
 		radixClient,
 		&handler,
 		radixInformerFactory.Radix().V1().RadixApplications(),
-		kubeInformerFactory.Core().V1().Namespaces(),
+		radixInformerFactory.Radix().V1().RadixRegistrations(),
 		recorder)
 
 	kubeInformerFactory.Start(stop)
@@ -140,7 +140,7 @@ func startDeploymentController(
 		&handler,
 		radixInformerFactory.Radix().V1().RadixDeployments(),
 		kubeInformerFactory.Core().V1().Services(),
-		kubeInformerFactory.Core().V1().Namespaces(),
+		radixInformerFactory.Radix().V1().RadixRegistrations(),
 		recorder)
 
 	kubeInformerFactory.Start(stop)
