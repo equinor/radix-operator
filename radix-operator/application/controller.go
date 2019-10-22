@@ -86,7 +86,7 @@ func NewController(client kubernetes.Interface,
 			}
 
 			// Trigger sync of RA, living in the namespace
-			ra, err := radixClient.RadixV1().RadixDeployments(utils.GetAppNamespace(newRr.Name)).List(metav1.ListOptions{})
+			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).List(metav1.ListOptions{})
 			if err == nil && len(ra.Items) == 1 {
 				// Will sync the RA (there can only be one)
 				var obj metav1.Object
