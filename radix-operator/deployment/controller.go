@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	"reflect"
 
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -9,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/metrics"
@@ -52,7 +54,7 @@ func NewController(client kubernetes.Interface,
 
 	deploymentInformer := radixInformerFactory.Radix().V1().RadixDeployments()
 	serviceInformer := kubeInformerFactory.Core().V1().Services()
-	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
+	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -129,23 +131,25 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
-			newNs := cur.(*corev1.Namespace)
-			oldNs := old.(*corev1.Namespace)
-			if newNs.ResourceVersion == oldNs.ResourceVersion {
+			newRr := cur.(*v1.RadixRegistration)
+			oldRr := old.(*v1.RadixRegistration)
+			if newRr.ResourceVersion == oldRr.ResourceVersion {
 				return
 			}
 
-			if newNs.Annotations[kube.AdGroupsAnnotation] == oldNs.Annotations[kube.AdGroupsAnnotation] {
+			if utils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) {
 				return
 			}
 
-			// Trigger sync of active RD, living in the namespace
-			rds, err := radixClient.RadixV1().RadixDeployments(newNs.Name).List(metav1.ListOptions{})
+			// Trigger sync of active RD, living in the namespaces of the app
+			rds, err := radixClient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
+			})
 
 			if err == nil && len(rds.Items) > 0 {
-				// Will sync the active RD (there can only be one)
+				// Will sync the active RD (there can only be one within each namespace)
 				for _, rd := range rds.Items {
 					if !deployment.IsRadixDeploymentInactive(&rd) {
 						var obj metav1.Object
