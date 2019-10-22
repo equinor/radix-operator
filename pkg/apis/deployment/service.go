@@ -96,7 +96,6 @@ func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":               radixDeployment.Spec.AppName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
 				kube.RadixComponentLabel: componentName,
 			},

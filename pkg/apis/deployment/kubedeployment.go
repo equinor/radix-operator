@@ -50,7 +50,6 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:       appName,
 				kube.RadixComponentLabel: componentName,
 				kube.RadixCommitLabel:    commitID,
@@ -70,7 +69,6 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"radixApp":               appName, // For backwards compatibility. Remove when cluster is migrated
 						kube.RadixAppLabel:       appName,
 						kube.RadixComponentLabel: componentName,
 						kube.RadixCommitLabel:    commitID,

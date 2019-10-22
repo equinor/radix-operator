@@ -205,7 +205,6 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ns,
 			Labels: map[string]string{
-				"radixApp":         appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel: appName,
 				kube.RadixEnvLabel: envName,
 			},

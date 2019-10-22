@@ -414,7 +414,6 @@ func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID 
 			Name:      deployName,
 			Namespace: utils.GetEnvironmentNamespace(appName, env),
 			Labels: map[string]string{
-				"radixApp":             appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:     appName,
 				kube.RadixEnvLabel:     env,
 				kube.RadixCommitLabel:  commitID,
