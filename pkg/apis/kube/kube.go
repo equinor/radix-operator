@@ -42,6 +42,7 @@ type Kube struct {
 	kubeClient      kubernetes.Interface
 	radixclient     radixclient.Interface
 	RrLister        v1Lister.RadixRegistrationLister
+	RdLister        v1Lister.RadixDeploymentLister
 	NamespaceLister coreListers.NamespaceLister
 }
 
@@ -69,6 +70,7 @@ func NewWithListers(client kubernetes.Interface,
 		kubeClient:      client,
 		radixclient:     radixclient,
 		RrLister:        radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
+		RdLister:        radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		NamespaceLister: kubeInformerFactory.Core().V1().Namespaces().Lister(),
 	}
 
