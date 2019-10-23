@@ -319,7 +319,6 @@ func getIngressConfig(appName string,
 			Name:        ingressName,
 			Annotations: annotations,
 			Labels: map[string]string{
-				"radixApp":                        appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:                appName,
 				kube.RadixComponentLabel:          component.Name,
 				kube.RadixAppAliasLabel:           strconv.FormatBool(isAlias),

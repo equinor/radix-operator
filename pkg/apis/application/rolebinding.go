@@ -33,7 +33,6 @@ func (app Application) grantAccessToCICDLogs() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				"radixApp":         registration.Name, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel: registration.Name,
 			},
 		},
