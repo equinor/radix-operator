@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
@@ -30,9 +30,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 		return err
 	}
 
-	sms := serviceMonitors.(*monitoringv1.ServiceMonitorList)
-
-	for _, exisitingComponent := range sms.Items {
+	for _, exisitingComponent := range serviceMonitors.Items {
 		garbageCollect := true
 		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 

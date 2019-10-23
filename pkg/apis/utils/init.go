@@ -6,8 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/client/monitoring/v1"
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -49,7 +48,7 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitor
 		log.Fatalf("getClusterConfig radix client: %v", err)
 	}
 
-	prometheusOperatorClient, err := monitoring.NewForConfig(&monitoringv1.DefaultCrdKinds, "monitoring.coreos.com", config)
+	prometheusOperatorClient, err := monitoring.NewForConfig(config)
 	if err != nil {
 		log.Fatalf("getClusterConfig prometheus-operator client: %v", err)
 	}
