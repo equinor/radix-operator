@@ -158,7 +158,7 @@ func (in *RadixApplication) DeepCopyObject() runtime.Object {
 func (in *RadixApplicationList) DeepCopyInto(out *RadixApplicationList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]RadixApplication, len(*in))
@@ -280,12 +280,8 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 	}
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	if in.EnvironmentVariables != nil {
 		in, out := &in.EnvironmentVariables, &out.EnvironmentVariables
@@ -369,7 +365,7 @@ func (in *RadixDeployment) DeepCopyObject() runtime.Object {
 func (in *RadixDeploymentList) DeepCopyInto(out *RadixDeploymentList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]RadixDeployment, len(*in))
@@ -426,12 +422,8 @@ func (in *RadixEnvironmentConfig) DeepCopyInto(out *RadixEnvironmentConfig) {
 	*out = *in
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = new(int)
-			**out = **in
-		}
+		*out = new(int)
+		**out = **in
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	if in.Variables != nil {
@@ -486,7 +478,7 @@ func (in *RadixJob) DeepCopyObject() runtime.Object {
 func (in *RadixJobList) DeepCopyInto(out *RadixJobList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]RadixJob, len(*in))
@@ -538,27 +530,15 @@ func (in *RadixJobStatus) DeepCopyInto(out *RadixJobStatus) {
 	*out = *in
 	if in.Created != nil {
 		in, out := &in.Created, &out.Created
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = (*in).DeepCopy()
-		}
+		*out = (*in).DeepCopy()
 	}
 	if in.Started != nil {
 		in, out := &in.Started, &out.Started
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = (*in).DeepCopy()
-		}
+		*out = (*in).DeepCopy()
 	}
 	if in.Ended != nil {
 		in, out := &in.Ended, &out.Ended
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = (*in).DeepCopy()
-		}
+		*out = (*in).DeepCopy()
 	}
 	if in.TargetEnvs != nil {
 		in, out := &in.TargetEnvs, &out.TargetEnvs
@@ -590,19 +570,11 @@ func (in *RadixJobStep) DeepCopyInto(out *RadixJobStep) {
 	*out = *in
 	if in.Started != nil {
 		in, out := &in.Started, &out.Started
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = (*in).DeepCopy()
-		}
+		*out = (*in).DeepCopy()
 	}
 	if in.Ended != nil {
 		in, out := &in.Ended, &out.Ended
-		if *in == nil {
-			*out = nil
-		} else {
-			*out = (*in).DeepCopy()
-		}
+		*out = (*in).DeepCopy()
 	}
 	return
 }
@@ -664,7 +636,7 @@ func (in *RadixRegistration) DeepCopyObject() runtime.Object {
 func (in *RadixRegistrationList) DeepCopyInto(out *RadixRegistrationList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]RadixRegistration, len(*in))

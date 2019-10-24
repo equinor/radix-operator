@@ -21,11 +21,11 @@ package v1
 import (
 	time "time"
 
-	radix_v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
@@ -57,20 +57,20 @@ func NewRadixDeploymentInformer(client versioned.Interface, namespace string, re
 func NewFilteredRadixDeploymentInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
 				return client.RadixV1().RadixDeployments(namespace).List(options)
 			},
-			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
 				return client.RadixV1().RadixDeployments(namespace).Watch(options)
 			},
 		},
-		&radix_v1.RadixDeployment{},
+		&radixv1.RadixDeployment{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,7 +81,7 @@ func (f *radixDeploymentInformer) defaultInformer(client versioned.Interface, re
 }
 
 func (f *radixDeploymentInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radix_v1.RadixDeployment{}, f.defaultInformer)
+	return f.factory.InformerFor(&radixv1.RadixDeployment{}, f.defaultInformer)
 }
 
 func (f *radixDeploymentInformer) Lister() v1.RadixDeploymentLister {

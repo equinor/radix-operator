@@ -21,11 +21,11 @@ package v1
 import (
 	time "time"
 
-	radix_v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	versioned "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/equinor/radix-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
@@ -57,20 +57,20 @@ func NewRadixApplicationInformer(client versioned.Interface, namespace string, r
 func NewFilteredRadixApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
 				return client.RadixV1().RadixApplications(namespace).List(options)
 			},
-			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
 				return client.RadixV1().RadixApplications(namespace).Watch(options)
 			},
 		},
-		&radix_v1.RadixApplication{},
+		&radixv1.RadixApplication{},
 		resyncPeriod,
 		indexers,
 	)
@@ -81,7 +81,7 @@ func (f *radixApplicationInformer) defaultInformer(client versioned.Interface, r
 }
 
 func (f *radixApplicationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radix_v1.RadixApplication{}, f.defaultInformer)
+	return f.factory.InformerFor(&radixv1.RadixApplication{}, f.defaultInformer)
 }
 
 func (f *radixApplicationInformer) Lister() v1.RadixApplicationLister {

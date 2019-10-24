@@ -19,9 +19,11 @@ limitations under the License.
 package v1
 
 import (
+	"time"
+
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
@@ -38,11 +40,11 @@ type RadixDeploymentInterface interface {
 	Create(*v1.RadixDeployment) (*v1.RadixDeployment, error)
 	Update(*v1.RadixDeployment) (*v1.RadixDeployment, error)
 	UpdateStatus(*v1.RadixDeployment) (*v1.RadixDeployment, error)
-	Delete(name string, options *meta_v1.DeleteOptions) error
-	DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error
-	Get(name string, options meta_v1.GetOptions) (*v1.RadixDeployment, error)
-	List(opts meta_v1.ListOptions) (*v1.RadixDeploymentList, error)
-	Watch(opts meta_v1.ListOptions) (watch.Interface, error)
+	Delete(name string, options *metav1.DeleteOptions) error
+	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
+	Get(name string, options metav1.GetOptions) (*v1.RadixDeployment, error)
+	List(opts metav1.ListOptions) (*v1.RadixDeploymentList, error)
+	Watch(opts metav1.ListOptions) (watch.Interface, error)
 	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixDeployment, err error)
 	RadixDeploymentExpansion
 }
@@ -62,7 +64,7 @@ func newRadixDeployments(c *RadixV1Client, namespace string) *radixDeployments {
 }
 
 // Get takes name of the radixDeployment, and returns the corresponding radixDeployment object, and an error if there is any.
-func (c *radixDeployments) Get(name string, options meta_v1.GetOptions) (result *v1.RadixDeployment, err error) {
+func (c *radixDeployments) Get(name string, options metav1.GetOptions) (result *v1.RadixDeployment, err error) {
 	result = &v1.RadixDeployment{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -75,24 +77,34 @@ func (c *radixDeployments) Get(name string, options meta_v1.GetOptions) (result 
 }
 
 // List takes label and field selectors, and returns the list of RadixDeployments that match those selectors.
-func (c *radixDeployments) List(opts meta_v1.ListOptions) (result *v1.RadixDeploymentList, err error) {
+func (c *radixDeployments) List(opts metav1.ListOptions) (result *v1.RadixDeploymentList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	result = &v1.RadixDeploymentList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("radixdeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Do().
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested radixDeployments.
-func (c *radixDeployments) Watch(opts meta_v1.ListOptions) (watch.Interface, error) {
+func (c *radixDeployments) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
 		Resource("radixdeployments").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Watch()
 }
 
@@ -138,7 +150,7 @@ func (c *radixDeployments) UpdateStatus(radixDeployment *v1.RadixDeployment) (re
 }
 
 // Delete takes name of the radixDeployment and deletes it. Returns an error if one occurs.
-func (c *radixDeployments) Delete(name string, options *meta_v1.DeleteOptions) error {
+func (c *radixDeployments) Delete(name string, options *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("radixdeployments").
@@ -149,11 +161,16 @@ func (c *radixDeployments) Delete(name string, options *meta_v1.DeleteOptions) e
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *radixDeployments) DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error {
+func (c *radixDeployments) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+	var timeout time.Duration
+	if listOptions.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("radixdeployments").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
+		Timeout(timeout).
 		Body(options).
 		Do().
 		Error()
