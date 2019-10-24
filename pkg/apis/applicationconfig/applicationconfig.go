@@ -32,13 +32,12 @@ type ApplicationConfig struct {
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, radixclient radixclient.Interface, registration *v1.RadixRegistration, config *radixv1.RadixApplication) (*ApplicationConfig, error) {
-	kubeutil, err := kube.New(kubeclient)
-	if err != nil {
-		log.Errorf("Failed initializing ApplicationConfig")
-		return nil, err
-	}
-
+func NewApplicationConfig(
+	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
+	radixclient radixclient.Interface,
+	registration *v1.RadixRegistration,
+	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
 	return &ApplicationConfig{
 		kubeclient,
 		radixclient,

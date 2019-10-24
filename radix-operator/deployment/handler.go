@@ -38,14 +38,16 @@ type Handler struct {
 
 // NewHandler Constructor
 func NewHandler(kubeclient kubernetes.Interface,
-	radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, hasSynced common.HasSynced) Handler {
-	kube, _ := kube.New(kubeclient)
+	kubeutil *kube.Kube,
+	radixclient radixclient.Interface,
+	prometheusperatorclient monitoring.Interface,
+	hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:              kubeclient,
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
-		kubeutil:                kube,
+		kubeutil:                kubeutil,
 		hasSynced:               hasSynced,
 	}
 
@@ -54,7 +56,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 
 // Sync Is created on sync of resource
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	rd, err := t.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
+	rd, err := t.kubeutil.GetRadixDeployment(namespace, name)
 	if err != nil {
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
@@ -85,7 +87,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	deployment, err := deployment.NewDeployment(t.kubeclient, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
+	deployment, err := deployment.NewDeployment(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
 	if err != nil {
 		return err
 	}

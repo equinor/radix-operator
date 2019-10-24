@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -27,13 +28,14 @@ const (
 
 var synced chan bool
 
-func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
+func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
+	kubeUtil, _ := kube.New(client, radixClient)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return &handlerTestUtils, client, radixClient
+	return &handlerTestUtils, client, kubeUtil, radixClient
 }
 
 func teardownTest() {
@@ -47,21 +49,25 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	anyAppName := "test-app"
 
 	// Setup
-	tu, client, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient := setupTest()
 	stop := make(chan struct{})
 	synced := make(chan bool)
 
 	defer close(stop)
 	defer close(synced)
 
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
+
 	jobHandler := NewHandler(
 		client,
+		kubeUtil,
 		radixClient,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(client, radixClient, jobHandler, stop)
+	go startJobController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, jobHandler, stop)
 
 	// Test
 
@@ -102,17 +108,22 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	teardownTest()
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, handler Handler, stop chan struct{}) {
+func startJobController(
+	client kubernetes.Interface,
+	kubeutil *kube.Kube,
+	radixClient radixclient.Interface,
+	radixInformerFactory informers.SharedInformerFactory,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	handler Handler, stop chan struct{}) {
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
 	eventRecorder := &record.FakeRecorder{}
 
+	waitForChildrenToSync := false
 	controller := NewController(
-		client, radixClient, &handler,
-		radixInformerFactory.Radix().V1().RadixJobs(),
-		kubeInformerFactory.Batch().V1().Jobs(),
-		kubeInformerFactory.Core().V1().Pods(),
+		client, kubeutil, radixClient, &handler,
+		kubeInformerFactory,
+		radixInformerFactory,
+		waitForChildrenToSync,
 		eventRecorder)
 
 	kubeInformerFactory.Start(stop)

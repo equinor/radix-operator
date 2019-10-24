@@ -6,10 +6,10 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -27,6 +27,7 @@ const (
 // Handler Handler for radix registrations
 type Handler struct {
 	kubeclient  kubernetes.Interface
+	kubeutil    *kube.Kube
 	radixclient radixclient.Interface
 	hasSynced   common.HasSynced
 }
@@ -34,11 +35,13 @@ type Handler struct {
 //NewHandler creates a handler which deals with RadixRegistration resources
 func NewHandler(
 	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:  kubeclient,
+		kubeutil:    kubeutil,
 		radixclient: radixclient,
 		hasSynced:   hasSynced,
 	}
@@ -48,7 +51,7 @@ func NewHandler(
 
 // Sync Is created on sync of resource
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	registration, err := t.radixclient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
+	registration, err := t.kubeutil.GetRegistration(name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -62,7 +65,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncRegistration := registration.DeepCopy()
 	logger.Debugf("Sync registration %s", syncRegistration.Name)
-	application, _ := application.NewApplication(t.kubeclient, t.radixclient, syncRegistration)
+	application, _ := application.NewApplication(t.kubeclient, t.kubeutil, t.radixclient, syncRegistration)
 	err = application.OnSync()
 	if err != nil {
 		// Put back on queue.

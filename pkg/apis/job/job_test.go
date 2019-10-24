@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	kubeUtils "github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -21,14 +22,15 @@ const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 
-func setupTest() (*test.Utils, kube.Interface, radixclient.Interface) {
+func setupTest() (*test.Utils, kube.Interface, *kubeUtils.Kube, radixclient.Interface) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
+	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient)
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)
-	return &handlerTestUtils, kubeclient, radixclient
+	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }
 
 func teardownTest() {
@@ -42,12 +44,12 @@ func teardownTest() {
 }
 
 func TestObjectSynced_StatusMissing_StatusFromAnnotation(t *testing.T) {
-	tu, client, radixclient := setupTest()
+	tu, client, kubeutils, radixclient := setupTest()
 
 	startedJobStatus := utils.AStartedJobStatus()
 
 	// Test
-	job, err := applyJobWithSync(tu, client, radixclient,
+	job, err := applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithStatusOnAnnotation(startedJobStatus))
 
 	assert.NoError(t, err)
@@ -55,14 +57,14 @@ func TestObjectSynced_StatusMissing_StatusFromAnnotation(t *testing.T) {
 }
 
 func TestObjectSynced_MultipleJobs_SecondJobQueued(t *testing.T) {
-	tu, client, radixclient := setupTest()
+	tu, client, kubeutils, radixclient := setupTest()
 
 	// Setup
-	firstJob, _ := applyJobWithSync(tu, client, radixclient,
+	firstJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
 
 	// Test
-	secondJob, _ := applyJobWithSync(tu, client, radixclient,
+	secondJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("master"))
 
 	assert.True(t, secondJob.Status.Condition == v1.JobQueued)
@@ -70,21 +72,21 @@ func TestObjectSynced_MultipleJobs_SecondJobQueued(t *testing.T) {
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
 	radixclient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(firstJob)
-	runSync(client, radixclient, firstJob)
+	runSync(client, kubeutils, radixclient, firstJob)
 
 	secondJob, _ = radixclient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(secondJob.Name, metav1.GetOptions{})
 	assert.True(t, secondJob.Status.Condition == v1.JobRunning)
 }
 
 func TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning(t *testing.T) {
-	tu, client, radixclient := setupTest()
+	tu, client, kubeutils, radixclient := setupTest()
 
 	// Setup
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
 
 	// Test
-	secondJob, _ := applyJobWithSync(tu, client, radixclient,
+	secondJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("release"))
 
 	assert.True(t, secondJob.Status.Condition != v1.JobQueued)
@@ -93,21 +95,21 @@ func TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning(t *testing.T)
 func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	anyLimit := 3
 
-	tu, client, radixclient := setupTest()
+	tu, client, kubeutils, radixclient := setupTest()
 
 	// Current cluster is active cluster
 	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
 
-	firstJob, _ := applyJobWithSync(tu, client, radixclient,
+	firstJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
 
 	jobs, _ := radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
@@ -118,7 +120,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	assert.True(t, radixJobByNameExists("ThirdJob", jobs))
 	assert.True(t, radixJobByNameExists("FourthJob", jobs))
 
-	applyJobWithSync(tu, client, radixclient,
+	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
 
 	jobs, _ = radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
@@ -133,14 +135,14 @@ func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	teardownTest()
 }
 
-func applyJobWithSync(tu *test.Utils, client kube.Interface,
+func applyJobWithSync(tu *test.Utils, client kube.Interface, kubeutils *kubeUtils.Kube,
 	radixclient radixclient.Interface, jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
 	rj, err := tu.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, err
 	}
 
-	err = runSync(client, radixclient, rj)
+	err = runSync(client, kubeutils, radixclient, rj)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +150,8 @@ func applyJobWithSync(tu *test.Utils, client kube.Interface,
 	return rj, nil
 }
 
-func runSync(client kube.Interface, radixclient radixclient.Interface, rj *v1.RadixJob) error {
-	job := NewJob(client, radixclient, rj)
+func runSync(client kube.Interface, kubeutils *kubeUtils.Kube, radixclient radixclient.Interface, rj *v1.RadixJob) error {
+	job := NewJob(client, kubeutils, radixclient, rj)
 	err := job.OnSync()
 	if err != nil {
 		return err

@@ -1,8 +1,13 @@
 package kube
 
 import (
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	log "github.com/sirupsen/logrus"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	coreListers "k8s.io/client-go/listers/core/v1"
 )
 
 // Radix Annotations
@@ -34,7 +39,11 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient kubernetes.Interface
+	kubeClient      kubernetes.Interface
+	radixclient     radixclient.Interface
+	RrLister        v1Lister.RadixRegistrationLister
+	RdLister        v1Lister.RadixDeploymentLister
+	NamespaceLister coreListers.NamespaceLister
 }
 
 var logger *log.Entry
@@ -44,10 +53,27 @@ func init() {
 }
 
 // New Constructor
-func New(client kubernetes.Interface) (*Kube, error) {
+func New(client kubernetes.Interface, radixClient radixclient.Interface) (*Kube, error) {
 	kube := &Kube{
-		kubeClient: client,
+		kubeClient:  client,
+		radixclient: radixClient,
 	}
+	return kube, nil
+}
+
+// NewWithListers Constructor
+func NewWithListers(client kubernetes.Interface,
+	radixclient radixclient.Interface,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	radixInformerFactory informers.SharedInformerFactory) (*Kube, error) {
+	kube := &Kube{
+		kubeClient:      client,
+		radixclient:     radixclient,
+		RrLister:        radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
+		RdLister:        radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		NamespaceLister: kubeInformerFactory.Core().V1().Namespaces().Lister(),
+	}
+
 	return kube, nil
 }
 
