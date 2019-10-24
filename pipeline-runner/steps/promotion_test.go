@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"

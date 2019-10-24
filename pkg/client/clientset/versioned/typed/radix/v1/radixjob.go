@@ -19,9 +19,11 @@ limitations under the License.
 package v1
 
 import (
+	"time"
+
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	scheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
@@ -38,11 +40,11 @@ type RadixJobInterface interface {
 	Create(*v1.RadixJob) (*v1.RadixJob, error)
 	Update(*v1.RadixJob) (*v1.RadixJob, error)
 	UpdateStatus(*v1.RadixJob) (*v1.RadixJob, error)
-	Delete(name string, options *meta_v1.DeleteOptions) error
-	DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error
-	Get(name string, options meta_v1.GetOptions) (*v1.RadixJob, error)
-	List(opts meta_v1.ListOptions) (*v1.RadixJobList, error)
-	Watch(opts meta_v1.ListOptions) (watch.Interface, error)
+	Delete(name string, options *metav1.DeleteOptions) error
+	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
+	Get(name string, options metav1.GetOptions) (*v1.RadixJob, error)
+	List(opts metav1.ListOptions) (*v1.RadixJobList, error)
+	Watch(opts metav1.ListOptions) (watch.Interface, error)
 	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixJob, err error)
 	RadixJobExpansion
 }
@@ -62,7 +64,7 @@ func newRadixJobs(c *RadixV1Client, namespace string) *radixJobs {
 }
 
 // Get takes name of the radixJob, and returns the corresponding radixJob object, and an error if there is any.
-func (c *radixJobs) Get(name string, options meta_v1.GetOptions) (result *v1.RadixJob, err error) {
+func (c *radixJobs) Get(name string, options metav1.GetOptions) (result *v1.RadixJob, err error) {
 	result = &v1.RadixJob{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -75,24 +77,34 @@ func (c *radixJobs) Get(name string, options meta_v1.GetOptions) (result *v1.Rad
 }
 
 // List takes label and field selectors, and returns the list of RadixJobs that match those selectors.
-func (c *radixJobs) List(opts meta_v1.ListOptions) (result *v1.RadixJobList, err error) {
+func (c *radixJobs) List(opts metav1.ListOptions) (result *v1.RadixJobList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	result = &v1.RadixJobList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("radixjobs").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Do().
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested radixJobs.
-func (c *radixJobs) Watch(opts meta_v1.ListOptions) (watch.Interface, error) {
+func (c *radixJobs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
 		Resource("radixjobs").
 		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
 		Watch()
 }
 
@@ -138,7 +150,7 @@ func (c *radixJobs) UpdateStatus(radixJob *v1.RadixJob) (result *v1.RadixJob, er
 }
 
 // Delete takes name of the radixJob and deletes it. Returns an error if one occurs.
-func (c *radixJobs) Delete(name string, options *meta_v1.DeleteOptions) error {
+func (c *radixJobs) Delete(name string, options *metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("radixjobs").
@@ -149,11 +161,16 @@ func (c *radixJobs) Delete(name string, options *meta_v1.DeleteOptions) error {
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *radixJobs) DeleteCollection(options *meta_v1.DeleteOptions, listOptions meta_v1.ListOptions) error {
+func (c *radixJobs) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+	var timeout time.Duration
+	if listOptions.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("radixjobs").
 		VersionedParams(&listOptions, scheme.ParameterCodec).
+		Timeout(timeout).
 		Body(options).
 		Do().
 		Error()

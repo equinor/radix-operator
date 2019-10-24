@@ -3,7 +3,7 @@ package onpush
 import (
 	"testing"
 
-	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
