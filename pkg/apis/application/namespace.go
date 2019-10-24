@@ -11,7 +11,6 @@ func (app Application) createAppNamespace() error {
 	name := utils.GetAppNamespace(registration.Name)
 
 	labels := map[string]string{
-		"radixApp":         registration.Name, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel: registration.Name,
 		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
 	}

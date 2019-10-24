@@ -3,7 +3,7 @@ kind: RadixDeployment
 metadata:
   labels:
     env: test
-    radixApp: edcradix
+    radix-app: edcradix
   name: edcradix-axmz8
   namespace: edcradix-test
 spec:
