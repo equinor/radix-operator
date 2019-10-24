@@ -66,8 +66,7 @@ echo:
 
 .PHONY: test
 test:	
-	go test -cover `go list ./pkg/... | grep -v 'pkg/client'`
-	go test -cover `go list ./radix-operator/...`
+	go test -cover `go list ./... | grep -v 'pkg/client'`
 
 define make-docker-build
   	build-$1:
