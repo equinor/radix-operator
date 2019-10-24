@@ -59,7 +59,6 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	cacheSyncs := []cache.InformerSynced{
 		c.hasSynced,
-		c.Informer.HasSynced,
 	}
 
 	if c.WaitForChildrenToSync {

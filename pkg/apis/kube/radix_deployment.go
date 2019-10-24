@@ -14,7 +14,7 @@ func (kube *Kube) GetRadixDeployment(namespace, name string) (*v1.RadixDeploymen
 	var deployment *v1.RadixDeployment
 	var err error
 
-	if kube.RrLister != nil {
+	if kube.RdLister != nil {
 		deployment, err = kube.RdLister.RadixDeployments(namespace).Get(name)
 		if err != nil {
 			return nil, err
