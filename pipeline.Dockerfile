@@ -21,10 +21,8 @@ COPY ./pkg ./pkg
 
 # Run tests
 RUN golint `go list ./... | grep -v "pkg/client"` && \
-    go vet `go list ./... | grep -v "pkg/client"`
-
-# Avvoid getting signal: killed
-RUN CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"`
+    go vet `go list ./... | grep -v "pkg/client"` && \
+    CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"`
 
 # Build
 WORKDIR /go/src/github.com/equinor/radix-operator/pipeline-runner/
