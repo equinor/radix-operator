@@ -1,0 +1,141 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "3"
+    flux.weave.works/antecedent: default:helmrelease/radix-operator
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"extensions/v1beta1","kind":"Deployment","metadata":{"annotations":{"deployment.kubernetes.io/revision":"13","flux.weave.works/antecedent":"default:helmrelease/radix-operator"},"creationTimestamp":"2019-10-15T14:42:45Z","generation":14,"labels":{"app":"radix-operator","chart":"radix-operator-1.0.29","heritage":"Tiller","release":"radix-operator"},"name":"radix-operator","namespace":"default","resourceVersion":"2546449","selfLink":"/apis/extensions/v1beta1/namespaces/default/deployments/radix-operator","uid":"0d404c9d-ef5a-11e9-8384-3ad73801c309"},"spec":{"progressDeadlineSeconds":600,"replicas":1,"revisionHistoryLimit":10,"selector":{"matchLabels":{"app":"radix-operator","release":"radix-operator"}},"strategy":{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"},"template":{"metadata":{"creationTimestamp":null,"labels":{"app":"radix-operator","release":"radix-operator"}},"spec":{"containers":[{"env":[{"name":"LABEL_PROMETHEUS_INSTANCE","value":"radix-stage1"},{"name":"DNS_ZONE","value":"dev.radix.equinor.com"},{"name":"APP_ALIAS_BASE_URL","value":"app.dev.radix.equinor.com"},{"name":"RADIXOPERATOR_CLUSTER_TYPE","value":"development"},{"name":"RADIXOPERATOR_DEFAULT_USER_GROUP","value":"64b28659-4fe4-4222-8497-85dd7e43e25b"},{"name":"RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY","value":"300M"},{"name":"RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU","value":"100m"},{"name":"RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY","value":"50M"},{"name":"RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU","value":"4m"},{"name":"RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY","value":"500M"},{"name":"RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU","value":"250m"},{"name":"RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY","value":"50M"},{"name":"RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU","value":"20m"},{"name":"RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS","value":"5"},{"name":"RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS","value":"10"},{"name":"RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_UNAVAILABLE","value":"25%"},{"name":"RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE","value":"25%"},{"name":"RADIX_ACTIVE_CLUSTERNAME","value":"weekly-43"},{"name":"RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT","value":"10"},{"name":"RADIX_JOBS_PER_APP_HISTORY_LIMIT","value":"20"}],"image":"radixdev.azurecr.io/radix-operator:master-46b28215df07503915088082cd67f63c0e1b6608","imagePullPolicy":"Always","livenessProbe":{"failureThreshold":3,"httpGet":{"path":"/healthz","port":"metrics","scheme":"HTTP"},"periodSeconds":10,"successThreshold":1,"timeoutSeconds":1},"name":"radix-operator","ports":[{"containerPort":9000,"name":"metrics","protocol":"TCP"}],"readinessProbe":{"failureThreshold":3,"httpGet":{"path":"/healthz","port":"metrics","scheme":"HTTP"},"periodSeconds":10,"successThreshold":1,"timeoutSeconds":1},"resources":{"limits":{"memory":"300Mi"},"requests":{"cpu":"100m","memory":"300Mi"}},"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File"}],"dnsPolicy":"ClusterFirst","restartPolicy":"Always","schedulerName":"default-scheduler","securityContext":{},"serviceAccount":"radix-operator","serviceAccountName":"radix-operator","terminationGracePeriodSeconds":30}}},"status":{"availableReplicas":1,"conditions":[{"lastTransitionTime":"2019-10-23T06:25:16Z","lastUpdateTime":"2019-10-23T06:25:16Z","message":"Deployment has minimum availability.","reason":"MinimumReplicasAvailable","status":"True","type":"Available"},{"lastTransitionTime":"2019-10-15T14:42:46Z","lastUpdateTime":"2019-10-23T12:47:22Z","message":"ReplicaSet \"radix-operator-7cf76b9c66\" has successfully progressed.","reason":"NewReplicaSetAvailable","status":"True","type":"Progressing"}],"observedGeneration":14,"readyReplicas":1,"replicas":1,"updatedReplicas":1}}
+  creationTimestamp: "2019-10-23T13:13:45Z"
+  generation: 3
+  labels:
+    app: radix-operator
+    chart: radix-operator-1.0.29
+    heritage: Tiller
+    release: radix-operator
+  name: radix-operator
+  namespace: default
+  resourceVersion: "2780698"
+  selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/radix-operator
+  uid: f17e893b-f596-11e9-8384-3ad73801c309
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: radix-operator
+      release: radix-operator
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: radix-operator
+        release: radix-operator
+    spec:
+      containers:
+      - env:
+        - name: LABEL_PROMETHEUS_INSTANCE
+          value: radix-stage1
+        - name: DNS_ZONE
+          value: dev.radix.equinor.com
+        - name: APP_ALIAS_BASE_URL
+          value: app.dev.radix.equinor.com
+        - name: RADIXOPERATOR_CLUSTER_TYPE
+          value: development
+        - name: RADIXOPERATOR_DEFAULT_USER_GROUP
+          value: 64b28659-4fe4-4222-8497-85dd7e43e25b
+        - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY
+          value: 300M
+        - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU
+          value: 100m
+        - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY
+          value: 50M
+        - name: RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU
+          value: 4m
+        - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY
+          value: 500M
+        - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU
+          value: 250m
+        - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY
+          value: 50M
+        - name: RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU
+          value: 20m
+        - name: RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS
+          value: "5"
+        - name: RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS
+          value: "10"
+        - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_UNAVAILABLE
+          value: 25%
+        - name: RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE
+          value: 25%
+        - name: RADIX_ACTIVE_CLUSTERNAME
+          value: weekly-43
+        - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
+          value: "10"
+        - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
+          value: "20"
+        image: radixdev.azurecr.io/radix-operator:master-0e66609b0362a631ea0cd6bed43e81421330b5f0
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: metrics
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: radix-operator
+        ports:
+        - containerPort: 9000
+          name: metrics
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: metrics
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 300Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: radix-operator
+      serviceAccountName: radix-operator
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2019-10-23T13:13:55Z"
+    lastUpdateTime: "2019-10-23T13:13:55Z"
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2019-10-23T13:13:45Z"
+    lastUpdateTime: "2019-10-24T13:10:09Z"
+    message: ReplicaSet "radix-operator-7f5f47dbdc" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  observedGeneration: 3
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1

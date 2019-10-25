@@ -1,37 +1,35 @@
-FROM golang:alpine3.9 as builder
+FROM golang:alpine3.10 as builder
+
+ENV GO111MODULE=on
 
 RUN apk update && \
-    apk add git && \
-    apk add -y ca-certificates curl dep  && \
+    apk add git ca-certificates curl && \
     apk add --no-cache gcc musl-dev && \
-    go get -u golang.org/x/lint/golint
+    go get -u golang.org/x/lint/golint github.com/frapposelli/wwhrd
 
-RUN mkdir -p /go/src/github.com/equinor/radix-operator/
 WORKDIR /go/src/github.com/equinor/radix-operator/
 
 # Install project dependencies
-COPY Gopkg.toml Gopkg.lock ./
-RUN dep ensure -vendor-only
+COPY go.mod go.sum ./
+RUN go mod download
 
 # Check dependency licenses using https://github.com/frapposelli/wwhrd
 COPY .wwhrd.yml ./
-RUN go get -u github.com/frapposelli/wwhrd
 RUN wwhrd -q check
 
 # Copy project code
 COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
-WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
 
 # Run tests
-RUN golint ../pkg/... && \
-    golint `go list ./...` && \
-    go vet `go list ./...` ../pkg/...
+RUN golint `go list ./... | grep -v "pkg/client"` && \
+    go vet `go list ./... | grep -v "pkg/client"`
 
 # Avvoid getting signal: killed
-RUN CGO_ENABLED=0 GOOS=linux go test ./... ../pkg/...
+RUN CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"`
 
 # Build
+WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
 RUN adduser -D -g '' radix-operator
 
