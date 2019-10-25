@@ -28,12 +28,9 @@ type Application struct {
 // NewApplication Constructor
 func NewApplication(
 	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	registration *v1.RadixRegistration) (Application, error) {
-	kubeutil, err := kube.New(kubeclient)
-	if err != nil {
-		return Application{}, err
-	}
 
 	return Application{
 		kubeclient,
@@ -103,14 +100,6 @@ func (app Application) OnSync() error {
 	}
 
 	logger.Debugf("Applied access to ci/cd logs")
-
-	err = app.synchEnvironmentNamespaces()
-	if err != nil {
-		logger.Errorf("Failed to sync environment namespaces: %v", err)
-		return err
-	}
-
-	logger.Debugf("Synched environment namespaces")
 
 	return nil
 }

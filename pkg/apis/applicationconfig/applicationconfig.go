@@ -32,13 +32,12 @@ type ApplicationConfig struct {
 }
 
 // NewApplicationConfig Constructor
-func NewApplicationConfig(kubeclient kubernetes.Interface, radixclient radixclient.Interface, registration *v1.RadixRegistration, config *radixv1.RadixApplication) (*ApplicationConfig, error) {
-	kubeutil, err := kube.New(kubeclient)
-	if err != nil {
-		log.Errorf("Failed initializing ApplicationConfig")
-		return nil, err
-	}
-
+func NewApplicationConfig(
+	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
+	radixclient radixclient.Interface,
+	registration *v1.RadixRegistration,
+	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
 	return &ApplicationConfig{
 		kubeclient,
 		radixclient,
@@ -149,11 +148,6 @@ func (app *ApplicationConfig) createEnvironments() error {
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(app.config.Name, env)
 
-		annotations, err := application.GetNamespaceAnnotationsOfRegistration(app.registration)
-		if err != nil {
-			return err
-		}
-
 		ownerRef := application.GetOwnerReferenceOfRegistration(app.registration)
 		labels := map[string]string{
 			"sync":                         "cluster-wildcard-tls-cert",
@@ -164,7 +158,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 			kube.RadixEnvLabel:             env,
 		}
 
-		err = app.kubeutil.ApplyNamespace(namespaceName, annotations, labels, ownerRef)
+		err := app.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
 		if err != nil {
 			return err
 		}

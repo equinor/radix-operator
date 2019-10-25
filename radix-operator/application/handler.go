@@ -35,14 +35,14 @@ type Handler struct {
 // NewHandler Constructor
 func NewHandler(
 	kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	hasSynced common.HasSynced) Handler {
-	kube, _ := kube.New(kubeclient)
 
 	handler := Handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
-		kubeutil:    kube,
+		kubeutil:    kubeutil,
 		hasSynced:   hasSynced,
 	}
 
@@ -63,7 +63,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(radixApplication.Name, metav1.GetOptions{})
+	radixRegistration, err := t.kubeutil.GetRegistration(radixApplication.Name)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -77,7 +77,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	syncApplication := radixApplication.DeepCopy()
 	logger.Debugf("Sync application %s", syncApplication.Name)
-	applicationConfig, err := application.NewApplicationConfig(t.kubeclient, t.radixclient, radixRegistration, radixApplication)
+	applicationConfig, err := application.NewApplicationConfig(t.kubeclient, t.kubeutil, t.radixclient, radixRegistration, radixApplication)
 	if err != nil {
 		// Put back on queue
 		return err

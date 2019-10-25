@@ -3,13 +3,14 @@ package application
 import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radixinformer "github.com/equinor/radix-operator/pkg/client/informers/externalversions/radix/v1"
+	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	coreinformers "k8s.io/client-go/informers/core/v1"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -38,27 +39,35 @@ func init() {
 
 // NewController creates a new controller that handles RadixApplications
 func NewController(client kubernetes.Interface,
+	kubeutil *kube.Kube,
 	radixClient radixclient.Interface, handler common.Handler,
-	applicationInformer radixinformer.RadixApplicationInformer,
-	namespaceInformer coreinformers.NamespaceInformer,
+	kubeInformerFactory kubeinformers.SharedInformerFactory,
+	radixInformerFactory informers.SharedInformerFactory,
+	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 
+	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
+	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
+
 	controller := &common.Controller{
-		Name:        controllerAgentName,
-		KubeClient:  client,
-		RadixClient: radixClient,
-		Informer:    applicationInformer.Informer(),
-		WorkQueue:   workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
-		Handler:     handler,
-		Log:         logger,
-		Recorder:    recorder,
+		Name:                  controllerAgentName,
+		HandlerOf:             crType,
+		KubeClient:            client,
+		RadixClient:           radixClient,
+		Informer:              applicationInformer.Informer(),
+		KubeInformerFactory:   kubeInformerFactory,
+		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
+		Handler:               handler,
+		Log:                   logger,
+		WaitForChildrenToSync: waitForChildrenToSync,
+		Recorder:              recorder,
 	}
 
 	logger.Info("Setting up event handlers")
 	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			controller.Enqueue(cur)
-			controller.CustomResourceAdded(crType)
+			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			controller.Enqueue(cur)
@@ -69,24 +78,24 @@ func NewController(client kubernetes.Interface,
 			if err == nil {
 				logger.Debugf("Application object deleted event received for %s. Do nothing", key)
 			}
-			controller.CustomResourceDeleted(crType)
+			metrics.CustomResourceDeleted(crType)
 		},
 	})
 
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
-			newNs := cur.(*corev1.Namespace)
-			oldNs := old.(*corev1.Namespace)
-			if newNs.ResourceVersion == oldNs.ResourceVersion {
+			newRr := cur.(*v1.RadixRegistration)
+			oldRr := old.(*v1.RadixRegistration)
+			if newRr.ResourceVersion == oldRr.ResourceVersion {
 				return
 			}
 
-			if newNs.Annotations[kube.AdGroupsAnnotation] == oldNs.Annotations[kube.AdGroupsAnnotation] {
+			if utils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) {
 				return
 			}
 
 			// Trigger sync of RA, living in the namespace
-			ra, err := radixClient.RadixV1().RadixApplications(newNs.Name).List(metav1.ListOptions{})
+			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).List(metav1.ListOptions{})
 			if err == nil && len(ra.Items) == 1 {
 				// Will sync the RA (there can only be one)
 				var obj metav1.Object

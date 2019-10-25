@@ -1,7 +1,6 @@
 package applicationconfig
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -33,27 +32,28 @@ func init() {
 	log.SetOutput(ioutil.Discard)
 }
 
-func setupTest() (*test.Utils, kubernetes.Interface, radixclient.Interface) {
+func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	kubeclient := fake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
+	kubeUtil, _ := kube.New(kubeclient, radixclient)
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return &handlerTestUtils, kubeclient, radixclient
+	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }
 
 func getApplication(ra *radixv1.RadixApplication) *ApplicationConfig {
 	// The other arguments are not relevant for this test
-	application, _ := NewApplicationConfig(nil, nil, nil, ra)
+	application, _ := NewApplicationConfig(nil, nil, nil, nil, ra)
 	return application
 }
 
 func Test_Create_Radix_Environments(t *testing.T) {
-	_, client, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest()
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
 	radixApp, _ := utils.GetRadixApplication(sampleApp)
-	app, _ := NewApplicationConfig(client, radixclient, radixRegistration, radixApp)
+	app, _ := NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, radixApp)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)
 	t.Run("It can create environments", func(t *testing.T) {
@@ -77,7 +77,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 
 func Test_Reconciles_Radix_Environments(t *testing.T) {
 	// Setup
-	_, client, radixclient := setupTest()
+	_, client, kubeUtil, radixclient := setupTest()
 
 	// Create namespaces manually
 	client.CoreV1().Namespaces().Create(&corev1.Namespace{
@@ -104,7 +104,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		WithEnvironment("prod", "master").
 		BuildRA()
 
-	app, _ := NewApplicationConfig(client, radixclient, rr, ra)
+	app, _ := NewApplicationConfig(client, kubeUtil, radixclient, rr, ra)
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name)
 
 	// Test
@@ -113,12 +113,6 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 		LabelSelector: label,
 	})
 	assert.Equal(t, 2, len(namespaces.Items))
-
-	for _, namespace := range namespaces.Items {
-		var setAdGroupsAnnotation []string
-		json.Unmarshal([]byte(namespace.Annotations[kube.AdGroupsAnnotation]), &setAdGroupsAnnotation)
-		assert.Equal(t, adGroups, setAdGroupsAnnotation)
-	}
 }
 
 func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
@@ -266,9 +260,9 @@ func TestIsTargetEnvsEmpty_twoEntriesWithOneMapping(t *testing.T) {
 }
 
 func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimits(t *testing.T) {
-	tu, client, radixclient := setupTest()
+	tu, client, kubeUtil, radixclient := setupTest()
 
-	applyApplicationWithSync(tu, client, radixclient, utils.ARadixApplication().
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient, utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", ""))
@@ -302,7 +296,7 @@ func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimi
 }
 
 func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimits(t *testing.T) {
-	tu, client, radixclient := setupTest()
+	tu, client, kubeUtil, radixclient := setupTest()
 
 	// Setup
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "0.5")
@@ -310,7 +304,7 @@ func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimit
 	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
 	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
 
-	applyApplicationWithSync(tu, client, radixclient, utils.ARadixApplication().
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient, utils.ARadixApplication().
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", ""))
@@ -324,7 +318,7 @@ func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimit
 	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 }
 
-func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface,
+func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
 
 	err := tu.ApplyApplication(applicationBuilder)
@@ -338,7 +332,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface,
 		return err
 	}
 
-	applicationconfig, err := NewApplicationConfig(client, radixclient, radixRegistration, ra)
+	applicationconfig, err := NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, ra)
 
 	err = applicationconfig.OnSync()
 	if err != nil {

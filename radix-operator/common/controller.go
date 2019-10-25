@@ -6,13 +6,13 @@ import (
 
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -21,34 +21,22 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var (
-	nrCrAdded = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "radix_operator_cr_added",
-		Help: "The total number of radix custom resources added",
-	}, []string{"cr_type"})
-	nrCrDeleted = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "radix_operator_cr_deleted",
-		Help: "The total number of radix custom resources deleted",
-	}, []string{"cr_type"})
-	nrErrors = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "radix_operator_errors",
-		Help: "The total number of radix operator errors",
-	}, []string{"err_type", "method"})
-)
-
 // GetOwner Function pointer to pass to retrieve owner
 type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
 
 // Controller Instance variables
 type Controller struct {
-	Name        string
-	KubeClient  kubernetes.Interface
-	RadixClient radixclient.Interface
-	WorkQueue   workqueue.RateLimitingInterface
-	Informer    cache.SharedIndexInformer
-	Handler     Handler
-	Log         *log.Entry
-	Recorder    record.EventRecorder
+	Name                  string
+	HandlerOf             string
+	KubeClient            kubernetes.Interface
+	RadixClient           radixclient.Interface
+	WorkQueue             workqueue.RateLimitingInterface
+	Informer              cache.SharedIndexInformer
+	KubeInformerFactory   kubeinformers.SharedInformerFactory
+	Handler               Handler
+	Log                   *log.Entry
+	WaitForChildrenToSync bool
+	Recorder              record.EventRecorder
 }
 
 // NewEventRecorder Creates an event recorder for controller
@@ -69,9 +57,19 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	// Start the informer factories to begin populating the informer caches
 	c.Log.Debugf("Starting %s", c.Name)
 
+	cacheSyncs := []cache.InformerSynced{
+		c.hasSynced,
+	}
+
+	if c.WaitForChildrenToSync {
+		cacheSyncs = append(cacheSyncs,
+			c.KubeInformerFactory.Core().V1().Namespaces().Informer().HasSynced)
+	}
+
 	// Wait for the caches to be synced before starting workers
 	c.Log.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.hasSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh,
+		cacheSyncs...); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
@@ -107,27 +105,30 @@ func (c *Controller) processNextWorkItem() bool {
 
 		if key, ok = obj.(string); !ok {
 			c.WorkQueue.Forget(obj)
+			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
-			nrErrors.With(prometheus.Labels{
-				"method":   "work_queue",
-				"err_type": "error_workqueue_type",
-			}).Inc()
+			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
 			return nil
 		}
 
 		if err := c.syncHandler(key); err != nil {
 			c.WorkQueue.AddRateLimited(key)
+			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
+			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
+			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
+
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
 		}
 
 		c.WorkQueue.Forget(obj)
+		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 		c.Log.Infof("Successfully synced '%s'", key)
 		return nil
 	}(obj)
 
 	if err != nil {
 		utilruntime.HandleError(err)
-		nrErrors.With(prometheus.Labels{"method": "process_next_work_item", "err_type": "unhandled"}).Inc()
+		metrics.OperatorError(c.HandlerOf, "process_next_work_item", "unhandled")
 		return true
 	}
 
@@ -135,13 +136,17 @@ func (c *Controller) processNextWorkItem() bool {
 }
 
 func (c *Controller) syncHandler(key string) error {
+	start := time.Now()
+
+	defer func() {
+		duration := time.Since(start)
+		metrics.AddDurrationOfReconciliation(c.HandlerOf, duration)
+	}()
+
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Invalid resource key: %s", key))
-		nrErrors.With(prometheus.Labels{
-			"method":   "split_meta_namespace_key",
-			"err_type": "invalid_resource_key"},
-		).Inc()
+		metrics.OperatorError(c.HandlerOf, "split_meta_namespace_key", "invalid_resource_key")
 		return nil
 	}
 
@@ -151,10 +156,7 @@ func (c *Controller) syncHandler(key string) error {
 		log.Errorf("Error while syncing: %v", err)
 
 		utilruntime.HandleError(fmt.Errorf("Problems syncing: %s", key))
-		nrErrors.With(prometheus.Labels{
-			"method":   "c_handler_sync",
-			"err_type": fmt.Sprintf("problems_sync_%s", key)},
-		).Inc()
+		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err
 	}
 
@@ -163,18 +165,17 @@ func (c *Controller) syncHandler(key string) error {
 
 // Enqueue takes a resource and converts it into a namespace/name
 // string which is then put onto the work queue
-func (c *Controller) Enqueue(obj interface{}) {
+func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
 	var key string
-	var err error
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
 		utilruntime.HandleError(err)
-		nrErrors.With(prometheus.Labels{
-			"method":   "enqueue",
-			"err_type": fmt.Sprintf("problems_sync_%s", key)},
-		).Inc()
-		return
+		metrics.OperatorError(c.HandlerOf, "enqueue", fmt.Sprintf("problems_sync_%s", key))
+		return requeued, err
 	}
+
+	requeued = (c.WorkQueue.NumRequeues(key) > 0)
 	c.WorkQueue.AddRateLimited(key)
+	return requeued, nil
 }
 
 // HandleObject ensures that when anything happens to object which any
@@ -186,19 +187,13 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-			nrErrors.With(prometheus.Labels{
-				"method":   "handle_object",
-				"err_type": "error_decoding_object",
-			}).Inc()
+			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object")
 			return
 		}
 		object, ok = tombstone.Obj.(metav1.Object)
 		if !ok {
 			utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
-			nrErrors.With(prometheus.Labels{
-				"method":   "handle_object",
-				"err_type": "error_decoding_object_tombstone",
-			}).Inc()
+			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object_tombstone")
 			return
 		}
 		c.Log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
@@ -215,19 +210,13 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			return
 		}
 
-		c.Enqueue(obj)
+		requeued, err := c.Enqueue(obj)
+		if err == nil && !requeued {
+			metrics.CustomResourceUpdated(c.HandlerOf)
+		}
+
 		return
 	}
-}
-
-// CustomResourceAdded Increments metric to count the number of cr added
-func (c *Controller) CustomResourceAdded(kind string) {
-	nrCrAdded.With(prometheus.Labels{"cr_type": kind}).Inc()
-}
-
-// CustomResourceDeleted Increments metric to count the number of cr deleted
-func (c *Controller) CustomResourceDeleted(kind string) {
-	nrCrDeleted.With(prometheus.Labels{"cr_type": kind}).Inc()
 }
 
 func (c *Controller) hasSynced() bool {

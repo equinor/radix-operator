@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	radix_v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,19 +38,19 @@ var radixregistrationsResource = schema.GroupVersionResource{Group: "radix.equin
 var radixregistrationsKind = schema.GroupVersionKind{Group: "radix.equinor.com", Version: "v1", Kind: "RadixRegistration"}
 
 // Get takes name of the radixRegistration, and returns the corresponding radixRegistration object, and an error if there is any.
-func (c *FakeRadixRegistrations) Get(name string, options v1.GetOptions) (result *radix_v1.RadixRegistration, err error) {
+func (c *FakeRadixRegistrations) Get(name string, options v1.GetOptions) (result *radixv1.RadixRegistration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(radixregistrationsResource, name), &radix_v1.RadixRegistration{})
+		Invokes(testing.NewRootGetAction(radixregistrationsResource, name), &radixv1.RadixRegistration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*radix_v1.RadixRegistration), err
+	return obj.(*radixv1.RadixRegistration), err
 }
 
 // List takes label and field selectors, and returns the list of RadixRegistrations that match those selectors.
-func (c *FakeRadixRegistrations) List(opts v1.ListOptions) (result *radix_v1.RadixRegistrationList, err error) {
+func (c *FakeRadixRegistrations) List(opts v1.ListOptions) (result *radixv1.RadixRegistrationList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(radixregistrationsResource, radixregistrationsKind, opts), &radix_v1.RadixRegistrationList{})
+		Invokes(testing.NewRootListAction(radixregistrationsResource, radixregistrationsKind, opts), &radixv1.RadixRegistrationList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -59,8 +59,8 @@ func (c *FakeRadixRegistrations) List(opts v1.ListOptions) (result *radix_v1.Rad
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &radix_v1.RadixRegistrationList{ListMeta: obj.(*radix_v1.RadixRegistrationList).ListMeta}
-	for _, item := range obj.(*radix_v1.RadixRegistrationList).Items {
+	list := &radixv1.RadixRegistrationList{ListMeta: obj.(*radixv1.RadixRegistrationList).ListMeta}
+	for _, item := range obj.(*radixv1.RadixRegistrationList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -75,29 +75,29 @@ func (c *FakeRadixRegistrations) Watch(opts v1.ListOptions) (watch.Interface, er
 }
 
 // Create takes the representation of a radixRegistration and creates it.  Returns the server's representation of the radixRegistration, and an error, if there is any.
-func (c *FakeRadixRegistrations) Create(radixRegistration *radix_v1.RadixRegistration) (result *radix_v1.RadixRegistration, err error) {
+func (c *FakeRadixRegistrations) Create(radixRegistration *radixv1.RadixRegistration) (result *radixv1.RadixRegistration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(radixregistrationsResource, radixRegistration), &radix_v1.RadixRegistration{})
+		Invokes(testing.NewRootCreateAction(radixregistrationsResource, radixRegistration), &radixv1.RadixRegistration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*radix_v1.RadixRegistration), err
+	return obj.(*radixv1.RadixRegistration), err
 }
 
 // Update takes the representation of a radixRegistration and updates it. Returns the server's representation of the radixRegistration, and an error, if there is any.
-func (c *FakeRadixRegistrations) Update(radixRegistration *radix_v1.RadixRegistration) (result *radix_v1.RadixRegistration, err error) {
+func (c *FakeRadixRegistrations) Update(radixRegistration *radixv1.RadixRegistration) (result *radixv1.RadixRegistration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(radixregistrationsResource, radixRegistration), &radix_v1.RadixRegistration{})
+		Invokes(testing.NewRootUpdateAction(radixregistrationsResource, radixRegistration), &radixv1.RadixRegistration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*radix_v1.RadixRegistration), err
+	return obj.(*radixv1.RadixRegistration), err
 }
 
 // Delete takes name of the radixRegistration and deletes it. Returns an error if one occurs.
 func (c *FakeRadixRegistrations) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(radixregistrationsResource, name), &radix_v1.RadixRegistration{})
+		Invokes(testing.NewRootDeleteAction(radixregistrationsResource, name), &radixv1.RadixRegistration{})
 	return err
 }
 
@@ -105,16 +105,16 @@ func (c *FakeRadixRegistrations) Delete(name string, options *v1.DeleteOptions) 
 func (c *FakeRadixRegistrations) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(radixregistrationsResource, listOptions)
 
-	_, err := c.Fake.Invokes(action, &radix_v1.RadixRegistrationList{})
+	_, err := c.Fake.Invokes(action, &radixv1.RadixRegistrationList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched radixRegistration.
-func (c *FakeRadixRegistrations) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *radix_v1.RadixRegistration, err error) {
+func (c *FakeRadixRegistrations) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *radixv1.RadixRegistration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(radixregistrationsResource, name, data, subresources...), &radix_v1.RadixRegistration{})
+		Invokes(testing.NewRootPatchSubresourceAction(radixregistrationsResource, name, pt, data, subresources...), &radixv1.RadixRegistration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*radix_v1.RadixRegistration), err
+	return obj.(*radixv1.RadixRegistration), err
 }

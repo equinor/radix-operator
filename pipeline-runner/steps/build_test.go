@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -25,7 +25,7 @@ func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, test.Util
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(anyClusterName, anyContainerRegistry)
-	kubeUtil, _ := kube.New(kubeclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient)
 
 	return kubeclient, kubeUtil, radixclient, testUtils
 }
@@ -54,7 +54,7 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	cli := NewBuildStep()
 	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, ra)
 
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, radixclient, rr, ra)
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kube, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
 
 	pipelineInfo := &model.PipelineInfo{

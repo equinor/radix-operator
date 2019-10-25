@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/prometheus-operator/pkg/client/monitoring"
+	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,11 +39,12 @@ type Deployment struct {
 }
 
 // NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment) (Deployment, error) {
-	kubeutil, err := kube.New(kubeclient)
-	if err != nil {
-		return Deployment{}, err
-	}
+func NewDeployment(kubeclient kubernetes.Interface,
+	kubeutil *kube.Kube,
+	radixclient radixclient.Interface,
+	prometheusperatorclient monitoring.Interface,
+	registration *v1.RadixRegistration,
+	radixDeployment *v1.RadixDeployment) (Deployment, error) {
 
 	return Deployment{
 		kubeclient,
@@ -136,7 +138,7 @@ func GetLatestDeploymentInNamespace(radixclient radixclient.Interface, namespace
 
 	if len(allRDs.Items) > 0 {
 		for _, rd := range allRDs.Items {
-			if isLatest(&rd, allRDs.Items) {
+			if isLatest(&rd, slice.PointersOf(allRDs.Items).([]*v1.RadixDeployment)) {
 				return &rd, nil
 			}
 		}
@@ -188,12 +190,12 @@ func (deploy *Deployment) restoreStatus() bool {
 func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 	stopReconciliation = false
 
-	allRDs, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).List(metav1.ListOptions{})
+	allRDs, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
 	if err != nil {
 		err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
 	}
 
-	if deploy.isLatestInTheEnvironment(allRDs.Items) {
+	if deploy.isLatestInTheEnvironment(allRDs) {
 		// Should always reconcile, because we now skip sync if only status on RD has been modified
 		stopReconciliation = false
 		err = deploy.updateStatusOnActiveDeployment()
@@ -201,7 +203,7 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 			log.Errorf("Failed to set rd (%s) status to active", deploy.getName())
 			return false, err
 		}
-		err = deploy.setOtherRDsToInactive(allRDs.Items)
+		err = deploy.setOtherRDsToInactive(allRDs)
 		if err != nil {
 			// should this lead to new RD not being deployed?
 			log.Warnf("Failed to set old rds statuses to inactive")
@@ -311,17 +313,17 @@ func saveStatusRD(radixClient radixclient.Interface, rd *v1.RadixDeployment) err
 	return err
 }
 
-func (deploy *Deployment) setOtherRDsToInactive(allRDs []v1.RadixDeployment) error {
+func (deploy *Deployment) setOtherRDsToInactive(allRDs []*v1.RadixDeployment) error {
 	sortedRDs := sortRDsByActiveFromTimestampDesc(allRDs)
 	prevRDActiveFrom := metav1.Time{}
 
 	for _, rd := range sortedRDs {
 		if rd.GetName() != deploy.getName() {
-			err := setRDToInactive(deploy.radixclient, &rd, prevRDActiveFrom)
+			err := setRDToInactive(deploy.radixclient, rd, prevRDActiveFrom)
 			if err != nil {
 				return err
 			}
-			prevRDActiveFrom = getActiveFrom(&rd)
+			prevRDActiveFrom = getActiveFrom(rd)
 		} else {
 			prevRDActiveFrom = getActiveFrom(deploy.radixDeployment)
 		}
@@ -329,29 +331,29 @@ func (deploy *Deployment) setOtherRDsToInactive(allRDs []v1.RadixDeployment) err
 	return nil
 }
 
-func sortRDsByActiveFromTimestampDesc(rds []v1.RadixDeployment) []v1.RadixDeployment {
+func sortRDsByActiveFromTimestampDesc(rds []*v1.RadixDeployment) []*v1.RadixDeployment {
 	sort.Slice(rds, func(i, j int) bool {
-		return isRD1ActiveBeforeRD2(&rds[j], &rds[i])
+		return isRD1ActiveBeforeRD2(rds[j], rds[i])
 	})
 	return rds
 }
 
-func sortRDsByActiveFromTimestampAsc(rds []v1.RadixDeployment) []v1.RadixDeployment {
+func sortRDsByActiveFromTimestampAsc(rds []*v1.RadixDeployment) []*v1.RadixDeployment {
 	sort.Slice(rds, func(i, j int) bool {
-		return isRD1ActiveBeforeRD2(&rds[i], &rds[j])
+		return isRD1ActiveBeforeRD2(rds[i], rds[j])
 	})
 	return rds
 }
 
 // isLatestInTheEnvironment Checks if the deployment is the latest in the same namespace as specified in the deployment
-func (deploy *Deployment) isLatestInTheEnvironment(allRDs []v1.RadixDeployment) bool {
+func (deploy *Deployment) isLatestInTheEnvironment(allRDs []*v1.RadixDeployment) bool {
 	return isLatest(deploy.radixDeployment, allRDs)
 }
 
 // isLatest Checks if the deployment is the latest in the same namespace as specified in the deployment
-func isLatest(deploy *v1.RadixDeployment, allRDs []v1.RadixDeployment) bool {
+func isLatest(deploy *v1.RadixDeployment, allRDs []*v1.RadixDeployment) bool {
 	for _, rd := range allRDs {
-		if rd.GetName() != deploy.GetName() && isRD1ActiveBeforeRD2(deploy, &rd) {
+		if rd.GetName() != deploy.GetName() && isRD1ActiveBeforeRD2(deploy, rd) {
 			return false
 		}
 	}
@@ -414,7 +416,6 @@ func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID 
 			Name:      deployName,
 			Namespace: utils.GetEnvironmentNamespace(appName, env),
 			Labels: map[string]string{
-				"radixApp":             appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:     appName,
 				kube.RadixEnvLabel:     env,
 				kube.RadixCommitLabel:  commitID,
@@ -450,14 +451,13 @@ func (deploy *Deployment) maintainHistoryLimit() {
 			return
 		}
 
-		allRDs, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).List(metav1.ListOptions{})
+		deployments, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
 		if err != nil {
 			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
 			return
 		}
 
-		if len(allRDs.Items) > limit {
-			deployments := allRDs.Items
+		if len(deployments) > limit {
 			numToDelete := len(deployments) - limit
 			if numToDelete <= 0 {
 				return
