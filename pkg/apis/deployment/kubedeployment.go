@@ -156,7 +156,8 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 		}
 
 		if garbageCollect {
-			err = deploy.kubeclient.ExtensionsV1beta1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			propagationPolicy := metav1.DeletePropagationForeground
+			err = deploy.kubeclient.ExtensionsV1beta1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 			if err != nil {
 				return err
 			}
