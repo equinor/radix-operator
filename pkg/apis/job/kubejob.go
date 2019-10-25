@@ -2,9 +2,11 @@ package job
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -76,7 +78,7 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 							Name:            workerImage,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
-							Args:            getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
+							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
 							VolumeMounts:    getPipelineJobContainerVolumeMounts(pipeline),
 						},
 					},
@@ -116,11 +118,20 @@ func getPipelineJobInitContainers(sshURL string, pipeline *pipelineJob.Definitio
 	return initContainers
 }
 
-func getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
+func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
+	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
+
+	// Operator will never have an issue with getting clustername
+	clusterName, _ := job.kubeutil.GetClusterName()
+
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("JOB_NAME=%s", jobName),
 		fmt.Sprintf("PIPELINE_TYPE=%s", pipeline.Type),
+
+		// Used for tagging source of image
+		fmt.Sprintf("%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
+		fmt.Sprintf("%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
 	}
 
 	switch pipeline.Type {
@@ -131,7 +142,7 @@ func getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, p
 		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"))
 	case v1.Promote:
-		args = append(args, fmt.Sprintf("RADIX_APP=%s", appName))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixAppEnvironmentVariable, appName))
 		args = append(args, fmt.Sprintf("DEPLOYMENT_NAME=%s", jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("FROM_ENVIRONMENT=%s", jobSpec.Promote.FromEnvironment))
 		args = append(args, fmt.Sprintf("TO_ENVIRONMENT=%s", jobSpec.Promote.ToEnvironment))
