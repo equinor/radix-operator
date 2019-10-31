@@ -21,6 +21,15 @@ func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployCompone
 		return err
 	}
 
+	// If Replicas == 0 or HorizontalScaling is nil then delete hpa if exists before updating deployment
+	deployReplicas := deployment.Spec.Replicas
+	if deployReplicas != nil && *deployReplicas == 0 || deployComponent.HorizontalScaling == nil {
+		err = deploy.deleteHPAIfExists(deployComponent)
+		if err != nil {
+			return err
+		}
+	}
+
 	deploy.customSecuritySettings(appName, namespace, deployment)
 	return deploy.kubeutil.ApplyDeployment(namespace, deployment)
 }
@@ -120,6 +129,11 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 
 	if replicas != nil && *replicas >= 0 {
 		deployment.Spec.Replicas = int32Ptr(int32(*replicas))
+	}
+
+	// Override Replicas with horizontalScaling.minReplicas if exists
+	if replicas != nil && *replicas != 0 && deployComponent.HorizontalScaling != nil {
+		deployment.Spec.Replicas = deployComponent.HorizontalScaling.MinReplicas
 	}
 
 	// For backwards compatibility

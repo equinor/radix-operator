@@ -248,6 +248,12 @@ func (deploy *Deployment) syncDeployment() error {
 			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
 			continue
 		}
+		err = deploy.createHPA(v)
+		if err != nil {
+			log.Infof("Failed to create horizontal pod autoscaler: %v", err)
+			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
+			continue
+		}
 		err = deploy.createService(v)
 		if err != nil {
 			log.Infof("Failed to create service: %v", err)
@@ -379,6 +385,11 @@ func getActiveFrom(rd *v1.RadixDeployment) metav1.Time {
 
 func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 	err := deploy.garbageCollectDeploymentsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectHPAsNoLongerInSpec()
 	if err != nil {
 		return err
 	}
