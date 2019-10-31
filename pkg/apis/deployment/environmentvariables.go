@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -13,20 +14,7 @@ import (
 )
 
 func (deploy *Deployment) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort, radixDeployName, namespace, currentEnvironment, appName, componentName string) []corev1.EnvVar {
-	var environmentVariables []corev1.EnvVar
-	if radixEnvVars != nil {
-		// environmentVariables
-		for key, value := range radixEnvVars {
-			envVar := corev1.EnvVar{
-				Name:  key,
-				Value: value,
-			}
-			environmentVariables = append(environmentVariables, envVar)
-		}
-	} else {
-		log.Debugf("No environment variable is set for this RadixDeployment %s", radixDeployName)
-	}
-
+	var environmentVariables = appendAppEnvVariables(radixDeployName, radixEnvVars)
 	environmentVariables = deploy.appendDefaultVariables(currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports)
 
 	// secrets
@@ -52,6 +40,32 @@ func (deploy *Deployment) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, ra
 		log.Debugf("No secret is set for this RadixDeployment %s", radixDeployName)
 	}
 
+	return environmentVariables
+}
+
+func appendAppEnvVariables(radixDeployName string, radixEnvVars v1.EnvVarsMap) []corev1.EnvVar {
+	var environmentVariables []corev1.EnvVar
+	if radixEnvVars != nil {
+		// map is not sorted, which lead to random order of env variable in deployment
+		// during stop/start/restart of a single component this lead to restart of several other components
+		keys := []string{}
+		for k := range radixEnvVars {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		// environmentVariables
+		for _, key := range keys {
+			value := radixEnvVars[key]
+			envVar := corev1.EnvVar{
+				Name:  key,
+				Value: value,
+			}
+			environmentVariables = append(environmentVariables, envVar)
+		}
+	} else {
+		log.Debugf("No environment variable is set for this RadixDeployment %s", radixDeployName)
+	}
 	return environmentVariables
 }
 
