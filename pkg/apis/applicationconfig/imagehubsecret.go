@@ -68,10 +68,17 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		}
 		// update existing configs
 		for server, config := range app.config.Spec.PrivateImageHubs {
-			currentConfig := imageHubs[server]
-			if config.Username != currentConfig.Username || config.Email != currentConfig.Email {
-				currentConfig.Username = config.Username
-				currentConfig.Email = config.Email
+			if currentConfig, ok := imageHubs[server]; ok {
+				if config.Username != currentConfig.Username || config.Email != currentConfig.Email {
+					currentConfig.Username = config.Username
+					currentConfig.Email = config.Email
+					hasChanged = true
+				}
+			} else {
+				imageHubs[server] = secretImageHub{
+					Username: config.Username,
+					Email:    config.Email,
+				}
 				hasChanged = true
 			}
 		}

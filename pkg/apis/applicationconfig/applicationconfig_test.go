@@ -333,8 +333,39 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 		"radix-private-image-hubs-sync=any-app-app",
 		secret.ObjectMeta.Annotations["kubed.appscode.com/sync"])
 
+	applicationconfig, _ := getAppConfig(client, kubeUtil, radixclient, utils.ARadixApplication().
+		WithAppName("any-app").
+		WithEnvironment("dev", "master").
+		WithPrivateImageRegistry("privaterepodeleteme.azurecr.io", "814607e6-3d71-44a7-8476-50e8b281abbc", "radix@equinor.com"))
+	applicationconfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password")
+	secret, _ = client.CoreV1().Secrets("any-app-app").Get("radix-private-image-hubs", metav1.GetOptions{})
+
+	assert.Equal(t,
+		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOmEtcGFzc3dvcmQ=\"}}}",
+		string(secret.Data[corev1.DockerConfigJsonKey]))
+
+	// TODO! ra is not updated!
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient, utils.ARadixApplication().
+		WithAppName("any-app").
+		WithEnvironment("dev", "master").
+		WithPrivateImageRegistry("privaterepodeleteme.azurecr.io", "814607e6-3d71-44a7-8476-50e8b281abbc", "radix@equinor.com").
+		WithPrivateImageRegistry("privaterepodeleteme2.azurecr.io", "814607e6-3d71-44a7-8476-50e8b281abbc", "radix@equinor.com"))
+
+	secret, _ = client.CoreV1().Secrets("any-app-app").Get("radix-private-image-hubs", metav1.GetOptions{})
+
+	assert.Equal(t,
+		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOmEtcGFzc3dvcmQ=\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOmEtcGFzc3dvcmQ=\"}}}",
+		string(secret.Data[corev1.DockerConfigJsonKey]))
+
 	// test update/delete server/username
-	// test update password
+
+}
+
+func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) (*ApplicationConfig, error) {
+	ra := applicationBuilder.BuildRA()
+	radixRegistration, _ := radixclient.RadixV1().RadixRegistrations().Get(ra.Name, metav1.GetOptions{})
+
+	return NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, ra)
 }
 
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
@@ -359,4 +390,9 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	return nil
+}
+
+func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
+	radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
+
 }
