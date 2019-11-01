@@ -1,0 +1,15 @@
+name: radix-operator-pr
+on:
+  pull_request:
+    branches:
+    - master
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build docker image
+      env:
+        REF: ${{ github. sha }}
+      run: docker build -t radix-operator:${REF##*/} -f operator.Dockerfile .
