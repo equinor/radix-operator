@@ -132,7 +132,13 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // It compares the actual state with the desired, and attempts to
 // converge the two
 func (app *ApplicationConfig) OnSync() error {
-	err := app.createEnvironments()
+	err := app.syncPrivateImageHubSecrets()
+	if err != nil {
+		log.Errorf("Failed to create private image hub secrets. %v", err)
+		return err
+	}
+
+	err = app.createEnvironments()
 	if err != nil {
 		log.Errorf("Failed to create namespaces for app environments %s. %v", app.config.Name, err)
 		return err

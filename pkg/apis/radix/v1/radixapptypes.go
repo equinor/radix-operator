@@ -17,10 +17,11 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
-	Environments     []Environment    `json:"environments" yaml:"environments"`
-	Components       []RadixComponent `json:"components" yaml:"components"`
-	DNSAppAlias      AppAlias         `json:"dnsAppAlias" yaml:"dnsAppAlias"`
-	DNSExternalAlias []ExternalAlias  `json:"dnsExternalAlias" yaml:"dnsExternalAlias"`
+	Environments     []Environment          `json:"environments" yaml:"environments"`
+	Components       []RadixComponent       `json:"components" yaml:"components"`
+	DNSAppAlias      AppAlias               `json:"dnsAppAlias" yaml:"dnsAppAlias"`
+	DNSExternalAlias []ExternalAlias        `json:"dnsExternalAlias" yaml:"dnsExternalAlias"`
+	PrivateImageHubs PrivateImageHubEntries `json:"privateImageHubs" yaml:"privateImageHubs"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -107,4 +108,13 @@ type RadixEnvironmentConfig struct {
 	Monitoring  bool                 `json:"monitoring" yaml:"monitoring"`
 	Resources   ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Variables   EnvVarsMap           `json:"variables" yaml:"variables"`
+}
+
+// PrivateImageHubEntries - key = imagehubserver
+type PrivateImageHubEntries map[string]*RadixPrivateImageHubCredential
+
+// RadixPrivateImageHubCredential defines a private image hub available during deployment time
+type RadixPrivateImageHubCredential struct {
+	Username string `json:"username" yaml:"username"`
+	Email    string `json:"email" yaml:"email"`
 }

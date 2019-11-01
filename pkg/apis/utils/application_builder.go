@@ -15,6 +15,7 @@ type ApplicationBuilder interface {
 	WithComponents(...RadixApplicationComponentBuilder) ApplicationBuilder
 	WithDNSAppAlias(string, string) ApplicationBuilder
 	WithDNSExternalAlias(string, string, string) ApplicationBuilder
+	WithPrivateImageRegistry(string, string, string) ApplicationBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRA() *v1.RadixApplication
 }
@@ -27,6 +28,20 @@ type ApplicationBuilderStruct struct {
 	components          []RadixApplicationComponentBuilder
 	dnsAppAlias         v1.AppAlias
 	externalAppAlias    []v1.ExternalAlias
+	privateImageHubs    v1.PrivateImageHubEntries
+}
+
+// WithPrivateImageRegistry adds a private image hub to application
+func (ap *ApplicationBuilderStruct) WithPrivateImageRegistry(server, username, email string) ApplicationBuilder {
+	if ap.privateImageHubs == nil {
+		ap.privateImageHubs = v1.PrivateImageHubEntries(map[string]*v1.RadixPrivateImageHubCredential{})
+	}
+
+	ap.privateImageHubs[server] = &v1.RadixPrivateImageHubCredential{
+		Username: username,
+		Email:    email,
+	}
+	return ap
 }
 
 // WithRadixRegistration Associates this builder with a registration builder
@@ -133,6 +148,7 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 			Environments:     ap.environments,
 			DNSAppAlias:      ap.dnsAppAlias,
 			DNSExternalAlias: ap.externalAppAlias,
+			PrivateImageHubs: ap.privateImageHubs,
 		},
 	}
 	return radixApplication

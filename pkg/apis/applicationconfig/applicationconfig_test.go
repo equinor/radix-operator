@@ -318,6 +318,25 @@ func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimit
 	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 }
 
+func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient, utils.ARadixApplication().
+		WithAppName("any-app").
+		WithEnvironment("dev", "master").
+		WithPrivateImageRegistry("privaterepodeleteme.azurecr.io", "814607e6-3d71-44a7-8476-50e8b281abbc", "radix@equinor.com"))
+
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get("radix-private-image-hubs", metav1.GetOptions{})
+	assert.Equal(t,
+		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
+		string(secret.Data[corev1.DockerConfigJsonKey]))
+	assert.Equal(t,
+		"radix-private-image-hubs-sync=any-app-app",
+		secret.ObjectMeta.Annotations["kubed.appscode.com/sync"])
+
+	// test update/delete server/username
+	// test update password
+}
+
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
 
