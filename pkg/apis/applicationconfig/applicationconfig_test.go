@@ -337,12 +337,18 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 		WithAppName("any-app").
 		WithEnvironment("dev", "master").
 		WithPrivateImageRegistry("privaterepodeleteme.azurecr.io", "814607e6-3d71-44a7-8476-50e8b281abbc", "radix@equinor.com"))
+	pendingSecrets, _ := GetPendingPrivateImageHubSecrets(client, "any-app")
+
+	assert.Equal(t, "privaterepodeleteme.azurecr.io", pendingSecrets[0])
+
 	applicationconfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password")
 	secret, _ = client.CoreV1().Secrets("any-app-app").Get("radix-private-image-hubs", metav1.GetOptions{})
+	pendingSecrets, _ = GetPendingPrivateImageHubSecrets(client, "any-app")
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"a-password\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOmEtcGFzc3dvcmQ=\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
+	assert.Equal(t, 0, len(pendingSecrets))
 
 	// TODO! ra is not updated!
 	applyApplicationWithSync(tu, client, kubeUtil, radixclient, utils.ARadixApplication().
@@ -390,9 +396,4 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	return nil
-}
-
-func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
-
 }

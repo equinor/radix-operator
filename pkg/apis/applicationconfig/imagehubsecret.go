@@ -10,7 +10,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // PrivateImageHubSecretName contain secret with all private image hubs credentials for an app
@@ -51,13 +53,35 @@ func (app *ApplicationConfig) UpdatePrivateImageHubsSecretsPassword(server, pass
 	return fmt.Errorf("private image hub secret does not contain config for server %s", server)
 }
 
+// GetPendingPrivateImageHubSecrets returns a list of private image hubs where secret value is not set
+func GetPendingPrivateImageHubSecrets(kubeclient kubernetes.Interface, appName string) ([]string, error) {
+	pendingSecrets := []string{}
+	ns := utils.GetAppNamespace(appName)
+	secret, err := kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return pendingSecrets, err
+	}
+
+	imageHubs, err := getImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
+	for key, imageHub := range imageHubs {
+		if imageHub.Password == "" {
+			pendingSecrets = append(pendingSecrets, key)
+		}
+	}
+	return pendingSecrets, nil
+}
+
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	ns := utils.GetAppNamespace(app.config.Name)
 	if app.config.Spec.PrivateImageHubs == nil {
 		return nil
 	}
 
-	secret, _ := app.kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
 	secretValue, err := []byte{}, error(nil)
 	if secret != nil {
 		// update if changes
