@@ -134,7 +134,15 @@ func (in PrivateImageHubEntries) DeepCopyInto(out *PrivateImageHubEntries) {
 		in := &in
 		*out = make(PrivateImageHubEntries, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val
+			var outVal *RadixPrivateImageHubCredential
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = new(RadixPrivateImageHubCredential)
+				**out = **in
+			}
+			(*out)[key] = outVal
 		}
 		return
 	}
@@ -235,7 +243,15 @@ func (in *RadixApplicationSpec) DeepCopyInto(out *RadixApplicationSpec) {
 		in, out := &in.PrivateImageHubs, &out.PrivateImageHubs
 		*out = make(PrivateImageHubEntries, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val
+			var outVal *RadixPrivateImageHubCredential
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = new(RadixPrivateImageHubCredential)
+				**out = **in
+			}
+			(*out)[key] = outVal
 		}
 	}
 	return

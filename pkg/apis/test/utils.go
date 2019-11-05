@@ -10,6 +10,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -52,7 +53,11 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 	appNamespace := CreateAppNamespace(tu.client, ra.GetName())
 	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(ra)
 	if err != nil {
-		return err
+		if errors.IsAlreadyExists(err) {
+			return tu.ApplyApplicationUpdate(applicationBuilder)
+		} else {
+			return err
+		}
 	}
 
 	return nil

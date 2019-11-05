@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 // PrivateImageHubSecretName contain secret with all private image hubs credentials for an app
@@ -54,10 +53,11 @@ func (app *ApplicationConfig) UpdatePrivateImageHubsSecretsPassword(server, pass
 }
 
 // GetPendingPrivateImageHubSecrets returns a list of private image hubs where secret value is not set
-func GetPendingPrivateImageHubSecrets(kubeclient kubernetes.Interface, appName string) ([]string, error) {
+func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, error) {
+	appName := app.config.Name
 	pendingSecrets := []string{}
 	ns := utils.GetAppNamespace(appName)
-	secret, err := kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return pendingSecrets, err
 	}
@@ -73,10 +73,6 @@ func GetPendingPrivateImageHubSecrets(kubeclient kubernetes.Interface, appName s
 
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	ns := utils.GetAppNamespace(app.config.Name)
-	if app.config.Spec.PrivateImageHubs == nil {
-		return nil
-	}
-
 	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
@@ -90,12 +86,22 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		if err != nil {
 			return err
 		}
+
+		// remove configs that doesn't exist
+		for server := range imageHubs {
+			if app.config.Spec.PrivateImageHubs[server] == nil {
+				delete(imageHubs, server)
+				hasChanged = true
+			}
+		}
+
 		// update existing configs
 		for server, config := range app.config.Spec.PrivateImageHubs {
 			if currentConfig, ok := imageHubs[server]; ok {
 				if config.Username != currentConfig.Username || config.Email != currentConfig.Email {
 					currentConfig.Username = config.Username
 					currentConfig.Email = config.Email
+					imageHubs[server] = currentConfig
 					hasChanged = true
 				}
 			} else {
@@ -103,13 +109,6 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 					Username: config.Username,
 					Email:    config.Email,
 				}
-				hasChanged = true
-			}
-		}
-		// remove configs that doesn't exist
-		for server := range imageHubs {
-			if app.config.Spec.PrivateImageHubs[server] == nil {
-				delete(imageHubs, server) // TODO can item be deleted while iterated over?
 				hasChanged = true
 			}
 		}
@@ -197,6 +196,10 @@ func createImageHubsSecretValue(imagehubs v1.PrivateImageHubEntries) ([]byte, er
 
 // getImageHubsSecretValue turn SecretImageHubs into a correctly formated secret for k8s ImagePullSecrets
 func getImageHubsSecretValue(imageHubs secretImageHubs) ([]byte, error) {
+	if imageHubs == nil || len(imageHubs) == 0 {
+		return nil, nil
+	}
+
 	for server, config := range imageHubs {
 		config.Auth = encodeAuthField(config.Username, config.Password)
 		imageHubs[server] = config
