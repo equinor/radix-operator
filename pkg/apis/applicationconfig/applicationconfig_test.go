@@ -455,11 +455,15 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
-	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
+	client, appConfig, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
+	pendingSecrets, _ := appConfig.GetPendingPrivateImageHubSecrets()
+
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.NotNil(t, secret)
 	assert.Nil(t, secret.Data[corev1.DockerConfigJsonKey])
+	assert.Equal(t, 0, len(pendingSecrets))
+	assert.Error(t, appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password"))
 }
 
 func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *ApplicationConfig, error) {
