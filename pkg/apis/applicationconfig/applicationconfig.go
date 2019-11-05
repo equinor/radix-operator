@@ -153,7 +153,6 @@ func (app *ApplicationConfig) createEnvironments() error {
 
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(app.config.Name, env)
-
 		ownerRef := application.GetOwnerReferenceOfRegistration(app.registration)
 		labels := map[string]string{
 			"sync":                         "cluster-wildcard-tls-cert",
@@ -163,6 +162,8 @@ func (app *ApplicationConfig) createEnvironments() error {
 			kube.RadixAppLabel:             app.config.Name,
 			kube.RadixEnvLabel:             env,
 		}
+		key, value := GetKubeDPrivateImageHubAnnotationValues(app.config.Name)
+		labels[key] = value
 
 		err := app.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
 		if err != nil {

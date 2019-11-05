@@ -330,7 +330,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
-	assert.Equal(t, "radix-private-image-hubs-sync=any-app-app", secret.ObjectMeta.Annotations["kubed.appscode.com/sync"])
+	assert.Equal(t, "radix-private-image-hubs-sync=any-app", secret.ObjectMeta.Annotations["kubed.appscode.com/sync"])
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
@@ -461,7 +461,9 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
 	secret, _ := client.CoreV1().Secrets("any-app-app").Get(PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.NotNil(t, secret)
-	assert.Nil(t, secret.Data[corev1.DockerConfigJsonKey])
+	assert.Equal(t,
+		"{\"auths\":{}}",
+		string(secret.Data[corev1.DockerConfigJsonKey]))
 	assert.Equal(t, 0, len(pendingSecrets))
 	assert.Error(t, appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password"))
 }

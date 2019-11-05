@@ -17,14 +17,14 @@ import (
 // PrivateImageHubSecretName contain secret with all private image hubs credentials for an app
 const PrivateImageHubSecretName = "radix-private-image-hubs"
 
-func getKubeDAnnotation(namespace string) string {
-	key, value := GetKubeDPrivateImageHubAnnotationValues(namespace)
+func getKubeDAnnotation(appName string) string {
+	key, value := GetKubeDPrivateImageHubAnnotationValues(appName)
 	return fmt.Sprintf("%s=%s", key, value)
 }
 
 // GetKubeDPrivateImageHubAnnotationValues gets value and key to use for namespace annotation to pick up private image hubs
-func GetKubeDPrivateImageHubAnnotationValues(namespace string) (key, value string) {
-	return fmt.Sprintf("%s-sync", PrivateImageHubSecretName), namespace
+func GetKubeDPrivateImageHubAnnotationValues(appName string) (key, value string) {
+	return fmt.Sprintf("%s-sync", PrivateImageHubSecretName), appName
 }
 
 // UpdatePrivateImageHubsSecretsPassword updates the private image hub secret
@@ -47,7 +47,7 @@ func (app *ApplicationConfig) UpdatePrivateImageHubsSecretsPassword(server, pass
 		if err != nil {
 			return err
 		}
-		return applyPrivateImageHubSecret(app.kubeutil, ns, secretValue)
+		return applyPrivateImageHubSecret(app.kubeutil, ns, app.config.Name, secretValue)
 	}
 	return fmt.Errorf("private image hub secret does not contain config for server %s", server)
 }
@@ -78,7 +78,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		return err
 	}
 
-	secretValue, err := []byte{}, error(nil)
+	secretValue := []byte{}
 	if errors.IsNotFound(err) || secret == nil {
 		secretValue, err = createImageHubsSecretValue(app.config.Spec.PrivateImageHubs)
 	} else {
@@ -123,18 +123,18 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	if err != nil {
 		return err
 	}
-	return applyPrivateImageHubSecret(app.kubeutil, ns, secretValue)
+	return applyPrivateImageHubSecret(app.kubeutil, ns, app.config.Name, secretValue)
 }
 
 // applyPrivateImageHubSecret create a private image hub secret based on SecretTypeDockerConfigJson
-func applyPrivateImageHubSecret(kubeutil *kube.Kube, ns string, secretValue []byte) error {
+func applyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretValue []byte) error {
 	secret := corev1.Secret{
 		Type: corev1.SecretTypeDockerConfigJson,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      PrivateImageHubSecretName,
 			Namespace: ns,
 			Annotations: map[string]string{
-				"kubed.appscode.com/sync": getKubeDAnnotation(ns),
+				"kubed.appscode.com/sync": getKubeDAnnotation(appName),
 			},
 		},
 		Data: map[string][]byte{},
@@ -198,10 +198,6 @@ func createImageHubsSecretValue(imagehubs v1.PrivateImageHubEntries) ([]byte, er
 
 // getImageHubsSecretValue turn SecretImageHubs into a correctly formated secret for k8s ImagePullSecrets
 func getImageHubsSecretValue(imageHubs secretImageHubs) ([]byte, error) {
-	if imageHubs == nil || len(imageHubs) == 0 {
-		return nil, nil
-	}
-
 	for server, config := range imageHubs {
 		config.Auth = encodeAuthField(config.Username, config.Password)
 		imageHubs[server] = config
