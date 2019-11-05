@@ -79,7 +79,9 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	}
 
 	secretValue, err := []byte{}, error(nil)
-	if secret != nil {
+	if errors.IsNotFound(err) || secret == nil {
+		secretValue, err = createImageHubsSecretValue(app.config.Spec.PrivateImageHubs)
+	} else {
 		// update if changes
 		hasChanged := false
 		imageHubs, err := getImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
@@ -116,8 +118,6 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 			return nil
 		}
 		secretValue, err = getImageHubsSecretValue(imageHubs)
-	} else {
-		secretValue, err = createImageHubsSecretValue(app.config.Spec.PrivateImageHubs)
 	}
 
 	if err != nil {
@@ -137,10 +137,12 @@ func applyPrivateImageHubSecret(kubeutil *kube.Kube, ns string, secretValue []by
 				"kubed.appscode.com/sync": getKubeDAnnotation(ns),
 			},
 		},
-		Data: map[string][]byte{
-			corev1.DockerConfigJsonKey: secretValue,
-		},
+		Data: map[string][]byte{},
 	}
+	if secretValue != nil {
+		secret.Data[corev1.DockerConfigJsonKey] = secretValue
+	}
+
 	_, err := kubeutil.ApplySecret(ns, &secret)
 	if err != nil {
 		log.Warnf("Failed to create private image hub secrets for ns %s", ns)
