@@ -10,8 +10,9 @@ pool:
   vmImage: 'Ubuntu-16.04'
 
 variables:
-  serviceConnectionDevSubscription: 'radix-azure-devops-dev-cr'
-  serviceConnectionProdSubscription: 'radix-azure-devops-prod-cr'
+  serviceConnectionDockerregistryDev: 'radix-azure-devops-dev-cr'
+  serviceConnectionDockerregistryProd: 'radix-azure-devops-prod-cr'
+  serviceConnectionDockerregistryUs: 'radix-azure-devops-us-cr'
 
 steps:
 - task: Docker@2
