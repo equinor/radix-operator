@@ -10,6 +10,7 @@ import (
 	"time"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -18,6 +19,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -66,7 +68,7 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 // ConstructForTargetEnvironment Will build a deployment for target environment
 func ConstructForTargetEnvironment(config *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, env string) (v1.RadixDeployment, error) {
 	radixComponents := getRadixComponentsForEnv(config, containerRegistry, env, imageTag)
-	radixDeployment := constructRadixDeployment(config.Name, env, jobName, imageTag, branch, commitID, radixComponents)
+	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, radixComponents)
 	return radixDeployment, nil
 }
 
@@ -409,8 +411,14 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 	return nil
 }
 
-func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
+	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
+	imagePullSecrets := []corev1.LocalObjectReference{}
+	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: applicationconfig.PrivateImageHubSecretName})
+	}
+
 	radixDeployment := v1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deployName,
@@ -426,9 +434,10 @@ func constructRadixDeployment(appName, env, jobName, imageTag, branch, commitID 
 			},
 		},
 		Spec: v1.RadixDeploymentSpec{
-			AppName:     appName,
-			Environment: env,
-			Components:  components,
+			AppName:          appName,
+			Environment:      env,
+			Components:       components,
+			ImagePullSecrets: imagePullSecrets,
 		},
 	}
 	return radixDeployment
