@@ -28,7 +28,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 	jobName := pipelineInfo.PipelineArguments.JobName
 
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, imageTag, pipelineInfo.PipelineArguments.PushImage, ra.Spec.Components)
+	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, ra.Spec.Components)
 	timestamp := time.Now().Format("20060102150405")
 
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -89,7 +89,12 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 	return &job, nil
 }
 
-func createACRBuildContainers(containerRegistry, appName, imageTag string, pushImage bool, components []v1.RadixComponent) []corev1.Container {
+func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, components []v1.RadixComponent) []corev1.Container {
+	imageTag := pipelineInfo.PipelineArguments.ImageTag
+	pushImage := pipelineInfo.PipelineArguments.PushImage
+	clustertype := pipelineInfo.PipelineArguments.Clustertype
+	clustername := pipelineInfo.PipelineArguments.Clustername
+
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
@@ -105,6 +110,11 @@ func createACRBuildContainers(containerRegistry, appName, imageTag string, pushI
 		}
 
 		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
+
+		// For extra meta inforamtion about an image
+		clustertypeImage := utils.GetImagePath(containerRegistry, appName, c.Name, fmt.Sprintf("%s-%s", clustertype, imageTag))
+		clusternameImage := utils.GetImagePath(containerRegistry, appName, c.Name, fmt.Sprintf("%s-%s", clustername, imageTag))
+
 		dockerFile := c.DockerfileName
 		if dockerFile == "" {
 			dockerFile = "Dockerfile"
@@ -138,6 +148,16 @@ func createACRBuildContainers(containerRegistry, appName, imageTag string, pushI
 				{
 					Name:  "AZURE_CREDENTIALS",
 					Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
+				},
+
+				// Extra meta information
+				{
+					Name:  "CLUSTERTYPE_IMAGE",
+					Value: clustertypeImage,
+				},
+				{
+					Name:  "CLUSTERNAME_IMAGE",
+					Value: clusternameImage,
 				},
 			},
 			VolumeMounts: []corev1.VolumeMount{
