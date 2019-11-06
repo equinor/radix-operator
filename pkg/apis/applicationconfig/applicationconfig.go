@@ -46,6 +46,16 @@ func NewApplicationConfig(
 		config}, nil
 }
 
+// GetRadixApplicationConfig returns the provided config
+func (app *ApplicationConfig) GetRadixApplicationConfig() *radixv1.RadixApplication {
+	return app.config
+}
+
+// GetRadixRegistration returns the provided radix registration
+func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration {
+	return app.registration
+}
+
 // GetComponent Gets the component for a provided name
 func GetComponent(ra *v1.RadixApplication, name string) *v1.RadixComponent {
 	for _, component := range ra.Spec.Components {
