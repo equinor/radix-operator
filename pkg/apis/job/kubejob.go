@@ -57,6 +57,9 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 		return nil, err
 	}
 
+	volumes := getPipelineJobVolumes(pipeline)
+	volumes = append(volumes, job.getBuildSecretsAsVolumes()...)
+
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   jobName,
@@ -80,7 +83,7 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 							VolumeMounts:    getPipelineJobContainerVolumeMounts(pipeline),
 						},
 					},
-					Volumes:       getPipelineJobVolumes(pipeline),
+					Volumes:       volumes,
 					RestartPolicy: "Never",
 				},
 			},
@@ -191,6 +194,32 @@ func getPipelineJobVolumes(pipeline *pipelineJob.Definition) []corev1.Volume {
 				},
 			},
 		})
+	}
+
+	return volumes
+}
+
+func (job *Job) getBuildSecretsAsVolumes() []corev1.Volume {
+	var volumes []corev1.Volume
+
+	buildSecrets, err := job.kubeclient.CoreV1().Secrets(job.radixJob.Namespace).List(metav1.ListOptions{
+		LabelSelector: kube.RadixBuildSecretLabel,
+	})
+
+	defaultMode := int32(256)
+
+	if err == nil {
+		for _, buildSecret := range buildSecrets.Items {
+			volumes = append(volumes, corev1.Volume{
+				Name: buildSecret.Name,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName:  buildSecret.Name,
+						DefaultMode: &defaultMode,
+					},
+				},
+			})
+		}
 	}
 
 	return volumes

@@ -138,6 +138,12 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
+	err = app.syncBuildSecrets()
+	if err != nil {
+		log.Errorf("Failed to create build secrets. %v", err)
+		return err
+	}
+
 	err = app.createEnvironments()
 	if err != nil {
 		log.Errorf("Failed to create namespaces for app environments %s. %v", app.config.Name, err)

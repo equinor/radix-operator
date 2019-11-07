@@ -318,6 +318,48 @@ func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimit
 	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 }
 
+func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret1", "secret2"))
+
+	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
+
+	secret1 := getSecretByName("secret1", secrets)
+	secret2 := getSecretByName("secret2", secrets)
+	assert.NotNil(t, secret1)
+	assert.NotNil(t, secret2)
+
+}
+
+func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret1", "secret2"))
+
+	// Delete secret
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret2"))
+
+	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
+
+	secret1 := getSecretByName("secret1", secrets)
+	secret2 := getSecretByName("secret2", secrets)
+	assert.Nil(t, secret1)
+	assert.NotNil(t, secret2)
+}
+
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
@@ -511,4 +553,23 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	return nil
+}
+
+func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
+	for _, secret := range secrets.Items {
+		if secret.Name == name {
+			return &secret
+		}
+	}
+
+	return nil
+}
+
+func secretByNameExists(name string, secrets *corev1.SecretList) bool {
+	secret := getSecretByName(name, secrets)
+	if secret != nil {
+		return true
+	}
+
+	return false
 }
