@@ -13,20 +13,26 @@ pool:
   vmImage: 'Ubuntu-16.04'
 
 variables:
-  serviceConnectionDevSubscription: 'radix-azure-devops-dev-cr'
-  serviceConnectionProdSubscription: 'radix-azure-devops-prod-cr'
+  serviceConnectionDockerregistryDev: 'radix-azure-devops-dev-cr'
+  serviceConnectionDockerregistryProd: 'radix-azure-devops-prod-cr'
+  serviceConnectionDockerregistryUs: 'radix-azure-devops-us-cr'
 
 steps:
 - task: Docker@2
-  displayName: 'Login to Dev Subscription'
+  displayName: 'Login to Dev ACR'
   inputs:
     command: login
-    containerRegistry: '$(serviceConnectionDevSubscription)'
+    containerRegistry: '$(serviceConnectionDockerregistryDev)'
 - task: Docker@2
-  displayName: 'Login to Prod Subscription'
+  displayName: 'Login to Prod ACR'
   inputs:
     command: login
-    containerRegistry: '$(serviceConnectionProdSubscription)'
+    containerRegistry: '$(serviceConnectionDockerregistryProd)'
+- task: Docker@2
+  displayName: 'Login to US ACR'
+  inputs:
+    command: login
+    containerRegistry: '$(serviceConnectionDockerregistryUs)'
 
 - task: Docker@2
   displayName: 'Build and push operator image'

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -44,7 +45,7 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 	args := getArgs()
 
 	// Required when repo is not cloned
-	appName := args["RADIX_APP"]
+	appName := args[defaults.RadixAppEnvironmentVariable]
 
 	// Required when repo is cloned to point to location of the config
 	fileName := args["RADIX_FILE_NAME"]
