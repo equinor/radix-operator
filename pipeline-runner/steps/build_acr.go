@@ -122,8 +122,9 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		context := getContext(c.SourceFolder)
 		log.Debugf("using dockerfile %s in context %s", dockerFile, context)
 		container := corev1.Container{
-			Name:  fmt.Sprintf("build-%s", c.Name),
-			Image: fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
+			Name:            fmt.Sprintf("build-%s", c.Name),
+			Image:           fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
+			ImagePullPolicy: corev1.PullAlways,
 			Env: []corev1.EnvVar{
 				{
 					Name:  "DOCKER_FILE_NAME",
