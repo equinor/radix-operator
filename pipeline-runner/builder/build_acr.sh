@@ -9,5 +9,5 @@ fi
 
 env | grep BUILD_SECRET_
 
-az login --service-principal -u ${SP_USER} -p ${SP_SECRET} --tenant ${TENANT} 
-az acr build -t ${IMAGE} ${NO_PUSH} -r ${DOCKER_REGISTRY} ${CONTEXT} -f ${CONTEXT}${DOCKER_FILE_NAME}
+az login --service-principal -u ${SP_USER} -p ${SP_SECRET} --tenant ${TENANT}
+az acr build -t ${IMAGE} -t ${CLUSTERTYPE_IMAGE} -t ${CLUSTERNAME_IMAGE} ${NO_PUSH} -r ${DOCKER_REGISTRY} ${CONTEXT} -f ${CONTEXT}${DOCKER_FILE_NAME}

@@ -482,7 +482,6 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 
-	// TODO - split -  delete image registry
 	client, _, _ = applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme2.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
 			Username: "814607e6-3d71-44a7-8476-50e8b281abbc",
