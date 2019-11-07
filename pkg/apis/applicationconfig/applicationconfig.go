@@ -46,6 +46,16 @@ func NewApplicationConfig(
 		config}, nil
 }
 
+// GetRadixApplicationConfig returns the provided config
+func (app *ApplicationConfig) GetRadixApplicationConfig() *radixv1.RadixApplication {
+	return app.config
+}
+
+// GetRadixRegistration returns the provided radix registration
+func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration {
+	return app.registration
+}
+
 // GetComponent Gets the component for a provided name
 func GetComponent(ra *v1.RadixApplication, name string) *v1.RadixComponent {
 	for _, component := range ra.Spec.Components {
@@ -132,7 +142,13 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 // It compares the actual state with the desired, and attempts to
 // converge the two
 func (app *ApplicationConfig) OnSync() error {
-	err := app.createEnvironments()
+	err := app.syncPrivateImageHubSecrets()
+	if err != nil {
+		log.Errorf("Failed to create private image hub secrets. %v", err)
+		return err
+	}
+
+	err = app.createEnvironments()
 	if err != nil {
 		log.Errorf("Failed to create namespaces for app environments %s. %v", app.config.Name, err)
 		return err
@@ -147,7 +163,6 @@ func (app *ApplicationConfig) createEnvironments() error {
 
 	for env := range targetEnvs {
 		namespaceName := utils.GetEnvironmentNamespace(app.config.Name, env)
-
 		ownerRef := application.GetOwnerReferenceOfRegistration(app.registration)
 		labels := map[string]string{
 			"sync":                         "cluster-wildcard-tls-cert",
@@ -157,6 +172,8 @@ func (app *ApplicationConfig) createEnvironments() error {
 			kube.RadixAppLabel:             app.config.Name,
 			kube.RadixEnvLabel:             env,
 		}
+		key, value := GetKubeDPrivateImageHubAnnotationValues(app.config.Name)
+		labels[key] = value
 
 		err := app.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
 		if err != nil {

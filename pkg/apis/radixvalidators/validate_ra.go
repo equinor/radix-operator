@@ -18,6 +18,16 @@ const (
 	cpuRegex          = "^[0-9]+m$"
 )
 
+// MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
+func MissingPrivateImageHubUsernameError(server string) error {
+	return fmt.Errorf("Username is required for private image hub %s", server)
+}
+
+// MissingPrivateImageHubEmailError Error when email for private image hubs is not defined
+func MissingPrivateImageHubEmailError(server string) error {
+	return fmt.Errorf("Email is required for private image hub %s", server)
+}
+
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
 	return fmt.Errorf("Env %s refered to by dnsAppAlias is not defined", env)
@@ -161,10 +171,28 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, dnsErrors...)
 	}
 
+	dnsErrors = validatePrivateImageHubs(app)
+	if len(dnsErrors) > 0 {
+		errs = append(errs, dnsErrors...)
+	}
+
 	if len(errs) <= 0 {
 		return true, nil
 	}
 	return false, errs
+}
+
+func validatePrivateImageHubs(app *radixv1.RadixApplication) []error {
+	errs := []error{}
+	for server, config := range app.Spec.PrivateImageHubs {
+		if config.Username == "" {
+			errs = append(errs, MissingPrivateImageHubUsernameError(server))
+		}
+		if config.Email == "" {
+			errs = append(errs, MissingPrivateImageHubEmailError(server))
+		}
+	}
+	return errs
 }
 
 // RAContainsOldPublic Checks to see if the radix config is using the deprecated config for public port

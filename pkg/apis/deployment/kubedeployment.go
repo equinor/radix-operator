@@ -88,6 +88,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 							SecurityContext: securityContext,
 						},
 					},
+					ImagePullSecrets: deploy.radixDeployment.Spec.ImagePullSecrets,
 				},
 			},
 		},

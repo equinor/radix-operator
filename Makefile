@@ -1,4 +1,3 @@
-DOCKER_FILES	= operator pipeline
 ENVIRONMENT ?= dev
 VERSION 	?= latest
 
@@ -68,29 +67,30 @@ echo:
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
-define make-docker-build
-  	build-$1:
-		docker build -t $(DOCKER_REGISTRY)/radix-$1:$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-$1:$(TAG) -f $1.Dockerfile .
-  	build:: build-$1
-endef
+build-pipeline:
+	docker build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) -f pipeline.Dockerfile .
 
-define make-docker-push
-  	push-$1:
-		az acr login --name $(CONTAINER_REPO)
-		docker push $(DOCKER_REGISTRY)/radix-$1:$(BRANCH)-$(VERSION)
-		docker push $(DOCKER_REGISTRY)/radix-$1:$(TAG)
-  	push:: push-$1
-endef
+deploy-pipeline:
+	az acr login --name $(CONTAINER_REPO)
+	make build-pipeline
+	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION)
+	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION)
+	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(TAG)
 
-define make-docker-deploy
-  	deploy-$1:
-		make build-$1
-		make push-$1
-endef
+build-operator:
+	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) -f operator.Dockerfile .
 
-$(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-build,$(element))))
-$(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-push,$(element))))
-$(foreach element,$(DOCKER_FILES),$(eval $(call make-docker-deploy,$(element))))
+deploy-operator:
+	az acr login --name $(CONTAINER_REPO)
+	make build-operator
+	docker push $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION)
+	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
+	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
+
+deploy-acr-builder:
+	az acr login --name $(CONTAINER_REPO)
+	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
+	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
 
 # deploys radix operator using helm chart in radixdev/radixprod acr
 deploy-via-helm:
@@ -134,11 +134,6 @@ helm-upgrade-operator-chart:
 	tar -zcvf radix-operator-$(CHART_VERSION).tgz charts/radix-operator
 	az acr helm push --name $(CONTAINER_REPO) charts/radix-operator-$(CHART_VERSION).tgz
 	rm charts/radix-operator-$(CHART_VERSION).tgz
-
-deploy-acr-builder:
-	az acr login --name $(CONTAINER_REPO)
-	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
-	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
 
 ROOT_PACKAGE=github.com/equinor/radix-operator
 CUSTOM_RESOURCE_NAME=radix
