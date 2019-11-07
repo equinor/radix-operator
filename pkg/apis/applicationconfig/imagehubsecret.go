@@ -152,7 +152,7 @@ func applyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretV
 }
 
 // represent the secret of type docker-config
-type secretImageHubsJson struct {
+type secretImageHubsJSON struct {
 	Auths secretImageHubs `json:"auths"`
 }
 
@@ -171,7 +171,7 @@ type secretImageHub struct {
 
 // getImageHubSecretValue gets imagehub secret value
 func getImageHubSecretValue(value []byte) (secretImageHubs, error) {
-	secretValue := secretImageHubsJson{}
+	secretValue := secretImageHubsJSON{}
 	err := json.Unmarshal(value, &secretValue)
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func getImageHubsSecretValue(imageHubs secretImageHubs) ([]byte, error) {
 		imageHubs[server] = config
 	}
 
-	imageHubJSON := secretImageHubsJson{
+	imageHubJSON := secretImageHubsJSON{
 		Auths: imageHubs,
 	}
 	return json.Marshal(imageHubJSON)

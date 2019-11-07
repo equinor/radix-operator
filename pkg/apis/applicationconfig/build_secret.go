@@ -72,7 +72,7 @@ func (app *ApplicationConfig) garbageCollectBuildSecretsNoLongerInSpec() error {
 
 func applyEmptyBuildSecret(kubeutil *kube.Kube, namespace, name string) error {
 	secret := corev1.Secret{
-		Type: corev1.SecretTypeDockerConfigJson,
+		Type: corev1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
