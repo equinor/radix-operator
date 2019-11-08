@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -28,6 +29,10 @@ type PipelineArguments struct {
 	DeploymentName  string
 	FromEnvironment string
 	ToEnvironment   string
+
+	// Used for tagging metainformation
+	Clustertype string
+	Clustername string
 }
 
 // GetPipelineArgsFromArguments Gets pipeline arguments from arg string
@@ -43,6 +48,9 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	deploymentName := args["DEPLOYMENT_NAME"]   // For promotion pipeline
 	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
 	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion pipeline
+
+	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
+	clusterName := args[defaults.ClusternameEnvironmentVariable]
 
 	if branch == "" {
 		branch = "dev"
@@ -67,6 +75,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
+		Clustertype:     clusterType,
+		Clustername:     clusterName,
 	}
 }
 
