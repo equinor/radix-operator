@@ -30,8 +30,6 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
 	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, ra.Spec.Components, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
-
-	log.Info("Building with build secrets")
 	defaultMode, backOffLimit := int32(256), int32(0)
 
 	job := batchv1.Job{
@@ -160,6 +158,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 			},
 		}
 
+		log.Info("Building with build secrets %v", buildSecrets)
 		envVars = append(envVars, buildSecrets...)
 
 		container := corev1.Container{
