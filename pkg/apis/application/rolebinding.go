@@ -22,28 +22,8 @@ func (app Application) grantAccessToCICDLogs() error {
 		return err
 	}
 
-	subjects := kube.GetRoleBindingGroups(adGroups)
 	clusterRoleName := "radix-app-admin"
-
-	roleBinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: registration.Name,
-			},
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRoleName,
-		},
-		Subjects: subjects,
-	}
-
+	roleBinding := kube.GetRolebindingToClusterRole(registration.Name, clusterRoleName, adGroups)
 	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 

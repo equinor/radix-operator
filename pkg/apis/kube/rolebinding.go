@@ -26,6 +26,50 @@ func GetRoleBindingGroups(groups []string) []auth.Subject {
 	return subjects
 }
 
+// GetRolebindingToRole Get role binding object
+func GetRolebindingToRole(appName, name string, groups []string) *auth.RoleBinding {
+	return GetRolebindingToRoleWithLabels(name, groups, map[string]string{
+		RadixAppLabel: appName,
+	})
+}
+
+// GetRolebindingToRoleWithLabels Get role binding object
+func GetRolebindingToRoleWithLabels(name string, groups []string, labels map[string]string) *auth.RoleBinding {
+	return getRoleBinding(name, "Role", groups, labels)
+}
+
+// GetRolebindingToClusterRole Get role binding object
+func GetRolebindingToClusterRole(appName, name string, groups []string) *auth.RoleBinding {
+	return GetRolebindingToClusterRoleWithLabels(name, groups, map[string]string{
+		RadixAppLabel: appName,
+	})
+}
+
+// GetRolebindingToClusterRoleWithLabels Get role binding object
+func GetRolebindingToClusterRoleWithLabels(name string, groups []string, labels map[string]string) *auth.RoleBinding {
+	return getRoleBinding(name, "ClusterRole", groups, labels)
+}
+
+func getRoleBinding(name, kind string, groups []string, labels map[string]string) *auth.RoleBinding {
+	subjects := GetRoleBindingGroups(groups)
+	return &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     kind,
+			Name:     name,
+		},
+		Subjects: subjects,
+	}
+}
+
 // ApplyRoleBinding Creates or updates role-binding
 func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
 	logger = logger.WithFields(log.Fields{"roleBinding": rolebinding.ObjectMeta.Name})

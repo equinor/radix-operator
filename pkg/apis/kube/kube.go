@@ -32,7 +32,6 @@ const (
 	RadixAppAliasLabel           = "radix-app-alias"
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
-	RadixBuildSecretLabel        = "radix-build-secret"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"

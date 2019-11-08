@@ -328,11 +328,13 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithBuildSecrets("secret1", "secret2"))
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
+	defaultValue := []byte(buildSecretDefaultData)
 
-	secret1 := getSecretByName("secret1", secrets)
-	secret2 := getSecretByName("secret2", secrets)
-	assert.NotNil(t, secret1)
-	assert.NotNil(t, secret2)
+	buildSecrets := getSecretByName(buildSecretsName, secrets)
+	assert.NotNil(t, buildSecrets)
+	assert.Equal(t, 2, len(buildSecrets.Data))
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret1"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
 
 }
 
@@ -353,11 +355,13 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithBuildSecrets("secret2"))
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
+	defaultValue := []byte(buildSecretDefaultData)
 
-	secret1 := getSecretByName("secret1", secrets)
-	secret2 := getSecretByName("secret2", secrets)
-	assert.Nil(t, secret1)
-	assert.NotNil(t, secret2)
+	buildSecrets := getSecretByName(buildSecretsName, secrets)
+	assert.NotNil(t, buildSecrets)
+	assert.Equal(t, 1, len(buildSecrets.Data))
+	assert.Nil(t, buildSecrets.Data["secret1"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {

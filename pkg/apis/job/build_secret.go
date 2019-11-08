@@ -3,7 +3,6 @@ package job
 import (
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,9 +12,7 @@ const buildSecretPrefix = "BUILD_SECRET_"
 func (job *Job) getBuildSecretsAsVariables() []corev1.EnvVar {
 	var environmentVariables []corev1.EnvVar
 
-	buildSecrets, err := job.kubeclient.CoreV1().Secrets(job.radixJob.Namespace).List(metav1.ListOptions{
-		LabelSelector: kube.RadixBuildSecretLabel,
-	})
+	buildSecrets, err := job.kubeclient.CoreV1().Secrets(job.radixJob.Namespace).List(metav1.ListOptions{})
 
 	if err == nil {
 		for _, buildSecret := range buildSecrets.Items {

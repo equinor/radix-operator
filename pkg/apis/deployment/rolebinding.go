@@ -90,25 +90,6 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 
 func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := application.GetAdGroups(registration)
-	subjects := kube.GetRoleBindingGroups(adGroups)
 	roleName := role.ObjectMeta.Name
-
-	rolebinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   roleName,
-			Labels: role.Labels,
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     roleName,
-		},
-		Subjects: subjects,
-	}
-
-	return rolebinding
+	return kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
 }
