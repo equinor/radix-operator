@@ -80,7 +80,6 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
 							VolumeMounts:    getPipelineJobContainerVolumeMounts(pipeline),
-							Env:             job.getBuildSecretsAsVariables(),
 						},
 					},
 					Volumes:       getPipelineJobVolumes(pipeline),
