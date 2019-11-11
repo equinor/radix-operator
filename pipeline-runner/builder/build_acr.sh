@@ -16,8 +16,7 @@ function GetBuildCommand() {
           keyValue=(${line//=/ })
           envBuildSecret=${keyValue[0]}
           secretName=${envBuildSecret#"$prefix"}
-          secretValue="$(printenv $envBuildSecret | base64)"
-          echo "$secretValue"
+          secretValue="$(printenv $envBuildSecret | base64 | tr -d \\n)"
 
           buildArgs+="--secret-build-arg $secretName=\"$secretValue\" "
       fi
@@ -35,9 +34,7 @@ if [[ -z "${SP_SECRET}" ]]; then
   SP_SECRET=$(cat ${AZURE_CREDENTIALS} | jq -r '.password')
 fi
 
-echo "Jonas was here"
-azBuildCommand=$(GetBuildCommand)
+azBuildCommand="$(GetBuildCommand)"
 
 az login --service-principal -u ${SP_USER} -p ${SP_SECRET} --tenant ${TENANT}
-# echo "$azBuildCommand"
 bash -c "$azBuildCommand"
