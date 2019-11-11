@@ -158,7 +158,6 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 			},
 		}
 
-		log.Info("Building with build secrets %v", buildSecrets)
 		envVars = append(envVars, buildSecrets...)
 
 		container := corev1.Container{
