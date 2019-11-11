@@ -1,16 +1,22 @@
 #!/bin/bash
 function GetBuildCommand() {
-  prefix="BUILD_SECRET_"
-  delimiter='\='
-  buildArgs=''
-  buildCommand="az acr build -t ${IMAGE} -t ${CLUSTERTYPE_IMAGE} -t ${CLUSTERNAME_IMAGE} ${NO_PUSH} -r ${DOCKER_REGISTRY} ${CONTEXT} -f ${CONTEXT}${DOCKER_FILE_NAME}"
+  local prefix="BUILD_SECRET_"
+  local delimiter='\='
+  local buildArgs=''
+  local buildCommand="az acr build -t ${IMAGE} -t ${CLUSTERTYPE_IMAGE} -t ${CLUSTERNAME_IMAGE} ${NO_PUSH} -r ${DOCKER_REGISTRY} ${CONTEXT} -f ${CONTEXT}${DOCKER_FILE_NAME}"
+
+  local line
+  local keyValue
+  local envBuildSecret
+  local secretName
+  local secretValue
 
   while read -r line; do
       if [[ "$line" ]]; then
           keyValue=(${line//=/ })
-          secretName=${keyValue[0]#"$prefix"}
-          secretValue=${keyValue[1]}
-
+          envBuildSecret=${keyValue[0]}
+          secretName=${envBuildSecret#"$prefix"}
+          secretValue="$(printenv $envBuildSecret | base64)"
           buildArgs+="--secret-build-arg $secretName=$secretValue "
       fi
   done <<< "$(env | grep 'BUILD_SECRET_')"
@@ -28,8 +34,9 @@ if [[ -z "${SP_SECRET}" ]]; then
   SP_SECRET=$(cat ${AZURE_CREDENTIALS} | jq -r '.password')
 fi
 
-
+echo "Here2"
 azBuildCommand=$(GetBuildCommand)
 
 az login --service-principal -u ${SP_USER} -p ${SP_SECRET} --tenant ${TENANT}
+echo "$azBuildCommand"
 bash -c "$azBuildCommand"
