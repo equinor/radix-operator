@@ -35,7 +35,7 @@ func GetRolebindingToRole(appName, name string, groups []string) *auth.RoleBindi
 
 // GetRolebindingToRoleWithLabels Get role binding object
 func GetRolebindingToRoleWithLabels(name string, groups []string, labels map[string]string) *auth.RoleBinding {
-	return getRoleBinding(name, "Role", groups, labels)
+	return getRoleBindingForGroups(name, "Role", groups, labels)
 }
 
 // GetRolebindingToClusterRole Get role binding object
@@ -47,10 +47,15 @@ func GetRolebindingToClusterRole(appName, name string, groups []string) *auth.Ro
 
 // GetRolebindingToClusterRoleWithLabels Get role binding object
 func GetRolebindingToClusterRoleWithLabels(name string, groups []string, labels map[string]string) *auth.RoleBinding {
-	return getRoleBinding(name, "ClusterRole", groups, labels)
+	return getRoleBindingForGroups(name, "ClusterRole", groups, labels)
 }
 
-func getRoleBinding(name, kind string, groups []string, labels map[string]string) *auth.RoleBinding {
+// GetRolebindingToClusterRoleForServiceAccountWithLabels Get role binding object
+func GetRolebindingToClusterRoleForServiceAccountWithLabels(name, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
+	return getRoleBindingForServiceAccount(name, "ClusterRole", serviceAccountName, serviceAccountNamespace, labels)
+}
+
+func getRoleBindingForGroups(name, kind string, groups []string, labels map[string]string) *auth.RoleBinding {
 	subjects := GetRoleBindingGroups(groups)
 	return &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -67,6 +72,31 @@ func getRoleBinding(name, kind string, groups []string, labels map[string]string
 			Name:     name,
 		},
 		Subjects: subjects,
+	}
+}
+
+func getRoleBindingForServiceAccount(name, kind, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
+	return &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			Labels: labels,
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     kind,
+			Name:     name,
+		},
+		Subjects: []auth.Subject{
+			auth.Subject{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccountName,
+				Namespace: serviceAccountNamespace,
+			},
+		},
 	}
 }
 

@@ -32,5 +32,4 @@ fi
 azBuildCommand=$(GetBuildCommand)
 
 az login --service-principal -u ${SP_USER} -p ${SP_SECRET} --tenant ${TENANT}
-echo "$azBuildCommand"
 bash -c "$azBuildCommand"

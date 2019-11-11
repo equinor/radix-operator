@@ -24,7 +24,7 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 }
 
-func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+func rolebindingPipelineToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := application.GetAdGroups(registration)
 	roleName := role.ObjectMeta.Name
 
