@@ -24,17 +24,6 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 }
 
-func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string) error {
-	role := rolePipelineBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
-	err := app.kubeutil.ApplyRole(namespace, role)
-	if err != nil {
-		return err
-	}
-
-	rolebinding := rolebindingPipelineToBuildSecrets(app.GetRadixRegistration(), role)
-	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
-}
-
 func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := application.GetAdGroups(registration)
 	roleName := role.ObjectMeta.Name
@@ -49,6 +38,14 @@ func rolebindingPipelineToBuildSecrets(registration *radixv1.RadixRegistration, 
 }
 
 func garbageCollectAppAdminRoleBindingToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
+	return garbageCollectRoleBindingToBuildSecrets(kubeclient, namespace, getAppAdminRoleNameToBuildSecrets(name))
+}
+
+func garbageCollectPipelineRoleBindingToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
+	return garbageCollectRoleBindingToBuildSecrets(kubeclient, namespace, getPipelineRoleNameToBuildSecrets(name))
+}
+
+func garbageCollectRoleBindingToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
 	roleBinding, err := kubeclient.RbacV1().RoleBindings(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err

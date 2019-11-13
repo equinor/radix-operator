@@ -12,6 +12,66 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+func (app *ApplicationConfig) grantAccessToBuildSecrets(namespace string) error {
+	err := app.grantPipelineAccessToBuildSecrets(namespace)
+	if err != nil {
+		return err
+	}
+
+	err = app.grantAppAdminAccessToBuildSecrets(namespace)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (app *ApplicationConfig) grantAppAdminAccessToBuildSecrets(namespace string) error {
+	role := roleAppAdminBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
+	err := app.kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	rolebinding := rolebindingAppAdminToBuildSecrets(app.GetRadixRegistration(), role)
+	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string) error {
+	role := rolePipelineBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
+	err := app.kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	rolebinding := rolebindingPipelineToBuildSecrets(app.GetRadixRegistration(), role)
+	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func garbageCollectAccessToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
+	err := garbageCollectAppAdminRoleBindingToBuildSecrets(kubeclient, namespace, name)
+	if err != nil {
+		return err
+	}
+
+	err = garbageCollectPipelineRoleBindingToBuildSecrets(kubeclient, namespace, name)
+	if err != nil {
+		return err
+	}
+
+	err = garbageCollectAppAdminRoleToBuildSecrets(kubeclient, namespace, name)
+	if err != nil {
+		return err
+	}
+
+	err = garbageCollectPipelineRoleToBuildSecrets(kubeclient, namespace, name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func roleAppAdminBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {
 	return roleBuildSecrets(registration, getAppAdminRoleNameToBuildSecrets(buildSecretName), buildSecretName)
 }
@@ -45,7 +105,15 @@ func roleBuildSecrets(registration *radixv1.RadixRegistration, roleName, buildSe
 }
 
 func garbageCollectAppAdminRoleToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
-	role, err := kubeclient.RbacV1().Roles(namespace).Get(getAppAdminRoleNameToBuildSecrets(name), metav1.GetOptions{})
+	return garbageCollectRoleToBuildSecrets(kubeclient, namespace, getAppAdminRoleNameToBuildSecrets(name))
+}
+
+func garbageCollectPipelineRoleToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
+	return garbageCollectRoleToBuildSecrets(kubeclient, namespace, getPipelineRoleNameToBuildSecrets(name))
+}
+
+func garbageCollectRoleToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
+	role, err := kubeclient.RbacV1().Roles(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

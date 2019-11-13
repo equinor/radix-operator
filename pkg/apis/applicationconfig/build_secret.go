@@ -24,12 +24,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 				return err
 			}
 
-			err = app.grantPipelineAccessToBuildSecrets(appNamespace)
-			if err != nil {
-				return err
-			}
-
-			err = app.grantAppAdminAccessToBuildSecrets(appNamespace)
+			err = app.grantAccessToBuildSecrets(appNamespace)
 			if err != nil {
 				return err
 			}
@@ -59,20 +54,6 @@ func garbageCollectBuildSecretsNoLongerInSpec(kubeclient kubernetes.Interface, k
 		}
 
 		garbageCollectAccessToBuildSecrets(kubeclient, namespace, name)
-	}
-
-	return nil
-}
-
-func garbageCollectAccessToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
-	err := garbageCollectAppAdminRoleBindingToBuildSecrets(kubeclient, namespace, name)
-	if err != nil {
-		return err
-	}
-
-	err = garbageCollectAppAdminRoleToBuildSecrets(kubeclient, namespace, name)
-	if err != nil {
-		return err
 	}
 
 	return nil
