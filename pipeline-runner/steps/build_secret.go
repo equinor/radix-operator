@@ -7,6 +7,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Will ensure that all build secrets are mounted from build-secrets secret with BUILD_SECRET_ prefix
 func getBuildSecretsAsVariables(kubeclient kubernetes.Interface, appNamespace string) []corev1.EnvVar {
 	var environmentVariables []corev1.EnvVar
 
