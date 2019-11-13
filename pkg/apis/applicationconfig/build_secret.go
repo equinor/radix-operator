@@ -29,6 +29,11 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 				return err
 			}
 
+			err = app.grantAppAdminAccessToBuildSecrets(appNamespace)
+			if err != nil {
+				return err
+			}
+
 		} else {
 			err := removeOrphanedSecrets(app.kubeclient, appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
 			if err != nil {
@@ -71,17 +76,6 @@ func garbageCollectAccessToBuildSecrets(kubeclient kubernetes.Interface, namespa
 	}
 
 	return nil
-}
-
-func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string) error {
-	role := roleAppAdminBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
-	err := app.kubeutil.ApplyRole(namespace, role)
-	if err != nil {
-		return err
-	}
-
-	rolebinding := rolebindingPipelineToBuildSecrets(app.GetRadixRegistration(), role)
-	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
 func (app *ApplicationConfig) applyEmptyBuildSecret(namespace, name string, buildSecrets []string) error {

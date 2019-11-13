@@ -278,11 +278,11 @@ func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimi
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings("any-app-dev").List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, defaults.AppAdminEnvironmentRoleName, rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 
 		rolebindings, _ = client.RbacV1().RoleBindings("any-app-prod").List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, defaults.AppAdminEnvironmentRoleName, rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 	})
 
 	t.Run("validate limit range not set when missing on Operator", func(t *testing.T) {
