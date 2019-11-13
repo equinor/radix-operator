@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
@@ -10,11 +11,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const (
-	buildSecretsName       = "build-secrets"
-	buildSecretDefaultData = "xx"
-)
-
 func (app *ApplicationConfig) syncBuildSecrets() error {
 	if app.config.Spec.Build == nil || len(app.config.Spec.Build.Secrets) == 0 {
 		return nil
@@ -22,8 +18,8 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 	if len(app.config.Spec.Build.Secrets) > 0 {
-		if !app.kubeutil.SecretExists(appNamespace, buildSecretsName) {
-			err := app.applyEmptyBuildSecret(appNamespace, buildSecretsName, app.config.Spec.Build.Secrets)
+		if !app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName) {
+			err := app.applyEmptyBuildSecret(appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
 			if err != nil {
 				return err
 			}
@@ -34,14 +30,14 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 			}
 
 		} else {
-			err := removeOrphanedSecrets(app.kubeclient, appNamespace, buildSecretsName, app.config.Spec.Build.Secrets)
+			err := removeOrphanedSecrets(app.kubeclient, appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
 			if err != nil {
 				return err
 			}
 		}
 
 	} else {
-		err := garbageCollectBuildSecretsNoLongerInSpec(app.kubeclient, app.kubeutil, appNamespace, buildSecretsName)
+		err := garbageCollectBuildSecretsNoLongerInSpec(app.kubeclient, app.kubeutil, appNamespace, defaults.BuildSecretsName)
 		if err != nil {
 			return err
 		}
@@ -78,7 +74,7 @@ func garbageCollectAccessToBuildSecrets(kubeclient kubernetes.Interface, namespa
 }
 
 func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string) error {
-	role := roleAppAdminBuildSecrets(app.GetRadixRegistration(), buildSecretsName)
+	role := roleAppAdminBuildSecrets(app.GetRadixRegistration(), defaults.BuildSecretsName)
 	err := app.kubeutil.ApplyRole(namespace, role)
 	if err != nil {
 		return err
@@ -90,7 +86,7 @@ func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string
 
 func (app *ApplicationConfig) applyEmptyBuildSecret(namespace, name string, buildSecrets []string) error {
 	data := make(map[string][]byte)
-	defaultValue := []byte(buildSecretDefaultData)
+	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
 	for _, buildSecret := range buildSecrets {
 		data[buildSecret] = defaultValue

@@ -328,9 +328,9 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithBuildSecrets("secret1", "secret2"))
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
-	defaultValue := []byte(buildSecretDefaultData)
+	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
-	buildSecrets := getSecretByName(buildSecretsName, secrets)
+	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
 	assert.NotNil(t, buildSecrets)
 	assert.Equal(t, 2, len(buildSecrets.Data))
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret1"])
@@ -355,9 +355,9 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithBuildSecrets("secret2"))
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
-	defaultValue := []byte(buildSecretDefaultData)
+	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
-	buildSecrets := getSecretByName(buildSecretsName, secrets)
+	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
 	assert.NotNil(t, buildSecrets)
 	assert.Equal(t, 1, len(buildSecrets.Data))
 	assert.Nil(t, buildSecrets.Data["secret1"])
