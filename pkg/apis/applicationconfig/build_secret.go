@@ -12,32 +12,30 @@ import (
 )
 
 func (app *ApplicationConfig) syncBuildSecrets() error {
+	appNamespace := utils.GetAppNamespace(app.config.Name)
+
 	if app.config.Spec.Build == nil || len(app.config.Spec.Build.Secrets) == 0 {
+		err := garbageCollectBuildSecretsNoLongerInSpec(app.kubeclient, app.kubeutil, appNamespace, defaults.BuildSecretsName)
+		if err != nil {
+			return err
+		}
+
 		return nil
 	}
 
-	appNamespace := utils.GetAppNamespace(app.config.Name)
-	if len(app.config.Spec.Build.Secrets) > 0 {
-		if !app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName) {
-			err := app.applyEmptyBuildSecret(appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
-			if err != nil {
-				return err
-			}
+	if !app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName) {
+		err := app.applyEmptyBuildSecret(appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
+		if err != nil {
+			return err
+		}
 
-			err = app.grantAccessToBuildSecrets(appNamespace)
-			if err != nil {
-				return err
-			}
-
-		} else {
-			err := removeOrphanedSecrets(app.kubeclient, appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
-			if err != nil {
-				return err
-			}
+		err = app.grantAccessToBuildSecrets(appNamespace)
+		if err != nil {
+			return err
 		}
 
 	} else {
-		err := garbageCollectBuildSecretsNoLongerInSpec(app.kubeclient, app.kubeutil, appNamespace, defaults.BuildSecretsName)
+		err := removeOrphanedSecrets(app.kubeclient, appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
 		if err != nil {
 			return err
 		}
