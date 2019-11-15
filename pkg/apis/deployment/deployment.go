@@ -10,7 +10,6 @@ import (
 	"time"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
-	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -427,7 +426,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
 	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: applicationconfig.PrivateImageHubSecretName})
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
 
 	radixDeployment := v1.RadixDeployment{
