@@ -21,11 +21,14 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		// Will later be overriden by default replicas if not set specifically
 		var replicas *int
 
+		var horizontalScaling *v1.RadixHorizontalScaling
+
 		if environmentSpecificConfig != nil {
 			replicas = environmentSpecificConfig.Replicas
 			variables = environmentSpecificConfig.Variables
 			monitoring = environmentSpecificConfig.Monitoring
 			resources = environmentSpecificConfig.Resources
+			horizontalScaling = environmentSpecificConfig.HorizontalScaling
 		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
@@ -52,6 +55,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			DNSExternalAlias:     externalAlias,
 			Monitoring:           monitoring,
 			Resources:            resources,
+			HorizontalScaling:    horizontalScaling,
 		}
 
 		components = append(components, deployComponent)

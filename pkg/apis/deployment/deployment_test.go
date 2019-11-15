@@ -17,6 +17,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	extension "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -132,6 +133,12 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, "radixquote", deployments))
 		assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, "radixquote", deployments))
 		assert.True(t, envVariableByNameExistOnDeployment("a_secret", "radixquote", deployments))
+	})
+
+	t.Run("validate hpa", func(t *testing.T) {
+		t.Parallel()
+		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
 	})
 
 	t.Run("validate service", func(t *testing.T) {
@@ -1411,6 +1418,47 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 
 }
 
+func TestHPAConfig(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentOneName := "componentOneName"
+	componentTwoName := "componentTwoName"
+	minReplicas := int32(2)
+	maxReplicas := int32(4)
+
+	// Test
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(0)).
+				WithHorizontalScaling(&minReplicas, maxReplicas),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(1)).
+				WithHorizontalScaling(&minReplicas, maxReplicas)))
+
+	assert.NoError(t, err)
+
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
+	t.Run("validate hpas", func(t *testing.T) {
+		t.Parallel()
+		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 1, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
+		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler is there")
+		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler is there")
+		assert.Equal(t, int32(2), *getHPAByName(componentTwoName, hpas).Spec.MinReplicas, "componentTwoName horizontal pod autoscaler is there")
+	})
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
@@ -1522,6 +1570,26 @@ func getEnvVariableByName(name string, envVars []corev1.EnvVar) string {
 	}
 
 	return ""
+}
+
+func hpaByNameExists(name string, hpas *autoscalingv1.HorizontalPodAutoscalerList) bool {
+	for _, hpa := range hpas.Items {
+		if hpa.Name == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func getHPAByName(name string, hpas *autoscalingv1.HorizontalPodAutoscalerList) *autoscalingv1.HorizontalPodAutoscaler {
+	for _, hpa := range hpas.Items {
+		if hpa.Name == name {
+			return &hpa
+		}
+	}
+
+	return nil
 }
 
 func serviceByNameExists(name string, services *corev1.ServiceList) bool {

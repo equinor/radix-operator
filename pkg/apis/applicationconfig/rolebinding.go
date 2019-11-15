@@ -5,6 +5,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,4 +60,26 @@ func garbageCollectRoleBindingToBuildSecrets(kubeclient kubernetes.Interface, na
 	}
 
 	return nil
+}
+
+func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
+	registration := app.registration
+	namespace := utils.GetAppNamespace(registration.Name)
+	roleName := defaults.PrivateImageHubSecretName
+	secretName := defaults.PrivateImageHubSecretName
+
+	// create role
+	role := kube.CreateManageSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
+	err := app.kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	// create rolebinding
+	adGroups, err := application.GetAdGroups(registration)
+	if err != nil {
+		return err
+	}
+	rolebinding := kube.CreateManageSecretRoleBinding(adGroups, role)
+	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
