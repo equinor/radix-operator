@@ -267,6 +267,7 @@ type DeployComponentBuilder interface {
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
+	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -285,6 +286,7 @@ type deployComponentBuilder struct {
 	dnsappalias          bool
 	externalAppAlias     []string
 	resources            v1.ResourceRequirements
+	horizontalScaling    *v1.RadixHorizontalScaling
 }
 
 func (dcb *deployComponentBuilder) WithResourceRequestsOnly(request map[string]string) DeployComponentBuilder {
@@ -372,6 +374,14 @@ func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32) DeployComponentBuilder {
+	dcb.horizontalScaling = &v1.RadixHorizontalScaling{
+		MinReplicas: minReplicas,
+		MaxReplicas: maxReplicas,
+	}
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range dcb.ports {
@@ -392,6 +402,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		DNSAppAlias:          dcb.dnsappalias,
 		DNSExternalAlias:     dcb.externalAppAlias,
 		Resources:            dcb.resources,
+		HorizontalScaling:    dcb.horizontalScaling,
 	}
 }
 

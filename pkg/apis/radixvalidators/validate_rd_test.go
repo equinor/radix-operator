@@ -3,7 +3,7 @@ package radixvalidators_test
 import (
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -38,6 +38,15 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 		{"invalid nr replicas", func(rd *v1.RadixDeployment) { *rd.Spec.Components[0].Replicas = 200 }},
 		{"invalid component name", func(rd *v1.RadixDeployment) { rd.Spec.Components[0].Name = "invalid,char.appname" }},
 		{"invalid env name", func(rd *v1.RadixDeployment) { rd.Spec.Environment = "invalid,char.appname" }},
+		{"invalid hpa config minReplicas and maxReplicas are not set", func(rd *v1.RadixDeployment) { rd.Spec.Components[0].HorizontalScaling = &v1.RadixHorizontalScaling{} }},
+		{
+			"invalid hpa config maxReplicas is not set and minReplicas is set",
+			func(rd *v1.RadixDeployment) {
+				minReplica := int32(3)
+				rd.Spec.Components[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+				rd.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
+			},
+		},
 	}
 
 	_, client := validRRSetup()

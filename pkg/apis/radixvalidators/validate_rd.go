@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	minReplica = 0 // default is 2
+	minReplica = 0 // default is 1
 
 	// MaxReplica Max number of replicas a deployment is allowed to have
 	MaxReplica = 64
@@ -40,6 +40,11 @@ func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.
 	}
 
 	err = validateRequiredResourceName("env name", deploy.Spec.Environment)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = validateHPAConfigForRD(deploy.Spec)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -77,6 +82,26 @@ func validateReplica(replica *int) error {
 	replicaValue := *replica
 	if replicaValue > MaxReplica || replicaValue < minReplica {
 		return InvalidNumberOfReplicaError(replicaValue)
+	}
+	return nil
+}
+
+func validateHPAConfigForRD(rdSpec radixv1.RadixDeploymentSpec) error {
+	environment := rdSpec.Environment
+	components := rdSpec.Components
+	for _, component := range components {
+		componentName := component.Name
+		if component.HorizontalScaling == nil {
+			continue
+		}
+		maxReplicas := component.HorizontalScaling.MaxReplicas
+		minReplicas := component.HorizontalScaling.MinReplicas
+		if maxReplicas == 0 {
+			return MaxReplicasForHPANotSetOrZeroError(componentName, environment)
+		}
+		if minReplicas != nil && *minReplicas > maxReplicas {
+			return MinReplicasGreaterThanMaxReplicasError(componentName, environment)
+		}
 	}
 	return nil
 }
