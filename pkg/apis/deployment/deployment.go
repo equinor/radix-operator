@@ -415,7 +415,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
 	if len(radixApplication.Spec.PrivateImageHubs) > 0 {
-		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PRIVATE_IMAGE_HUB_SECRET_NAME})
+		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
 
 	radixDeployment := v1.RadixDeployment{

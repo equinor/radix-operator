@@ -46,8 +46,8 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
 	registration := app.registration
 	namespace := utils.GetAppNamespace(registration.Name)
-	roleName := defaults.PRIVATE_IMAGE_HUB_SECRET_NAME
-	secretName := defaults.PRIVATE_IMAGE_HUB_SECRET_NAME
+	roleName := defaults.PrivateImageHubSecretName
+	secretName := defaults.PrivateImageHubSecretName
 
 	// create role
 	role := kube.CreateManageSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
