@@ -403,6 +403,87 @@ func Test_PublicPort(t *testing.T) {
 	}
 }
 
+func Test_ValidHPA_NoError(t *testing.T) {
+	var testScenarios = []struct {
+		name       string
+		updateRA   updateRAFunc
+		isValid    bool
+		isErrorNil bool
+	}{
+		{
+			"horizontalScaling is not set",
+			func(ra *v1.RadixApplication) {},
+			true,
+			true,
+		},
+		{
+			"minReplicas and maxReplicas are not set",
+			func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+			},
+			false,
+			false,
+		},
+		{
+			"maxReplicas is not set and minReplicas is set",
+			func(ra *v1.RadixApplication) {
+				minReplica := int32(3)
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
+			},
+			false,
+			false,
+		},
+		{
+			"minReplicas is not set and maxReplicas is set",
+			func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
+			},
+			true,
+			true,
+		},
+		{
+			"minReplicas is greater than maxReplicas",
+			func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+				minReplica := int32(3)
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 2
+			},
+			false,
+			false,
+		},
+		{
+			"maxReplicas is greater than minReplicas",
+			func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+				minReplica := int32(3)
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
+			},
+			true,
+			true,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			isErrorNil := false
+			if err == nil {
+				isErrorNil = true
+			}
+
+			assert.Equal(t, testcase.isValid, isValid)
+			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+		})
+	}
+}
+
 func createValidRA() *v1.RadixApplication {
 	validRA, _ := utils.GetRadixApplication("testdata/radixconfig.yaml")
 
