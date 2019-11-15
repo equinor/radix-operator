@@ -2,7 +2,9 @@ package applicationconfig
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -39,4 +41,26 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 	}
 
 	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+}
+
+func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
+	registration := app.registration
+	namespace := utils.GetAppNamespace(registration.Name)
+	roleName := defaults.PRIVATE_IMAGE_HUB_SECRET_NAME
+	secretName := defaults.PRIVATE_IMAGE_HUB_SECRET_NAME
+
+	// create role
+	role := kube.CreateManageSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
+	err := app.kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	// create rolebinding
+	adGroups, err := application.GetAdGroups(registration)
+	if err != nil {
+		return err
+	}
+	rolebinding := kube.CreateManageSecretRoleBinding(adGroups, role)
+	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
