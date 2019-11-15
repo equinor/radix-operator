@@ -346,6 +346,19 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret4", "secret5", "secret6"))
+
+	secrets, _ = client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	buildSecrets = getSecretByName(defaults.BuildSecretsName, secrets)
+	assert.Equal(t, 3, len(buildSecrets.Data))
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret4"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret5"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret6"])
+
 }
 
 func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
@@ -381,16 +394,18 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithEnvironment("dev", "master").
 			WithBuildSecrets())
 
+	// Secret is left intact, for simplicity
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
-	assert.False(t, secretByNameExists(defaults.BuildSecretsName, secrets))
+	assert.True(t, secretByNameExists(defaults.BuildSecretsName, secrets))
+	assert.Equal(t, 0, len(getSecretByName(defaults.BuildSecretsName, secrets).Data))
 
 	roles, _ := client.RbacV1().Roles(appNamespace).List(metav1.ListOptions{})
-	assert.False(t, roleByNameExists("radix-app-admin-build-secrets", roles))
-	assert.False(t, roleByNameExists("pipeline-build-secrets", roles))
+	assert.True(t, roleByNameExists("radix-app-admin-build-secrets", roles))
+	assert.True(t, roleByNameExists("pipeline-build-secrets", roles))
 
 	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(metav1.ListOptions{})
-	assert.False(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
-	assert.False(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
+	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
+	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {

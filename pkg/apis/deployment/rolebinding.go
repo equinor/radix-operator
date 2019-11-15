@@ -92,5 +92,4 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 	adGroups, _ := application.GetAdGroups(registration)
 	roleName := role.ObjectMeta.Name
 	return kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
-	return kube.CreateManageSecretRoleBinding(adGroups, role)
 }

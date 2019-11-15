@@ -80,6 +80,7 @@ func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
 	if err != nil {
 		return err
 	}
-	rolebinding := kube.CreateManageSecretRoleBinding(adGroups, role)
+
+	rolebinding := kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }

@@ -2,29 +2,23 @@ package applicationconfig
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 func (app *ApplicationConfig) syncBuildSecrets() error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 
-	if app.config.Spec.Build == nil || len(app.config.Spec.Build.Secrets) == 0 {
-		err := garbageCollectBuildSecretsNoLongerInSpec(app.kubeclient, app.kubeutil, appNamespace, defaults.BuildSecretsName)
-		if err != nil {
-			return err
-		}
-
-		return nil
+	var buildSecrets []string
+	if app.config.Spec.Build != nil {
+		buildSecrets = app.config.Spec.Build.Secrets
 	}
 
 	if !app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName) {
-		err := app.applyEmptyBuildSecret(appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
+		err := app.initializeBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
 		if err != nil {
 			return err
 		}
@@ -35,7 +29,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 		}
 
 	} else {
-		err := removeOrphanedSecrets(app.kubeclient, appNamespace, defaults.BuildSecretsName, app.config.Spec.Build.Secrets)
+		err := app.updateBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
 		if err != nil {
 			return err
 		}
@@ -44,20 +38,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 	return nil
 }
 
-func garbageCollectBuildSecretsNoLongerInSpec(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace, name string) error {
-	if kubeutil.SecretExists(namespace, name) {
-		err := kubeclient.CoreV1().Secrets(namespace).Delete(name, &metav1.DeleteOptions{})
-		if err != nil {
-			return err
-		}
-
-		garbageCollectAccessToBuildSecrets(kubeclient, namespace, name)
-	}
-
-	return nil
-}
-
-func (app *ApplicationConfig) applyEmptyBuildSecret(namespace, name string, buildSecrets []string) error {
+func (app *ApplicationConfig) initializeBuildSecret(namespace, name string, buildSecrets []string) error {
 	data := make(map[string][]byte)
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
@@ -82,26 +63,46 @@ func (app *ApplicationConfig) applyEmptyBuildSecret(namespace, name string, buil
 	return nil
 }
 
-func removeOrphanedSecrets(kubeclient kubernetes.Interface, ns, secretName string, secrets []string) error {
-	secret, err := kubeclient.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
+func (app *ApplicationConfig) updateBuildSecret(namespace, name string, buildSecrets []string) error {
+	secret, err := app.kubeclient.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	orphanRemoved := false
-	for secretName := range secret.Data {
-		if !slice.ContainsString(secrets, secretName) {
-			delete(secret.Data, secretName)
-			orphanRemoved = true
-		}
-	}
-
-	if orphanRemoved {
-		_, err = kubeclient.CoreV1().Secrets(ns).Update(secret)
+	orphanRemoved := removeOrphanedSecrets(secret, buildSecrets)
+	secretAppended := appendSecrets(secret, buildSecrets)
+	if orphanRemoved || secretAppended {
+		_, err = app.kubeclient.CoreV1().Secrets(namespace).Update(secret)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func removeOrphanedSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
+	orphanRemoved := false
+	for secretName := range buildSecrets.Data {
+		if !slice.ContainsString(secrets, secretName) {
+			delete(buildSecrets.Data, secretName)
+			orphanRemoved = true
+		}
+	}
+
+	return orphanRemoved
+}
+
+func appendSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
+	defaultValue := []byte(defaults.BuildSecretDefaultData)
+
+	secretAppended := false
+	for _, secretName := range secrets {
+		if _, ok := buildSecrets.Data[secretName]; !ok {
+			buildSecrets.Data[secretName] = defaultValue
+			secretAppended = true
+		}
+	}
+
+	return secretAppended
 }
