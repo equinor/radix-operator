@@ -49,35 +49,11 @@ func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string
 }
 
 func roleAppAdminBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {
-	return roleBuildSecrets(registration, getAppAdminRoleNameToBuildSecrets(buildSecretName), buildSecretName)
+	return kube.CreateManageSecretRole(registration.Name, getAppAdminRoleNameToBuildSecrets(buildSecretName), []string{buildSecretName}, nil)
 }
 
 func rolePipelineBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {
-	return roleBuildSecrets(registration, getPipelineRoleNameToBuildSecrets(buildSecretName), buildSecretName)
-}
-
-func roleBuildSecrets(registration *radixv1.RadixRegistration, roleName, buildSecretName string) *auth.Role {
-	role := &auth.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: registration.Name,
-			},
-		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"secrets"},
-				ResourceNames: []string{buildSecretName},
-				Verbs:         []string{"get", "list", "watch", "update", "patch"},
-			},
-		},
-	}
-	return role
+	return kube.CreateManageSecretRole(registration.Name, getPipelineRoleNameToBuildSecrets(buildSecretName), []string{buildSecretName}, nil)
 }
 
 func garbageCollectAppAdminRoleToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
