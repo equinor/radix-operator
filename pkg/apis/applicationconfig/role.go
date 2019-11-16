@@ -48,30 +48,6 @@ func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func garbageCollectAccessToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
-	err := garbageCollectAppAdminRoleBindingToBuildSecrets(kubeclient, namespace, name)
-	if err != nil {
-		return err
-	}
-
-	err = garbageCollectPipelineRoleBindingToBuildSecrets(kubeclient, namespace, name)
-	if err != nil {
-		return err
-	}
-
-	err = garbageCollectAppAdminRoleToBuildSecrets(kubeclient, namespace, name)
-	if err != nil {
-		return err
-	}
-
-	err = garbageCollectPipelineRoleToBuildSecrets(kubeclient, namespace, name)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func roleAppAdminBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {
 	return roleBuildSecrets(registration, getAppAdminRoleNameToBuildSecrets(buildSecretName), buildSecretName)
 }

@@ -7,9 +7,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 // grantAppAdminAccessToNs Grant access to environment namespace
@@ -36,30 +33,6 @@ func rolebindingPipelineToBuildSecrets(registration *radixv1.RadixRegistration, 
 	roleName := role.ObjectMeta.Name
 
 	return kube.GetRolebindingToRoleForServiceAccountWithLabels(roleName, defaults.PipelineRoleName, role.Namespace, role.Labels)
-}
-
-func garbageCollectAppAdminRoleBindingToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
-	return garbageCollectRoleBindingToBuildSecrets(kubeclient, namespace, getAppAdminRoleNameToBuildSecrets(name))
-}
-
-func garbageCollectPipelineRoleBindingToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
-	return garbageCollectRoleBindingToBuildSecrets(kubeclient, namespace, getPipelineRoleNameToBuildSecrets(name))
-}
-
-func garbageCollectRoleBindingToBuildSecrets(kubeclient kubernetes.Interface, namespace, name string) error {
-	roleBinding, err := kubeclient.RbacV1().RoleBindings(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	if !errors.IsNotFound(err) && roleBinding != nil {
-		err := kubeclient.RbacV1().RoleBindings(namespace).Delete(name, &metav1.DeleteOptions{})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
