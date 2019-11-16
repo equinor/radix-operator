@@ -27,40 +27,40 @@ func GetRoleBindingGroups(groups []string) []auth.Subject {
 }
 
 // GetRolebindingToRole Get role binding object
-func GetRolebindingToRole(appName, name string, groups []string) *auth.RoleBinding {
-	return GetRolebindingToRoleWithLabels(name, groups, map[string]string{
+func GetRolebindingToRole(appName, roleName string, groups []string) *auth.RoleBinding {
+	return GetRolebindingToRoleWithLabels(roleName, groups, map[string]string{
 		RadixAppLabel: appName,
 	})
 }
 
 // GetRolebindingToRoleWithLabels Get role binding object
-func GetRolebindingToRoleWithLabels(name string, groups []string, labels map[string]string) *auth.RoleBinding {
-	return getRoleBindingForGroups(name, "Role", groups, labels)
+func GetRolebindingToRoleWithLabels(roleName string, groups []string, labels map[string]string) *auth.RoleBinding {
+	return getRoleBindingForGroups(roleName, "Role", groups, labels)
 }
 
 // GetRolebindingToClusterRole Get role binding object
-func GetRolebindingToClusterRole(appName, name string, groups []string) *auth.RoleBinding {
-	return GetRolebindingToClusterRoleWithLabels(name, groups, map[string]string{
+func GetRolebindingToClusterRole(appName, roleName string, groups []string) *auth.RoleBinding {
+	return GetRolebindingToClusterRoleWithLabels(roleName, groups, map[string]string{
 		RadixAppLabel: appName,
 	})
 }
 
 // GetRolebindingToClusterRoleWithLabels Get role binding object
-func GetRolebindingToClusterRoleWithLabels(name string, groups []string, labels map[string]string) *auth.RoleBinding {
-	return getRoleBindingForGroups(name, "ClusterRole", groups, labels)
+func GetRolebindingToClusterRoleWithLabels(roleName string, groups []string, labels map[string]string) *auth.RoleBinding {
+	return getRoleBindingForGroups(roleName, "ClusterRole", groups, labels)
 }
 
 // GetRolebindingToRoleForServiceAccountWithLabels Get role binding object
-func GetRolebindingToRoleForServiceAccountWithLabels(name, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
-	return getRoleBindingForServiceAccount(name, "Role", serviceAccountName, serviceAccountNamespace, labels)
+func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
+	return getRoleBindingForServiceAccount(roleName, "Role", serviceAccountName, serviceAccountNamespace, labels)
 }
 
 // GetRolebindingToClusterRoleForServiceAccountWithLabels Get role binding object
-func GetRolebindingToClusterRoleForServiceAccountWithLabels(name, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
-	return getRoleBindingForServiceAccount(name, "ClusterRole", serviceAccountName, serviceAccountNamespace, labels)
+func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
+	return getRoleBindingForServiceAccount(roleName, "ClusterRole", serviceAccountName, serviceAccountNamespace, labels)
 }
 
-func getRoleBindingForGroups(name, kind string, groups []string, labels map[string]string) *auth.RoleBinding {
+func getRoleBindingForGroups(roleName, kind string, groups []string, labels map[string]string) *auth.RoleBinding {
 	subjects := GetRoleBindingGroups(groups)
 	return &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -68,32 +68,32 @@ func getRoleBindingForGroups(name, kind string, groups []string, labels map[stri
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
+			Name:   roleName,
 			Labels: labels,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     kind,
-			Name:     name,
+			Name:     roleName,
 		},
 		Subjects: subjects,
 	}
 }
 
-func getRoleBindingForServiceAccount(name, kind, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
+func getRoleBindingForServiceAccount(roleName, kind, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
 	return &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
+			Name:   roleName,
 			Labels: labels,
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     kind,
-			Name:     name,
+			Name:     roleName,
 		},
 		Subjects: []auth.Subject{
 			auth.Subject{
