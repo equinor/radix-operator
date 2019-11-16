@@ -96,6 +96,11 @@ func removeOrphanedSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
 func appendSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
+	if buildSecrets.Data == nil {
+		data := make(map[string][]byte)
+		buildSecrets.Data = data
+	}
+
 	secretAppended := false
 	for _, secretName := range secrets {
 		if _, ok := buildSecrets.Data[secretName]; !ok {
