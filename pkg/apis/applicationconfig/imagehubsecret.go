@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -14,9 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// PrivateImageHubSecretName contain secret with all private image hubs credentials for an app
-const PrivateImageHubSecretName = "radix-private-image-hubs"
-
 func getKubeDAnnotation(appName string) string {
 	key, value := GetKubeDPrivateImageHubAnnotationValues(appName)
 	return fmt.Sprintf("%s=%s", key, value)
@@ -24,13 +22,13 @@ func getKubeDAnnotation(appName string) string {
 
 // GetKubeDPrivateImageHubAnnotationValues gets value and key to use for namespace annotation to pick up private image hubs
 func GetKubeDPrivateImageHubAnnotationValues(appName string) (key, value string) {
-	return fmt.Sprintf("%s-sync", PrivateImageHubSecretName), appName
+	return fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName), appName
 }
 
 // UpdatePrivateImageHubsSecretsPassword updates the private image hub secret
 func (app *ApplicationConfig) UpdatePrivateImageHubsSecretsPassword(server, password string) error {
 	ns := utils.GetAppNamespace(app.config.Name)
-	secret, _ := app.kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := app.kubeclient.CoreV1().Secrets(ns).Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	if secret == nil {
 		return fmt.Errorf("private image hub secret does not exist for app %s", app.config.Name)
 	}
@@ -57,7 +55,7 @@ func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, erro
 	appName := app.config.Name
 	pendingSecrets := []string{}
 	ns := utils.GetAppNamespace(appName)
-	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return pendingSecrets, err
 	}
@@ -73,19 +71,25 @@ func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, erro
 
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	ns := utils.GetAppNamespace(app.config.Name)
-	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
+		log.Warnf("failed to get private image hub secret %v", err)
 		return err
 	}
 
 	secretValue := []byte{}
 	if errors.IsNotFound(err) || secret == nil {
 		secretValue, err = createImageHubsSecretValue(app.config.Spec.PrivateImageHubs)
+		if err != nil {
+			log.Warnf("failed to create private image hub secret %v", err)
+			return err
+		}
 	} else {
 		// update if changes
 		hasChanged := false
 		imageHubs, err := getImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
 		if err != nil {
+			log.Warnf("failed to get private image hub secret value %v", err)
 			return err
 		}
 
@@ -118,11 +122,12 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 			return nil
 		}
 		secretValue, err = getImageHubsSecretValue(imageHubs)
+		if err != nil {
+			log.Warnf("failed to update private image hub secret %v", err)
+			return err
+		}
 	}
 
-	if err != nil {
-		return err
-	}
 	return applyPrivateImageHubSecret(app.kubeutil, ns, app.config.Name, secretValue)
 }
 
@@ -131,7 +136,7 @@ func applyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretV
 	secret := corev1.Secret{
 		Type: corev1.SecretTypeDockerConfigJson,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      PrivateImageHubSecretName,
+			Name:      defaults.PrivateImageHubSecretName,
 			Namespace: ns,
 			Annotations: map[string]string{
 				"kubed.appscode.com/sync": getKubeDAnnotation(appName),

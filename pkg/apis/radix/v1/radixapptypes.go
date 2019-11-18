@@ -86,7 +86,7 @@ type ResourceRequirements struct {
 	Requests ResourceList `json:"requests,omitempty" yaml:"requests,omitempty"`
 }
 
-//RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
+// RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
 type RadixComponent struct {
 	Name           string          `json:"name" yaml:"name"`
 	SourceFolder   string          `json:"src" yaml:"src"`
@@ -101,13 +101,22 @@ type RadixComponent struct {
 	EnvironmentConfig    []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 }
 
-//RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
+// RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
 type RadixEnvironmentConfig struct {
-	Environment string               `json:"environment" yaml:"environment"`
-	Replicas    *int                 `json:"replicas" yaml:"replicas"`
-	Monitoring  bool                 `json:"monitoring" yaml:"monitoring"`
-	Resources   ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables   EnvVarsMap           `json:"variables" yaml:"variables"`
+	Environment       string                  `json:"environment" yaml:"environment"`
+	Replicas          *int                    `json:"replicas" yaml:"replicas"`
+	Monitoring        bool                    `json:"monitoring" yaml:"monitoring"`
+	Resources         ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Variables         EnvVarsMap              `json:"variables" yaml:"variables"`
+	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
+}
+
+// RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec
+// If set, this will override replicas config
+type RadixHorizontalScaling struct {
+	// +optional
+	MinReplicas *int32 `json:"minReplicas,omitempty" yaml:"minReplicas,omitempty"`
+	MaxReplicas int32  `json:"maxReplicas" yaml:"maxReplicas"`
 }
 
 // PrivateImageHubEntries - key = imagehubserver

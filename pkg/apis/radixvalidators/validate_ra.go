@@ -108,6 +108,16 @@ func InvalidBranchNameError(branch string) error {
 	return fmt.Errorf("Invalid branch name %s. See documentation for more info", branch)
 }
 
+// MaxReplicasForHPANotSetOrZeroError Indicates that minReplicas of horizontalScaling is not set or set to 0
+func MaxReplicasForHPANotSetOrZeroError(component, environment string) error {
+	return fmt.Errorf("maxReplicas is not set or set to 0 for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+// MinReplicasGreaterThanMaxReplicasError Indicates that minReplicas is greater than maxReplicas
+func MinReplicasGreaterThanMaxReplicasError(component, environment string) error {
+	return fmt.Errorf("minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
+}
+
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
 	isValid, errs := CanRadixApplicationBeInsertedErrors(client, app)
@@ -174,6 +184,11 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	dnsErrors = validatePrivateImageHubs(app)
 	if len(dnsErrors) > 0 {
 		errs = append(errs, dnsErrors...)
+	}
+
+	err = validateHPAConfigForRA(app)
+	if err != nil {
+		errs = append(errs, err)
 	}
 
 	if len(errs) <= 0 {
@@ -451,6 +466,28 @@ func validateResourceWithRegexp(resourceName, value, regexpExpression string) er
 		return nil
 	}
 	return InvalidResourceNameError(resourceName, value)
+}
+
+func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
+	for _, component := range app.Spec.Components {
+		for _, envConfig := range component.EnvironmentConfig {
+			componentName := component.Name
+			environment := envConfig.Environment
+			if envConfig.HorizontalScaling == nil {
+				continue
+			}
+			maxReplicas := envConfig.HorizontalScaling.MaxReplicas
+			minReplicas := envConfig.HorizontalScaling.MinReplicas
+			if maxReplicas == 0 {
+				return MaxReplicasForHPANotSetOrZeroError(componentName, environment)
+			}
+			if minReplicas != nil && *minReplicas > maxReplicas {
+				return MinReplicasGreaterThanMaxReplicasError(componentName, environment)
+			}
+		}
+	}
+
+	return nil
 }
 
 func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
