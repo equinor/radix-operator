@@ -7,7 +7,7 @@ The radix-operator is the central piece of the [Radix platform](https://github.c
 - RD - Application deployment
 - RJ - Application build/deploy jobs
 
-The `radix-operator` and `radix-pipeline` are built using [Azure Devops](https://dev.azure.com/omnia-radix/radix-operator/_build?definitionId=3), then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch. There is also a [build-only](https://dev.azure.com/omnia-radix/radix-operator/_build?definitionId=4) pipeline used for checking pull requests.
+The `radix-operator` and `radix-pipeline` are built using [Azure Devops](https://dev.azure.com/omnia-radix/radix-operator/_build?definitionId=3), then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch.
 
 [![Build Status](https://dev.azure.com/omnia-radix/radix-operator/_apis/build/status/equinor.radix-operator?branchName=master)](https://dev.azure.com/omnia-radix/radix-operator/_build/latest?definitionId=3&branchName=master)
 
@@ -82,3 +82,12 @@ If you wish more in-depth information, [read this](https://blog.openshift.com/ku
 
 The radix-operator reacts on events to the custom resource types defined by the platform, the RadixRegistration, the RadixApplication and the RadixDeployment. It cannot be controlled directly by any platform user. It's main purpose is to create the core resources when the custom resources appears, which will live inside application and environment [namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) for the application. Access to a namespace is configured as [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) manifests when the namespace is created, which main purpose is to isolate the platform user applications from one another. For more information on this see [this](./docs/RBAC.md). Another is to define the [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/), to ensure no [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) can access another pod, outside of its namespace.
 
+## Automated build and deployment
+
+### Pull request checking
+
+The radix-operator makes use of [GitHub Actions](https://github.com/features/actions) for build checking in every pull request to the `master` branch. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/.github/workflows/radix-operator-pr.yml) of the workflow for more details.
+
+### Build and deploy
+
+The radix-operator utilizes [Azure DevOps](https://azure.microsoft.com/en-us/services/devops/) for automated build and push to container registries (ACR) when a branch is merged to `master` or `release` branch. Service connections in Azure DevOps are required to connect the Azure pipeline to the ACRs. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/azure-pipelines/build-and-push-pipeline.yml) for more details.
