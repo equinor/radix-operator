@@ -7,6 +7,6 @@ const (
 	// BuildSecretsName Name of the secret in the app namespace holding all build secrets
 	BuildSecretsName = "build-secrets"
 
-	// BuildSecretDefaultData When the build secrets hold xx, it means they have not been set yet
-	BuildSecretDefaultData = "xx"
+	// BuildSecretDefaultData When the build secrets hold radix_undefined, it means they have not been set yet
+	BuildSecretDefaultData = "radix_undefined"
 )

@@ -73,7 +73,11 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	buildSecrets := getBuildSecretsAsVariables(cli.GetKubeclient(), namespace)
+	buildSecrets, err := getBuildSecretsAsVariables(cli.GetKubeclient(), cli.GetApplicationConfig(), namespace)
+	if err != nil {
+		return err
+	}
+
 	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo, buildSecrets)
 	if err != nil {
 		return err
