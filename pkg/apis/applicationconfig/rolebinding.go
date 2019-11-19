@@ -4,9 +4,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // grantAppAdminAccessToNs Grant access to environment namespace
@@ -18,29 +18,21 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 		return err
 	}
 
-	subjects := kube.GetRoleBindingGroups(adGroups)
-	clusterRoleName := "radix-app-admin-envs"
-
-	roleBinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: app.config.Name,
-			},
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRoleName,
-		},
-		Subjects: subjects,
-	}
-
+	roleBinding := kube.GetRolebindingToClusterRole(app.config.Name, defaults.AppAdminEnvironmentRoleName, adGroups)
 	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+}
+
+func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+	adGroups, _ := application.GetAdGroups(registration)
+	roleName := role.ObjectMeta.Name
+
+	return kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
+}
+
+func rolebindingPipelineToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+	roleName := role.ObjectMeta.Name
+
+	return kube.GetRolebindingToRoleForServiceAccountWithLabels(roleName, defaults.PipelineRoleName, role.Namespace, role.Labels)
 }
 
 func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
@@ -61,6 +53,7 @@ func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
 	if err != nil {
 		return err
 	}
-	rolebinding := kube.CreateManageSecretRoleBinding(adGroups, role)
+
+	rolebinding := kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
