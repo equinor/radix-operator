@@ -393,6 +393,15 @@ func validateQuantity(name, value string) error {
 }
 
 func validateSecretNames(app *radixv1.RadixApplication) error {
+	if app.Spec.Build != nil {
+		for _, buildSecret := range app.Spec.Build.Secrets {
+			err := validateVariableName("build secret name", buildSecret)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	for _, component := range app.Spec.Components {
 		for _, secret := range component.Secrets {
 			err := validateVariableName("secret name", secret)

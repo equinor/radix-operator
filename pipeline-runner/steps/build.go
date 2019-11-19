@@ -73,8 +73,12 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	// TODO - what about build secrets, e.g. credentials for private npm repository?
-	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo)
+	buildSecrets, err := getBuildSecretsAsVariables(cli.GetKubeclient(), cli.GetApplicationConfig(), namespace)
+	if err != nil {
+		return err
+	}
+
+	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo, buildSecrets)
 	if err != nil {
 		return err
 	}
