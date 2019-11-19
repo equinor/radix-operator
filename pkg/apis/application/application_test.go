@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -48,8 +49,8 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(rolebindings.Items))
-	assert.Equal(t, "radix-pipeline", rolebindings.Items[0].Name)
-	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
+	assert.Equal(t, defaults.PipelineRoleName, rolebindings.Items[0].Name)
+	assert.Equal(t, defaults.AppAdminRoleName, rolebindings.Items[1].Name)
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(secrets.Items))
@@ -57,7 +58,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(serviceAccounts.Items))
-	assert.Equal(t, "radix-pipeline", serviceAccounts.Items[0].Name)
+	assert.Equal(t, defaults.PipelineRoleName, serviceAccounts.Items[0].Name)
 }
 
 func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
@@ -95,7 +96,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(rolebindings.Items))
-	assert.Equal(t, "radix-app-admin", rolebindings.Items[1].Name)
+	assert.Equal(t, defaults.AppAdminRoleName, rolebindings.Items[1].Name)
 	assert.Equal(t, "9876-54321-09876", rolebindings.Items[1].Subjects[0].Name)
 
 }
