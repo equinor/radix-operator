@@ -9,6 +9,7 @@ import (
 type ApplicationBuilder interface {
 	WithRadixRegistration(RegistrationBuilder) ApplicationBuilder
 	WithAppName(string) ApplicationBuilder
+	WithBuildSecrets(...string) ApplicationBuilder
 	WithEnvironment(string, string) ApplicationBuilder
 	WithEnvironmentNoBranch(string) ApplicationBuilder
 	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
@@ -24,6 +25,7 @@ type ApplicationBuilder interface {
 type ApplicationBuilderStruct struct {
 	registrationBuilder RegistrationBuilder
 	appName             string
+	buildSecrets        []string
 	environments        []v1.Environment
 	components          []RadixApplicationComponentBuilder
 	dnsAppAlias         v1.AppAlias
@@ -57,6 +59,12 @@ func (ap *ApplicationBuilderStruct) WithAppName(appName string) ApplicationBuild
 	}
 
 	ap.appName = appName
+	return ap
+}
+
+// WithBuildSecrets Appends to build secrets
+func (ap *ApplicationBuilderStruct) WithBuildSecrets(buildSecrets ...string) ApplicationBuilder {
+	ap.buildSecrets = buildSecrets
 	return ap
 }
 
@@ -144,6 +152,9 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 			Namespace: GetAppNamespace(ap.appName),
 		},
 		Spec: v1.RadixApplicationSpec{
+			Build: &v1.BuildSpec{
+				Secrets: ap.buildSecrets,
+			},
 			Components:       components,
 			Environments:     ap.environments,
 			DNSAppAlias:      ap.dnsAppAlias,

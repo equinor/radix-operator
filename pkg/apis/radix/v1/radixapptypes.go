@@ -17,6 +17,7 @@ type RadixApplication struct {
 
 //RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
+	Build            *BuildSpec             `json:"build" yaml:"build"`
 	Environments     []Environment          `json:"environments" yaml:"environments"`
 	Components       []RadixComponent       `json:"components" yaml:"components"`
 	DNSAppAlias      AppAlias               `json:"dnsAppAlias" yaml:"dnsAppAlias"`
@@ -38,6 +39,11 @@ type SecretsMap map[string]string
 
 // EnvVarsMap maps environment variable keys to their values
 type EnvVarsMap map[string]string
+
+//BuildSpec defines the specification for building the components
+type BuildSpec struct {
+	Secrets []string `json:"secrets" yaml:"secrets"`
+}
 
 //Environment defines a Radix application environment
 type Environment struct {

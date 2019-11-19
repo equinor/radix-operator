@@ -160,6 +160,12 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
+	err = app.syncBuildSecrets()
+	if err != nil {
+		log.Errorf("Failed to create build secrets. %v", err)
+		return err
+	}
+
 	return nil
 }
 

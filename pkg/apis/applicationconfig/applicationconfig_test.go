@@ -16,6 +16,7 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -278,11 +279,11 @@ func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimi
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings("any-app-dev").List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, defaults.AppAdminEnvironmentRoleName, rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 
 		rolebindings, _ = client.RbacV1().RoleBindings("any-app-prod").List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, "radix-app-admin-envs", rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
+		assert.Equal(t, defaults.AppAdminEnvironmentRoleName, rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
 	})
 
 	t.Run("validate limit range not set when missing on Operator", func(t *testing.T) {
@@ -316,6 +317,95 @@ func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimit
 	limitRanges, _ = client.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
 	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
+}
+
+func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	appNamespace := "any-app-app"
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret1", "secret2"))
+
+	secrets, _ := client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	defaultValue := []byte(defaults.BuildSecretDefaultData)
+
+	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
+	assert.NotNil(t, buildSecrets)
+	assert.Equal(t, 2, len(buildSecrets.Data))
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret1"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
+
+	roles, _ := client.RbacV1().Roles(appNamespace).List(metav1.ListOptions{})
+	assert.True(t, roleByNameExists("radix-app-admin-build-secrets", roles))
+	assert.True(t, roleByNameExists("pipeline-build-secrets", roles))
+
+	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(metav1.ListOptions{})
+	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
+	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret4", "secret5", "secret6"))
+
+	secrets, _ = client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	buildSecrets = getSecretByName(defaults.BuildSecretsName, secrets)
+	assert.Equal(t, 3, len(buildSecrets.Data))
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret4"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret5"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret6"])
+
+}
+
+func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret1", "secret2"))
+
+	// Delete secret
+	appNamespace := "any-app-app"
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret2"))
+
+	secrets, _ := client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	defaultValue := []byte(defaults.BuildSecretDefaultData)
+
+	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
+	assert.NotNil(t, buildSecrets)
+	assert.Equal(t, 1, len(buildSecrets.Data))
+	assert.Nil(t, buildSecrets.Data["secret1"])
+	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
+
+	// Delete secret
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets())
+
+	// Secret is left intact, for simplicity
+	secrets, _ = client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	assert.True(t, secretByNameExists(defaults.BuildSecretsName, secrets))
+	assert.Equal(t, 0, len(getSecretByName(defaults.BuildSecretsName, secrets).Data))
+
+	roles, _ := client.RbacV1().Roles(appNamespace).List(metav1.ListOptions{})
+	assert.True(t, roleByNameExists("radix-app-admin-build-secrets", roles))
+	assert.True(t, roleByNameExists("pipeline-build-secrets", roles))
+
+	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(metav1.ListOptions{})
+	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
+	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 }
 
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
@@ -510,4 +600,61 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	return nil
+}
+
+func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
+	for _, secret := range secrets.Items {
+		if secret.Name == name {
+			return &secret
+		}
+	}
+
+	return nil
+}
+
+func secretByNameExists(name string, secrets *corev1.SecretList) bool {
+	secret := getSecretByName(name, secrets)
+	if secret != nil {
+		return true
+	}
+
+	return false
+}
+
+func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
+	for _, role := range roles.Items {
+		if role.Name == name {
+			return &role
+		}
+	}
+
+	return nil
+}
+
+func roleByNameExists(name string, roles *rbacv1.RoleList) bool {
+	role := getRoleByName(name, roles)
+	if role != nil {
+		return true
+	}
+
+	return false
+}
+
+func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rbacv1.RoleBinding {
+	for _, roleBinding := range roleBindings.Items {
+		if roleBinding.Name == name {
+			return &roleBinding
+		}
+	}
+
+	return nil
+}
+
+func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
+	role := getRoleBindingByName(name, roleBindings)
+	if role != nil {
+		return true
+	}
+
+	return false
 }

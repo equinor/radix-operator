@@ -71,7 +71,7 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "radix-pipeline",
+					ServiceAccountName: defaults.PipelineRoleName,
 					InitContainers:     getPipelineJobInitContainers(job.radixJob.Spec.CloneURL, pipeline),
 					Containers: []corev1.Container{
 						{

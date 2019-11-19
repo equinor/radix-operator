@@ -55,9 +55,9 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			return tu.ApplyApplicationUpdate(applicationBuilder)
-		} else {
-			return err
 		}
+
+		return err
 	}
 
 	return nil

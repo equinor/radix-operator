@@ -21,16 +21,15 @@ const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
 )
 
-func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, containerRegistry string, pipelineInfo *model.PipelineInfo) (*batchv1.Job, error) {
+func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, containerRegistry string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, ra.Spec.Components)
+	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, ra.Spec.Components, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
-
 	defaultMode, backOffLimit := int32(256), int32(0)
 
 	job := batchv1.Job{
@@ -89,7 +88,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 	return &job, nil
 }
 
-func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, components []v1.RadixComponent) []corev1.Container {
+func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, components []v1.RadixComponent, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 	clustertype := pipelineInfo.PipelineArguments.Clustertype
@@ -121,46 +120,51 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		}
 		context := getContext(c.SourceFolder)
 		log.Debugf("using dockerfile %s in context %s", dockerFile, context)
+
+		envVars := []corev1.EnvVar{
+			{
+				Name:  "DOCKER_FILE_NAME",
+				Value: dockerFile,
+			},
+			{
+				Name:  "DOCKER_REGISTRY",
+				Value: firstPartContainerRegistry,
+			},
+			{
+				Name:  "IMAGE",
+				Value: imagePath,
+			},
+			{
+				Name:  "CONTEXT",
+				Value: context,
+			},
+			{
+				Name:  "NO_PUSH",
+				Value: noPushFlag,
+			},
+			{
+				Name:  "AZURE_CREDENTIALS",
+				Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
+			},
+
+			// Extra meta information
+			{
+				Name:  "CLUSTERTYPE_IMAGE",
+				Value: clustertypeImage,
+			},
+			{
+				Name:  "CLUSTERNAME_IMAGE",
+				Value: clusternameImage,
+			},
+		}
+
+		envVars = append(envVars, buildSecrets...)
+
 		container := corev1.Container{
 			Name:            fmt.Sprintf("build-%s", c.Name),
 			Image:           fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
 			ImagePullPolicy: corev1.PullAlways,
-			Env: []corev1.EnvVar{
-				{
-					Name:  "DOCKER_FILE_NAME",
-					Value: dockerFile,
-				},
-				{
-					Name:  "DOCKER_REGISTRY",
-					Value: firstPartContainerRegistry,
-				},
-				{
-					Name:  "IMAGE",
-					Value: imagePath,
-				},
-				{
-					Name:  "CONTEXT",
-					Value: context,
-				},
-				{
-					Name:  "NO_PUSH",
-					Value: noPushFlag,
-				},
-				{
-					Name:  "AZURE_CREDENTIALS",
-					Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
-				},
-
-				// Extra meta information
-				{
-					Name:  "CLUSTERTYPE_IMAGE",
-					Value: clustertypeImage,
-				},
-				{
-					Name:  "CLUSTERNAME_IMAGE",
-					Value: clusternameImage,
-				},
-			},
+			Env:             envVars,
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,

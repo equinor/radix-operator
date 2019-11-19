@@ -3,6 +3,7 @@ package application
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -22,28 +23,7 @@ func (app Application) grantAccessToCICDLogs() error {
 		return err
 	}
 
-	subjects := kube.GetRoleBindingGroups(adGroups)
-	clusterRoleName := "radix-app-admin"
-
-	roleBinding := &auth.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: registration.Name,
-			},
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRoleName,
-		},
-		Subjects: subjects,
-	}
-
+	roleBinding := kube.GetRolebindingToClusterRole(registration.Name, defaults.AppAdminRoleName, adGroups)
 	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
@@ -116,9 +96,8 @@ func (app Application) givePipelineAccessToDefaultNamespace(serviceAccount *core
 func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.ServiceAccount) *auth.ClusterRoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	roleName := "radix-pipeline-runner"
 	ownerReference := app.getOwnerReference()
-	logger.Debugf("Create cluster rolebinding config %s", roleName)
+	logger.Debugf("Create cluster rolebinding config %s", defaults.PipelineRunnerRoleName)
 
 	rolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -126,7 +105,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", roleName, appName),
+			Name: fmt.Sprintf("%s-%s", defaults.PipelineRunnerRoleName, appName),
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
@@ -135,7 +114,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     roleName,
+			Name:     defaults.PipelineRunnerRoleName,
 		},
 		Subjects: []auth.Subject{
 			auth.Subject{
@@ -151,8 +130,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	roleName := "radix-pipeline"
-	logger.Debugf("Create rolebinding config %s", roleName)
+	logger.Debugf("Create rolebinding config %s", defaults.PipelineRoleName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -160,7 +138,7 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: roleName,
+			Name: defaults.PipelineRoleName,
 			Labels: map[string]string{
 				"radixReg": appName,
 			},
@@ -168,7 +146,7 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     roleName,
+			Name:     defaults.PipelineRoleName,
 		},
 		Subjects: []auth.Subject{
 			auth.Subject{

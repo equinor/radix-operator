@@ -75,6 +75,16 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].PublicPort = tooLongPortName
 			ra.Spec.Components[0].Ports[0].Name = tooLongPortName
 		}},
+		{"invalid build secret name", radixvalidators.InvalidResourceNameError("build secret name", invalidVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Build = &v1.BuildSpec{
+				Secrets: []string{invalidVariableName},
+			}
+		}},
+		{"too long build secret name", radixvalidators.InvalidResourceNameLengthError("build secret name", wayTooLongName), func(ra *v1.RadixApplication) {
+			ra.Spec.Build = &v1.BuildSpec{
+				Secrets: []string{wayTooLongName},
+			}
+		}},
 		{"invalid secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) { ra.Spec.Components[1].Secrets[0] = invalidVariableName }},
 		{"too long secret name", radixvalidators.InvalidResourceNameLengthError("secret name", wayTooLongName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Secrets[0] = wayTooLongName
