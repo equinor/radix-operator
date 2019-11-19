@@ -33,8 +33,8 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret
 	}
 	if err != nil {
 		log.Errorf("Failed to apply secret %s in namespace %s. %v", secretName, namespace, err)
-		return nil, err
+	} else {
+		log.Debugf("Applied secret %s in namespace %s", secretName, namespace)
 	}
-	log.Debugf("Applied secret %s in namespace %s", secretName, namespace)
-	return savedSecret, err
+	return
 }
