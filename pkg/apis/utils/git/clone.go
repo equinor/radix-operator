@@ -46,8 +46,8 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 		},
 		{
 			Name:            cloneContainerName,
-			Image:           "alpine/git",
-			ImagePullPolicy: "IfNotPresent",
+			Image:           "thezultimate/alpine-git-lfs:latest",
+			ImagePullPolicy: "Always",
 			Args: []string{
 				"clone",
 				sshURL,
