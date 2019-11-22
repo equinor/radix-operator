@@ -49,7 +49,7 @@ func (job *Job) OnSync() error {
 	job.restoreStatus()
 
 	if IsRadixJobDone(job.radixJob) {
-		log.Warnf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
+		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
 

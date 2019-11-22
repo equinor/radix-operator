@@ -96,7 +96,7 @@ func (deploy *Deployment) OnSync() error {
 	requeue := deploy.restoreStatus()
 
 	if IsRadixDeploymentInactive(deploy.radixDeployment) {
-		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.getNamespace(), deploy.getName())
+		log.Debugf("Ignoring RadixDeployment %s/%s as it's inactive.", deploy.getNamespace(), deploy.getName())
 		return nil
 	}
 
