@@ -128,8 +128,8 @@ func NewController(client kubernetes.Interface,
 
 				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
 				if err != nil {
-					// Nothing more to do than escape
-					logger.Errorf("Could not find owning job of pod %s due to %v", newPod.Name, err)
+					// This job may not be found because application is being deleted and resources are being deleted
+					logger.Debugf("Could not find owning job of pod %s due to %v", newPod.Name, err)
 					return
 				}
 

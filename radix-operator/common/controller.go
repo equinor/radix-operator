@@ -206,7 +206,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 
 		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
-			c.Log.Infof("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
+			c.Log.Debugf("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return
 		}
 
