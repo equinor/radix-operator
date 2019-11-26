@@ -2,16 +2,16 @@ package deployment
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
 
-func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env, imageTag string) []v1.RadixDeployComponent {
-	appName := radixApplication.Name
+func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env string, componentImages map[string]string, imageTag string) []v1.RadixDeployComponent {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
 
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
+		imageName := componentImages[componentName]
+
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
 
 		variables := make(map[string]string)
@@ -32,18 +32,9 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
-
-		var image string
-		if appComponent.Image != "" {
-			// Use public image in deployment
-			image = appComponent.Image
-		} else {
-			image = utils.GetImagePath(containerRegistry, appName, componentName, imageTag)
-		}
-
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
-			Image:                image,
+			Image:                imageName,
 			Replicas:             replicas,
 			Public:               false,
 			PublicPort:           getPublicPortFromAppComponent(appComponent),

@@ -11,7 +11,9 @@ const (
 	appName       = "app"
 	componentName = "comp"
 	// containerRegistry = "radixdev.azurecr.io"
-	env         = "dev"
+	env = "dev"
+
+	anyImage    = componentName
 	anyImageTag = "latest"
 )
 
@@ -23,7 +25,11 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithName(componentName).
 				WithPort("http", 80).
 				WithPort("https", 443)).BuildRA()
-	deployComponent := getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
+
+	componentImages := make(map[string]string)
+	componentImages[componentName] = anyImage
+
+	deployComponent := getRadixComponentsForEnv(ra, anyContainerRegistry, env, componentImages, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "", deployComponent[0].PublicPort)
@@ -37,7 +43,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443).
 				WithPublicPort("http")).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, componentImages, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
@@ -52,7 +58,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("https", 443).
 				WithPublicPort("http").
 				WithPublic(true)).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, componentImages, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
@@ -66,13 +72,16 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443).
 				WithPublic(true)).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, anyImageTag)
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, env, componentImages, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].Ports[0].Name, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, false, deployComponent[0].Public)
 }
 
 func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {
+	componentImages := make(map[string]string)
+	componentImages[componentName] = anyImage
+
 	ra := utils.ARadixApplication().
 		WithEnvironment("prod", "release").
 		WithEnvironment("dev", "master").
@@ -85,7 +94,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 		WithDNSExternalAlias("another.alias.com", "prod", "componentA").
 		WithDNSExternalAlias("athird.alias.com", "prod", "componentB").BuildRA()
 
-	deployComponent := getRadixComponentsForEnv(ra, anyContainerRegistry, "prod", anyImageTag)
+	deployComponent := getRadixComponentsForEnv(ra, anyContainerRegistry, "prod", componentImages, anyImageTag)
 	assert.Equal(t, 2, len(deployComponent))
 	assert.Equal(t, 2, len(deployComponent[0].DNSExternalAlias))
 	assert.Equal(t, "some.alias.com", deployComponent[0].DNSExternalAlias[0])
@@ -94,7 +103,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 	assert.Equal(t, 1, len(deployComponent[1].DNSExternalAlias))
 	assert.Equal(t, "athird.alias.com", deployComponent[1].DNSExternalAlias[0])
 
-	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, "dev", anyImageTag)
+	deployComponent = getRadixComponentsForEnv(ra, anyContainerRegistry, "dev", componentImages, anyImageTag)
 	assert.Equal(t, 2, len(deployComponent))
 	assert.Equal(t, 0, len(deployComponent[0].DNSExternalAlias))
 }

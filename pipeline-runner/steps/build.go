@@ -262,11 +262,17 @@ func createBuildContainers(containerRegistry, appName, imageTag, useCache string
 
 func getDockerfile(sourceFolder, dockerfileName string) string {
 	context := getContext(sourceFolder)
-	if dockerfileName == "" {
-		dockerfileName = "Dockerfile"
-	}
+	dockerfileName = getDockerfileName(dockerfileName)
 
 	return fmt.Sprintf("%s%s", context, dockerfileName)
+}
+
+func getDockerfileName(name string) string {
+	if name == "" {
+		name = "Dockerfile"
+	}
+
+	return name
 }
 
 func getContext(sourceFolder string) string {

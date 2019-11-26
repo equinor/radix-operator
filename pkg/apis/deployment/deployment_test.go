@@ -844,9 +844,13 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m"},
 	}
 
+	componentImages := make(map[string]string)
+	componentImages["app"] = "anyImage"
+
 	for _, testcase := range testScenarios {
 		t.Run(testcase.environment, func(t *testing.T) {
-			rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimage", "anybranch", "anycommit", testcase.environment)
+
+			rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, testcase.environment)
 
 			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
 			assert.Equal(t, testcase.expectedDbHost, rd.Spec.Components[0].EnvironmentVariables["DB_HOST"])

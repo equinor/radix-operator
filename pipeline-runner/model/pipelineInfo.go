@@ -15,6 +15,9 @@ type PipelineInfo struct {
 	BranchIsMapped     bool
 	PipelineArguments  PipelineArguments
 	Steps              []Step
+
+	// Holds information on the images referred to by their respective components
+	ComponentImages map[string]string
 }
 
 // PipelineArguments Holds arguments for the pipeline

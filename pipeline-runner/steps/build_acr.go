@@ -19,7 +19,14 @@ import (
 
 const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
+	multiComponentImageName         = "multi-component"
 )
+
+type componentType struct {
+	name           string
+	context        string
+	dockerFileName string
+}
 
 func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, containerRegistry string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
 	appName := rr.Name
@@ -102,24 +109,41 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		noPushFlag = ""
 	}
 
+	componentImages := make(map[string]string)
+
+	// Gather pre-built or public images
 	for _, c := range components {
 		if c.Image != "" {
-			// Using public image. Nothing to build
-			continue
+			componentImages[c.Name] = c.Image
+		}
+	}
+
+	buildContextComponents := getBuildContextComponents(components)
+
+	for _, components := range buildContextComponents {
+		var imageName string
+
+		if len(components) > 1 {
+			log.Infof("Multiple components points to the same build context")
+			imageName = multiComponentImageName
+		} else {
+			imageName = components[0].name
 		}
 
-		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
+		// A multi-component share context and dockerfile
+		context := components[0].context
+		dockerFile := components[0].dockerFileName
+
+		// Set image back to component(s)
+		for _, c := range components {
+			componentImages[c.name] = imageName
+		}
+
+		imagePath := utils.GetImagePath(containerRegistry, appName, imageName, imageTag)
 
 		// For extra meta inforamtion about an image
-		clustertypeImage := utils.GetImagePath(containerRegistry, appName, c.Name, fmt.Sprintf("%s-%s", clustertype, imageTag))
-		clusternameImage := utils.GetImagePath(containerRegistry, appName, c.Name, fmt.Sprintf("%s-%s", clustername, imageTag))
-
-		dockerFile := c.DockerfileName
-		if dockerFile == "" {
-			dockerFile = "Dockerfile"
-		}
-		context := getContext(c.SourceFolder)
-		log.Debugf("using dockerfile %s in context %s", dockerFile, context)
+		clustertypeImage := utils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", clustertype, imageTag))
+		clusternameImage := utils.GetImagePath(containerRegistry, appName, imageName, fmt.Sprintf("%s-%s", clustername, imageTag))
 
 		envVars := []corev1.EnvVar{
 			{
@@ -161,7 +185,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		envVars = append(envVars, buildSecrets...)
 
 		container := corev1.Container{
-			Name:            fmt.Sprintf("build-%s", c.Name),
+			Name:            fmt.Sprintf("build-%s", imageName),
 			Image:           fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
@@ -179,5 +203,29 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		}
 		containers = append(containers, container)
 	}
+
+	pipelineInfo.ComponentImages = componentImages
 	return containers
+}
+
+func getBuildContextComponents(components []v1.RadixComponent) map[string][]componentType {
+	buildContextComponents := make(map[string][]componentType)
+
+	for _, c := range components {
+		if c.Image != "" {
+			// Using public image. Nothing to build
+			continue
+		}
+
+		componentSource := getDockerfile(c.SourceFolder, c.DockerfileName)
+		components := buildContextComponents[componentSource]
+		if components == nil {
+			components = make([]componentType, 0)
+		}
+
+		components = append(components, componentType{c.Name, getContext(c.SourceFolder), getDockerfileName(c.DockerfileName)})
+		buildContextComponents[componentSource] = components
+	}
+
+	return buildContextComponents
 }
