@@ -92,6 +92,11 @@ deploy-acr-builder:
 	docker build -t $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION) ./pipeline-runner/builder/
 	docker push $(DOCKER_REGISTRY)/radix-image-builder:$(BRANCH)-$(VERSION)
 
+deploy-image-scanner:
+	az acr login --name $(CONTAINER_REPO)
+	docker build -t $(DOCKER_REGISTRY)/radix-image-scanner:$(BRANCH)-$(VERSION) ./pipeline-runner/scanner/
+	docker push $(DOCKER_REGISTRY)/radix-image-scanner:$(BRANCH)-$(VERSION)
+
 # deploys radix operator using helm chart in radixdev/radixprod acr
 deploy-via-helm:
 ifndef OVERIDE_BRANCH

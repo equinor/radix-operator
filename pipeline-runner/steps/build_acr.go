@@ -114,7 +114,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 	// Gather pre-built or public images
 	for _, c := range components {
 		if c.Image != "" {
-			componentImages[c.Name] = model.ComponentImage{c.Image, c.Image}
+			componentImages[c.Name] = model.ComponentImage{ImageName: c.Image, ImagePath: c.Image}
 		}
 	}
 
@@ -136,7 +136,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 
 		// Set image back to component(s)
 		for _, c := range components {
-			componentImages[c.name] = model.ComponentImage{imageName, utils.GetImagePath(containerRegistry, appName, imageName, imageTag)}
+			componentImages[c.name] = model.ComponentImage{ImageName: imageName, ImagePath: utils.GetImagePath(containerRegistry, appName, imageName, imageTag)}
 		}
 
 		imagePath := utils.GetImagePath(containerRegistry, appName, imageName, imageTag)

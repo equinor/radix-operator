@@ -846,7 +846,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 	}
 
 	componentImages := make(map[string]model.ComponentImage)
-	componentImages["app"] = model.ComponentImage{"anyImage", "anyImagePath"}
+	componentImages["app"] = model.ComponentImage{ImageName: "anyImage", ImagePath: "anyImagePath"}
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.environment, func(t *testing.T) {
