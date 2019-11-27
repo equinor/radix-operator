@@ -68,7 +68,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 	if deployment.IsRadixDeploymentInactive(rd) {
-		log.Warnf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
+		log.Debugf("Ignoring RadixDeployment %s/%s as it's inactive.", rd.GetNamespace(), rd.GetName())
 		return nil
 	}
 
