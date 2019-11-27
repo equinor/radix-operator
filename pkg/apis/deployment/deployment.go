@@ -10,6 +10,7 @@ import (
 	"time"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -65,7 +66,7 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, componentImages map[string]string, env string) (v1.RadixDeployment, error) {
+func ConstructForTargetEnvironment(config *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, componentImages map[string]model.ComponentImage, env string) (v1.RadixDeployment, error) {
 	radixComponents := getRadixComponentsForEnv(config, containerRegistry, env, componentImages, imageTag)
 	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, radixComponents)
 	return radixDeployment, nil

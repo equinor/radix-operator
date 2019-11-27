@@ -8,6 +8,12 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
+// ComponentImage Holds info about the image associated with a component
+type ComponentImage struct {
+	ImageName string
+	ImagePath string
+}
+
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition         *pipeline.Definition
@@ -17,7 +23,7 @@ type PipelineInfo struct {
 	Steps              []Step
 
 	// Holds information on the images referred to by their respective components
-	ComponentImages map[string]string
+	ComponentImages map[string]ComponentImage
 }
 
 // PipelineArguments Holds arguments for the pipeline

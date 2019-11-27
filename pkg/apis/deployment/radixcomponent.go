@@ -1,16 +1,17 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env string, componentImages map[string]string, imageTag string) []v1.RadixDeployComponent {
+func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env string, componentImages map[string]model.ComponentImage, imageTag string) []v1.RadixDeployComponent {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
 
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
-		imageName := componentImages[componentName]
+		componentImage := componentImages[componentName]
 
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
 
@@ -34,7 +35,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
-			Image:                imageName,
+			Image:                componentImage.ImagePath,
 			Replicas:             replicas,
 			Public:               false,
 			PublicPort:           getPublicPortFromAppComponent(appComponent),

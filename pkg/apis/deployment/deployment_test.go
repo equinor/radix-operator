@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	kubeUtils "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils/maps"
 
@@ -844,8 +845,8 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m"},
 	}
 
-	componentImages := make(map[string]string)
-	componentImages["app"] = "anyImage"
+	componentImages := make(map[string]model.ComponentImage)
+	componentImages["app"] = model.ComponentImage{"anyImage", "anyImagePath"}
 
 	for _, testcase := range testScenarios {
 		t.Run(testcase.environment, func(t *testing.T) {

@@ -109,12 +109,12 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		noPushFlag = ""
 	}
 
-	componentImages := make(map[string]string)
+	componentImages := make(map[string]model.ComponentImage)
 
 	// Gather pre-built or public images
 	for _, c := range components {
 		if c.Image != "" {
-			componentImages[c.Name] = c.Image
+			componentImages[c.Name] = model.ComponentImage{c.Image, c.Image}
 		}
 	}
 
@@ -136,7 +136,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 
 		// Set image back to component(s)
 		for _, c := range components {
-			componentImages[c.name] = imageName
+			componentImages[c.name] = model.ComponentImage{imageName, utils.GetImagePath(containerRegistry, appName, imageName, imageTag)}
 		}
 
 		imagePath := utils.GetImagePath(containerRegistry, appName, imageName, imageTag)
