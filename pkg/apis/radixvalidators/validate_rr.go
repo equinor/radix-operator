@@ -77,7 +77,7 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 		errs = append(errs, err)
 	}
 	err = validateEmail("owner", radixRegistration.Spec.Owner)
-	if err != nil && radixRegistration.Spec.Owner != "" {
+	if err != nil {
 		errs = append(errs, err)
 	}
 	err = validateGitSSHUrl(radixRegistration.Spec.CloneURL)
