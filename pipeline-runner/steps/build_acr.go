@@ -3,10 +3,12 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 
@@ -146,7 +148,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 				BuildContainerName: buildContainerName,
 				ContainerRegistry:  containerRegistry,
 				ImageName:          imageName,
-				ImagePath:          utils.GetImagePath(containerRegistry, appName, imageName, imageTag)
+				ImagePath:          utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
 			}
 		}
 
@@ -194,10 +196,11 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		}
 
 		envVars = append(envVars, buildSecrets...)
+		imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, os.Getenv(defaults.RadixImageBuilder))
 
 		container := corev1.Container{
 			Name:            buildContainerName,
-			Image:           fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
+			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
 			VolumeMounts: []corev1.VolumeMount{

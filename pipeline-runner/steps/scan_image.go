@@ -2,10 +2,12 @@ package steps
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -60,7 +62,14 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	log.Infof("Scanning images for app %s", cli.GetAppName())
 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	job, err := createScanJob(cli.GetAppName(), pipelineInfo.ComponentImages, pipelineInfo.PipelineArguments)
+	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
+	if err != nil {
+		return err
+	}
+
+	scannerImage := fmt.Sprintf("%s/%s", containerRegistry, os.Getenv(defaults.RadixImageScanner))
+
+	job, err := createScanJob(cli.GetAppName(), scannerImage, pipelineInfo.ComponentImages, pipelineInfo.PipelineArguments)
 	if err != nil {
 		return err
 	}
@@ -84,8 +93,8 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	return nil
 }
 
-func createScanJob(appName string, componentImages map[string]model.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
-	imageScanContainers := createImageScanContainers(componentImages)
+func createScanJob(appName, scannerImage string, componentImages map[string]model.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
+	imageScanContainers := createImageScanContainers(scannerImage, componentImages)
 	timestamp := time.Now().Format("20060102150405")
 
 	imageTag := pipelineArguments.ImageTag
@@ -138,7 +147,7 @@ func createScanJob(appName string, componentImages map[string]model.ComponentIma
 	return &job, nil
 }
 
-func createImageScanContainers(componentImages map[string]model.ComponentImage) []corev1.Container {
+func createImageScanContainers(scannerImage string, componentImages map[string]model.ComponentImage) []corev1.Container {
 	distinctImages := make(map[string]struct{})
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-scanner/.azure"
