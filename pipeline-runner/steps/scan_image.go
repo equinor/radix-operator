@@ -184,7 +184,7 @@ func createImageScanContainers(scannerImage string, componentImages map[string]m
 		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
 		container := corev1.Container{
 			Name:            fmt.Sprintf("scan-%s", componentName),
-			Image:           "radixdev.azurecr.io/radix-image-scanner:RA-1004-ScanImages-latest", // todo - version?
+			Image:           scannerImage,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
 			VolumeMounts:    volumeMounts,
