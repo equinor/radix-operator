@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -9,11 +10,15 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	internalContainerPrefix   = "internal-"
+	waitForDockerHubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup hub.docker.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
 )
 
 // ScanImageImplementation Step to scan image for vulnerabilities
@@ -73,7 +78,10 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	return cli.GetKubeutil().WaitForCompletionOf(job)
+	err = cli.GetKubeutil().WaitForCompletionOf(job)
+	log.Errorf("Error scanning image for app %s: %v", cli.GetAppName(), err)
+
+	return nil
 }
 
 func createScanJob(appName string, componentImages map[string]model.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
@@ -83,7 +91,7 @@ func createScanJob(appName string, componentImages map[string]model.ComponentIma
 	imageTag := pipelineArguments.ImageTag
 	jobName := pipelineArguments.JobName
 
-	defaultMode, backOffLimit := int32(256), int32(0)
+	backOffLimit := int32(0)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -104,17 +112,21 @@ func createScanJob(appName string, componentImages map[string]model.ComponentIma
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: "Never",
-					Containers:    imageScanContainers,
+					InitContainers: []corev1.Container{
+						{
+							Name:            fmt.Sprintf("%snslookup", internalContainerPrefix),
+							Image:           "alpine",
+							Args:            []string{waitForDockerHubToRespond},
+							Command:         []string{"/bin/sh", "-c"},
+							ImagePullPolicy: "Always",
+						}},
+					Containers: imageScanContainers,
 					Volumes: []corev1.Volume{
 						{
-							Name: git.BuildContextVolumeName,
-						},
-						{
-							Name: git.GitSSHKeyVolumeName,
+							Name: azureServicePrincipleSecretName,
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName:  git.GitSSHKeyVolumeName,
-									DefaultMode: &defaultMode,
+									SecretName: azureServicePrincipleSecretName,
 								},
 							},
 						},
@@ -137,30 +149,39 @@ func createImageScanContainers(componentImages map[string]model.ComponentImage) 
 			continue
 		}
 
-		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
-		container := corev1.Container{
-			Name:            fmt.Sprintf("scan-%s", componentImage.ImageName),
-			Image:           "radixdev.azurecr.io/radix-image-scanner:RA-1004-ScanImages-latest", // todo - version?
-			ImagePullPolicy: corev1.PullAlways,
-			Env: []corev1.EnvVar{
-				{
-					Name:  "IMAGE_PATH",
-					Value: componentImage.ImagePath,
-				},
-				{
+		volumeMounts := []corev1.VolumeMount{}
+		envVars := []corev1.EnvVar{
+			{
+				Name:  "IMAGE_PATH",
+				Value: componentImage.ImagePath,
+			},
+		}
+
+		if !strings.EqualFold(componentImage.ContainerRegistry, "") {
+			envVars = append(envVars,
+				corev1.EnvVar{
 					Name:  "AZURE_CREDENTIALS",
 					Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
-				},
-			},
-			VolumeMounts: []corev1.VolumeMount{
-				{
+				})
+
+			volumeMounts = append(volumeMounts,
+				corev1.VolumeMount{
 					Name:      azureServicePrincipleSecretName,
 					MountPath: azureServicePrincipleContext,
 					ReadOnly:  true,
-				},
-			},
+				})
+		}
+
+		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
+		container := corev1.Container{
+			Name:            fmt.Sprintf("scan-%s", componentName),
+			Image:           "radixdev.azurecr.io/radix-image-scanner:RA-1004-ScanImages-latest", // todo - version?
+			ImagePullPolicy: corev1.PullAlways,
+			Env:             envVars,
+			VolumeMounts:    volumeMounts,
 		}
 		containers = append(containers, container)
+		distinctImages[componentImage.ImagePath] = struct{}{}
 	}
 	return containers
 }

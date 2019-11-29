@@ -1,12 +1,15 @@
 #!/bin/bash
-if [[ -z "${SP_USER}" ]]; then
-  SP_USER=$(cat ${AZURE_CREDENTIALS} | jq -r '.id')
+if test -f "${AZURE_CREDENTIALS}"; then
+  echo "Authenticating with ACR"
+
+  if [[ -z "${TRIVY_USERNAME}" ]]; then
+    TRIVY_USERNAME=$(cat ${AZURE_CREDENTIALS} | jq -r '.id')
+  fi
+
+  if [[ -z "${TRIVY_PASSWORD}" ]]; then
+    TRIVY_PASSWORD=$(cat ${AZURE_CREDENTIALS} | jq -r '.password')
+  fi
 fi
 
-if [[ -z "${SP_SECRET}" ]]; then
-  SP_SECRET=$(cat ${AZURE_CREDENTIALS} | jq -r '.password')
-fi
-
-az login --service-principal -u ${SP_USER} -p ${SP_SECRET} --tenant ${TENANT}
-docker pull ${IMAGE_PATH}
-trivy --severity HIGH,CRITICAL ${IMAGE_PATH}
+trivy -q --timeout 20m --severity HIGH,CRITICAL ${IMAGE_PATH}
+exit 0

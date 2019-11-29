@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -39,6 +40,8 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 
+	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
+
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("radix-builder-%s-%s", timestamp, imageTag),
@@ -51,7 +54,8 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: branch,
+				kube.RadixBranchAnnotation:          branch,
+				kube.RadixComponentImagesAnnotation: string(componentImagesAnnotation),
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -130,13 +134,20 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 			imageName = components[0].name
 		}
 
+		buildContainerName := fmt.Sprintf("build-%s", imageName)
+
 		// A multi-component share context and dockerfile
 		context := components[0].context
 		dockerFile := components[0].dockerFileName
 
 		// Set image back to component(s)
 		for _, c := range components {
-			componentImages[c.name] = model.ComponentImage{ImageName: imageName, ImagePath: utils.GetImagePath(containerRegistry, appName, imageName, imageTag)}
+			componentImages[c.name] = model.ComponentImage{
+				BuildContainerName: buildContainerName,
+				ContainerRegistry:  containerRegistry,
+				ImageName:          imageName,
+				ImagePath:          utils.GetImagePath(containerRegistry, appName, imageName, imageTag)
+			}
 		}
 
 		imagePath := utils.GetImagePath(containerRegistry, appName, imageName, imageTag)
@@ -185,7 +196,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		envVars = append(envVars, buildSecrets...)
 
 		container := corev1.Container{
-			Name:            fmt.Sprintf("build-%s", imageName),
+			Name:            buildContainerName,
 			Image:           fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,

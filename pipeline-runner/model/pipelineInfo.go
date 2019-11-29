@@ -10,8 +10,10 @@ import (
 
 // ComponentImage Holds info about the image associated with a component
 type ComponentImage struct {
-	ImageName string
-	ImagePath string
+	BuildContainerName string
+	ContainerRegistry  string
+	ImageName          string
+	ImagePath          string
 }
 
 // PipelineInfo Holds info about the pipeline to run

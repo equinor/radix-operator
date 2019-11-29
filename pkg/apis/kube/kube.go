@@ -12,7 +12,8 @@ import (
 
 // Radix Annotations
 const (
-	RadixBranchAnnotation = "radix-branch"
+	RadixBranchAnnotation          = "radix-branch"
+	RadixComponentImagesAnnotation = "radix-component-images"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
