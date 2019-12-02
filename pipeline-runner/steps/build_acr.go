@@ -134,16 +134,18 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		if len(components) > 1 {
 			log.Infof("Multiple components points to the same build context")
 			imageName = multiComponentImageName
+
+			if numMultiComponentContainers > 0 {
+				// Start indexing them
+				imageName = fmt.Sprintf("%s-%d", imageName, numMultiComponentContainers)
+			}
+
 			numMultiComponentContainers++
 		} else {
 			imageName = components[0].name
 		}
 
 		buildContainerName := fmt.Sprintf("build-%s", imageName)
-		if numMultiComponentContainers > 1 {
-			// Start indexing them
-			buildContainerName = fmt.Sprintf("%s-%d", buildContainerName, numMultiComponentContainers)
-		}
 
 		// A multi-component share context and dockerfile
 		context := components[0].context

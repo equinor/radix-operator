@@ -159,11 +159,20 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 	azureServicePrincipleContext := "/radix-image-scanner/.azure"
 
 	for componentName, componentImage := range componentImages {
+		scanContainerName := fmt.Sprintf("scan-%s", componentImage.ImageName)
+		imageScanComponentImages[componentName] = pipeline.ComponentImage{
+			ContainerName:     scanContainerName,
+			ContainerRegistry: componentImage.ContainerRegistry,
+			ImageName:         componentImage.ImageName,
+			ImagePath:         componentImage.ImagePath,
+		}
+
 		if _, contains := distinctImages[componentImage.ImagePath]; contains {
 			// Do not scan same image twice
 			continue
 		}
 
+		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
 		volumeMounts := []corev1.VolumeMount{}
 		envVars := []corev1.EnvVar{
 			{
@@ -185,15 +194,6 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 					MountPath: azureServicePrincipleContext,
 					ReadOnly:  true,
 				})
-		}
-
-		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
-		scanContainerName := fmt.Sprintf("scan-%s", componentImage.ImageName)
-		imageScanComponentImages[componentName] = pipeline.ComponentImage{
-			ContainerName:     scanContainerName,
-			ContainerRegistry: componentImage.ContainerRegistry,
-			ImageName:         componentImage.ImageName,
-			ImagePath:         componentImage.ImagePath,
 		}
 
 		container := corev1.Container{
