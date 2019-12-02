@@ -3,12 +3,10 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
@@ -105,6 +103,8 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, components []v1.RadixComponent, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
+
+	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
 	clustertype := pipelineInfo.PipelineArguments.Clustertype
 	clustername := pipelineInfo.PipelineArguments.Clustername
 
@@ -126,6 +126,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 	}
 
 	buildContextComponents := getBuildContextComponents(components)
+	numMultiComponentContainers := 0
 
 	for _, components := range buildContextComponents {
 		var imageName string
@@ -133,11 +134,16 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		if len(components) > 1 {
 			log.Infof("Multiple components points to the same build context")
 			imageName = multiComponentImageName
+			numMultiComponentContainers++
 		} else {
 			imageName = components[0].name
 		}
 
 		buildContainerName := fmt.Sprintf("build-%s", imageName)
+		if numMultiComponentContainers > 1 {
+			// Start indexing them
+			buildContainerName = fmt.Sprintf("%s-%d", buildContainerName, numMultiComponentContainers)
+		}
 
 		// A multi-component share context and dockerfile
 		context := components[0].context
@@ -146,10 +152,10 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		// Set image back to component(s)
 		for _, c := range components {
 			componentImages[c.name] = pipeline.ComponentImage{
-				BuildContainerName: buildContainerName,
-				ContainerRegistry:  containerRegistry,
-				ImageName:          imageName,
-				ImagePath:          utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
+				ContainerName:     buildContainerName,
+				ContainerRegistry: containerRegistry,
+				ImageName:         imageName,
+				ImagePath:         utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
 			}
 		}
 
@@ -197,7 +203,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		}
 
 		envVars = append(envVars, buildSecrets...)
-		imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, os.Getenv(defaults.RadixImageBuilder))
+		imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, imageBuilder)
 
 		container := corev1.Container{
 			Name:            buildContainerName,

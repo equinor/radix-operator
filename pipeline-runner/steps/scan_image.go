@@ -1,13 +1,12 @@
 package steps
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -67,7 +66,7 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	scannerImage := fmt.Sprintf("%s/%s", containerRegistry, os.Getenv(defaults.RadixImageScanner))
+	scannerImage := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageScanner)
 
 	job, err := createScanJob(cli.GetAppName(), scannerImage, pipelineInfo.ComponentImages, pipelineInfo.PipelineArguments)
 	if err != nil {
@@ -94,13 +93,15 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 }
 
 func createScanJob(appName, scannerImage string, componentImages map[string]pipeline.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
-	imageScanContainers := createImageScanContainers(scannerImage, componentImages)
+	imageScanContainers, imageScanComponentImages := createImageScanContainers(scannerImage, componentImages)
 	timestamp := time.Now().Format("20060102150405")
 
 	imageTag := pipelineArguments.ImageTag
 	jobName := pipelineArguments.JobName
 
 	backOffLimit := int32(0)
+
+	componentImagesAnnotation, _ := json.Marshal(imageScanComponentImages)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -109,6 +110,9 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
+			},
+			Annotations: map[string]string{
+				kube.RadixComponentImagesAnnotation: string(componentImagesAnnotation),
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -147,8 +151,10 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 	return &job, nil
 }
 
-func createImageScanContainers(scannerImage string, componentImages map[string]pipeline.ComponentImage) []corev1.Container {
+func createImageScanContainers(scannerImage string, componentImages map[string]pipeline.ComponentImage) ([]corev1.Container, map[string]pipeline.ComponentImage) {
 	distinctImages := make(map[string]struct{})
+	imageScanComponentImages := make(map[string]pipeline.ComponentImage)
+
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-scanner/.azure"
 
@@ -182,8 +188,16 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 		}
 
 		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
+		scanContainerName := fmt.Sprintf("scan-%s", componentImage.ImageName)
+		imageScanComponentImages[componentName] = pipeline.ComponentImage{
+			ContainerName:     scanContainerName,
+			ContainerRegistry: componentImage.ContainerRegistry,
+			ImageName:         componentImage.ImageName,
+			ImagePath:         componentImage.ImagePath,
+		}
+
 		container := corev1.Container{
-			Name:            fmt.Sprintf("scan-%s", componentName),
+			Name:            scanContainerName,
 			Image:           scannerImage,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
@@ -192,5 +206,5 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 		containers = append(containers, container)
 		distinctImages[componentImage.ImagePath] = struct{}{}
 	}
-	return containers
+	return containers, imageScanComponentImages
 }

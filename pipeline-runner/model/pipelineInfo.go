@@ -33,6 +33,10 @@ type PipelineArguments struct {
 	FromEnvironment string
 	ToEnvironment   string
 
+	// Images used for building/scanning
+	ImageBuilder string
+	ImageScanner string
+
 	// Used for tagging metainformation
 	Clustertype string
 	Clustername string
@@ -52,6 +56,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
 	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion pipeline
 
+	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
+	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
 
@@ -78,6 +84,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
+		ImageBuilder:    imageBuilder,
+		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
 		Clustername:     clusterName,
 	}

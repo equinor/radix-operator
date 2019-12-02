@@ -311,14 +311,16 @@ type JobStepBuilder interface {
 	WithName(string) JobStepBuilder
 	WithStarted(time.Time) JobStepBuilder
 	WithEnded(time.Time) JobStepBuilder
+	WithComponents(...string) JobStepBuilder
 	Build() v1.RadixJobStep
 }
 
 type jobStepBuilder struct {
-	condition v1.RadixJobCondition
-	name      string
-	started   time.Time
-	ended     time.Time
+	condition  v1.RadixJobCondition
+	name       string
+	started    time.Time
+	ended      time.Time
+	components []string
 }
 
 func (sb *jobStepBuilder) WithCondition(condition v1.RadixJobCondition) JobStepBuilder {
@@ -341,16 +343,22 @@ func (sb *jobStepBuilder) WithEnded(ended time.Time) JobStepBuilder {
 	return sb
 }
 
+func (sb *jobStepBuilder) WithComponents(components ...string) JobStepBuilder {
+	sb.components = components
+	return sb
+}
+
 func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
 	started, _ := time.Parse(time.RFC850, sb.started.Format(time.RFC850))
 	ended, _ := time.Parse(time.RFC850, sb.ended.Format(time.RFC850))
 
 	return v1.RadixJobStep{
-		Condition: sb.condition,
-		Started:   &metav1.Time{Time: started},
-		Ended:     &metav1.Time{Time: ended},
-		Name:      sb.name,
+		Condition:  sb.condition,
+		Started:    &metav1.Time{Time: started},
+		Ended:      &metav1.Time{Time: ended},
+		Name:       sb.name,
+		Components: sb.components,
 	}
 }
 

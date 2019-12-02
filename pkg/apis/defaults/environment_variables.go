@@ -58,9 +58,9 @@ const (
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 
-	// RadixImageBuilder Points to the image builder
-	RadixImageBuilder = "RADIX_IMAGE_BUILDER"
+	// RadixImageBuilderEnvironmentVariable Points to the image builder
+	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER"
 
-	// RadixImageScanner Points to the image scanner
-	RadixImageScanner = "RADIX_IMAGE_SCANNER"
+	// RadixImageScannerEnvironmentVariable Points to the image scanner
+	RadixImageScannerEnvironmentVariable = "RADIX_IMAGE_SCANNER"
 )
