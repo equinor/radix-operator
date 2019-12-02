@@ -3,7 +3,7 @@ package deployment
 import (
 	"testing"
 
-	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,8 +28,8 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443)).BuildRA()
 
-	componentImages := make(map[string]model.ComponentImage)
-	componentImages["app"] = model.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
 
 	deployComponent := getRadixComponentsForEnv(ra, anyContainerRegistry, env, componentImages, anyImageTag)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
@@ -81,8 +81,8 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAliases(t *testing.T) {
-	componentImages := make(map[string]model.ComponentImage)
-	componentImages["app"] = model.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
 
 	ra := utils.ARadixApplication().
 		WithEnvironment("prod", "release").

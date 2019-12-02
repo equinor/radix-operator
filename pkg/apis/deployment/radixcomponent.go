@@ -1,11 +1,11 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env string, componentImages map[string]model.ComponentImage, imageTag string) []v1.RadixDeployComponent {
+func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env string, componentImages map[string]pipeline.ComponentImage, imageTag string) []v1.RadixDeployComponent {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
 

@@ -46,14 +46,14 @@ func teardownTest() {
 func TestObjectSynced_StatusMissing_StatusFromAnnotation(t *testing.T) {
 	tu, client, kubeutils, radixclient := setupTest()
 
-	startedJobStatus := utils.AStartedJobStatus()
+	completedJobStatus := utils.ACompletedJobStatus()
 
 	// Test
 	job, err := applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithStatusOnAnnotation(startedJobStatus))
+		utils.ARadixBuildDeployJob().WithStatusOnAnnotation(completedJobStatus))
 
 	assert.NoError(t, err)
-	assert.Equal(t, startedJobStatus.Build(), job.Status)
+	assert.Equal(t, completedJobStatus.Build(), job.Status)
 }
 
 func TestObjectSynced_MultipleJobs_SecondJobQueued(t *testing.T) {

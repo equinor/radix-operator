@@ -93,7 +93,7 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	return nil
 }
 
-func createScanJob(appName, scannerImage string, componentImages map[string]model.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
+func createScanJob(appName, scannerImage string, componentImages map[string]pipeline.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
 	imageScanContainers := createImageScanContainers(scannerImage, componentImages)
 	timestamp := time.Now().Format("20060102150405")
 
@@ -147,7 +147,7 @@ func createScanJob(appName, scannerImage string, componentImages map[string]mode
 	return &job, nil
 }
 
-func createImageScanContainers(scannerImage string, componentImages map[string]model.ComponentImage) []corev1.Container {
+func createImageScanContainers(scannerImage string, componentImages map[string]pipeline.ComponentImage) []corev1.Container {
 	distinctImages := make(map[string]struct{})
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-scanner/.azure"

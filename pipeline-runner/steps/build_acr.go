@@ -9,6 +9,7 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 
@@ -115,12 +116,12 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		noPushFlag = ""
 	}
 
-	componentImages := make(map[string]model.ComponentImage)
+	componentImages := make(map[string]pipeline.ComponentImage)
 
 	// Gather pre-built or public images
 	for _, c := range components {
 		if c.Image != "" {
-			componentImages[c.Name] = model.ComponentImage{ImageName: c.Image, ImagePath: c.Image}
+			componentImages[c.Name] = pipeline.ComponentImage{ImageName: c.Image, ImagePath: c.Image}
 		}
 	}
 
@@ -144,7 +145,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 
 		// Set image back to component(s)
 		for _, c := range components {
-			componentImages[c.name] = model.ComponentImage{
+			componentImages[c.name] = pipeline.ComponentImage{
 				BuildContainerName: buildContainerName,
 				ContainerRegistry:  containerRegistry,
 				ImageName:          imageName,
