@@ -23,6 +23,8 @@ type RadixRegistrationSpec struct {
 	DeployKey       string   `json:"deployKey" yaml:"deployKey"`
 	DeployKeyPublic string   `json:"deployKeyPublic" yaml:"deployKeyPublic"`
 	AdGroups        []string `json:"adGroups" yaml:"adGroups"`
+	Creator         string   `json:"creator" yaml:"creator"`
+	Owner           string   `json:"owner" yaml:"owner"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
