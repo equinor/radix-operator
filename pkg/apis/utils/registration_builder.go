@@ -18,6 +18,8 @@ type RegistrationBuilder interface {
 	WithPublicKey(string) RegistrationBuilder
 	WithPrivateKey(string) RegistrationBuilder
 	WithCloneURL(string) RegistrationBuilder
+	WithOwner(string) RegistrationBuilder
+	WithCreator(string) RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
@@ -32,6 +34,8 @@ type RegistrationBuilderStruct struct {
 	publicKey    string
 	privateKey   string
 	cloneURL     string
+	owner        string
+	creator      string
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -42,6 +46,8 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithAdGroups(radixRegistration.Spec.AdGroups)
 	rb.WithPublicKey(radixRegistration.Spec.DeployKeyPublic)
 	rb.WithPrivateKey(radixRegistration.Spec.DeployKey)
+	rb.WithOwner(radixRegistration.Spec.Owner)
+	rb.WithCreator(radixRegistration.Spec.Creator)
 	return rb
 }
 
@@ -54,6 +60,18 @@ func (rb *RegistrationBuilderStruct) WithUID(uid types.UID) RegistrationBuilder 
 // WithName Sets name
 func (rb *RegistrationBuilderStruct) WithName(name string) RegistrationBuilder {
 	rb.name = name
+	return rb
+}
+
+// WithOwner set owner
+func (rb *RegistrationBuilderStruct) WithOwner(owner string) RegistrationBuilder {
+	rb.owner = owner
+	return rb
+}
+
+// WithCreator set creator
+func (rb *RegistrationBuilderStruct) WithCreator(creator string) RegistrationBuilder {
+	rb.creator = creator
 	return rb
 }
 
@@ -115,6 +133,8 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			DeployKey:       rb.privateKey,
 			DeployKeyPublic: rb.publicKey,
 			AdGroups:        rb.adGroups,
+			Owner:           rb.owner,
+			Creator:         rb.creator,
 		},
 	}
 	return radixRegistration
@@ -132,7 +152,9 @@ func ARadixRegistration() RegistrationBuilder {
 		WithCloneURL("git@github.com:equinor/anyapp").
 		WithSharedSecret("NotSoSecret").
 		WithUID("1234-5678").
-		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"})
+		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"}).
+		WithOwner("radix@equinor.com").
+		WithCreator("radix@equinor.com")
 
 	return builder
 }
