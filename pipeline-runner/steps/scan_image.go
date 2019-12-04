@@ -3,7 +3,6 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -161,10 +160,9 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 	for componentName, componentImage := range componentImages {
 		scanContainerName := fmt.Sprintf("scan-%s", componentImage.ImageName)
 		imageScanComponentImages[componentName] = pipeline.ComponentImage{
-			ContainerName:     scanContainerName,
-			ContainerRegistry: componentImage.ContainerRegistry,
-			ImageName:         componentImage.ImageName,
-			ImagePath:         componentImage.ImagePath,
+			ContainerName: scanContainerName,
+			ImageName:     componentImage.ImageName,
+			ImagePath:     componentImage.ImagePath,
 		}
 
 		if _, contains := distinctImages[componentImage.ImagePath]; contains {
@@ -173,27 +171,23 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 		}
 
 		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
-		volumeMounts := []corev1.VolumeMount{}
 		envVars := []corev1.EnvVar{
 			{
 				Name:  "IMAGE_PATH",
 				Value: componentImage.ImagePath,
 			},
+			{
+				Name:  "AZURE_CREDENTIALS",
+				Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
+			},
 		}
 
-		if !strings.EqualFold(componentImage.ContainerRegistry, "") {
-			envVars = append(envVars,
-				corev1.EnvVar{
-					Name:  "AZURE_CREDENTIALS",
-					Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
-				})
-
-			volumeMounts = append(volumeMounts,
-				corev1.VolumeMount{
-					Name:      azureServicePrincipleSecretName,
-					MountPath: azureServicePrincipleContext,
-					ReadOnly:  true,
-				})
+		volumeMounts := []corev1.VolumeMount{
+			{
+				Name:      azureServicePrincipleSecretName,
+				MountPath: azureServicePrincipleContext,
+				ReadOnly:  true,
+			},
 		}
 
 		container := corev1.Container{
