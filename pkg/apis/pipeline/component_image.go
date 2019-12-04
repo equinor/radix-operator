@@ -5,4 +5,5 @@ type ComponentImage struct {
 	ContainerName string
 	ImageName     string
 	ImagePath     string
+	Scan          bool
 }

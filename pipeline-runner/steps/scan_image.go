@@ -158,6 +158,11 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 	azureServicePrincipleContext := "/radix-image-scanner/.azure"
 
 	for componentName, componentImage := range componentImages {
+		if !componentImage.Scan {
+			log.Infof("Skip scanning image %s for component %s", componentImage.ImageName, componentName)
+			continue
+		}
+
 		scanContainerName := fmt.Sprintf("scan-%s", componentImage.ImageName)
 		imageScanComponentImages[componentName] = pipeline.ComponentImage{
 			ContainerName: scanContainerName,
