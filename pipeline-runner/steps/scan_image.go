@@ -159,7 +159,7 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 
 	for componentName, componentImage := range componentImages {
 		if !componentImage.Scan {
-			log.Infof("Skip scanning image %s for component %s", componentImage.ImageName, componentName)
+			log.Debugf("Skip scanning image %s for component %s", componentImage.ImageName, componentName)
 			continue
 		}
 
