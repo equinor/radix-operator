@@ -1,7 +1,5 @@
 #!/bin/bash
 if test -f "${AZURE_CREDENTIALS}"; then
-  echo "Authenticating with ACR"
-
   if [[ -z "${TRIVY_USERNAME}" ]]; then
     TRIVY_USERNAME=$(cat ${AZURE_CREDENTIALS} | jq -r '.id')
   fi
