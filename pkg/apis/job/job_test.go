@@ -53,7 +53,14 @@ func TestObjectSynced_StatusMissing_StatusFromAnnotation(t *testing.T) {
 		utils.ARadixBuildDeployJob().WithStatusOnAnnotation(completedJobStatus))
 
 	assert.NoError(t, err)
-	assert.Equal(t, completedJobStatus.Build(), job.Status)
+
+	expectedStatus := completedJobStatus.Build()
+	actualStatus := job.Status
+
+	assert.Equal(t, expectedStatus.Started, actualStatus.Started)
+	assert.Equal(t, expectedStatus.Ended, actualStatus.Ended)
+	assert.Equal(t, expectedStatus.Condition, actualStatus.Condition)
+	assert.Equal(t, expectedStatus.TargetEnvs, actualStatus.TargetEnvs)
 }
 
 func TestObjectSynced_MultipleJobs_SecondJobQueued(t *testing.T) {
