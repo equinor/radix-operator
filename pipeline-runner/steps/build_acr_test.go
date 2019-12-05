@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestfuncGetComponentImages_ReturnsProperMapping(t *testing.T) {
+func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	applicationComponents := []v1.RadixComponent{
 		utils.AnApplicationComponent().
 			WithName("client-component-1").
