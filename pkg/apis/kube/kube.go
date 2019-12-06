@@ -8,6 +8,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	coreListers "k8s.io/client-go/listers/core/v1"
+	extensionListers "k8s.io/client-go/listers/extensions/v1beta1"
 )
 
 // Radix Annotations
@@ -44,6 +45,7 @@ type Kube struct {
 	RrLister        v1Lister.RadixRegistrationLister
 	RdLister        v1Lister.RadixDeploymentLister
 	NamespaceLister coreListers.NamespaceLister
+	IngressLister   extensionListers.IngressLister
 }
 
 var logger *log.Entry
@@ -72,6 +74,7 @@ func NewWithListers(client kubernetes.Interface,
 		RrLister:        radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
 		RdLister:        radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		NamespaceLister: kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		IngressLister:   kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
 	}
 
 	return kube, nil

@@ -122,12 +122,12 @@ func isActiveCluster(clustername string) bool {
 }
 
 func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
-	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	ingresses, err := deploy.kubeutil.ListIngresses(deploy.radixDeployment.Namespace)
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range ingresses.Items {
+	for _, exisitingComponent := range ingresses {
 		garbageCollect := true
 		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
@@ -166,16 +166,14 @@ func (deploy *Deployment) garbageCollectNonActiveClusterIngress(component v1.Rad
 }
 
 func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(componentName, labelSelector string) error {
-	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
+	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 	if err != nil {
 		return err
 	}
 
-	if len(ingresses.Items) > 0 {
-		for n := range ingresses.Items {
-			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses.Items[n].Name, &metav1.DeleteOptions{})
+	if len(ingresses) > 0 {
+		for n := range ingresses {
+			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses[n].Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -194,14 +192,13 @@ func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExte
 }
 
 func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(component radixv1.RadixDeployComponent, all bool) error {
-	ingresses, err := deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: getLabelSelectorForExternalAlias(component),
-	})
+	labelSelector := getLabelSelectorForExternalAlias(component)
+	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 	if err != nil {
 		return err
 	}
 
-	for _, ingress := range ingresses.Items {
+	for _, ingress := range ingresses {
 		garbageCollectIngress := true
 
 		if !all {

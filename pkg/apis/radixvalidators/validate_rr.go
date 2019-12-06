@@ -36,6 +36,11 @@ func ResourceNameCannotBeEmptyError(resourceName string) error {
 	return fmt.Errorf("%s cannot be empty", resourceName)
 }
 
+// InvalidEmailError Invalid email
+func InvalidEmailError(resourceName, email string) error {
+	return fmt.Errorf("field %s does not contain a valid email (value: %s)", resourceName, email)
+}
+
 // InvalidResourceNameError Invalid resource name
 func InvalidResourceNameError(resourceName, value string) error {
 	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
@@ -71,6 +76,10 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 	if err != nil {
 		errs = append(errs, err)
 	}
+	err = validateEmail("owner", radixRegistration.Spec.Owner)
+	if err != nil {
+		errs = append(errs, err)
+	}
 	err = validateGitSSHUrl(radixRegistration.Spec.CloneURL)
 	if err != nil {
 		errs = append(errs, err)
@@ -100,6 +109,17 @@ func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) 
 		return fmt.Errorf("App name must be unique in cluster - %s already exist", appName)
 	}
 	return nil
+}
+
+func validateEmail(resourceName, email string) error {
+	// re := regexp.MustCompile("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])")
+	re := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
+	isValid := re.MatchString(email)
+	if isValid {
+		return nil
+	}
+	return InvalidEmailError(resourceName, email)
 }
 
 func validateAppName(appName string) error {
