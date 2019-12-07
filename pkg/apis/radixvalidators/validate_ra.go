@@ -133,6 +133,32 @@ func PublicImageComponentCannotHaveSourceOrDockerfileSet(componentName string) e
 	return fmt.Errorf("Component %s cannot have neither 'src' nor 'Dockerfile' set", componentName)
 }
 
+// ComponentWithDynamicTagRequiresTagInEnvironmentConfig Error if image is set with dynamic tag and tag is missing
+func ComponentWithDynamicTagRequiresTagInEnvironmentConfig(componentName string) error {
+	return fmt.Errorf("Component %s with %s on image requires an image tag set on environment config", componentName, radixv1.DynamicTagNameInEnvironmentConfig)
+}
+
+// ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment Error if image is set with dynamic tag and tag is missing
+func ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(componentName, environment string) error {
+	return fmt.Errorf(
+		"Component %s with %s on image requires an image tag set on environment config for environment %s",
+		componentName, radixv1.DynamicTagNameInEnvironmentConfig, environment)
+}
+
+// ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment Unmapped environment cannot have tag
+func ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment(componentName, environment string) error {
+	return fmt.Errorf(
+		"Component %s with %s on image cannot have an image tag set on environment config for environment %s when the environment is not mapped to any branch",
+		componentName, radixv1.DynamicTagNameInEnvironmentConfig, environment)
+}
+
+// ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag If tag is set then the dynamic tag needs to be set on the image
+func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(componentName, environment string) error {
+	return fmt.Errorf(
+		"Component %s with image tag set on environment config for environment %s requires %s on image setting",
+		componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
+}
+
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
 func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
 	errs := []error{}
@@ -279,6 +305,27 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(component.Name))
 		}
 
+		if component.Image != "" &&
+			strings.HasSuffix(component.Image, radixv1.DynamicTagNameInEnvironmentConfig) {
+
+			if len(component.EnvironmentConfig) == 0 {
+				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(component.Name))
+			} else {
+				for _, environment := range component.EnvironmentConfig {
+					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) &&
+						environment.ImageTagName == "" {
+						errs = append(errs,
+							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(component.Name, environment.Environment))
+					} else if doesEnvExist(app, environment.Environment) &&
+						environment.ImageTagName != "" {
+						errs = append(errs,
+							ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment(component.Name, environment.Environment))
+					}
+				}
+			}
+
+		}
+
 		err := validateRequiredResourceName("component name", component.Name)
 		if err != nil {
 			errs = append(errs, err)
@@ -303,6 +350,13 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errList = validateResourceRequirements(&environment.Resources)
 			if errList != nil && len(errList) > 0 {
 				errs = append(errs, errList...)
+			}
+
+			if environment.ImageTagName != "" &&
+				(component.Image == "" ||
+					!strings.HasSuffix(component.Image, radixv1.DynamicTagNameInEnvironmentConfig)) {
+				errs = append(errs,
+					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
 			}
 		}
 	}
@@ -509,12 +563,30 @@ func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
 }
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
+	env := getEnv(app, name)
+	if env != nil {
+		return true
+	}
+
+	return false
+}
+
+func doesEnvExistAndIsMappedToBranch(app *radixv1.RadixApplication, name string) bool {
+	env := getEnv(app, name)
+	if env != nil && env.Build.From != "" {
+		return true
+	}
+
+	return false
+}
+
+func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 	for _, env := range app.Spec.Environments {
 		if env.Name == name {
-			return true
+			return &env
 		}
 	}
-	return false
+	return nil
 }
 
 func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {

@@ -181,6 +181,26 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].SourceFolder = "./api"
 			ra.Spec.Components[0].DockerfileName = ".Dockerfile"
 		}},
+		{"missing environment config for dynamic tag", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfig(validRAFirstComponentName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{tagName}"
+			ra.Spec.Components[0].EnvironmentConfig = []v1.RadixEnvironmentConfig{}
+		}},
+		{"wrong dynamic tag config for unmapped environment", radixvalidators.ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment(validRAFirstComponentName, "prod"), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{tagName}"
+			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
+		}},
+		{"missing dynamic tag config for mapped environment", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(validRAFirstComponentName, "dev"), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{tagName}"
+			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = ""
+			ra.Spec.Components[0].EnvironmentConfig = append(ra.Spec.Components[0].EnvironmentConfig, v1.RadixEnvironmentConfig{
+				Environment:  "dev",
+				ImageTagName: "",
+			})
+		}},
+		{"inconcistent dynamic tag config for environment", radixvalidators.ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(validRAFirstComponentName, "prod"), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
+			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
+		}},
 	}
 
 	_, client := validRASetup()

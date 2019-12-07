@@ -35,7 +35,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 
 		var image string
 		if appComponent.Image != "" {
-			// Use public image in deployment
+			// Use public/private image hub image in deployment
 			image = appComponent.Image
 		} else {
 			image = utils.GetImagePath(containerRegistry, appName, componentName, imageTag)
