@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"strings"
+
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
@@ -22,6 +24,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		var replicas *int
 
 		var horizontalScaling *v1.RadixHorizontalScaling
+		var imageTagName string
 
 		if environmentSpecificConfig != nil {
 			replicas = environmentSpecificConfig.Replicas
@@ -29,6 +32,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			monitoring = environmentSpecificConfig.Monitoring
 			resources = environmentSpecificConfig.Resources
 			horizontalScaling = environmentSpecificConfig.HorizontalScaling
+			imageTagName = environmentSpecificConfig.ImageTagName
 		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
@@ -37,6 +41,11 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		if appComponent.Image != "" {
 			// Use public/private image hub image in deployment
 			image = appComponent.Image
+
+			if strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
+				image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
+			}
+
 		} else {
 			image = utils.GetImagePath(containerRegistry, appName, componentName, imageTag)
 		}
