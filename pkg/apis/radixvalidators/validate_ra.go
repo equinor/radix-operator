@@ -316,7 +316,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 						environment.ImageTagName == "" {
 						errs = append(errs,
 							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(component.Name, environment.Environment))
-					} else if doesEnvExist(app, environment.Environment) &&
+					} else if !doesEnvExistAndIsMappedToBranch(app, environment.Environment) &&
 						environment.ImageTagName != "" {
 						errs = append(errs,
 							ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment(component.Name, environment.Environment))
