@@ -12,6 +12,9 @@ const (
 	// BuildStep Step to build the docker image
 	BuildStep
 
+	// ScanImageStep Step to scan the docker image for vulnerabilities
+	ScanImageStep
+
 	// DeployStep Step to deploy the RD
 	DeployStep
 

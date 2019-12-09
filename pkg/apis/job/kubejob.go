@@ -129,6 +129,10 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("JOB_NAME=%s", jobName),
 		fmt.Sprintf("PIPELINE_TYPE=%s", pipeline.Type),
 
+		// Pass builder and scanner images
+		fmt.Sprintf("%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
+		fmt.Sprintf("%s=%s", defaults.RadixImageScannerEnvironmentVariable, os.Getenv(defaults.RadixImageScannerEnvironmentVariable)),
+
 		// Used for tagging source of image
 		fmt.Sprintf("%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
 		fmt.Sprintf("%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
