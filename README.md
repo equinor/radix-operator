@@ -90,4 +90,4 @@ The radix-operator makes use of [GitHub Actions](https://github.com/features/act
 
 ### Build and deploy
 
-The radix-operator utilizes [Azure DevOps](https://azure.microsoft.com/en-us/services/devops/) for automated build and push to container registries (ACR) when a branch is merged to `master` or `release` branch. Service connections in Azure DevOps are required to connect the Azure pipeline to the ACRs. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/azure-pipelines/build-and-push-pipeline.yml) for more details
+The radix-operator utilizes [Azure DevOps](https://azure.microsoft.com/en-us/services/devops/) for automated build and push to container registries (ACR) when a branch is merged to `master` or `release` branch. Service connections in Azure DevOps are required to connect the Azure pipeline to the ACRs. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/azure-pipelines/build-and-push-pipeline.yml) for more details.
