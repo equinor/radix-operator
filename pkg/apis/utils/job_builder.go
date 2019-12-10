@@ -168,7 +168,7 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 // NewJobBuilder Constructor for radixjob builder
 func NewJobBuilder() JobBuilder {
 	return &JobBuilderStruct{
-		created: time.Now().UTC(),
+		created: time.Now(),
 	}
 }
 
@@ -189,7 +189,7 @@ func ARadixBuildDeployJob() JobBuilder {
 // AStartedBuildDeployJob Constructor for radix job builder containing test data
 func AStartedBuildDeployJob() JobBuilder {
 	builder := ARadixBuildDeployJob().
-		WithCreated(time.Now().UTC()).
+		WithCreated(time.Now()).
 		WithStatus(AStartedJobStatus())
 
 	return builder
@@ -198,17 +198,31 @@ func AStartedBuildDeployJob() JobBuilder {
 // JobStatusBuilder Handles construction of job status
 type JobStatusBuilder interface {
 	WithCondition(v1.RadixJobCondition) JobStatusBuilder
+	WithStarted(time.Time) JobStatusBuilder
+	WithEnded(time.Time) JobStatusBuilder
 	WithSteps(...JobStepBuilder) JobStatusBuilder
 	Build() v1.RadixJobStatus
 }
 
 type jobStatusBuilder struct {
 	condition v1.RadixJobCondition
+	started   time.Time
+	ended     time.Time
 	steps     []JobStepBuilder
 }
 
 func (jsb *jobStatusBuilder) WithCondition(condition v1.RadixJobCondition) JobStatusBuilder {
 	jsb.condition = condition
+	return jsb
+}
+
+func (jsb *jobStatusBuilder) WithStarted(started time.Time) JobStatusBuilder {
+	jsb.started = started
+	return jsb
+}
+
+func (jsb *jobStatusBuilder) WithEnded(ended time.Time) JobStatusBuilder {
+	jsb.ended = ended
 	return jsb
 }
 
@@ -218,8 +232,20 @@ func (jsb *jobStatusBuilder) WithSteps(steps ...JobStepBuilder) JobStatusBuilder
 }
 
 func (jsb *jobStatusBuilder) Build() v1.RadixJobStatus {
+	jobSteps := make([]v1.RadixJobStep, 0)
+	for _, step := range jsb.steps {
+		jobSteps = append(jobSteps, step.Build())
+	}
+
+	// Need to trim away milliseconds, as reading job status from annotation wont hold them
+	started, _ := time.Parse(time.RFC850, jsb.started.Format(time.RFC850))
+	ended, _ := time.Parse(time.RFC850, jsb.ended.Format(time.RFC850))
+
 	return v1.RadixJobStatus{
 		Condition: jsb.condition,
+		Started:   &metav1.Time{Time: started},
+		Ended:     &metav1.Time{Time: ended},
+		Steps:     jobSteps,
 	}
 }
 
@@ -232,21 +258,49 @@ func NewJobStatusBuilder() JobStatusBuilder {
 func AStartedJobStatus() JobStatusBuilder {
 	builder := NewJobStatusBuilder().
 		WithCondition(v1.JobRunning).
+		WithStarted(time.Now()).
 		WithSteps(
 			ACloneConfigStep().
 				WithCondition(v1.JobSucceeded).
-				WithStarted(time.Now().UTC()).
-				WithEnded(time.Now().UTC()),
+				WithStarted(time.Now()).
+				WithEnded(time.Now()),
 			ARadixPipelineStep().
 				WithCondition(v1.JobRunning).
-				WithStarted(time.Now().UTC()),
+				WithStarted(time.Now()),
 			ACloneStep().
 				WithCondition(v1.JobSucceeded).
-				WithStarted(time.Now().UTC()).
-				WithEnded(time.Now().UTC()),
+				WithStarted(time.Now()).
+				WithEnded(time.Now()),
 			ABuildAppStep().
 				WithCondition(v1.JobRunning).
-				WithStarted(time.Now().UTC()))
+				WithStarted(time.Now()))
+
+	return builder
+}
+
+// ACompletedJobStatus Constructor for a completed job
+func ACompletedJobStatus() JobStatusBuilder {
+	builder := NewJobStatusBuilder().
+		WithCondition(v1.JobSucceeded).
+		WithStarted(time.Now()).
+		WithEnded(time.Now().Add(time.Second*time.Duration(100))).
+		WithSteps(
+			ACloneConfigStep().
+				WithCondition(v1.JobSucceeded).
+				WithStarted(time.Now()).
+				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+			ARadixPipelineStep().
+				WithCondition(v1.JobRunning).
+				WithStarted(time.Now()).
+				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+			ACloneStep().
+				WithCondition(v1.JobSucceeded).
+				WithStarted(time.Now()).
+				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+			ABuildAppStep().
+				WithCondition(v1.JobRunning).
+				WithStarted(time.Now()).
+				WithEnded(time.Now().Add(time.Second*time.Duration(100))))
 
 	return builder
 }
@@ -257,14 +311,16 @@ type JobStepBuilder interface {
 	WithName(string) JobStepBuilder
 	WithStarted(time.Time) JobStepBuilder
 	WithEnded(time.Time) JobStepBuilder
+	WithComponents(...string) JobStepBuilder
 	Build() v1.RadixJobStep
 }
 
 type jobStepBuilder struct {
-	condition v1.RadixJobCondition
-	name      string
-	started   time.Time
-	ended     time.Time
+	condition  v1.RadixJobCondition
+	name       string
+	started    time.Time
+	ended      time.Time
+	components []string
 }
 
 func (sb *jobStepBuilder) WithCondition(condition v1.RadixJobCondition) JobStepBuilder {
@@ -287,12 +343,22 @@ func (sb *jobStepBuilder) WithEnded(ended time.Time) JobStepBuilder {
 	return sb
 }
 
+func (sb *jobStepBuilder) WithComponents(components ...string) JobStepBuilder {
+	sb.components = components
+	return sb
+}
+
 func (sb *jobStepBuilder) Build() v1.RadixJobStep {
+	// Need to trim away milliseconds, as reading job status from annotation wont hold them
+	started, _ := time.Parse(time.RFC850, sb.started.Format(time.RFC850))
+	ended, _ := time.Parse(time.RFC850, sb.ended.Format(time.RFC850))
+
 	return v1.RadixJobStep{
-		Condition: sb.condition,
-		Started:   &metav1.Time{Time: sb.started},
-		Ended:     &metav1.Time{Time: sb.ended},
-		Name:      sb.name,
+		Condition:  sb.condition,
+		Started:    &metav1.Time{Time: started},
+		Ended:      &metav1.Time{Time: ended},
+		Name:       sb.name,
+		Components: sb.components,
 	}
 }
 

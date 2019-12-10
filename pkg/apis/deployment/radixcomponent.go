@@ -1,19 +1,18 @@
 package deployment
 
 import (
-	"strings"
-
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
 
-func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env, imageTag string) []v1.RadixDeployComponent {
-	appName := radixApplication.Name
+func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env string, componentImages map[string]pipeline.ComponentImage, imageTag string) []v1.RadixDeployComponent {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
 
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
+		componentImage := componentImages[componentName]
+
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
 
 		variables := make(map[string]string)
@@ -36,23 +35,9 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
-
-		var image string
-		if appComponent.Image != "" {
-			// Use public/private image hub image in deployment
-			image = appComponent.Image
-
-			if strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
-				image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
-			}
-
-		} else {
-			image = utils.GetImagePath(containerRegistry, appName, componentName, imageTag)
-		}
-
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
-			Image:                image,
+			Image:                componentImage.ImagePath,
 			Replicas:             replicas,
 			Public:               false,
 			PublicPort:           getPublicPortFromAppComponent(appComponent),

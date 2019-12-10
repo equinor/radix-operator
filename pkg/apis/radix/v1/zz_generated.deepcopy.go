@@ -694,6 +694,11 @@ func (in *RadixJobStep) DeepCopyInto(out *RadixJobStep) {
 		in, out := &in.Ended, &out.Ended
 		*out = (*in).DeepCopy()
 	}
+	if in.Components != nil {
+		in, out := &in.Components, &out.Components
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
