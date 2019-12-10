@@ -218,6 +218,8 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 	return componentImages
 }
 
+// TODO: The following functions are duplicate of step.Build private function. Either, remove one of them
+// or move them to a common area
 func getDockerfile(sourceFolder, dockerfileName string) string {
 	context := getContext(sourceFolder)
 	dockerfileName = getDockerfileName(dockerfileName)
