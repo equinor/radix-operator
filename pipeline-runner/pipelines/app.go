@@ -1,6 +1,9 @@
 package onpush
 
 import (
+	"fmt"
+	"strings"
+
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
@@ -9,12 +12,22 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+const multiComponentImageName = "multi-component"
+
+type componentType struct {
+	name           string
+	context        string
+	dockerFileName string
+}
 
 // PipelineRunner Instance variables
 type PipelineRunner struct {
@@ -69,6 +82,11 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
+	containerRegistry, err := cli.kubeUtil.GetContainerRegistry()
+	if err != nil {
+		return err
+	}
+
 	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(pipelineArgs.Branch)
 
 	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
@@ -78,6 +96,9 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		branchIsMapped,
 		pipelineArgs,
 		stepImplementations...)
+
+	componentImages := getComponentImages(appName, containerRegistry, cli.pipelineInfo.PipelineArguments.ImageTag, cli.radixApplication.Spec.Components)
+	cli.pipelineInfo.ComponentImages = componentImages
 
 	if err != nil {
 		return err
@@ -124,4 +145,99 @@ func initStepImplementations(
 	}
 
 	return stepImplementations
+}
+
+func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent) map[string]pipeline.ComponentImage {
+	// First check if there are multiple components pointing to the same build context
+	buildContextComponents := make(map[string][]componentType)
+
+	for _, c := range components {
+		if c.Image != "" {
+			// Using public image. Nothing to build
+			continue
+		}
+
+		componentSource := getDockerfile(c.SourceFolder, c.DockerfileName)
+		components := buildContextComponents[componentSource]
+		if components == nil {
+			components = make([]componentType, 0)
+		}
+
+		components = append(components, componentType{c.Name, getContext(c.SourceFolder), getDockerfileName(c.DockerfileName)})
+		buildContextComponents[componentSource] = components
+	}
+
+	componentImages := make(map[string]pipeline.ComponentImage)
+
+	// Gather pre-built or public images
+	for _, c := range components {
+		if c.Image != "" {
+			componentImages[c.Name] = pipeline.ComponentImage{Build: false, Scan: false, ImageName: c.Image, ImagePath: c.Image}
+		}
+	}
+
+	// Gather build containers
+	numMultiComponentContainers := 0
+	for _, components := range buildContextComponents {
+		var imageName string
+
+		if len(components) > 1 {
+			log.Infof("Multiple components points to the same build context")
+			imageName = multiComponentImageName
+
+			if numMultiComponentContainers > 0 {
+				// Start indexing them
+				imageName = fmt.Sprintf("%s-%d", imageName, numMultiComponentContainers)
+			}
+
+			numMultiComponentContainers++
+		} else {
+			imageName = components[0].name
+		}
+
+		buildContainerName := fmt.Sprintf("build-%s", imageName)
+
+		// A multi-component share context and dockerfile
+		context := components[0].context
+		dockerFile := components[0].dockerFileName
+
+		// Set image back to component(s)
+		for _, c := range components {
+			componentImages[c.name] = pipeline.ComponentImage{
+				ContainerName: buildContainerName,
+				Context:       context,
+				Dockerfile:    dockerFile,
+				ImageName:     imageName,
+				ImagePath:     utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
+				Build:         true,
+				Scan:          true,
+			}
+		}
+	}
+
+	return componentImages
+}
+
+func getDockerfile(sourceFolder, dockerfileName string) string {
+	context := getContext(sourceFolder)
+	dockerfileName = getDockerfileName(dockerfileName)
+
+	return fmt.Sprintf("%s%s", context, dockerfileName)
+}
+
+func getDockerfileName(name string) string {
+	if name == "" {
+		name = "Dockerfile"
+	}
+
+	return name
+}
+
+func getContext(sourceFolder string) string {
+	sourceFolder = strings.Trim(sourceFolder, ".")
+	sourceFolder = strings.Trim(sourceFolder, "/")
+	if sourceFolder == "" {
+		return fmt.Sprintf("%s/", git.Workspace)
+	}
+	return fmt.Sprintf("%s/%s/", git.Workspace, sourceFolder)
 }
