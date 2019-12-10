@@ -6,7 +6,7 @@ import (
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
 // image tag should be taken from the environment config
-const DynamicTagNameInEnvironmentConfig = "{tagName}"
+const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 
 // +genclient
 // +genclient:noStatus

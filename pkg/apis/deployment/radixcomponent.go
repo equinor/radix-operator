@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"strings"
+
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -25,6 +27,8 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		var horizontalScaling *v1.RadixHorizontalScaling
 		var imageTagName string
 
+		image := componentImage.ImagePath
+
 		if environmentSpecificConfig != nil {
 			replicas = environmentSpecificConfig.Replicas
 			variables = environmentSpecificConfig.Variables
@@ -34,10 +38,16 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			imageTagName = environmentSpecificConfig.ImageTagName
 		}
 
+		// For deploy-only images, we will replace the dynamic tag with the tag from the environment
+		// config
+		if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
+			image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
+		}
+
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
-			Image:                componentImage.ImagePath,
+			Image:                image,
 			Replicas:             replicas,
 			Public:               false,
 			PublicPort:           getPublicPortFromAppComponent(appComponent),
