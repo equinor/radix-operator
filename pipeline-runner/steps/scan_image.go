@@ -51,7 +51,9 @@ func (cli *ScanImageImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	if pipelineInfo.ComponentImages == nil || len(pipelineInfo.ComponentImages) == 0 {
+	if pipelineInfo.ComponentImages == nil ||
+		len(pipelineInfo.ComponentImages) == 0 ||
+		noComponentNeedScanning(pipelineInfo.ComponentImages) {
 		// Do nothing and no error
 		log.Infof("No component image present to scan for app %s", cli.GetAppName())
 		return nil
@@ -89,6 +91,16 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	log.Errorf("Error scanning image for app %s: %v", cli.GetAppName(), err)
 
 	return nil
+}
+
+func noComponentNeedScanning(componentImages map[string]pipeline.ComponentImage) bool {
+	for _, componentImage := range componentImages {
+		if componentImage.Scan {
+			return false
+		}
+	}
+
+	return true
 }
 
 func createScanJob(appName, scannerImage string, componentImages map[string]pipeline.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
