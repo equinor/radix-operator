@@ -15,6 +15,9 @@ type PipelineInfo struct {
 	BranchIsMapped     bool
 	PipelineArguments  PipelineArguments
 	Steps              []Step
+
+	// Holds information on the images referred to by their respective components
+	ComponentImages map[string]pipeline.ComponentImage
 }
 
 // PipelineArguments Holds arguments for the pipeline
@@ -29,6 +32,10 @@ type PipelineArguments struct {
 	DeploymentName  string
 	FromEnvironment string
 	ToEnvironment   string
+
+	// Images used for building/scanning
+	ImageBuilder string
+	ImageScanner string
 
 	// Used for tagging metainformation
 	Clustertype string
@@ -49,6 +56,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
 	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion pipeline
 
+	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
+	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
 
@@ -75,6 +84,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
+		ImageBuilder:    imageBuilder,
+		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
 		Clustername:     clusterName,
 	}

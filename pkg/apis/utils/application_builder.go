@@ -184,6 +184,9 @@ func ARadixApplication() ApplicationBuilder {
 // RadixApplicationComponentBuilder Handles construction of RA component
 type RadixApplicationComponentBuilder interface {
 	WithName(string) RadixApplicationComponentBuilder
+	WithSourceFolder(string) RadixApplicationComponentBuilder
+	WithDockerfileName(string) RadixApplicationComponentBuilder
+	WithImage(string) RadixApplicationComponentBuilder
 	// Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublic(bool) RadixApplicationComponentBuilder
 	WithPublicPort(string) RadixApplicationComponentBuilder
@@ -196,7 +199,10 @@ type RadixApplicationComponentBuilder interface {
 }
 
 type radixApplicationComponentBuilder struct {
-	name string
+	name           string
+	sourceFolder   string
+	dockerfileName string
+	image          string
 	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
 	public               bool
 	publicPort           string
@@ -208,6 +214,21 @@ type radixApplicationComponentBuilder struct {
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
 	rcb.name = name
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithSourceFolder(sourceFolder string) RadixApplicationComponentBuilder {
+	rcb.sourceFolder = sourceFolder
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithDockerfileName(dockerfileName string) RadixApplicationComponentBuilder {
+	rcb.dockerfileName = dockerfileName
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithImage(image string) RadixApplicationComponentBuilder {
+	rcb.image = image
 	return rcb
 }
 
@@ -260,6 +281,9 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 
 	return v1.RadixComponent{
 		Name:                 rcb.name,
+		SourceFolder:         rcb.sourceFolder,
+		DockerfileName:       rcb.dockerfileName,
+		Image:                rcb.image,
 		Ports:                componentPorts,
 		Secrets:              rcb.secrets,
 		IngressConfiguration: rcb.ingressConfiguration,

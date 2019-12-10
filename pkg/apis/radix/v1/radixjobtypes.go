@@ -93,9 +93,10 @@ type RadixJobList struct {
 
 //RadixJobStep holds status for a single step
 type RadixJobStep struct {
-	Name      string            `json:"name" yaml:"name"`
-	Condition RadixJobCondition `json:"condition" yaml:"condition"`
-	Started   *meta_v1.Time     `json:"started" yaml:"started"`
-	Ended     *meta_v1.Time     `json:"ended" yaml:"ended"`
-	PodName   string            `json:"podName" yaml:"podName"`
+	Name       string            `json:"name" yaml:"name"`
+	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
+	Started    *meta_v1.Time     `json:"started" yaml:"started"`
+	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
+	PodName    string            `json:"podName" yaml:"podName"`
+	Components []string          `json:"components,omitempty" yaml:"components,omitempty"`
 }

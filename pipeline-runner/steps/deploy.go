@@ -76,6 +76,7 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 			pipelineInfo.PipelineArguments.ImageTag,
 			pipelineInfo.PipelineArguments.Branch,
 			pipelineInfo.PipelineArguments.CommitID,
+			pipelineInfo.ComponentImages,
 			env.Name)
 
 		if err != nil {

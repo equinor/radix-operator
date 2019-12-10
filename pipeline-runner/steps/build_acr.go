@@ -1,11 +1,13 @@
 package steps
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 
@@ -19,7 +21,18 @@ import (
 
 const (
 	azureServicePrincipleSecretName = "radix-sp-acr-azure"
+	multiComponentImageName         = "multi-component"
 )
+
+type void struct{}
+
+var member void
+
+type componentType struct {
+	name           string
+	context        string
+	dockerFileName string
+}
 
 func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, containerRegistry string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
 	appName := rr.Name
@@ -31,6 +44,8 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, ra.Spec.Components, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
+
+	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -44,7 +59,8 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: branch,
+				kube.RadixBranchAnnotation:          branch,
+				kube.RadixComponentImagesAnnotation: string(componentImagesAnnotation),
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -91,6 +107,8 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, components []v1.RadixComponent, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
+
+	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
 	clustertype := pipelineInfo.PipelineArguments.Clustertype
 	clustername := pipelineInfo.PipelineArguments.Clustername
 
@@ -102,29 +120,29 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		noPushFlag = ""
 	}
 
-	for _, c := range components {
-		if c.Image != "" {
-			// Using public image. Nothing to build
+	distinctBuildContainers := make(map[string]void)
+	componentImages := getComponentImages(appName, containerRegistry, imageTag, components)
+	for _, componentImage := range componentImages {
+		if !componentImage.Build {
+			// Nothing to build
 			continue
 		}
 
-		imagePath := utils.GetImagePath(containerRegistry, appName, c.Name, imageTag)
+		if _, exists := distinctBuildContainers[componentImage.ContainerName]; exists {
+			// We allready have a container for this multi-component
+			continue
+		}
+
+		distinctBuildContainers[componentImage.ContainerName] = member
 
 		// For extra meta inforamtion about an image
-		clustertypeImage := utils.GetImagePath(containerRegistry, appName, c.Name, fmt.Sprintf("%s-%s", clustertype, imageTag))
-		clusternameImage := utils.GetImagePath(containerRegistry, appName, c.Name, fmt.Sprintf("%s-%s", clustername, imageTag))
-
-		dockerFile := c.DockerfileName
-		if dockerFile == "" {
-			dockerFile = "Dockerfile"
-		}
-		context := getContext(c.SourceFolder)
-		log.Debugf("using dockerfile %s in context %s", dockerFile, context)
+		clustertypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clustertype, imageTag))
+		clusternameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clustername, imageTag))
 
 		envVars := []corev1.EnvVar{
 			{
 				Name:  "DOCKER_FILE_NAME",
-				Value: dockerFile,
+				Value: componentImage.Dockerfile,
 			},
 			{
 				Name:  "DOCKER_REGISTRY",
@@ -132,11 +150,11 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 			},
 			{
 				Name:  "IMAGE",
-				Value: imagePath,
+				Value: componentImage.ImagePath,
 			},
 			{
 				Name:  "CONTEXT",
-				Value: context,
+				Value: componentImage.Context,
 			},
 			{
 				Name:  "NO_PUSH",
@@ -159,10 +177,11 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		}
 
 		envVars = append(envVars, buildSecrets...)
+		imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, imageBuilder)
 
 		container := corev1.Container{
-			Name:            fmt.Sprintf("build-%s", c.Name),
-			Image:           fmt.Sprintf("%s/radix-image-builder:master-latest", containerRegistry), // todo - version?
+			Name:            componentImage.ContainerName,
+			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
 			VolumeMounts: []corev1.VolumeMount{
@@ -179,5 +198,78 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		}
 		containers = append(containers, container)
 	}
+
+	pipelineInfo.ComponentImages = componentImages
 	return containers
+}
+
+func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent) map[string]pipeline.ComponentImage {
+	// First check if there are multiple components pointing to the same build context
+	buildContextComponents := make(map[string][]componentType)
+
+	for _, c := range components {
+		if c.Image != "" {
+			// Using public image. Nothing to build
+			continue
+		}
+
+		componentSource := getDockerfile(c.SourceFolder, c.DockerfileName)
+		components := buildContextComponents[componentSource]
+		if components == nil {
+			components = make([]componentType, 0)
+		}
+
+		components = append(components, componentType{c.Name, getContext(c.SourceFolder), getDockerfileName(c.DockerfileName)})
+		buildContextComponents[componentSource] = components
+	}
+
+	componentImages := make(map[string]pipeline.ComponentImage)
+
+	// Gather pre-built or public images
+	for _, c := range components {
+		if c.Image != "" {
+			componentImages[c.Name] = pipeline.ComponentImage{Build: false, Scan: false, ImageName: c.Image, ImagePath: c.Image}
+		}
+	}
+
+	// Gather build containers
+	numMultiComponentContainers := 0
+	for _, components := range buildContextComponents {
+		var imageName string
+
+		if len(components) > 1 {
+			log.Infof("Multiple components points to the same build context")
+			imageName = multiComponentImageName
+
+			if numMultiComponentContainers > 0 {
+				// Start indexing them
+				imageName = fmt.Sprintf("%s-%d", imageName, numMultiComponentContainers)
+			}
+
+			numMultiComponentContainers++
+		} else {
+			imageName = components[0].name
+		}
+
+		buildContainerName := fmt.Sprintf("build-%s", imageName)
+
+		// A multi-component share context and dockerfile
+		context := components[0].context
+		dockerFile := components[0].dockerFileName
+
+		// Set image back to component(s)
+		for _, c := range components {
+			componentImages[c.name] = pipeline.ComponentImage{
+				ContainerName: buildContainerName,
+				Context:       context,
+				Dockerfile:    dockerFile,
+				ImageName:     imageName,
+				ImagePath:     utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
+				Build:         true,
+				Scan:          true,
+			}
+		}
+	}
+
+	return componentImages
 }

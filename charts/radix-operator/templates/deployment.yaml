@@ -80,6 +80,10 @@ spec:
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
             - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
               value: {{ .Values.jobsPerAppHistoryLimit | quote }}
+            - name: RADIX_IMAGE_BUILDER
+              value: {{ .Values.imageBuilder }}
+            - name: RADIX_IMAGE_SCANNER
+              value: {{ .Values.imageScanner }}
           livenessProbe:
             httpGet:
               path: /healthz
