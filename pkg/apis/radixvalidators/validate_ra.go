@@ -135,7 +135,8 @@ func PublicImageComponentCannotHaveSourceOrDockerfileSet(componentName string) e
 
 // ComponentWithDynamicTagRequiresTagInEnvironmentConfig Error if image is set with dynamic tag and tag is missing
 func ComponentWithDynamicTagRequiresTagInEnvironmentConfig(componentName string) error {
-	return fmt.Errorf("Component %s with %s on image requires an image tag set on environment config", componentName, radixv1.DynamicTagNameInEnvironmentConfig)
+	return fmt.Errorf("Component %s with %s on image requires an image tag set on environment config",
+		componentName, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
 // ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment Error if image is set with dynamic tag and tag is missing
