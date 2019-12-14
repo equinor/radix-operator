@@ -17,3 +17,5 @@ spec:
     shortNames:
       - rr
   scope: Cluster
+  subresources:
+    status: {}
