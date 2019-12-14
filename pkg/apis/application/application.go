@@ -3,12 +3,14 @@ package application
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -99,7 +101,13 @@ func (app Application) OnSync() error {
 		return err
 	}
 
-	logger.Debugf("Applied access to ci/cd logs")
+	logger.Debugf("Applied access to ci/cd logs. Set registration to be reconciled")
+	radixRegistration.Status.Reconciled = metav1.NewTime(time.Now().UTC())
+	_, err = app.radixclient.RadixV1().RadixRegistrations().UpdateStatus(radixRegistration)
+	if err != nil {
+		logger.Errorf("Failed to update status on registration: %v", err)
+		return err
+	}
 
 	return nil
 }
