@@ -13,7 +13,13 @@ import (
 type RadixRegistration struct {
 	meta_v1.TypeMeta   `json:",inline" yaml:",inline"`
 	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec               RadixRegistrationSpec `json:"spec" yaml:"spec"`
+	Spec               RadixRegistrationSpec   `json:"spec" yaml:"spec"`
+	Status             RadixRegistrationStatus `json:"status" yaml:"status"`
+}
+
+//RadixRegistrationStatus is the status for a rr
+type RadixRegistrationStatus struct {
+	Reconciled meta_v1.Time `json:"reconciled" yaml:"reconciled"`
 }
 
 //RadixRegistrationSpec is the spec for an application
