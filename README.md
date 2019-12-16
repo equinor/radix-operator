@@ -32,7 +32,11 @@ As of 2019-10-28, radix-operator uses go modules. See [Using go modules](https:/
 ### Procedure to release to cluster
 
 The radix-operator and code is referred to from radix-api through go modules. We follow the [semantic version](https://semver.org/) as recommended by [go](https://blog.golang.org/publishing-go-modules). To publish a new version of radix-operator:
-`$ go mod tidy $ make test $ git tag v1.0.0 $ git push origin v1.0.0`
+
+- `go mod tidy`
+- `make test`
+- `git tag v1.0.0`
+- `git push origin v1.0.0`
 
 Its then possible to reference radix-operator from radix-api through adding `github.com/equinor/radix-operator v1.0.0` to the go.mod file.
 
