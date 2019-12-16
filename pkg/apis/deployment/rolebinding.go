@@ -37,16 +37,16 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
-	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: getLabelSelectorForComponent(*component),
-	})
+	labelSelector := getLabelSelectorForComponent(*component)
+	roleBindings, err := deploy.kubeutil.ListRoleBindingsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
+
 	if err != nil {
 		return err
 	}
 
-	if len(roleBindings.Items) > 0 {
-		for n := range roleBindings.Items {
-			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBindings.Items[n].Name, &metav1.DeleteOptions{})
+	if len(roleBindings) > 0 {
+		for n := range roleBindings {
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBindings[n].Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -57,12 +57,9 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(c
 }
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
-	roleBindings, err := deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
+	roleBindings, err := deploy.kubeutil.ListRoleBindings(deploy.radixDeployment.GetNamespace())
 
-	for _, exisitingComponent := range roleBindings.Items {
+	for _, exisitingComponent := range roleBindings {
 		garbageCollect := true
 		exisitingComponentName, exists := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 

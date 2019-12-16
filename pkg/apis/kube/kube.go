@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	coreListers "k8s.io/client-go/listers/core/v1"
 	extensionListers "k8s.io/client-go/listers/extensions/v1beta1"
+	rbacListers "k8s.io/client-go/listers/rbac/v1"
 )
 
 // Radix Annotations
@@ -41,13 +42,14 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient      kubernetes.Interface
-	radixclient     radixclient.Interface
-	RrLister        v1Lister.RadixRegistrationLister
-	RdLister        v1Lister.RadixDeploymentLister
-	NamespaceLister coreListers.NamespaceLister
-	ServiceLister   coreListers.ServiceLister
-	IngressLister   extensionListers.IngressLister
+	kubeClient        kubernetes.Interface
+	radixclient       radixclient.Interface
+	RrLister          v1Lister.RadixRegistrationLister
+	RdLister          v1Lister.RadixDeploymentLister
+	NamespaceLister   coreListers.NamespaceLister
+	IngressLister     extensionListers.IngressLister
+	ServiceLister     coreListers.ServiceLister
+	RoleBindingLister rbacListers.RoleBindingLister
 }
 
 var logger *log.Entry
@@ -71,13 +73,14 @@ func NewWithListers(client kubernetes.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory) (*Kube, error) {
 	kube := &Kube{
-		kubeClient:      client,
-		radixclient:     radixclient,
-		RrLister:        radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
-		RdLister:        radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
-		NamespaceLister: kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		ServiceLister:   kubeInformerFactory.Core().V1().Services().Lister(),
-		IngressLister:   kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		kubeClient:        client,
+		radixclient:       radixclient,
+		RrLister:          radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
+		RdLister:          radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		NamespaceLister:   kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		ServiceLister:     kubeInformerFactory.Core().V1().Services().Lister(),
+		IngressLister:     kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		RoleBindingLister: kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
 	}
 
 	return kube, nil
