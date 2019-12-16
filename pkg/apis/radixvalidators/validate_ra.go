@@ -299,9 +299,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(component.Name))
 		}
 
-		if component.Image != "" &&
-			strings.HasSuffix(component.Image, radixv1.DynamicTagNameInEnvironmentConfig) {
-
+		if usesDynamicTaggingForDeployOnly(component.Image) {
 			if len(component.EnvironmentConfig) == 0 {
 				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(component.Name))
 			} else {
@@ -342,9 +340,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 				errs = append(errs, errList...)
 			}
 
-			if environment.ImageTagName != "" &&
-				(component.Image == "" ||
-					!strings.HasSuffix(component.Image, radixv1.DynamicTagNameInEnvironmentConfig)) {
+			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
 				errs = append(errs,
 					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
 			}
@@ -352,6 +348,17 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 	}
 
 	return errs
+}
+
+func usesDynamicTaggingForDeployOnly(componentImage string) bool {
+	return componentImage != "" &&
+		strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig)
+}
+
+func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, componentImage string) bool {
+	return environmentImageTag != "" &&
+		(componentImage == "" ||
+			!strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig))
 }
 
 func validatePorts(component radixv1.RadixComponent) []error {
