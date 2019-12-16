@@ -1,6 +1,7 @@
 package onpush
 
 import (
+	"fmt"
 	"testing"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
@@ -10,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
@@ -140,4 +142,34 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	assert.Equal(t, "radixcanary.azurecr.io/nginx:latest", componentImages["private-hub-component"].ImageName)
 	assert.Equal(t, "radixcanary.azurecr.io/nginx:latest", componentImages["private-hub-component"].ImagePath)
 
+}
+
+func Test_dockerfile_from_build_folder(t *testing.T) {
+	dockerfile := getDockerfile(".", "")
+
+	assert.Equal(t, fmt.Sprintf("%s/Dockerfile", git.Workspace), dockerfile)
+}
+
+func Test_dockerfile_from_folder(t *testing.T) {
+	dockerfile := getDockerfile("/afolder/", "")
+
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", git.Workspace), dockerfile)
+}
+
+func Test_dockerfile_from_folder_2(t *testing.T) {
+	dockerfile := getDockerfile("afolder", "")
+
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", git.Workspace), dockerfile)
+}
+
+func Test_dockerfile_from_folder_special_char(t *testing.T) {
+	dockerfile := getDockerfile("./afolder/", "")
+
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile", git.Workspace), dockerfile)
+}
+
+func Test_dockerfile_from_folder_and_file(t *testing.T) {
+	dockerfile := getDockerfile("/afolder/", "Dockerfile.adockerfile")
+
+	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile.adockerfile", git.Workspace), dockerfile)
 }
