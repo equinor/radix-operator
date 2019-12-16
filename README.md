@@ -27,28 +27,25 @@ The `radix-pipeline` never gets deployed to cluster, but rather is invoked by th
 
 ### Dependencies management
 
-As of 2019-10-28, radix-operator uses go modules. See [Using go modules](https://blog.golang.org/using-go-modules) for more information and guidelines. 
+As of 2019-10-28, radix-operator uses go modules. See [Using go modules](https://blog.golang.org/using-go-modules) for more information and guidelines.
 
 ### Procedure to release to cluster
 
 The radix-operator and code is referred to from radix-api through go modules. We follow the [semantic version](https://semver.org/) as recommended by [go](https://blog.golang.org/publishing-go-modules). To publish a new version of radix-operator:
-`
-$ go mod tidy
-$ make test
-$ git tag v1.0.0
-$ git push origin v1.0.0
-`
+`$ go mod tidy $ make test $ git tag v1.0.0 $ git push origin v1.0.0`
 
 Its then possible to reference radix-operator from radix-api through adding `github.com/equinor/radix-operator v1.0.0` to the go.mod file.
 
 #### Radix-pipeline
 
-We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Azure DevOps that handles this procedure.
+We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Azure DevOps that handles this procedure. The radix-pipeline make use of:
+
+- [radix-image-builder](https://github.com/equinor/radix-image-builder)
+- [radix-image-scanner](https://github.com/equinor/radix-image-scanner)
 
 #### Radix-operator
 
 For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Azure DevOps that handles this procedure.
-
 
 #### Operator helm chart
 
