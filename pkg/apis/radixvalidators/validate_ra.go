@@ -146,13 +146,6 @@ func ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(compone
 		componentName, radixv1.DynamicTagNameInEnvironmentConfig, environment)
 }
 
-// ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment Unmapped environment cannot have tag
-func ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment(componentName, environment string) error {
-	return fmt.Errorf(
-		"Component %s with %s on image cannot have an image tag set on environment config for environment %s when the environment is not mapped to any branch",
-		componentName, radixv1.DynamicTagNameInEnvironmentConfig, environment)
-}
-
 // ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag If tag is set then the dynamic tag needs to be set on the image
 func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(componentName, environment string) error {
 	return fmt.Errorf(
@@ -317,10 +310,6 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 						environment.ImageTagName == "" {
 						errs = append(errs,
 							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(component.Name, environment.Environment))
-					} else if !doesEnvExistAndIsMappedToBranch(app, environment.Environment) &&
-						environment.ImageTagName != "" {
-						errs = append(errs,
-							ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment(component.Name, environment.Environment))
 					}
 				}
 			}

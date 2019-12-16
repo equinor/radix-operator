@@ -185,10 +185,6 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
 			ra.Spec.Components[0].EnvironmentConfig = []v1.RadixEnvironmentConfig{}
 		}},
-		{"wrong dynamic tag config for unmapped environment", radixvalidators.ComponentWithDynamicTagCannotHaveTagInEnvironmentConfigForUnmappedEnvironment(validRAFirstComponentName, "prod"), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
-			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
-		}},
 		{"missing dynamic tag config for mapped environment", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(validRAFirstComponentName, "dev"), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
 			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = ""
