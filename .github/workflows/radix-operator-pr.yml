@@ -9,7 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Build docker image
+    - name: Build operator image
       env:
         REF: ${{ github. sha }}
       run: docker build -t radix-operator:${REF##*/} -f operator.Dockerfile .
+    - name: Build pipeline image
+      env:
+        REF: ${{ github. sha }}
+      run: docker build -t radix-operator:${REF##*/} -f pipeline.Dockerfile .
