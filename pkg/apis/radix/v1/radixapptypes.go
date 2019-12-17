@@ -4,6 +4,10 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// DynamicTagNameInEnvironmentConfig Pattern to indicate that the
+// image tag should be taken from the environment config
+const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -115,6 +119,7 @@ type RadixEnvironmentConfig struct {
 	Resources         ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Variables         EnvVarsMap              `json:"variables" yaml:"variables"`
 	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
+	ImageTagName      string                  `json:"imageTagName" yaml:"imageTagName"`
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec
