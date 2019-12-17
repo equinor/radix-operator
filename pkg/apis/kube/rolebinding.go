@@ -123,7 +123,7 @@ func (k *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error 
 		return nil
 
 	} else if err != nil {
-		return fmt.Errorf("Failed to create role binding object: %v", err)
+		return fmt.Errorf("Failed to get role binding object: %v", err)
 	}
 
 	log.Debugf("Role binding object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
