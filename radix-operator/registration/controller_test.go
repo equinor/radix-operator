@@ -76,6 +76,10 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, op)
 
+	syncedRr, _ := radixClient.RadixV1().RadixRegistrations().Get(registration.GetName(), metav1.GetOptions{})
+	lastReconciled := syncedRr.Status.Reconciled
+	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
+
 	// Update registration should sync
 	registration.ObjectMeta.Annotations = map[string]string{
 		"update": "test",

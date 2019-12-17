@@ -94,6 +94,17 @@ func (c *FakeRadixRegistrations) Update(radixRegistration *radixv1.RadixRegistra
 	return obj.(*radixv1.RadixRegistration), err
 }
 
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *FakeRadixRegistrations) UpdateStatus(radixRegistration *radixv1.RadixRegistration) (*radixv1.RadixRegistration, error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewRootUpdateSubresourceAction(radixregistrationsResource, "status", radixRegistration), &radixv1.RadixRegistration{})
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*radixv1.RadixRegistration), err
+}
+
 // Delete takes name of the radixRegistration and deletes it. Returns an error if one occurs.
 func (c *FakeRadixRegistrations) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
