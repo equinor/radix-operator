@@ -21,12 +21,12 @@ func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
 		_, err := k.kubeClient.CoreV1().Services(namespace).Create(service)
 
 		if err != nil {
-			return fmt.Errorf("Failed to create Service object: %v", err)
+			return fmt.Errorf("Failed to create service object: %v", err)
 		}
 
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to create Ingress object: %v", err)
+		return fmt.Errorf("Failed to get service object: %v", err)
 	}
 
 	log.Debugf("Service object %s already exists in namespace %s, updating the object now", service.GetName(), namespace)

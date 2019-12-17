@@ -151,6 +151,10 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 	// First check if there are multiple components pointing to the same build context
 	buildContextComponents := make(map[string][]componentType)
 
+	// To ensure we can iterate over the map in the order
+	// they were added
+	buildContextKeys := make([]string, 0)
+
 	for _, c := range components {
 		if c.Image != "" {
 			// Using public image. Nothing to build
@@ -161,6 +165,7 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 		components := buildContextComponents[componentSource]
 		if components == nil {
 			components = make([]componentType, 0)
+			buildContextKeys = append(buildContextKeys, componentSource)
 		}
 
 		components = append(components, componentType{c.Name, getContext(c.SourceFolder), getDockerfileName(c.DockerfileName)})
@@ -178,7 +183,9 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 
 	// Gather build containers
 	numMultiComponentContainers := 0
-	for _, components := range buildContextComponents {
+	for _, key := range buildContextKeys {
+		components := buildContextComponents[key]
+
 		var imageName string
 
 		if len(components) > 1 {
