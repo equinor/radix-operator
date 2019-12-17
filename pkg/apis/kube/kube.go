@@ -50,6 +50,7 @@ type Kube struct {
 	IngressLister     extensionListers.IngressLister
 	ServiceLister     coreListers.ServiceLister
 	RoleBindingLister rbacListers.RoleBindingLister
+	LimitRangeLister  coreListers.LimitRangeLister
 }
 
 var logger *log.Entry
@@ -81,6 +82,7 @@ func NewWithListers(client kubernetes.Interface,
 		ServiceLister:     kubeInformerFactory.Core().V1().Services().Lister(),
 		IngressLister:     kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
 		RoleBindingLister: kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
+		LimitRangeLister:  kubeInformerFactory.Core().V1().LimitRanges().Lister(),
 	}
 
 	return kube, nil

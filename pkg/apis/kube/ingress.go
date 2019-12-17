@@ -28,7 +28,7 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 		}
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to create Ingress object: %v", err)
+		return fmt.Errorf("Failed to get Ingress object: %v", err)
 	}
 
 	log.Debugf("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
