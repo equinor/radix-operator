@@ -1,0 +1,45 @@
+name: radix-operator-build
+on:
+  push:
+    branches:
+      - master
+      - release
+jobs:
+  build:
+    name: Build-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: build operator
+        run: |
+          docker build . -f operator.Dockerfile -t radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixus.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+      - name: build pipeline
+        run: |
+          docker build . -f pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixus.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+      - uses: azure/docker-login@v1
+        with:
+          login-server: radixdev.azurecr.io
+          username: ${{ secrets.DEV_REGISTRY_USERNAME }}
+          password: ${{ secrets.DEV_REGISTRY_PASSWORD }}
+      - name: push to radixdev
+        run: |
+          docker push radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker push radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+      - uses: azure/docker-login@v1
+        with:
+          login-server: radixprod.azurecr.io
+          username: ${{ secrets.PROD_REGISTRY_USERNAME }}
+          password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
+      - name: push to radixprod
+        run: |
+          docker push radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker push radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+      - uses: azure/docker-login@v1
+        with:
+          login-server: radixus.azurecr.io
+          username: ${{ secrets.PROD_REGISTRY_USERNAME }}
+          password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
+      - name: push to radixus
+        run: |
+          docker push radixus.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker push radixus.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
