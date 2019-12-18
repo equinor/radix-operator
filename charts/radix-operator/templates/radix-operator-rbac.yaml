@@ -23,6 +23,7 @@ rules:
   - radix.equinor.com
   resources:
   - radixregistrations
+  - radixregistrations/status
   - radixapplications
   - radixdeployments
   - radixdeployments/status

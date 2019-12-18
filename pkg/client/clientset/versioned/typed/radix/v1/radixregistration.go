@@ -39,6 +39,7 @@ type RadixRegistrationsGetter interface {
 type RadixRegistrationInterface interface {
 	Create(*v1.RadixRegistration) (*v1.RadixRegistration, error)
 	Update(*v1.RadixRegistration) (*v1.RadixRegistration, error)
+	UpdateStatus(*v1.RadixRegistration) (*v1.RadixRegistration, error)
 	Delete(name string, options *metav1.DeleteOptions) error
 	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
 	Get(name string, options metav1.GetOptions) (*v1.RadixRegistration, error)
@@ -119,6 +120,21 @@ func (c *radixRegistrations) Update(radixRegistration *v1.RadixRegistration) (re
 	err = c.client.Put().
 		Resource("radixregistrations").
 		Name(radixRegistration.Name).
+		Body(radixRegistration).
+		Do().
+		Into(result)
+	return
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+
+func (c *radixRegistrations) UpdateStatus(radixRegistration *v1.RadixRegistration) (result *v1.RadixRegistration, err error) {
+	result = &v1.RadixRegistration{}
+	err = c.client.Put().
+		Resource("radixregistrations").
+		Name(radixRegistration.Name).
+		SubResource("status").
 		Body(radixRegistration).
 		Do().
 		Into(result)

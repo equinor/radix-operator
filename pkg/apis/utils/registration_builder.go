@@ -2,6 +2,7 @@ package utils
 
 import (
 	"strings"
+	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +21,7 @@ type RegistrationBuilder interface {
 	WithCloneURL(string) RegistrationBuilder
 	WithOwner(string) RegistrationBuilder
 	WithCreator(string) RegistrationBuilder
+	WithEmptyStatus() RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
@@ -36,6 +38,7 @@ type RegistrationBuilderStruct struct {
 	cloneURL     string
 	owner        string
 	creator      string
+	emptyStatus  bool
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -111,11 +114,24 @@ func (rb *RegistrationBuilderStruct) WithPrivateKey(privateKey string) Registrat
 	return rb
 }
 
+// WithEmptyStatus Indicates that the RR has no reconciled status
+func (rb *RegistrationBuilderStruct) WithEmptyStatus() RegistrationBuilder {
+	rb.emptyStatus = true
+	return rb
+}
+
 // BuildRR Builds the radix registration
 func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	cloneURL := rb.cloneURL
 	if cloneURL == "" {
 		cloneURL = GetGithubCloneURLFromRepo(rb.repository)
+	}
+
+	status := v1.RadixRegistrationStatus{}
+	if !rb.emptyStatus {
+		status = v1.RadixRegistrationStatus{
+			Reconciled: metav1.NewTime(time.Now().UTC()),
+		}
 	}
 
 	radixRegistration := &v1.RadixRegistration{
@@ -136,6 +152,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			Owner:           rb.owner,
 			Creator:         rb.creator,
 		},
+		Status: status,
 	}
 	return radixRegistration
 }

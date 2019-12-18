@@ -1,6 +1,8 @@
 package registration
 
 import (
+	"reflect"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -59,6 +61,15 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
+			newRR := cur.(*v1.RadixRegistration)
+			oldRR := old.(*v1.RadixRegistration)
+
+			if deepEqual(oldRR, newRR) {
+				logger.Debugf("Deployment object is equal to old for %s. Do nothing", newRR.GetName())
+				metrics.CustomResourceUpdatedButSkipped(crType)
+				return
+			}
+
 			controller.Enqueue(cur)
 			metrics.CustomResourceUpdated(crType)
 		},
@@ -80,6 +91,16 @@ func NewController(client kubernetes.Interface,
 	})
 
 	return controller
+}
+
+func deepEqual(old, new *v1.RadixRegistration) bool {
+	if !reflect.DeepEqual(new.Spec, old.Spec) ||
+		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
+		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
+		return false
+	}
+
+	return true
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {

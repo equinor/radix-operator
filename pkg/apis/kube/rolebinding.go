@@ -4,11 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
+	"k8s.io/api/rbac/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
@@ -105,60 +109,55 @@ func getRoleBindingForServiceAccount(roleName, kind, serviceAccountName, service
 	}
 }
 
-// ApplyRoleBinding Creates or updates role-binding
-func (k *Kube) ApplyRoleBinding(namespace string, rolebinding *auth.RoleBinding) error {
-	logger = logger.WithFields(log.Fields{"roleBinding": rolebinding.ObjectMeta.Name})
-
-	logger.Debugf("Apply rolebinding %s", rolebinding.Name)
-
-	_, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(rolebinding)
-	if errors.IsAlreadyExists(err) {
-		logger.Debugf("Rolebinding %s already exists, updating the object now", rolebinding.Name)
-		oldRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Get(rolebinding.Name, metav1.GetOptions{})
+// ApplyRoleBinding Creates or updates role
+func (k *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error {
+	logger.Debugf("Apply role binding %s", role.Name)
+	oldRoleBinding, err := k.getRoleBinding(namespace, role.GetName())
+	if err != nil && errors.IsNotFound(err) {
+		createdRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(role)
 		if err != nil {
-			return fmt.Errorf("Failed to get old role binding object: %v", err)
+			return fmt.Errorf("Failed to create role binding object: %v", err)
 		}
 
-		newRoleBinding := oldRoleBinding.DeepCopy()
-		newRoleBinding.ObjectMeta.OwnerReferences = rolebinding.OwnerReferences
-		newRoleBinding.ObjectMeta.Labels = rolebinding.Labels
-		newRoleBinding.Subjects = rolebinding.Subjects
-
-		oldRoleBindingJSON, err := json.Marshal(oldRoleBinding)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal old role binding object: %v", err)
-		}
-
-		newRoleBindingJSON, err := json.Marshal(newRoleBinding)
-		if err != nil {
-			return fmt.Errorf("Failed to marshal new role binding object: %v", err)
-		}
-
-		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, auth.RoleBinding{})
-		if err != nil {
-			return fmt.Errorf("Failed to create two way merge patch role binding objects: %v", err)
-		}
-
-		if !isEmptyPatch(patchBytes) {
-			patchedRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Patch(rolebinding.Name, types.StrategicMergePatchType, patchBytes)
-			if err != nil {
-				return fmt.Errorf("Failed to patch role binding object: %v", err)
-			}
-
-			log.Debugf("Patched role binding: %s ", patchedRoleBinding.Name)
-		} else {
-			log.Debugf("No need to patch role binding: %s ", rolebinding.Name)
-		}
-
+		log.Debugf("Created role binding: %s in namespace %s", createdRoleBinding.Name, namespace)
 		return nil
+
+	} else if err != nil {
+		return fmt.Errorf("Failed to get role binding object: %v", err)
 	}
 
+	log.Debugf("Role binding object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
+
+	newRoleBinding := oldRoleBinding.DeepCopy()
+	newRoleBinding.ObjectMeta.OwnerReferences = role.ObjectMeta.OwnerReferences
+	newRoleBinding.ObjectMeta.Labels = role.Labels
+	newRoleBinding.Subjects = role.Subjects
+
+	oldRoleBindingJSON, err := json.Marshal(oldRoleBinding)
 	if err != nil {
-		logger.Errorf("Failed to save roleBinding in [%s]: %v", namespace, err)
-		return err
+		return fmt.Errorf("Failed to marshal old role binding object: %v", err)
 	}
 
-	logger.Debugf("Created roleBinding %s in %s", rolebinding.Name, namespace)
+	newRoleBindingJSON, err := json.Marshal(newRoleBinding)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal new role binding object: %v", err)
+	}
+
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, v1beta1.RoleBinding{})
+	if err != nil {
+		return fmt.Errorf("Failed to create two way merge patch role binding objects: %v", err)
+	}
+
+	if !isEmptyPatch(patchBytes) {
+		patchedRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Patch(role.GetName(), types.StrategicMergePatchType, patchBytes)
+		if err != nil {
+			return fmt.Errorf("Failed to patch role binding object: %v", err)
+		}
+		log.Debugf("Patched role binding: %s in namespace %s", patchedRoleBinding.Name, namespace)
+	} else {
+		log.Debugf("No need to patch role binding: %s ", role.GetName())
+	}
+
 	return nil
 }
 
@@ -244,4 +243,71 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount 
 		},
 	}
 	return k.ApplyClusterRoleBinding(rolebinding)
+}
+
+func (k *Kube) getRoleBinding(namespace, name string) (*auth.RoleBinding, error) {
+	var role *auth.RoleBinding
+	var err error
+
+	if k.RoleBindingLister != nil {
+		role, err = k.RoleBindingLister.RoleBindings(namespace).Get(name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		role, err = k.kubeClient.RbacV1().RoleBindings(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return role, nil
+}
+
+// ListRoleBindings Lists role bindings from cache or from cluster
+func (k *Kube) ListRoleBindings(namespace string) ([]*auth.RoleBinding, error) {
+	return k.ListRoleBindingsWithSelector(namespace, nil)
+}
+
+// ListRoleBindingsWithSelector Lists role bindings from cache or from cluster using a selector
+func (k *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorString *string) ([]*auth.RoleBinding, error) {
+	var roleBindings []*auth.RoleBinding
+	var err error
+
+	if k.RoleBindingLister != nil {
+		var selector labels.Selector
+		if labelSelectorString != nil {
+			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
+			if err != nil {
+				return nil, err
+			}
+
+			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
+			if err != nil {
+				return nil, err
+			}
+
+		} else {
+			selector = labels.NewSelector()
+		}
+
+		roleBindings, err = k.RoleBindingLister.RoleBindings(namespace).List(selector)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		listOptions := metav1.ListOptions{}
+		if labelSelectorString != nil {
+			listOptions.LabelSelector = *labelSelectorString
+		}
+
+		list, err := k.kubeClient.RbacV1().RoleBindings(namespace).List(listOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		roleBindings = slice.PointersOf(list.Items).([]*auth.RoleBinding)
+	}
+
+	return roleBindings, nil
 }
