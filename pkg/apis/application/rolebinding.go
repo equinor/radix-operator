@@ -57,6 +57,15 @@ func (app Application) applyRbacOnPipelineRunner(serviceAccount *corev1.ServiceA
 	return app.givePipelineAccessToDefaultNamespace(serviceAccount)
 }
 
+func (app Application) applyRbacOnConfigToMapRunner() error {
+	serviceAccount, err := app.applyConfigToMapServiceAccount()
+	if err != nil {
+		return err
+	}
+
+	return app.giveConfigToMapRunnerAccessToAppNamespace(serviceAccount)
+}
+
 func (app Application) givePipelineAccessToRR(serviceAccount *corev1.ServiceAccount) error {
 	k := app.kubeutil
 
@@ -82,6 +91,24 @@ func (app Application) givePipelineAccessToAppNamespace(serviceAccount *corev1.S
 	namespace := utils.GetAppNamespace(registration.Name)
 	rolebinding := app.pipelineRoleBinding(serviceAccount)
 
+	return k.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (app Application) giveConfigToMapRunnerAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
+	k := app.kubeutil
+	registration := app.registration
+
+	namespace := utils.GetAppNamespace(registration.Name)
+
+	// create role
+	role := app.configToMapRunnerRole()
+	err := k.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	// Create role binding
+	rolebinding := app.configToMapRunnerRoleBinding(serviceAccount)
 	return k.ApplyRoleBinding(namespace, rolebinding)
 }
 
@@ -147,6 +174,38 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
 			Name:     defaults.PipelineRoleName,
+		},
+		Subjects: []auth.Subject{
+			auth.Subject{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccount.Name,
+				Namespace: serviceAccount.Namespace,
+			},
+		},
+	}
+	return rolebinding
+}
+
+func (app Application) configToMapRunnerRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
+	registration := app.registration
+	appName := registration.Name
+	logger.Debugf("Create rolebinding config %s", defaults.ConfigToMapRunnerRoleName)
+
+	rolebinding := &auth.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: defaults.ConfigToMapRunnerRoleName,
+			Labels: map[string]string{
+				kube.RadixAppLabel: appName,
+			},
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     defaults.ConfigToMapRunnerRoleName,
 		},
 		Subjects: []auth.Subject{
 			auth.Subject{

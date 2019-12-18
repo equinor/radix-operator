@@ -12,14 +12,17 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "RADIX_FILE_NAME=./pipelines/testdata/radixconfig.yaml",
+        "RADIX_APP=radix-github-webhook",
         "BRANCH=master",
         "COMMIT_ID=1234",
         "IMAGE_TAG=abcdef",
-        "JOB_NAME=radix-pipeline-promotion-2",
+        "JOB_NAME=radix-pipeline-build-deploy-1",
         "USE_CACHE=0",
         "PIPELINE_TYPE=build-deploy",
-        "PUSH_IMAGE=0"
+        "PUSH_IMAGE=0",
+        "RADIX_CONFIG_TO_MAP=radix-config-2-map:master-latest",
+        "RADIX_IMAGE_BUILDER=radix-image-builder:master-latest",
+        "RADIX_IMAGE_SCANNER=radix-image-scanner:master-latest"
       ]
     },
     {
@@ -30,10 +33,10 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "RADIX_APP=radix-loadbalancer-html",
+        "RADIX_APP=radix-github-webhook",
         "RADIX_FILE_NAME=",
         "IMAGE_TAG=abcdef",
-        "JOB_NAME=radix-pipeline-promotion-2",
+        "JOB_NAME=radix-pipeline-promotion-1",
         "PIPELINE_TYPE=promote",
         "FROM_ENVIRONMENT=qa",
         "TO_ENVIRONMENT=prod",
