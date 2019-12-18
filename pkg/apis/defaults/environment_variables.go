@@ -58,6 +58,9 @@ const (
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 
+	// RadixConfigToMapEnvironmentVariable Points to the utility image for copying config file to map
+	RadixConfigToMapEnvironmentVariable = "RADIX_CONFIG_TO_MAP"
+
 	// RadixImageBuilderEnvironmentVariable Points to the image builder
 	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER"
 

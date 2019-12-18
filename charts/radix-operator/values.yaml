@@ -3,6 +3,7 @@
 clusterName: xx
 activeClusterName: xx
 
+configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
 imageScanner: radix-image-scanner:master-latest
 

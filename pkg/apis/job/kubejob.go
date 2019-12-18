@@ -11,7 +11,6 @@ import (
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -72,17 +71,14 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.PipelineRoleName,
-					InitContainers:     getPipelineJobInitContainers(job.radixJob.Spec.CloneURL, pipeline),
 					Containers: []corev1.Container{
 						{
 							Name:            workerImage,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
-							VolumeMounts:    getPipelineJobContainerVolumeMounts(pipeline),
 						},
 					},
-					Volumes:       getPipelineJobVolumes(pipeline),
 					RestartPolicy: "Never",
 				},
 			},
@@ -108,16 +104,6 @@ func getCurrentTimestamp() string {
 	return t.Format("20060102150405") // YYYYMMDDHHMISS in Go
 }
 
-func getPipelineJobInitContainers(sshURL string, pipeline *pipelineJob.Definition) []corev1.Container {
-	var initContainers []corev1.Container
-
-	switch pipeline.Type {
-	case v1.BuildDeploy, v1.Build:
-		initContainers = git.CloneInitContainersWithContainerName(sshURL, "master", git.CloneConfigContainerName)
-	}
-	return initContainers
-}
-
 func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 
@@ -129,7 +115,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("JOB_NAME=%s", jobName),
 		fmt.Sprintf("PIPELINE_TYPE=%s", pipeline.Type),
 
-		// Pass builder and scanner images
+		// Pass config-to-map, builder and scanner images
+		fmt.Sprintf("%s=%s", defaults.RadixConfigToMapEnvironmentVariable, os.Getenv(defaults.RadixConfigToMapEnvironmentVariable)),
 		fmt.Sprintf("%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
 		fmt.Sprintf("%s=%s", defaults.RadixImageScannerEnvironmentVariable, os.Getenv(defaults.RadixImageScannerEnvironmentVariable)),
 
@@ -172,43 +159,6 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 	}
 
 	return labels
-}
-
-func getPipelineJobContainerVolumeMounts(pipeline *pipelineJob.Definition) []corev1.VolumeMount {
-	var volumeMounts []corev1.VolumeMount
-
-	switch pipeline.Type {
-	case v1.BuildDeploy, v1.Build:
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      git.BuildContextVolumeName,
-			MountPath: git.Workspace,
-		})
-	}
-
-	return volumeMounts
-}
-
-func getPipelineJobVolumes(pipeline *pipelineJob.Definition) []corev1.Volume {
-	var volumes []corev1.Volume
-	defaultMode := int32(256)
-
-	switch pipeline.Type {
-	case v1.BuildDeploy, v1.Build:
-		volumes = append(volumes, corev1.Volume{
-			Name: git.BuildContextVolumeName,
-		})
-		volumes = append(volumes, corev1.Volume{
-			Name: git.GitSSHKeyVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  git.GitSSHKeyVolumeName,
-					DefaultMode: &defaultMode,
-				},
-			},
-		})
-	}
-
-	return volumes
 }
 
 func getPushImageTag(pushImage bool) string {

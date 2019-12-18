@@ -133,6 +133,7 @@ func initStepImplementations(
 	radixApplication *v1.RadixApplication) []model.Step {
 
 	stepImplementations := make([]model.Step, 0)
+	stepImplementations = append(stepImplementations, steps.NewCopyConfigToMapStep())
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
 	stepImplementations = append(stepImplementations, steps.NewScanImageStep())
