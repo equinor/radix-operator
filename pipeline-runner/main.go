@@ -20,7 +20,6 @@ import (
 )
 
 // Requirements to run, pipeline must have:
-// - access to read RR of the app mention in "RADIX_FILE_NAME"
 // - access to create Jobs in "app" namespace it runs under
 // - access to create RD in all namespaces
 // - access to create new namespaces
@@ -47,9 +46,6 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 	// Required when repo is not cloned
 	appName := args[defaults.RadixAppEnvironmentVariable]
 
-	// Required when repo is cloned to point to location of the config
-	fileName := args["RADIX_FILE_NAME"]
-
 	pipelineArgs := model.GetPipelineArgsFromArguments(args)
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
@@ -58,12 +54,7 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 		return nil, err
 	}
 
-	radixApplication, err := getRadixApplicationFromFileOrFromCluster(pipelineDefinition, appName, fileName, radixClient)
-	if err != nil {
-		return nil, err
-	}
-
-	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, radixApplication)
+	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, appName, nil)
 
 	err = pipelineRunner.PrepareRun(pipelineArgs)
 	if err != nil {

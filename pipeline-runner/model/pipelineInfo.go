@@ -2,6 +2,8 @@ package model
 
 import (
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -11,6 +13,7 @@ import (
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
 	Definition         *pipeline.Definition
+	RadixConfigMapName string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
 	PipelineArguments  PipelineArguments
@@ -41,6 +44,9 @@ type PipelineArguments struct {
 	// Used for tagging metainformation
 	Clustertype string
 	Clustername string
+
+	// Used to indicate debugging session
+	Debug bool
 }
 
 // GetPipelineArgsFromArguments Gets pipeline arguments from arg string
@@ -62,6 +68,9 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
+
+	// Indicates that we are debugging the application
+	debug, _ := strconv.ParseBool(args["DEBUG"])
 
 	if branch == "" {
 		branch = "dev"
@@ -91,15 +100,17 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
 		Clustername:     clusterName,
+		Debug:           debug,
 	}
 }
 
 // InitPipeline Initialize pipeline with step implementations
 func InitPipeline(pipelineType *pipeline.Definition,
-	targetEnv map[string]bool,
-	branchIsMapped bool,
 	pipelineArguments PipelineArguments,
 	stepImplementations ...Step) (*PipelineInfo, error) {
+
+	timestamp := time.Now().Format("20060102150405")
+	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s", timestamp, pipelineArguments.ImageTag)
 
 	stepImplementationsForType, err := getStepstepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
@@ -108,10 +119,9 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	return &PipelineInfo{
 		Definition:         pipelineType,
-		TargetEnvironments: targetEnv,
-		BranchIsMapped:     branchIsMapped,
 		PipelineArguments:  pipelineArguments,
 		Steps:              stepImplementationsForType,
+		RadixConfigMapName: radixConfigMapName,
 	}, nil
 }
 

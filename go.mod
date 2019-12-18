@@ -33,6 +33,7 @@ require (
 	google.golang.org/api v0.11.0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/grpc v1.24.0 // indirect
+	gopkg.in/yaml.v1 v1.0.0-20140924161607-9f9df34309c0
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0-20191016225839-816a9b7df678
 	k8s.io/apimachinery v0.0.0-20191020214737-6c8691705fc5

@@ -2,7 +2,6 @@ package steps
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -49,15 +48,22 @@ func (cli *CopyConfigToMapStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *CopyConfigToMapStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
-	job := cli.getJobConfig(pipelineInfo)
-
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
 	if err != nil {
 		return err
 	}
 
-	job.OwnerReferences = ownerReference
+	job := cli.getJobConfig(namespace, containerRegistry, pipelineInfo)
+
+	if !pipelineInfo.PipelineArguments.Debug {
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		if err != nil {
+			return err
+		}
+
+		job.OwnerReferences = ownerReference
+	}
 
 	log.Infof("Apply job (%s) to copy radixconfig to configmap for app %s", job.Name, cli.GetAppName())
 	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
@@ -68,18 +74,15 @@ func (cli *CopyConfigToMapStepImplementation) Run(pipelineInfo *model.PipelineIn
 	return cli.GetKubeutil().WaitForCompletionOf(job)
 }
 
-func (cli *CopyConfigToMapStepImplementation) getJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
+func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerRegistry string, pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	registration := cli.GetRegistration()
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
-	timestamp := time.Now().Format("20060102150405")
 
-	name := fmt.Sprintf("radix-config-2-map-%s-%s", timestamp, imageTag)
 	backOffLimit := int32(0)
-
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name: pipelineInfo.RadixConfigMapName,
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixAppLabel:      cli.GetAppName(),
@@ -95,11 +98,11 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(pipelineInfo *model.P
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
-							Image:           pipelineInfo.PipelineArguments.ConfigToMap,
+							Image:           fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ConfigToMap),
 							ImagePullPolicy: corev1.PullAlways,
 							Args: []string{
-								fmt.Sprintf("--namespace=%s", utils.GetAppNamespace(cli.GetAppName())),
-								fmt.Sprintf("--configmap-name=%s", name),
+								fmt.Sprintf("--namespace=%s", namespace),
+								fmt.Sprintf("--configmap-name=%s", pipelineInfo.RadixConfigMapName),
 								fmt.Sprintf("--file=%s", "/workspace/radixconfig.yaml"),
 							},
 							VolumeMounts: getJobContainerVolumeMounts(),
