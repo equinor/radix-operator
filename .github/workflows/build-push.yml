@@ -12,10 +12,10 @@ jobs:
       - uses: actions/checkout@v1
       - name: build operator
         run: |
-          docker build operator.Dockerfile -t radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixus.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker build ./operator.Dockerfile -t radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixus.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
       - name: build pipeline
         run: |
-          docker build pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixus.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+          docker build ./pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixus.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
       - uses: azure/docker-login@v1
         with:
           login-server: radixdev.azurecr.io

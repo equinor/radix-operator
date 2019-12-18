@@ -11,7 +11,7 @@ The `radix-operator` and `radix-pipeline` are built using Github actions, then t
 
 There are [secrets](https://github.com/equinor/radix-operator/settings/secrets) defined for the actions to be able to push to radixdev, radixprod and radixus. These are the corresponding credentials for radix-cr-cicd-dev and radix-cr-cicd-prod service accounts.
 
-[![Build Status](https://github.com/equinor/radix-operator/workflows/build-push/badge.svg)](https://github.com/equinor/radix-operator/actions?query=workflow%3Abuild-push)
+[![Build Status](https://github.com/equinor/radix-operator/workflows/radix-operator-build/badge.svg)](https://github.com/equinor/radix-operator/actions?query=workflow%3Aradix-operator-build)
 
 ## Developer information
 
