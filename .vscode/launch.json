@@ -25,6 +25,7 @@
         "RADIX_IMAGE_SCANNER=radix-image-scanner:master-latest",
         "RADIX_CLUSTER_TYPE=development",
         "RADIX_CLUSTERNAME=weekly-1",
+        "RADIX_FILE_NAME=/workspace/radixconfig.yaml",
         "DEBUG=true"
       ]
     },
