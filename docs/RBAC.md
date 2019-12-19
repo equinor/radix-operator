@@ -121,6 +121,7 @@
 
 - radix-config-to-map-runner
   - Purpose: Role to run cloning of radixconfig from master branch and to put into temporary config map
+  - Lives in: app namespace
   - Created by: Operator
   - Role binding: radix-config-to-map-runner
   - Accesses:
