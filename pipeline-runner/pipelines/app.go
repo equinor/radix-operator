@@ -21,13 +21,12 @@ type PipelineRunner struct {
 	radixclient              radixclient.Interface
 	prometheusOperatorClient monitoring.Interface
 	appName                  string
-	radixApplication         *v1.RadixApplication
 	pipelineInfo             *model.PipelineInfo
 }
 
 // InitRunner constructor
 func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface,
-	definfition *pipeline.Definition, appName string, radixApplication *v1.RadixApplication) PipelineRunner {
+	definfition *pipeline.Definition, appName string) PipelineRunner {
 
 	kubeUtil, _ := kube.New(kubeclient, radixclient)
 	handler := PipelineRunner{
@@ -50,7 +49,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient, cli.prometheusOperatorClient, radixRegistration, cli.radixApplication)
+	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient, cli.prometheusOperatorClient, radixRegistration)
 	cli.pipelineInfo, err = model.InitPipeline(
 		cli.definfition,
 		pipelineArgs,
@@ -60,6 +59,12 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
+	containerRegistry, err := cli.kubeUtil.GetContainerRegistry()
+	if err != nil {
+		return err
+	}
+
+	cli.pipelineInfo.ContainerRegistry = containerRegistry
 	return nil
 }
 
@@ -83,8 +88,7 @@ func initStepImplementations(
 	kubeUtil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusOperatorClient monitoring.Interface,
-	registration *v1.RadixRegistration,
-	radixApplication *v1.RadixApplication) []model.Step {
+	registration *v1.RadixRegistration) []model.Step {
 
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewCopyConfigToMapStep())
@@ -96,7 +100,7 @@ func initStepImplementations(
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, registration, radixApplication)
+			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, registration)
 	}
 
 	return stepImplementations

@@ -111,7 +111,7 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(cli.GetApplicationConfig(), radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
+	err = mergeWithRadixApplication(pipelineInfo.RadixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
 	if err != nil {
 		return err
 	}

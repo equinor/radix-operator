@@ -54,7 +54,7 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 		return nil, err
 	}
 
-	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, appName, nil)
+	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, appName)
 
 	err = pipelineRunner.PrepareRun(pipelineArgs)
 	if err != nil {

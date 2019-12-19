@@ -64,13 +64,13 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([
 	log.Infof("Deploying app %s", appName)
 	radixDeployments := []v1.RadixDeployment{}
 
-	for _, env := range cli.GetApplicationConfig().Spec.Environments {
+	for _, env := range pipelineInfo.RadixApplication.Spec.Environments {
 		if !deployment.DeployToEnvironment(env, pipelineInfo.TargetEnvironments) {
 			continue
 		}
 
 		radixDeployment, err := deployment.ConstructForTargetEnvironment(
-			cli.GetApplicationConfig(),
+			pipelineInfo.RadixApplication,
 			containerRegistry,
 			pipelineInfo.PipelineArguments.JobName,
 			pipelineInfo.PipelineArguments.ImageTag,

@@ -40,7 +40,7 @@ func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	// 	BuildRA()
 
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	cli := InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, pipelineDefinition, "any-app", nil)
+	cli := InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, pipelineDefinition, "any-app")
 
 	err := cli.PrepareRun(model.PipelineArguments{})
 	assert.Error(t, err)
