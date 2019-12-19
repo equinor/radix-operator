@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -74,15 +75,17 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 	registration := cli.GetRegistration()
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
+	timestamp := time.Now().Format("20060102150405")
 
 	backOffLimit := int32(0)
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: pipelineInfo.RadixConfigMapName,
+			Name: fmt.Sprintf("radix-clone-config-%s-%s", timestamp, imageTag),
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixAppLabel:      cli.GetAppName(),
 				kube.RadixImageTagLabel: imageTag,
+				kube.RadixJobTypeLabel:  kube.RadixJobTypeCloneConfig,
 			},
 		},
 		Spec: batchv1.JobSpec{
