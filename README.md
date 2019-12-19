@@ -46,6 +46,7 @@ Its then possible to reference radix-operator from radix-api through adding `git
 
 We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Github actions build that handles this procedure. The radix-pipeline make use of:
 
+- [radix-config-2-map](https://github.com/equinor/radix-config-2-map)
 - [radix-image-builder](https://github.com/equinor/radix-image-builder)
 - [radix-image-scanner](https://github.com/equinor/radix-image-scanner)
 
