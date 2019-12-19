@@ -49,13 +49,9 @@ func (cli *CopyConfigToMapStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (cli *CopyConfigToMapStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
-	if err != nil {
-		return err
-	}
+	job := cli.getJobConfig(namespace, pipelineInfo.ContainerRegistry, pipelineInfo)
 
-	job := cli.getJobConfig(namespace, containerRegistry, pipelineInfo)
-
+	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
 		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
@@ -66,7 +62,7 @@ func (cli *CopyConfigToMapStepImplementation) Run(pipelineInfo *model.PipelineIn
 	}
 
 	log.Infof("Apply job (%s) to copy radixconfig to configmap for app %s", job.Name, cli.GetAppName())
-	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
+	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
 		return err
 	}

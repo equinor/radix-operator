@@ -36,6 +36,8 @@ func main() {
 	if err != nil {
 		os.Exit(2)
 	}
+
+	runner.TearDown()
 	os.Exit(0)
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,6 +82,11 @@ func (cli *PipelineRunner) Run() error {
 		log.Infof(step.SucceededMsg())
 	}
 	return nil
+}
+
+// TearDown performs any needed cleanup
+func (cli *PipelineRunner) TearDown() {
+	cli.kubeclient.CoreV1().ConfigMaps(utils.GetAppNamespace(cli.appName)).Delete(cli.pipelineInfo.RadixConfigMapName, &metav1.DeleteOptions{})
 }
 
 func initStepImplementations(

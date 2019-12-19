@@ -68,12 +68,15 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
-	if err != nil {
-		return err
-	}
+	// When debugging pipeline there will be no RJ
+	if !pipelineInfo.PipelineArguments.Debug {
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		if err != nil {
+			return err
+		}
 
-	job.OwnerReferences = ownerReference
+		job.OwnerReferences = ownerReference
+	}
 
 	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
 	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
