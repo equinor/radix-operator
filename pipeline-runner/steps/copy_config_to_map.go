@@ -99,7 +99,7 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 							Args: []string{
 								fmt.Sprintf("--namespace=%s", namespace),
 								fmt.Sprintf("--configmap-name=%s", pipelineInfo.RadixConfigMapName),
-								fmt.Sprintf("--file=%s", "/workspace/radixconfig.yaml"),
+								fmt.Sprintf("--file=%s", pipelineInfo.PipelineArguments.RadixConfigFile),
 							},
 							VolumeMounts: getJobContainerVolumeMounts(),
 						},

@@ -131,6 +131,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		args = append(args, fmt.Sprintf("BRANCH=%s", jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("COMMIT_ID=%s", jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
+		args = append(args, fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"))
 	case v1.Promote:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixAppEnvironmentVariable, appName))
 		args = append(args, fmt.Sprintf("DEPLOYMENT_NAME=%s", jobSpec.Promote.DeploymentName))

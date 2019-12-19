@@ -54,6 +54,7 @@ type PipelineArguments struct {
 	DeploymentName  string
 	FromEnvironment string
 	ToEnvironment   string
+	RadixConfigFile string
 
 	// Images used for copying radix config/building/scanning
 	ConfigToMap  string
@@ -70,6 +71,7 @@ type PipelineArguments struct {
 
 // GetPipelineArgsFromArguments Gets pipeline arguments from arg string
 func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
+	radixConfigFile := args["RADIX_FILE_NAME"]
 	branch := args["BRANCH"]
 	commitID := args["COMMIT_ID"]
 	imageTag := args["IMAGE_TAG"]
@@ -119,6 +121,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
 		Clustername:     clusterName,
+		RadixConfigFile: radixConfigFile,
 		Debug:           debug,
 	}
 }
