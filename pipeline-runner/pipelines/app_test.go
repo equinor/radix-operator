@@ -32,13 +32,6 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, test.Utils) {
 
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, _ := setupTest()
-	// ra := utils.NewRadixApplicationBuilder().
-	// 	WithAppName("any-app").
-	// 	WithEnvironment("dev", "dev").
-	// 	WithEnvironment("prod", "").
-	// 	WithComponents(utils.AnApplicationComponent().WithPort("http", 8080)).
-	// 	BuildRA()
-
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
 	cli := InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, pipelineDefinition, "any-app")
 
