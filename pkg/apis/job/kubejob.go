@@ -17,12 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	workerImage = "radix-pipeline"
-
-	// RadixJobTypeJob Outer job
-	RadixJobTypeJob = "job"
-)
+const workerImage = "radix-pipeline"
 
 func (job *Job) createJob() error {
 	namespace := job.radixJob.Namespace
@@ -146,7 +141,7 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 	// Base labels for all types of pipeline
 	labels := map[string]string{
 		kube.RadixJobNameLabel: jobName,
-		kube.RadixJobTypeLabel: RadixJobTypeJob,
+		kube.RadixJobTypeLabel: kube.RadixJobTypeJob,
 		"radix-pipeline":       string(pipeline.Type),
 		"radix-app-name":       appName, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel:     appName,

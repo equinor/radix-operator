@@ -236,7 +236,7 @@ func (job *Job) stopJob() error {
 
 func (job *Job) deleteStepJobs() error {
 	jobs, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s, %s!=%s", kube.RadixJobNameLabel, job.radixJob.Name, kube.RadixJobTypeLabel, RadixJobTypeJob),
+		LabelSelector: fmt.Sprintf("%s=%s, %s!=%s", kube.RadixJobNameLabel, job.radixJob.Name, kube.RadixJobTypeLabel, kube.RadixJobTypeJob),
 	})
 
 	if err != nil {
@@ -323,19 +323,12 @@ func (job *Job) getJobSteps(kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, erro
 
 func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, error) {
 	steps := []v1.RadixJobStep{}
-	if len(pipelinePod.Status.InitContainerStatuses) == 0 {
-		return steps, nil
-	}
 
 	pipelineJobStep := getPipelineJobStep(pipelinePod)
-	cloneContainerStatus := getCloneConfigContainerStatus(pipelinePod)
-	if cloneContainerStatus == nil {
-		return steps, nil
-	}
 
 	// Clone of radix config should be represented
-	pipelineCloneStep := getJobStepWithNoComponents(pipelinePod.GetName(), cloneContainerStatus)
-	jobStepsLabelSelector := fmt.Sprintf("%s=%s, %s!=%s", kube.RadixImageTagLabel, kubernetesJob.Labels[kube.RadixImageTagLabel], kube.RadixJobTypeLabel, RadixJobTypeJob)
+	cloneConfigStep := job.getCloneConfigStep()
+	jobStepsLabelSelector := fmt.Sprintf("%s=%s, %s!=%s", kube.RadixImageTagLabel, kubernetesJob.Labels[kube.RadixImageTagLabel], kube.RadixJobTypeLabel, kube.RadixJobTypeJob)
 
 	jobStepList, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(metav1.ListOptions{
 		LabelSelector: jobStepsLabelSelector,
@@ -346,8 +339,13 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 	}
 
 	// pipeline coordinator
-	steps = append(steps, pipelineCloneStep, pipelineJobStep)
+	steps = append(steps, cloneConfigStep, pipelineJobStep)
 	for _, jobStep := range jobStepList.Items {
+		if strings.EqualFold(jobStep.GetLabels()[kube.RadixJobTypeLabel], kube.RadixJobTypeCloneConfig) {
+			// Clone of radix config represented as an initial step
+			continue
+		}
+
 		// Does it hold annotations component to container mapping
 		componentImagesAnnotation := jobStep.GetObjectMeta().GetAnnotations()[kube.RadixComponentImagesAnnotation]
 		componentImages := make(map[string]pipeline.ComponentImage)
@@ -426,23 +424,35 @@ func (job *Job) getPipelinePod() (*corev1.Pod, error) {
 }
 
 func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
-	var pipelineJobStep v1.RadixJobStep
 	var components []string
+	return getJobStep(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0], components)
+}
 
-	cloneContainerStatus := getCloneConfigContainerStatus(pipelinePod)
+func (job *Job) getCloneConfigStep() v1.RadixJobStep {
+	labelSelector := fmt.Sprintf("%s=%s, %s=%s", kube.RadixJobNameLabel, job.radixJob.GetName(), kube.RadixJobTypeLabel, kube.RadixJobTypeCloneConfig)
+
+	cloneConfigStep, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+
+	if err != nil || len(cloneConfigStep.Items) != 1 {
+		return v1.RadixJobStep{}
+	}
+
+	cloneConfigPod, err := job.kubeclient.CoreV1().Pods(job.radixJob.Namespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", "job-name", cloneConfigStep.Items[0].Name),
+	})
+
+	if err != nil || len(cloneConfigPod.Items) != 1 {
+		return v1.RadixJobStep{}
+	}
+
+	cloneContainerStatus := getCloneConfigContainerStatus(&cloneConfigPod.Items[0])
 	if cloneContainerStatus == nil {
 		return v1.RadixJobStep{}
 	}
 
-	if cloneContainerStatus.State.Terminated != nil &&
-		cloneContainerStatus.State.Terminated.ExitCode > 0 {
-		pipelineJobStep = getJobStepWithContainerName(pipelinePod.GetName(),
-			pipelinePod.Status.ContainerStatuses[0].Name, cloneContainerStatus, components)
-	} else {
-		pipelineJobStep = getJobStep(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0], components)
-	}
-
-	return pipelineJobStep
+	return getJobStepWithNoComponents(cloneConfigPod.Items[0].GetName(), cloneContainerStatus)
 }
 
 func getCloneConfigContainerStatus(pipelinePod *corev1.Pod) *corev1.ContainerStatus {
