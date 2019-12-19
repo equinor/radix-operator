@@ -17,7 +17,8 @@ func GetSupportedPipelines() []Definition {
 	return []Definition{
 		Definition{v1.BuildDeploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep, ScanImageStep, DeployStep}},
 		Definition{v1.Build, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep, ScanImageStep}},
-		Definition{v1.Promote, []StepType{PromoteStep}}}
+		Definition{v1.Promote, []StepType{PromoteStep}},
+		Definition{v1.Deploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, DeployStep}}}
 }
 
 // GetPipelineFromName Gets pipeline from string

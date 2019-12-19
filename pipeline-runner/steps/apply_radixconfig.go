@@ -72,11 +72,6 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	applicationConfig, err = application.NewApplicationConfig(cli.GetKubeclient(), cli.GetKubeutil(), cli.GetRadixclient(), cli.GetRegistration(), ra)
-	if err != nil {
-		return err
-	}
-
 	err = applicationConfig.ApplyConfigToApplicationNamespace()
 	if err != nil {
 		return err

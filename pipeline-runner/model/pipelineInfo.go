@@ -82,7 +82,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 
 	deploymentName := args["DEPLOYMENT_NAME"]   // For promotion pipeline
 	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
-	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion pipeline
+	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion and deploy pipeline
 
 	configToMap := args[defaults.RadixConfigToMapEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
@@ -93,9 +93,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	// Indicates that we are debugging the application
 	debug, _ := strconv.ParseBool(args["DEBUG"])
 
-	if branch == "" {
-		branch = "dev"
-	}
 	if imageTag == "" {
 		imageTag = "latest"
 	}
@@ -182,11 +179,23 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 
 	// Obtain metadata for rest of pipeline
 	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(info.PipelineArguments.Branch)
+
+	// For deploy-only pipeline
+	if info.IsDeployOnlyPipeline() {
+		targetEnvironments[info.PipelineArguments.ToEnvironment] = true
+		branchIsMapped = true
+	}
+
 	info.BranchIsMapped = branchIsMapped
 	info.TargetEnvironments = targetEnvironments
 
 	componentImages := getComponentImages(ra.GetName(), info.ContainerRegistry, info.PipelineArguments.ImageTag, ra.Spec.Components)
 	info.ComponentImages = componentImages
+}
+
+// IsDeployOnlyPipeline Determines if the pipeline is deploy-only
+func (info *PipelineInfo) IsDeployOnlyPipeline() bool {
+	return info.PipelineArguments.ToEnvironment != "" && info.PipelineArguments.FromEnvironment == ""
 }
 
 func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent) map[string]pipeline.ComponentImage {
