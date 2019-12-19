@@ -49,7 +49,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
-	if noBuildComponents(cli.GetApplicationConfig()) {
+	if noBuildComponents(pipelineInfo.RadixApplication) {
 		// Do nothing and no error
 		log.Infof("No component in app %s requires building", cli.GetAppName())
 		return nil
@@ -58,27 +58,25 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, commitID)
 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
+	buildSecrets, err := getBuildSecretsAsVariables(cli.GetKubeclient(), pipelineInfo.RadixApplication, namespace)
 	if err != nil {
 		return err
 	}
 
-	buildSecrets, err := getBuildSecretsAsVariables(cli.GetKubeclient(), cli.GetApplicationConfig(), namespace)
+	job, err := createACRBuildJob(cli.GetRegistration(), pipelineInfo.RadixApplication, pipelineInfo.ContainerRegistry, pipelineInfo, buildSecrets)
 	if err != nil {
 		return err
 	}
 
-	job, err := createACRBuildJob(cli.GetRegistration(), cli.GetApplicationConfig(), containerRegistry, pipelineInfo, buildSecrets)
-	if err != nil {
-		return err
-	}
+	// When debugging pipeline there will be no RJ
+	if !pipelineInfo.PipelineArguments.Debug {
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		if err != nil {
+			return err
+		}
 
-	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
-	if err != nil {
-		return err
+		job.OwnerReferences = ownerReference
 	}
-
-	job.OwnerReferences = ownerReference
 
 	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
 	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)

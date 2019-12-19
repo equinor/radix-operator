@@ -6,8 +6,11 @@ import "fmt"
 type StepType int
 
 const (
+	// CopyConfigToMapStep Step type to copy cloned radix config to configmap
+	CopyConfigToMapStep StepType = iota
+
 	// ApplyConfigStep Step type to apply radix config
-	ApplyConfigStep StepType = iota
+	ApplyConfigStep
 
 	// BuildStep Step to build the docker image
 	BuildStep

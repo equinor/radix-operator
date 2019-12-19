@@ -31,7 +31,9 @@ const (
 	RadixCommitLabel             = "radix-commit"
 	RadixImageTagLabel           = "radix-image-tag"
 	RadixJobTypeLabel            = "radix-job-type"
+	RadixJobTypeJob              = "job" // Outer job
 	RadixJobTypeBuild            = "build"
+	RadixJobTypeCloneConfig      = "clone-config"
 	RadixAppAliasLabel           = "radix-app-alias"
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
