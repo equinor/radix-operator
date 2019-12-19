@@ -112,6 +112,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 
 	// Base arguments for all types of pipeline
 	args := []string{
+		fmt.Sprintf("%s=%s", defaults.RadixAppEnvironmentVariable, appName),
 		fmt.Sprintf("JOB_NAME=%s", jobName),
 		fmt.Sprintf("PIPELINE_TYPE=%s", pipeline.Type),
 
@@ -133,7 +134,6 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"))
 	case v1.Promote:
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixAppEnvironmentVariable, appName))
 		args = append(args, fmt.Sprintf("DEPLOYMENT_NAME=%s", jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("FROM_ENVIRONMENT=%s", jobSpec.Promote.FromEnvironment))
 		args = append(args, fmt.Sprintf("TO_ENVIRONMENT=%s", jobSpec.Promote.ToEnvironment))
