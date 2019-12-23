@@ -94,4 +94,4 @@ The radix-operator makes use of [GitHub Actions](https://github.com/features/act
 
 ### Build and deploy
 
-The radix-operator utilizes [Github actions build](https://github.com/features/actions) for automated build and push to container registries (ACR) when a branch is merged to `master` or `release` branch. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/.github/workflows/build-push.yml) for more details.
+The radix-operator utilizes [Github actions build](https://github.com/features/actions) for automated build and push to container registries (ACR) when a branch is merged to `master` or `release` branch. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/.github/workflows/build-push.yml) for more details
