@@ -28,6 +28,8 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 
 		log.Debugf("Created Role: %s in namespace %s", createdRole.Name, namespace)
 		return nil
+	} else if err != nil {
+		return fmt.Errorf("Failed to get role object: %v", err)
 	}
 
 	log.Debugf("Role object %s already exists in namespace %s, updating the object now", role.GetName(), namespace)
@@ -77,6 +79,8 @@ func (k *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 
 		log.Debugf("Created cluster role: %s", createdClusterRole.Name)
 		return nil
+	} else if err != nil {
+		return fmt.Errorf("Failed to get cluster role object: %v", err)
 	}
 
 	log.Debugf("Cluster role object %s already exists, updating the object now", clusterrole.GetName())
