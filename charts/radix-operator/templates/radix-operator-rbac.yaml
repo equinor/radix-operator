@@ -45,6 +45,8 @@ rules:
   - get
   - list
   - watch 
+  - create
+  - delete
 - apiGroups:
   - '*'
   resources:
