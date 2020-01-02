@@ -19,13 +19,13 @@ There are [secrets](https://github.com/equinor/radix-operator/settings/secrets) 
 
 The operator is developed using trunk-based development. The two main components here are `radix-operator` and `radix-pipeline`. There is a different setup for each cluster:
 
-- `master` branch should be used for deployment to `dev` clusters. When a pull request is approved and merged to `master`, Azure DevOps will create a `radix-operator:master-latest` image and push it to ACR. Flux then installs it into the cluster.
-- `release` branch should be used for deployment to `playground` and `prod` clusters. When a pull request is approved and merged to `master`, and tested ok in `dev` cluster, we should immediately merge `master` into `release` and deploy those changes to `playground` and `prod` clusters, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Azure DevOps will create a `radix-operator:release-latest` image and push it to ACR. Flux then installs it into the clusters.
+- `master` branch should be used for deployment to `dev` clusters. When a pull request is approved and merged to `master`, Github actions build will create a `radix-operator:master-latest` image and push it to ACR. Flux then installs it into the cluster.
+- `release` branch should be used for deployment to `playground` and `prod` clusters. When a pull request is approved and merged to `master`, and tested ok in `dev` cluster, we should immediately merge `master` into `release` and deploy those changes to `playground` and `prod` clusters, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Github actions build will create a `radix-operator:release-latest` image and push it to ACR. Flux then installs it into the clusters.
 
 The `radix-pipeline` never gets deployed to cluster, but rather is invoked by the `radix-api`, and the environment mentioned below is the Radix environment of `radix-api` (different environments for `radix-api` therefore use different images of `radix-pipeline`). Both environments are relevant for both `dev`/`playground` as well as `prod`. The process for deploying `radix-pipeline` is this:
 
-- `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, Azure DevOps will create a will create a `radix-pipeline:master-latest` image available in ACR of the subscription
-- `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster, we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Azure DevOps will create a `radix-pipeline:release-latest` image available in ACR of the subscription.
+- `master` branch should be used for creating the image used in the `qa` environment of any cluster. When a pull request is approved and merged to `master`, Github actions build will create a will create a `radix-pipeline:master-latest` image available in ACR of the subscription
+- `release` branch should be used for image used in the `prod` environment of any cluster. When a pull request is approved and merged to `master`, and tested ok in `qa` environment of any cluster, we should immediately merge `master` into `release` and build image used in the `prod` environment of any cluster, unless there are breaking changes which needs to be coordinated with release of our other components. When the `master` branch is merged to the `release` branch, Github actions build will create a `radix-pipeline:release-latest` image available in ACR of the subscription.
 
 ### Dependencies management
 
@@ -44,14 +44,15 @@ Its then possible to reference radix-operator from radix-api through adding `git
 
 #### Radix-pipeline
 
-We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Azure DevOps that handles this procedure. The radix-pipeline make use of:
+We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Github actions build that handles this procedure. The radix-pipeline make use of:
 
+- [radix-config-2-map](https://github.com/equinor/radix-config-2-map)
 - [radix-image-builder](https://github.com/equinor/radix-image-builder)
 - [radix-image-scanner](https://github.com/equinor/radix-image-scanner)
 
 #### Radix-operator
 
-For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Azure DevOps that handles this procedure.
+For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Github actions build that handles this procedure.
 
 #### Operator helm chart
 
@@ -93,4 +94,4 @@ The radix-operator makes use of [GitHub Actions](https://github.com/features/act
 
 ### Build and deploy
 
-The radix-operator utilizes [Azure DevOps](https://azure.microsoft.com/en-us/services/devops/) for automated build and push to container registries (ACR) when a branch is merged to `master` or `release` branch. Service connections in Azure DevOps are required to connect the Azure pipeline to the ACRs. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/azure-pipelines/build-and-push-pipeline.yml) for more details.
+The radix-operator utilizes [Github actions build](https://github.com/features/actions) for automated build and push to container registries (ACR) when a branch is merged to `master` or `release` branch. Refer to the [configuration file](https://github.com/equinor/radix-operator/blob/master/.github/workflows/build-push.yml) for more details

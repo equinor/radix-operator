@@ -56,22 +56,17 @@ func (cli *DeployStepImplementation) Run(pipelineInfo *model.PipelineInfo) error
 // Deploy Handles deploy step of the pipeline
 func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([]v1.RadixDeployment, error) {
 	appName := cli.GetAppName()
-	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
-	if err != nil {
-		return nil, err
-	}
-
 	log.Infof("Deploying app %s", appName)
 	radixDeployments := []v1.RadixDeployment{}
 
-	for _, env := range cli.GetApplicationConfig().Spec.Environments {
+	for _, env := range pipelineInfo.RadixApplication.Spec.Environments {
 		if !deployment.DeployToEnvironment(env, pipelineInfo.TargetEnvironments) {
 			continue
 		}
 
 		radixDeployment, err := deployment.ConstructForTargetEnvironment(
-			cli.GetApplicationConfig(),
-			containerRegistry,
+			pipelineInfo.RadixApplication,
+			pipelineInfo.ContainerRegistry,
 			pipelineInfo.PipelineArguments.JobName,
 			pipelineInfo.PipelineArguments.ImageTag,
 			pipelineInfo.PipelineArguments.Branch,

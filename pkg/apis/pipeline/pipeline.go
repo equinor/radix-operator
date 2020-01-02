@@ -15,8 +15,8 @@ type Definition struct {
 // GetSupportedPipelines Lists supported pipelines
 func GetSupportedPipelines() []Definition {
 	return []Definition{
-		Definition{v1.BuildDeploy, []StepType{ApplyConfigStep, BuildStep, ScanImageStep, DeployStep}},
-		Definition{v1.Build, []StepType{ApplyConfigStep, BuildStep, ScanImageStep}},
+		Definition{v1.BuildDeploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep, ScanImageStep, DeployStep}},
+		Definition{v1.Build, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep, ScanImageStep}},
 		Definition{v1.Promote, []StepType{PromoteStep}}}
 }
 

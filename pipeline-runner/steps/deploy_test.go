@@ -53,7 +53,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 		BuildRA()
 
 	cli := NewDeployStep(FakeNamespaceWatcher{})
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment(anyNoMappedBranch)
@@ -133,7 +133,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	// Prometheus doesn´t contain any fake
 	cli := NewDeployStep(FakeNamespaceWatcher{})
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsBranchMappedToEnvironment("master")
@@ -149,6 +149,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		TargetEnvironments: targetEnvs,
 	}
 
+	pipelineInfo.SetApplicationConfig(applicationConfig)
 	err := cli.Run(pipelineInfo)
 	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(metav1.ListOptions{})
 

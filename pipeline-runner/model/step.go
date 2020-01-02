@@ -11,7 +11,7 @@ import (
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, *v1.RadixRegistration, *v1.RadixApplication)
+	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, *v1.RadixRegistration)
 
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
@@ -20,7 +20,6 @@ type Step interface {
 
 	GetAppName() string
 	GetRegistration() *v1.RadixRegistration
-	GetApplicationConfig() *v1.RadixApplication
 	GetKubeclient() kubernetes.Interface
 	GetRadixclient() radixclient.Interface
 	GetKubeutil() *kube.Kube
@@ -35,7 +34,6 @@ type DefaultStepImplementation struct {
 	kubeutil                 *kube.Kube
 	prometheusOperatorClient monitoring.Interface
 	rr                       *v1.RadixRegistration
-	ra                       *v1.RadixApplication
 	ErrorMessage             string
 	SuccessMessage           string
 	Error                    error
@@ -44,9 +42,8 @@ type DefaultStepImplementation struct {
 // Init Initialize step
 func (step *DefaultStepImplementation) Init(
 	kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface,
-	rr *v1.RadixRegistration, ra *v1.RadixApplication) {
+	rr *v1.RadixRegistration) {
 	step.rr = rr
-	step.ra = ra
 	step.kubeclient = kubeclient
 	step.radixclient = radixclient
 	step.kubeutil = kubeutil
@@ -81,11 +78,6 @@ func (step *DefaultStepImplementation) GetAppName() string {
 // GetRegistration Default implementation
 func (step *DefaultStepImplementation) GetRegistration() *v1.RadixRegistration {
 	return step.rr
-}
-
-// GetApplicationConfig Default implementation
-func (step *DefaultStepImplementation) GetApplicationConfig() *v1.RadixApplication {
-	return step.ra
 }
 
 // GetKubeclient Default implementation

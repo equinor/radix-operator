@@ -1,26 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Requirements to run, pipeline must have:
-// - access to read RR of the app mention in "RADIX_FILE_NAME"
 // - access to create Jobs in "app" namespace it runs under
 // - access to create RD in all namespaces
 // - access to create new namespaces
@@ -34,9 +28,12 @@ func main() {
 	}
 
 	err = runner.Run()
+	runner.TearDown()
+
 	if err != nil {
 		os.Exit(2)
 	}
+
 	os.Exit(0)
 }
 
@@ -47,9 +44,6 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 	// Required when repo is not cloned
 	appName := args[defaults.RadixAppEnvironmentVariable]
 
-	// Required when repo is cloned to point to location of the config
-	fileName := args["RADIX_FILE_NAME"]
-
 	pipelineArgs := model.GetPipelineArgsFromArguments(args)
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
@@ -58,12 +52,7 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 		return nil, err
 	}
 
-	radixApplication, err := getRadixApplicationFromFileOrFromCluster(pipelineDefinition, appName, fileName, radixClient)
-	if err != nil {
-		return nil, err
-	}
-
-	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, radixApplication)
+	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, pipelineDefinition, appName)
 
 	err = pipelineRunner.PrepareRun(pipelineArgs)
 	if err != nil {
@@ -71,37 +60,6 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 	}
 
 	return &pipelineRunner, err
-}
-
-func getRadixApplicationFromFileOrFromCluster(pipelineDefinition *pipeline.Definition, appName, fileName string, radixClient radixclient.Interface) (*v1.RadixApplication, error) {
-	// When we have deployment-only type pipelines (currently only promote)
-	// radix config is not cloned and should therefore
-	// be retrived from cluster
-	if pipelineDefinition.Type == v1.Promote {
-		if appName == "" {
-			return nil, fmt.Errorf("App name is a required parameter for %s pipelines", pipelineDefinition.Type)
-		}
-
-		return radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(appName)).Get(appName, metav1.GetOptions{})
-	}
-
-	if fileName == "" {
-		return nil, fmt.Errorf("Filename is a required parameter for %s pipelines", pipelineDefinition.Type)
-	}
-
-	filePath, _ := filepath.Abs(fileName)
-	return loadConfigFromFile(filePath)
-}
-
-// LoadConfigFromFile loads radix config from appFileName
-func loadConfigFromFile(appFileName string) (*v1.RadixApplication, error) {
-	radixApplication, err := utils.GetRadixApplication(appFileName)
-	if err != nil {
-		log.Errorf("Failed to get ra from file (%s) for app Error: %v", appFileName, err)
-		return nil, err
-	}
-
-	return radixApplication, nil
 }
 
 func getArgs() map[string]string {

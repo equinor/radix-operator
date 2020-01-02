@@ -2,19 +2,41 @@ package model
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
 
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	log "github.com/sirupsen/logrus"
 )
+
+const multiComponentImageName = "multi-component"
+
+type componentType struct {
+	name           string
+	context        string
+	dockerFileName string
+}
 
 // PipelineInfo Holds info about the pipeline to run
 type PipelineInfo struct {
-	Definition         *pipeline.Definition
+	Definition        *pipeline.Definition
+	RadixApplication  *v1.RadixApplication
+	PipelineArguments PipelineArguments
+	Steps             []Step
+
+	// Container registry to build with
+	ContainerRegistry string
+
+	// Temporary data
+	RadixConfigMapName string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
-	PipelineArguments  PipelineArguments
-	Steps              []Step
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
@@ -32,18 +54,24 @@ type PipelineArguments struct {
 	DeploymentName  string
 	FromEnvironment string
 	ToEnvironment   string
+	RadixConfigFile string
 
-	// Images used for building/scanning
+	// Images used for copying radix config/building/scanning
+	ConfigToMap  string
 	ImageBuilder string
 	ImageScanner string
 
 	// Used for tagging metainformation
 	Clustertype string
 	Clustername string
+
+	// Used to indicate debugging session
+	Debug bool
 }
 
 // GetPipelineArgsFromArguments Gets pipeline arguments from arg string
 func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
+	radixConfigFile := args["RADIX_FILE_NAME"]
 	branch := args["BRANCH"]
 	commitID := args["COMMIT_ID"]
 	imageTag := args["IMAGE_TAG"]
@@ -56,10 +84,14 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
 	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion pipeline
 
+	configToMap := args[defaults.RadixConfigToMapEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
 	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
+
+	// Indicates that we are debugging the application
+	debug, _ := strconv.ParseBool(args["DEBUG"])
 
 	if branch == "" {
 		branch = "dev"
@@ -84,19 +116,23 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
+		ConfigToMap:     configToMap,
 		ImageBuilder:    imageBuilder,
 		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
 		Clustername:     clusterName,
+		RadixConfigFile: radixConfigFile,
+		Debug:           debug,
 	}
 }
 
 // InitPipeline Initialize pipeline with step implementations
 func InitPipeline(pipelineType *pipeline.Definition,
-	targetEnv map[string]bool,
-	branchIsMapped bool,
 	pipelineArguments PipelineArguments,
 	stepImplementations ...Step) (*PipelineInfo, error) {
+
+	timestamp := time.Now().Format("20060102150405")
+	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s", timestamp, pipelineArguments.ImageTag)
 
 	stepImplementationsForType, err := getStepstepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
@@ -105,10 +141,9 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	return &PipelineInfo{
 		Definition:         pipelineType,
-		TargetEnvironments: targetEnv,
-		BranchIsMapped:     branchIsMapped,
 		PipelineArguments:  pipelineArguments,
 		Steps:              stepImplementationsForType,
+		RadixConfigMapName: radixConfigMapName,
 	}, nil
 }
 
@@ -137,4 +172,121 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 	}
 
 	return nil
+}
+
+// SetApplicationConfig Set radixconfig to be used later by other steps, as well
+// as deriving info from the config
+func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
+	ra := applicationConfig.GetRadixApplicationConfig()
+	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
+
+	// Obtain metadata for rest of pipeline
+	branchIsMapped, targetEnvironments := applicationConfig.IsBranchMappedToEnvironment(info.PipelineArguments.Branch)
+	info.BranchIsMapped = branchIsMapped
+	info.TargetEnvironments = targetEnvironments
+
+	componentImages := getComponentImages(ra.GetName(), info.ContainerRegistry, info.PipelineArguments.ImageTag, ra.Spec.Components)
+	info.ComponentImages = componentImages
+}
+
+func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent) map[string]pipeline.ComponentImage {
+	// First check if there are multiple components pointing to the same build context
+	buildContextComponents := make(map[string][]componentType)
+
+	// To ensure we can iterate over the map in the order
+	// they were added
+	buildContextKeys := make([]string, 0)
+
+	for _, c := range components {
+		if c.Image != "" {
+			// Using public image. Nothing to build
+			continue
+		}
+
+		componentSource := getDockerfile(c.SourceFolder, c.DockerfileName)
+		components := buildContextComponents[componentSource]
+		if components == nil {
+			components = make([]componentType, 0)
+			buildContextKeys = append(buildContextKeys, componentSource)
+		}
+
+		components = append(components, componentType{c.Name, getContext(c.SourceFolder), getDockerfileName(c.DockerfileName)})
+		buildContextComponents[componentSource] = components
+	}
+
+	componentImages := make(map[string]pipeline.ComponentImage)
+
+	// Gather pre-built or public images
+	for _, c := range components {
+		if c.Image != "" {
+			componentImages[c.Name] = pipeline.ComponentImage{Build: false, Scan: false, ImageName: c.Image, ImagePath: c.Image}
+		}
+	}
+
+	// Gather build containers
+	numMultiComponentContainers := 0
+	for _, key := range buildContextKeys {
+		components := buildContextComponents[key]
+
+		var imageName string
+
+		if len(components) > 1 {
+			log.Infof("Multiple components points to the same build context")
+			imageName = multiComponentImageName
+
+			if numMultiComponentContainers > 0 {
+				// Start indexing them
+				imageName = fmt.Sprintf("%s-%d", imageName, numMultiComponentContainers)
+			}
+
+			numMultiComponentContainers++
+		} else {
+			imageName = components[0].name
+		}
+
+		buildContainerName := fmt.Sprintf("build-%s", imageName)
+
+		// A multi-component share context and dockerfile
+		context := components[0].context
+		dockerFile := components[0].dockerFileName
+
+		// Set image back to component(s)
+		for _, c := range components {
+			componentImages[c.name] = pipeline.ComponentImage{
+				ContainerName: buildContainerName,
+				Context:       context,
+				Dockerfile:    dockerFile,
+				ImageName:     imageName,
+				ImagePath:     utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
+				Build:         true,
+				Scan:          true,
+			}
+		}
+	}
+
+	return componentImages
+}
+
+func getDockerfile(sourceFolder, dockerfileName string) string {
+	context := getContext(sourceFolder)
+	dockerfileName = getDockerfileName(dockerfileName)
+
+	return fmt.Sprintf("%s%s", context, dockerfileName)
+}
+
+func getDockerfileName(name string) string {
+	if name == "" {
+		name = "Dockerfile"
+	}
+
+	return name
+}
+
+func getContext(sourceFolder string) string {
+	sourceFolder = strings.Trim(sourceFolder, ".")
+	sourceFolder = strings.Trim(sourceFolder, "/")
+	if sourceFolder == "" {
+		return fmt.Sprintf("%s/", git.Workspace)
+	}
+	return fmt.Sprintf("%s/%s/", git.Workspace, sourceFolder)
 }

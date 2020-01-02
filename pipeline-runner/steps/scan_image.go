@@ -62,24 +62,22 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	log.Infof("Scanning images for app %s", cli.GetAppName())
 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	containerRegistry, err := cli.GetKubeutil().GetContainerRegistry()
-	if err != nil {
-		return err
-	}
-
-	scannerImage := fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.ImageScanner)
+	scannerImage := fmt.Sprintf("%s/%s", pipelineInfo.ContainerRegistry, pipelineInfo.PipelineArguments.ImageScanner)
 
 	job, err := createScanJob(cli.GetAppName(), scannerImage, pipelineInfo.ComponentImages, pipelineInfo.PipelineArguments)
 	if err != nil {
 		return err
 	}
 
-	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
-	if err != nil {
-		return err
-	}
+	// When debugging pipeline there will be no RJ
+	if !pipelineInfo.PipelineArguments.Debug {
+		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		if err != nil {
+			return err
+		}
 
-	job.OwnerReferences = ownerReference
+		job.OwnerReferences = ownerReference
+	}
 
 	log.Infof("Apply job (%s) to scan component images for app %s", job.Name, cli.GetAppName())
 	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)

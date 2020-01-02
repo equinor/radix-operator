@@ -73,8 +73,14 @@ func (cli *PromoteStepImplementation) ErrorMsg(err error) string {
 func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	var radixDeployment *v1.RadixDeployment
 
+	// Get radix application from cluster as promote step run as single step
+	radixApplication, err := cli.GetRadixclient().RadixV1().RadixApplications(utils.GetAppNamespace(cli.GetAppName())).Get(cli.GetAppName(), metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
 	log.Infof("Promoting %s for application %s from %s to %s", pipelineInfo.PipelineArguments.DeploymentName, cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.ToEnvironment)
-	err := areArgumentsValid(pipelineInfo.PipelineArguments)
+	err = areArgumentsValid(pipelineInfo.PipelineArguments)
 	if err != nil {
 		return err
 	}
@@ -111,7 +117,7 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	radixDeployment.Labels[kube.RadixJobNameLabel] = pipelineInfo.PipelineArguments.JobName
 	radixDeployment.Spec.Environment = pipelineInfo.PipelineArguments.ToEnvironment
 
-	err = mergeWithRadixApplication(cli.GetApplicationConfig(), radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
+	err = mergeWithRadixApplication(radixApplication, radixDeployment, pipelineInfo.PipelineArguments.ToEnvironment)
 	if err != nil {
 		return err
 	}

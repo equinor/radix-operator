@@ -14,6 +14,7 @@ import (
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -48,17 +49,19 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.NotNil(t, ns)
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
-	assert.Equal(t, 2, len(rolebindings.Items))
-	assert.Equal(t, defaults.PipelineRoleName, rolebindings.Items[0].Name)
-	assert.Equal(t, defaults.AppAdminRoleName, rolebindings.Items[1].Name)
+	assert.Equal(t, 3, len(rolebindings.Items))
+	assert.True(t, roleBindingByNameExists(defaults.ConfigToMapRunnerRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
 
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(secrets.Items))
 	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
-	assert.Equal(t, 1, len(serviceAccounts.Items))
-	assert.Equal(t, defaults.PipelineRoleName, serviceAccounts.Items[0].Name)
+	assert.Equal(t, 2, len(serviceAccounts.Items))
+	assert.True(t, serviceAccountByNameExists(defaults.ConfigToMapRunnerRoleName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
 }
 
 func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
@@ -95,9 +98,9 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 		WithAdGroups([]string{}))
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(metav1.ListOptions{})
-	assert.Equal(t, 2, len(rolebindings.Items))
-	assert.Equal(t, defaults.AppAdminRoleName, rolebindings.Items[1].Name)
-	assert.Equal(t, "9876-54321-09876", rolebindings.Items[1].Subjects[0].Name)
+	assert.Equal(t, 3, len(rolebindings.Items))
+	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
+	assert.Equal(t, "9876-54321-09876", getRoleBindingByName(defaults.AppAdminRoleName, rolebindings).Subjects[0].Name)
 
 }
 
@@ -164,4 +167,42 @@ func updateRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kube
 	}
 
 	return nil
+}
+
+func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rbacv1.RoleBinding {
+	for _, roleBinding := range roleBindings.Items {
+		if roleBinding.Name == name {
+			return &roleBinding
+		}
+	}
+
+	return nil
+}
+
+func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
+	roleBinding := getRoleBindingByName(name, roleBindings)
+	if roleBinding != nil {
+		return true
+	}
+
+	return false
+}
+
+func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {
+	for _, serviceAccount := range serviceAccounts.Items {
+		if serviceAccount.Name == name {
+			return &serviceAccount
+		}
+	}
+
+	return nil
+}
+
+func serviceAccountByNameExists(name string, serviceAccounts *corev1.ServiceAccountList) bool {
+	serviceAccount := getServiceAccountByName(name, serviceAccounts)
+	if serviceAccount != nil {
+		return true
+	}
+
+	return false
 }

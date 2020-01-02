@@ -11,3 +11,9 @@ func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, er
 	namespace := utils.GetAppNamespace(app.registration.Name)
 	return app.kubeutil.ApplyServiceAccount(defaults.PipelineRoleName, namespace)
 }
+
+// ApplyConfigToMapServiceAccount create service account needed by config-to-map-runner
+func (app Application) applyConfigToMapServiceAccount() (*corev1.ServiceAccount, error) {
+	namespace := utils.GetAppNamespace(app.registration.Name)
+	return app.kubeutil.ApplyServiceAccount(defaults.ConfigToMapRunnerRoleName, namespace)
+}

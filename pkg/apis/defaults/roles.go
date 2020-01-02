@@ -12,4 +12,7 @@ const (
 
 	// PipelineRunnerRoleName Give radix-pipeline service account inside app namespace access to creating namespaces and make deployments through radix-pipeline-runner clusterrole
 	PipelineRunnerRoleName = "radix-pipeline-runner"
+
+	// ConfigToMapRunnerRoleName Role (service account name) of user to apply radixconfig to configmap
+	ConfigToMapRunnerRoleName = "radix-config-to-map-runner"
 )

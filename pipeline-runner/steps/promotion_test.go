@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -77,10 +78,9 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	for _, scenario := range testScenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(scenario.appName, metav1.GetOptions{})
-			ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(scenario.appName)).Get(scenario.appName, metav1.GetOptions{})
 
 			cli := NewPromoteStep()
-			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, ra)
+			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -155,7 +155,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -168,6 +168,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -207,7 +209,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, ra)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -220,6 +222,8 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 		},
 	}
 
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
