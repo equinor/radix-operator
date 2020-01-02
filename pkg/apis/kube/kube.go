@@ -44,15 +44,16 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient        kubernetes.Interface
-	radixclient       radixclient.Interface
-	RrLister          v1Lister.RadixRegistrationLister
-	RdLister          v1Lister.RadixDeploymentLister
-	NamespaceLister   coreListers.NamespaceLister
-	IngressLister     extensionListers.IngressLister
-	ServiceLister     coreListers.ServiceLister
-	RoleBindingLister rbacListers.RoleBindingLister
-	LimitRangeLister  coreListers.LimitRangeLister
+	kubeClient           kubernetes.Interface
+	radixclient          radixclient.Interface
+	RrLister             v1Lister.RadixRegistrationLister
+	RdLister             v1Lister.RadixDeploymentLister
+	NamespaceLister      coreListers.NamespaceLister
+	IngressLister        extensionListers.IngressLister
+	ServiceLister        coreListers.ServiceLister
+	RoleBindingLister    rbacListers.RoleBindingLister
+	ServiceAccountLister coreListers.ServiceAccountLister
+	LimitRangeLister     coreListers.LimitRangeLister
 }
 
 var logger *log.Entry
