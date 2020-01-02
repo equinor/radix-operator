@@ -16,16 +16,15 @@ func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *rad
 }
 
 func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
-	roles, err := deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: getLabelSelectorForComponent(*component),
-	})
+	labelSelector := getLabelSelectorForComponent(*component)
+	roles, err := deploy.kubeutil.ListRolesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 	if err != nil {
 		return err
 	}
 
-	if len(roles.Items) > 0 {
-		for n := range roles.Items {
-			err = deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.GetNamespace()).Delete(roles.Items[n].Name, &metav1.DeleteOptions{})
+	if len(roles) > 0 {
+		for n := range roles {
+			err = deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.GetNamespace()).Delete(roles[n].Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
