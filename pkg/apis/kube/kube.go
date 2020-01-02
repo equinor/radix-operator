@@ -55,6 +55,7 @@ type Kube struct {
 	ClusterRoleBindingLister rbacListers.ClusterRoleBindingLister
 	RoleLister               rbacListers.RoleLister
 	ClusterRoleLister        rbacListers.ClusterRoleLister
+	ServiceAccountLister     coreListers.ServiceAccountLister
 	LimitRangeLister         coreListers.LimitRangeLister
 }
 
