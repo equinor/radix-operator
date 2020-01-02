@@ -44,16 +44,19 @@ const (
 
 // Kube  Stuct for accessing lower level kubernetes functions
 type Kube struct {
-	kubeClient           kubernetes.Interface
-	radixclient          radixclient.Interface
-	RrLister             v1Lister.RadixRegistrationLister
-	RdLister             v1Lister.RadixDeploymentLister
-	NamespaceLister      coreListers.NamespaceLister
-	IngressLister        extensionListers.IngressLister
-	ServiceLister        coreListers.ServiceLister
-	RoleBindingLister    rbacListers.RoleBindingLister
-	ServiceAccountLister coreListers.ServiceAccountLister
-	LimitRangeLister     coreListers.LimitRangeLister
+	kubeClient               kubernetes.Interface
+	radixclient              radixclient.Interface
+	RrLister                 v1Lister.RadixRegistrationLister
+	RdLister                 v1Lister.RadixDeploymentLister
+	NamespaceLister          coreListers.NamespaceLister
+	IngressLister            extensionListers.IngressLister
+	ServiceLister            coreListers.ServiceLister
+	RoleBindingLister        rbacListers.RoleBindingLister
+	ClusterRoleBindingLister rbacListers.ClusterRoleBindingLister
+	RoleLister               rbacListers.RoleLister
+	ClusterRoleLister        rbacListers.ClusterRoleLister
+	ServiceAccountLister     coreListers.ServiceAccountLister
+	LimitRangeLister         coreListers.LimitRangeLister
 }
 
 var logger *log.Entry
@@ -77,15 +80,18 @@ func NewWithListers(client kubernetes.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory) (*Kube, error) {
 	kube := &Kube{
-		kubeClient:        client,
-		radixclient:       radixclient,
-		RrLister:          radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
-		RdLister:          radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
-		NamespaceLister:   kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		ServiceLister:     kubeInformerFactory.Core().V1().Services().Lister(),
-		IngressLister:     kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
-		RoleBindingLister: kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
-		LimitRangeLister:  kubeInformerFactory.Core().V1().LimitRanges().Lister(),
+		kubeClient:               client,
+		radixclient:              radixclient,
+		RrLister:                 radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
+		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		NamespaceLister:          kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		ServiceLister:            kubeInformerFactory.Core().V1().Services().Lister(),
+		IngressLister:            kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		RoleBindingLister:        kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
+		ClusterRoleBindingLister: kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
+		RoleLister:               kubeInformerFactory.Rbac().V1().Roles().Lister(),
+		ClusterRoleLister:        kubeInformerFactory.Rbac().V1().ClusterRoles().Lister(),
+		LimitRangeLister:         kubeInformerFactory.Core().V1().LimitRanges().Lister(),
 	}
 
 	return kube, nil
