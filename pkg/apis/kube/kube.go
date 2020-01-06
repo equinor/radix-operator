@@ -49,6 +49,7 @@ type Kube struct {
 	RrLister                 v1Lister.RadixRegistrationLister
 	RdLister                 v1Lister.RadixDeploymentLister
 	NamespaceLister          coreListers.NamespaceLister
+	ConfigMapLister          coreListers.ConfigMapLister
 	IngressLister            extensionListers.IngressLister
 	ServiceLister            coreListers.ServiceLister
 	RoleBindingLister        rbacListers.RoleBindingLister
@@ -85,6 +86,7 @@ func NewWithListers(client kubernetes.Interface,
 		RrLister:                 radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
 		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		NamespaceLister:          kubeInformerFactory.Core().V1().Namespaces().Lister(),
+		ConfigMapLister:          kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
 		ServiceLister:            kubeInformerFactory.Core().V1().Services().Lister(),
 		IngressLister:            kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
 		RoleBindingLister:        kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
