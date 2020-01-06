@@ -5,7 +5,7 @@ ENV GO111MODULE=on
 RUN apk update && \
     apk add git ca-certificates curl && \
     apk add --no-cache gcc musl-dev && \
-    go get -u golang.org/x/lint/golint github.com/frapposelli/wwhrd
+    go get -u golang.org/x/lint/golint github.com/frapposelli/wwhrd@v0.2.4
 
 WORKDIR /go/src/github.com/equinor/radix-operator/
 
