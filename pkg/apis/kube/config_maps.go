@@ -38,9 +38,16 @@ func (kube *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, error
 	var configMap *corev1.ConfigMap
 	var err error
 
-	configMap, err = kube.kubeClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
+	if kube.ConfigMapLister != nil {
+		configMap, err = kube.ConfigMapLister.ConfigMaps(namespace).Get(name)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		configMap, err = kube.kubeClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return configMap, nil
