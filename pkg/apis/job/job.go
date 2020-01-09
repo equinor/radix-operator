@@ -316,6 +316,9 @@ func (job *Job) getJobSteps(kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, erro
 		return job.getJobStepsBuildPipeline(pipelinePod, kubernetesJob)
 	case v1.Promote:
 		return job.getJobStepsPromotePipeline(pipelinePod, kubernetesJob)
+	// TODO
+	case v1.Deploy:
+		return job.getJobStepsBuildPipeline(pipelinePod, kubernetesJob)
 	}
 
 	return steps, nil

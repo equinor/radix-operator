@@ -53,6 +53,7 @@ type RadixJobSpec struct {
 	PipelineImage  string            `json:"pipelineImage" yaml:"pipelineImage"`
 	Build          RadixBuildSpec    `json:"build" yaml:"build"`
 	Promote        RadixPromoteSpec  `json:"promote" yaml:"promote"`
+	Deploy         RadixDeploySpec   `json:"deploy" yaml:"deploy"`
 	Stop           bool              `json:"stop" yaml:"stop"`
 }
 
@@ -64,6 +65,7 @@ const (
 	Build       RadixPipelineType = "build"
 	BuildDeploy RadixPipelineType = "build-deploy"
 	Promote     RadixPipelineType = "promote"
+	Deploy      RadixPipelineType = "deploy"
 )
 
 //RadixBuildSpec is the spec for a build job
@@ -80,6 +82,11 @@ type RadixPromoteSpec struct {
 	DeploymentName  string `json:"deploymentName" yaml:"deploymentName"`
 	FromEnvironment string `json:"fromEnvironment" yaml:"fromEnvironment"`
 	ToEnvironment   string `json:"toEnvironment" yaml:"toEnvironment"`
+}
+
+//RadixDeploySpec is the spec for a deploy job
+type RadixDeploySpec struct {
+	ToEnvironment string `json:"toEnvironment" yaml:"toEnvironment"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
