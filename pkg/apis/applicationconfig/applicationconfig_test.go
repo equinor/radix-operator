@@ -116,7 +116,7 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	assert.Equal(t, 2, len(namespaces.Items))
 }
 
-func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
+func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -125,15 +125,15 @@ func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranch_ListsBoth(t *testin
 		BuildRA()
 
 	application := getApplication(ra)
-	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
 
-	assert.True(t, branchMapped)
+	assert.True(t, isThereAnythingToDeploy)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], true)
 	assert.Equal(t, targetEnvs["qa"], true)
 }
 
-func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
+func TestIsThereAnythingToDeploy_multipleEnvsToOneBranchOtherBranchIsChanged_ListsBothButNoneIsBuilding(t *testing.T) {
 	branch := "development"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -142,15 +142,15 @@ func TestIsBranchMappedToEnvironment_multipleEnvsToOneBranchOtherBranchIsChanged
 		BuildRA()
 
 	application := getApplication(ra)
-	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
 
-	assert.False(t, branchMapped)
+	assert.False(t, isThereAnythingToDeploy)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["qa"], false)
 }
 
-func TestIsBranchMappedToEnvironment_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
+func TestIsThereAnythingToDeploy_oneEnvToOneBranch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
 	branch := "development"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -159,15 +159,15 @@ func TestIsBranchMappedToEnvironment_oneEnvToOneBranch_ListsBothButOnlyOneShould
 		BuildRA()
 
 	application := getApplication(ra)
-	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
 
-	assert.True(t, branchMapped)
+	assert.True(t, isThereAnythingToDeploy)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["qa"], true)
 }
 
-func TestIsBranchMappedToEnvironment_twoEnvNoBranch(t *testing.T) {
+func TestIsThereAnythingToDeploy_twoEnvNoBranch(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -176,28 +176,28 @@ func TestIsBranchMappedToEnvironment_twoEnvNoBranch(t *testing.T) {
 		BuildRA()
 
 	application := getApplication(ra)
-	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
 
-	assert.False(t, branchMapped)
+	assert.False(t, isThereAnythingToDeploy)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, false, targetEnvs["qa"])
 	assert.Equal(t, false, targetEnvs["prod"])
 }
 
-func TestIsBranchMappedToEnvironment_NoEnv(t *testing.T) {
+func TestIsThereAnythingToDeploy_NoEnv(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
 		BuildRA()
 
 	application := getApplication(ra)
-	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
 
-	assert.False(t, branchMapped)
+	assert.False(t, isThereAnythingToDeploy)
 	assert.Equal(t, 0, len(targetEnvs))
 }
 
-func TestIsBranchMappedToEnvironment_promotionScheme_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
+func TestIsThereAnythingToDeploy_promotionScheme_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
 	branch := "master"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -206,15 +206,15 @@ func TestIsBranchMappedToEnvironment_promotionScheme_ListsBothButOnlyOneShouldBe
 		BuildRA()
 
 	application := getApplication(ra)
-	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
 
-	assert.True(t, branchMapped)
+	assert.True(t, isThereAnythingToDeploy)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["qa"], true)
 }
 
-func TestIsBranchMappedToEnvironment_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
+func TestIsThereAnythingToDeploy_wildcardMatch_ListsBothButOnlyOneShouldBeBuilt(t *testing.T) {
 	branch := "feature/RA-123-Test"
 
 	ra := utils.NewRadixApplicationBuilder().
@@ -223,9 +223,9 @@ func TestIsBranchMappedToEnvironment_wildcardMatch_ListsBothButOnlyOneShouldBeBu
 		BuildRA()
 
 	application := getApplication(ra)
-	branchMapped, targetEnvs := application.IsBranchMappedToEnvironment(branch)
+	isThereAnythingToDeploy, targetEnvs := application.IsThereAnythingToDeploy(branch)
 
-	assert.True(t, branchMapped)
+	assert.True(t, isThereAnythingToDeploy)
 	assert.Equal(t, 2, len(targetEnvs))
 	assert.Equal(t, targetEnvs["prod"], false)
 	assert.Equal(t, targetEnvs["feature"], true)

@@ -92,8 +92,8 @@ func IsMagicBranch(branch string) bool {
 	return strings.EqualFold(branch, MagicBranch)
 }
 
-// IsBranchMappedToEnvironment Checks if given branch has a mapping
-func (app *ApplicationConfig) IsBranchMappedToEnvironment(branch string) (bool, map[string]bool) {
+// IsThereAnythingToDeploy Checks if given branch requires deployment to environments
+func (app *ApplicationConfig) IsThereAnythingToDeploy(branch string) (bool, map[string]bool) {
 	targetEnvs := getTargetEnvironmentsAsMap(branch, app.config)
 	if isTargetEnvsEmpty(targetEnvs) {
 		return false, targetEnvs
