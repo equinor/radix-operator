@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -44,63 +43,69 @@ func (cli *DeployStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *DeployStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+	err := cli.deploy(pipelineInfo)
+	return err
+}
+
+// Deploy Handles deploy step of the pipeline
+func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) error {
+	appName := cli.GetAppName()
+	log.Infof("Deploying app %s", appName)
+
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
 		return fmt.Errorf("Skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
-	_, err := cli.deploy(pipelineInfo)
-	return err
-}
-
-// Deploy Handles deploy step of the pipeline
-func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) ([]v1.RadixDeployment, error) {
-	appName := cli.GetAppName()
-	log.Infof("Deploying app %s", appName)
-	radixDeployments := []v1.RadixDeployment{}
-
-	for _, env := range pipelineInfo.RadixApplication.Spec.Environments {
-		if !deployment.DeployToEnvironment(env, pipelineInfo.TargetEnvironments) {
+	for env, shouldDeploy := range pipelineInfo.TargetEnvironments {
+		if !shouldDeploy {
 			continue
 		}
 
-		radixDeployment, err := deployment.ConstructForTargetEnvironment(
-			pipelineInfo.RadixApplication,
-			pipelineInfo.ContainerRegistry,
-			pipelineInfo.PipelineArguments.JobName,
-			pipelineInfo.PipelineArguments.ImageTag,
-			pipelineInfo.PipelineArguments.Branch,
-			pipelineInfo.PipelineArguments.CommitID,
-			pipelineInfo.ComponentImages,
-			env.Name)
-
+		err := cli.deployToEnv(appName, env, pipelineInfo)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
+			return err
 		}
-
-		deployment, err := deployment.NewDeployment(
-			cli.GetKubeclient(),
-			cli.GetKubeutil(),
-			cli.GetRadixclient(),
-			cli.GetPrometheusOperatorClient(),
-			cli.GetRegistration(),
-			&radixDeployment)
-		if err != nil {
-			return nil, err
-		}
-
-		err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env.Name))
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get environment namespace, %s, for app %s. %v", env, appName, err)
-		}
-
-		err = deployment.Apply()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to apply radix deployments for app %s. %v", appName, err)
-		}
-
-		radixDeployments = append(radixDeployments, radixDeployment)
 	}
 
-	return radixDeployments, nil
+	return nil
+}
+
+func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineInfo *model.PipelineInfo) error {
+	radixDeployment, err := deployment.ConstructForTargetEnvironment(
+		pipelineInfo.RadixApplication,
+		pipelineInfo.ContainerRegistry,
+		pipelineInfo.PipelineArguments.JobName,
+		pipelineInfo.PipelineArguments.ImageTag,
+		pipelineInfo.PipelineArguments.Branch,
+		pipelineInfo.PipelineArguments.CommitID,
+		pipelineInfo.ComponentImages,
+		env)
+
+	if err != nil {
+		return fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
+	}
+
+	deployment, err := deployment.NewDeployment(
+		cli.GetKubeclient(),
+		cli.GetKubeutil(),
+		cli.GetRadixclient(),
+		cli.GetPrometheusOperatorClient(),
+		cli.GetRegistration(),
+		&radixDeployment)
+	if err != nil {
+		return err
+	}
+
+	err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env))
+	if err != nil {
+		return fmt.Errorf("Failed to get environment namespace, %s, for app %s. %v", env, appName, err)
+	}
+
+	err = deployment.Apply()
+	if err != nil {
+		return fmt.Errorf("Failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
+	}
+
+	return nil
 }

@@ -93,6 +93,23 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 	assert.Equal(t, "image scanned", p.Steps[3].SucceededMsg())
 }
 
+func Test_DeployOnlyPipeline(t *testing.T) {
+	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Deploy))
+
+	toEnvironment := "dev"
+	pipelineArgs := PipelineArguments{
+		ToEnvironment: toEnvironment,
+	}
+
+	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, deployStep)
+	assert.Equal(t, v1.Deploy, p.Definition.Type)
+	assert.Equal(t, toEnvironment, p.PipelineArguments.ToEnvironment)
+	assert.Equal(t, 3, len(p.Steps))
+	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg())
+}
+
 func Test_NonExistingPipelineType(t *testing.T) {
 	_, err := pipeline.GetPipelineFromName("non existing pipeline")
 	assert.NotNil(t, err)
@@ -221,4 +238,29 @@ func Test_dockerfile_from_folder_and_file(t *testing.T) {
 	dockerfile := getDockerfile("/afolder/", "Dockerfile.adockerfile")
 
 	assert.Equal(t, fmt.Sprintf("%s/afolder/Dockerfile.adockerfile", git.Workspace), dockerfile)
+}
+
+func Test_IsDeployOnlyPipeline(t *testing.T) {
+	toEnvironment := "prod"
+	pipelineArguments := PipelineArguments{
+		ToEnvironment: toEnvironment,
+	}
+
+	pipelineInfo := PipelineInfo{
+		PipelineArguments: pipelineArguments,
+	}
+
+	assert.True(t, pipelineInfo.IsDeployOnlyPipeline())
+
+	fromEnvironment := "dev"
+	pipelineArguments = PipelineArguments{
+		ToEnvironment:   toEnvironment,
+		FromEnvironment: fromEnvironment,
+	}
+
+	pipelineInfo = PipelineInfo{
+		PipelineArguments: pipelineArguments,
+	}
+
+	assert.False(t, pipelineInfo.IsDeployOnlyPipeline())
 }

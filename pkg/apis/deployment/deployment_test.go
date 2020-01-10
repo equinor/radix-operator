@@ -865,18 +865,6 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 
 }
 
-func TestDeployToEnvironment_WithMapping_ReturnsForMappedEnvironment(t *testing.T) {
-	// Setup
-	targetEnvs := make(map[string]bool)
-	targetEnvs["dev"] = true
-	targetEnvs["prod"] = false
-
-	// Test
-	assert.True(t, DeployToEnvironment(v1.Environment{Name: "dev"}, targetEnvs))
-	assert.False(t, DeployToEnvironment(v1.Environment{Name: "prod"}, targetEnvs))
-	assert.False(t, DeployToEnvironment(v1.Environment{Name: "orphaned"}, targetEnvs))
-}
-
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 

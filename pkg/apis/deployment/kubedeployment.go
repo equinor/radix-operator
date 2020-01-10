@@ -154,12 +154,12 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
-	deployments, err := deploy.kubeclient.ExtensionsV1beta1().Deployments(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	deployments, err := deploy.kubeutil.ListDeployments(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range deployments.Items {
+	for _, exisitingComponent := range deployments {
 		garbageCollect := true
 		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 

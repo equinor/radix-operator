@@ -67,18 +67,9 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
 func ConstructForTargetEnvironment(config *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
-	radixComponents := getRadixComponentsForEnv(config, containerRegistry, env, componentImages, imageTag)
+	radixComponents := getRadixComponentsForEnv(config, containerRegistry, env, componentImages)
 	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, radixComponents)
 	return radixDeployment, nil
-}
-
-// DeployToEnvironment Will return true/false depending on it has a mapping in config
-func DeployToEnvironment(env v1.Environment, targetEnvs map[string]bool) bool {
-	if _, contains := targetEnvs[env.Name]; contains && targetEnvs[env.Name] {
-		return true
-	}
-
-	return false
 }
 
 // Apply Will make deployment effective
