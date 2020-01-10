@@ -17,3 +17,17 @@ func (app Application) applyConfigToMapServiceAccount() (*corev1.ServiceAccount,
 	namespace := utils.GetAppNamespace(app.registration.Name)
 	return app.kubeutil.ApplyServiceAccount(defaults.ConfigToMapRunnerRoleName, namespace)
 }
+
+func (app Application) applyMachineUserServiceAccount() (*corev1.ServiceAccount, error) {
+	serviceAccount, err := app.kubeutil.ApplyServiceAccount(defaults.GetMachineUserRoleName(app.registration.Name), corev1.NamespaceDefault)
+	if err != nil {
+		return nil, err
+	}
+
+	err = app.applyPlatformUserRoleToMachineUser(serviceAccount)
+	if err != nil {
+		return nil, err
+	}
+
+	return serviceAccount, nil
+}

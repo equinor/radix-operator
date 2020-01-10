@@ -44,6 +44,12 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName("any-app"))
 
+	serviceAccounts, _ := client.CoreV1().ServiceAccounts(corev1.NamespaceDefault).List(metav1.ListOptions{})
+	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
+
+	clusterRolebindings, _ := client.RbacV1().ClusterRoleBindings().List(metav1.ListOptions{})
+	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRolebindings))
+
 	ns, err := client.CoreV1().Namespaces().Get(utils.GetAppNamespace("any-app"), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
@@ -54,11 +60,15 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
 
+	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, rolebindings)
+	assert.Equal(t, 2, len(appAdminRoleBinding.Subjects))
+	assert.Equal(t, "any-app-machine-user", appAdminRoleBinding.Subjects[1].Name)
+
 	secrets, _ := client.CoreV1().Secrets("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(secrets.Items))
 	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
 
-	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
+	serviceAccounts, _ = client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
 	assert.Equal(t, 2, len(serviceAccounts.Items))
 	assert.True(t, serviceAccountByNameExists(defaults.ConfigToMapRunnerRoleName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
@@ -182,6 +192,25 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
 	roleBinding := getRoleBindingByName(name, roleBindings)
 	if roleBinding != nil {
+		return true
+	}
+
+	return false
+}
+
+func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) *rbacv1.ClusterRoleBinding {
+	for _, clusterRoleBinding := range clusterRoleBindings.Items {
+		if clusterRoleBinding.Name == name {
+			return &clusterRoleBinding
+		}
+	}
+
+	return nil
+}
+
+func clusterRoleBindingByNameExists(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) bool {
+	clusterRoleBinding := getClusterRoleBindingByName(name, clusterRoleBindings)
+	if clusterRoleBinding != nil {
 		return true
 	}
 

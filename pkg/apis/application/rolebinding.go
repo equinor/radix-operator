@@ -23,7 +23,15 @@ func (app Application) grantAccessToCICDLogs() error {
 		return err
 	}
 
-	roleBinding := kube.GetRolebindingToClusterRole(registration.Name, defaults.AppAdminRoleName, adGroups)
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	subjects = append(subjects, auth.Subject{
+		Kind:      "ServiceAccount",
+		Name:      defaults.GetMachineUserRoleName(registration.Name),
+		Namespace: corev1.NamespaceDefault,
+	})
+
+	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
 	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
@@ -39,6 +47,13 @@ func (app Application) applyRbacRadixRegistration() error {
 		return err
 	}
 
+	return k.ApplyClusterRoleBinding(clusterrolebinding)
+}
+
+// ApplyRbacOnPipelineRunner Grants access to radix pipeline
+func (app Application) applyPlatformUserRoleToMachineUser(serviceAccount *corev1.ServiceAccount) error {
+	k := app.kubeutil
+	clusterrolebinding := app.machineUserBinding(serviceAccount)
 	return k.ApplyClusterRoleBinding(clusterrolebinding)
 }
 
@@ -264,6 +279,12 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 	adGroups, _ := GetAdGroups(registration)
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
+	subjects = append(subjects, auth.Subject{
+		Kind:      "ServiceAccount",
+		Name:      defaults.GetMachineUserRoleName(registration.Name),
+		Namespace: corev1.NamespaceDefault,
+	})
+
 	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -286,5 +307,45 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 
 	logger.Debugf("Done - create clusterrolebinding config %s", clusterroleBindingName)
 
+	return clusterrolebinding
+}
+
+func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount) *auth.ClusterRoleBinding {
+	registration := app.registration
+	appName := registration.Name
+	clusterroleBindingName := serviceAccount.Name
+	logger.Debugf("Create clusterrolebinding config %s", clusterroleBindingName)
+
+	ownerReference := app.getOwnerReference()
+
+	subjects := []auth.Subject{auth.Subject{
+		Kind:      "ServiceAccount",
+		Name:      defaults.GetMachineUserRoleName(registration.Name),
+		Namespace: corev1.NamespaceDefault,
+	}}
+
+	kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.AppAdminEnvironmentRoleName, subjects)
+
+	clusterrolebinding := &auth.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterroleBindingName,
+			Labels: map[string]string{
+				"radixReg": appName,
+			},
+			OwnerReferences: ownerReference,
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     defaults.PlatformUserRoleName,
+		},
+		Subjects: subjects,
+	}
+
+	logger.Debugf("Done - create clusterrolebinding config %s", clusterroleBindingName)
 	return clusterrolebinding
 }
