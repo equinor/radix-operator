@@ -47,7 +47,13 @@ func (app Application) OnSync() error {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
 
-	err := app.createAppNamespace()
+	_, err := app.applyMachineUserServiceAccount()
+	if err != nil {
+		logger.Errorf("Failed to create machine user. %v", err)
+		return err
+	}
+
+	err = app.createAppNamespace()
 	if err != nil {
 		logger.Errorf("Failed to create app namespace. %v", err)
 		return err
