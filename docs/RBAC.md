@@ -4,6 +4,11 @@
 
 ![pic](diagrams/platform_user.png)
 
+### Service account
+
+- \<app\>-machine-user
+  - Representation of an app admin for the single application, with equal access to administer the application
+
 ### Clusterroles
 
 - radix-platform-user
@@ -63,6 +68,8 @@
 - radix-platform-user-rr-\<app\>
   - Purpose: Grants access to specific RR through radix-platform-user-rr-\<app\> clusterrole given by ad-group defined in RR for specific \<app\>
   - Created by: Operator
+- \<app\>-machine-user
+  - Purpose: Gives global access for \<app\>-machine-user service account through radix-platform-user clusterrole
 
 ### Role bindings
 
