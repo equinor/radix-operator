@@ -44,9 +44,6 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName("any-app"))
 
-	serviceAccounts, _ := client.CoreV1().ServiceAccounts(corev1.NamespaceDefault).List(metav1.ListOptions{})
-	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
-
 	clusterRolebindings, _ := client.RbacV1().ClusterRoleBindings().List(metav1.ListOptions{})
 	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRolebindings))
 
@@ -68,10 +65,11 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.Equal(t, 1, len(secrets.Items))
 	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
 
-	serviceAccounts, _ = client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
-	assert.Equal(t, 2, len(serviceAccounts.Items))
+	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(metav1.ListOptions{})
+	assert.Equal(t, 3, len(serviceAccounts.Items))
 	assert.True(t, serviceAccountByNameExists(defaults.ConfigToMapRunnerRoleName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
 }
 
 func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {

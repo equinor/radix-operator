@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 )
 
@@ -25,7 +24,7 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 	subjects = append(subjects, auth.Subject{
 		Kind:      "ServiceAccount",
 		Name:      defaults.GetMachineUserRoleName(app.config.Name),
-		Namespace: corev1.NamespaceDefault,
+		Namespace: utils.GetAppNamespace(app.registration.Name),
 	})
 
 	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(app.config.Name, defaults.AppAdminEnvironmentRoleName, subjects)

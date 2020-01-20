@@ -19,7 +19,7 @@ func (app Application) applyConfigToMapServiceAccount() (*corev1.ServiceAccount,
 }
 
 func (app Application) applyMachineUserServiceAccount() (*corev1.ServiceAccount, error) {
-	serviceAccount, err := app.kubeutil.ApplyServiceAccount(defaults.GetMachineUserRoleName(app.registration.Name), corev1.NamespaceDefault)
+	serviceAccount, err := app.kubeutil.ApplyServiceAccount(defaults.GetMachineUserRoleName(app.registration.Name), utils.GetAppNamespace(app.registration.Name))
 	if err != nil {
 		return nil, err
 	}
