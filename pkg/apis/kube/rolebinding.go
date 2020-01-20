@@ -52,9 +52,14 @@ func GetRolebindingToClusterRole(appName, roleName string, groups []string) *aut
 
 // GetRolebindingToClusterRoleForSubjects Get role binding object for list of subjects
 func GetRolebindingToClusterRoleForSubjects(appName, roleName string, subjects []auth.Subject) *auth.RoleBinding {
-	return getRoleBindingForSubjects(roleName, "ClusterRole", subjects, map[string]string{
+	return GetRolebindingToClusterRoleForSubjectsWithLabels(appName, roleName, subjects, map[string]string{
 		RadixAppLabel: appName,
 	})
+}
+
+// GetRolebindingToClusterRoleForSubjectsWithLabels Get role binding object for list of subjects with labels set
+func GetRolebindingToClusterRoleForSubjectsWithLabels(appName, roleName string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
+	return getRoleBindingForSubjects(roleName, "ClusterRole", subjects, labels)
 }
 
 // GetRolebindingToClusterRoleWithLabels Get role binding object

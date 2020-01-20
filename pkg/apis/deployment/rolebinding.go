@@ -4,9 +4,11 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -88,5 +90,15 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := application.GetAdGroups(registration)
 	roleName := role.ObjectMeta.Name
-	return kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
+
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	subjects = append(subjects, auth.Subject{
+		Kind:      "ServiceAccount",
+		Name:      defaults.GetMachineUserRoleName(registration.Name),
+		Namespace: utils.GetAppNamespace(registration.Name),
+	})
+
+	return kube.GetRolebindingToClusterRoleForSubjectsWithLabels(registration.Name, roleName, subjects, role.Labels)
 }
