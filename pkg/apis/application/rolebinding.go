@@ -16,7 +16,7 @@ func (app Application) grantAccessToCICDLogs() error {
 	k := app.kubeutil
 	registration := app.registration
 
-	namespace := utils.GetAppNamespace(registration.Name)
+	appNamespace := utils.GetAppNamespace(registration.Name)
 
 	adGroups, err := GetAdGroups(registration)
 	if err != nil {
@@ -28,11 +28,11 @@ func (app Application) grantAccessToCICDLogs() error {
 	subjects = append(subjects, auth.Subject{
 		Kind:      "ServiceAccount",
 		Name:      defaults.GetMachineUserRoleName(registration.Name),
-		Namespace: corev1.NamespaceDefault,
+		Namespace: appNamespace,
 	})
 
 	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
-	return k.ApplyRoleBinding(namespace, roleBinding)
+	return k.ApplyRoleBinding(appNamespace, roleBinding)
 }
 
 // ApplyRbacRadixRegistration Grants access to radix registration
@@ -282,7 +282,7 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 	subjects = append(subjects, auth.Subject{
 		Kind:      "ServiceAccount",
 		Name:      defaults.GetMachineUserRoleName(registration.Name),
-		Namespace: corev1.NamespaceDefault,
+		Namespace: utils.GetAppNamespace(registration.Name),
 	})
 
 	clusterrolebinding := &auth.ClusterRoleBinding{
@@ -321,7 +321,7 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 	subjects := []auth.Subject{auth.Subject{
 		Kind:      "ServiceAccount",
 		Name:      defaults.GetMachineUserRoleName(registration.Name),
-		Namespace: corev1.NamespaceDefault,
+		Namespace: utils.GetAppNamespace(registration.Name),
 	}}
 
 	kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.AppAdminEnvironmentRoleName, subjects)
