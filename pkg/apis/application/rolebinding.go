@@ -349,3 +349,8 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 	logger.Debugf("Done - create clusterrolebinding config %s", clusterroleBindingName)
 	return clusterrolebinding
 }
+
+func rolebindingAppAdminToMachineUserToken(appName string, adGroups []string, role *auth.Role) *auth.RoleBinding {
+	roleName := role.ObjectMeta.Name
+	return kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
+}

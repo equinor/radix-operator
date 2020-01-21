@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -29,5 +30,26 @@ func (app Application) applyMachineUserServiceAccount() (*corev1.ServiceAccount,
 		return nil, err
 	}
 
+	if len(serviceAccount.Secrets) == 0 {
+		return nil, fmt.Errorf("Service account %s currently has no secrets associated with it", serviceAccount.Name)
+	}
+
+	err = app.grantAppAdminAccessToMachineUserToken(utils.GetAppNamespace(app.registration.Name), serviceAccount.Secrets[0].Name)
+	if err != nil {
+		return nil, err
+	}
+
 	return serviceAccount, nil
+}
+
+func (app Application) grantAppAdminAccessToMachineUserToken(namespace, secretName string) error {
+	role := roleAppAdminMachineUserToken(app.registration.Name, secretName)
+	err := app.kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	adGroups, _ := GetAdGroups(app.registration)
+	rolebinding := rolebindingAppAdminToMachineUserToken(app.registration.Name, adGroups, role)
+	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
