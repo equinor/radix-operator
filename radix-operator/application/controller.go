@@ -1,6 +1,8 @@
 package application
 
 import (
+	"reflect"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -70,6 +72,14 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
+			oldRA := old.(*v1.RadixApplication)
+			newRA := cur.(*v1.RadixApplication)
+			if deepEqual(oldRA, newRA) {
+				logger.Debugf("Application object is equal to old for %s. Do nothing", newRA.GetName())
+				metrics.CustomResourceUpdatedButSkipped(crType)
+				return
+			}
+
 			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
@@ -106,4 +116,14 @@ func NewController(client kubernetes.Interface,
 	})
 
 	return controller
+}
+
+func deepEqual(old, new *v1.RadixApplication) bool {
+	if !reflect.DeepEqual(new.Spec, old.Spec) ||
+		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
+		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
+		return false
+	}
+
+	return true
 }

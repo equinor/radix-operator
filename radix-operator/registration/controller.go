@@ -65,7 +65,7 @@ func NewController(client kubernetes.Interface,
 			oldRR := old.(*v1.RadixRegistration)
 
 			if deepEqual(oldRR, newRR) {
-				logger.Debugf("Deployment object is equal to old for %s. Do nothing", newRR.GetName())
+				logger.Debugf("Registration object is equal to old for %s. Do nothing", newRR.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
