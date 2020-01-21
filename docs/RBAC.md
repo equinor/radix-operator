@@ -210,6 +210,7 @@
     - Get and list namespaces
     - Get and list jobs
     - Get list and create radix jobs
+    - Get list and watch service accounts
 
 #### Clusterrole bindings
 

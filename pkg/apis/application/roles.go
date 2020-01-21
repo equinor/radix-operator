@@ -79,3 +79,11 @@ func (app Application) configToMapRunnerRole() *auth.Role {
 		},
 	}
 }
+
+func roleAppAdminMachineUserToken(appName string, machineUserTokenSecretName string) *auth.Role {
+	return kube.CreateManageSecretRole(appName, getAppAdminRoleNameToMachineUserToken(machineUserTokenSecretName), []string{machineUserTokenSecretName}, nil)
+}
+
+func getAppAdminRoleNameToMachineUserToken(machineUserTokenSecretName string) string {
+	return fmt.Sprintf("%s-%s", defaults.AppAdminRoleName, machineUserTokenSecretName)
+}
