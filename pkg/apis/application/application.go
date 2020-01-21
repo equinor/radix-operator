@@ -10,11 +10,15 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 var logger *log.Entry
+
+// GranterFunction Handle to granter function for granting access to service account token
+type GranterFunction func(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error
 
 // OperatorDefaultUserGroupEnvironmentVariable If users don't provide ad-group, then it should default to this
 const OperatorDefaultUserGroupEnvironmentVariable = "RADIXOPERATOR_DEFAULT_USER_GROUP"
@@ -44,6 +48,13 @@ func NewApplication(
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (app Application) OnSync() error {
+	// The grantAppAdminAccessToMachineUserToken cannot be a part of out automated tests as it assues the
+	// secret for the token is automatically created
+	return app.OnSyncWithGranterToMachineUserToken(GrantAppAdminAccessToMachineUserToken)
+}
+
+// OnSyncWithGranterToMachineUserToken OnSync where handler is passed in, as the granter function cannot be tested and has to be mocked
+func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGranter GranterFunction) error {
 	radixRegistration := app.registration
 	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
 
@@ -53,7 +64,7 @@ func (app Application) OnSync() error {
 		return err
 	}
 
-	_, err = app.applyMachineUserServiceAccount()
+	_, err = app.applyMachineUserServiceAccount(machineUserTokenGranter)
 	if err != nil {
 		logger.Errorf("Failed to create machine user. %v", err)
 		return err

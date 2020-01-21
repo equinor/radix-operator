@@ -153,7 +153,7 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeU
 
 	rr := registrationBuilder.BuildRR()
 	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
-	err = application.OnSync()
+	err = application.OnSyncWithGranterToMachineUserToken(mockedGranter)
 	if err != nil {
 		return nil, err
 	}
@@ -169,11 +169,16 @@ func updateRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kube
 	}
 
 	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
-	err = application.OnSync()
+	err = application.OnSyncWithGranterToMachineUserToken(mockedGranter)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// This is created because the granting to token functionality doesn't work in this context
+func mockedGranter(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error {
 	return nil
 }
 
