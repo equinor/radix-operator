@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -88,6 +89,9 @@ func startRegistrationController(
 		kubeUtil,
 		radixClient,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+
+		// Pass the default granter function to grant access to the service account token
+		applicationAPI.GrantAppAdminAccessToMachineUserToken,
 	)
 
 	waitForChildrenToSync := true
