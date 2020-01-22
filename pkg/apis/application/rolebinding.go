@@ -352,5 +352,14 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 
 func rolebindingAppAdminToMachineUserToken(appName string, adGroups []string, role *auth.Role) *auth.RoleBinding {
 	roleName := role.ObjectMeta.Name
-	return kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	subjects = append(subjects, auth.Subject{
+		Kind:      "ServiceAccount",
+		Name:      defaults.GetMachineUserRoleName(appName),
+		Namespace: utils.GetAppNamespace(appName),
+	})
+
+	return kube.GetRolebindingToRoleForSubjectsWithLabels(appName, roleName, subjects, role.Labels)
 }

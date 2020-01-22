@@ -100,5 +100,5 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 		Namespace: utils.GetAppNamespace(registration.Name),
 	})
 
-	return kube.GetRolebindingToClusterRoleForSubjectsWithLabels(registration.Name, roleName, subjects, role.Labels)
+	return kube.GetRolebindingToRoleForSubjectsWithLabels(registration.Name, roleName, subjects, role.Labels)
 }
