@@ -3,6 +3,7 @@ package registration
 import (
 	"reflect"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -95,9 +96,13 @@ func NewController(client kubernetes.Interface,
 	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			secret, _ := obj.(*corev1.Secret)
-			if isMachineUserToken(secret) {
-				// Resync, as token is deleted
-				controller.HandleObject(obj, "RadixRegistration", getObject)
+			namespace, _ := client.CoreV1().Namespaces().Get(secret.Namespace, metav1.GetOptions{})
+			appName := namespace.Labels[kube.RadixAppLabel]
+
+			if isMachineUserToken(appName, secret) {
+				// Resync, as token is deleted. Resync is triggered on namespace, since RR not directly own the
+				// secret
+				controller.HandleObject(namespace, "RadixRegistration", getObject)
 			}
 		},
 	})
@@ -105,8 +110,9 @@ func NewController(client kubernetes.Interface,
 	return controller
 }
 
-func isMachineUserToken(secret *corev1.Secret) bool {
-	return secret.Labels[kube.RadixMachineUserServiceAccountLabel] == "yes"
+func isMachineUserToken(appName string, secret *corev1.Secret) bool {
+	machineUserServiceAccount := defaults.GetMachineUserRoleName(appName)
+	return secret.Annotations[corev1.ServiceAccountNameKey] == machineUserServiceAccount
 }
 
 func deepEqual(old, new *v1.RadixRegistration) bool {
