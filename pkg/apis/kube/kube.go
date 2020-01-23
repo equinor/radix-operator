@@ -23,21 +23,20 @@ const (
 
 // Radix Labels
 const (
-	RadixAppLabel                       = "radix-app"
-	RadixEnvLabel                       = "radix-env"
-	RadixComponentLabel                 = "radix-component"
-	RadixJobNameLabel                   = "radix-job-name"
-	RadixBuildLabel                     = "radix-build"
-	RadixCommitLabel                    = "radix-commit"
-	RadixImageTagLabel                  = "radix-image-tag"
-	RadixJobTypeLabel                   = "radix-job-type"
-	RadixJobTypeJob                     = "job" // Outer job
-	RadixJobTypeBuild                   = "build"
-	RadixJobTypeCloneConfig             = "clone-config"
-	RadixAppAliasLabel                  = "radix-app-alias"
-	RadixExternalAliasLabel             = "radix-app-external-alias"
-	RadixActiveClusterAliasLabel        = "radix-app-active-cluster-alias"
-	RadixMachineUserServiceAccountLabel = "radix-machine-user"
+	RadixAppLabel                = "radix-app"
+	RadixEnvLabel                = "radix-env"
+	RadixComponentLabel          = "radix-component"
+	RadixJobNameLabel            = "radix-job-name"
+	RadixBuildLabel              = "radix-build"
+	RadixCommitLabel             = "radix-commit"
+	RadixImageTagLabel           = "radix-image-tag"
+	RadixJobTypeLabel            = "radix-job-type"
+	RadixJobTypeJob              = "job" // Outer job
+	RadixJobTypeBuild            = "build"
+	RadixJobTypeCloneConfig      = "clone-config"
+	RadixAppAliasLabel           = "radix-app-alias"
+	RadixExternalAliasLabel      = "radix-app-external-alias"
+	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"

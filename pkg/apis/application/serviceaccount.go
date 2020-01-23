@@ -38,11 +38,6 @@ func (app Application) applyConfigToMapServiceAccount() (*corev1.ServiceAccount,
 func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (*corev1.ServiceAccount, error) {
 	newServiceAccount := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				// Point to this being the machine user service account
-				// as we need to keep track of the secret that belongs to it
-				kube.RadixMachineUserServiceAccountLabel: "yes",
-			},
 			Name:      defaults.GetMachineUserRoleName(app.registration.Name),
 			Namespace: utils.GetAppNamespace(app.registration.Name),
 		},
