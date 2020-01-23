@@ -3,6 +3,12 @@ package defaults
 import "fmt"
 
 const (
+	// RadixGithubWebhookRoleName Name of the service account representing the webhook
+	RadixGithubWebhookRoleName = "radix-github-webhook"
+
+	// RadixAPIRoleName Name of the service account representing the Radix API
+	RadixAPIRoleName = "radix-api"
+
 	// AppAdminRoleName Name of role which grants access to manage the CI/CD of their applications
 	AppAdminRoleName = "radix-app-admin"
 

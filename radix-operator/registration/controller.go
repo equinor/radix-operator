@@ -10,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -90,7 +91,22 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
+	secretInformer := kubeInformerFactory.Core().V1().Secrets()
+	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			secret, _ := obj.(*corev1.Secret)
+			if isMachineUserToken(secret) {
+				// Resync, as token is deleted
+				controller.HandleObject(obj, "RadixRegistration", getObject)
+			}
+		},
+	})
+
 	return controller
+}
+
+func isMachineUserToken(secret *corev1.Secret) bool {
+	return secret.Labels[kube.RadixMachineUserServiceAccountLabel] == "yes"
 }
 
 func deepEqual(old, new *v1.RadixRegistration) bool {
