@@ -8,22 +8,47 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ApplyPipelineServiceAccount create service account needed by pipeline
 func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, error) {
-	namespace := utils.GetAppNamespace(app.registration.Name)
-	return app.kubeutil.ApplyServiceAccount(defaults.PipelineRoleName, namespace)
+	serviceAccount := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.PipelineRoleName,
+			Namespace: utils.GetAppNamespace(app.registration.Name),
+		},
+	}
+
+	return app.kubeutil.ApplyServiceAccount(serviceAccount)
 }
 
 // ApplyConfigToMapServiceAccount create service account needed by config-to-map-runner
 func (app Application) applyConfigToMapServiceAccount() (*corev1.ServiceAccount, error) {
-	namespace := utils.GetAppNamespace(app.registration.Name)
-	return app.kubeutil.ApplyServiceAccount(defaults.ConfigToMapRunnerRoleName, namespace)
+	serviceAccount := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.ConfigToMapRunnerRoleName,
+			Namespace: utils.GetAppNamespace(app.registration.Name),
+		},
+	}
+
+	return app.kubeutil.ApplyServiceAccount(serviceAccount)
 }
 
 func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (*corev1.ServiceAccount, error) {
-	serviceAccount, err := app.kubeutil.ApplyServiceAccount(defaults.GetMachineUserRoleName(app.registration.Name), utils.GetAppNamespace(app.registration.Name))
+	newServiceAccount := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				// Point to this being the machine user service account
+				// as we need to keep track of the secret that belongs to it
+				kube.RadixMachineUserServiceAccountLabel: "yes",
+			},
+			Name:      defaults.GetMachineUserRoleName(app.registration.Name),
+			Namespace: utils.GetAppNamespace(app.registration.Name),
+		},
+	}
+
+	serviceAccount, err := app.kubeutil.ApplyServiceAccount(newServiceAccount)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +72,7 @@ func GrantAppAdminAccessToMachineUserToken(kubeutil *kube.Kube, app *v1.RadixReg
 		return fmt.Errorf("Service account %s currently has no secrets associated with it", serviceAccount.Name)
 	}
 
-	role := roleAppAdminMachineUserToken(app.Name, serviceAccount.Secrets[0].Name)
+	role := roleAppAdminMachineUserToken(app.Name, serviceAccount)
 	err := kubeutil.ApplyRole(namespace, role)
 	if err != nil {
 		return err

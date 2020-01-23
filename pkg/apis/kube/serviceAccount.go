@@ -10,29 +10,22 @@ import (
 )
 
 // ApplyServiceAccount Creates or updates service account
-func (kube *Kube) ApplyServiceAccount(serviceAccountName, namespace string) (*corev1.ServiceAccount, error) {
-	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
-			Namespace: namespace,
-		},
-	}
-
-	oldServiceAccount, err := kube.getServiceAccount(namespace, serviceAccount.GetName())
+func (kube *Kube) ApplyServiceAccount(serviceAccount corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
+	oldServiceAccount, err := kube.getServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdServiceAccount, err := kube.kubeClient.CoreV1().ServiceAccounts(namespace).Create(&serviceAccount)
+		createdServiceAccount, err := kube.kubeClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(&serviceAccount)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create ServiceAccount object: %v", err)
 		}
 
-		log.Debugf("Created ServiceAccount: %s in namespace %s", createdServiceAccount.Name, namespace)
+		log.Debugf("Created ServiceAccount: %s in namespace %s", createdServiceAccount.Name, serviceAccount.Namespace)
 		return createdServiceAccount, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("Failed to get service account object: %v", err)
 
 	}
 
-	log.Debugf("ServiceAccount object %s already exists in namespace %s", serviceAccount.GetName(), namespace)
+	log.Debugf("ServiceAccount object %s already exists in namespace %s", serviceAccount.GetName(), serviceAccount.Namespace)
 	return oldServiceAccount, nil
 }
 
