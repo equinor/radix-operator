@@ -1,8 +1,6 @@
 package job
 
 import (
-	"reflect"
-
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 
@@ -84,16 +82,9 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oldRJ := old.(*v1.RadixJob)
 			newRJ := cur.(*v1.RadixJob)
 			if job.IsRadixJobDone(newRJ) {
 				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
-				metrics.CustomResourceUpdatedButSkipped(crType)
-				return
-			}
-
-			if deepEqual(oldRJ, newRJ) {
-				logger.Debugf("Job object is equal to old for %s. Do nothing", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -148,16 +139,6 @@ func NewController(client kubernetes.Interface,
 	})
 
 	return controller
-}
-
-func deepEqual(old, new *v1.RadixJob) bool {
-	if !reflect.DeepEqual(new.Spec, old.Spec) ||
-		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
-		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
-		return false
-	}
-
-	return true
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
