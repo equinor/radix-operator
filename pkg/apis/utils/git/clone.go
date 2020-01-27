@@ -50,6 +50,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			ImagePullPolicy: "IfNotPresent",
 			Args: []string{
 				"clone",
+				"--recurse-submodules",
 				sshURL,
 				"--single-branch",
 				"-b",
