@@ -2,6 +2,7 @@ package applicationconfig
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
@@ -51,6 +52,9 @@ func (app *ApplicationConfig) initializeBuildSecret(namespace, name string, buil
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Labels: map[string]string{
+				kube.RadixAppLabel: app.config.Name,
+			},
 		},
 		Data: data,
 	}
