@@ -5,7 +5,6 @@ import (
 	"github.com/prometheus/common/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -32,7 +31,7 @@ func (app Application) applySecretsForPipelines() error {
 
 func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error {
 	radixRegistration := app.registration
-	secret, err := createNewGitDeployKey(app.kubeclient, namespace, radixRegistration.Spec.DeployKey)
+	secret, err := app.createNewGitDeployKey(namespace, radixRegistration.Spec.DeployKey)
 	if err != nil {
 		return err
 	}
@@ -42,7 +41,7 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 }
 
 func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
-	servicePrincipalSecretForBuild, err := createNewServicePrincipalACRSecret(app.kubeclient, buildNamespace)
+	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace)
 	if err != nil {
 		return err
 	}
@@ -51,8 +50,8 @@ func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNames
 	return err
 }
 
-func createNewGitDeployKey(kubeclient kubernetes.Interface, namespace, deployKey string) (*corev1.Secret, error) {
-	knownHostsSecret, err := kubeclient.CoreV1().Secrets("default").Get("radix-known-hosts-git", metav1.GetOptions{})
+func (app Application) createNewGitDeployKey(namespace, deployKey string) (*corev1.Secret, error) {
+	knownHostsSecret, err := app.kubeutil.GetSecret("default", "radix-known-hosts-git")
 	if err != nil {
 		log.Errorf("Failed to get known hosts secret. %v", err)
 		return nil, err
@@ -72,8 +71,8 @@ func createNewGitDeployKey(kubeclient kubernetes.Interface, namespace, deployKey
 	return &secret, nil
 }
 
-func createNewServicePrincipalACRSecret(kubeclient kubernetes.Interface, namespace string) (*corev1.Secret, error) {
-	servicePrincipalSecret, err := kubeclient.CoreV1().Secrets("default").Get(spACRSecretName, metav1.GetOptions{})
+func (app Application) createNewServicePrincipalACRSecret(namespace string) (*corev1.Secret, error) {
+	servicePrincipalSecret, err := app.kubeutil.GetSecret("default", spACRSecretName)
 	if err != nil {
 		log.Errorf("Failed to get %s secret from default. %v", spACRSecretName, err)
 		return nil, err

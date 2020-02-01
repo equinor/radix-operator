@@ -64,7 +64,7 @@ func (app *ApplicationConfig) initializeBuildSecret(namespace, name string, buil
 }
 
 func (app *ApplicationConfig) updateBuildSecret(namespace, name string, buildSecrets []string) error {
-	secret, err := app.kubeclient.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+	secret, err := app.kubeutil.GetSecret(namespace, name)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (app *ApplicationConfig) updateBuildSecret(namespace, name string, buildSec
 	orphanRemoved := removeOrphanedSecrets(secret, buildSecrets)
 	secretAppended := appendSecrets(secret, buildSecrets)
 	if orphanRemoved || secretAppended {
-		_, err = app.kubeclient.CoreV1().Secrets(namespace).Update(secret)
+		_, err = app.kubeutil.ApplySecret(namespace, secret)
 		if err != nil {
 			return err
 		}
