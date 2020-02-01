@@ -51,7 +51,7 @@ func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNames
 }
 
 func (app Application) createNewGitDeployKey(namespace, deployKey string) (*corev1.Secret, error) {
-	knownHostsSecret, err := app.kubeutil.GetSecret("default", "radix-known-hosts-git")
+	knownHostsSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, "radix-known-hosts-git")
 	if err != nil {
 		log.Errorf("Failed to get known hosts secret. %v", err)
 		return nil, err
@@ -72,7 +72,7 @@ func (app Application) createNewGitDeployKey(namespace, deployKey string) (*core
 }
 
 func (app Application) createNewServicePrincipalACRSecret(namespace string) (*corev1.Secret, error) {
-	servicePrincipalSecret, err := app.kubeutil.GetSecret("default", spACRSecretName)
+	servicePrincipalSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, spACRSecretName)
 	if err != nil {
 		log.Errorf("Failed to get %s secret from default. %v", spACRSecretName, err)
 		return nil, err
