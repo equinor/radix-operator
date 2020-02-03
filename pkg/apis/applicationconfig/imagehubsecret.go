@@ -86,7 +86,6 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		}
 	} else {
 		// update if changes
-		hasChanged := false
 		imageHubs, err := getImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
 		if err != nil {
 			log.Warnf("failed to get private image hub secret value %v", err)
@@ -97,7 +96,6 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		for server := range imageHubs {
 			if app.config.Spec.PrivateImageHubs[server] == nil {
 				delete(imageHubs, server)
-				hasChanged = true
 			}
 		}
 
@@ -108,19 +106,15 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 					currentConfig.Username = config.Username
 					currentConfig.Email = config.Email
 					imageHubs[server] = currentConfig
-					hasChanged = true
 				}
 			} else {
 				imageHubs[server] = secretImageHub{
 					Username: config.Username,
 					Email:    config.Email,
 				}
-				hasChanged = true
 			}
 		}
-		if !hasChanged {
-			return nil
-		}
+
 		secretValue, err = getImageHubsSecretValue(imageHubs)
 		if err != nil {
 			log.Warnf("failed to update private image hub secret %v", err)

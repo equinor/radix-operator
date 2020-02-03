@@ -47,19 +47,8 @@ func (app *ApplicationConfig) initializeBuildSecret(namespace, name string, buil
 		data[buildSecret] = defaultValue
 	}
 
-	secret := corev1.Secret{
-		Type: corev1.SecretTypeOpaque,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				kube.RadixAppLabel: app.config.Name,
-			},
-		},
-		Data: data,
-	}
-
-	_, err := app.kubeutil.ApplySecret(namespace, &secret)
+	secret := getBuildSecretForData(app.config.Name, namespace, name, data)
+	_, err := app.kubeutil.ApplySecret(namespace, secret)
 	if err != nil {
 		log.Warnf("Failed to create build secret %s in %s", name, namespace)
 		return err
@@ -75,11 +64,14 @@ func (app *ApplicationConfig) updateBuildSecret(namespace, name string, buildSec
 
 	orphanRemoved := removeOrphanedSecrets(secret, buildSecrets)
 	secretAppended := appendSecrets(secret, buildSecrets)
-	if orphanRemoved || secretAppended {
-		_, err = app.kubeutil.ApplySecret(namespace, secret)
-		if err != nil {
-			return err
-		}
+	if !orphanRemoved && !secretAppended {
+		// Secret definition may have changed, but not data
+		secret = getBuildSecretForData(app.config.Name, namespace, name, secret.Data)
+	}
+
+	_, err = app.kubeutil.ApplySecret(namespace, secret)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -114,4 +106,18 @@ func appendSecrets(buildSecrets *corev1.Secret, secrets []string) bool {
 	}
 
 	return secretAppended
+}
+
+func getBuildSecretForData(appName, namespace, name string, data map[string][]byte) *corev1.Secret {
+	return &corev1.Secret{
+		Type: corev1.SecretTypeOpaque,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				kube.RadixAppLabel: appName,
+			},
+		},
+		Data: data,
+	}
 }
