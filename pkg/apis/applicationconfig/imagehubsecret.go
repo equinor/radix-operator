@@ -28,7 +28,7 @@ func GetKubeDPrivateImageHubAnnotationValues(appName string) (key, value string)
 // UpdatePrivateImageHubsSecretsPassword updates the private image hub secret
 func (app *ApplicationConfig) UpdatePrivateImageHubsSecretsPassword(server, password string) error {
 	ns := utils.GetAppNamespace(app.config.Name)
-	secret, _ := app.kubeclient.CoreV1().Secrets(ns).Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := app.kubeutil.GetSecret(ns, defaults.PrivateImageHubSecretName)
 	if secret == nil {
 		return fmt.Errorf("private image hub secret does not exist for app %s", app.config.Name)
 	}
@@ -55,7 +55,7 @@ func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, erro
 	appName := app.config.Name
 	pendingSecrets := []string{}
 	ns := utils.GetAppNamespace(appName)
-	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, err := app.kubeutil.GetSecret(ns, defaults.PrivateImageHubSecretName)
 	if err != nil && !errors.IsNotFound(err) {
 		return pendingSecrets, err
 	}
@@ -71,7 +71,7 @@ func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, erro
 
 func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 	ns := utils.GetAppNamespace(app.config.Name)
-	secret, err := app.kubeclient.CoreV1().Secrets(ns).Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, err := app.kubeutil.GetSecret(ns, defaults.PrivateImageHubSecretName)
 	if err != nil && !errors.IsNotFound(err) {
 		log.Warnf("failed to get private image hub secret %v", err)
 		return err
@@ -86,7 +86,6 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		}
 	} else {
 		// update if changes
-		hasChanged := false
 		imageHubs, err := getImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
 		if err != nil {
 			log.Warnf("failed to get private image hub secret value %v", err)
@@ -97,7 +96,6 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		for server := range imageHubs {
 			if app.config.Spec.PrivateImageHubs[server] == nil {
 				delete(imageHubs, server)
-				hasChanged = true
 			}
 		}
 
@@ -108,19 +106,15 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 					currentConfig.Username = config.Username
 					currentConfig.Email = config.Email
 					imageHubs[server] = currentConfig
-					hasChanged = true
 				}
 			} else {
 				imageHubs[server] = secretImageHub{
 					Username: config.Username,
 					Email:    config.Email,
 				}
-				hasChanged = true
 			}
 		}
-		if !hasChanged {
-			return nil
-		}
+
 		secretValue, err = getImageHubsSecretValue(imageHubs)
 		if err != nil {
 			log.Warnf("failed to update private image hub secret %v", err)
@@ -140,6 +134,9 @@ func applyPrivateImageHubSecret(kubeutil *kube.Kube, ns, appName string, secretV
 			Namespace: ns,
 			Annotations: map[string]string{
 				"kubed.appscode.com/sync": getKubeDAnnotation(appName),
+			},
+			Labels: map[string]string{
+				kube.RadixAppLabel: appName,
 			},
 		},
 		Data: map[string][]byte{},
