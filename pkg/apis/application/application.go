@@ -64,10 +64,12 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		return err
 	}
 
-	_, err = app.applyMachineUserServiceAccount(machineUserTokenGranter)
-	if err != nil {
-		logger.Errorf("Failed to create machine user. %v", err)
-		return err
+	if app.registration.Spec.MachineUser {
+		_, err = app.applyMachineUserServiceAccount(machineUserTokenGranter)
+		if err != nil {
+			logger.Errorf("Failed to create machine user. %v", err)
+			return err
+		}
 	}
 
 	logger.Debugf("App namespace created")

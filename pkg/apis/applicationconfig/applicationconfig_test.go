@@ -263,10 +263,14 @@ func TestIsTargetEnvsEmpty_twoEntriesWithOneMapping(t *testing.T) {
 func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimits(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient, utils.ARadixApplication().
-		WithAppName("any-app").
-		WithEnvironment("dev", "master").
-		WithEnvironment("prod", ""))
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithRadixRegistration(
+				utils.ARadixRegistration().
+					WithMachineUser(true)).
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithEnvironment("prod", ""))
 
 	t.Run("validate namespace creation", func(t *testing.T) {
 		devNs, _ := client.CoreV1().Namespaces().Get("any-app-dev", metav1.GetOptions{})

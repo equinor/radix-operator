@@ -21,11 +21,13 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
 	// Add machine user to subjects
-	subjects = append(subjects, auth.Subject{
-		Kind:      "ServiceAccount",
-		Name:      defaults.GetMachineUserRoleName(app.config.Name),
-		Namespace: utils.GetAppNamespace(app.registration.Name),
-	})
+	if app.registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(app.config.Name),
+			Namespace: utils.GetAppNamespace(app.registration.Name),
+		})
+	}
 
 	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(app.config.Name, defaults.AppAdminEnvironmentRoleName, subjects)
 	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)

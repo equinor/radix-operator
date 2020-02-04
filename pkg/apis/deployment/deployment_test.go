@@ -58,8 +58,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
 
-	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+	aRadixRegistrationBuilder := utils.ARadixRegistration().
+		WithMachineUser(true)
+
+	aRadixApplicationBuilder := utils.ARadixApplication().
+		WithRadixRegistration(aRadixRegistrationBuilder)
+
+	aRadixDeploymentBuilder := utils.ARadixDeployment().
+		WithRadixApplication(aRadixApplicationBuilder).
 		WithAppName("edcradix").
 		WithImageTag("axmz8").
 		WithEnvironment("test").
@@ -92,7 +98,10 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("radixquote").
 				WithPort("http", 3000).
 				WithPublicPort("http").
-				WithSecrets([]string{"a_secret"})))
+				WithSecrets([]string{"a_secret"}))
+
+	// Test
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, aRadixDeploymentBuilder)
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")

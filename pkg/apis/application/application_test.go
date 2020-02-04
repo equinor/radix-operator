@@ -42,7 +42,8 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	// Test
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName("any-app"))
+		WithName("any-app").
+		WithMachineUser(true))
 
 	clusterRolebindings, _ := client.RbacV1().ClusterRoleBindings().List(metav1.ListOptions{})
 	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRolebindings))

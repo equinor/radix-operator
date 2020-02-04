@@ -94,11 +94,13 @@ func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *a
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
 	// Add machine user to subjects
-	subjects = append(subjects, auth.Subject{
-		Kind:      "ServiceAccount",
-		Name:      defaults.GetMachineUserRoleName(registration.Name),
-		Namespace: utils.GetAppNamespace(registration.Name),
-	})
+	if registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: utils.GetAppNamespace(registration.Name),
+		})
+	}
 
 	return kube.GetRolebindingToRoleForSubjectsWithLabels(registration.Name, roleName, subjects, role.Labels)
 }

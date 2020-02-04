@@ -25,11 +25,13 @@ func (app Application) grantAccessToCICDLogs() error {
 
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
-	subjects = append(subjects, auth.Subject{
-		Kind:      "ServiceAccount",
-		Name:      defaults.GetMachineUserRoleName(registration.Name),
-		Namespace: appNamespace,
-	})
+	if app.registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: appNamespace,
+		})
+	}
 
 	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
 	return k.ApplyRoleBinding(appNamespace, roleBinding)
@@ -279,11 +281,13 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 	adGroups, _ := GetAdGroups(registration)
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
-	subjects = append(subjects, auth.Subject{
-		Kind:      "ServiceAccount",
-		Name:      defaults.GetMachineUserRoleName(registration.Name),
-		Namespace: utils.GetAppNamespace(registration.Name),
-	})
+	if app.registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: utils.GetAppNamespace(registration.Name),
+		})
+	}
 
 	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
