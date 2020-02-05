@@ -83,12 +83,12 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
-	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	secrets, err := deploy.kubeutil.ListSecrets(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingSecret := range secrets.Items {
+	for _, exisitingSecret := range secrets {
 		if exisitingSecret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
 			// Not handled here
 			continue
@@ -125,7 +125,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 		return err
 	}
 
-	for _, secret := range secrets.Items {
+	for _, secret := range secrets {
 		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
 			// Not handled here
 			continue
@@ -154,7 +154,7 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 		return err
 	}
 
-	for _, secret := range secrets.Items {
+	for _, secret := range secrets {
 		garbageCollectSecret := true
 
 		if !all {
@@ -177,18 +177,16 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 	return nil
 }
 
-func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
+func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
 	return deploy.listSecrets(getLabelSelectorForComponent(component))
 }
 
-func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) (*v1.SecretList, error) {
+func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
 	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
 }
 
-func (deploy *Deployment) listSecrets(labelSelector string) (*v1.SecretList, error) {
-	secrets, err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
+func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error) {
+	secrets, err := deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 
 	if err != nil {
 		return nil, err
@@ -235,7 +233,7 @@ func (deploy *Deployment) createSecret(ns, app, component, secretName string, is
 }
 
 func (deploy *Deployment) removeOrphanedSecrets(ns, app, component, secretName string, secrets []string) error {
-	secret, err := deploy.kubeclient.CoreV1().Secrets(ns).Get(secretName, metav1.GetOptions{})
+	secret, err := deploy.kubeutil.GetSecret(ns, secretName)
 	if err != nil {
 		return err
 	}
@@ -249,7 +247,7 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, app, component, secretName s
 	}
 
 	if orphanRemoved {
-		_, err = deploy.kubeclient.CoreV1().Secrets(ns).Update(secret)
+		_, err = deploy.kubeutil.ApplySecret(ns, secret)
 		if err != nil {
 			return err
 		}
