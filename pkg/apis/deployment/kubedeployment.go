@@ -94,6 +94,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 						{
 							Name:            componentName,
 							Image:           deployComponent.Image,
+							ImagePullPolicy: corev1.PullAlways,
 							SecurityContext: securityContext,
 						},
 					},
