@@ -337,6 +337,36 @@ func (k *Kube) ListClusterRoleBindings(namespace string) ([]*auth.ClusterRoleBin
 	return clusterRoleBindings, nil
 }
 
+// DeleteClusterRoleBinding Deletes a clusterrolebinding
+func (k *Kube) DeleteClusterRoleBinding(name string) error {
+	_, err := k.getClusterRoleBinding(name)
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("Failed to get clusterrolebinding object: %v", err)
+	}
+	err = k.kubeClient.RbacV1().ClusterRoleBindings().Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to delete clusterrolebinding object: %v", err)
+	}
+	return nil
+}
+
+// DeleteRoleBinding Deletes a rolebinding in a namespace
+func (k *Kube) DeleteRoleBinding(namespace, name string) error {
+	_, err := k.getRoleBinding(namespace, name)
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("Failed to get rolebinding object: %v", err)
+	}
+	err = k.kubeClient.RbacV1().RoleBindings(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to delete rolebinding object: %v", err)
+	}
+	return nil
+}
+
 func (k *Kube) getClusterRoleBinding(name string) (*auth.ClusterRoleBinding, error) {
 	var clusterRoleBinding *auth.ClusterRoleBinding
 	var err error

@@ -70,6 +70,12 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 			logger.Errorf("Failed to create machine user. %v", err)
 			return err
 		}
+	} else {
+		err := app.garbageCollectMachineUserNoLongerInSpec()
+		if err != nil {
+			logger.Errorf("Failed to perform garbage collection of machine user resources: %v", err)
+			return err
+		}
 	}
 
 	logger.Debugf("App namespace created")
@@ -134,6 +140,26 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		return err
 	}
 
+	return nil
+}
+
+// Garbage collect machine user resources
+func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
+	err := app.garbageCollectMachineUserServiceAccount()
+	if err != nil {
+		logger.Errorf("Failed to perform garbage collection of service account: %v", err)
+		return err
+	}
+	err = app.removeMachineUserFromPlatformUserRole()
+	if err != nil {
+		logger.Errorf("Failed to remove machine user from platform user role: %v", err)
+		return err
+	}
+	err = app.removeAppAdminAccessToMachineUserToken()
+	if err != nil {
+		logger.Errorf("Failed to remove app admin access to machine user: %v", err)
+		return err
+	}
 	return nil
 }
 

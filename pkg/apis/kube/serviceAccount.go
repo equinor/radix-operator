@@ -29,6 +29,21 @@ func (kube *Kube) ApplyServiceAccount(serviceAccount corev1.ServiceAccount) (*co
 	return oldServiceAccount, nil
 }
 
+// DeleteServiceAccount Deletes service account
+func (kube *Kube) DeleteServiceAccount(namespace, name string) error {
+	_, err := kube.getServiceAccount(namespace, name)
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("Failed to get service account object: %v", err)
+	}
+	err = kube.kubeClient.CoreV1().ServiceAccounts(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to delete ServiceAccount object: %v", err)
+	}
+	return nil
+}
+
 func (kube *Kube) getServiceAccount(namespace, name string) (*corev1.ServiceAccount, error) {
 	var serviceAccount *corev1.ServiceAccount
 	var err error

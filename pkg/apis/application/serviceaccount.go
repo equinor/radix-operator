@@ -61,6 +61,39 @@ func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (
 	return serviceAccount, nil
 }
 
+func (app Application) garbageCollectMachineUserServiceAccount() error {
+	err := app.kubeutil.DeleteServiceAccount(defaults.GetMachineUserRoleName(app.registration.Name), utils.GetAppNamespace(app.registration.Name))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app Application) removeMachineUserFromPlatformUserRole() error {
+	err := app.kubeutil.DeleteClusterRoleBinding(defaults.GetMachineUserRoleName(app.registration.Name))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app Application) removeAppAdminAccessToMachineUserToken() error {
+	namespace := utils.GetAppNamespace(app.registration.Name)
+	name := fmt.Sprintf("%s-%s", defaults.GetMachineUserRoleName(app.registration.Name), "token")
+
+	err := app.kubeutil.DeleteRole(namespace, name)
+	if err != nil {
+		return err
+	}
+
+	err = app.kubeutil.DeleteRoleBinding(namespace, name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GrantAppAdminAccessToMachineUserToken Granter function to grant access to service account token
 func GrantAppAdminAccessToMachineUserToken(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error {
 	if len(serviceAccount.Secrets) == 0 {
