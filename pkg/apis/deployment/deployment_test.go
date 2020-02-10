@@ -579,7 +579,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	teardownTest()
 }
 
-func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
+func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 
 	// Test
@@ -597,6 +597,12 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
+	deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	firstDeploymentUpdateTime := deployments.Items[0].Annotations["radix-update-time"]
+	assert.NotEqual(t, "", firstDeploymentUpdateTime)
+
+	time.Sleep(1 * time.Second)
+
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
 		WithAppName("anyapp1").
@@ -609,6 +615,12 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+
+	deployments, _ = client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	secondDeploymentUpdateTime := deployments.Items[0].Annotations["radix-update-time"]
+	assert.NotEqual(t, "", secondDeploymentUpdateTime)
+	assert.NotEqual(t, firstDeploymentUpdateTime, secondDeploymentUpdateTime)
+	assert.True(t, firstDeploymentUpdateTime < secondDeploymentUpdateTime)
 
 	teardownTest()
 }
