@@ -62,7 +62,7 @@ func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (
 }
 
 func (app Application) garbageCollectMachineUserServiceAccount() error {
-	err := app.kubeutil.DeleteServiceAccount(defaults.GetMachineUserRoleName(app.registration.Name), utils.GetAppNamespace(app.registration.Name))
+	err := app.kubeutil.DeleteServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.GetMachineUserRoleName(app.registration.Name))
 	if err != nil {
 		return err
 	}
