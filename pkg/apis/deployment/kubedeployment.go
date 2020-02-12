@@ -65,8 +65,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 				kube.RadixCommitLabel:    commitID,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:     branch,
-				kube.RadixUpdateTimeAnnotation: time.Now().Format(time.RFC3339),
+				kube.RadixBranchAnnotation: branch,
 			},
 			OwnerReferences: ownerReference,
 		},
@@ -88,6 +87,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
 						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
 						kube.RadixBranchAnnotation:                 branch,
+						kube.RadixUpdateTimeAnnotation:             time.Now().Format(time.RFC3339),
 					},
 				},
 				Spec: corev1.PodSpec{
