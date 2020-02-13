@@ -598,7 +598,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
 	deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
-	firstDeploymentUpdateTime := deployments.Items[0].Annotations["radix-update-time"]
+	firstDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
 	assert.NotEqual(t, "", firstDeploymentUpdateTime)
 
 	time.Sleep(1 * time.Second)
@@ -617,7 +617,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
 	deployments, _ = client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
-	secondDeploymentUpdateTime := deployments.Items[0].Annotations["radix-update-time"]
+	secondDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
 	assert.NotEqual(t, "", secondDeploymentUpdateTime)
 	assert.NotEqual(t, firstDeploymentUpdateTime, secondDeploymentUpdateTime)
 	assert.True(t, firstDeploymentUpdateTime < secondDeploymentUpdateTime)
