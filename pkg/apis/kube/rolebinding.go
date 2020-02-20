@@ -43,6 +43,11 @@ func GetRolebindingToRoleWithLabels(roleName string, groups []string, labels map
 	return getRoleBindingForSubjects(roleName, "Role", subjects, labels)
 }
 
+// GetRolebindingToRoleWithLabelsForSubjects Get rolebinding object with subjects as input
+func GetRolebindingToRoleWithLabelsForSubjects(roleName string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
+	return getRoleBindingForSubjects(roleName, "Role", subjects, labels)
+}
+
 // GetRolebindingToClusterRole Get role binding object
 func GetRolebindingToClusterRole(appName, roleName string, groups []string) *auth.RoleBinding {
 	return GetRolebindingToClusterRoleWithLabels(roleName, groups, map[string]string{

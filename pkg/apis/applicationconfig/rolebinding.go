@@ -35,9 +35,21 @@ func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
 
 func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := application.GetAdGroups(registration)
+
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	if registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: utils.GetAppNamespace(registration.Name),
+		})
+	}
+
 	roleName := role.ObjectMeta.Name
 
-	return kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
+	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 }
 
 func rolebindingPipelineToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
@@ -65,6 +77,17 @@ func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
 		return err
 	}
 
-	rolebinding := kube.GetRolebindingToRoleWithLabels(roleName, adGroups, role.Labels)
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	if registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: utils.GetAppNamespace(registration.Name),
+		})
+	}
+
+	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
