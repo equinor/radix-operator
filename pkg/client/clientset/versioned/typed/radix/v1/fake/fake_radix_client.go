@@ -36,6 +36,10 @@ func (c *FakeRadixV1) RadixDeployments(namespace string) v1.RadixDeploymentInter
 	return &FakeRadixDeployments{c, namespace}
 }
 
+func (c *FakeRadixV1) RadixEnvironments() v1.RadixEnvironmentInterface {
+	return &FakeRadixEnvironments{c}
+}
+
 func (c *FakeRadixV1) RadixJobs(namespace string) v1.RadixJobInterface {
 	return &FakeRadixJobs{c, namespace}
 }
