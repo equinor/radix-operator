@@ -55,6 +55,7 @@ type RadixJobSpec struct {
 	Promote        RadixPromoteSpec  `json:"promote" yaml:"promote"`
 	Deploy         RadixDeploySpec   `json:"deploy" yaml:"deploy"`
 	Stop           bool              `json:"stop" yaml:"stop"`
+	Creator        string            `json:"creator" yaml:"creator"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
