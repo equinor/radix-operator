@@ -8,7 +8,7 @@ import (
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// RadixEnvironment is the aggregate-root
+// RadixEnvironment is a Custom Resource Definition
 type RadixEnvironment struct {
 	meta.TypeMeta   `json:",inline" yaml:",inline"`
 	meta.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
