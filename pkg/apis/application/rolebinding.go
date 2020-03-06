@@ -16,15 +16,25 @@ func (app Application) grantAccessToCICDLogs() error {
 	k := app.kubeutil
 	registration := app.registration
 
-	namespace := utils.GetAppNamespace(registration.Name)
+	appNamespace := utils.GetAppNamespace(registration.Name)
 
 	adGroups, err := GetAdGroups(registration)
 	if err != nil {
 		return err
 	}
 
-	roleBinding := kube.GetRolebindingToClusterRole(registration.Name, defaults.AppAdminRoleName, adGroups)
-	return k.ApplyRoleBinding(namespace, roleBinding)
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	if app.registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: appNamespace,
+		})
+	}
+
+	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
+	return k.ApplyRoleBinding(appNamespace, roleBinding)
 }
 
 // ApplyRbacRadixRegistration Grants access to radix registration
@@ -39,6 +49,13 @@ func (app Application) applyRbacRadixRegistration() error {
 		return err
 	}
 
+	return k.ApplyClusterRoleBinding(clusterrolebinding)
+}
+
+// ApplyRbacOnPipelineRunner Grants access to radix pipeline
+func (app Application) applyPlatformUserRoleToMachineUser(serviceAccount *corev1.ServiceAccount) error {
+	k := app.kubeutil
+	clusterrolebinding := app.machineUserBinding(serviceAccount)
 	return k.ApplyClusterRoleBinding(clusterrolebinding)
 }
 
@@ -264,6 +281,14 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 	adGroups, _ := GetAdGroups(registration)
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
+	if app.registration.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: utils.GetAppNamespace(registration.Name),
+		})
+	}
+
 	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -287,4 +312,58 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 	logger.Debugf("Done - create clusterrolebinding config %s", clusterroleBindingName)
 
 	return clusterrolebinding
+}
+
+func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount) *auth.ClusterRoleBinding {
+	registration := app.registration
+	appName := registration.Name
+	clusterroleBindingName := serviceAccount.Name
+	logger.Debugf("Create clusterrolebinding config %s", clusterroleBindingName)
+
+	ownerReference := app.getOwnerReference()
+
+	subjects := []auth.Subject{auth.Subject{
+		Kind:      "ServiceAccount",
+		Name:      defaults.GetMachineUserRoleName(registration.Name),
+		Namespace: utils.GetAppNamespace(registration.Name),
+	}}
+
+	kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.AppAdminEnvironmentRoleName, subjects)
+
+	clusterrolebinding := &auth.ClusterRoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterroleBindingName,
+			Labels: map[string]string{
+				"radixReg": appName,
+			},
+			OwnerReferences: ownerReference,
+		},
+		RoleRef: auth.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     defaults.PlatformUserRoleName,
+		},
+		Subjects: subjects,
+	}
+
+	logger.Debugf("Done - create clusterrolebinding config %s", clusterroleBindingName)
+	return clusterrolebinding
+}
+
+func rolebindingAppAdminToMachineUserToken(appName string, adGroups []string, role *auth.Role) *auth.RoleBinding {
+	roleName := role.ObjectMeta.Name
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	subjects = append(subjects, auth.Subject{
+		Kind:      "ServiceAccount",
+		Name:      defaults.GetMachineUserRoleName(appName),
+		Namespace: utils.GetAppNamespace(appName),
+	})
+
+	return kube.GetRolebindingToRoleForSubjectsWithLabels(appName, roleName, subjects, role.Labels)
 }

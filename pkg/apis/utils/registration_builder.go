@@ -22,6 +22,7 @@ type RegistrationBuilder interface {
 	WithOwner(string) RegistrationBuilder
 	WithCreator(string) RegistrationBuilder
 	WithEmptyStatus() RegistrationBuilder
+	WithMachineUser(bool) RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
@@ -39,6 +40,7 @@ type RegistrationBuilderStruct struct {
 	owner        string
 	creator      string
 	emptyStatus  bool
+	machineUser  bool
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -51,6 +53,7 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithPrivateKey(radixRegistration.Spec.DeployKey)
 	rb.WithOwner(radixRegistration.Spec.Owner)
 	rb.WithCreator(radixRegistration.Spec.Creator)
+	rb.WithMachineUser(radixRegistration.Spec.MachineUser)
 	return rb
 }
 
@@ -120,6 +123,12 @@ func (rb *RegistrationBuilderStruct) WithEmptyStatus() RegistrationBuilder {
 	return rb
 }
 
+// WithMachineUser Indicates that a machine user service account should be created for this application
+func (rb *RegistrationBuilderStruct) WithMachineUser(machineUser bool) RegistrationBuilder {
+	rb.machineUser = machineUser
+	return rb
+}
+
 // BuildRR Builds the radix registration
 func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	cloneURL := rb.cloneURL
@@ -151,6 +160,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			AdGroups:        rb.adGroups,
 			Owner:           rb.owner,
 			Creator:         rb.creator,
+			MachineUser:     rb.machineUser,
 		},
 		Status: status,
 	}

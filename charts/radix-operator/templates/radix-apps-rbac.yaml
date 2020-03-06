@@ -81,6 +81,14 @@ rules:
   - list
   - delete
 - apiGroups:
+  - '*'
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - batch
   resources:
   - jobs
