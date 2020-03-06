@@ -81,12 +81,12 @@ func (app Application) removeAppAdminAccessToMachineUserToken() error {
 	namespace := utils.GetAppNamespace(app.registration.Name)
 	name := fmt.Sprintf("%s-%s", defaults.GetMachineUserRoleName(app.registration.Name), "token")
 
-	err := app.kubeutil.DeleteRole(namespace, name)
+	err := app.kubeutil.DeleteRoleBinding(namespace, name)
 	if err != nil {
 		return err
 	}
 
-	err = app.kubeutil.DeleteRoleBinding(namespace, name)
+	err = app.kubeutil.DeleteRole(namespace, name)
 	if err != nil {
 		return err
 	}
