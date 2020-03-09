@@ -88,7 +88,24 @@ func NewController(client kubernetes.Interface,
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixEnvironment", getObject)
+			// attempt to sync environment if it is the owner of this namespace
+			controller.HandleObject(obj, "RadixEnvironment", getOwner)
+		},
+	})
+
+	rolebindingInformer := kubeInformerFactory.Rbac().V1().RoleBindings()
+	rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			// attempt to sync environment if it is the owner of this role-binding
+			controller.HandleObject(obj, "RadixEnvironment", getOwner)
+		},
+	})
+
+	limitrangeInformer := kubeInformerFactory.Core().V1().LimitRanges()
+	limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			// attempt to sync environment if it is the owner of this limit-range
+			controller.HandleObject(obj, "RadixEnvironment", getOwner)
 		},
 	})
 
@@ -105,6 +122,6 @@ func deepEqual(old, new *v1.RadixEnvironment) bool {
 	return true
 }
 
-func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixEnvironments().Get(name, meta.GetOptions{})
 }

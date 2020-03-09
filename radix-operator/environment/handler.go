@@ -68,7 +68,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncEnvironment := envConfig.DeepCopy()
 	logger.Debugf("Sync environment %s", syncEnvironment.Name)
 
-	radixRegistration, err := t.kubeutil.GetRegistration(name)
+	radixRegistration, err := t.kubeutil.GetRegistration(envConfig.Spec.AppName)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -79,8 +79,6 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 		return err
 	}
-
-	// TODO: create env resource
 
 	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, envConfig, radixRegistration)
 	if err != nil {

@@ -79,19 +79,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
 
-	// get owner reference from RadixRegistration
-	trueVar := true
-	ownerRef := []metav1.OwnerReference{
-		metav1.OwnerReference{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixEnvironment",
-			Name:       env.regConfig.Name,
-			UID:        env.regConfig.UID,
-			Controller: &trueVar,
-		},
-	}
-
-	return env.kubeutil.ApplyNamespace(name, labels, ownerRef)
+	return env.kubeutil.ApplyNamespace(name, labels, env.AsOwnerReference())
 }
 
 // ApplyAdGroupRoleBinding grants access to environment namespace
@@ -103,6 +91,7 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 	}
 
 	roleBinding := kube.GetRolebindingToClusterRole(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adGroups)
+	roleBinding.SetOwnerReferences(env.AsOwnerReference())
 
 	return env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 }
@@ -132,6 +121,21 @@ func (env *Environment) ApplyLimitRange(namespace string) error {
 		*defaultMemoryLimit,
 		*defaultCPURequest,
 		*defaultMemoryRequest)
+	limitRange.SetOwnerReferences(env.AsOwnerReference())
 
 	return env.kubeutil.ApplyLimitRange(namespace, limitRange)
+}
+
+// AsOwnerReference creates an OwnerReference to this environment object
+func (env *Environment) AsOwnerReference() []metav1.OwnerReference {
+	trueVar := true
+	return []metav1.OwnerReference{
+		metav1.OwnerReference{
+			APIVersion: "radix.equinor.com/v1",
+			Kind:       "RadixEnvironment",
+			Name:       env.config.Name,
+			UID:        env.config.UID,
+			Controller: &trueVar,
+		},
+	}
 }
