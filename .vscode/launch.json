@@ -76,6 +76,15 @@
         "RADIX_IMAGE_SCANNER": "radix-image-scanner:master-latest"
       },
       "args": ["--useOutClusterClient=false"]
+    },
+    {
+      "name": "Test RadixEnvironment",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/pkg/apis/environment",
+      "env": {},
+      "args": ["environment_test.go"]
     }
   ]
 }
