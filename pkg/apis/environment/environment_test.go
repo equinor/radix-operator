@@ -61,6 +61,8 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	re, _ := utils.GetRadixEnvironment(envConfig)
 	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
 	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, logger)
+	// register instance with radix-client so UpdateStatus() can find it
+	radixclient.RadixV1().RadixEnvironments().Create(re)
 	return rr, re, env
 }
 

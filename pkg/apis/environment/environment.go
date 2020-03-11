@@ -69,6 +69,11 @@ func (env *Environment) OnSync(time meta.Time) error {
 	env.config.Status.Reconciled = time
 	env.logger.Debugf("Environment %s reconciled", namespaceName)
 
+	_, err = env.radixclient.RadixV1().RadixEnvironments().UpdateStatus(env.config)
+	if err != nil {
+		return fmt.Errorf("Failed to update status on environment %s: %v", env.config.Spec.EnvName, err)
+	}
+
 	return nil
 }
 
