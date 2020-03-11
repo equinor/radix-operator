@@ -1,0 +1,8 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixEnvironment
+metadata:
+  name: testenv
+  uid: af1d2960-5eb7-40e8-9ca2-12fc1fd9916e
+spec:
+  appName: "testapp"
+  envName: "testenv"

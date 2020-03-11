@@ -54,3 +54,17 @@ func GetRadixDeploy(filename string) (*v1.RadixDeployment, error) {
 
 	return &radixDeploy, nil
 }
+
+// GetRadixEnvironment reads RadixEnvironment configuration from a yaml file
+func GetRadixEnvironment(file string) (*v1.RadixEnvironment, error) {
+	raw, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	reg := &v1.RadixEnvironment{}
+	err = yaml.Unmarshal(raw, reg)
+	if err != nil {
+		return nil, err
+	}
+	return reg, nil
+}
