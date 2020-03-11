@@ -30,6 +30,7 @@ type RadixRegistrationSpec struct {
 	AdGroups        []string `json:"adGroups" yaml:"adGroups"`
 	Creator         string   `json:"creator" yaml:"creator"`
 	Owner           string   `json:"owner" yaml:"owner"`
+	MachineUser     bool     `json:"machineUser" yaml:"machineUser"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

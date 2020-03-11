@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -11,6 +12,7 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -56,6 +58,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
+		mockedGranter,
 	)
 	go startRegistrationController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
 
@@ -122,4 +125,9 @@ func startRegistrationController(
 	radixInformerFactory.Start(stop)
 	controller.Run(1, stop)
 
+}
+
+// This is created because the granting to token functionality doesn't work in this context
+func mockedGranter(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error {
+	return nil
 }
