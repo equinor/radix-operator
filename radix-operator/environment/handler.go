@@ -2,15 +2,16 @@ package environment
 
 import (
 	"fmt"
-
-	"github.com/equinor/radix-operator/radix-operator/common"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/environment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/common"
+
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -53,7 +54,7 @@ func NewHandler(
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 // and collects components and determines whether state must be reconciled.
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	envConfig, err := t.radixclient.RadixV1().RadixEnvironments().Get(name, metav1.GetOptions{})
+	envConfig, err := t.radixclient.RadixV1().RadixEnvironments().Get(name, meta.GetOptions{})
 	if err != nil {
 		// The Environment resource may no longer exist, in which case we stop
 		// processing.
@@ -80,12 +81,13 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, envConfig, radixRegistration)
+	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, envConfig, radixRegistration, logger)
+
 	if err != nil {
 		return err
 	}
 
-	err = env.OnSync()
+	err = env.OnSync(meta.NewTime(time.Now().UTC()))
 	if err != nil {
 		return err
 	}

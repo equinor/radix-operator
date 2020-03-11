@@ -9,8 +9,9 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/sirupsen/logrus"
+
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -21,6 +22,7 @@ type Environment struct {
 	kubeutil    *kube.Kube
 	config      *v1.RadixEnvironment
 	regConfig   *v1.RadixRegistration
+	logger      *logrus.Entry
 }
 
 // NewEnvironment is the constructor for Environment
@@ -29,19 +31,21 @@ func NewEnvironment(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	config *v1.RadixEnvironment,
-	regConfig *v1.RadixRegistration) (Environment, error) {
+	regConfig *v1.RadixRegistration,
+	logger *logrus.Entry) (Environment, error) {
 
 	return Environment{
 		kubeclient,
 		radixclient,
 		kubeutil,
 		config,
-		regConfig}, nil
+		regConfig,
+		logger}, nil
 }
 
 // OnSync is called by the handler when changes are applied and must be
 // reconceliated with current state.
-func (env *Environment) OnSync() error {
+func (env *Environment) OnSync(time meta.Time) error {
 
 	// create a globally unique namespace name
 	namespaceName := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
@@ -60,6 +64,10 @@ func (env *Environment) OnSync() error {
 	if err != nil {
 		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
+
+	// time is parameterized for testability
+	env.config.Status.Reconciled = time
+	env.logger.Debugf("Environment %s reconciled", namespaceName)
 
 	return nil
 }
@@ -111,7 +119,7 @@ func (env *Environment) ApplyLimitRange(namespace string) error {
 		defaultMemoryLimit == nil ||
 		defaultCPURequest == nil ||
 		defaultMemoryRequest == nil {
-		log.Warningf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
+		env.logger.Warningf("Not all limits are defined for the Operator, so no limitrange will be put on namespace %s", namespace)
 		return nil
 	}
 
@@ -127,10 +135,10 @@ func (env *Environment) ApplyLimitRange(namespace string) error {
 }
 
 // AsOwnerReference creates an OwnerReference to this environment object
-func (env *Environment) AsOwnerReference() []metav1.OwnerReference {
+func (env *Environment) AsOwnerReference() []meta.OwnerReference {
 	trueVar := true
-	return []metav1.OwnerReference{
-		metav1.OwnerReference{
+	return []meta.OwnerReference{
+		meta.OwnerReference{
 			APIVersion: "radix.equinor.com/v1",
 			Kind:       "RadixEnvironment",
 			Name:       env.config.Name,

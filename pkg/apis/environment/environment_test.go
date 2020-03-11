@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -11,7 +12,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +59,8 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment) {
 	rr, _ := utils.GetRadixRegistrationFromFile(regConfig)
 	re, _ := utils.GetRadixEnvironment(envConfig)
-	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr)
+	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
+	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, logger)
 	return rr, re, env
 }
 
@@ -112,9 +116,15 @@ func Test_Create_LimitRange(t *testing.T) {
 
 // sync calls OnSync on the Environment resource and asserts success
 func sync(t *testing.T, env Environment) {
-	err := env.OnSync()
+	time := meta.NewTime(time.Now().UTC())
+	err := env.OnSync(time)
+
 	t.Run("Method succeeds", func(t *testing.T) {
 		assert.NoError(t, err)
+	})
+
+	t.Run("Reconciled time is set", func(t *testing.T) {
+		assert.Equal(t, time, env.config.Status.Reconciled)
 	})
 }
 
@@ -133,7 +143,7 @@ func commonAsserts(t *testing.T, env Environment, resources []meta.Object, name 
 	})
 
 	t.Run("Creation is idempotent", func(t *testing.T) {
-		err := env.OnSync()
+		err := env.OnSync(meta.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
 		assert.Len(t, resources, 1)
 	})

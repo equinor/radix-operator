@@ -9,7 +9,7 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/metrics"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
@@ -24,10 +24,10 @@ const (
 	crType              = "RadixEnvironments"
 )
 
-var logger *log.Entry
+var logger *logrus.Entry
 
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": "environment-controller"})
+	logger = logrus.WithFields(logrus.Fields{"radixOperatorComponent": "environment-controller"})
 }
 
 // NewController creates a new controller that handles RadixEnvironments
