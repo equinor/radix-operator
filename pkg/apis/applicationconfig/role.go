@@ -7,6 +7,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	auth "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (app *ApplicationConfig) grantAccessToBuildSecrets(namespace string) error {
@@ -43,6 +44,61 @@ func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string
 
 	rolebinding := rolebindingPipelineToBuildSecrets(app.GetRadixRegistration(), role)
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(namespace string) error {
+	pipelineRoleName := getPipelineRoleNameToBuildSecrets(defaults.BuildSecretsName)
+	appAdminRoleName := getAppAdminRoleNameToBuildSecrets(defaults.BuildSecretsName)
+
+	// Delete role pipeline-build-secrets
+	_, err := app.kubeutil.GetRole(namespace, pipelineRoleName)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	if err == nil {
+		err = app.kubeutil.DeleteRole(namespace, pipelineRoleName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete rolebinding pipeline-build-secrets
+	_, err = app.kubeutil.GetRoleBinding(namespace, pipelineRoleName)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	if err == nil {
+		err = app.kubeutil.DeleteRoleBinding(namespace, pipelineRoleName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete role radix-app-admin-build-secrets
+	_, err = app.kubeutil.GetRole(namespace, appAdminRoleName)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	if err == nil {
+		err = app.kubeutil.DeleteRole(namespace, appAdminRoleName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete rolebinding radix-app-admin-build-secrets
+	_, err = app.kubeutil.GetRoleBinding(namespace, appAdminRoleName)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	if err == nil {
+		err = app.kubeutil.DeleteRoleBinding(namespace, appAdminRoleName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func roleAppAdminBuildSecrets(registration *radixv1.RadixRegistration, buildSecretName string) *auth.Role {

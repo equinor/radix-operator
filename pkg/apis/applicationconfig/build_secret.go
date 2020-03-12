@@ -12,25 +12,42 @@ import (
 
 func (app *ApplicationConfig) syncBuildSecrets() error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
+	isSecretExist := app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName)
 
-	var buildSecrets []string
-	if app.config.Spec.Build != nil {
-		buildSecrets = app.config.Spec.Build.Secrets
-	}
-
-	if !app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName) {
-		err := app.initializeBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
-		if err != nil {
-			return err
+	if app.config.Spec.Build == nil {
+		if isSecretExist {
+			// Delete build secret
+			err := app.kubeutil.DeleteSecret(appNamespace, defaults.BuildSecretsName)
+			if err != nil {
+				log.Warnf("Failed to delete build secret: %v", err)
+				return err
+			}
 		}
 
-		err = app.grantAccessToBuildSecrets(appNamespace)
+		// Garbage collect access to build secret (RBAC)
+		err := app.garbageCollectAccessToBuildSecrets(appNamespace)
 		if err != nil {
+			log.Warnf("Failed to perform garbage collection of access to build secret: %v", err)
 			return err
 		}
-
 	} else {
-		err := app.updateBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
+		buildSecrets := app.config.Spec.Build.Secrets
+		if !isSecretExist {
+			// Create build secret and grant access to it
+			err := app.initializeBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Update build secret if there is any change
+			err := app.updateBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
+			if err != nil {
+				return err
+			}
+		}
+
+		// Grant access to build secret (RBAC)
+		err := app.grantAccessToBuildSecrets(appNamespace)
 		if err != nil {
 			return err
 		}
