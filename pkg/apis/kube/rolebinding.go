@@ -124,7 +124,7 @@ func getRoleBindingForSubjects(roleName, kind string, subjects []auth.Subject, l
 // ApplyRoleBinding Creates or updates role
 func (k *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error {
 	logger.Debugf("Apply role binding %s", role.Name)
-	oldRoleBinding, err := k.getRoleBinding(namespace, role.GetName())
+	oldRoleBinding, err := k.GetRoleBinding(namespace, role.GetName())
 	if err != nil && errors.IsNotFound(err) {
 		createdRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(role)
 		if err != nil {
@@ -253,7 +253,8 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount 
 	return k.ApplyClusterRoleBinding(rolebinding)
 }
 
-func (k *Kube) getRoleBinding(namespace, name string) (*auth.RoleBinding, error) {
+// GetRoleBinding Gets rolebinding
+func (k *Kube) GetRoleBinding(namespace, name string) (*auth.RoleBinding, error) {
 	var role *auth.RoleBinding
 	var err error
 
@@ -389,4 +390,14 @@ func (k *Kube) getClusterRoleBinding(name string) (*auth.ClusterRoleBinding, err
 	}
 
 	return clusterRoleBinding, nil
+}
+
+// DeleteRoleBinding Deletes a rolebinding object in a namespace
+func (k *Kube) DeleteRoleBinding(namespace, name string) error {
+	err := k.kubeClient.RbacV1().RoleBindings(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -271,3 +271,13 @@ func (k *Kube) GetClusterRole(name string) (*auth.ClusterRole, error) {
 
 	return clusterRole, nil
 }
+
+// DeleteRole Deletes a role in a namespace
+func (k *Kube) DeleteRole(namespace, name string) error {
+	err := k.kubeClient.RbacV1().Roles(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

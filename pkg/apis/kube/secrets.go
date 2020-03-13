@@ -149,3 +149,12 @@ func (k *Kube) ListSecretsWithSelector(namespace string, labelSelectorString *st
 
 	return secrets, nil
 }
+
+// DeleteSecret Deletes a secret in a namespace
+func (k *Kube) DeleteSecret(namespace, secretName string) error {
+	err := k.kubeClient.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
