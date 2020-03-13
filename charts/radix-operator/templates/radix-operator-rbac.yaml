@@ -25,6 +25,7 @@ rules:
   - radixregistrations
   - radixregistrations/status
   - radixapplications
+  - radixenvironments
   - radixdeployments
   - radixdeployments/status
   - radixjobs
