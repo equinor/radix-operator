@@ -360,7 +360,7 @@ func (k *Kube) DeleteClusterRoleBinding(name string) error {
 
 // DeleteRoleBinding Deletes a rolebinding in a namespace
 func (k *Kube) DeleteRoleBinding(namespace, name string) error {
-	_, err := k.getRoleBinding(namespace, name)
+	_, err := k.GetRoleBinding(namespace, name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
@@ -390,14 +390,4 @@ func (k *Kube) getClusterRoleBinding(name string) (*auth.ClusterRoleBinding, err
 	}
 
 	return clusterRoleBinding, nil
-}
-
-// DeleteRoleBinding Deletes a rolebinding object in a namespace
-func (k *Kube) DeleteRoleBinding(namespace, name string) error {
-	err := k.kubeClient.RbacV1().RoleBindings(namespace).Delete(name, &metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
