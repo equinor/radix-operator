@@ -58,8 +58,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
 
-	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+	aRadixRegistrationBuilder := utils.ARadixRegistration().
+		WithMachineUser(true)
+
+	aRadixApplicationBuilder := utils.ARadixApplication().
+		WithRadixRegistration(aRadixRegistrationBuilder)
+
+	aRadixDeploymentBuilder := utils.ARadixDeployment().
+		WithRadixApplication(aRadixApplicationBuilder).
 		WithAppName("edcradix").
 		WithImageTag("axmz8").
 		WithEnvironment("test").
@@ -92,7 +98,10 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				WithName("radixquote").
 				WithPort("http", 3000).
 				WithPublicPort("http").
-				WithSecrets([]string{"a_secret"})))
+				WithSecrets([]string{"a_secret"}))
+
+	// Test
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, aRadixDeploymentBuilder)
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
@@ -187,6 +196,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
 		assert.True(t, roleBindingByNameExists("radix-app-adm-radixquote", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+		assert.Equal(t, 2, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
+		assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects[1].Name)
 
 		// Exists due to external DNS, even though this is not acive cluster
 		assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")

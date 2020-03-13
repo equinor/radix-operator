@@ -22,6 +22,8 @@ type RadixApplicationExpansion interface{}
 
 type RadixDeploymentExpansion interface{}
 
+type RadixEnvironmentExpansion interface{}
+
 type RadixJobExpansion interface{}
 
 type RadixRegistrationExpansion interface{}

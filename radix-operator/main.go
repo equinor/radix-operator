@@ -11,12 +11,14 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
+	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -58,6 +60,7 @@ func main() {
 
 	go startRegistrationController(client, radixClient, eventRecorder, stop)
 	go startApplicationController(client, radixClient, eventRecorder, stop)
+	go startEnvironmentController(client, radixClient, eventRecorder, stop)
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
 	go startJobController(client, radixClient, eventRecorder, stop)
 
@@ -88,6 +91,9 @@ func startRegistrationController(
 		kubeUtil,
 		radixClient,
 		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+
+		// Pass the default granter function to grant access to the service account token
+		applicationAPI.GrantAppAdminAccessToMachineUserToken,
 	)
 
 	waitForChildrenToSync := true
@@ -146,6 +152,48 @@ func startApplicationController(
 	radixInformerFactory.Start(stop)
 
 	if err := applicationController.Run(threadiness, stop); err != nil {
+		logger.Fatalf("Error running controller: %s", err.Error())
+	}
+}
+
+func startEnvironmentController(
+	client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	recorder record.EventRecorder,
+	stop <-chan struct{}) {
+
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
+
+	kubeUtil, _ := kube.NewWithListers(
+		client,
+		radixClient,
+		kubeInformerFactory,
+		radixInformerFactory,
+	)
+
+	handler := environment.NewHandler(
+		client,
+		kubeUtil,
+		radixClient,
+		func(syncedOk bool) {}, // Not interested in getting notifications of synced
+	)
+
+	waitForChildrenToSync := true
+	environmentController := environment.NewController(
+		client,
+		kubeUtil,
+		radixClient,
+		&handler,
+		kubeInformerFactory,
+		radixInformerFactory,
+		waitForChildrenToSync,
+		recorder)
+
+	kubeInformerFactory.Start(stop)
+	radixInformerFactory.Start(stop)
+
+	if err := environmentController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }

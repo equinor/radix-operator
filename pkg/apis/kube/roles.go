@@ -237,6 +237,21 @@ func (k *Kube) ListClusterRoles(namespace string) ([]*auth.ClusterRole, error) {
 	return clusterRoles, nil
 }
 
+// DeleteRole Deletes a role in a namespace
+func (k *Kube) DeleteRole(namespace, name string) error {
+	_, err := k.GetRole(namespace, name)
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("Failed to get role object: %v", err)
+	}
+	err = k.kubeClient.RbacV1().Roles(namespace).Delete(name, &metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to delete role object: %v", err)
+	}
+	return nil
+}
+
 // GetClusterRole Gets cluster role
 func (k *Kube) GetClusterRole(name string) (*auth.ClusterRole, error) {
 	var clusterRole *auth.ClusterRole
@@ -255,14 +270,4 @@ func (k *Kube) GetClusterRole(name string) (*auth.ClusterRole, error) {
 	}
 
 	return clusterRole, nil
-}
-
-// DeleteRole Deletes a role in a namespace
-func (k *Kube) DeleteRole(namespace, name string) error {
-	err := k.kubeClient.RbacV1().Roles(namespace).Delete(name, &metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

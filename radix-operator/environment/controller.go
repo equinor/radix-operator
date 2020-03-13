@@ -1,18 +1,17 @@
-package registration
+package environment
 
 import (
 	"reflect"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/metrics"
-	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/sirupsen/logrus"
+
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -20,33 +19,34 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-var logger *log.Entry
-
 const (
-	controllerAgentName = "registration-controller"
-	crType              = "RadixRegistrations"
+	controllerAgentName = "environment-controller"
+	crType              = "RadixEnvironments"
 )
 
+var logger *logrus.Entry
+
 func init() {
-	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
+	logger = logrus.WithFields(logrus.Fields{"radixOperatorComponent": "environment-controller"})
 }
 
-//NewController creates a new controller that handles RadixRegistrations
+// NewController creates a new controller that handles RadixEnvironments
 func NewController(client kubernetes.Interface,
 	kubeutil *kube.Kube,
-	radixClient radixclient.Interface, handler common.Handler,
+	radixClient radixclient.Interface,
+	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 
-	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
+	environmentInformer := radixInformerFactory.Radix().V1().RadixEnvironments()
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
 		HandlerOf:             crType,
 		KubeClient:            client,
 		RadixClient:           radixClient,
-		Informer:              registrationInformer.Informer(),
+		Informer:              environmentInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
 		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
 		Handler:               handler,
@@ -57,17 +57,17 @@ func NewController(client kubernetes.Interface,
 
 	logger.Info("Setting up event handlers")
 
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	environmentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			controller.Enqueue(cur)
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			newRR := cur.(*v1.RadixRegistration)
-			oldRR := old.(*v1.RadixRegistration)
+			newRR := cur.(*v1.RadixEnvironment)
+			oldRR := old.(*v1.RadixEnvironment)
 
 			if deepEqual(oldRR, newRR) {
-				logger.Debugf("Registration object is equal to old for %s. Do nothing", newRR.GetName())
+				logger.Debugf("Environment object is equal to old for %s. Do nothing", newRR.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -76,10 +76,10 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixRegistration, _ := obj.(*v1.RadixRegistration)
-			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
+			radixEnvironment, _ := obj.(*v1.RadixEnvironment)
+			key, err := cache.MetaNamespaceKeyFunc(radixEnvironment)
 			if err == nil {
-				logger.Debugf("Registration object deleted event received for %s. Do nothing", key)
+				logger.Debugf("Environment object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -88,34 +88,31 @@ func NewController(client kubernetes.Interface,
 	namespaceInformer := kubeInformerFactory.Core().V1().Namespaces()
 	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixRegistration", getObject)
+			// attempt to sync environment if it is the owner of this namespace
+			controller.HandleObject(obj, "RadixEnvironment", getOwner)
 		},
 	})
 
-	secretInformer := kubeInformerFactory.Core().V1().Secrets()
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	rolebindingInformer := kubeInformerFactory.Rbac().V1().RoleBindings()
+	rolebindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			secret, _ := obj.(*corev1.Secret)
-			namespace, _ := client.CoreV1().Namespaces().Get(secret.Namespace, metav1.GetOptions{})
-			appName := namespace.Labels[kube.RadixAppLabel]
+			// attempt to sync environment if it is the owner of this role-binding
+			controller.HandleObject(obj, "RadixEnvironment", getOwner)
+		},
+	})
 
-			if isMachineUserToken(appName, secret) {
-				// Resync, as token is deleted. Resync is triggered on namespace, since RR not directly own the
-				// secret
-				controller.HandleObject(namespace, "RadixRegistration", getObject)
-			}
+	limitrangeInformer := kubeInformerFactory.Core().V1().LimitRanges()
+	limitrangeInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			// attempt to sync environment if it is the owner of this limit-range
+			controller.HandleObject(obj, "RadixEnvironment", getOwner)
 		},
 	})
 
 	return controller
 }
 
-func isMachineUserToken(appName string, secret *corev1.Secret) bool {
-	machineUserServiceAccount := defaults.GetMachineUserRoleName(appName)
-	return secret.Annotations[corev1.ServiceAccountNameKey] == machineUserServiceAccount
-}
-
-func deepEqual(old, new *v1.RadixRegistration) bool {
+func deepEqual(old, new *v1.RadixEnvironment) bool {
 	if !reflect.DeepEqual(new.Spec, old.Spec) ||
 		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
 		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
@@ -125,6 +122,6 @@ func deepEqual(old, new *v1.RadixRegistration) bool {
 	return true
 }
 
-func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
+func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
+	return radixClient.RadixV1().RadixEnvironments().Get(name, meta.GetOptions{})
 }
