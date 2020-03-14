@@ -5,16 +5,13 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/environment"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -185,21 +182,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 				EnvName: env,
 			},
 		}
-
 		app.ApplyEnvironment(envConfig)
-
-		logger := logrus.WithFields(logrus.Fields{"environmentName": env})
-		env, err := environment.NewEnvironment(app.kubeclient, app.kubeutil, app.radixclient, envConfig, app.registration, logger)
-		if err != nil {
-			// TODO: clean up orphan resources?
-			return err
-		}
-
-		err = env.OnSync(metav1.NewTime(time.Now().UTC()))
-		if err != nil {
-			// TODO: clean up orphan resources?
-			return err
-		}
 	}
 
 	return nil
