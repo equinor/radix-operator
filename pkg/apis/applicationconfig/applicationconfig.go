@@ -149,7 +149,6 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
-	// TODO : IKNU : remove the following block
 	err = app.syncPrivateImageHubSecrets()
 	if err != nil {
 		log.Errorf("Failed to create private image hub secrets. %v", err)
@@ -167,7 +166,6 @@ func (app *ApplicationConfig) OnSync() error {
 		log.Errorf("Failed to create build secrets. %v", err)
 		return err
 	}
-	// TODO : IKNU : Remove until here
 
 	return nil
 }
@@ -179,13 +177,19 @@ func (app *ApplicationConfig) createEnvironments() error {
 	for env := range targetEnvs {
 
 		envConfig := &v1.RadixEnvironment{
-			// TODO : IKNU : Probably you will need to have this
-			// ObjectMeta: metav1.ObjectMeta{
-			// 	Name: fmt.Sprintf("%s-%s", app.config.Name, env),
-			// },
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "radix.equinor.com/v1",
+				Kind:       "RadixEnvironment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: fmt.Sprintf("%s-%s", app.config.Name, env),
+			},
 			Spec: v1.RadixEnvironmentSpec{
 				AppName: app.config.Name,
 				EnvName: env,
+			},
+			Status: v1.RadixEnvironmentStatus{
+				Reconciled: metav1.Time{},
 			},
 		}
 
