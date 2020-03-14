@@ -85,6 +85,15 @@
       "program": "${workspaceFolder}/pkg/apis/environment",
       "env": {},
       "args": ["environment_test.go"]
+    },
+    {
+      "name": "Test RadixApplication",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/pkg/apis/application",
+      "env": {},
+      "args": ["application_test.go"]
     }
   ]
 }

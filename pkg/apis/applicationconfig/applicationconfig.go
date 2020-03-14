@@ -1,21 +1,25 @@
 package applicationconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/environment"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 
-	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -28,7 +32,7 @@ type ApplicationConfig struct {
 	radixclient  radixclient.Interface
 	kubeutil     *kube.Kube
 	registration *v1.RadixRegistration
-	config       *radixv1.RadixApplication
+	config       *v1.RadixApplication
 }
 
 // NewApplicationConfig Constructor
@@ -37,7 +41,7 @@ func NewApplicationConfig(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	registration *v1.RadixRegistration,
-	config *radixv1.RadixApplication) (*ApplicationConfig, error) {
+	config *v1.RadixApplication) (*ApplicationConfig, error) {
 	return &ApplicationConfig{
 		kubeclient,
 		radixclient,
@@ -47,12 +51,12 @@ func NewApplicationConfig(
 }
 
 // GetRadixApplicationConfig returns the provided config
-func (app *ApplicationConfig) GetRadixApplicationConfig() *radixv1.RadixApplication {
+func (app *ApplicationConfig) GetRadixApplicationConfig() *v1.RadixApplication {
 	return app.config
 }
 
 // GetRadixRegistration returns the provided radix registration
-func (app *ApplicationConfig) GetRadixRegistration() *radixv1.RadixRegistration {
+func (app *ApplicationConfig) GetRadixRegistration() *v1.RadixRegistration {
 	return app.registration
 }
 
@@ -174,39 +178,34 @@ func (app *ApplicationConfig) createEnvironments() error {
 	targetEnvs := getTargetEnvironmentsAsMap("", app.config)
 
 	for env := range targetEnvs {
-		namespaceName := utils.GetEnvironmentNamespace(app.config.Name, env)
-		ownerRef := application.GetOwnerReferenceOfRegistration(app.registration)
-		labels := map[string]string{
-			"sync":                         "cluster-wildcard-tls-cert",
-			"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
-			"app-wildcard-sync":            "app-wildcard-tls-cert",
-			"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
-			kube.RadixAppLabel:             app.config.Name,
-			kube.RadixEnvLabel:             env,
-		}
-		key, value := GetKubeDPrivateImageHubAnnotationValues(app.config.Name)
-		labels[key] = value
 
-		err := app.kubeutil.ApplyNamespace(namespaceName, labels, ownerRef)
+		envConfig := &v1.RadixEnvironment{
+			Spec: v1.RadixEnvironmentSpec{
+				AppName: app.config.Name,
+				EnvName: env,
+			},
+		}
+
+		app.ApplyEnvironment(envConfig)
+
+		logger := logrus.WithFields(logrus.Fields{"environmentName": env})
+		env, err := environment.NewEnvironment(app.kubeclient, app.kubeutil, app.radixclient, envConfig, app.registration, logger)
 		if err != nil {
+			// TODO: clean up orphan resources?
 			return err
 		}
 
-		err = app.grantAppAdminAccessToNs(namespaceName)
+		err = env.OnSync(metav1.NewTime(time.Now().UTC()))
 		if err != nil {
-			return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", namespaceName, err)
-		}
-
-		err = app.createLimitRangeOnEnvironmentNamespace(namespaceName)
-		if err != nil {
-			return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
+			// TODO: clean up orphan resources?
+			return err
 		}
 	}
 
 	return nil
 }
 
-func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *radixv1.RadixApplication) map[string]bool {
+func getTargetEnvironmentsAsMap(branchToBuild string, radixApplication *v1.RadixApplication) map[string]bool {
 	targetEnvs := make(map[string]bool)
 	for _, env := range radixApplication.Spec.Environments {
 		if env.Build.From != "" && branch.MatchesPattern(env.Build.From, branchToBuild) {
@@ -237,4 +236,63 @@ func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
 	}
 
 	return false
+}
+
+// ApplyEnvironment creates an environment or applies changes if it exists
+func (app *ApplicationConfig) ApplyEnvironment(newRe *v1.RadixEnvironment) error {
+	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
+	logger.Debugf("Apply environment %s", newRe.Name)
+
+	oldRe, err := app.radixclient.RadixV1().RadixEnvironments().Get(newRe.Name, metav1.GetOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		// Environment does not exist yet
+
+		newRe, err = app.radixclient.RadixV1().RadixEnvironments().Create(newRe)
+		if err != nil {
+			return fmt.Errorf("Failed to create RadixEnvironment object: %v", err)
+		}
+		logger.Debugf("Created RadixEnvironment: %s", newRe.Name)
+
+	} else if err != nil {
+		return fmt.Errorf("Failed to get RadixEnvironment object: %v", err)
+
+	} else {
+		// Environment already exists
+
+		logger.Debugf("RadixEnvironment object %s already exists, updating the object now", oldRe.Name)
+		err = patchDifference(app.radixclient, oldRe, newRe, logger)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix
+func patchDifference(radixclient radixclient.Interface, oldRe *v1.RadixEnvironment, newRe *v1.RadixEnvironment, logger *log.Entry) error {
+	// TODO: parameterize radixclient.RadixV1().RadixEnvironments()
+
+	oldReJSON, err := json.Marshal(oldRe)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal old RadixEnvironment object: %v", err)
+	}
+
+	newReJSON, err := json.Marshal(newRe)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal new RadixEnvironment object: %v", err)
+	}
+
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, newReJSON, v1.RadixEnvironment{})
+
+	if string(patchBytes) != "{}" {
+		patchedLimitRange, err := radixclient.RadixV1().RadixEnvironments().Patch(newRe.Name, types.StrategicMergePatchType, patchBytes)
+		if err != nil {
+			return fmt.Errorf("Failed to patch RadixEnvironment object: %v", err)
+		}
+		logger.Debugf("Patched RadixEnvironment: %s", patchedLimitRange.Name)
+	} else {
+		logger.Debugf("No need to patch RadixEnvironment: %s ", newRe.Name)
+	}
+
+	return nil
 }
