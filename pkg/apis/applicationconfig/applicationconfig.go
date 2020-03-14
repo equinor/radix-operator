@@ -12,6 +12,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	radixTypes "github.com/equinor/radix-operator/pkg/client/clientset/versioned/typed/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -193,8 +194,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 			},
 		}
 
-		// TODO : IKNU : This function should probably be private, that is applyEnvironment
-		app.ApplyEnvironment(envConfig)
+		app.applyEnvironment(envConfig)
 	}
 
 	return nil
@@ -234,19 +234,17 @@ func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
 }
 
 // ApplyEnvironment creates an environment or applies changes if it exists
-func (app *ApplicationConfig) ApplyEnvironment(newRe *v1.RadixEnvironment) error {
+func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error {
 	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
 	logger.Debugf("Apply environment %s", newRe.Name)
 
-	// TODO : IKNU : a way to wrap RadixV1().RadixEnvironments()
-	// wrapper := NewEnvironmentWrapperImpl(app.radixclient)
-	// oldRe, err := wrapper.Get(newRe.Name)
+	repository := app.radixclient.RadixV1().RadixEnvironments()
 
-	oldRe, err := app.radixclient.RadixV1().RadixEnvironments().Get(newRe.Name, metav1.GetOptions{})
+	oldRe, err := repository.Get(newRe.Name, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		// Environment does not exist yet
 
-		newRe, err = app.radixclient.RadixV1().RadixEnvironments().Create(newRe)
+		newRe, err = repository.Create(newRe)
 		if err != nil {
 			return fmt.Errorf("Failed to create RadixEnvironment object: %v", err)
 		}
@@ -259,7 +257,7 @@ func (app *ApplicationConfig) ApplyEnvironment(newRe *v1.RadixEnvironment) error
 		// Environment already exists
 
 		logger.Debugf("RadixEnvironment object %s already exists, updating the object now", oldRe.Name)
-		err = patchDifference(app.radixclient, oldRe, newRe, logger)
+		err = patchDifference(repository, oldRe, newRe, logger)
 		if err != nil {
 			return err
 		}
@@ -268,8 +266,7 @@ func (app *ApplicationConfig) ApplyEnvironment(newRe *v1.RadixEnvironment) error
 }
 
 // patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix
-func patchDifference(radixclient radixclient.Interface, oldRe *v1.RadixEnvironment, newRe *v1.RadixEnvironment, logger *log.Entry) error {
-	// TODO: parameterize radixclient.RadixV1().RadixEnvironments()
+func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.RadixEnvironment, newRe *v1.RadixEnvironment, logger *log.Entry) error {
 
 	oldReJSON, err := json.Marshal(oldRe)
 	if err != nil {
@@ -284,7 +281,7 @@ func patchDifference(radixclient radixclient.Interface, oldRe *v1.RadixEnvironme
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, newReJSON, v1.RadixEnvironment{})
 
 	if string(patchBytes) != "{}" {
-		patchedLimitRange, err := radixclient.RadixV1().RadixEnvironments().Patch(newRe.Name, types.StrategicMergePatchType, patchBytes)
+		patchedLimitRange, err := repository.Patch(newRe.Name, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch RadixEnvironment object: %v", err)
 		}
