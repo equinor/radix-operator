@@ -171,7 +171,7 @@ func (app *ApplicationConfig) OnSync() error {
 	return nil
 }
 
-// CreateEnvironments Will create environments defined in the radix config
+// createEnvironments Will create environments defined in the radix config
 func (app *ApplicationConfig) createEnvironments() error {
 	targetEnvs := getTargetEnvironmentsAsMap("", app.config)
 
@@ -184,6 +184,9 @@ func (app *ApplicationConfig) createEnvironments() error {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: fmt.Sprintf("%s-%s", app.config.Name, env),
+				Labels: map[string]string{
+					kube.RadixAppLabel: app.config.Name,
+				},
 			},
 			Spec: v1.RadixEnvironmentSpec{
 				AppName: app.config.Name,
@@ -233,7 +236,7 @@ func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
 	return false
 }
 
-// ApplyEnvironment creates an environment or applies changes if it exists
+// applyEnvironment creates an environment or applies changes if it exists
 func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error {
 	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
 	logger.Debugf("Apply environment %s", newRe.Name)

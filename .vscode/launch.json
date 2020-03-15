@@ -91,9 +91,9 @@
       "type": "go",
       "request": "launch",
       "mode": "test",
-      "program": "${workspaceFolder}/pkg/apis/application",
+      "program": "${workspaceFolder}/pkg/apis/applicationconfig",
       "env": {},
-      "args": ["application_test.go"]
+      "args": ["applicationconfig_test.go"]
     }
   ]
 }

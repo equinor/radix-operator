@@ -90,10 +90,19 @@ func Test_Create_RoleBinding(t *testing.T) {
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-app-admin-envs")
 
 	adGroupName := rr.Spec.AdGroups[0]
-	t.Run("It contains the correct roles", func(t *testing.T) {
+	t.Run("It contains the correct AD groups", func(t *testing.T) {
 		subjects := rolebindings.Items[0].Subjects
 		assert.Len(t, subjects, 1)
 		assert.Equal(t, adGroupName, subjects[0].Name)
+	})
+
+	t.Run("It contains machine-user", func(t *testing.T) {
+		rr.Spec.MachineUser = true
+		sync(t, env)
+		rolebindings, _ = client.RbacV1().RoleBindings(namespaceName).List(meta.ListOptions{})
+		subjects := rolebindings.Items[0].Subjects
+		assert.Len(t, subjects, 2)
+		assert.Equal(t, "testapp-machine-user", subjects[1].Name)
 	})
 }
 
