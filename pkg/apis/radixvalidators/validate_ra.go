@@ -153,6 +153,13 @@ func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(compone
 		componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
+// SecretNameConfictsWithEnvironmentVariable If secret name is the same as environment variable fail validation
+func SecretNameConfictsWithEnvironmentVariable(componentName, secretName string) error {
+	return fmt.Errorf(
+		"Component %s has a secret with name %s which exists as an environment variable",
+		componentName, secretName)
+}
+
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
 func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
 	errs := []error{}
@@ -177,6 +184,11 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	}
 
 	err = validateEnvironmentVariableNames(app)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = validateConflictingEnvironmentAndSecretNames(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -471,6 +483,21 @@ func validateEnvironmentVariableNames(app *radixv1.RadixApplication) error {
 				err := validateVariableName("environment variable name", environmentVariable)
 				if err != nil {
 					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func validateConflictingEnvironmentAndSecretNames(app *radixv1.RadixApplication) error {
+	for _, component := range app.Spec.Components {
+		for _, envConfig := range component.EnvironmentConfig {
+			for environmentVariable := range envConfig.Variables {
+				for _, secret := range component.Secrets {
+					if strings.EqualFold(environmentVariable, secret) {
+						return SecretNameConfictsWithEnvironmentVariable(component.Name, secret)
+					}
 				}
 			}
 		}
