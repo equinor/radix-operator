@@ -18,6 +18,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	extension "k8s.io/api/extensions/v1beta1"
@@ -107,7 +108,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
 		assert.Equal(t, "app", getDeploymentByName("app", deployments).Name, "app deployment not there")
 		assert.Equal(t, int32(4), *getDeploymentByName("app", deployments).Spec.Replicas, "number of replicas was unexpected")
@@ -416,7 +417,7 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
-	deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(deployments.Items), "Number of deployments wasn't as expected")
 
 	services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
@@ -446,7 +447,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 7, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "Should only have default environment variables")
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
@@ -486,7 +487,7 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 
 	t.Run("validate deploy labels", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, "master", deployments.Items[0].Annotations[kubeUtils.RadixBranchAnnotation])
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["radix-commit"])
 	})
@@ -519,7 +520,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("app1", "prod")
-	deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, firstUID, deployments.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
 	services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
@@ -542,7 +543,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
-	deployments, _ = client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
 	services, _ = client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
@@ -567,7 +568,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, rdBuilder)
 
-	deployments, _ = client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 
 	services, _ = client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
@@ -597,7 +598,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	ingresses, _ := client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
-	deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	firstDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
 	assert.NotEqual(t, "", firstDeploymentUpdateTime)
 
@@ -616,7 +617,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	ingresses, _ = client.ExtensionsV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
-	deployments, _ = client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	secondDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
 	assert.NotEqual(t, "", secondDeploymentUpdateTime)
 	assert.NotEqual(t, firstDeploymentUpdateTime, secondDeploymentUpdateTime)
@@ -714,7 +715,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.ExtensionsV1beta1().Deployments(envNamespace).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(deployments.Items), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
@@ -1522,11 +1523,11 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface, kubeUt
 	return nil
 }
 
-func envVariableByNameExistOnDeployment(name, deploymentName string, deployments *extension.DeploymentList) bool {
+func envVariableByNameExistOnDeployment(name, deploymentName string, deployments *appsv1.DeploymentList) bool {
 	return envVariableByNameExist(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
 }
 
-func getEnvVariableByNameOnDeployment(name, deploymentName string, deployments *extension.DeploymentList) string {
+func getEnvVariableByNameOnDeployment(name, deploymentName string, deployments *appsv1.DeploymentList) string {
 	return getEnvVariableByName(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
 }
 
@@ -1544,11 +1545,11 @@ func getRadixDeploymentByName(name string, deployments *v1.RadixDeploymentList) 
 	return nil
 }
 
-func deploymentByNameExists(name string, deployments *extension.DeploymentList) bool {
+func deploymentByNameExists(name string, deployments *appsv1.DeploymentList) bool {
 	return getDeploymentByName(name, deployments) != nil
 }
 
-func getDeploymentByName(name string, deployments *extension.DeploymentList) *extension.Deployment {
+func getDeploymentByName(name string, deployments *appsv1.DeploymentList) *appsv1.Deployment {
 	for _, deployment := range deployments.Items {
 		if deployment.Name == name {
 			return &deployment

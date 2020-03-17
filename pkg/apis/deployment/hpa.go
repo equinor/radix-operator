@@ -102,7 +102,7 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 			ScaleTargetRef: autoscalingv1.CrossVersionObjectReference{
 				Kind:       "Deployment",
 				Name:       componentName,
-				APIVersion: "extensions/v1beta1",
+				APIVersion: "apps/v1",
 			},
 		},
 	}
