@@ -149,6 +149,7 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
+	// TODO : IKNU : remove the following block
 	err = app.syncPrivateImageHubSecrets()
 	if err != nil {
 		log.Errorf("Failed to create private image hub secrets. %v", err)
@@ -166,6 +167,7 @@ func (app *ApplicationConfig) OnSync() error {
 		log.Errorf("Failed to create build secrets. %v", err)
 		return err
 	}
+	// TODO : IKNU : Remove until here
 
 	return nil
 }
@@ -177,11 +179,17 @@ func (app *ApplicationConfig) createEnvironments() error {
 	for env := range targetEnvs {
 
 		envConfig := &v1.RadixEnvironment{
+			// TODO : IKNU : Probably you will need to have this
+			// ObjectMeta: metav1.ObjectMeta{
+			// 	Name: fmt.Sprintf("%s-%s", app.config.Name, env),
+			// },
 			Spec: v1.RadixEnvironmentSpec{
 				AppName: app.config.Name,
 				EnvName: env,
 			},
 		}
+
+		// TODO : IKNU : This function should probably be private, that is applyEnvironment
 		app.ApplyEnvironment(envConfig)
 	}
 
@@ -225,6 +233,10 @@ func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
 func (app *ApplicationConfig) ApplyEnvironment(newRe *v1.RadixEnvironment) error {
 	logger := log.WithFields(log.Fields{"environment": newRe.ObjectMeta.Name})
 	logger.Debugf("Apply environment %s", newRe.Name)
+
+	// TODO : IKNU : a way to wrap RadixV1().RadixEnvironments()
+	// wrapper := NewEnvironmentWrapperImpl(app.radixclient)
+	// oldRe, err := wrapper.Get(newRe.Name)
 
 	oldRe, err := app.radixclient.RadixV1().RadixEnvironments().Get(newRe.Name, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
