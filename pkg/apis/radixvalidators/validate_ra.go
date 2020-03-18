@@ -492,12 +492,15 @@ func validateEnvironmentVariableNames(app *radixv1.RadixApplication) error {
 
 func validateConflictingEnvironmentAndSecretNames(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
+		secretNames := make(map[string]struct{})
+		for _, secret := range component.Secrets {
+			secretNames[secret] = struct{}{}
+		}
+
 		for _, envConfig := range component.EnvironmentConfig {
 			for environmentVariable := range envConfig.Variables {
-				for _, secret := range component.Secrets {
-					if strings.EqualFold(environmentVariable, secret) {
-						return SecretNameConfictsWithEnvironmentVariable(component.Name, secret)
-					}
+				if _, contains := secretNames[environmentVariable]; contains {
+					return SecretNameConfictsWithEnvironmentVariable(component.Name, environmentVariable)
 				}
 			}
 		}
