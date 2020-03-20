@@ -36,6 +36,7 @@ type updateRAFunc func(rr *v1.RadixApplication)
 
 func Test_invalid_ra(t *testing.T) {
 	validRAFirstComponentName := "app"
+	validRASecondComponentName := "redis"
 
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
 	tooLongPortName := "abcdefghijklmnop"
@@ -48,6 +49,7 @@ func Test_invalid_ra(t *testing.T) {
 	nonExistingComponent := "non existing"
 	unsupportedResource := "unsupportedResource"
 	invalidResourceValue := "asdfasd"
+	conflicingVariableName := "some-variable"
 
 	var testScenarios = []struct {
 		name          string
@@ -94,6 +96,10 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"too long environment variable name", radixvalidators.InvalidResourceNameLengthError("environment variable name", wayTooLongName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
+		}},
+		{"conflicting variable and secret name", radixvalidators.SecretNameConfictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].EnvironmentConfig[0].Variables[conflicingVariableName] = "Any value"
+			ra.Spec.Components[1].Secrets[0] = conflicingVariableName
 		}},
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
