@@ -111,6 +111,12 @@ func NewController(client kubernetes.Interface,
 			}
 			controller.HandleObject(cur, "RadixJob", getObject)
 		},
+		DeleteFunc: func(obj interface{}) {
+			job := obj.(*batchv1.Job)
+			// If a kubernetes job gets deleted for a running job, the running radix job should
+			// abort
+			controller.HandleObject(job, "RadixJob", getObject)
+		},
 	})
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -135,6 +141,12 @@ func NewController(client kubernetes.Interface,
 
 				controller.HandleObject(job, "RadixJob", getObject)
 			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			pod := obj.(*corev1.Pod)
+			// If a kubernetes pod gets deleted for a running job, the running radix job may
+			// need to take this into account
+			controller.HandleObject(pod, "RadixJob", getObject)
 		},
 	})
 
