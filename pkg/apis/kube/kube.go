@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	appsv1Listers "k8s.io/client-go/listers/apps/v1"
 	coreListers "k8s.io/client-go/listers/core/v1"
-	extensionListers "k8s.io/client-go/listers/extensions/v1beta1"
+	networkingListers "k8s.io/client-go/listers/networking/v1beta1"
 	rbacListers "k8s.io/client-go/listers/rbac/v1"
 )
 
@@ -54,7 +54,7 @@ type Kube struct {
 	ConfigMapLister          coreListers.ConfigMapLister
 	SecretLister             coreListers.SecretLister
 	DeploymentLister         appsv1Listers.DeploymentLister
-	IngressLister            extensionListers.IngressLister
+	IngressLister            networkingListers.IngressLister
 	ServiceLister            coreListers.ServiceLister
 	RoleBindingLister        rbacListers.RoleBindingLister
 	ClusterRoleBindingLister rbacListers.ClusterRoleBindingLister
@@ -94,7 +94,7 @@ func NewWithListers(client kubernetes.Interface,
 		SecretLister:             kubeInformerFactory.Core().V1().Secrets().Lister(),
 		DeploymentLister:         kubeInformerFactory.Apps().V1().Deployments().Lister(),
 		ServiceLister:            kubeInformerFactory.Core().V1().Services().Lister(),
-		IngressLister:            kubeInformerFactory.Extensions().V1beta1().Ingresses().Lister(),
+		IngressLister:            kubeInformerFactory.Networking().V1beta1().Ingresses().Lister(),
 		RoleBindingLister:        kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
 		ClusterRoleBindingLister: kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
 		RoleLister:               kubeInformerFactory.Rbac().V1().Roles().Lister(),

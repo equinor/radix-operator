@@ -6,7 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,13 +16,13 @@ import (
 )
 
 // ApplyIngress Will create or update ingress in provided namespace
-func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error {
+func (kube *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.Ingress) error {
 	ingressName := ingress.GetName()
 	log.Debugf("Creating Ingress object %s in namespace %s", ingressName, namespace)
 
 	oldIngress, err := kube.getIngress(namespace, ingressName)
 	if err != nil && errors.IsNotFound(err) {
-		_, err := kube.kubeClient.ExtensionsV1beta1().Ingresses(namespace).Create(ingress)
+		_, err := kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).Create(ingress)
 		if err != nil {
 			return fmt.Errorf("Failed to create Ingress object: %v", err)
 		}
@@ -48,13 +48,13 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 		return fmt.Errorf("Failed to marshal new Ingress object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldIngressJSON, newIngressJSON, v1beta1.Ingress{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldIngressJSON, newIngressJSON, networkingv1beta1.Ingress{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch Ingess objects: %v", err)
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedIngress, err := kube.kubeClient.ExtensionsV1beta1().Ingresses(namespace).Patch(ingressName, types.StrategicMergePatchType, patchBytes)
+		patchedIngress, err := kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).Patch(ingressName, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Ingress object: %v", err)
 		}
@@ -66,8 +66,8 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *v1beta1.Ingress) error
 	return nil
 }
 
-func (kube *Kube) getIngress(namespace, name string) (*v1beta1.Ingress, error) {
-	var ingress *v1beta1.Ingress
+func (kube *Kube) getIngress(namespace, name string) (*networkingv1beta1.Ingress, error) {
+	var ingress *networkingv1beta1.Ingress
 	var err error
 
 	if kube.IngressLister != nil {
@@ -76,7 +76,7 @@ func (kube *Kube) getIngress(namespace, name string) (*v1beta1.Ingress, error) {
 			return nil, err
 		}
 	} else {
-		ingress, err = kube.kubeClient.ExtensionsV1beta1().Ingresses(namespace).Get(name, metav1.GetOptions{})
+		ingress, err = kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).Get(name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -86,13 +86,13 @@ func (kube *Kube) getIngress(namespace, name string) (*v1beta1.Ingress, error) {
 }
 
 // ListIngresses lists ingresses
-func (kube *Kube) ListIngresses(namespace string) ([]*v1beta1.Ingress, error) {
+func (kube *Kube) ListIngresses(namespace string) ([]*networkingv1beta1.Ingress, error) {
 	return kube.ListIngressesWithSelector(namespace, nil)
 }
 
 // ListIngressesWithSelector lists ingresses
-func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorString *string) ([]*v1beta1.Ingress, error) {
-	var ingresses []*v1beta1.Ingress
+func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorString *string) ([]*networkingv1beta1.Ingress, error) {
+	var ingresses []*networkingv1beta1.Ingress
 	var err error
 
 	if kube.IngressLister != nil {
@@ -122,12 +122,12 @@ func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorStrin
 			listOptions.LabelSelector = *labelSelectorString
 		}
 
-		list, err := kube.kubeClient.ExtensionsV1beta1().Ingresses(namespace).List(listOptions)
+		list, err := kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).List(listOptions)
 		if err != nil {
 			return nil, err
 		}
 
-		ingresses = slice.PointersOf(list.Items).([]*v1beta1.Ingress)
+		ingresses = slice.PointersOf(list.Items).([]*networkingv1beta1.Ingress)
 	}
 
 	return ingresses, nil
