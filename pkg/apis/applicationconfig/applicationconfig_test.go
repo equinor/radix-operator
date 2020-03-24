@@ -504,9 +504,9 @@ func Test_RadixEnvironment(t *testing.T) {
 		utils.ARadixApplication().
 			WithAppName("any-app"))
 
-	rr, err := radixclient.RadixV1().RadixRegistrations().Get("any-app", metav1.GetOptions{})
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get("any-app", metav1.GetOptions{})
 
-	environments, _ := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{})
+	environments, err := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{})
 
 	t.Run("It creates a single environment", func(t *testing.T) {
 		assert.NoError(t, err)
