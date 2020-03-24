@@ -86,7 +86,9 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	}
 
 	err = cli.GetKubeutil().WaitForCompletionOf(job)
-	log.Errorf("Error scanning image for app %s: %v", cli.GetAppName(), err)
+	if err != nil {
+		log.Errorf("Error scanning image for app %s: %v", cli.GetAppName(), err)
+	}
 
 	return nil
 }
