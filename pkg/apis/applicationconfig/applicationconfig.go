@@ -177,6 +177,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 
 	for env := range targetEnvs {
 
+		trueVar := true
 		envConfig := &v1.RadixEnvironment{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "radix.equinor.com/v1",
@@ -186,6 +187,15 @@ func (app *ApplicationConfig) createEnvironments() error {
 				Name: fmt.Sprintf("%s-%s", app.config.Name, env),
 				Labels: map[string]string{
 					kube.RadixAppLabel: app.config.Name,
+				},
+				OwnerReferences: []metav1.OwnerReference{
+					metav1.OwnerReference{
+						APIVersion: "radix.equinor.com/v1",
+						Kind:       "RadixRegistration",
+						Name:       app.registration.Name,
+						UID:        app.registration.UID,
+						Controller: &trueVar,
+					},
 				},
 			},
 			Spec: v1.RadixEnvironmentSpec{
