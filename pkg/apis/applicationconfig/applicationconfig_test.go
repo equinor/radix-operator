@@ -497,6 +497,44 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
 	assert.Error(t, appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password"))
 }
 
+func Test_RadixEnvironment(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app"))
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get("any-app", metav1.GetOptions{})
+
+	environments, err := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{})
+
+	t.Run("It creates a single environment", func(t *testing.T) {
+		assert.NoError(t, err)
+		assert.Len(t, environments.Items, 1)
+	})
+
+	t.Run("Environment has a correct name", func(t *testing.T) {
+		assert.Equal(t, "any-app-test", environments.Items[0].GetName())
+	})
+
+	t.Run("Environment has a correct owner", func(t *testing.T) {
+		assert.Equal(t, rrAsOwnerReference(rr), environments.Items[0].GetOwnerReferences())
+	})
+}
+
+func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
+	trueVar := true
+	return []metav1.OwnerReference{
+		metav1.OwnerReference{
+			APIVersion: "radix.equinor.com/v1",
+			Kind:       "RadixRegistration",
+			Name:       rr.Name,
+			UID:        rr.UID,
+			Controller: &trueVar,
+		},
+	}
+}
+
 func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *ApplicationConfig, error) {
 	tu, client, kubeUtil, radixclient := setupTest()
 	appBuilder := utils.ARadixApplication().
