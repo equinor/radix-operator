@@ -7,8 +7,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -35,7 +35,7 @@ func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployCompone
 	return deploy.kubeutil.ApplyDeployment(namespace, deployment)
 }
 
-func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent) (*v1beta1.Deployment, error) {
+func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	environment := deploy.radixDeployment.Spec.Environment
 	componentName := deployComponent.Name
@@ -56,7 +56,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
 	securityContext := getSecurityContextForContainer()
 
-	deployment := &v1beta1.Deployment{
+	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
@@ -69,7 +69,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 			},
 			OwnerReferences: ownerReference,
 		},
-		Spec: v1beta1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(DefaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -175,7 +175,7 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 
 		if garbageCollect {
 			propagationPolicy := metav1.DeletePropagationForeground
-			err = deploy.kubeclient.ExtensionsV1beta1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 			if err != nil {
 				return err
 			}
@@ -211,19 +211,19 @@ func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {
 	return &probe, nil
 }
 
-func getDeploymentStrategy() (v1beta1.DeploymentStrategy, error) {
+func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 	rollingUpdateMaxUnavailable, err := defaults.GetDefaultRollingUpdateMaxUnavailable()
 	if err != nil {
-		return v1beta1.DeploymentStrategy{}, err
+		return appsv1.DeploymentStrategy{}, err
 	}
 
 	rollingUpdateMaxSurge, err := defaults.GetDefaultRollingUpdateMaxSurge()
 	if err != nil {
-		return v1beta1.DeploymentStrategy{}, err
+		return appsv1.DeploymentStrategy{}, err
 	}
 
-	deploymentStrategy := v1beta1.DeploymentStrategy{
-		RollingUpdate: &v1beta1.RollingUpdateDeployment{
+	deploymentStrategy := appsv1.DeploymentStrategy{
+		RollingUpdate: &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
 				StrVal: rollingUpdateMaxUnavailable,
