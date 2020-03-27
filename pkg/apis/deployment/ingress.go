@@ -12,7 +12,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1beta1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -139,7 +139,7 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 		}
 
 		if garbageCollect {
-			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -173,7 +173,7 @@ func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(compo
 
 	if len(ingresses) > 0 {
 		for n := range ingresses {
-			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses[n].Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses[n].Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -211,7 +211,7 @@ func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(comp
 		}
 
 		if garbageCollectIngress {
-			err = deploy.kubeclient.ExtensionsV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingress.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingress.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -227,7 +227,7 @@ func getAppAliasIngressConfig(
 	config IngressConfiguration,
 	component v1.RadixDeployComponent,
 	clustername, namespace string,
-	publicPortNumber int32) *v1beta1.Ingress {
+	publicPortNumber int32) *networkingv1beta1.Ingress {
 	appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
 		return nil
@@ -245,7 +245,7 @@ func getActiveClusterAliasIngressConfig(
 	config IngressConfiguration,
 	component v1.RadixDeployComponent,
 	namespace string,
-	publicPortNumber int32) *v1beta1.Ingress {
+	publicPortNumber int32) *networkingv1beta1.Ingress {
 	hostname := getActiveClusterHostName(component.Name, namespace)
 	if hostname == "" {
 		return nil
@@ -262,7 +262,7 @@ func getDefaultIngressConfig(
 	config IngressConfiguration,
 	component v1.RadixDeployComponent,
 	clustername, namespace string,
-	publicPortNumber int32) *v1beta1.Ingress {
+	publicPortNumber int32) *networkingv1beta1.Ingress {
 	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		return nil
@@ -280,7 +280,7 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	externalAlias string,
 	component v1.RadixDeployComponent,
 	namespace string,
-	publicPortNumber int32) (*v1beta1.Ingress, error) {
+	publicPortNumber int32) (*networkingv1beta1.Ingress, error) {
 
 	ingressSpec := getIngressSpec(externalAlias, component.Name, externalAlias, publicPortNumber)
 	return getIngressConfig(appName, component, externalAlias, ownerReference, config, false, true, false, ingressSpec), nil
@@ -305,13 +305,13 @@ func getIngressConfig(appName string,
 	ownerReference []metav1.OwnerReference,
 	config IngressConfiguration,
 	isAlias, isExternalAlias, isActiveClusterAlias bool,
-	ingressSpec v1beta1.IngressSpec) *v1beta1.Ingress {
+	ingressSpec networkingv1beta1.IngressSpec) *networkingv1beta1.Ingress {
 
 	annotations := getAnnotationsFromConfigurations(config, component.IngressConfiguration...)
 	annotations["kubernetes.io/ingress.class"] = "nginx"
 	annotations["ingress.kubernetes.io/force-ssl-redirect"] = "true"
 
-	ingress := &v1beta1.Ingress{
+	ingress := &networkingv1beta1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        ingressName,
 			Annotations: annotations,
@@ -330,9 +330,9 @@ func getIngressConfig(appName string,
 	return ingress
 }
 
-func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32) v1beta1.IngressSpec {
-	return v1beta1.IngressSpec{
-		TLS: []v1beta1.IngressTLS{
+func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32) networkingv1beta1.IngressSpec {
+	return networkingv1beta1.IngressSpec{
+		TLS: []networkingv1beta1.IngressTLS{
 			{
 				Hosts: []string{
 					hostname,
@@ -340,15 +340,15 @@ func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 				SecretName: tlsSecretName,
 			},
 		},
-		Rules: []v1beta1.IngressRule{
+		Rules: []networkingv1beta1.IngressRule{
 			{
 				Host: hostname,
-				IngressRuleValue: v1beta1.IngressRuleValue{
-					HTTP: &v1beta1.HTTPIngressRuleValue{
-						Paths: []v1beta1.HTTPIngressPath{
+				IngressRuleValue: networkingv1beta1.IngressRuleValue{
+					HTTP: &networkingv1beta1.HTTPIngressRuleValue{
+						Paths: []networkingv1beta1.HTTPIngressPath{
 							{
 								Path: "/",
-								Backend: v1beta1.IngressBackend{
+								Backend: networkingv1beta1.IngressBackend{
 									ServiceName: serviceName,
 									ServicePort: intstr.IntOrString{
 										IntVal: int32(servicePort),
