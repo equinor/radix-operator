@@ -16,7 +16,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 )
@@ -253,7 +252,8 @@ func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error
 
 	repository := app.radixclient.RadixV1().RadixEnvironments()
 
-	oldRe, err := repository.Get(newRe.Name, metav1.GetOptions{})
+	// Get environment from cache, instead than for cluster
+	oldRe, err := app.kubeutil.GetEnvironment(newRe.Name)
 	if err != nil && errors.IsNotFound(err) {
 		// Environment does not exist yet
 
@@ -280,28 +280,38 @@ func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error
 
 // patchDifference creates a mergepatch, comparing old and new RadixEnvironments and issues the patch to radix
 func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.RadixEnvironment, newRe *v1.RadixEnvironment, logger *log.Entry) error {
+	radixEnvironment := oldRe.DeepCopy()
+	radixEnvironment.ObjectMeta.Labels = newRe.ObjectMeta.Labels
+	radixEnvironment.ObjectMeta.OwnerReferences = newRe.ObjectMeta.OwnerReferences
+	radixEnvironment.ObjectMeta.Annotations = newRe.ObjectMeta.Annotations
+	radixEnvironment.Spec = newRe.Spec
 
 	oldReJSON, err := json.Marshal(oldRe)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal old RadixEnvironment object: %v", err)
 	}
 
-	newReJSON, err := json.Marshal(newRe)
+	radixEnvironmentJSON, err := json.Marshal(radixEnvironment)
 	if err != nil {
 		return fmt.Errorf("Failed to marshal new RadixEnvironment object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, newReJSON, v1.RadixEnvironment{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, v1.RadixEnvironment{})
 
-	if string(patchBytes) != "{}" {
-		patchedLimitRange, err := repository.Patch(newRe.Name, types.StrategicMergePatchType, patchBytes)
+	if !isEmptyPatch(patchBytes) {
+		// Will perform update as patching does not seem to work for this custom resource
+		patchedEnvironment, err := repository.Update(radixEnvironment)
 		if err != nil {
 			return fmt.Errorf("Failed to patch RadixEnvironment object: %v", err)
 		}
-		logger.Debugf("Patched RadixEnvironment: %s", patchedLimitRange.Name)
+		logger.Debugf("Patched RadixEnvironment: %s", patchedEnvironment.Name)
 	} else {
 		logger.Debugf("No need to patch RadixEnvironment: %s ", newRe.Name)
 	}
 
 	return nil
+}
+
+func isEmptyPatch(patchBytes []byte) bool {
+	return string(patchBytes) == "{}"
 }
