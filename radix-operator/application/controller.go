@@ -5,13 +5,11 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -49,7 +47,6 @@ func NewController(client kubernetes.Interface,
 	recorder record.EventRecorder) *common.Controller {
 
 	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
-	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -89,29 +86,6 @@ func NewController(client kubernetes.Interface,
 				logger.Debugf("Application object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
-		},
-	})
-
-	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
-			newRr := cur.(*v1.RadixRegistration)
-			oldRr := old.(*v1.RadixRegistration)
-			if newRr.ResourceVersion == oldRr.ResourceVersion {
-				return
-			}
-
-			if utils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) {
-				return
-			}
-
-			// Trigger sync of RA, living in the namespace
-			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).List(metav1.ListOptions{})
-			if err == nil && len(ra.Items) == 1 {
-				// Will sync the RA (there can only be one)
-				var obj metav1.Object
-				obj = &ra.Items[0]
-				controller.Enqueue(obj)
-			}
 		},
 	})
 
