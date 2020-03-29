@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -125,13 +126,18 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			// Trigger sync of RA, living in the namespace
-			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).List(metav1.ListOptions{})
-			if err == nil && len(ra.Items) == 1 {
-				// Will sync the RA (there can only be one)
-				var obj metav1.Object
-				obj = &ra.Items[0]
-				controller.Enqueue(obj)
+			// Trigger sync of all REs, belonging to the registration
+			environments, err := radixClient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, oldRr.Name),
+			})
+
+			if err == nil {
+				for _, environment := range environments.Items {
+					// Will sync the environment
+					var obj metav1.Object
+					obj = &environment
+					controller.Enqueue(obj)
+				}
 			}
 		},
 	})
