@@ -4,12 +4,12 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/prometheus/common/log"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) customSecuritySettings(appName, namespace string, deployment *v1beta1.Deployment) {
+func (deploy *Deployment) customSecuritySettings(appName, namespace string, deployment *appsv1.Deployment) {
 	// need to be able to get serviceaccount token inside container
 	automountServiceAccountToken := true
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)

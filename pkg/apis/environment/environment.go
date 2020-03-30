@@ -11,6 +11,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/sirupsen/logrus"
 
+	rbac "k8s.io/api/rbac/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -103,7 +104,18 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 		return err
 	}
 
-	roleBinding := kube.GetRolebindingToClusterRole(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adGroups)
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	if env.regConfig.Spec.MachineUser {
+		subjects = append(subjects, rbac.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(env.config.Spec.AppName),
+			Namespace: utils.GetAppNamespace(env.regConfig.Name),
+		})
+	}
+
+	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, subjects)
 	roleBinding.SetOwnerReferences(env.AsOwnerReference())
 
 	return env.kubeutil.ApplyRoleBinding(namespace, roleBinding)

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -60,19 +59,19 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	t.Run("It can create environments", func(t *testing.T) {
 		err := app.createEnvironments()
 		assert.NoError(t, err)
-		namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
+		environments, _ := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
 			LabelSelector: label,
 		})
-		assert.Len(t, namespaces.Items, 2)
+		assert.Len(t, environments.Items, 2)
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
 		err := app.createEnvironments()
 		assert.NoError(t, err)
-		namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
+		environments, _ := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
 			LabelSelector: label,
 		})
-		assert.Len(t, namespaces.Items, 2)
+		assert.Len(t, environments.Items, 2)
 	})
 }
 
@@ -80,14 +79,14 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	// Setup
 	_, client, kubeUtil, radixclient := setupTest()
 
-	// Create namespaces manually
-	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+	// Create environments manually
+	radixclient.RadixV1().RadixEnvironments().Create(&radixv1.RadixEnvironment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "any-app-qa",
 		},
 	})
 
-	client.CoreV1().Namespaces().Create(&corev1.Namespace{
+	radixclient.RadixV1().RadixEnvironments().Create(&radixv1.RadixEnvironment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "any-app-prod",
 		},
@@ -110,10 +109,10 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 
 	// Test
 	app.createEnvironments()
-	namespaces, _ := client.CoreV1().Namespaces().List(metav1.ListOptions{
+	environments, _ := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
 		LabelSelector: label,
 	})
-	assert.Equal(t, 2, len(namespaces.Items))
+	assert.Equal(t, 2, len(environments.Items))
 }
 
 func TestIsThereAnythingToDeploy_multipleEnvsToOneBranch_ListsBoth(t *testing.T) {
@@ -258,75 +257,6 @@ func TestIsTargetEnvsEmpty_twoEntriesWithOneMapping(t *testing.T) {
 		"prod": false,
 	}
 	assert.Equal(t, false, isTargetEnvsEmpty(targetEnvs))
-}
-
-func TestObjectSynced_WithEnvironmentsNoLimitsSet_NamespacesAreCreatedWithNoLimits(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
-
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
-		utils.ARadixApplication().
-			WithRadixRegistration(
-				utils.ARadixRegistration().
-					WithMachineUser(true)).
-			WithAppName("any-app").
-			WithEnvironment("dev", "master").
-			WithEnvironment("prod", ""))
-
-	t.Run("validate namespace creation", func(t *testing.T) {
-		devNs, _ := client.CoreV1().Namespaces().Get("any-app-dev", metav1.GetOptions{})
-		assert.NotNil(t, devNs)
-		prodNs, _ := client.CoreV1().Namespaces().Get("any-app-prod", metav1.GetOptions{})
-		assert.NotNil(t, prodNs)
-	})
-
-	t.Run("validate rolebindings", func(t *testing.T) {
-		t.Parallel()
-		rolebindings, _ := client.RbacV1().RoleBindings("any-app-dev").List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, defaults.AppAdminEnvironmentRoleName, rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
-
-		assert.Equal(t, 2, len(rolebindings.Items[0].Subjects))
-		assert.Equal(t, "any-app-machine-user", rolebindings.Items[0].Subjects[1].Name)
-
-		rolebindings, _ = client.RbacV1().RoleBindings("any-app-prod").List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-		assert.Equal(t, defaults.AppAdminEnvironmentRoleName, rolebindings.Items[0].GetName(), "Expected rolebinding radix-app-admin-envs to be there by default")
-
-		assert.Equal(t, 2, len(rolebindings.Items[0].Subjects))
-		assert.Equal(t, "any-app-machine-user", rolebindings.Items[0].Subjects[1].Name)
-	})
-
-	t.Run("validate limit range not set when missing on Operator", func(t *testing.T) {
-		t.Parallel()
-		limitRanges, _ := client.CoreV1().LimitRanges("any-app-dev").List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
-
-		limitRanges, _ = client.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(limitRanges.Items), "Number of limit ranges was not expected")
-	})
-}
-
-func TestObjectSynced_WithEnvironmentsAndLimitsSet_NamespacesAreCreatedWithLimits(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
-
-	// Setup
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "0.5")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
-	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
-
-	applyApplicationWithSync(tu, client, kubeUtil, radixclient, utils.ARadixApplication().
-		WithAppName("any-app").
-		WithEnvironment("dev", "master").
-		WithEnvironment("prod", ""))
-
-	limitRanges, _ := client.CoreV1().LimitRanges("any-app-dev").List(metav1.ListOptions{})
-	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
-	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
-
-	limitRanges, _ = client.CoreV1().LimitRanges("any-app-prod").List(metav1.ListOptions{})
-	assert.Equal(t, 1, len(limitRanges.Items), "Number of limit ranges was not expected")
-	assert.Equal(t, "mem-cpu-limit-range-env", limitRanges.Items[0].GetName(), "Expected limit range to be there by default")
 }
 
 func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
@@ -565,6 +495,44 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
 		string(secret.Data[corev1.DockerConfigJsonKey]))
 	assert.Equal(t, 0, len(pendingSecrets))
 	assert.Error(t, appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password"))
+}
+
+func Test_RadixEnvironment(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app"))
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get("any-app", metav1.GetOptions{})
+
+	environments, err := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{})
+
+	t.Run("It creates a single environment", func(t *testing.T) {
+		assert.NoError(t, err)
+		assert.Len(t, environments.Items, 1)
+	})
+
+	t.Run("Environment has a correct name", func(t *testing.T) {
+		assert.Equal(t, "any-app-test", environments.Items[0].GetName())
+	})
+
+	t.Run("Environment has a correct owner", func(t *testing.T) {
+		assert.Equal(t, rrAsOwnerReference(rr), environments.Items[0].GetOwnerReferences())
+	})
+}
+
+func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
+	trueVar := true
+	return []metav1.OwnerReference{
+		metav1.OwnerReference{
+			APIVersion: "radix.equinor.com/v1",
+			Kind:       "RadixRegistration",
+			Name:       rr.Name,
+			UID:        rr.UID,
+			Controller: &trueVar,
+		},
+	}
 }
 
 func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEntries) (kubernetes.Interface, *ApplicationConfig, error) {

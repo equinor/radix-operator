@@ -1,10 +1,12 @@
 package environment
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -12,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -41,6 +44,8 @@ func NewController(client kubernetes.Interface,
 	recorder record.EventRecorder) *common.Controller {
 
 	environmentInformer := radixInformerFactory.Radix().V1().RadixEnvironments()
+	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
+
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
 		HandlerOf:             crType,
@@ -106,6 +111,37 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			// attempt to sync environment if it is the owner of this limit-range
 			controller.HandleObject(obj, "RadixEnvironment", getOwner)
+		},
+	})
+
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			newRr := cur.(*v1.RadixRegistration)
+			oldRr := old.(*v1.RadixRegistration)
+			if newRr.ResourceVersion == oldRr.ResourceVersion {
+				return
+			}
+
+			// If neither ad group did change, nor the machine user, this
+			// does not affect the deployment
+			if utils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
+				newRr.Spec.MachineUser == oldRr.Spec.MachineUser {
+				return
+			}
+
+			// Trigger sync of all REs, belonging to the registration
+			environments, err := radixClient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, oldRr.Name),
+			})
+
+			if err == nil {
+				for _, environment := range environments.Items {
+					// Will sync the environment
+					var obj metav1.Object
+					obj = &environment
+					controller.Enqueue(obj)
+				}
+			}
 		},
 	})
 
