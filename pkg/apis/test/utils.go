@@ -45,8 +45,11 @@ func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuil
 
 // ApplyApplication Will help persist an application
 func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder) error {
-	if applicationBuilder.GetRegistrationBuilder() != nil {
-		tu.ApplyRegistration(applicationBuilder.GetRegistrationBuilder())
+
+	regBuilder := applicationBuilder.GetRegistrationBuilder()
+
+	if regBuilder != nil {
+		tu.ApplyRegistration(regBuilder)
 	}
 
 	ra := applicationBuilder.BuildRA()
@@ -60,6 +63,17 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 		return err
 	}
 
+	// Note: we do not have the applied RadixRegistration so environment's
+	// OwnerReference will not have the same UID
+
+	for _, env := range ra.Spec.Environments {
+		tu.ApplyEnvironment(builders.NewEnvironmentBuilder().
+			WithAppName(ra.GetName()).
+			WithAppLabel().
+			WithEnvironmentName(env.Name).
+			WithRegistrationBuilder(regBuilder))
+	}
+
 	return nil
 }
 
@@ -71,6 +85,18 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationB
 	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Update(ra)
 	if err != nil {
 		return err
+	}
+
+	// there is no ApplyRegistrationUpdate method so any changes
+	// to the registrationBuilder will not be applied
+	regBuilder := applicationBuilder.GetRegistrationBuilder()
+
+	for _, env := range ra.Spec.Environments {
+		tu.ApplyEnvironment(builders.NewEnvironmentBuilder().
+			WithAppName(ra.GetName()).
+			WithAppLabel().
+			WithEnvironmentName(env.Name).
+			WithRegistrationBuilder(regBuilder))
 	}
 
 	return nil
@@ -157,10 +183,31 @@ func (tu *Utils) ApplyEnvironment(environmentBuilder builders.EnvironmentBuilder
 
 	newRe, err := tu.radixclient.RadixV1().RadixEnvironments().Create(re)
 	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			return tu.ApplyEnvironmentUpdate(environmentBuilder)
+		}
 		return nil, err
 	}
 
 	return newRe, nil
+}
+
+// ApplyEnvironmentUpdate Will help update a RadixEnvironment
+func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder builders.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
+	re := environmentBuilder.BuildRE()
+
+	rePrev, err := tu.radixclient.RadixV1().RadixEnvironments().Get(re.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	re.Status = rePrev.Status
+
+	re, err = tu.radixclient.RadixV1().RadixEnvironments().Update(re)
+	if err != nil {
+		return nil, err
+	}
+
+	return re, nil
 }
 
 // SetRequiredEnvironmentVariables  Sets the required environment
