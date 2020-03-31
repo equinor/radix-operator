@@ -150,6 +150,19 @@ func (tu *Utils) ApplyJobUpdate(jobBuilder builders.JobBuilder) (*v1.RadixJob, e
 	return rj, nil
 }
 
+// ApplyEnvironment Will help persist a RadixEnvironment
+func (tu *Utils) ApplyEnvironment(environmentBuilder builders.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
+	re := environmentBuilder.BuildRE()
+	log.Debugf("%s", re.GetObjectMeta().GetCreationTimestamp())
+
+	newRe, err := tu.radixclient.RadixV1().RadixEnvironments().Create(re)
+	if err != nil {
+		return nil, err
+	}
+
+	return newRe, nil
+}
+
 // SetRequiredEnvironmentVariables  Sets the required environment
 // variables needed for the operator to run properly
 func SetRequiredEnvironmentVariables() {
