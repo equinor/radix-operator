@@ -91,6 +91,9 @@ func (eb *EnvironmentBuilderStruct) WithOwner(owner meta.OwnerReference) Environ
 
 // WithRegistrationOwner appends new OwnerReference to a RadixRegistration
 func (eb *EnvironmentBuilderStruct) WithRegistrationOwner(registration *rx.RadixRegistration) EnvironmentBuilder {
+	if registration == nil {
+		return eb
+	}
 	trueVar := true
 	return eb.WithOwner(meta.OwnerReference{
 		APIVersion: "radix.equinor.com/v1",
