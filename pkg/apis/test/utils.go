@@ -32,21 +32,46 @@ func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface
 }
 
 // ApplyRegistration Will help persist an application registration
-func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuilder) error {
+func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
 
 	_, err := tu.radixclient.RadixV1().RadixRegistrations().Create(rr)
 	if err != nil {
-		return err
+		if errors.IsAlreadyExists(err) {
+			return tu.ApplyRegistrationUpdate(registrationBuilder)
+		}
+		return rr, err
 	}
 
-	return nil
+	return rr, nil
+}
+
+// ApplyRegistrationUpdate Will help update a registration
+func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder builders.RegistrationBuilder) (*v1.RadixRegistration, error) {
+	rr := registrationBuilder.BuildRR()
+
+	rrPrev, err := tu.radixclient.RadixV1().RadixRegistrations().Get(rr.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	rr.Status = rrPrev.Status
+
+	rr, err = tu.radixclient.RadixV1().RadixRegistrations().Update(rr)
+	if err != nil {
+		return nil, err
+	}
+
+	return rr, nil
 }
 
 // ApplyApplication Will help persist an application
-func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder) error {
-	if applicationBuilder.GetRegistrationBuilder() != nil {
-		tu.ApplyRegistration(applicationBuilder.GetRegistrationBuilder())
+func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder) (*v1.RadixApplication, error) {
+
+	regBuilder := applicationBuilder.GetRegistrationBuilder()
+	var rr *v1.RadixRegistration
+
+	if regBuilder != nil {
+		rr, _ = tu.ApplyRegistration(regBuilder)
 	}
 
 	ra := applicationBuilder.BuildRA()
@@ -57,23 +82,52 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 			return tu.ApplyApplicationUpdate(applicationBuilder)
 		}
 
-		return err
+		return ra, err
 	}
 
-	return nil
+	// Note: rr may be nil if not found but that is fine
+	for _, env := range ra.Spec.Environments {
+		tu.ApplyEnvironment(builders.NewEnvironmentBuilder().
+			WithAppName(ra.GetName()).
+			WithAppLabel().
+			WithEnvironmentName(env.Name).
+			WithRegistrationOwner(rr))
+	}
+
+	return ra, nil
 }
 
 // ApplyApplicationUpdate Will help update an application
-func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationBuilder) error {
+func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationBuilder) (*v1.RadixApplication, error) {
 	ra := applicationBuilder.BuildRA()
 	appNamespace := builders.GetAppNamespace(ra.GetName())
 
 	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Update(ra)
 	if err != nil {
-		return err
+		return ra, err
 	}
 
-	return nil
+	var rr *v1.RadixRegistration
+	regBuilder := applicationBuilder.GetRegistrationBuilder()
+	if regBuilder != nil {
+		rr, err = tu.ApplyRegistration(regBuilder)
+	} else {
+		rr, err = tu.radixclient.RadixV1().RadixRegistrations().Get(ra.GetName(), metav1.GetOptions{})
+	}
+	if err != nil && !errors.IsNotFound(err) {
+		return ra, err
+	}
+
+	// Note: rr may be nil if not found but that is fine
+	for _, env := range ra.Spec.Environments {
+		tu.ApplyEnvironment(builders.NewEnvironmentBuilder().
+			WithAppName(ra.GetName()).
+			WithAppLabel().
+			WithEnvironmentName(env.Name).
+			WithRegistrationOwner(rr))
+	}
+
+	return ra, nil
 }
 
 // ApplyDeployment Will help persist a deployment
@@ -157,10 +211,31 @@ func (tu *Utils) ApplyEnvironment(environmentBuilder builders.EnvironmentBuilder
 
 	newRe, err := tu.radixclient.RadixV1().RadixEnvironments().Create(re)
 	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			return tu.ApplyEnvironmentUpdate(environmentBuilder)
+		}
 		return nil, err
 	}
 
 	return newRe, nil
+}
+
+// ApplyEnvironmentUpdate Will help update a RadixEnvironment
+func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder builders.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
+	re := environmentBuilder.BuildRE()
+
+	rePrev, err := tu.radixclient.RadixV1().RadixEnvironments().Get(re.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	re.Status = rePrev.Status
+
+	re, err = tu.radixclient.RadixV1().RadixEnvironments().Update(re)
+	if err != nil {
+		return nil, err
+	}
+
+	return re, nil
 }
 
 // SetRequiredEnvironmentVariables  Sets the required environment

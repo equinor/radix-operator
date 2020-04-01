@@ -559,12 +559,11 @@ func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient 
 func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) error {
 
-	err := tu.ApplyApplication(applicationBuilder)
+	ra, err := tu.ApplyApplication(applicationBuilder)
 	if err != nil {
 		return err
 	}
 
-	ra := applicationBuilder.BuildRA()
 	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(ra.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
