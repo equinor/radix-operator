@@ -60,7 +60,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	rr, _ := utils.GetRadixRegistrationFromFile(regConfig)
 	re, _ := utils.GetRadixEnvironment(envConfig)
 	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
-	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, logger)
+	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger)
 	// register instance with radix-client so UpdateStatus() can find it
 	radixclient.RadixV1().RadixEnvironments().Create(re)
 	return rr, re, env
@@ -122,6 +122,37 @@ func Test_Create_LimitRange(t *testing.T) {
 		assert.Equal(t, limitDefaultReqestCPU, limits.DefaultRequest.Cpu().String())
 		assert.Equal(t, limitDefaultMemory, limits.Default.Memory().String())
 		assert.Equal(t, limitDefaultReqestMemory, limits.DefaultRequest.Memory().String())
+	})
+}
+
+func Test_Orphaned_Status(t *testing.T) {
+	_, client, kubeUtil, radixclient := setupTest()
+	_, _, env := newEnv(client, kubeUtil, radixclient)
+
+	env.appConfig = nil
+	sync(t, env)
+
+	t.Run("Orphaned is true when app config nil", func(t *testing.T) {
+		assert.True(t, env.config.Status.Orphaned)
+	})
+
+	env.appConfig = utils.NewRadixApplicationBuilder().
+		WithAppName("testapp").
+		WithEnvironment("testenv", "master").
+		BuildRA()
+	sync(t, env)
+
+	t.Run("Orphaned is false when app config contains environment name", func(t *testing.T) {
+		assert.False(t, env.config.Status.Orphaned)
+	})
+
+	env.appConfig = utils.NewRadixApplicationBuilder().
+		WithAppName("testapp").
+		BuildRA()
+	sync(t, env)
+
+	t.Run("Orphaned is true when app config is cleared", func(t *testing.T) {
+		assert.True(t, env.config.Status.Orphaned)
 	})
 }
 
