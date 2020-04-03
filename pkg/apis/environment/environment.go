@@ -174,12 +174,10 @@ func existsInAppConfig(app *v1.RadixApplication, envName string) bool {
 	if app == nil {
 		return false
 	}
-	exists := false
 	for _, appEnv := range app.Spec.Environments {
 		if appEnv.Name == envName {
-			exists = true
-			break
+			return true
 		}
 	}
-	return exists
+	return false
 }
