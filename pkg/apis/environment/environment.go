@@ -69,7 +69,7 @@ func (env *Environment) OnSync(time meta.Time) error {
 		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
-	env.config.Status.Orphaned = !existsInAppConfig(env.appConfig, env.config.Spec.AppName, env.config.Spec.EnvName)
+	env.config.Status.Orphaned = !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
 
 	// time is parameterized for testability
 	env.config.Status.Reconciled = time
@@ -170,7 +170,7 @@ func (env *Environment) AsOwnerReference() []meta.OwnerReference {
 	}
 }
 
-func existsInAppConfig(app *v1.RadixApplication, appName string, envName string) bool {
+func existsInAppConfig(app *v1.RadixApplication, envName string) bool {
 	if app == nil {
 		return false
 	}
