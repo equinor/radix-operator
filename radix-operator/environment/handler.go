@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/environment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 
@@ -81,7 +82,11 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, envConfig, radixRegistration, logger)
+	// get RA error is ignored because nil is accepted
+	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(envConfig.Spec.AppName)).
+		Get(envConfig.Spec.AppName, meta.GetOptions{})
+
+	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, envConfig, radixRegistration, radixApplication, logger)
 
 	if err != nil {
 		return err

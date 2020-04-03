@@ -34,4 +34,5 @@ type RadixEnvironmentSpec struct {
 // RadixEnvironmentStatus is the status for an RE
 type RadixEnvironmentStatus struct {
 	Reconciled meta.Time `json:"reconciled" yaml:"reconciled"`
+	Orphaned   bool      `json:"orphaned" yaml:"orphaned"`
 }

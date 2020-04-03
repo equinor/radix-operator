@@ -23,6 +23,7 @@ type Environment struct {
 	kubeutil    *kube.Kube
 	config      *v1.RadixEnvironment
 	regConfig   *v1.RadixRegistration
+	appConfig   *v1.RadixApplication
 	logger      *logrus.Entry
 }
 
@@ -33,6 +34,7 @@ func NewEnvironment(
 	radixclient radixclient.Interface,
 	config *v1.RadixEnvironment,
 	regConfig *v1.RadixRegistration,
+	appConfig *v1.RadixApplication,
 	logger *logrus.Entry) (Environment, error) {
 
 	return Environment{
@@ -41,6 +43,7 @@ func NewEnvironment(
 		kubeutil,
 		config,
 		regConfig,
+		appConfig,
 		logger}, nil
 }
 
@@ -65,6 +68,8 @@ func (env *Environment) OnSync(time meta.Time) error {
 	if err != nil {
 		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
+
+	env.config.Status.Orphaned = !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
 
 	// time is parameterized for testability
 	env.config.Status.Reconciled = time
@@ -163,4 +168,16 @@ func (env *Environment) AsOwnerReference() []meta.OwnerReference {
 			Controller: &trueVar,
 		},
 	}
+}
+
+func existsInAppConfig(app *v1.RadixApplication, envName string) bool {
+	if app == nil {
+		return false
+	}
+	for _, appEnv := range app.Spec.Environments {
+		if appEnv.Name == envName {
+			return true
+		}
+	}
+	return false
 }
