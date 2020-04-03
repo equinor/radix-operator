@@ -82,6 +82,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
+	// get RA error is ignored because nil is accepted
 	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(envConfig.Spec.AppName)).
 		Get(envConfig.Spec.AppName, meta.GetOptions{})
 
