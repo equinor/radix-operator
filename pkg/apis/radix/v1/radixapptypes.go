@@ -109,6 +109,7 @@ type RadixComponent struct {
 	Secrets              []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	IngressConfiguration []string                 `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	EnvironmentConfig    []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
+	Variables            EnvVarsMap               `json:"variables" yaml:"variables"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
