@@ -48,9 +48,9 @@ rules:
   - watch
   - update
 - apiGroups:
-  - ""
+  - radix.equinor.com
   resources:
-  - namespaces
+  - radixenvironments
   verbs:
   - get
   - list
