@@ -192,6 +192,24 @@ func Test_invalid_ra(t *testing.T) {
 		{"resource request unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests[unsupportedResource] = "250m"
 		}},
+		{"common resource limit unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits[unsupportedResource] = "250m"
+		}},
+		{"common resource request unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Requests[unsupportedResource] = "250m"
+		}},
+		{"common memory resource limit wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = invalidResourceValue
+		}},
+		{"common memory resource request wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Requests["memory"] = invalidResourceValue
+		}},
+		{"common cpu resource limit wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["cpu"] = invalidResourceValue
+		}},
+		{"common cpu resource request wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Requests["cpu"] = invalidResourceValue
+		}},
 		{"wrong public image config", radixvalidators.PublicImageComponentCannotHaveSourceOrDockerfileSet(validRAFirstComponentName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Image = "redis:5.0-alpine"
 			ra.Spec.Components[0].SourceFolder = "./api"
@@ -272,6 +290,38 @@ func Test_ValidRALimitRequest_NoError(t *testing.T) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Ki"
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Ki"
 		}},
+		{"common resource memory correct format: 50", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50"
+		}},
+		{"common resource limit correct format: 50T", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50T"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50T"
+		}},
+		{"common resource limit correct format: 50G", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50G"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50G"
+		}},
+		{"common resource limit correct format: 50M", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50M"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50M"
+		}},
+		{"common resource limit correct format: 50k", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50k"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50k"
+		}},
+		{"common resource limit correct format: 50Gi", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50Gi"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50Gi"
+		}},
+		{"common resource limit correct format: 50Mi", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50Mi"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50Mi"
+		}},
+		{"common resource limit correct format: 50Ki", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50Ki"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50Ki"
+		}},
 	}
 
 	_, client := validRASetup()
@@ -299,6 +349,14 @@ func Test_InvalidRALimitRequest_Error(t *testing.T) {
 		{"resource limit incorrect format: 50K", func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50K"
 			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50K"
+		}},
+		{"common resource limit incorrect format: 50MB", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50MB"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50MB"
+		}},
+		{"common resource limit incorrect format: 50K", func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Resources.Limits["memory"] = "50K"
+			ra.Spec.Components[0].Resources.Requests["memory"] = "50K"
 		}},
 	}
 

@@ -196,6 +196,7 @@ type RadixApplicationComponentBuilder interface {
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationComponentBuilder
+	WithCommonResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -212,6 +213,7 @@ type radixApplicationComponentBuilder struct {
 	ingressConfiguration []string
 	environmentConfig    []RadixEnvironmentConfigBuilder
 	variables            v1.EnvVarsMap
+	resources            v1.ResourceRequirements
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -275,6 +277,14 @@ func (rcb *radixApplicationComponentBuilder) WithCommonEnvironmentVariable(name,
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithCommonResource(request map[string]string, limit map[string]string) RadixApplicationComponentBuilder {
+	rcb.resources = v1.ResourceRequirements{
+		Limits:   limit,
+		Requests: request,
+	}
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range rcb.ports {
@@ -298,6 +308,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		PublicPort:           rcb.publicPort,
 		EnvironmentConfig:    environmentConfig,
 		Variables:            rcb.variables,
+		Resources:            rcb.resources,
 	}
 }
 
