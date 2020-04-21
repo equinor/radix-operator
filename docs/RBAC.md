@@ -4,6 +4,8 @@
 
 ![pic](diagrams/platform_user.png)
 
+See table 1.3 for complete listing of permissions
+
 ### Service account
 
 - \<app\>-machine-user
@@ -12,43 +14,23 @@
 ### Clusterroles
 
 - radix-platform-user
-  - Purpose: defines what global access a platform user will have. Currently the only access granted
-    will be to define new Radix application
+  - Purpose: defines what global access a platform user will have. Currently the access granted will be to define new Radix application, new SubjectAccessReview, update radixjobs and to read various resources.
   - Created by: Helm chart
-  - Cluster role binding: radix-platform-user-binding
-  - Accesses:
-    - Create RRs
-    - List RAs <sup><sup><sup>1</sup></sup></sup>
-    - List RDs <sup><sup>1</sup></sup>
-    - List jobs <sup><sup>1</sup></sup>
-    - List ingresses <sup><sup>1</sup></sup>
+  - Cluster role binding:
+    - radix-platform-user-binding given to all users
+    - `application`-machine-user given to all service-accounts
 - radix-app-admin
   - Purpose: grants access to manage the CI/CD of their applications
   - Created by: Helm chart
-  - Role binding: radix-app-admin
-  - Accesses:
-    - Get and list RAs
-    - Get and list pods
-    - Get and list pod logs
-    - Get, list, create and delete <sup><sup>1</sup></sup> jobs
+  - Role binding: radix-app-admin given to all users and service-accounts
 - radix-app-admin-envs:
-  - Purpose: grants access to manage their running Radix applications
+  - Purpose: grants access to manage their running Radix applications, create secrets, create and delete radixdeployments and related resources
   - Created by: Helm chart
   - Role binding: radix-app-admin-envs
-  - Accesses:
-    - Get, list, create and delete RDs
-    - Get, list and delete<sup><sup>1</sup></sup> deployments
-    - Get, list and delete<sup><sup>1</sup></sup> pods
-    - Get, list and delete<sup><sup>1</sup></sup> pod logs
-    - Get, list and delete<sup><sup>1</sup></sup> services
-    - Get and list ingresses
-    - Create secrets
 - radix-platform-user-rr-\<app\>
   - Purpose: control access to manage the specifc RR for the \<app\>
   - Created by: Operator
   - Cluster Role binding: radix-platform-user-rr-\<app\>
-  - Accesses:
-    - Get, list, update, patch and delete RR of \<app\>
 
 ### Roles
 
@@ -57,8 +39,6 @@
   - Lives in: environment namespace
   - Created by: Operator
   - Role binding: radix-app-adm-\<app-component\>
-  - Accesses:
-    - Get, list, update, patch and delete secret of \<app-component\>
 
 ### Clusterrole bindings
 
@@ -88,6 +68,8 @@
 
 ## Radix Platform developer perspective
 
+See table 1.3 for complete listing of permissions
+
 ### Clusterrole bindings
 
 - radix-cluster-admins
@@ -106,23 +88,14 @@
   - Purpose: Role to update the radix config from repo and execute the outer pipeline
   - Created by: Helm chart
   - Role binding: radix-pipeline
-  - Accesses:
-    - Get, list, create and update RAs
-    - Get, list and create jobs
 - radix-pipeline-runner <sup><sup>2</sup></sup>
   - Purpose: Create environment namespaces and make deployments
   - Created by: Helm chart
   - Cluster role binding: radix-pipeline-runner-\<app\>
-  - Accesses:
-    - Get, list and create namespaces
-    - Get, list and create RDs
-    - Get and list configmaps
 - radix-pipeline-rr-\<app\>
   - Purpose: Get access to read RR belonging to \<app\>
   - Created by: Operator
   - Cluster Role binding: radix-pipeline-rr-\<app\>
-  - Accesses:
-    - Get RR for \<app\>
 
 #### Roles
 
@@ -131,8 +104,6 @@
   - Lives in: app namespace
   - Created by: Operator
   - Role binding: radix-config-to-map-runner
-  - Accesses:
-    - Create configmap
 
 #### Clusterrole bindings
 
@@ -165,12 +136,6 @@
   - Purpose: Give access all operations needed to fully operate the platform
   - Created by: Helm chart
   - Cluster role binding: radix-operator
-  - Accesses:
-
-    - All access to RRs, RAs and RDs
-    - All access to events, limitranges, namespaces, secrets, servicesaccounts, roles, rolebindings, clusterroles, clusterrolebindings, deployments, services, ingresses, servicemonitors, networkpolicies, jobs
-    - Get and list configmaps
-    - Get, list and delete pods, as well as pods/log
 
 #### Clusterrole bindings
 
@@ -186,10 +151,6 @@
   - Purpose: Give access all operations needed to fully operate the radix-webhook
   - Created by: Helm chart
   - Cluster role binding: \<env-namespace\>-radix-github-webhook
-  - Accesses:
-    - Get and list RRs, RAs and RDs
-    - Get and list ingresses, namespaces, deployments
-    - Get list and create radix jobs
 
 #### Clusterrole bindings
 
@@ -205,12 +166,6 @@
   - Purpose: Give access all operations needed to fully operate the radix-api
   - Created by: Helm chart
   - Cluster role binding: \<env-namespace\>-radix-api
-  - Accesses:
-    - Get and list RRs, RAs and RDs
-    - Get and list namespaces
-    - Get and list jobs
-    - Get list and create radix jobs
-    - Get list and watch service accounts
 
 #### Clusterrole bindings
 
@@ -224,3 +179,118 @@
 radix-pipeline will need to be extended with ability to create RDs in app namespace. Ref. [RA-55 Deny Platform users listing deployments across namespaces](https://equinor.atlassian.net/browse/RA-55)
 
 <sup><sup>3</sup></sup> Will be redundant if we move to use environment variables entirely to control the operator. Ref. [RA-145 Technical: Create a configmap for global cluster settings which the operator can use](https://equinor.atlassian.net/browse/RA-145)
+
+## Tables of rolebindings and permissions
+
+These tables are at this moment manually created and maintained and can become outdated in relation to currently active clusters.
+
+#### Table 1.1 Roles and Bindings
+
+Account-ns|Account|Role|Role-Type|Binding-ns|Binding|Binding-Type
+--|--|--|--|--|--|--
+application|`application`-machine-user|radix-platform-user|clusterrole|global|`application`-machine-user|clusterrolebinding
+application|`application`-machine-user|radix-platform-user-rr-`application`|clusterrole|global|radix-platform-user-rr-`application`|clusterrolebinding
+application|`application`-machine-user|radix-app-admin|clusterrole|application|radix-app-admin|rolebinding
+application|`application`-machine-user|radix-app-admin-envs|clusterrole|environment|radix-app-admin-envs|rolebinding
+application|`application`-machine-user|radix-app-adm-`component`|role|environment|radix-app-adm-`component`|rolebinding
+application|`application`-machine-user|radix-private-image-hubs|role|application|radix-private-image-hubs|rolebinding
+application|`application`-machine-user|radix-app-admin-build-secrets|role|application|radix-app-admin-build-secrets|rolebinding
+application|`application`-machine-user|`application`-machine-user-token|role|application|`application`-machine-user-token|rolebinding
+||AD-groups|radix-platform-user-rr-`application`|clusterrole|global|radix-platform-user-rr-`application`|clusterrolebinding
+||AD-groups|radix-app-admin|clusterrole|application|radix-app-admin|rolebinding
+||AD-groups|radix-app-admin-envs|clusterrole|environment|radix-app-admin-envs|rolebinding
+||AD-groups|radix-app-adm-`component`|role|environment|radix-app-adm-`component`|rolebinding
+||AD-groups|radix-private-image-hubs|role|application|radix-private-image-hubs|rolebinding
+||AD-groups|radix-app-admin-build-secrets|role|application|radix-app-admin-build-secrets|rolebinding
+||AD-groups|`application`-machine-user-token|role|application|`application`-machine-user-token|rolebinding
+||radixGroups.clusterAdmin|cluster-admin|clusterrole|global|radix-cluster-admins|clusterrolebinding
+||radixGroups.playground|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
+||radixGroups.user|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
+environment|radix-api|radix-api|clusterrole|global|`environment`-radix-api|clusterrolebinding
+application|radix-config-to-map-runner|radix-config-to-map-runner|role|application|radix-config-to-map-runner|rolebinding
+environment|radix-github-webhook|radix-webhook|clusterrole|global|`environment`-radix-github-webhook|clusterrolebinding
+global|radix-operator|radix-operator|clusterrole|global|radix-operator-new|clusterrolebinding
+application|radix-pipeline|radix-pipeline-runner|clusterrole|global|radix-pipeline-runner-`application`|clusterrolebinding
+application|radix-pipeline|radix-pipeline-rr-`application`|clusterrole|global|radix-pipeline-rr-`application`|clusterrolebinding
+application|radix-pipeline|radix-pipeline|clusterrole|application|radix-pipeline|rolebinding
+application|radix-pipeline|pipeline-build-secrets|role|application|pipeline-build-secrets|rolebinding
+
+**NOTE:** radix users `radixGroups.user` will be granted `radix-platform-user` on registration, before any application is created. On creation, the application scoped roles will be bound to the provided AD-group along with the service-account.
+
+#### Table 1.2 Source map
+
+Source|Type|Resource Name
+--|--|--
+charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-platform-user
+charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-app-admin
+charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-app-admin-envs
+charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrolebinding|radix-cluster-admins
+charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrolebinding|radix-platform-user-binding
+charts/radix-operator/templates/radix-pipeline-rbac.yaml|clusterrole|radix-pipeline
+charts/radix-operator/templates/radix-pipeline-rbac.yaml|clusterrole|radix-pipeline-runner
+charts/radix-operator/templates/radix-operator-rbac.yaml|serviceaccount|radix-operator
+charts/radix-operator/templates/radix-operator-rbac.yaml|clusterrole|radix-operator
+charts/radix-operator/templates/radix-operator-rbac.yaml|clusterrolebinding|radix-operator-new
+charts/radix-operator/templates/radix-apps-rbac.yaml|clusterrole|radix-webhook
+charts/radix-operator/templates/radix-apps-rbac.yaml|clusterrole|radix-api
+pkg/apis/application/serviceaccount.go:applyPipelineServiceAccount|serviceaccount|radix-pipeline
+pkg/apis/application/serviceaccount.go:applyConfigToMapServiceAccount|serviceaccount|radix-config-to-map-runner
+pkg/apis/application/serviceaccount.go:applyMachineUserServiceAccount|serviceaccount|`application`-machine-user
+pkg/apis/application/serviceaccount.go:applyMachineUserServiceAccount|clusterrolebinding|`application`-machine-user
+pkg/apis/application/serviceaccount.go:GrantAppAdminAccessToMachineUserToken|role|`application`-machine-user-token
+pkg/apis/application/serviceaccount.go:GrantAppAdminAccessToMachineUserToken|rolebinding|`application`-machine-user-token
+pkg/apis/application/roles.go:rrUserClusterRole|clusterrole|radix-platform-user-rr-`application`
+pkg/apis/application/roles.go:rrPipelineClusterRole|clusterrole|radix-pipeline-rr-`application`
+pkg/apis/application/roles.go:configToMapRunnerRole|role|radix-config-to-map-runner
+pkg/apis/application/rolebinding.go:grantAccessToCICDLogs|rolebinding|radix-app-admin
+pkg/apis/application/rolebinding.go:pipelineClusterRolebinding|clusterrolebinding|radix-pipeline-runner-`application`
+pkg/apis/application/rolebinding.go:pipelineRoleBinding|rolebinding|radix-pipeline
+pkg/apis/application/rolebinding.go:giveConfigToMapRunnerAccessToAppNamespace|rolebinding|radix-config-to-map-runner
+pkg/apis/application/rolebinding.go:rrPipelineClusterRoleBinding|clusterrolebinding|radix-pipeline-rr-`application`
+pkg/apis/application/rolebinding.go:rrClusterroleBinding|clusterrolebinding|radix-platform-user-rr-`application`
+pkg/apis/applicationconfig/role.go:grantAppAdminAccessToBuildSecrets|role|radix-app-admin-build-secrets
+pkg/apis/applicationconfig/role.go:grantAppAdminAccessToBuildSecrets|rolebinding|radix-app-admin-build-secrets
+pkg/apis/applicationconfig/role.go:grantPipelineAccessToBuildSecrets|role|pipeline-build-secrets
+pkg/apis/applicationconfig/role.go:grantPipelineAccessToBuildSecrets|rolebinding|pipeline-build-secrets
+pkg/apis/applicationconfig/rolebinding.go:grantAccessToPrivateImageHubSecret|role|radix-private-image-hubs
+pkg/apis/applicationconfig/rolebinding.go:grantAccessToPrivateImageHubSecret|rolebinding|radix-private-image-hubs
+pkg/apis/deployment/customsecurity.go:customSecuritySettings|serviceaccount|radix-github-webhook
+pkg/apis/deployment/customsecurity.go:customSecuritySettings|clusterrolebinding|`environment`-radix-github-webhook
+pkg/apis/deployment/customsecurity.go:customSecuritySettings|serviceaccount|radix-api
+pkg/apis/deployment/customsecurity.go:customSecuritySettings|clusterrolebinding|`environment`-radix-api
+pkg/apis/deployment/secrets.go:grantAppAdminAccessToRuntimeSecrets|role|radix-app-adm-`component`
+pkg/apis/deployment/secrets.go:grantAppAdminAccessToRuntimeSecrets|rolebinding|radix-app-adm-`component`
+pkg/apis/environment/environment.go:ApplyAdGroupRoleBinding|rolebinding|radix-app-admin-envs
+
+#### Table 1.3 Permissions
+
+Role|Domain|Create|Get|List|Watch|Update|Patch|Delete
+--|--|--|--|--|--|--|--|--
+`application`-machine-user-token|k8s||secrets|secrets|secrets|secrets|secrets|secrets
+cluster-admin||||||||
+pipeline-build-secrets|k8s||secrets|secrets|secrets|secrets|secrets|secrets
+radix-api|k8s|jobs|namespaces, serviceaccounts, jobs|namespaces, serviceaccounts, jobs|serviceaccounts, jobs|||namespaces
+radix-api|radix|radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs||radixjobs|
+radix-app-adm-`component`|k8s||secrets|secrets|secrets|secrets|secrets|secrets
+radix-app-admin|k8s||pods, pods/log, jobs|pods, pods/log, jobs|pods, pods/log, jobs|||jobs
+radix-app-admin|radix||radixapplications|radixapplications|radixapplications|||
+radix-app-admin-build-secrets|k8s||secrets|secrets|secrets|secrets|secrets|secrets
+radix-app-admin-envs|k8s|secrets|deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|||deployments, pods, pods/log, services
+radix-app-admin-envs|radix|radixdeployments|radixdeployments|radixdeployments|radixdeployments||radixdeployments|radixdeployments
+radix-config-to-map-runner|k8s|configmaps||||||
+radix-pipeline|k8s|jobs|jobs|jobs|jobs|||
+radix-pipeline|radix|radixapplications|radixapplications, radixjobs|radixapplications|radixapplications|radixapplications||
+radix-pipeline-rr-`application`|k8s||radixregistrations|||||
+radix-pipeline-rr-`application`|radix|jobs|jobs|jobs|jobs|||
+radix-pipeline-runner|radix|radixapplications|radixapplications|radixapplications|radixapplications|radixapplications||
+radix-platform-user|k8s|selfsubjectaccessreviews|namespaces, jobs, ingresses, horizontalpodautoscalers|namespaces, jobs, ingresses, horizontalpodautoscalers|namespaces, jobs, ingresses, horizontalpodautoscalers|||
+radix-platform-user|radix|radixregistrations|radixjobs|radixapplications, radixdeployments, radixjobs|radixapplications, radixjobs|radixjobs||
+radix-platform-user-rr-`application`|radix||radixregistrations|radixregistrations|radixregistrations|radixregistrations|radixregistrations|radixregistrations
+radix-private-image-hubs|k8s||secrets|secrets|secrets|secrets|secrets|secrets
+radix-webhook|k8s|jobs|namespaces, ingresses, deployments, jobs|namespaces, ingresses, deployments, jobs|namespaces, ingresses, deployments, jobs||jobs|
+radix-webhook|radix|radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs||radixjobs|
+
+Role|Domain|All permissions
+--|--|--|--
+radix-operator|k8s|events, limitranges, namespaces, secrets, serviceaccounts, roles, rolebindings, clusterroles, clusterrolebindings, deployments, services, ingresses, servicemonitors, networkpolicies
+radix-operator|radix|radixregistrations, radixregistrations/status, radixapplications, radixenvironments, radixenvironments/status, radixdeployments, radixdeployments/status, radixjobs, radixjobs/status
