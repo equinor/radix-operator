@@ -291,6 +291,6 @@ radix-webhook|k8s|jobs|namespaces, ingresses, deployments, jobs|namespaces, ingr
 radix-webhook|radix|radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs||radixjobs|
 
 Role|Domain|All permissions
---|--|--|--
+--|--|--
 radix-operator|k8s|events, limitranges, namespaces, secrets, serviceaccounts, roles, rolebindings, clusterroles, clusterrolebindings, deployments, services, ingresses, servicemonitors, networkpolicies
 radix-operator|radix|radixregistrations, radixregistrations/status, radixapplications, radixenvironments, radixenvironments/status, radixdeployments, radixdeployments/status, radixjobs, radixjobs/status
