@@ -45,6 +45,7 @@ func NewController(client kubernetes.Interface,
 
 	environmentInformer := radixInformerFactory.Radix().V1().RadixEnvironments()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
+	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -145,6 +146,33 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
+	applicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			newRa := cur.(*v1.RadixApplication)
+			oldRa := old.(*v1.RadixApplication)
+			if newRa.ResourceVersion == oldRa.ResourceVersion {
+				return
+			}
+
+			for _, envName := range droppedEnvironments(oldRa, newRa) {
+				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
+				re, err := radixClient.RadixV1().RadixEnvironments().Get(uniqueName, metav1.GetOptions{})
+				if err != nil {
+					controller.Enqueue(re)
+				}
+			}
+		},
+		DeleteFunc: func(cur interface{}) {
+			for _, env := range cur.(*v1.RadixApplication).Spec.Environments {
+				uniqueName := utils.GetEnvironmentNamespace(cur.(*v1.RadixApplication).Name, env.Name)
+				re, err := radixClient.RadixV1().RadixEnvironments().Get(uniqueName, metav1.GetOptions{})
+				if err != nil {
+					controller.Enqueue(re)
+				}
+			}
+		},
+	})
+
 	return controller
 }
 
@@ -160,4 +188,20 @@ func deepEqual(old, new *v1.RadixEnvironment) bool {
 
 func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
 	return radixClient.RadixV1().RadixEnvironments().Get(name, meta.GetOptions{})
+}
+
+func droppedEnvironments(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {
+	droppedNames := make([]string, 0)
+	for _, oldEnvConfig := range newRa.Spec.Environments {
+		dropped := true
+		for _, newEnvConfig := range newRa.Spec.Environments {
+			if oldEnvConfig.Name == newEnvConfig.Name {
+				dropped = false
+			}
+		}
+		if dropped {
+			droppedNames = append(droppedNames, oldEnvConfig.Name)
+		}
+	}
+	return droppedNames
 }

@@ -22,21 +22,23 @@ type EnvironmentBuilder interface {
 	WithUID(types.UID) EnvironmentBuilder
 	WithOwner(owner meta.OwnerReference) EnvironmentBuilder
 	WithRegistrationOwner(registration *rx.RadixRegistration) EnvironmentBuilder
+	WithRegistrationBuilder(builder RegistrationBuilder) EnvironmentBuilder
+	GetRegistrationBuilder() RegistrationBuilder
 	BuildRE() *rx.RadixEnvironment
 }
 
 // EnvironmentBuilderStruct Holds instance variables
 type EnvironmentBuilderStruct struct {
-	applicationBuilder ApplicationBuilder
-	EnvironmentName    string
-	AppName            string
-	Labels             map[string]string
-	AppLabel           bool
-	CreatedTime        time.Time
-	ReconciledTime     time.Time
-	Owners             []meta.OwnerReference
-	ResourceVersion    string
-	UID                types.UID
+	registrationBuilder RegistrationBuilder
+	EnvironmentName     string
+	AppName             string
+	Labels              map[string]string
+	AppLabel            bool
+	CreatedTime         time.Time
+	ReconciledTime      time.Time
+	Owners              []meta.OwnerReference
+	ResourceVersion     string
+	UID                 types.UID
 }
 
 // WithEnvironmentName Sets name of the environment
@@ -89,6 +91,9 @@ func (eb *EnvironmentBuilderStruct) WithOwner(owner meta.OwnerReference) Environ
 
 // WithRegistrationOwner appends new OwnerReference to a RadixRegistration
 func (eb *EnvironmentBuilderStruct) WithRegistrationOwner(registration *rx.RadixRegistration) EnvironmentBuilder {
+	if registration == nil {
+		return eb
+	}
 	trueVar := true
 	return eb.WithOwner(meta.OwnerReference{
 		APIVersion: "radix.equinor.com/v1",
@@ -99,10 +104,25 @@ func (eb *EnvironmentBuilderStruct) WithRegistrationOwner(registration *rx.Radix
 	})
 }
 
+// WithRegistrationBuilder builds a RadixRegistration and appends to OwnerReference
+func (eb *EnvironmentBuilderStruct) WithRegistrationBuilder(builder RegistrationBuilder) EnvironmentBuilder {
+	eb.registrationBuilder = builder
+	return eb
+}
+
+// GetRegistrationBuilder returns its RegistrationBuilder
+func (eb *EnvironmentBuilderStruct) GetRegistrationBuilder() RegistrationBuilder {
+	return eb.registrationBuilder
+}
+
 // BuildRE Builds RE structure based on set variables
 func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 
 	uniqueName := GetEnvironmentNamespace(eb.AppName, eb.EnvironmentName)
+
+	if eb.registrationBuilder != nil {
+		eb.WithRegistrationOwner(eb.registrationBuilder.BuildRR())
+	}
 
 	radixEnvironment := &rx.RadixEnvironment{
 		TypeMeta: meta.TypeMeta{

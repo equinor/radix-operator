@@ -150,9 +150,8 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 
 func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
-	err := tu.ApplyRegistration(registrationBuilder)
+	rr, err := tu.ApplyRegistration(registrationBuilder)
 
-	rr := registrationBuilder.BuildRR()
 	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
 	err = application.OnSyncWithGranterToMachineUserToken(mockedGranter)
 	if err != nil {
