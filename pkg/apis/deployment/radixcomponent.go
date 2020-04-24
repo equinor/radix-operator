@@ -38,6 +38,13 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			imageTagName = environmentSpecificConfig.ImageTagName
 		}
 
+		// Append common environment variables from appComponent.Variables to variables if not available yet
+		for secretKey, secretValue := range appComponent.Variables {
+			if _, found := variables[secretKey]; !found {
+				variables[secretKey] = secretValue
+			}
+		}
+
 		// For deploy-only images, we will replace the dynamic tag with the tag from the environment
 		// config
 		if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {

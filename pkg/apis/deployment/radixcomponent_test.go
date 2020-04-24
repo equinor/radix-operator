@@ -110,6 +110,123 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 	assert.Equal(t, 0, len(deployComponent[0].DNSExternalAlias))
 }
 
+func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1").
+				WithCommonEnvironmentVariable("ENV_COMMON_1", "environment_common_1").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithEnvironmentVariable("ENV_1", "environment_1"),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithEnvironmentVariable("ENV_2", "environment_2")),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_2").
+				WithCommonEnvironmentVariable("ENV_COMMON_2", "environment_common_2").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithEnvironmentVariable("ENV_3", "environment_3"),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithEnvironmentVariable("ENV_4", "environment_4"))).BuildRA()
+
+	deployComponentProd := getRadixComponentsForEnv(ra, anyContainerRegistry, "prod", componentImages)
+	assert.Equal(t, 2, len(deployComponentProd))
+
+	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
+	assert.Equal(t, 2, len(deployComponentProd[0].EnvironmentVariables))
+	assert.Equal(t, "environment_1", deployComponentProd[0].EnvironmentVariables["ENV_1"])
+	assert.Equal(t, "environment_common_1", deployComponentProd[0].EnvironmentVariables["ENV_COMMON_1"])
+
+	assert.Equal(t, "comp_2", deployComponentProd[1].Name)
+	assert.Equal(t, 2, len(deployComponentProd[1].EnvironmentVariables))
+	assert.Equal(t, "environment_3", deployComponentProd[1].EnvironmentVariables["ENV_3"])
+	assert.Equal(t, "environment_common_2", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
+
+	deployComponentDev := getRadixComponentsForEnv(ra, anyContainerRegistry, "dev", componentImages)
+	assert.Equal(t, 2, len(deployComponentDev))
+
+	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
+	assert.Equal(t, 2, len(deployComponentDev[0].EnvironmentVariables))
+	assert.Equal(t, "environment_2", deployComponentDev[0].EnvironmentVariables["ENV_2"])
+	assert.Equal(t, "environment_common_1", deployComponentDev[0].EnvironmentVariables["ENV_COMMON_1"])
+
+	assert.Equal(t, "comp_2", deployComponentDev[1].Name)
+	assert.Equal(t, 2, len(deployComponentDev[1].EnvironmentVariables))
+	assert.Equal(t, "environment_4", deployComponentDev[1].EnvironmentVariables["ENV_4"])
+	assert.Equal(t, "environment_common_2", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
+}
+
+func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1").
+				WithCommonEnvironmentVariable("ENV_COMMON_1", "environment_common_1").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithEnvironmentVariable("ENV_1", "environment_1").
+						WithEnvironmentVariable("ENV_COMMON_1", "environment_common_1_prod_override"),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithEnvironmentVariable("ENV_2", "environment_2").
+						WithEnvironmentVariable("ENV_COMMON_1", "environment_common_1_dev_override")),
+
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_2").
+				WithCommonEnvironmentVariable("ENV_COMMON_2", "environment_common_2").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithEnvironmentVariable("ENV_3", "environment_3").
+						WithEnvironmentVariable("ENV_COMMON_2", "environment_common_2_prod_override"),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithEnvironmentVariable("ENV_4", "environment_4").
+						WithEnvironmentVariable("ENV_COMMON_2", "environment_common_2_dev_override"))).BuildRA()
+
+	deployComponentProd := getRadixComponentsForEnv(ra, anyContainerRegistry, "prod", componentImages)
+	assert.Equal(t, 2, len(deployComponentProd))
+
+	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
+	assert.Equal(t, 2, len(deployComponentProd[0].EnvironmentVariables))
+	assert.Equal(t, "environment_1", deployComponentProd[0].EnvironmentVariables["ENV_1"])
+	assert.Equal(t, "environment_common_1_prod_override", deployComponentProd[0].EnvironmentVariables["ENV_COMMON_1"])
+
+	assert.Equal(t, "comp_2", deployComponentProd[1].Name)
+	assert.Equal(t, 2, len(deployComponentProd[1].EnvironmentVariables))
+	assert.Equal(t, "environment_3", deployComponentProd[1].EnvironmentVariables["ENV_3"])
+	assert.Equal(t, "environment_common_2_prod_override", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
+
+	deployComponentDev := getRadixComponentsForEnv(ra, anyContainerRegistry, "dev", componentImages)
+	assert.Equal(t, 2, len(deployComponentDev))
+
+	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
+	assert.Equal(t, 2, len(deployComponentDev[0].EnvironmentVariables))
+	assert.Equal(t, "environment_2", deployComponentDev[0].EnvironmentVariables["ENV_2"])
+	assert.Equal(t, "environment_common_1_dev_override", deployComponentDev[0].EnvironmentVariables["ENV_COMMON_1"])
+
+	assert.Equal(t, "comp_2", deployComponentDev[1].Name)
+	assert.Equal(t, 2, len(deployComponentDev[1].EnvironmentVariables))
+	assert.Equal(t, "environment_4", deployComponentDev[1].EnvironmentVariables["ENV_4"])
+	assert.Equal(t, "environment_common_2_dev_override", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
+}
+
 func getRABuilder() utils.ApplicationBuilder {
 	raBuilder := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).

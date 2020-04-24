@@ -334,6 +334,13 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Variables != nil {
+		in, out := &in.Variables, &out.Variables
+		*out = make(EnvVarsMap, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

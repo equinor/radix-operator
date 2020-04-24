@@ -195,6 +195,7 @@ type RadixApplicationComponentBuilder interface {
 	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
+	WithCommonEnvironmentVariable(string, string) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -210,6 +211,7 @@ type radixApplicationComponentBuilder struct {
 	secrets              []string
 	ingressConfiguration []string
 	environmentConfig    []RadixEnvironmentConfigBuilder
+	variables            v1.EnvVarsMap
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -268,6 +270,11 @@ func (rcb *radixApplicationComponentBuilder) WithEnvironmentConfigs(environmentC
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithCommonEnvironmentVariable(name, value string) RadixApplicationComponentBuilder {
+	rcb.variables[name] = value
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range rcb.ports {
@@ -290,21 +297,24 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Public:               rcb.public,
 		PublicPort:           rcb.publicPort,
 		EnvironmentConfig:    environmentConfig,
+		Variables:            rcb.variables,
 	}
 }
 
 // NewApplicationComponentBuilder Constructor for component builder
 func NewApplicationComponentBuilder() RadixApplicationComponentBuilder {
 	return &radixApplicationComponentBuilder{
-		ports: make(map[string]int32),
+		ports:     make(map[string]int32),
+		variables: make(map[string]string),
 	}
 }
 
 // AnApplicationComponent Constructor for component builder builder containing test data
 func AnApplicationComponent() RadixApplicationComponentBuilder {
 	return &radixApplicationComponentBuilder{
-		name:  "app",
-		ports: make(map[string]int32),
+		name:      "app",
+		ports:     make(map[string]int32),
+		variables: make(map[string]string),
 	}
 }
 
