@@ -67,12 +67,20 @@ rules:
   resources:
   - radixregistrations
   - radixapplications
-  - radixenvironments
   - radixdeployments
   verbs:
   - list
   - get
   - watch
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixenvironments
+  verbs:
+  - list
+  - get
+  - watch
+  - delete
 - apiGroups:
   - '*'
   resources:
