@@ -131,6 +131,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithComponents(
 						utils.AnApplicationComponent().
 							WithName("app").
+							WithCommonEnvironmentVariable("DB_TYPE", "mysql").
+							WithCommonEnvironmentVariable("DB_NAME", "my-db").
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
@@ -141,7 +143,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 									WithEnvironment(anyProdEnvironment).
 									WithReplicas(test.IntPtr(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
-									WithEnvironmentVariable("DB_PORT", "5678")))).
+									WithEnvironmentVariable("DB_PORT", "5678").
+									WithEnvironmentVariable("DB_NAME", "my-db-prod")))).
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
 			WithEnvironment(anyDevEnvironment).
@@ -182,6 +185,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, 4, *rds.Items[0].Spec.Components[0].Replicas)
 	assert.Equal(t, "db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
 	assert.Equal(t, "5678", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
+	assert.Equal(t, "mysql", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_TYPE"])
+	assert.Equal(t, "my-db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_NAME"])
 	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
 }
