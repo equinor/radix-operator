@@ -101,6 +101,16 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[1].EnvironmentConfig[0].Variables[conflicingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflicingVariableName
 		}},
+		{"invalid common environment variable name", radixvalidators.InvalidResourceNameError("environment variable name", invalidVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].Variables[invalidVariableName] = "Any value"
+		}},
+		{"too long common environment variable name", radixvalidators.InvalidResourceNameLengthError("environment variable name", wayTooLongName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].Variables[wayTooLongName] = "Any value"
+		}},
+		{"conflicting common variable and secret name", radixvalidators.SecretNameConfictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].Variables[conflicingVariableName] = "Any value"
+			ra.Spec.Components[1].Secrets[0] = conflicingVariableName
+		}},
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
 		}},

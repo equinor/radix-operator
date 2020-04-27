@@ -178,6 +178,13 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 			radixDeployment.Spec.Components[index].Replicas = environmentConfig.Replicas
 			radixDeployment.Spec.Components[index].EnvironmentVariables = environmentConfig.Variables
 		}
+
+		// Append common environment variables if not available yet
+		for variableKey, variableValue := range raComp.Variables {
+			if _, found := radixDeployment.Spec.Components[index].EnvironmentVariables[variableKey]; !found {
+				radixDeployment.Spec.Components[index].EnvironmentVariables[variableKey] = variableValue
+			}
+		}
 	}
 
 	return nil
