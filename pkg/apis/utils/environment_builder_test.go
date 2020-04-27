@@ -61,6 +61,17 @@ func Test_WithAppLabel(t *testing.T) {
 	assert.Equal(t, "myapp", re.ObjectMeta.Labels["radix-app"])
 }
 
+func Test_WithLabel(t *testing.T) {
+	re := NewEnvironmentBuilder().
+		WithLabel("key1", "value1").
+		WithLabel("key2", "value2").
+		BuildRE()
+
+	assert.Len(t, re.ObjectMeta.Labels, 2)
+	assert.Equal(t, "value1", re.ObjectMeta.Labels["key1"])
+	assert.Equal(t, "value2", re.ObjectMeta.Labels["key2"])
+}
+
 func Test_WithAppName_WithEnvironmentName(t *testing.T) {
 	re := NewEnvironmentBuilder().
 		WithAppName("prefix").
