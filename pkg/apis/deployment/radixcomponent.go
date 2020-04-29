@@ -39,9 +39,9 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		}
 
 		// Append common environment variables from appComponent.Variables to variables if not available yet
-		for secretKey, secretValue := range appComponent.Variables {
-			if _, found := variables[secretKey]; !found {
-				variables[secretKey] = secretValue
+		for variableKey, variableValue := range appComponent.Variables {
+			if _, found := variables[variableKey]; !found {
+				variables[variableKey] = variableValue
 			}
 		}
 

@@ -31,6 +31,8 @@ spec:
         - name: http
           port: 6379
       publicPort: ""
+      variables:
+        DB_NAME: "my-db"
       environmentConfig:
         - environment: dev
           variables:
