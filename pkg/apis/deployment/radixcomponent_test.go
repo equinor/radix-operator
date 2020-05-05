@@ -227,6 +227,50 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 	assert.Equal(t, "environment_common_2_dev_override", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
 }
 
+func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1").
+				WithCommonResource(map[string]string{
+					"memory": "64Mi",
+					"cpu":    "250m",
+				}, map[string]string{
+					"memory": "128Mi",
+					"cpu":    "500m",
+				}).WithEnvironmentConfigs(
+				utils.AnEnvironmentConfig().
+					WithEnvironment("prod").
+					WithResource(map[string]string{
+						"memory": "128Mi",
+						"cpu":    "500m",
+					}, map[string]string{
+						"memory": "256Mi",
+						"cpu":    "750m",
+					}))).BuildRA()
+
+	deployComponentProd := getRadixComponentsForEnv(ra, anyContainerRegistry, "prod", componentImages)
+	assert.Equal(t, 1, len(deployComponentProd))
+	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
+	assert.Equal(t, "500m", deployComponentProd[0].Resources.Requests["cpu"])
+	assert.Equal(t, "128Mi", deployComponentProd[0].Resources.Requests["memory"])
+	assert.Equal(t, "750m", deployComponentProd[0].Resources.Limits["cpu"])
+	assert.Equal(t, "256Mi", deployComponentProd[0].Resources.Limits["memory"])
+
+	deployComponentDev := getRadixComponentsForEnv(ra, anyContainerRegistry, "dev", componentImages)
+	assert.Equal(t, 1, len(deployComponentDev))
+	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
+	assert.Equal(t, "250m", deployComponentDev[0].Resources.Requests["cpu"])
+	assert.Equal(t, "64Mi", deployComponentDev[0].Resources.Requests["memory"])
+	assert.Equal(t, "500m", deployComponentDev[0].Resources.Limits["cpu"])
+	assert.Equal(t, "128Mi", deployComponentDev[0].Resources.Limits["memory"])
+}
+
 func getRABuilder() utils.ApplicationBuilder {
 	raBuilder := utils.NewRadixApplicationBuilder().
 		WithAppName(appName).
