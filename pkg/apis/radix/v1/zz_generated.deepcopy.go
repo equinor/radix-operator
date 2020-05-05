@@ -341,6 +341,7 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 			(*out)[key] = val
 		}
 	}
+	in.Resources.DeepCopyInto(&out.Resources)
 	return
 }
 

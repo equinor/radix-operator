@@ -15,14 +15,21 @@ spec:
        - name: http
          port: 8080
       publicPort: http
+      resources:
+        limits:
+          memory: "128Mi"
+          cpu: "200m"
+        requests:
+          memory: "64Mi"
+          cpu: "100m"
       environmentConfig:
         - environment: prod
           replicas: 4
-          resources: 
-            limits: 
+          resources:
+            limits:
               memory: "512Mi"
               cpu: "500m"
-            requests: 
+            requests:
               memory: "128Mi"
               cpu: "250m"
     - name: redis
