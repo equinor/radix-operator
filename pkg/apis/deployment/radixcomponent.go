@@ -13,7 +13,10 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 
 	for _, appComponent := range radixApplication.Spec.Components {
 		componentName := appComponent.Name
-		componentImage := componentImages[componentName]
+		componentImage, exists := componentImages[componentName]
+		if !exists {
+			continue
+		}
 
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
 

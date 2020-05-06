@@ -72,6 +72,7 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 }
 
 func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineInfo *model.PipelineInfo) error {
+
 	radixDeployment, err := deployment.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
 		pipelineInfo.ContainerRegistry,

@@ -230,8 +230,16 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 
+	oldRD, _ := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.ObjectMeta.Namespace).Get(deploy.radixDeployment.Name, metav1.GetOptions{})
+
 	errs := []error{}
-	for _, v := range deploy.radixDeployment.Spec.Components {
+	for i, v := range deploy.radixDeployment.Spec.Components {
+
+		// TODO: find component by name, not index
+		if oldRD != nil && v.ModifiedTime == (metav1.Time)nil {
+			v.ModifiedTime = oldRD.Spec.Components[i].ModifiedTime
+		}
+
 		// Deploy to current radixDeploy object's namespace
 		err := deploy.createDeployment(v)
 		if err != nil {

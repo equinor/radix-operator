@@ -69,4 +69,5 @@ type RadixDeployComponent struct {
 	Monitoring           bool                    `json:"monitoring" yaml:"monitoring"`
 	Resources            ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
 	HorizontalScaling    *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
+	ModifiedTime         meta_v1.Time            `json:"modifiedTime" yaml:"modifiedTime"`
 }

@@ -119,6 +119,9 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		// Used for tagging source of image
 		fmt.Sprintf("%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
 		fmt.Sprintf("%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
+
+		// Filter on components if applied
+		fmt.Sprintf("COMPONENT_NAME=%s", jobSpec.ComponentName),
 	}
 
 	switch pipeline.Type {

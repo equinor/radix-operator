@@ -30,6 +30,24 @@
       ]
     },
     {
+      "name": "Launch-deploy-pipeline",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/pipeline-runner/main.go",
+      "env": {},
+      "args": [
+        "RADIX_APP=radix-api",
+        "TO_ENVIRONMENT=dev",
+        "COMPONENT_NAME=server",
+        "PIPELINE_TYPE=deploy",
+        "PUSH_IMAGE=0",
+        "RADIX_CONFIG_TO_MAP=radix-config-2-map:master-latest",
+        "RADIX_FILE_NAME=/workspace/radixconfig.yaml",
+        "DEBUG=true"
+      ]
+    },
+    {
       "name": "Launch-promote-pipeline",
       "type": "go",
       "request": "launch",

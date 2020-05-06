@@ -46,7 +46,9 @@ const (
 
 //RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	AppName        string            `json:"appName" yaml:"appName"`
+	AppName string `json:"appName" yaml:"appName"`
+	// ComponentName is present if a single application component should be affected by the job
+	ComponentName  string            `json:"componentName" yaml:"componentName"`
 	CloneURL       string            `json:"cloneURL" yaml:"cloneURL"`
 	PipeLineType   RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
 	DockerRegistry string            `json:"dockerRegistry" yaml:"dockerRegistry"`

@@ -55,6 +55,7 @@ type PipelineArguments struct {
 	FromEnvironment string
 	ToEnvironment   string
 	RadixConfigFile string
+	ComponentName   string
 
 	// Images used for copying radix config/building/scanning
 	ConfigToMap  string
@@ -83,6 +84,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	deploymentName := args["DEPLOYMENT_NAME"]   // For promotion pipeline
 	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
 	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion and deploy pipeline
+	componentName := args["COMPONENT_NAME"]     // For deploy pipeline
 
 	configToMap := args[defaults.RadixConfigToMapEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
@@ -113,6 +115,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
+		ComponentName:   componentName,
 		ConfigToMap:     configToMap,
 		ImageBuilder:    imageBuilder,
 		ImageScanner:    imageScanner,
@@ -189,13 +192,30 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.BranchIsMapped = branchIsMapped
 	info.TargetEnvironments = targetEnvironments
 
-	componentImages := getComponentImages(ra.GetName(), info.ContainerRegistry, info.PipelineArguments.ImageTag, ra.Spec.Components)
+	components := filterComponents(ra.Spec.Components, info.PipelineArguments.ComponentName)
+
+	componentImages := getComponentImages(ra.GetName(), info.ContainerRegistry, info.PipelineArguments.ImageTag, components)
 	info.ComponentImages = componentImages
 }
 
 // IsDeployOnlyPipeline Determines if the pipeline is deploy-only
 func (info *PipelineInfo) IsDeployOnlyPipeline() bool {
 	return info.PipelineArguments.ToEnvironment != "" && info.PipelineArguments.FromEnvironment == ""
+}
+
+// filterComponets picks out a single component matching name if name is not empty
+func filterComponents(components []v1.RadixComponent, name string) []v1.RadixComponent {
+	if name == "" {
+		return components
+	}
+
+	for _, component := range components {
+		if component.Name == name {
+			return []v1.RadixComponent{component}
+		}
+	}
+
+	return []v1.RadixComponent{}
 }
 
 func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent) map[string]pipeline.ComponentImage {
