@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"strings"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -87,7 +86,6 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
 						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
 						kube.RadixBranchAnnotation:                 branch,
-						kube.RadixUpdateTimeAnnotation:             time.Now().Format(time.RFC3339),
 					},
 				},
 				Spec: corev1.PodSpec{
