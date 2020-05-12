@@ -336,6 +336,12 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
+		// Common resource requirements
+		errList = validateResourceRequirements(&component.Resources)
+		if errList != nil && len(errList) > 0 {
+			errs = append(errs, errList...)
+		}
+
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, component.Name)

@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -184,6 +185,11 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 			if _, found := radixDeployment.Spec.Components[index].EnvironmentVariables[variableKey]; !found {
 				radixDeployment.Spec.Components[index].EnvironmentVariables[variableKey] = variableValue
 			}
+		}
+
+		// Append common resources settings if currently empty
+		if reflect.DeepEqual(radixDeployment.Spec.Components[index].Resources, v1.ResourceRequirements{}) {
+			radixDeployment.Spec.Components[index].Resources = raComp.Resources
 		}
 	}
 
