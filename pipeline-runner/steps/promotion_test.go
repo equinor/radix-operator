@@ -131,6 +131,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithComponents(
 						utils.AnApplicationComponent().
 							WithName("app").
+							WithCommonEnvironmentVariable("DB_TYPE", "mysql").
+							WithCommonEnvironmentVariable("DB_NAME", "my-db").
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
@@ -141,7 +143,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 									WithEnvironment(anyProdEnvironment).
 									WithReplicas(test.IntPtr(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
-									WithEnvironmentVariable("DB_PORT", "5678")))).
+									WithEnvironmentVariable("DB_PORT", "5678").
+									WithEnvironmentVariable("DB_NAME", "my-db-prod")))).
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
 			WithEnvironment(anyDevEnvironment).
@@ -182,8 +185,169 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, 4, *rds.Items[0].Spec.Components[0].Replicas)
 	assert.Equal(t, "db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_HOST"])
 	assert.Equal(t, "5678", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_PORT"])
+	assert.Equal(t, "mysql", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_TYPE"])
+	assert.Equal(t, "my-db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_NAME"])
 	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
+}
+
+func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
+	anyApp := "any-app"
+	anyDeploymentName := "deployment-1"
+	anyImageTag := "abcdef"
+	anyBuildDeployJobName := "any-build-deploy-job"
+	anyPromoteJobName := "any-promote-job"
+	anyProdEnvironment := "prod"
+	anyDevEnvironment := "dev"
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+
+	commonTestUtils.ApplyDeployment(
+		builders.ARadixDeployment().
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithRadixRegistration(
+						utils.ARadixRegistration().
+							WithName(anyApp)).
+					WithAppName(anyApp).
+					WithEnvironment(anyDevEnvironment, "master").
+					WithEnvironment(anyProdEnvironment, "").
+					WithComponents(
+						utils.AnApplicationComponent().
+							WithName("app").
+							WithCommonResource(map[string]string{
+								"memory": "64Mi",
+								"cpu":    "250m",
+							}, map[string]string{
+								"memory": "128Mi",
+								"cpu":    "500m",
+							}))).
+			WithAppName(anyApp).
+			WithDeploymentName(anyDeploymentName).
+			WithEnvironment(anyDevEnvironment).
+			WithImageTag(anyImageTag).
+			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+
+	// Create prod environment without any deployments
+	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
+
+	cli := NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: anyDevEnvironment,
+			ToEnvironment:   anyProdEnvironment,
+			DeploymentName:  anyDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
+	}
+
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	err := cli.Run(pipelineInfo)
+	assert.NoError(t, err)
+
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(rds.Items))
+	assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
+	assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
+	assert.Equal(t, anyImageTag, rds.Items[0].Labels[kube.RadixImageTagLabel])
+	assert.Equal(t, anyPromoteJobName, rds.Items[0].Labels[kube.RadixJobNameLabel])
+	assert.Equal(t, "250m", rds.Items[0].Spec.Components[0].Resources.Requests["cpu"])
+	assert.Equal(t, "64Mi", rds.Items[0].Spec.Components[0].Resources.Requests["memory"])
+	assert.Equal(t, "500m", rds.Items[0].Spec.Components[0].Resources.Limits["cpu"])
+	assert.Equal(t, "128Mi", rds.Items[0].Spec.Components[0].Resources.Limits["memory"])
+}
+
+func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) {
+	anyApp := "any-app"
+	anyDeploymentName := "deployment-1"
+	anyImageTag := "abcdef"
+	anyBuildDeployJobName := "any-build-deploy-job"
+	anyPromoteJobName := "any-promote-job"
+	anyProdEnvironment := "prod"
+	anyDevEnvironment := "dev"
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+
+	commonTestUtils.ApplyDeployment(
+		builders.ARadixDeployment().
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithRadixRegistration(
+						utils.ARadixRegistration().
+							WithName(anyApp)).
+					WithAppName(anyApp).
+					WithEnvironment(anyDevEnvironment, "master").
+					WithEnvironment(anyProdEnvironment, "").
+					WithComponents(
+						utils.AnApplicationComponent().
+							WithName("app").
+							WithCommonResource(map[string]string{
+								"memory": "64Mi",
+								"cpu":    "250m",
+							}, map[string]string{
+								"memory": "128Mi",
+								"cpu":    "500m",
+							}).
+							WithEnvironmentConfigs(
+								utils.AnEnvironmentConfig().
+									WithEnvironment(anyProdEnvironment).WithResource(map[string]string{
+									"memory": "128Mi",
+									"cpu":    "500m",
+								}, map[string]string{
+									"memory": "256Mi",
+									"cpu":    "750m",
+								})))).
+			WithAppName(anyApp).
+			WithDeploymentName(anyDeploymentName).
+			WithEnvironment(anyDevEnvironment).
+			WithImageTag(anyImageTag).
+			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
+
+	// Create prod environment without any deployments
+	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
+
+	cli := NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: anyDevEnvironment,
+			ToEnvironment:   anyProdEnvironment,
+			DeploymentName:  anyDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
+	}
+
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	err := cli.Run(pipelineInfo)
+	assert.NoError(t, err)
+
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(metav1.ListOptions{})
+	assert.Equal(t, 1, len(rds.Items))
+	assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
+	assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
+	assert.Equal(t, anyImageTag, rds.Items[0].Labels[kube.RadixImageTagLabel])
+	assert.Equal(t, anyPromoteJobName, rds.Items[0].Labels[kube.RadixJobNameLabel])
+	assert.Equal(t, "500m", rds.Items[0].Spec.Components[0].Resources.Requests["cpu"])
+	assert.Equal(t, "128Mi", rds.Items[0].Spec.Components[0].Resources.Requests["memory"])
+	assert.Equal(t, "750m", rds.Items[0].Spec.Components[0].Resources.Limits["cpu"])
+	assert.Equal(t, "256Mi", rds.Items[0].Spec.Components[0].Resources.Limits["memory"])
 }
 
 func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {

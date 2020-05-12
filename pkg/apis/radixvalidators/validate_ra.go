@@ -336,6 +336,12 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
+		// Common resource requirements
+		errList = validateResourceRequirements(&component.Resources)
+		if errList != nil && len(errList) > 0 {
+			errs = append(errs, errList...)
+		}
+
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, component.Name)
@@ -478,6 +484,14 @@ func validateSecretNames(app *radixv1.RadixApplication) error {
 
 func validateEnvironmentVariableNames(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
+		// Common environment variables
+		for commonEnvironmentVariable := range component.Variables {
+			err := validateVariableName("environment variable name", commonEnvironmentVariable)
+			if err != nil {
+				return err
+			}
+		}
+		// Per-environment environment variables
 		for _, envConfig := range component.EnvironmentConfig {
 			for environmentVariable := range envConfig.Variables {
 				err := validateVariableName("environment variable name", environmentVariable)
@@ -497,6 +511,14 @@ func validateConflictingEnvironmentAndSecretNames(app *radixv1.RadixApplication)
 			secretNames[secret] = struct{}{}
 		}
 
+		// Common environment variables
+		for commonEnvironmentVariable := range component.Variables {
+			if _, contains := secretNames[commonEnvironmentVariable]; contains {
+				return SecretNameConfictsWithEnvironmentVariable(component.Name, commonEnvironmentVariable)
+			}
+		}
+
+		// Per-environment environment variables
 		for _, envConfig := range component.EnvironmentConfig {
 			for environmentVariable := range envConfig.Variables {
 				if _, contains := secretNames[environmentVariable]; contains {

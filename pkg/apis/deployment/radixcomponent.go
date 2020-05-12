@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -39,10 +40,15 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		}
 
 		// Append common environment variables from appComponent.Variables to variables if not available yet
-		for secretKey, secretValue := range appComponent.Variables {
-			if _, found := variables[secretKey]; !found {
-				variables[secretKey] = secretValue
+		for variableKey, variableValue := range appComponent.Variables {
+			if _, found := variables[variableKey]; !found {
+				variables[variableKey] = variableValue
 			}
+		}
+
+		// Append common resources settings if currently empty
+		if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
+			resources = appComponent.Resources
 		}
 
 		// For deploy-only images, we will replace the dynamic tag with the tag from the environment
