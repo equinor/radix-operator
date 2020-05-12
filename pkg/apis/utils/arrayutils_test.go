@@ -37,3 +37,11 @@ func Test_array_diff_len_and_elem(t *testing.T) {
 	assert.False(t, ArrayEqual(a, b))
 	assert.False(t, ArrayEqualElements(a, b))
 }
+
+func Test_array_same_len_diff_repeated_element(t *testing.T) {
+	a := []string{"a", "a", "a"}
+	b := []string{"a", "b", "c"}
+
+	assert.False(t, ArrayEqual(a, b))
+	assert.False(t, ArrayEqualElements(a, b))
+}
