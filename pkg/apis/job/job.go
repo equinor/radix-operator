@@ -11,11 +11,11 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-operator/radix-operator/metrics"
 	"github.com/prometheus/common/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

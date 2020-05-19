@@ -4,11 +4,11 @@ import (
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"

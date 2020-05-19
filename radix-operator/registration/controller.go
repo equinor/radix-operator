@@ -5,11 +5,11 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
