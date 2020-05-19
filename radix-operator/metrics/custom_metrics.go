@@ -3,6 +3,7 @@ package metrics
 import (
 	"time"
 
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -32,10 +33,24 @@ var (
 		},
 		[]string{"cr_type"},
 	)
+
+	radixJobProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "radix_operator_radix_job_processed",
+		Help: "The number of radix jobs processed with status",
+	}, []string{"application", "pipeline_type", "status", "docker_registry", "pipeline_image"})
 )
 
 func init() {
 	prometheus.MustRegister(recTimeBucket)
+}
+
+// RadixJobStatusChanged increments metric to count the number of radix jobs processed
+func RadixJobStatusChanged(rj *v1.RadixJob) {
+	if rj == nil {
+		return
+	}
+	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
+		"status": string(rj.Status.Condition), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Inc()
 }
 
 // DefaultBuckets Holds the buckets used as default
