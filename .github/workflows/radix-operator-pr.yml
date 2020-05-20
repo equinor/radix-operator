@@ -4,8 +4,8 @@ on:
     branches:
     - master
 jobs:
-  build:
-    name: Build
+  build-operator:
+    name: Build-operator
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -13,6 +13,11 @@ jobs:
       env:
         REF: ${{ github. sha }}
       run: docker build -t radix-operator:${REF##*/} -f operator.Dockerfile .
+  build-pipeline:
+    name: Build-pipeline
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
     - name: Build pipeline image
       env:
         REF: ${{ github. sha }}
