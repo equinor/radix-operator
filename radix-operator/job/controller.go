@@ -75,6 +75,7 @@ func NewController(client kubernetes.Interface,
 			if job.IsRadixJobDone(radixJob) {
 				logger.Debugf("Skip job object %s as it is complete", radixJob.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
+				metrics.InitiateRadixJobStatusChanged(radixJob)
 				return
 			}
 
@@ -86,6 +87,7 @@ func NewController(client kubernetes.Interface,
 			if job.IsRadixJobDone(newRJ) {
 				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
+				metrics.InitiateRadixJobStatusChanged(newRJ)
 				return
 			}
 
