@@ -180,6 +180,9 @@ func (app *ApplicationConfig) createEnvironments() error {
 			WithAppLabel().
 			WithEnvironmentName(env).
 			WithRegistrationOwner(app.registration).
+			// Orphaned flag will be set by the environment handler but until
+			// reconciliation we must ensure it is false
+			WithOrphaned(false).
 			BuildRE())
 	}
 
@@ -259,6 +262,7 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.
 	radixEnvironment.ObjectMeta.OwnerReferences = newRe.ObjectMeta.OwnerReferences
 	radixEnvironment.ObjectMeta.Annotations = newRe.ObjectMeta.Annotations
 	radixEnvironment.Spec = newRe.Spec
+	radixEnvironment.Status = newRe.Status
 
 	oldReJSON, err := json.Marshal(oldRe)
 	if err != nil {
