@@ -91,7 +91,8 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
-			WithRegistrationOwner(rr))
+			WithRegistrationOwner(rr).
+			WithOrphaned(false))
 	}
 
 	return ra, nil

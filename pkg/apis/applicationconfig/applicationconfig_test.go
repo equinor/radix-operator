@@ -520,6 +520,10 @@ func Test_RadixEnvironment(t *testing.T) {
 	t.Run("Environment has a correct owner", func(t *testing.T) {
 		assert.Equal(t, rrAsOwnerReference(rr), environments.Items[0].GetOwnerReferences())
 	})
+
+	t.Run("Environment is not orphaned", func(t *testing.T) {
+		assert.False(t, environments.Items[0].Status.Orphaned)
+	})
 }
 
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
