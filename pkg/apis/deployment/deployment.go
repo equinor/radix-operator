@@ -12,6 +12,7 @@ import (
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -112,6 +113,7 @@ func (deploy *Deployment) OnSync() error {
 	if err == nil {
 		// Only remove old RDs if deployment is successful
 		deploy.maintainHistoryLimit()
+		metrics.RequestedResources(deploy.radixDeployment)
 	}
 
 	return err

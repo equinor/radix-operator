@@ -9,7 +9,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -147,7 +146,7 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
 
-	resourceRequirements := getResourceRequirements(deployComponent)
+	resourceRequirements := deployComponent.GetResourceRequirements()
 
 	if resourceRequirements != nil {
 		deployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
@@ -249,60 +248,6 @@ func getSecurityContextForContainer() *corev1.SecurityContext {
 		// RunAsUser:                &runAsUser,
 	}
 }
-
-func getResourceRequirements(deployComponent v1.RadixDeployComponent) *corev1.ResourceRequirements {
-
-	defaultLimits := map[corev1.ResourceName]resource.Quantity{
-		corev1.ResourceName("cpu"):    *defaults.GetDefaultCPULimit(),
-		corev1.ResourceName("memory"): *defaults.GetDefaultMemoryLimit(),
-	}
-
-	// if you only set limit, it will use the same values for request
-	limits := corev1.ResourceList{}
-	requests := corev1.ResourceList{}
-
-	for name, limit := range deployComponent.Resources.Limits {
-		resName := corev1.ResourceName(name)
-
-		if limit != "" {
-			limits[resName], _ = resource.ParseQuantity(limit)
-		}
-
-		// TODO: We probably should check some hard limit that cannot by exceeded here
-	}
-
-	for name, req := range deployComponent.Resources.Requests {
-		resName := corev1.ResourceName(name)
-
-		if req != "" {
-			requests[resName], _ = resource.ParseQuantity(req)
-
-			if _, hasLimit := limits[resName]; !hasLimit {
-				// There is no defined limit, but there is a request
-				reqQuantity := requests[resName]
-				if reqQuantity.Cmp(defaultLimits[resName]) == 1 {
-					// Requested quantity is larger than the default limit
-					// We use the requested value as the limit
-					limits[resName] = requests[resName].DeepCopy()
-
-					// TODO: If we introduce a hard limit, that should not be exceeded here
-				}
-			}
-		}
-	}
-
-	if len(limits) <= 0 && len(requests) <= 0 {
-		return nil
-	}
-
-	req := corev1.ResourceRequirements{
-		Limits:   limits,
-		Requests: requests,
-	}
-
-	return &req
-}
-
 func int32Ptr(i int32) *int32 {
 	return &i
 }
