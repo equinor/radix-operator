@@ -6,6 +6,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
@@ -34,6 +35,19 @@ var (
 		[]string{"cr_type"},
 	)
 
+	radixRequestedCPU = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "radix_operator_requested_cpu",
+		Help: "Requested cpu in millicore by environment and component",
+	}, []string{"application", "environment", "component"})
+	radixRequestedMemory = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "radix_operator_requested_memory",
+		Help: "Requested memory in megabyte by environment and component. 1Mi = 1024 * 1024 bytes > 1MB = 1000000 bytes (ref https://simple.wikipedia.org/wiki/Mebibyte)",
+	}, []string{"application", "environment", "component"})
+	radixRequestedReplicas = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "radix_operator_requested_replicas",
+		Help: "Requested replicas by environment and component",
+	}, []string{"application", "environment", "component"})
+
 	radixJobProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_radix_job_processed",
 		Help: "The number of radix jobs processed with status",
@@ -42,6 +56,38 @@ var (
 
 func init() {
 	prometheus.MustRegister(recTimeBucket)
+}
+
+// RequestedResources adds metrics for requested resources
+func RequestedResources(rd *v1.RadixDeployment) {
+	if rd == nil || rd.Status.Condition == v1.DeploymentInactive {
+		return
+	}
+
+	for _, comp := range rd.Spec.Components {
+		resources := comp.GetResourceRequirements()
+		if resources == nil {
+			continue
+		}
+		requestedResources := resources.Requests
+
+		if cpu := requestedResources.Cpu(); cpu != nil {
+			radixRequestedCPU.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).Set(float64(cpu.MilliValue()))
+		}
+
+		if memory := requestedResources.Memory(); memory != nil {
+			radixRequestedMemory.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).Set(float64(memory.ScaledValue(resource.Mega)))
+		}
+
+		replicas := int32(1)
+		if comp.HorizontalScaling != nil && comp.HorizontalScaling.MinReplicas != nil {
+			replicas = *comp.HorizontalScaling.MinReplicas
+		} else if comp.Replicas != nil {
+			replicas = int32(*comp.Replicas)
+		}
+		nrReplicas := float64(replicas)
+		radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).Set(nrReplicas)
+	}
 }
 
 // InitiateRadixJobStatusChanged initiate metric with value 0 to count the number of radix jobs processed.
