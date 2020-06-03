@@ -93,6 +93,11 @@ func CPUResourceRequirementFormatError(value string) error {
 	return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
 }
 
+// ResourceRequestOverLimitError Invalid resource requirement error
+func ResourceRequestOverLimitError(resource string, require string, limit string) error {
+	return fmt.Errorf("%s resource requirement (value %s) is larger than the limit (value %s)", resource, require, limit)
+}
+
 // InvalidResourceError Invalid resource type
 func InvalidResourceError(name string) error {
 	return fmt.Errorf("Only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
@@ -425,40 +430,48 @@ func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirem
 	if resourceRequirements == nil {
 		return errs
 	}
-
-	for name, value := range resourceRequirements.Requests {
-		err := validateQuantity(name, value)
+	limitQuantities := make(map[string]resource.Quantity)
+	for name, value := range resourceRequirements.Limits {
+		q, err := validateQuantity(name, value)
 		if err != nil {
 			errs = append(errs, err)
 		}
+		limitQuantities[name] = q
 	}
-	for name, value := range resourceRequirements.Limits {
-		err := validateQuantity(name, value)
+	for name, value := range resourceRequirements.Requests {
+		limit := limitQuantities[name]
+		q, err := validateQuantity(name, value)
 		if err != nil {
 			errs = append(errs, err)
+		}
+		if q.Cmp(limit) == 1 {
+			errs = append(errs, ResourceRequestOverLimitError(name, value, limit.String()))
 		}
 	}
 	return errs
 }
 
-func validateQuantity(name, value string) error {
+func validateQuantity(name, value string) (resource.Quantity, error) {
+	var quantity resource.Quantity
+	var err error
 	if name == "memory" {
-		_, err := resource.ParseQuantity(value)
+		quantity, err = resource.ParseQuantity(value)
 		if err != nil {
-			return MemoryResourceRequirementFormatError(value)
+			return quantity, MemoryResourceRequirementFormatError(value)
 		}
 	} else if name == "cpu" {
-		re := regexp.MustCompile(cpuRegex)
+		quantity, err = resource.ParseQuantity(value)
 
+		re := regexp.MustCompile(cpuRegex)
 		isValid := re.MatchString(value)
-		if !isValid {
-			return CPUResourceRequirementFormatError(value)
+		if err != nil || !isValid {
+			return quantity, CPUResourceRequirementFormatError(value)
 		}
 	} else {
-		return InvalidResourceError(name)
+		return quantity, InvalidResourceError(name)
 	}
 
-	return nil
+	return quantity, nil
 }
 
 func validateSecretNames(app *radixv1.RadixApplication) error {

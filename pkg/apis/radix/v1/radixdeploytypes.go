@@ -1,7 +1,9 @@
 package v1
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	core_v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -69,4 +71,58 @@ type RadixDeployComponent struct {
 	Monitoring           bool                    `json:"monitoring" yaml:"monitoring"`
 	Resources            ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
 	HorizontalScaling    *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
+}
+
+// GetResourceRequirements maps to core_v1.ResourceRequirements
+func (deployComponent RadixDeployComponent) GetResourceRequirements() *core_v1.ResourceRequirements {
+
+	defaultLimits := map[core_v1.ResourceName]resource.Quantity{
+		core_v1.ResourceName("cpu"):    *defaults.GetDefaultCPULimit(),
+		core_v1.ResourceName("memory"): *defaults.GetDefaultMemoryLimit(),
+	}
+
+	// if you only set limit, it will use the same values for request
+	limits := core_v1.ResourceList{}
+	requests := core_v1.ResourceList{}
+
+	for name, limit := range deployComponent.Resources.Limits {
+		resName := core_v1.ResourceName(name)
+
+		if limit != "" {
+			limits[resName], _ = resource.ParseQuantity(limit)
+		}
+
+		// TODO: We probably should check some hard limit that cannot by exceeded here
+	}
+
+	for name, req := range deployComponent.Resources.Requests {
+		resName := core_v1.ResourceName(name)
+
+		if req != "" {
+			requests[resName], _ = resource.ParseQuantity(req)
+
+			if _, hasLimit := limits[resName]; !hasLimit {
+				// There is no defined limit, but there is a request
+				reqQuantity := requests[resName]
+				if reqQuantity.Cmp(defaultLimits[resName]) == 1 {
+					// Requested quantity is larger than the default limit
+					// We use the requested value as the limit
+					limits[resName] = requests[resName].DeepCopy()
+
+					// TODO: If we introduce a hard limit, that should not be exceeded here
+				}
+			}
+		}
+	}
+
+	if len(limits) <= 0 && len(requests) <= 0 {
+		return nil
+	}
+
+	req := core_v1.ResourceRequirements{
+		Limits:   limits,
+		Requests: requests,
+	}
+
+	return &req
 }
