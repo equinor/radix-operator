@@ -175,38 +175,15 @@ func (app *ApplicationConfig) createEnvironments() error {
 	targetEnvs := getTargetEnvironmentsAsMap("", app.config)
 
 	for env := range targetEnvs {
-
-		trueVar := true
-		envConfig := &v1.RadixEnvironment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "radix.equinor.com/v1",
-				Kind:       "RadixEnvironment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-%s", app.config.Name, env),
-				Labels: map[string]string{
-					kube.RadixAppLabel: app.config.Name,
-				},
-				OwnerReferences: []metav1.OwnerReference{
-					metav1.OwnerReference{
-						APIVersion: "radix.equinor.com/v1",
-						Kind:       "RadixRegistration",
-						Name:       app.registration.Name,
-						UID:        app.registration.UID,
-						Controller: &trueVar,
-					},
-				},
-			},
-			Spec: v1.RadixEnvironmentSpec{
-				AppName: app.config.Name,
-				EnvName: env,
-			},
-			Status: v1.RadixEnvironmentStatus{
-				Reconciled: metav1.Time{},
-			},
-		}
-
-		app.applyEnvironment(envConfig)
+		app.applyEnvironment(utils.NewEnvironmentBuilder().
+			WithAppName(app.config.Name).
+			WithAppLabel().
+			WithEnvironmentName(env).
+			WithRegistrationOwner(app.registration).
+			// Orphaned flag will be set by the environment handler but until
+			// reconciliation we must ensure it is false
+			WithOrphaned(false).
+			BuildRE())
 	}
 
 	return nil
@@ -285,6 +262,7 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.
 	radixEnvironment.ObjectMeta.OwnerReferences = newRe.ObjectMeta.OwnerReferences
 	radixEnvironment.ObjectMeta.Annotations = newRe.ObjectMeta.Annotations
 	radixEnvironment.Spec = newRe.Spec
+	radixEnvironment.Status = newRe.Status
 
 	oldReJSON, err := json.Marshal(oldRe)
 	if err != nil {

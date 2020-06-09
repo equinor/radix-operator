@@ -11,6 +11,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
@@ -25,10 +26,11 @@ import (
 
 // Job Instance variables
 type Job struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
-	radixJob    *v1.RadixJob
+	kubeclient             kubernetes.Interface
+	radixclient            radixclient.Interface
+	kubeutil               *kube.Kube
+	radixJob               *v1.RadixJob
+	originalRadixJobStatus v1.RadixJobCondition
 }
 
 // NewJob Constructor
@@ -37,11 +39,12 @@ func NewJob(
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	radixJob *v1.RadixJob) Job {
+	originalRadixJobStatus := radixJob.Status.Condition
 
 	return Job{
 		kubeclient,
 		radixclient,
-		kubeutil, radixJob}
+		kubeutil, radixJob, originalRadixJobStatus}
 }
 
 // OnSync compares the actual state with the desired, and attempts to
@@ -86,7 +89,7 @@ func (job *Job) restoreStatus() {
 			}
 
 			job.radixJob.Status = status
-			err = saveStatus(job.radixclient, job.radixJob)
+			err = saveStatus(job.radixclient, job.radixJob, job.originalRadixJobStatus)
 			if err != nil {
 				log.Error("Unable to restore status", err)
 				return
@@ -185,7 +188,7 @@ func (job *Job) setStatusOfJob() error {
 
 	job.radixJob.Status.Steps = steps
 	job.radixJob.Status.TargetEnvs = environments
-	err = saveStatus(job.radixclient, job.radixJob)
+	err = saveStatus(job.radixclient, job.radixJob, job.originalRadixJobStatus)
 
 	if job.radixJob.Status.Condition == v1.JobSucceeded || job.radixJob.Status.Condition == v1.JobFailed {
 		err = job.setNextJobToRunning()
@@ -226,7 +229,7 @@ func (job *Job) stopJob() error {
 	job.radixJob.Status.Condition = v1.JobStopped
 	job.radixJob.Status.Ended = &metav1.Time{Time: time.Now()}
 
-	err := saveStatus(job.radixclient, job.radixJob)
+	err := saveStatus(job.radixclient, job.radixJob, job.originalRadixJobStatus)
 	if err == nil && isRunning {
 		err = job.setNextJobToRunning()
 	}
@@ -267,7 +270,7 @@ func (job *Job) setNextJobToRunning() error {
 	for _, otherRj := range rjs {
 		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued {
 			otherRj.Status.Condition = v1.JobRunning
-			err = saveStatus(job.radixclient, &otherRj)
+			err = saveStatus(job.radixclient, &otherRj, v1.JobQueued) // previous status for this otherRj was Queued
 			break
 		}
 	}
@@ -292,7 +295,7 @@ func isRJ1ActiveAfterRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
 func (job *Job) queueJob() error {
 	job.radixJob.Status.Created = &job.radixJob.CreationTimestamp
 	job.radixJob.Status.Condition = v1.JobQueued
-	return saveStatus(job.radixclient, job.radixJob)
+	return saveStatus(job.radixclient, job.radixJob, job.originalRadixJobStatus)
 }
 
 func (job *Job) getJobSteps(kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, error) {
@@ -531,8 +534,11 @@ func (job *Job) getJobEnvironments() ([]string, error) {
 	return environments, nil
 }
 
-func saveStatus(radixClient radixclient.Interface, rj *v1.RadixJob) error {
+func saveStatus(radixClient radixclient.Interface, rj *v1.RadixJob, originalRadixJobStatus v1.RadixJobCondition) error {
 	_, err := radixClient.RadixV1().RadixJobs(rj.GetNamespace()).UpdateStatus(rj)
+	if err == nil && originalRadixJobStatus != rj.Status.Condition {
+		metrics.RadixJobStatusChanged(rj)
+	}
 	return err
 }
 

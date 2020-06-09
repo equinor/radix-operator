@@ -7,10 +7,10 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	kubeinformers "k8s.io/client-go/informers"
 
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -75,6 +75,7 @@ func NewController(client kubernetes.Interface,
 			if job.IsRadixJobDone(radixJob) {
 				logger.Debugf("Skip job object %s as it is complete", radixJob.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
+				metrics.InitiateRadixJobStatusChanged(radixJob)
 				return
 			}
 
@@ -86,6 +87,7 @@ func NewController(client kubernetes.Interface,
 			if job.IsRadixJobDone(newRJ) {
 				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
+				metrics.InitiateRadixJobStatusChanged(newRJ)
 				return
 			}
 

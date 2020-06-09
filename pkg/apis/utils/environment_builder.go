@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"math/rand"
-	"strconv"
 	"time"
 
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -23,6 +21,8 @@ type EnvironmentBuilder interface {
 	WithOwner(owner meta.OwnerReference) EnvironmentBuilder
 	WithRegistrationOwner(registration *rx.RadixRegistration) EnvironmentBuilder
 	WithRegistrationBuilder(builder RegistrationBuilder) EnvironmentBuilder
+	WithOrphaned(isOrphan bool) EnvironmentBuilder
+	WithResourceVersion(version string) EnvironmentBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRE() *rx.RadixEnvironment
 }
@@ -34,20 +34,21 @@ type EnvironmentBuilderStruct struct {
 	AppName             string
 	Labels              map[string]string
 	AppLabel            bool
-	CreatedTime         time.Time
-	ReconciledTime      time.Time
+	CreatedTime         *time.Time
+	ReconciledTime      *time.Time
 	Owners              []meta.OwnerReference
 	ResourceVersion     string
+	IsOrphan            bool
 	UID                 types.UID
 }
 
-// WithEnvironmentName Sets name of the environment
+// WithEnvironmentName sets name of the environment
 func (eb *EnvironmentBuilderStruct) WithEnvironmentName(name string) EnvironmentBuilder {
 	eb.EnvironmentName = name
 	return eb
 }
 
-// WithAppName Sets app name
+// WithAppName sets application name
 func (eb *EnvironmentBuilderStruct) WithAppName(appName string) EnvironmentBuilder {
 	eb.AppName = appName
 	return eb
@@ -59,13 +60,13 @@ func (eb *EnvironmentBuilderStruct) WithLabel(label, value string) EnvironmentBu
 	return eb
 }
 
-// WithAppLabel appends "radix-app=$AppName" label
+// WithAppLabel appends "[radix-app]=$AppName" label
 func (eb *EnvironmentBuilderStruct) WithAppLabel() EnvironmentBuilder {
 	eb.AppLabel = true
 	return eb
 }
 
-// WithUID sets UUID
+// WithUID sets UID
 func (eb *EnvironmentBuilderStruct) WithUID(uid types.UID) EnvironmentBuilder {
 	eb.UID = uid
 	return eb
@@ -73,13 +74,13 @@ func (eb *EnvironmentBuilderStruct) WithUID(uid types.UID) EnvironmentBuilder {
 
 // WithCreatedTime sets created objectmeta timestamp
 func (eb *EnvironmentBuilderStruct) WithCreatedTime(created time.Time) EnvironmentBuilder {
-	eb.CreatedTime = created
+	eb.CreatedTime = &created
 	return eb
 }
 
 // WithReconciledTime sets reconciled status timestamp
 func (eb *EnvironmentBuilderStruct) WithReconciledTime(reconciled time.Time) EnvironmentBuilder {
-	eb.ReconciledTime = reconciled
+	eb.ReconciledTime = &reconciled
 	return eb
 }
 
@@ -104,7 +105,7 @@ func (eb *EnvironmentBuilderStruct) WithRegistrationOwner(registration *rx.Radix
 	})
 }
 
-// WithRegistrationBuilder builds a RadixRegistration and appends to OwnerReference
+// WithRegistrationBuilder builds a RadixRegistration and appends new OwnerReference
 func (eb *EnvironmentBuilderStruct) WithRegistrationBuilder(builder RegistrationBuilder) EnvironmentBuilder {
 	eb.registrationBuilder = builder
 	return eb
@@ -115,10 +116,29 @@ func (eb *EnvironmentBuilderStruct) GetRegistrationBuilder() RegistrationBuilder
 	return eb.registrationBuilder
 }
 
-// BuildRE Builds RE structure based on set variables
+// WithResourceVersion sets ResourceVersion objectmeta
+func (eb *EnvironmentBuilderStruct) WithResourceVersion(version string) EnvironmentBuilder {
+	eb.ResourceVersion = version
+	return eb
+}
+
+// WithOrphaned sets the Orphaned status flag
+func (eb *EnvironmentBuilderStruct) WithOrphaned(isOrphan bool) EnvironmentBuilder {
+	eb.IsOrphan = isOrphan
+	return eb
+}
+
+// BuildRE builds RE structure based on set variables
 func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 
-	uniqueName := GetEnvironmentNamespace(eb.AppName, eb.EnvironmentName)
+	var uniqueName string
+	if eb.AppName == "" {
+		uniqueName = eb.EnvironmentName
+	} else if eb.EnvironmentName == "" {
+		uniqueName = eb.AppName
+	} else {
+		uniqueName = GetEnvironmentNamespace(eb.AppName, eb.EnvironmentName)
+	}
 
 	if eb.registrationBuilder != nil {
 		eb.WithRegistrationOwner(eb.registrationBuilder.BuildRR())
@@ -130,20 +150,26 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 			Kind:       "RadixEnvironment",
 		},
 		ObjectMeta: meta.ObjectMeta{
-			Name:              uniqueName,
-			Labels:            eb.Labels,
-			CreationTimestamp: meta.Time{Time: eb.CreatedTime},
-			ResourceVersion:   eb.ResourceVersion,
-			UID:               eb.UID,
-			OwnerReferences:   eb.Owners,
+			Name:            uniqueName,
+			Labels:          eb.Labels,
+			ResourceVersion: eb.ResourceVersion,
+			UID:             eb.UID,
+			OwnerReferences: eb.Owners,
 		},
 		Spec: rx.RadixEnvironmentSpec{
 			AppName: eb.AppName,
 			EnvName: eb.EnvironmentName,
 		},
 		Status: rx.RadixEnvironmentStatus{
-			Reconciled: meta.Time{Time: eb.ReconciledTime},
+			Orphaned: eb.IsOrphan,
 		},
+	}
+
+	if eb.CreatedTime != nil {
+		radixEnvironment.ObjectMeta.CreationTimestamp.Time = *eb.CreatedTime
+	}
+	if eb.ReconciledTime != nil {
+		radixEnvironment.Status.Reconciled.Time = *eb.ReconciledTime
 	}
 
 	if eb.AppLabel {
@@ -153,25 +179,32 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 	return radixEnvironment
 }
 
-// NewEnvironmentBuilder Constructor for environment builder
+// NewEnvironmentBuilder constructor for environment builder
 func NewEnvironmentBuilder() EnvironmentBuilder {
 
 	return &EnvironmentBuilderStruct{
 		Labels:          make(map[string]string),
-		CreatedTime:     time.Now().UTC(),
-		ReconciledTime:  time.Unix(0, 0).UTC(),
-		ResourceVersion: strconv.Itoa(rand.Intn(100)),
+		CreatedTime:     nil,
+		ReconciledTime:  nil,
+		ResourceVersion: "",
 		Owners:          make([]meta.OwnerReference, 0),
 		AppLabel:        false,
-		UID:             uuid.NewUUID(),
+		IsOrphan:        true,
 	}
 }
 
-// ARadixEnvironment Constructor for environment builder containing test data
+// ARadixEnvironment constructor for environment builder containing test data
 func ARadixEnvironment() EnvironmentBuilder {
+	now := time.Now()
 	builder := NewEnvironmentBuilder().
-		WithAppName("someapp").
-		WithEnvironmentName("test")
+		WithAppName("anyapp").
+		WithEnvironmentName("anyenv").
+		WithResourceVersion("v1.0.0").
+		WithAppLabel().
+		WithCreatedTime(now).
+		WithReconciledTime(now).
+		WithRegistrationBuilder(ARadixRegistration()).
+		WithUID(uuid.NewUUID())
 
 	return builder
 }

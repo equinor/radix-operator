@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixscheme "github.com/equinor/radix-operator/pkg/client/clientset/versioned/scheme"
-	"github.com/equinor/radix-operator/radix-operator/metrics"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

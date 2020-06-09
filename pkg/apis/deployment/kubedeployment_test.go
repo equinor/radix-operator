@@ -37,7 +37,7 @@ func TestGetResourceRequirements_BothProvided_BothReturned(t *testing.T) {
 	component := utils.NewDeployComponentBuilder().
 		WithResource(request, limit).
 		BuildComponent()
-	requirements := getResourceRequirements(component)
+	requirements := component.GetResourceRequirements()
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.1")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("32Mi")), "Memory request should be included")
@@ -57,7 +57,7 @@ func TestGetResourceRequirements_ProvideRequests_OnlyRequestsReturned(t *testing
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := getResourceRequirements(component)
+	requirements := component.GetResourceRequirements()
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.2")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("128Mi")), "Memory request should be included")
@@ -76,7 +76,7 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OnlyRequestsCpuReturned(t *t
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := getResourceRequirements(component)
+	requirements := component.GetResourceRequirements()
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("0.3")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("0")), "Missing memory request should be 0")
@@ -96,7 +96,7 @@ func TestGetResourceRequirements_BothProvided_OverDefaultLimits(t *testing.T) {
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := getResourceRequirements(component)
+	requirements := component.GetResourceRequirements()
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("5")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("5Gi")), "Memory request should be included")
@@ -115,7 +115,7 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 	component := utils.NewDeployComponentBuilder().
 		WithResourceRequestsOnly(request).
 		BuildComponent()
-	requirements := getResourceRequirements(component)
+	requirements := component.GetResourceRequirements()
 
 	assert.Equal(t, 0, requirements.Requests.Cpu().Cmp(resource.MustParse("6")), "CPU request should be included")
 	assert.Equal(t, 0, requirements.Requests.Memory().Cmp(resource.MustParse("0")), "Missing memory request should be 0")
