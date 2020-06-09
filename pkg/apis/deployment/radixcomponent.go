@@ -59,20 +59,21 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent := v1.RadixDeployComponent{
-			Name:                 componentName,
-			Image:                image,
-			Replicas:             replicas,
-			Public:               false,
-			PublicPort:           getPublicPortFromAppComponent(appComponent),
-			Ports:                appComponent.Ports,
-			Secrets:              appComponent.Secrets,
-			IngressConfiguration: appComponent.IngressConfiguration,
-			EnvironmentVariables: variables, // todo: use single EnvVars instead
-			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
-			DNSExternalAlias:     externalAlias,
-			Monitoring:           monitoring,
-			Resources:            resources,
-			HorizontalScaling:    horizontalScaling,
+			Name:                    componentName,
+			Image:                   image,
+			Replicas:                replicas,
+			Public:                  false,
+			PublicPort:              getPublicPortFromAppComponent(appComponent),
+			Ports:                   appComponent.Ports,
+			Secrets:                 appComponent.Secrets,
+			IngressConfiguration:    appComponent.IngressConfiguration,
+			EnvironmentVariables:    variables, // todo: use single EnvVars instead
+			DNSAppAlias:             IsDNSAppAlias(env, componentName, dnsAppAlias),
+			DNSExternalAlias:        externalAlias,
+			Monitoring:              monitoring,
+			Resources:               resources,
+			HorizontalScaling:       horizontalScaling,
+			AlwaysPullImageOnDeploy: appComponent.AlwaysPullImageOnDeploy,
 		}
 
 		components = append(components, deployComponent)

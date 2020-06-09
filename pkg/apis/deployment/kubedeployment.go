@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"strings"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -101,6 +102,10 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 				},
 			},
 		},
+	}
+
+	if deployComponent.AlwaysPullImageOnDeploy {
+		deployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
 	}
 
 	var ports []corev1.ContainerPort

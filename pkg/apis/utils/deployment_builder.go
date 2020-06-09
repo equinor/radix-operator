@@ -260,6 +260,7 @@ type DeployComponentBuilder interface {
 	WithPublic(bool) DeployComponentBuilder
 	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
+	WithAlwaysPullImageOnDeploy(bool) DeployComponentBuilder
 	WithReplicas(*int) DeployComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
@@ -268,6 +269,7 @@ type DeployComponentBuilder interface {
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
 	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
+
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -277,16 +279,17 @@ type deployComponentBuilder struct {
 	ports                map[string]int32
 	environmentVariables map[string]string
 	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
-	public               bool
-	publicPort           string
-	monitoring           bool
-	replicas             *int
-	ingressConfiguration []string
-	secrets              []string
-	dnsappalias          bool
-	externalAppAlias     []string
-	resources            v1.ResourceRequirements
-	horizontalScaling    *v1.RadixHorizontalScaling
+	public                  bool
+	publicPort              string
+	monitoring              bool
+	replicas                *int
+	alwaysPullImageOnDeploy bool
+	ingressConfiguration    []string
+	secrets                 []string
+	dnsappalias             bool
+	externalAppAlias        []string
+	resources               v1.ResourceRequirements
+	horizontalScaling       *v1.RadixHorizontalScaling
 }
 
 func (dcb *deployComponentBuilder) WithResourceRequestsOnly(request map[string]string) DeployComponentBuilder {
@@ -306,6 +309,11 @@ func (dcb *deployComponentBuilder) WithResource(request map[string]string, limit
 
 func (dcb *deployComponentBuilder) WithName(name string) DeployComponentBuilder {
 	dcb.name = name
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) DeployComponentBuilder {
+	dcb.alwaysPullImageOnDeploy = val
 	return dcb
 }
 
@@ -389,20 +397,21 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	}
 
 	return v1.RadixDeployComponent{
-		Image:                dcb.image,
-		Name:                 dcb.name,
-		Ports:                componentPorts,
-		Public:               dcb.public,
-		PublicPort:           dcb.publicPort,
-		Monitoring:           dcb.monitoring,
-		Replicas:             dcb.replicas,
-		Secrets:              dcb.secrets,
-		IngressConfiguration: dcb.ingressConfiguration,
-		EnvironmentVariables: dcb.environmentVariables,
-		DNSAppAlias:          dcb.dnsappalias,
-		DNSExternalAlias:     dcb.externalAppAlias,
-		Resources:            dcb.resources,
-		HorizontalScaling:    dcb.horizontalScaling,
+		Image:                   dcb.image,
+		Name:                    dcb.name,
+		Ports:                   componentPorts,
+		Public:                  dcb.public,
+		PublicPort:              dcb.publicPort,
+		Monitoring:              dcb.monitoring,
+		Replicas:                dcb.replicas,
+		Secrets:                 dcb.secrets,
+		IngressConfiguration:    dcb.ingressConfiguration,
+		EnvironmentVariables:    dcb.environmentVariables,
+		DNSAppAlias:             dcb.dnsappalias,
+		DNSExternalAlias:        dcb.externalAppAlias,
+		Resources:               dcb.resources,
+		HorizontalScaling:       dcb.horizontalScaling,
+		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 	}
 }
 
