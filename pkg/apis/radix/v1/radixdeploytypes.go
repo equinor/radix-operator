@@ -61,16 +61,17 @@ type RadixDeployComponent struct {
 	Ports    []ComponentPort `json:"ports" yaml:"ports"`
 	Replicas *int            `json:"replicas" yaml:"replicas"`
 	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
-	Public               bool                    `json:"public" yaml:"public"`
-	PublicPort           string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
-	EnvironmentVariables EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
-	Secrets              []string                `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	IngressConfiguration []string                `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
-	DNSAppAlias          bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
-	DNSExternalAlias     []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
-	Monitoring           bool                    `json:"monitoring" yaml:"monitoring"`
-	Resources            ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
-	HorizontalScaling    *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
+	Public                  bool                    `json:"public" yaml:"public"`
+	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
+	EnvironmentVariables    EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
+	Secrets                 []string                `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	IngressConfiguration    []string                `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
+	DNSAppAlias             bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
+	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
+	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
+	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
+	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
+	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 }
 
 // GetResourceRequirements maps to core_v1.ResourceRequirements
