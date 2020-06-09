@@ -580,7 +580,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	teardownTest()
 }
 
-func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
+func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 
 	// Test
@@ -592,11 +592,18 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithPort("http", 8080).
+				WithAlwaysPullImageOnDeploy(true).
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
 	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	firstDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
+	assert.NotEqual(t, "", firstDeploymentUpdateTime)
+
+	time.Sleep(1 * time.Second)
 
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
 		WithDeploymentName("a_deployment_name").
@@ -606,10 +613,17 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName("app").
 				WithPort("http", 8081).
+				WithAlwaysPullImageOnDeploy(true).
 				WithPublicPort("http")))
 
 	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	secondDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
+	assert.NotEqual(t, "", secondDeploymentUpdateTime)
+	assert.NotEqual(t, firstDeploymentUpdateTime, secondDeploymentUpdateTime)
+	assert.True(t, firstDeploymentUpdateTime < secondDeploymentUpdateTime)
 
 	teardownTest()
 }
@@ -816,6 +830,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		WithComponents(
 			utils.AnApplicationComponent().
 				WithName("app").
+				WithAlwaysPullImageOnDeploy(true).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
@@ -844,17 +859,18 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		BuildRA()
 
 	var testScenarios = []struct {
-		environment           string
-		expectedReplicas      int
-		expectedDbHost        string
-		expectedDbPort        string
-		expectedMemoryLimit   string
-		expectedCPULimit      string
-		expectedMemoryRequest string
-		expectedCPURequest    string
+		environment             string
+		expectedReplicas        int
+		expectedDbHost          string
+		expectedDbPort          string
+		expectedMemoryLimit     string
+		expectedCPULimit        string
+		expectedMemoryRequest   string
+		expectedCPURequest      string
+		alwaysPullImageOnDeploy bool
 	}{
-		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m"},
-		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m"},
+		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m", true},
+		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", true},
 	}
 
 	componentImages := make(map[string]pipeline.ComponentImage)
@@ -872,6 +888,8 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 			assert.Equal(t, testcase.expectedCPULimit, rd.Spec.Components[0].Resources.Limits["cpu"])
 			assert.Equal(t, testcase.expectedMemoryRequest, rd.Spec.Components[0].Resources.Requests["memory"])
 			assert.Equal(t, testcase.expectedCPURequest, rd.Spec.Components[0].Resources.Requests["cpu"])
+			assert.Equal(t, testcase.expectedCPURequest, rd.Spec.Components[0].Resources.Requests["cpu"])
+			assert.Equal(t, testcase.alwaysPullImageOnDeploy, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
 		})
 	}
 

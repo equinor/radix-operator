@@ -184,6 +184,7 @@ func ARadixApplication() ApplicationBuilder {
 // RadixApplicationComponentBuilder Handles construction of RA component
 type RadixApplicationComponentBuilder interface {
 	WithName(string) RadixApplicationComponentBuilder
+	WithAlwaysPullImageOnDeploy(bool) RadixApplicationComponentBuilder
 	WithSourceFolder(string) RadixApplicationComponentBuilder
 	WithDockerfileName(string) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
@@ -201,10 +202,11 @@ type RadixApplicationComponentBuilder interface {
 }
 
 type radixApplicationComponentBuilder struct {
-	name           string
-	sourceFolder   string
-	dockerfileName string
-	image          string
+	name                    string
+	sourceFolder            string
+	dockerfileName          string
+	image                   string
+	alwaysPullImageOnDeploy bool
 	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
 	public               bool
 	publicPort           string
@@ -218,6 +220,11 @@ type radixApplicationComponentBuilder struct {
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
 	rcb.name = name
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) RadixApplicationComponentBuilder {
+	rcb.alwaysPullImageOnDeploy = val
 	return rcb
 }
 
@@ -297,18 +304,19 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 	}
 
 	return v1.RadixComponent{
-		Name:                 rcb.name,
-		SourceFolder:         rcb.sourceFolder,
-		DockerfileName:       rcb.dockerfileName,
-		Image:                rcb.image,
-		Ports:                componentPorts,
-		Secrets:              rcb.secrets,
-		IngressConfiguration: rcb.ingressConfiguration,
-		Public:               rcb.public,
-		PublicPort:           rcb.publicPort,
-		EnvironmentConfig:    environmentConfig,
-		Variables:            rcb.variables,
-		Resources:            rcb.resources,
+		Name:                    rcb.name,
+		SourceFolder:            rcb.sourceFolder,
+		DockerfileName:          rcb.dockerfileName,
+		Image:                   rcb.image,
+		Ports:                   componentPorts,
+		Secrets:                 rcb.secrets,
+		IngressConfiguration:    rcb.ingressConfiguration,
+		Public:                  rcb.public,
+		PublicPort:              rcb.publicPort,
+		EnvironmentConfig:       environmentConfig,
+		Variables:               rcb.variables,
+		Resources:               rcb.resources,
+		AlwaysPullImageOnDeploy: rcb.alwaysPullImageOnDeploy,
 	}
 }
 
