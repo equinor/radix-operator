@@ -593,6 +593,15 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 				WithName("app").
 				WithPort("http", 8080).
 				WithAlwaysPullImageOnDeploy(true).
+				WithPublicPort("http"),
+			utils.NewDeployComponentBuilder().
+				WithName("app2").
+				WithPort("http", 8080).
+				WithAlwaysPullImageOnDeploy(false).
+				WithPublicPort("http"),
+			utils.NewDeployComponentBuilder().
+				WithName("app3").
+				WithPort("http", 8080).
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
@@ -602,6 +611,8 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	firstDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
 	assert.NotEqual(t, "", firstDeploymentUpdateTime)
+	assert.Empty(t, deployments.Items[1].Spec.Template.Annotations["radix-update-time"])
+	assert.Empty(t, deployments.Items[2].Spec.Template.Annotations["radix-update-time"])
 
 	time.Sleep(1 * time.Second)
 
@@ -893,6 +904,43 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		})
 	}
 
+}
+
+func TestConstructForTargetEnvironment_AlwaysPullImageOnDeploy(t *testing.T) {
+	ra := utils.ARadixApplication().
+		WithEnvironment("dev", "master").
+		WithEnvironment("prod", "").
+		WithComponents(
+			utils.AnApplicationComponent().
+				WithName("app").
+				WithAlwaysPullImageOnDeploy(true).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithReplicas(test.IntPtr(3))),
+			utils.AnApplicationComponent().
+				WithName("app1").
+				WithAlwaysPullImageOnDeploy(false).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithReplicas(test.IntPtr(3))),
+			utils.AnApplicationComponent().
+				WithName("app2").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithReplicas(test.IntPtr(3)))).
+		BuildRA()
+
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: "anyImage", ImagePath: "anyImagePath"}
+
+	rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "dev")
+
+	assert.True(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
+	assert.False(t, rd.Spec.Components[1].AlwaysPullImageOnDeploy)
+	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
 }
 
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
