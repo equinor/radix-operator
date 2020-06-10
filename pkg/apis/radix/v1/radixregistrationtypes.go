@@ -16,12 +16,12 @@ type RadixRegistration struct {
 	Status             RadixRegistrationStatus `json:"status" yaml:"status"`
 }
 
-//RadixRegistrationStatus is the status for a rr
+// RadixRegistrationStatus is the status for a rr
 type RadixRegistrationStatus struct {
 	Reconciled meta_v1.Time `json:"reconciled" yaml:"reconciled"`
 }
 
-//RadixRegistrationSpec is the spec for an application
+// RadixRegistrationSpec is the spec for an application
 type RadixRegistrationSpec struct {
 	CloneURL        string   `json:"cloneURL" yaml:"cloneURL"`
 	SharedSecret    string   `json:"sharedSecret" yaml:"sharedSecret"`
@@ -31,11 +31,12 @@ type RadixRegistrationSpec struct {
 	Creator         string   `json:"creator" yaml:"creator"`
 	Owner           string   `json:"owner" yaml:"owner"`
 	MachineUser     bool     `json:"machineUser" yaml:"machineUser"`
+	WBS             string   `json:"wbs" yaml:"wbs"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//RadixRegistrationList is a list of Radix applications
+// RadixRegistrationList is a list of Radix applications
 type RadixRegistrationList struct {
 	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
 	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
