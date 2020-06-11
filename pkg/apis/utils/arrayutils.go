@@ -20,11 +20,18 @@ func ArrayEqualElements(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
+
+	bmap := make(map[int]string)
+	for i, w := range b {
+		bmap[i] = w
+	}
+
 	for _, v := range a {
 		containsV := false
-		for _, w := range b {
+		for i, w := range bmap {
 			if w == v {
 				containsV = true
+				delete(bmap, i)
 				break
 			}
 		}
