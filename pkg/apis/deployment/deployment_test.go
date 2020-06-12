@@ -906,24 +906,34 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 
 }
 
-func TestConstructForTargetEnvironment_AlwaysPullImageOnDeploy(t *testing.T) {
+func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testing.T) {
 	ra := utils.ARadixApplication().
 		WithEnvironment("dev", "master").
 		WithEnvironment("prod", "").
 		WithComponents(
 			utils.AnApplicationComponent().
 				WithName("app").
-				WithAlwaysPullImageOnDeploy(true).
-				WithEnvironmentConfigs(
-					utils.AnEnvironmentConfig().
-						WithEnvironment("dev").
-						WithReplicas(test.IntPtr(3))),
-			utils.AnApplicationComponent().
-				WithName("app1").
 				WithAlwaysPullImageOnDeploy(false).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
+						WithAlwaysPullImageOnDeploy(true).
+						WithReplicas(test.IntPtr(3)),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithAlwaysPullImageOnDeploy(false).
+						WithReplicas(test.IntPtr(3))),
+			utils.AnApplicationComponent().
+				WithName("app1").
+				WithAlwaysPullImageOnDeploy(true).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithAlwaysPullImageOnDeploy(true).
+						WithReplicas(test.IntPtr(3)),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithAlwaysPullImageOnDeploy(false).
 						WithReplicas(test.IntPtr(3))),
 			utils.AnApplicationComponent().
 				WithName("app2").
@@ -938,9 +948,19 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeploy(t *testing.T) {
 
 	rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "dev")
 
+	t.Log(rd.Spec.Components[0].Name)
 	assert.True(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
-	assert.False(t, rd.Spec.Components[1].AlwaysPullImageOnDeploy)
+	t.Log(rd.Spec.Components[1].Name)
+	assert.True(t, rd.Spec.Components[1].AlwaysPullImageOnDeploy)
+	t.Log(rd.Spec.Components[2].Name)
 	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
+
+	rd, _ = ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "prod")
+
+	t.Log(rd.Spec.Components[0].Name)
+	assert.False(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
+	t.Log(rd.Spec.Components[1].Name)
+	assert.False(t, rd.Spec.Components[1].AlwaysPullImageOnDeploy)
 }
 
 func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
