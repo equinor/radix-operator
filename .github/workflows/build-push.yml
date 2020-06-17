@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v1
       - name: build operator
         run: |
-          docker build . -f operator.Dockerfile -t radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixus.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker build . -f operator.Dockerfile -t radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
       - uses: azure/docker-login@v1
         with:
           login-server: radixdev.azurecr.io
@@ -29,14 +29,6 @@ jobs:
       - name: push to radixprod
         run: |
           docker push radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
-      - uses: azure/docker-login@v1
-        with:
-          login-server: radixus.azurecr.io
-          username: ${{ secrets.PROD_REGISTRY_USERNAME }}
-          password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
-      - name: push to radixus
-        run: |
-          docker push radixus.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
   build-pipeline:
     name: Build-push-operator
     runs-on: ubuntu-latest
@@ -44,7 +36,7 @@ jobs:
       - uses: actions/checkout@v1
       - name: build pipeline
         run: |
-          docker build . -f pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixus.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+          docker build . -f pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
       - uses: azure/docker-login@v1
         with:
           login-server: radixdev.azurecr.io
@@ -61,12 +53,3 @@ jobs:
       - name: push to radixprod
         run: |
           docker push radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
-      - uses: azure/docker-login@v1
-        with:
-          login-server: radixus.azurecr.io
-          username: ${{ secrets.PROD_REGISTRY_USERNAME }}
-          password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
-      - name: push to radixus
-        run: |
-          docker push radixus.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
-
