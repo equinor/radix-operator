@@ -28,6 +28,8 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		var horizontalScaling *v1.RadixHorizontalScaling
 		var imageTagName string
 
+		var alwaysPullImageOnDeploy bool
+
 		image := componentImage.ImagePath
 
 		if environmentSpecificConfig != nil {
@@ -37,6 +39,9 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			resources = environmentSpecificConfig.Resources
 			horizontalScaling = environmentSpecificConfig.HorizontalScaling
 			imageTagName = environmentSpecificConfig.ImageTagName
+			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
+		} else {
+			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
 		}
 
 		// Append common environment variables from appComponent.Variables to variables if not available yet
@@ -73,7 +78,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			Monitoring:              monitoring,
 			Resources:               resources,
 			HorizontalScaling:       horizontalScaling,
-			AlwaysPullImageOnDeploy: appComponent.AlwaysPullImageOnDeploy,
+			AlwaysPullImageOnDeploy: alwaysPullImageOnDeploy,
 		}
 
 		components = append(components, deployComponent)
@@ -118,4 +123,14 @@ func GetExternalDNSAliasForComponentEnvironment(radixApplication *v1.RadixApplic
 	}
 
 	return dnsExternalAlias
+}
+
+func GetCascadeBoolean(first *bool, second *bool, fallback bool) bool {
+	if first != nil {
+		return *first
+	} else if second != nil {
+		return *second
+	} else {
+		return fallback
+	}
 }

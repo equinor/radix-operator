@@ -111,18 +111,19 @@ type RadixComponent struct {
 	EnvironmentConfig       []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
 	Resources               ResourceRequirements     `json:"resources,omitempty" yaml:"resources,omitempty"`
-	AlwaysPullImageOnDeploy bool                     `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+	AlwaysPullImageOnDeploy *bool                     `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
 type RadixEnvironmentConfig struct {
-	Environment       string                  `json:"environment" yaml:"environment"`
-	Replicas          *int                    `json:"replicas" yaml:"replicas"`
-	Monitoring        bool                    `json:"monitoring" yaml:"monitoring"`
-	Resources         ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables         EnvVarsMap              `json:"variables" yaml:"variables"`
-	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
-	ImageTagName      string                  `json:"imageTagName" yaml:"imageTagName"`
+	Environment             string                  `json:"environment" yaml:"environment"`
+	Replicas                *int                    `json:"replicas" yaml:"replicas"`
+	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
+	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Variables               EnvVarsMap              `json:"variables" yaml:"variables"`
+	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
+	ImageTagName            string                  `json:"imageTagName" yaml:"imageTagName"`
+	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec

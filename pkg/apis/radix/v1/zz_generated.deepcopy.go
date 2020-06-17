@@ -342,6 +342,11 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
+	if in.AlwaysPullImageOnDeploy != nil {
+		in, out := &in.AlwaysPullImageOnDeploy, &out.AlwaysPullImageOnDeploy
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -581,6 +586,11 @@ func (in *RadixEnvironmentConfig) DeepCopyInto(out *RadixEnvironmentConfig) {
 		in, out := &in.HorizontalScaling, &out.HorizontalScaling
 		*out = new(RadixHorizontalScaling)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.AlwaysPullImageOnDeploy != nil {
+		in, out := &in.AlwaysPullImageOnDeploy, &out.AlwaysPullImageOnDeploy
+		*out = new(bool)
+		**out = **in
 	}
 	return
 }
