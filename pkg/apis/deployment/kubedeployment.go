@@ -1,8 +1,12 @@
 package deployment
 
 import (
+	"fmt"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -10,19 +14,31 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	_ "k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	appName := deploy.radixDeployment.Spec.AppName
-	deployment, err := deploy.getDeploymentConfig(deployComponent)
+
+	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.Name)
+	if err != nil && errors.IsNotFound(err) {
+		createdDeployment, err := deploy.kubeclient.AppsV1().Deployments(namespace).Create(currentDeployment)
+		if err != nil {
+			return fmt.Errorf("Failed to create Deployment object: %v", err)
+		}
+
+		log.Debugf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
+		return nil
+	}
+
+	desiredDeployment, err := deploy.getDesiredDeploymentConfig(deployComponent, currentDeployment)
 	if err != nil {
 		return err
 	}
 
 	// If Replicas == 0 or HorizontalScaling is nil then delete hpa if exists before updating deployment
-	deployReplicas := deployment.Spec.Replicas
+	deployReplicas := desiredDeployment.Spec.Replicas
 	if deployReplicas != nil && *deployReplicas == 0 || deployComponent.HorizontalScaling == nil {
 		err = deploy.deleteHPAIfExists(deployComponent)
 		if err != nil {
@@ -30,15 +46,16 @@ func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployCompone
 		}
 	}
 
-	deploy.customSecuritySettings(appName, namespace, deployment)
-	return deploy.kubeutil.ApplyDeployment(namespace, deployment)
+	deploy.customSecuritySettings(appName, namespace, desiredDeployment)
+	return deploy.kubeutil.ApplyDeployment(namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComponent) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredDeploymentConfig(deployComponent v1.RadixDeployComponent,
+	currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	desiredDeployment := currentDeployment.DeepCopy()
 	appName := deploy.radixDeployment.Spec.AppName
 	environment := deploy.radixDeployment.Spec.Environment
 	componentName := deployComponent.Name
-	componentPorts := deployComponent.Ports
 	replicas := deployComponent.Replicas
 	automountServiceAccountToken := false
 
@@ -52,110 +69,76 @@ func (deploy *Deployment) getDeploymentConfig(deployComponent v1.RadixDeployComp
 		commitID = commitIDVal
 	}
 
-	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	securityContext := getSecurityContextForContainer()
-
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: componentName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:       appName,
-				kube.RadixComponentLabel: componentName,
-				kube.RadixCommitLabel:    commitID,
-			},
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: branch,
-			},
-			OwnerReferences: ownerReference,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: int32Ptr(DefaultReplicas),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kube.RadixComponentLabel: componentName,
-				},
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						kube.RadixAppLabel:       appName,
-						kube.RadixComponentLabel: componentName,
-						kube.RadixCommitLabel:    commitID,
-					},
-					Annotations: map[string]string{
-						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
-						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
-						kube.RadixBranchAnnotation:                 branch,
-					},
-				},
-				Spec: corev1.PodSpec{
-					AutomountServiceAccountToken: &automountServiceAccountToken,
-					Containers: []corev1.Container{
-						{
-							Name:            componentName,
-							Image:           deployComponent.Image,
-							ImagePullPolicy: corev1.PullAlways,
-							SecurityContext: securityContext,
-						},
-					},
-					ImagePullSecrets: deploy.radixDeployment.Spec.ImagePullSecrets,
-				},
-			},
-		},
-	}
+	desiredDeployment.ObjectMeta.Name = componentName
+	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
+	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
+	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations["seccomp.security.alpha.kubernetes.io/pod"] = "docker/default"
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.Image
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
+	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 
 	if deployComponent.AlwaysPullImageOnDeploy {
-		deployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
+		desiredDeployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
 	}
 
-	var ports []corev1.ContainerPort
-	for _, v := range componentPorts {
-		containerPort := corev1.ContainerPort{
-			Name:          v.Name,
-			ContainerPort: int32(v.Port),
+	portMap := make(map[string]v1.ComponentPort)
+	for _, port := range deployComponent.Ports {
+		portMap[port.Name] = port
+	}
+	for _, containerPort := range desiredDeployment.Spec.Template.Spec.Containers[0].Ports {
+		if componentPort, portExists := portMap[containerPort.Name]; portExists {
+			containerPort.HostPort = componentPort.Port
 		}
-		ports = append(ports, containerPort)
 	}
-	deployment.Spec.Template.Spec.Containers[0].Ports = ports
 
-	if len(ports) > 0 {
-		readinessProbe, err := getReadinessProbe(ports[0].ContainerPort)
+	if len(deployComponent.Ports) > 0 {
+		prob := desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe
+		err := getReadinessProbeSettings(prob, &deployComponent.Ports[0])
 		if err != nil {
 			return nil, err
 		}
-		deployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 	}
 
-	deploymentStrategy, err := getDeploymentStrategy()
+	err := setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
 	if err != nil {
 		return nil, err
 	}
-	deployment.Spec.Strategy = deploymentStrategy
-
 	if replicas != nil && *replicas >= 0 {
-		deployment.Spec.Replicas = int32Ptr(int32(*replicas))
+		desiredDeployment.Spec.Replicas = int32Ptr(int32(*replicas))
 	}
 
 	// Override Replicas with horizontalScaling.minReplicas if exists
 	if replicas != nil && *replicas != 0 && deployComponent.HorizontalScaling != nil {
-		deployment.Spec.Replicas = deployComponent.HorizontalScaling.MinReplicas
+		desiredDeployment.Spec.Replicas = deployComponent.HorizontalScaling.MinReplicas
 	}
 
 	// For backwards compatibility
 	isDeployComponentPublic := deployComponent.PublicPort != "" || deployComponent.Public
-	environmentVariables := deploy.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, isDeployComponentPublic, deployComponent.Ports, deploy.radixDeployment.Name, deploy.radixDeployment.Namespace, environment, appName, componentName)
+	environmentVariables := deploy.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets,
+		isDeployComponentPublic, deployComponent.Ports,
+		deploy.radixDeployment.Name, deploy.radixDeployment.Namespace,
+		environment, appName, componentName)
 
 	if environmentVariables != nil {
-		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
+		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
 
 	resourceRequirements := deployComponent.GetResourceRequirements()
 
 	if resourceRequirements != nil {
-		deployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
+		desiredDeployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
 	}
 
-	return deployment, nil
+	return desiredDeployment, nil
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
@@ -187,57 +170,38 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	return nil
 }
 
-func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {
+func getReadinessProbeSettings(probe *corev1.Probe, componentPort *v1.ComponentPort) error {
 	initialDelaySeconds, err := defaults.GetDefaultReadinessProbeInitialDelaySeconds()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	periodSeconds, err := defaults.GetDefaultReadinessProbePeriodSeconds()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	probe := corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: componentPort,
-				},
-			},
-		},
-		InitialDelaySeconds: initialDelaySeconds,
-		PeriodSeconds:       periodSeconds,
-	}
+	probe.TCPSocket.Port.IntVal = componentPort.Port
+	probe.InitialDelaySeconds = initialDelaySeconds
+	probe.PeriodSeconds = periodSeconds
 
-	return &probe, nil
+	return nil
 }
 
-func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
+func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error {
 	rollingUpdateMaxUnavailable, err := defaults.GetDefaultRollingUpdateMaxUnavailable()
 	if err != nil {
-		return appsv1.DeploymentStrategy{}, err
+		return err
 	}
 
 	rollingUpdateMaxSurge, err := defaults.GetDefaultRollingUpdateMaxSurge()
 	if err != nil {
-		return appsv1.DeploymentStrategy{}, err
+		return err
 	}
 
-	deploymentStrategy := appsv1.DeploymentStrategy{
-		RollingUpdate: &appsv1.RollingUpdateDeployment{
-			MaxUnavailable: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: rollingUpdateMaxUnavailable,
-			},
-			MaxSurge: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: rollingUpdateMaxSurge,
-			},
-		},
-	}
-
-	return deploymentStrategy, nil
+	deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal = rollingUpdateMaxUnavailable
+	deploymentStrategy.RollingUpdate.MaxSurge.StrVal = rollingUpdateMaxSurge
+	return nil
 }
 
 func getSecurityContextForContainer() *corev1.SecurityContext {

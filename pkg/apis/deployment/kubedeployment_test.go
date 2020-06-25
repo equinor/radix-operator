@@ -1,8 +1,13 @@
 package deployment
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"os"
 	"testing"
+
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -127,37 +132,59 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 func TestGetReadinessProbe_Default(t *testing.T) {
 	teardownReadinessProbe()
 
-	port := int32(80)
-	_, err := getReadinessProbe(port)
+	probe := corev1.Probe{}
+	componentPort := v1.ComponentPort{Port: int32(80)}
+
+	err := getReadinessProbeSettings(&probe, &componentPort)
+
 	assert.NotNil(t, err)
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
 	test.SetRequiredEnvironmentVariables()
 
-	port := int32(80)
-	probe, _ := getReadinessProbe(port)
+	probe := corev1.Probe{}
+	componentPort := v1.ComponentPort{Port: int32(80)}
+	getReadinessProbeSettings(&probe, &componentPort)
 
 	assert.Equal(t, int32(5), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
-	assert.Equal(t, port, probe.Handler.TCPSocket.Port.IntVal)
+	assert.Equal(t, componentPort.Port, probe.Handler.TCPSocket.Port.IntVal)
 
 	teardownReadinessProbe()
 }
 
-func TestGetDeploymentStrategy_Default(t *testing.T) {
+func TestSetDeploymentStrategy_Default(t *testing.T) {
 	teardownRollingUpdate()
-	_, err := getDeploymentStrategy()
+	deploymentStrategy := createDeploymentStrategy()
+	err := setDeploymentStrategy(deploymentStrategy)
 	assert.NotNil(t, err)
 }
 
-func TestGetDeploymentStrategy_Custom(t *testing.T) {
+func TestSetDeploymentStrategy_Custom(t *testing.T) {
 	test.SetRequiredEnvironmentVariables()
 
-	deploymentStrategy, _ := getDeploymentStrategy()
+	deploymentStrategy := createDeploymentStrategy()
+	setDeploymentStrategy(deploymentStrategy)
 
 	assert.Equal(t, "25%", deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
 	assert.Equal(t, "25%", deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
 
 	teardownRollingUpdate()
+}
+
+func createDeploymentStrategy() *appsv1.DeploymentStrategy {
+	deploymentStrategy := appsv1.DeploymentStrategy{
+		RollingUpdate: &appsv1.RollingUpdateDeployment{
+			MaxUnavailable: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "none",
+			},
+			MaxSurge: &intstr.IntOrString{
+				Type:   intstr.String,
+				StrVal: "none",
+			},
+		},
+	}
+	return &deploymentStrategy
 }
