@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -57,6 +58,12 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Validate RA
 	if validate.RAContainsOldPublic(ra) {
 		log.Warnf("component.public is deprecated, please use component.publicPort instead")
+	}
+
+	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
+	if !isAppNameLowercase {
+		log.Warnf("%s Converting name to lowercase", err.Error())
+		ra.Name = strings.ToLower(ra.Name)
 	}
 
 	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.GetRadixclient(), ra)
