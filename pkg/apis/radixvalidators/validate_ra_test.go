@@ -50,7 +50,6 @@ func Test_application_name_casing_is_validated(t *testing.T) {
 		{"Upper case name", radixvalidators.ApplicationNameNotLowercaseError(upperCaseName), func(ra *v1.RadixApplication) { ra.Name = upperCaseName }},
 	}
 
-	// _, client := validRASetup()
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
 			validRA := createValidRA()
