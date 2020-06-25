@@ -1,6 +1,7 @@
 package radixvalidators_test
 
 import (
+	"strings"
 	"testing"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -30,6 +31,43 @@ func Test_missing_rr(t *testing.T) {
 
 	assert.False(t, isValid)
 	assert.NotNil(t, err)
+}
+
+func Test_application_name_casing_is_validated(t *testing.T) {
+
+	mixedCaseName := "Radix-Test-APPLICATION"
+	lowerCaseName := "radix-test-application"
+	upperCaseName := "RADIX-TEST-APPLICATION"
+	expectedName := "radix-test-application"
+
+	var testScenarios = []struct {
+		name          string
+		expectedError error
+		updateRa      updateRAFunc
+	}{
+		{"Mixed case name", radixvalidators.ApplicationNameNotLowercaseError(mixedCaseName), func(ra *v1.RadixApplication) { ra.Name = mixedCaseName }},
+		{"Lower case name", radixvalidators.ApplicationNameNotLowercaseError(lowerCaseName), func(ra *v1.RadixApplication) { ra.Name = lowerCaseName }},
+		{"Upper case name", radixvalidators.ApplicationNameNotLowercaseError(upperCaseName), func(ra *v1.RadixApplication) { ra.Name = upperCaseName }},
+	}
+
+	// _, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRa(validRA)
+			isValid, err := radixvalidators.IsApplicationNameLowercase(validRA.Name)
+
+			if err != nil {
+				assert.False(t, isValid)
+				assert.NotNil(t, err)
+				assert.True(t, testcase.expectedError.Error() == err.Error())
+				assert.True(t, strings.ToLower(validRA.Name) == expectedName)
+			} else {
+				assert.True(t, isValid)
+				assert.Nil(t, err)
+			}
+		})
+	}
 }
 
 type updateRAFunc func(rr *v1.RadixApplication)
