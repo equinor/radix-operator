@@ -73,6 +73,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			componentNameApp := "app"
 			componentNameRedis := "redis"
 			componentNameRadixQuote := "radixquote"
+			outdatedSecret := "outdatedSecret"
+			remainingSecret := "remainingSecret"
+			addingSecret := "addingSecret"
 			if componentsExist {
 				existingRadixDeploymentBuilder := utils.ARadixDeployment().
 					WithRadixApplication(aRadixApplicationBuilder).
@@ -108,7 +111,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithName(componentNameRadixQuote).
 							WithPort("http", 3001).
 							WithPublicPort("http").
-							WithSecrets([]string{"old_a_secret", "a_secret"}))
+							WithSecrets([]string{outdatedSecret, remainingSecret}))
 				applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, existingRadixDeploymentBuilder)
 			}
 			aRadixDeploymentBuilder := utils.ARadixDeployment().
@@ -145,7 +148,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 						WithName(componentNameRadixQuote).
 						WithPort("http", 3000).
 						WithPublicPort("http").
-						WithSecrets([]string{"a_secret", "second_secret"}))
+						WithSecrets([]string{remainingSecret, addingSecret}))
 
 			// Test
 			_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, aRadixDeploymentBuilder)
@@ -191,7 +194,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRadixQuote, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameRadixQuote, deployments))
-				assert.True(t, envVariableByNameExistOnDeployment("a_secret", componentNameRadixQuote, deployments))
+				assert.False(t, envVariableByNameExistOnDeployment(outdatedSecret, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(remainingSecret, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(addingSecret, componentNameRadixQuote, deployments))
 			})
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
