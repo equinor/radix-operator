@@ -143,7 +143,17 @@ func TestGetReadinessProbe_Default(t *testing.T) {
 func TestGetReadinessProbe_Custom(t *testing.T) {
 	test.SetRequiredEnvironmentVariables()
 
-	probe := corev1.Probe{}
+	probe := corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: int32(0),
+				},
+			},
+		},
+		InitialDelaySeconds: int32(0),
+		PeriodSeconds:       int32(0),
+	}
 	componentPort := v1.ComponentPort{Port: int32(80)}
 	getReadinessProbeSettings(&probe, &componentPort)
 

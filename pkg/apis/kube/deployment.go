@@ -3,7 +3,6 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,8 +14,14 @@ import (
 
 // ApplyDeployment Create or update deployment in provided namespace
 func (kube *Kube) ApplyDeployment(namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) error {
-	log.Debugf("Creating Deployment object %s in namespace %s", currentDeployment.GetName(), namespace)
-	log.Debugf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
+	if currentDeployment == nil {
+		createdDeployment, err := kube.kubeClient.AppsV1().Deployments(namespace).Create(desiredDeployment)
+		if err != nil {
+			return fmt.Errorf("Failed to create Deployment object: %v", err)
+		}
+		log.Debugf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
+		return nil
+	}
 
 	currentDeploymentJSON, err := json.Marshal(currentDeployment)
 	if err != nil {
@@ -33,17 +38,17 @@ func (kube *Kube) ApplyDeployment(namespace string, currentDeployment *appsv1.De
 		return fmt.Errorf("Failed to create two way merge patch deployment objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
-		log.Debugf("Patch: %s", string(patchBytes))
-		patchedDeployment, err := kube.kubeClient.AppsV1().Deployments(namespace).Patch(currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes)
-		if err != nil {
-			return fmt.Errorf("Failed to patch deployment object: %v", err)
-		}
-		log.Debugf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
-	} else {
+	if isEmptyPatch(patchBytes) {
 		log.Debugf("No need to patch deployment: %s ", currentDeployment.GetName())
+		return nil
 	}
 
+	log.Debugf("Patch: %s", string(patchBytes))
+	patchedDeployment, err := kube.kubeClient.AppsV1().Deployments(namespace).Patch(currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes)
+	if err != nil {
+		return fmt.Errorf("Failed to patch deployment object: %v", err)
+	}
+	log.Debugf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
 }
 

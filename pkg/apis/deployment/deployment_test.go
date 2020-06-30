@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -46,7 +47,7 @@ func setupTest() (*test.Utils, kube.Interface, *kubeUtils.Kube, radixclient.Inte
 }
 
 func teardownTest() {
-	// Celanup setup
+	// Cleanup setup
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
@@ -56,161 +57,209 @@ func teardownTest() {
 }
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
+	for _, componentsExist := range []bool{true, false} {
+		testScenario := utils.TernaryString(componentsExist, "Updating deployment", "Creating deployment")
 
-	aRadixRegistrationBuilder := utils.ARadixRegistration().
-		WithMachineUser(true)
+		tu, kubeclient, kubeUtil, radixclient := setupTest()
+		os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
 
-	aRadixApplicationBuilder := utils.ARadixApplication().
-		WithRadixRegistration(aRadixRegistrationBuilder)
+		t.Run("Test Suite", func(t *testing.T) {
+			aRadixRegistrationBuilder := utils.ARadixRegistration().
+				WithMachineUser(true)
+			aRadixApplicationBuilder := utils.ARadixApplication().
+				WithRadixRegistration(aRadixRegistrationBuilder)
+			environment := "test"
+			appName := "edcradix"
+			componentNameApp := "app"
+			componentNameRedis := "redis"
+			componentNameRadixQuote := "radixquote"
+			if componentsExist {
+				existingRadixDeploymentBuilder := utils.ARadixDeployment().
+					WithRadixApplication(aRadixApplicationBuilder).
+					WithAppName(appName).
+					WithImageTag("old_axmz8").
+					WithEnvironment(environment).
+					WithComponents(
+						utils.NewDeployComponentBuilder().
+							WithImage("old_radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
+							WithName(componentNameApp).
+							WithPort("http", 8081).
+							WithPublicPort("http").
+							WithDNSAppAlias(true).
+							WithDNSExternalAlias("old_some.alias.com").
+							WithDNSExternalAlias("old_another.alias.com").
+							WithResource(map[string]string{
+								"memory": "65Mi",
+								"cpu":    "251m",
+							}, map[string]string{
+								"memory": "129Mi",
+								"cpu":    "501m",
+							}).
+							WithReplicas(test.IntPtr(2)),
+						utils.NewDeployComponentBuilder().
+							WithImage("old_radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
+							WithName(componentNameRedis).
+							WithEnvironmentVariable("a_variable", "3002").
+							WithPort("http", 6378).
+							WithPublicPort("").
+							WithReplicas(test.IntPtr(1)),
+						utils.NewDeployComponentBuilder().
+							WithImage("old_radixdev.azurecr.io/edcradix-radixquote:axmz8").
+							WithName(componentNameRadixQuote).
+							WithPort("http", 3001).
+							WithPublicPort("http").
+							WithSecrets([]string{"old_a_secret", "a_secret"}))
+				applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, existingRadixDeploymentBuilder)
+			}
+			aRadixDeploymentBuilder := utils.ARadixDeployment().
+				WithRadixApplication(aRadixApplicationBuilder).
+				WithAppName(appName).
+				WithImageTag("axmz8").
+				WithEnvironment(environment).
+				WithComponents(
+					utils.NewDeployComponentBuilder().
+						WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
+						WithName(componentNameApp).
+						WithPort("http", 8080).
+						WithPublicPort("http").
+						WithDNSAppAlias(true).
+						WithDNSExternalAlias("some.alias.com").
+						WithDNSExternalAlias("another.alias.com").
+						WithResource(map[string]string{
+							"memory": "64Mi",
+							"cpu":    "250m",
+						}, map[string]string{
+							"memory": "128Mi",
+							"cpu":    "500m",
+						}).
+						WithReplicas(test.IntPtr(4)),
+					utils.NewDeployComponentBuilder().
+						WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
+						WithName(componentNameRedis).
+						WithEnvironmentVariable("a_variable", "3001").
+						WithPort("http", 6379).
+						WithPublicPort("").
+						WithReplicas(test.IntPtr(0)),
+					utils.NewDeployComponentBuilder().
+						WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
+						WithName(componentNameRadixQuote).
+						WithPort("http", 3000).
+						WithPublicPort("http").
+						WithSecrets([]string{"a_secret", "second_secret"}))
 
-	aRadixDeploymentBuilder := utils.ARadixDeployment().
-		WithRadixApplication(aRadixApplicationBuilder).
-		WithAppName("edcradix").
-		WithImageTag("axmz8").
-		WithEnvironment("test").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-app:1igdh").
-				WithName("app").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithDNSAppAlias(true).
-				WithDNSExternalAlias("some.alias.com").
-				WithDNSExternalAlias("another.alias.com").
-				WithResource(map[string]string{
-					"memory": "64Mi",
-					"cpu":    "250m",
-				}, map[string]string{
-					"memory": "128Mi",
-					"cpu":    "500m",
-				}).
-				WithReplicas(test.IntPtr(4)),
-			utils.NewDeployComponentBuilder().
-				WithImage("radixdev.azurecr.io/radix-loadbalancer-html-redis:1igdh").
-				WithName("redis").
-				WithEnvironmentVariable("a_variable", "3001").
-				WithPort("http", 6379).
-				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
-			utils.NewDeployComponentBuilder().
-				WithImage("radixdev.azurecr.io/edcradix-radixquote:axmz8").
-				WithName("radixquote").
-				WithPort("http", 3000).
-				WithPublicPort("http").
-				WithSecrets([]string{"a_secret"}))
+			// Test
+			_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, aRadixDeploymentBuilder)
 
-	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, aRadixDeploymentBuilder)
+			assert.NoError(t, err)
+			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
 
-	assert.NoError(t, err)
-	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
-	t.Run("validate deploy", func(t *testing.T) {
-		t.Parallel()
-		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
-		assert.Equal(t, "app", getDeploymentByName("app", deployments).Name, "app deployment not there")
-		assert.Equal(t, int32(4), *getDeploymentByName("app", deployments).Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 11, len(getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
-		assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, "app", deployments))
-		assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "test", getEnvVariableByNameOnDeployment(defaults.EnvironmentnameEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.PublicEndpointEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.CanonicalEndpointEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "edcradix", getEnvVariableByNameOnDeployment(defaults.RadixAppEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "app", getEnvVariableByNameOnDeployment(defaults.RadixComponentEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "(8080)", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, "app", deployments))
-		assert.Equal(t, "(http)", getEnvVariableByNameOnDeployment(defaults.RadixPortNamesEnvironmentVariable, "app", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, "app", deployments))
-		assert.Equal(t, parseQuantity("128Mi"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Limits["memory"])
-		assert.Equal(t, parseQuantity("500m"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Limits["cpu"])
-		assert.Equal(t, parseQuantity("64Mi"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Requests["memory"])
-		assert.Equal(t, parseQuantity("250m"), getContainerByName("app", getDeploymentByName("app", deployments).Spec.Template.Spec.Containers).Resources.Requests["cpu"])
-		assert.Equal(t, "redis", getDeploymentByName("redis", deployments).Name, "redis deployment not there")
-		assert.Equal(t, int32(0), *getDeploymentByName("redis", deployments).Spec.Replicas, "number of replicas was unexpected")
-		assert.Equal(t, 10, len(getContainerByName("redis", getDeploymentByName("redis", deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
-		assert.True(t, envVariableByNameExistOnDeployment("a_variable", "redis", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, "redis", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, "redis", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, "redis", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, "redis", deployments))
-		assert.Equal(t, "3001", getEnvVariableByNameOnDeployment("a_variable", "redis", deployments))
-		assert.True(t, deploymentByNameExists("radixquote", deployments), "radixquote deployment not there")
-		assert.Equal(t, int32(DefaultReplicas), *getDeploymentByName("radixquote", deployments).Spec.Replicas, "number of replicas was unexpected")
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, "radixquote", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, "radixquote", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, "radixquote", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, "radixquote", deployments))
-		assert.True(t, envVariableByNameExistOnDeployment("a_secret", "radixquote", deployments))
-	})
+			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
+				t.Parallel()
+				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
+				assert.Equal(t, componentNameApp, getDeploymentByName(componentNameApp, deployments).Name, "app deployment not there")
+				assert.Equal(t, int32(4), *getDeploymentByName(componentNameApp, deployments).Spec.Replicas, "number of replicas was unexpected")
+				assert.Equal(t, 11, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.PublicEndpointEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.CanonicalEndpointEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(defaults.RadixAppEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, componentNameApp, getEnvVariableByNameOnDeployment(defaults.RadixComponentEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "(8080)", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "(http)", getEnvVariableByNameOnDeployment(defaults.RadixPortNamesEnvironmentVariable, componentNameApp, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, parseQuantity("128Mi"), getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Resources.Limits["memory"])
+				assert.Equal(t, parseQuantity("500m"), getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Resources.Limits["cpu"])
+				assert.Equal(t, parseQuantity("64Mi"), getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Resources.Requests["memory"])
+				assert.Equal(t, parseQuantity("250m"), getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Resources.Requests["cpu"])
+				assert.Equal(t, componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Name, "redis deployment not there")
+				assert.Equal(t, int32(0), *getDeploymentByName(componentNameRedis, deployments).Spec.Replicas, "number of replicas was unexpected")
+				assert.Equal(t, 10, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.True(t, envVariableByNameExistOnDeployment("a_variable", componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameRedis, deployments))
+				assert.Equal(t, "3001", getEnvVariableByNameOnDeployment("a_variable", componentNameRedis, deployments))
+				assert.True(t, deploymentByNameExists(componentNameRadixQuote, deployments), "radixquote deployment not there")
+				spec := getDeploymentByName(componentNameRadixQuote, deployments).Spec
+				assert.Equal(t, int32(DefaultReplicas), *spec.Replicas, "number of replicas was unexpected")
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameRadixQuote, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment("a_secret", componentNameRadixQuote, deployments))
+			})
 
-	t.Run("validate hpa", func(t *testing.T) {
-		t.Parallel()
-		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
-	})
+			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
+				t.Parallel()
+				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
+			})
 
-	t.Run("validate service", func(t *testing.T) {
-		t.Parallel()
-		services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 3, len(services.Items), "Number of services wasn't as expected")
-		assert.True(t, serviceByNameExists("app", services), "app service not there")
-		assert.True(t, serviceByNameExists("redis", services), "redis service not there")
-		assert.True(t, serviceByNameExists("radixquote", services), "radixquote service not there")
-	})
+			t.Run(fmt.Sprintf("%s: validate service", testScenario), func(t *testing.T) {
+				t.Parallel()
+				services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 3, len(services.Items), "Number of services wasn't as expected")
+				assert.True(t, serviceByNameExists(componentNameApp, services), "app service not there")
+				assert.True(t, serviceByNameExists(componentNameRedis, services), "redis service not there")
+				assert.True(t, serviceByNameExists(componentNameRadixQuote, services), "radixquote service not there")
+			})
 
-	t.Run("validate secrets", func(t *testing.T) {
-		t.Parallel()
-		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
+			t.Run(fmt.Sprintf("%s: validate secrets", testScenario), func(t *testing.T) {
+				t.Parallel()
+				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
 
-		componentSecretName := utils.GetComponentSecretName("radixquote")
-		assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
+				componentSecretName := utils.GetComponentSecretName(componentNameRadixQuote)
+				assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
 
-		// Exists due to external DNS, even though this is not acive cluster
-		assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
-		assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
-	})
+				// Exists due to external DNS, even though this is not acive cluster
+				assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
+				assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
+			})
 
-	t.Run("validate service accounts", func(t *testing.T) {
-		t.Parallel()
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
-	})
+			t.Run(fmt.Sprintf("%s: validate service accounts", testScenario), func(t *testing.T) {
+				t.Parallel()
+				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+			})
 
-	t.Run("validate roles", func(t *testing.T) {
-		t.Parallel()
-		roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
+				t.Parallel()
+				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
 
-		assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
-		assert.True(t, roleByNameExists("radix-app-adm-radixquote", roles), "Expected role radix-app-adm-radixquote to be there to access secret")
+				assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
+				assert.True(t, roleByNameExists("radix-app-adm-radixquote", roles), "Expected role radix-app-adm-radixquote to be there to access secret")
 
-		// Exists due to external DNS, even though this is not acive cluster
-		assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
-	})
+				// Exists due to external DNS, even though this is not acive cluster
+				assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-frontend to be there to access secrets for TLS certificates")
+			})
 
-	t.Run("validate rolebindings", func(t *testing.T) {
-		t.Parallel()
-		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
+			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
+				t.Parallel()
+				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
-		assert.True(t, roleBindingByNameExists("radix-app-adm-radixquote", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
-		assert.Equal(t, 2, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
-		assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects[1].Name)
+				assert.True(t, roleBindingByNameExists("radix-app-adm-radixquote", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+				assert.Equal(t, 2, len(getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
+				assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-radixquote", rolebindings).Subjects[1].Name)
 
-		// Exists due to external DNS, even though this is not acive cluster
-		assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
-	})
+				// Exists due to external DNS, even though this is not acive cluster
+				assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
+			})
 
-	t.Run("validate networkpolicy", func(t *testing.T) {
-		t.Parallel()
-		np, _ := client.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
-	})
-
-	teardownTest()
+			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
+				t.Parallel()
+				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+			})
+		})
+		teardownTest()
+	}
 }
 
 func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecificIngresses(t *testing.T) {
@@ -1555,7 +1604,7 @@ func parseQuantity(value string) resource.Quantity {
 	return q
 }
 
-func applyDeploymentWithSync(tu *test.Utils, client kube.Interface, kubeUtil *kubeUtils.Kube,
+func applyDeploymentWithSync(tu *test.Utils, kubeclient kube.Interface, kubeUtil *kubeUtils.Kube,
 	radixclient radixclient.Interface, deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
 	rd, err := tu.ApplyDeployment(deploymentBuilder)
 	if err != nil {
@@ -1567,7 +1616,7 @@ func applyDeploymentWithSync(tu *test.Utils, client kube.Interface, kubeUtil *ku
 		return nil, err
 	}
 
-	deployment, err := NewDeployment(client, kubeUtil, radixclient, nil, radixRegistration, rd)
+	deployment, err := NewDeployment(kubeclient, kubeUtil, radixclient, nil, radixRegistration, rd)
 	err = deployment.OnSync()
 	if err != nil {
 		return nil, err
