@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
@@ -131,6 +132,20 @@ func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.Ra
 	}
 
 	return false, errorUtils.Concat(errs)
+}
+
+// IsApplicationNameLowercase checks if the application name has any uppercase letters
+func IsApplicationNameLowercase(appName string) (bool, error) {
+	for _, r := range appName {
+		if unicode.IsUpper(r) && unicode.IsLetter(r) {
+			return false, ApplicationNameNotLowercaseError(appName)
+		}
+	}
+	return true, nil
+}
+
+func ApplicationNameNotLowercaseError(appName string) error {
+	return fmt.Errorf("Application with name %s contains uppercase letters.", appName)
 }
 
 // PublicImageComponentCannotHaveSourceOrDockerfileSet Error if image is set and radix config contains src or dockerfile

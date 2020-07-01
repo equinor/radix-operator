@@ -38,15 +38,15 @@ var (
 	radixRequestedCPU = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_requested_cpu",
 		Help: "Requested cpu in millicore by environment and component",
-	}, []string{"application", "environment", "component"})
+	}, []string{"application", "environment", "component", "wbs"})
 	radixRequestedMemory = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_requested_memory",
 		Help: "Requested memory in megabyte by environment and component. 1Mi = 1024 * 1024 bytes > 1MB = 1000000 bytes (ref https://simple.wikipedia.org/wiki/Mebibyte)",
-	}, []string{"application", "environment", "component"})
+	}, []string{"application", "environment", "component", "wbs"})
 	radixRequestedReplicas = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "radix_operator_requested_replicas",
 		Help: "Requested replicas by environment and component",
-	}, []string{"application", "environment", "component"})
+	}, []string{"application", "environment", "component", "wbs"})
 
 	radixJobProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_radix_job_processed",
@@ -59,8 +59,8 @@ func init() {
 }
 
 // RequestedResources adds metrics for requested resources
-func RequestedResources(rd *v1.RadixDeployment) {
-	if rd == nil || rd.Status.Condition == v1.DeploymentInactive {
+func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
+	if rd == nil || rd.Status.Condition == v1.DeploymentInactive || rr == nil {
 		return
 	}
 
@@ -72,11 +72,11 @@ func RequestedResources(rd *v1.RadixDeployment) {
 		requestedResources := resources.Requests
 
 		if cpu := requestedResources.Cpu(); cpu != nil {
-			radixRequestedCPU.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).Set(float64(cpu.MilliValue()))
+			radixRequestedCPU.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(cpu.MilliValue()))
 		}
 
 		if memory := requestedResources.Memory(); memory != nil {
-			radixRequestedMemory.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).Set(float64(memory.ScaledValue(resource.Mega)))
+			radixRequestedMemory.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(memory.ScaledValue(resource.Mega)))
 		}
 
 		replicas := int32(1)
@@ -86,7 +86,7 @@ func RequestedResources(rd *v1.RadixDeployment) {
 			replicas = int32(*comp.Replicas)
 		}
 		nrReplicas := float64(replicas)
-		radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name}).Set(nrReplicas)
+		radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(nrReplicas)
 	}
 }
 
