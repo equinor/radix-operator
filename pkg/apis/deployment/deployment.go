@@ -113,7 +113,7 @@ func (deploy *Deployment) OnSync() error {
 	if err == nil {
 		// Only remove old RDs if deployment is successful
 		deploy.maintainHistoryLimit()
-		metrics.RequestedResources(deploy.radixDeployment)
+		metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
 	}
 
 	return err
