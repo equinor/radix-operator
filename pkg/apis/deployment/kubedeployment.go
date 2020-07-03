@@ -59,21 +59,10 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent *v1.Rad
 
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.RadixDeployComponent) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
-	environment := deploy.radixDeployment.Spec.Environment
 	componentName := deployComponent.Name
 	componentPorts := deployComponent.Ports
-	replicas := deployComponent.Replicas
 	automountServiceAccountToken := false
-
-	const branchKey, commitIDKey = "radix-branch", "radix-commit"
-	rdLabels := deploy.radixDeployment.Labels
-	var branch, commitID string
-	if branchVal, exists := rdLabels[branchKey]; exists {
-		branch = branchVal
-	}
-	if commitIDVal, exists := rdLabels[commitIDKey]; exists {
-		commitID = commitIDVal
-	}
+	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
 	securityContext := getSecurityContextForContainer()
@@ -127,10 +116,6 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 		},
 	}
 
-	if deployComponent.AlwaysPullImageOnDeploy {
-		deployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
-	}
-
 	var ports []corev1.ContainerPort
 	for _, v := range componentPorts {
 		containerPort := corev1.ContainerPort{
@@ -155,50 +140,16 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	}
 	deployment.Spec.Strategy = deploymentStrategy
 
-	if replicas != nil && *replicas >= 0 {
-		deployment.Spec.Replicas = int32Ptr(int32(*replicas))
-	}
-
-	// Override Replicas with horizontalScaling.minReplicas if exists
-	if replicas != nil && *replicas != 0 && deployComponent.HorizontalScaling != nil {
-		deployment.Spec.Replicas = deployComponent.HorizontalScaling.MinReplicas
-	}
-
-	// For backwards compatibility
-	isDeployComponentPublic := deployComponent.PublicPort != "" || deployComponent.Public
-	environmentVariables := deploy.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets, isDeployComponentPublic, deployComponent.Ports, deploy.radixDeployment.Name, deploy.radixDeployment.Namespace, environment, appName, componentName)
-
-	if environmentVariables != nil {
-		deployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
-	}
-
-	resourceRequirements := deployComponent.GetResourceRequirements()
-
-	if resourceRequirements != nil {
-		deployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
-	}
-
-	return deployment, nil
+	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName, componentName)
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.RadixDeployComponent,
 	currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	desiredDeployment := currentDeployment.DeepCopy()
 	appName := deploy.radixDeployment.Spec.AppName
-	environment := deploy.radixDeployment.Spec.Environment
 	componentName := deployComponent.Name
-	replicas := deployComponent.Replicas
 	automountServiceAccountToken := false
-
-	const branchKey, commitIDKey = "radix-branch", "radix-commit"
-	rdLabels := deploy.radixDeployment.Labels
-	var branch, commitID string
-	if branchVal, exists := rdLabels[branchKey]; exists {
-		branch = branchVal
-	}
-	if commitIDVal, exists := rdLabels[commitIDKey]; exists {
-		commitID = commitIDVal
-	}
+	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	desiredDeployment.ObjectMeta.Name = componentName
 	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
@@ -216,10 +167,6 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-
-	if deployComponent.AlwaysPullImageOnDeploy {
-		desiredDeployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
-	}
 
 	portMap := make(map[string]v1.ComponentPort)
 	for _, port := range deployComponent.Ports {
@@ -243,6 +190,29 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	if err != nil {
 		return nil, err
 	}
+
+	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName, componentName)
+}
+
+func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
+	const branchKey, commitIDKey = "radix-branch", "radix-commit"
+	rdLabels := deploy.radixDeployment.Labels
+	var branch, commitID string
+	if branchVal, exists := rdLabels[branchKey]; exists {
+		branch = branchVal
+	}
+	if commitIDVal, exists := rdLabels[commitIDKey]; exists {
+		commitID = commitIDVal
+	}
+	return branch, commitID
+}
+
+func (deploy *Deployment) updateDeploymentByComponent(deployComponent *v1.RadixDeployComponent, desiredDeployment *appsv1.Deployment, appName string, componentName string) (*appsv1.Deployment, error) {
+	if deployComponent.AlwaysPullImageOnDeploy {
+		desiredDeployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
+	}
+
+	replicas := deployComponent.Replicas
 	if replicas != nil && *replicas >= 0 {
 		desiredDeployment.Spec.Replicas = int32Ptr(int32(*replicas))
 	}
@@ -254,10 +224,11 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 
 	// For backwards compatibility
 	isDeployComponentPublic := deployComponent.PublicPort != "" || deployComponent.Public
+	radixDeployment := deploy.radixDeployment
 	environmentVariables := deploy.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets,
-		isDeployComponentPublic, deployComponent.Ports,
-		deploy.radixDeployment.Name, deploy.radixDeployment.Namespace,
-		environment, appName, componentName)
+		isDeployComponentPublic,
+		deployComponent.Ports, radixDeployment.Name, radixDeployment.Namespace, radixDeployment.Spec.Environment,
+		appName, componentName)
 
 	if environmentVariables != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
