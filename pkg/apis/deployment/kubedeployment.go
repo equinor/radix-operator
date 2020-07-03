@@ -17,7 +17,7 @@ import (
 	_ "k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) createDeployment(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixDeployComponent) error {
 	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(&deployComponent)
 	if err != nil {
 		return err
