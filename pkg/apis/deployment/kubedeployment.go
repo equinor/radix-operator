@@ -39,7 +39,10 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixDeplo
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent *v1.RadixDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	namespace := deploy.radixDeployment.Namespace
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.Name)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return nil, nil, err
+		}
 		desiredCreatedDeployment, err := deploy.getDesiredCreatedDeploymentConfig(deployComponent)
 		if err == nil {
 			log.Debugf("Creating Deployment: %s in namespace %s", desiredCreatedDeployment.Name, namespace)
