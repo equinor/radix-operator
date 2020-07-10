@@ -206,7 +206,7 @@ type radixApplicationComponentBuilder struct {
 	sourceFolder            string
 	dockerfileName          string
 	image                   string
-	alwaysPullImageOnDeploy bool
+	alwaysPullImageOnDeploy *bool
 	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
 	public               bool
 	publicPort           string
@@ -224,7 +224,7 @@ func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicat
 }
 
 func (rcb *radixApplicationComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) RadixApplicationComponentBuilder {
-	rcb.alwaysPullImageOnDeploy = val
+	rcb.alwaysPullImageOnDeploy = &val
 	return rcb
 }
 
@@ -344,15 +344,17 @@ type RadixEnvironmentConfigBuilder interface {
 	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
+	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
-	environment string
-	variables   v1.EnvVarsMap
-	replicas    *int
-	ports       map[string]int32
-	secrets     []string
-	resources   v1.ResourceRequirements
+	environment             string
+	variables               v1.EnvVarsMap
+	replicas                *int
+	ports                   map[string]int32
+	secrets                 []string
+	resources               v1.ResourceRequirements
+	alwaysPullImageOnDeploy *bool
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -378,12 +380,18 @@ func (ceb *radixEnvironmentConfigBuilder) WithEnvironmentVariable(name, value st
 	return ceb
 }
 
+func (ceb *radixEnvironmentConfigBuilder) WithAlwaysPullImageOnDeploy(val bool) RadixEnvironmentConfigBuilder {
+	ceb.alwaysPullImageOnDeploy = &val
+	return ceb
+}
+
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
 	return v1.RadixEnvironmentConfig{
-		Environment: ceb.environment,
-		Variables:   ceb.variables,
-		Replicas:    ceb.replicas,
-		Resources:   ceb.resources,
+		Environment:             ceb.environment,
+		Variables:               ceb.variables,
+		Replicas:                ceb.replicas,
+		Resources:               ceb.resources,
+		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
 	}
 }
 
