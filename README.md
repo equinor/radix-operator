@@ -68,7 +68,16 @@ For changes to the chart the same procedure applies as for changes to the code. 
 
 The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
-Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by doing a `go get github.com/kubernetes/code-generator`
+Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by setting up following way:
+* Add following line to the `go.mod` file. This particular version is specified in the `Makefile`  
+```
+k8s.io/code-generator v0.17.3
+```
+* Execute in a terminal following command (NOTE: after executing any `go mod tidy` command - this line will be removed as "not used dependency")
+```
+go mod download
+```
+NB: using `go get ...` does not setup it properly.
 
 Next command will auto-generate some code and implement certain interfaces.
 
