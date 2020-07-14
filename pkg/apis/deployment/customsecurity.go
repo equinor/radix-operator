@@ -9,7 +9,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) customSecuritySettings(appName, namespace string, deployment *appsv1.Deployment) {
+func (deploy *Deployment) customSecuritySettings(deployment *appsv1.Deployment) {
+	namespace := deploy.radixDeployment.Namespace
+	appName := deploy.radixDeployment.Spec.AppName
 	// need to be able to get serviceaccount token inside container
 	automountServiceAccountToken := true
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)

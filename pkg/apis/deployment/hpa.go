@@ -14,7 +14,7 @@ import (
 
 const targetCPUUtilizationPercentage = 80
 
-func (deploy *Deployment) createHPA(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.Name
 	replicas := deployComponent.Replicas

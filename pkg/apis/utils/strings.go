@@ -32,3 +32,8 @@ func GetGithubRepositoryURLFromCloneURL(cloneURL string) string {
 	repo := fmt.Sprintf("%s%s", githubRepoURL, repoName)
 	return repo
 }
+
+// Ternary operator
+func TernaryString(condition bool, trueValue, falseValue string) string {
+	return map[bool]string{true: trueValue, false: falseValue}[condition]
+}
