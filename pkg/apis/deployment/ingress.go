@@ -35,7 +35,7 @@ const (
 	ingressConfigurationMap     = "radix-operator-ingress-configmap"
 )
 
-func (deploy *Deployment) createIngress(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	clustername, err := deploy.kubeutil.GetClusterName()
 	if err != nil {

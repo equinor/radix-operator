@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) createServiceMonitor(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	serviceMonitor := getServiceMonitorConfig(deployComponent.Name, namespace, deployComponent.Ports)
 	return deploy.applyServiceMonitor(namespace, serviceMonitor)

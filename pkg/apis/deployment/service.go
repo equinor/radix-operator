@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) createService(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	service := getServiceConfig(deployComponent.Name, deploy.radixDeployment, deployComponent.Ports)
 	return deploy.kubeutil.ApplyService(namespace, service)

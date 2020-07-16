@@ -219,7 +219,7 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
 	}
 
-	err = deploy.createSecrets(deploy.registration, deploy.radixDeployment)
+	err = deploy.createOrUpdateSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("Failed to provision secrets: %v", err)
@@ -235,26 +235,26 @@ func (deploy *Deployment) syncDeployment() error {
 	errs := []error{}
 	for _, v := range deploy.radixDeployment.Spec.Components {
 		// Deploy to current radixDeploy object's namespace
-		err := deploy.createDeployment(v)
+		err := deploy.createOrUpdateDeployment(v)
 		if err != nil {
 			log.Infof("Failed to create deployment: %v", err)
 			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
 			continue
 		}
-		err = deploy.createHPA(v)
+		err = deploy.createOrUpdateHPA(v)
 		if err != nil {
 			log.Infof("Failed to create horizontal pod autoscaler: %v", err)
 			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
 			continue
 		}
-		err = deploy.createService(v)
+		err = deploy.createOrUpdateService(v)
 		if err != nil {
 			log.Infof("Failed to create service: %v", err)
 			errs = append(errs, fmt.Errorf("Failed to create service: %v", err))
 			continue
 		}
 		if v.PublicPort != "" || v.Public {
-			err = deploy.createIngress(v)
+			err = deploy.createOrUpdateIngress(v)
 			if err != nil {
 				log.Infof("Failed to create ingress: %v", err)
 				errs = append(errs, fmt.Errorf("Failed to create ingress: %v", err))
@@ -270,7 +270,7 @@ func (deploy *Deployment) syncDeployment() error {
 		}
 
 		if v.Monitoring {
-			err = deploy.createServiceMonitor(v)
+			err = deploy.createOrUpdateServiceMonitor(v)
 			if err != nil {
 				log.Infof("Failed to create service monitor: %v", err)
 				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
