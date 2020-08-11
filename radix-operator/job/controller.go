@@ -79,6 +79,19 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
+			radixApplication, err := radixClient.RadixV1().RadixApplications(radixJob.Namespace).Get(radixJob.Spec.AppName, metav1.GetOptions{})
+			var targetEnvs []string
+
+			if err != nil {
+				targetEnvs = append(targetEnvs, "N/A")
+			} else {
+				for _, env := range radixApplication.Spec.Environments {
+					targetEnvs = append(targetEnvs, env.Name)
+				}
+			}
+			radixJob.Status.TargetEnvs = targetEnvs
+			radixClient.RadixV1().RadixJobs(radixJob.Namespace).UpdateStatus(radixJob)
+
 			controller.Enqueue(cur)
 			metrics.CustomResourceAdded(crType)
 		},
