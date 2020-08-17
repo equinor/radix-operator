@@ -214,6 +214,8 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent *v1.RadixD
 	replicas := deployComponent.Replicas
 	if replicas != nil && *replicas >= 0 {
 		desiredDeployment.Spec.Replicas = int32Ptr(int32(*replicas))
+	} else {
+		desiredDeployment.Spec.Replicas = int32Ptr(int32(DefaultReplicas))
 	}
 
 	// Override Replicas with horizontalScaling.minReplicas if exists
