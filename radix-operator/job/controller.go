@@ -1,6 +1,8 @@
 package job
 
 import (
+	"reflect"
+
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 
@@ -97,6 +99,22 @@ func NewController(client kubernetes.Interface,
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
+
+			radixApplication, err := radixClient.RadixV1().RadixApplications(newRJ.Namespace).Get(newRJ.Spec.AppName, metav1.GetOptions{})
+
+			if err == nil {
+				// Radix application exists
+				var raEnvsSlice []string
+				for _, env := range radixApplication.Spec.Environments {
+					raEnvsSlice = append(raEnvsSlice, env.Name)
+				}
+
+				if !reflect.DeepEqual(newRJ.Status.TargetEnvs, raEnvsSlice) {
+					newRJ.Status.TargetEnvs = raEnvsSlice
+					radixClient.RadixV1().RadixJobs(newRJ.Namespace).UpdateStatus(newRJ)
+				}
+			}
+
 			if job.IsRadixJobDone(newRJ) {
 				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
