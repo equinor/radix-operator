@@ -36,7 +36,7 @@ func GetDefaultMemoryRequest() *resource.Quantity {
 }
 
 func getQuantityFromEnvironmentVariable(envName string) *resource.Quantity {
-	quantityAsString := os.Getenv(OperatorEnvLimitDefaultCPUEnvironmentVariable)
+	quantityAsString := os.Getenv(envName)
 	if quantityAsString == "" {
 		return nil
 	}

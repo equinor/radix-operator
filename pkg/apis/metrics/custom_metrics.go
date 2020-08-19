@@ -69,7 +69,7 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 
 	for _, comp := range rd.Spec.Components {
 		resources := comp.GetResourceRequirements()
-		nrReplicas := float64(getNrOfReplicas(comp))
+		nrReplicas := float64(comp.GetNrOfReplicas())
 
 		if resources == nil {
 			if defaultCPU != nil {
@@ -93,16 +93,6 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 
 		radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(nrReplicas)
 	}
-}
-
-func getNrOfReplicas(comp v1.RadixDeployComponent) int32 {
-	replicas := int32(1)
-	if comp.HorizontalScaling != nil && comp.HorizontalScaling.MinReplicas != nil {
-		replicas = *comp.HorizontalScaling.MinReplicas
-	} else if comp.Replicas != nil {
-		replicas = int32(*comp.Replicas)
-	}
-	return replicas
 }
 
 // InitiateRadixJobStatusChanged initiate metric with value 0 to count the number of radix jobs processed.
