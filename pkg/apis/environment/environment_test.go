@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -29,11 +30,6 @@ const (
 	regConfig         = "./testdata/rr.yaml"
 	namespaceName     = "testapp-testenv"
 
-	OperatorLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU"
-	OperatorLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
-	OperatorLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY"
-	OperatorLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
-
 	limitDefaultCPU          = "432m" // 0.432
 	limitDefaultReqestCPU    = "234m" // 0.234
 	limitDefaultMemory       = "321M" // 321'000'000
@@ -48,10 +44,10 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
 
-	os.Setenv(OperatorLimitDefaultCPUEnvironmentVariable, limitDefaultCPU)
-	os.Setenv(OperatorLimitDefaultReqestCPUEnvironmentVariable, limitDefaultReqestCPU)
-	os.Setenv(OperatorLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
-	os.Setenv(OperatorLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
+	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, limitDefaultCPU)
+	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, limitDefaultReqestCPU)
+	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, limitDefaultMemory)
+	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, limitDefaultReqestMemory)
 
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }

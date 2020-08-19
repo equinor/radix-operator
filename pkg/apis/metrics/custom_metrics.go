@@ -3,6 +3,7 @@ package metrics
 import (
 	"time"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -63,10 +64,21 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 	if rd == nil || rd.Status.Condition == v1.DeploymentInactive || rr == nil {
 		return
 	}
+	defaultCPU := defaults.GetDefaultCPURequest()
+	defaultMemory := defaults.GetDefaultMemoryRequest()
 
 	for _, comp := range rd.Spec.Components {
 		resources := comp.GetResourceRequirements()
+		nrReplicas := float64(getNrOfReplicas(comp))
+
 		if resources == nil {
+			if defaultCPU != nil {
+				radixRequestedCPU.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(defaultCPU.MilliValue()))
+			}
+			if defaultMemory != nil {
+				radixRequestedMemory.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(defaultMemory.ScaledValue(resource.Mega)))
+			}
+			radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(nrReplicas)
 			continue
 		}
 		requestedResources := resources.Requests
@@ -79,15 +91,18 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 			radixRequestedMemory.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(memory.ScaledValue(resource.Mega)))
 		}
 
-		replicas := int32(1)
-		if comp.HorizontalScaling != nil && comp.HorizontalScaling.MinReplicas != nil {
-			replicas = *comp.HorizontalScaling.MinReplicas
-		} else if comp.Replicas != nil {
-			replicas = int32(*comp.Replicas)
-		}
-		nrReplicas := float64(replicas)
 		radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(nrReplicas)
 	}
+}
+
+func getNrOfReplicas(comp v1.RadixDeployComponent) int32 {
+	replicas := int32(1)
+	if comp.HorizontalScaling != nil && comp.HorizontalScaling.MinReplicas != nil {
+		replicas = *comp.HorizontalScaling.MinReplicas
+	} else if comp.Replicas != nil {
+		replicas = int32(*comp.Replicas)
+	}
+	return replicas
 }
 
 // InitiateRadixJobStatusChanged initiate metric with value 0 to count the number of radix jobs processed.
