@@ -17,44 +17,30 @@ const (
 
 // GetDefaultCPULimit Gets the default container CPU limit defined as an environment variable
 func GetDefaultCPULimit() *resource.Quantity {
-	defaultCPULimitSetting := os.Getenv(OperatorEnvLimitDefaultCPUEnvironmentVariable)
-	if defaultCPULimitSetting == "" {
-		return nil
-	}
-
-	defaultCPULimit := resource.MustParse(defaultCPULimitSetting)
-	return &defaultCPULimit
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultCPUEnvironmentVariable)
 }
 
 // GetDefaultMemoryLimit Gets the default container memory limit defined as an environment variable
 func GetDefaultMemoryLimit() *resource.Quantity {
-	defaultMemoryLimitSetting := os.Getenv(OperatorEnvLimitDefaultMemoryEnvironmentVariable)
-	if defaultMemoryLimitSetting == "" {
-		return nil
-	}
-
-	defaultMemoryLimit := resource.MustParse(defaultMemoryLimitSetting)
-	return &defaultMemoryLimit
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 }
 
 // GetDefaultCPURequest Gets the default container CPU request defined as an environment variable
 func GetDefaultCPURequest() *resource.Quantity {
-	defaultCPURequestSetting := os.Getenv(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable)
-	if defaultCPURequestSetting == "" {
-		return nil
-	}
-
-	defaultCPURequest := resource.MustParse(defaultCPURequestSetting)
-	return &defaultCPURequest
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable)
 }
 
 // GetDefaultMemoryRequest Gets the default container memory request defined as an environment variable
 func GetDefaultMemoryRequest() *resource.Quantity {
-	defaultMemoryRequestSetting := os.Getenv(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
-	if defaultMemoryRequestSetting == "" {
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
+}
+
+func getQuantityFromEnvironmentVariable(envName string) *resource.Quantity {
+	quantityAsString := os.Getenv(OperatorEnvLimitDefaultCPUEnvironmentVariable)
+	if quantityAsString == "" {
 		return nil
 	}
 
-	defaultMemoryRequest := resource.MustParse(defaultMemoryRequestSetting)
-	return &defaultMemoryRequest
+	quantity := resource.MustParse(quantityAsString)
+	return &quantity
 }
