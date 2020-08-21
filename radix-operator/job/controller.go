@@ -72,7 +72,6 @@ func NewController(client kubernetes.Interface,
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			radixJob, _ := cur.(*v1.RadixJob)
-			job.AddTargetEnvironments(radixJob)
 			if job.IsRadixJobDone(radixJob) {
 				logger.Debugf("Skip job object %s as it is complete", radixJob.GetName())
 				metrics.CustomResourceAddedButSkipped(crType)
@@ -85,8 +84,6 @@ func NewController(client kubernetes.Interface,
 		},
 		UpdateFunc: func(old, cur interface{}) {
 			newRJ := cur.(*v1.RadixJob)
-			job.SyncTargetEnvironments(newRJ)
-
 			if job.IsRadixJobDone(newRJ) {
 				logger.Debugf("Skip job object %s as it is complete", newRJ.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)

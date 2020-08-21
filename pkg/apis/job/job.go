@@ -148,8 +148,8 @@ func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
 }
 
 // AddTargetEnvironments read environments from RadixApplication and updates the status of RadixJob
-func (job *Job) AddTargetEnvironments(rj *v1.RadixJob) {
-
+func (job *Job) AddTargetEnvironments() {
+	rj := job.radixJob
 	radixApplication, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
 	var targetEnvs []string
 
@@ -167,7 +167,8 @@ func (job *Job) AddTargetEnvironments(rj *v1.RadixJob) {
 }
 
 // SyncTargetEnvironments sync the environments in the RadixJob with environments in the RA
-func (job *Job) SyncTargetEnvironments(rj *v1.RadixJob) {
+func (job *Job) SyncTargetEnvironments() {
+	rj := job.radixJob
 	radixApplication, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
 
 	if err == nil {
