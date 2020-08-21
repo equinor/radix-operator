@@ -66,8 +66,6 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	logger.Debugf("Sync job %s", syncJob.Name)
 
 	job := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob)
-	job.AddTargetEnvironments()
-	job.SyncTargetEnvironments()
 	err = job.OnSync()
 	if err != nil {
 		// Put back on queue

@@ -52,6 +52,8 @@ func NewJob(
 // converge the two
 func (job *Job) OnSync() error {
 	job.restoreStatus()
+	job.AddTargetEnvironments()
+	job.SyncTargetEnvironments()
 
 	if IsRadixJobDone(job.radixJob) {
 		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
