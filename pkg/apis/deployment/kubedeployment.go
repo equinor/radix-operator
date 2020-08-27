@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"strings"
 	"time"
@@ -126,6 +127,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	deployment.Spec.Template.Spec.Containers[0].Ports = ports
 
 	if len(ports) > 0 {
+		log.Debugln("Set readiness Prob for ports. Amount of ports: ", len(ports))
 		readinessProbe, err := getReadinessProbe(ports[0].ContainerPort)
 		if err != nil {
 			return nil, err
@@ -146,6 +148,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	desiredDeployment := currentDeployment.DeepCopy()
 	appName := deploy.radixDeployment.Spec.AppName
+	log.Debugf("Get desired updated deployment config for application: %s.", appName)
 	componentName := deployComponent.Name
 	automountServiceAccountToken := false
 	branch, commitID := deploy.getRadixBranchAndCommitId()
@@ -178,11 +181,14 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	}
 
 	if len(deployComponent.Ports) > 0 {
+		log.Debugf("Deployment component has %d ports.", len(deployComponent.Ports))
 		prob := desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe
 		err := getReadinessProbeSettings(prob, &deployComponent.Ports[0])
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		log.Debugf("Deployment component has no ports - Readiness Probe is not set.")
 	}
 
 	err := setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
@@ -327,6 +333,9 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 }
 
 func getReadinessProbeSettings(probe *corev1.Probe, componentPort *v1.ComponentPort) error {
+	if componentPort == nil {
+		return fmt.Errorf("Null Component Port")
+	}
 	initialDelaySeconds, err := defaults.GetDefaultReadinessProbeInitialDelaySeconds()
 	if err != nil {
 		return err
@@ -337,6 +346,9 @@ func getReadinessProbeSettings(probe *corev1.Probe, componentPort *v1.ComponentP
 		return err
 	}
 
+	if probe == nil || probe.TCPSocket == nil {
+		return fmt.Errorf("Null or invalid probe")
+	}
 	probe.TCPSocket.Port.IntVal = componentPort.Port
 	probe.InitialDelaySeconds = initialDelaySeconds
 	probe.PeriodSeconds = periodSeconds
