@@ -14,20 +14,20 @@ app:
   # Limit range on app namespace
   limitrange:
     default:
-        memory: 300M
-        cpu: 100m
+      memory: 300M
+      cpu: 2000m
     defaultRequest:
-      memory: 50M
-      cpu: 4m
+      memory: 300M
+      cpu: 5m
   env:
     # Limit range on env namespace
     limitrange:
       default:
         memory: 500M
-        cpu: 250m
+        cpu: 2000m
       defaultRequest:
-        memory: 50M
-        cpu: 20m
+        memory: 500M
+        cpu: 50m
   # Readiness probe parameters
   readinessProbe:
     initialDelaySeconds: 5
@@ -87,3 +87,4 @@ radixGroups:
 
 deploymentsPerEnvironmentHistoryLimit: 10
 jobsPerAppHistoryLimit: 20
+logLevel: "INFO"

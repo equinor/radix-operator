@@ -693,6 +693,72 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	teardownTest()
 }
 
+func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Test
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithReplicas(test.IntPtr(0))))
+
+	time.Sleep(1 * time.Second)
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, int32(0), *deployments.Items[0].Spec.Replicas)
+
+	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app")))
+
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
+
+	teardownTest()
+}
+
+func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Test
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app").
+				WithReplicas(test.IntPtr(3))))
+
+	time.Sleep(1 * time.Second)
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, int32(3), *deployments.Items[0].Spec.Replicas)
+
+	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("app")))
+
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
+
+	teardownTest()
+}
+
 func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *testing.T) {
 	tu, client, kubeUtil, radixclient := setupTest()
 
