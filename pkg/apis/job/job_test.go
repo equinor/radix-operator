@@ -142,10 +142,15 @@ func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 func TestTargetEnvironmentIsSet(t *testing.T) {
 	tu, client, kubeutils, radixclient := setupTest()
 
-	job, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
+	job, err := applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"))
 
 	expectedEnvs := []string{"test"}
+
+	assert.NoError(t, err)
+
+	// Master maps to Test env
+	assert.Equal(t, job.Spec.Build.Branch, "master")
 	assert.Equal(t, expectedEnvs, job.Status.TargetEnvs)
 }
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,7 +51,6 @@ func NewJob(
 // converge the two
 func (job *Job) OnSync() error {
 	job.restoreStatus()
-	job.AddTargetEnvironments()
 	job.SyncTargetEnvironments()
 
 	if IsRadixJobDone(job.radixJob) {
@@ -149,42 +147,42 @@ func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
 	return false
 }
 
-// AddTargetEnvironments read environments from RadixApplication and updates the status of RadixJob
-func (job *Job) AddTargetEnvironments() {
-	rj := job.radixJob
-	radixApplication, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
-	var targetEnvs []string
-
-	if err != nil {
-		targetEnvs = append(targetEnvs, "N/A")
-	} else {
-		for _, env := range radixApplication.Spec.Environments {
-			targetEnvs = append(targetEnvs, env.Name)
-		}
-	}
-
-	rj.Status.TargetEnvs = targetEnvs
-	job.radixclient.RadixV1().RadixJobs(rj.Namespace).UpdateStatus(rj)
-
-}
-
 // SyncTargetEnvironments sync the environments in the RadixJob with environments in the RA
 func (job *Job) SyncTargetEnvironments() {
 	rj := job.radixJob
-	radixApplication, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
 
-	if err == nil {
-		// Radix application exists
-		var raEnvsSlice []string
-		for _, env := range radixApplication.Spec.Environments {
-			raEnvsSlice = append(raEnvsSlice, env.Name)
-		}
-
-		if !reflect.DeepEqual(rj.Status.TargetEnvs, raEnvsSlice) {
-			job.radixJob.Status.TargetEnvs = raEnvsSlice
-			job.radixclient.RadixV1().RadixJobs(rj.Namespace).UpdateStatus(rj)
-		}
+	// TargetEnv has already been set
+	if len(rj.Status.TargetEnvs) > 0 {
+		return
 	}
+
+	if rj.Spec.PipeLineType == v1.Deploy {
+		rj.Status.TargetEnvs = append(rj.Status.TargetEnvs, rj.Spec.Deploy.ToEnvironment)
+	}
+
+	if rj.Spec.PipeLineType == v1.Promote {
+		rj.Status.TargetEnvs = append(rj.Status.TargetEnvs, rj.Spec.Promote.ToEnvironment)
+	}
+
+	if rj.Spec.PipeLineType == v1.BuildDeploy {
+		ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
+
+		var targetEnvs []string
+
+		if err != nil {
+			targetEnvs = append(targetEnvs, "N/A")
+		} else {
+			for _, env := range ra.Spec.Environments {
+				if env.Build.From == rj.Spec.Build.Branch {
+					targetEnvs = append(targetEnvs, env.Name)
+				}
+			}
+		}
+		rj.Status.TargetEnvs = targetEnvs
+	}
+
+	// Update RJ with accurate env data
+	job.radixclient.RadixV1().RadixJobs(rj.Namespace).UpdateStatus(rj)
 
 }
 
