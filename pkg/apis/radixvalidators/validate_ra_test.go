@@ -255,6 +255,20 @@ func Test_invalid_ra(t *testing.T) {
 		{"common cpu resource request wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Requests["cpu"] = invalidResourceValue
 		}},
+		{"cpu resource limit is empty", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["cpu"] = ""
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
+		}},
+		{"cpu resource limit not set", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
+		}},
+		{"memory resource limit is empty", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = ""
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
+		}},
+		{"memory resource limit not set", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
+		}},
 		{"wrong public image config", radixvalidators.PublicImageComponentCannotHaveSourceOrDockerfileSet(validRAFirstComponentName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Image = "redis:5.0-alpine"
 			ra.Spec.Components[0].SourceFolder = "./api"

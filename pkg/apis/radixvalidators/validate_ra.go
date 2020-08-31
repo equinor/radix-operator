@@ -447,19 +447,20 @@ func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirem
 	}
 	limitQuantities := make(map[string]resource.Quantity)
 	for name, value := range resourceRequirements.Limits {
-		q, err := validateQuantity(name, value)
-		if err != nil {
-			errs = append(errs, err)
+		if len(value) > 0 {
+			q, err := validateQuantity(name, value)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			limitQuantities[name] = q
 		}
-		limitQuantities[name] = q
 	}
 	for name, value := range resourceRequirements.Requests {
-		limit := limitQuantities[name]
 		q, err := validateQuantity(name, value)
 		if err != nil {
 			errs = append(errs, err)
 		}
-		if q.Cmp(limit) == 1 {
+		if limit, limitExist := limitQuantities[name]; limitExist && q.Cmp(limit) == 1 {
 			errs = append(errs, ResourceRequestOverLimitError(name, value, limit.String()))
 		}
 	}
@@ -476,7 +477,6 @@ func validateQuantity(name, value string) (resource.Quantity, error) {
 		}
 	} else if name == "cpu" {
 		quantity, err = resource.ParseQuantity(value)
-
 		re := regexp.MustCompile(cpuRegex)
 		isValid := re.MatchString(value)
 		if err != nil || !isValid {
