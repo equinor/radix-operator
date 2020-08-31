@@ -46,6 +46,12 @@ var (
 
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
+	switch os.Getenv("LOG_LEVEL") {
+	case "DEBUG":
+		logger.Logger.SetLevel(log.DebugLevel)
+	default:
+		logger.Logger.SetLevel(log.InfoLevel)
+	}
 	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
 
 	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)

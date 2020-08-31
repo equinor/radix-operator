@@ -16,7 +16,7 @@ import (
 
 const tlsSecretDefaultData = "xx"
 
-func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
+func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
@@ -27,7 +27,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 		if len(component.Secrets) > 0 {
 			secretName := utils.GetComponentSecretName(component.Name)
 			if !deploy.kubeutil.SecretExists(ns, secretName) {
-				err := deploy.createSecret(ns, registration.Name, component.Name, secretName, false)
+				err := deploy.createOrUpdateSecret(ns, registration.Name, component.Name, secretName, false)
 				if err != nil {
 					return err
 				}
@@ -55,7 +55,7 @@ func (deploy *Deployment) createSecrets(registration *radixv1.RadixRegistration,
 					continue
 				}
 
-				err := deploy.createSecret(ns, registration.Name, component.Name, externalAlias, true)
+				err := deploy.createOrUpdateSecret(ns, registration.Name, component.Name, externalAlias, true)
 				if err != nil {
 					return err
 				}
@@ -195,7 +195,7 @@ func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error
 	return secrets, err
 }
 
-func (deploy *Deployment) createSecret(ns, app, component, secretName string, isExternalAlias bool) error {
+func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName string, isExternalAlias bool) error {
 	secretType := v1.SecretType("Opaque")
 	if isExternalAlias {
 		secretType = v1.SecretType("kubernetes.io/tls")

@@ -186,8 +186,11 @@ func (job *Job) setStatusOfJob() error {
 		return err
 	}
 
+	if len(environments) > 0 {
+		job.radixJob.Status.TargetEnvs = environments
+	}
+
 	job.radixJob.Status.Steps = steps
-	job.radixJob.Status.TargetEnvs = environments
 	err = saveStatus(job.radixclient, job.radixJob, job.originalRadixJobStatus)
 
 	if job.radixJob.Status.Condition == v1.JobSucceeded || job.radixJob.Status.Condition == v1.JobFailed {

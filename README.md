@@ -1,11 +1,12 @@
 # radix-operator
 
-The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform natively on [Kubernetes](https://kubernetes.io/). It manages three [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/):
+The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform natively on [Kubernetes](https://kubernetes.io/). It manages five [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/):
 
 - RR - Application registrations
 - RA - Application definition/configuration
 - RD - Application deployment
 - RJ - Application build/deploy jobs
+- RE - Application environments
 
 The `radix-operator` and `radix-pipeline` are built using Github actions, then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch.
 
@@ -40,7 +41,7 @@ The radix-operator and code is referred to from radix-api through go modules. We
 - `git tag v1.0.0`
 - `git push origin v1.0.0`
 
-Its then possible to reference radix-operator from radix-api through adding `github.com/equinor/radix-operator v1.0.0` to the go.mod file.
+It is then possible to reference radix-operator from radix-api through adding `github.com/equinor/radix-operator v1.0.0` to the go.mod file.
 
 #### Radix-pipeline
 
@@ -68,7 +69,16 @@ For changes to the chart the same procedure applies as for changes to the code. 
 
 The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
-Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by doing a `go get github.com/kubernetes/code-generator`
+Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by setting up following way:
+* Add following line to the `go.mod` file. This particular version is specified in the `Makefile`  
+```
+k8s.io/code-generator v0.17.3
+```
+* Execute in a terminal following command (NOTE: after executing any `go mod tidy` command - this line will be removed as "not used dependency")
+```
+go mod download
+```
+NB: using `go get ...` does not setup it properly.
 
 Next command will auto-generate some code and implement certain interfaces.
 
@@ -84,7 +94,7 @@ If you wish more in-depth information, [read this](https://blog.openshift.com/ku
 
 ## Security Principle
 
-The radix-operator reacts on events to the custom resource types defined by the platform, the RadixRegistration, the RadixApplication and the RadixDeployment. It cannot be controlled directly by any platform user. It's main purpose is to create the core resources when the custom resources appears, which will live inside application and environment [namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) for the application. Access to a namespace is configured as [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) manifests when the namespace is created, which main purpose is to isolate the platform user applications from one another. For more information on this see [this](./docs/RBAC.md). Another is to define the [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/), to ensure no [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) can access another pod, outside of its namespace.
+The radix-operator reacts on events to the custom resource types defined by the platform, the RadixRegistration, the RadixApplication, the RadixDeployment, the RadixJob and the RadixEnvironment. It cannot be controlled directly by any platform user. It's main purpose is to create the core resources when the custom resources appears, which will live inside application and environment [namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) for the application. Access to a namespace is configured as [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) manifests when the namespace is created, which main purpose is to isolate the platform user applications from one another. For more information on this see [this](./docs/RBAC.md). Another is to define the [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/), to ensure no [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) can access another pod, outside of its namespace.
 
 ## Automated build and deployment
 

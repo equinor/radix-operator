@@ -60,7 +60,7 @@ type RadixDeployComponent struct {
 	Image    string          `json:"image" yaml:"image"`
 	Ports    []ComponentPort `json:"ports" yaml:"ports"`
 	Replicas *int            `json:"replicas" yaml:"replicas"`
-	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
+	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public                  bool                    `json:"public" yaml:"public"`
 	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	EnvironmentVariables    EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
@@ -72,6 +72,17 @@ type RadixDeployComponent struct {
 	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+}
+
+// GetNrOfReplicas gets number of replicas component will run
+func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
+	replicas := int32(1)
+	if deployComponent.HorizontalScaling != nil && deployComponent.HorizontalScaling.MinReplicas != nil {
+		replicas = *deployComponent.HorizontalScaling.MinReplicas
+	} else if deployComponent.Replicas != nil {
+		replicas = int32(*deployComponent.Replicas)
+	}
+	return replicas
 }
 
 // GetResourceRequirements maps to core_v1.ResourceRequirements
