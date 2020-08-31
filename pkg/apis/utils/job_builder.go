@@ -240,12 +240,14 @@ func (jsb *jobStatusBuilder) Build() v1.RadixJobStatus {
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
 	started, _ := time.Parse(time.RFC850, jsb.started.Format(time.RFC850))
 	ended, _ := time.Parse(time.RFC850, jsb.ended.Format(time.RFC850))
+	targetEnvs := []string{"test"}
 
 	return v1.RadixJobStatus{
-		Condition: jsb.condition,
-		Started:   &metav1.Time{Time: started},
-		Ended:     &metav1.Time{Time: ended},
-		Steps:     jobSteps,
+		Condition:  jsb.condition,
+		Started:    &metav1.Time{Time: started},
+		Ended:      &metav1.Time{Time: ended},
+		Steps:      jobSteps,
+		TargetEnvs: targetEnvs,
 	}
 }
 
