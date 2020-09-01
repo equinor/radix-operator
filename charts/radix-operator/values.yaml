@@ -17,7 +17,7 @@ app:
       memory: 300M
       cpu: 2000m
     defaultRequest:
-      memory: 300M
+      memory: 200M
       cpu: 5m
   env:
     # Limit range on env namespace
