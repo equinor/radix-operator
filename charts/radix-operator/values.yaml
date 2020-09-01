@@ -14,7 +14,7 @@ app:
   # Limit range on app namespace
   limitrange:
     default:
-      memory: 300M
+      memory: 200M
       cpu: 2000m
     defaultRequest:
       memory: 200M
