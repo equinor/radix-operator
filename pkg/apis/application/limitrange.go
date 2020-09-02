@@ -10,10 +10,10 @@ const (
 )
 
 func (app *Application) createLimitRangeOnAppNamespace(namespace string) error {
-	defaultCPULimit := defaults.GetDefaultCPULimit()
-	defaultMemoryLimit := defaults.GetDefaultMemoryLimit()
-	defaultCPURequest := defaults.GetDefaultCPURequest()
-	defaultMemoryRequest := defaults.GetDefaultMemoryRequest()
+	defaultCPULimit := defaults.GetDefaultCPULimitForAppNamespace()
+	defaultMemoryLimit := defaults.GetDefaultMemoryLimitForAppNamespace()
+	defaultCPURequest := defaults.GetDefaultCPURequestForAppNamespace()
+	defaultMemoryRequest := defaults.GetDefaultMemoryRequestForAppNamespace()
 
 	// If not all limits are defined, then don't put any limits on namespace
 	if defaultCPULimit == nil ||
