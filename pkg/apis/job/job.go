@@ -51,6 +51,7 @@ func NewJob(
 // converge the two
 func (job *Job) OnSync() error {
 	job.restoreStatus()
+	job.SyncTargetEnvironments()
 
 	if IsRadixJobDone(job.radixJob) {
 		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
@@ -144,6 +145,45 @@ func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
 	}
 
 	return false
+}
+
+// SyncTargetEnvironments sync the environments in the RadixJob with environments in the RA
+func (job *Job) SyncTargetEnvironments() {
+	rj := job.radixJob
+
+	// TargetEnv has already been set
+	if len(rj.Status.TargetEnvs) > 0 {
+		return
+	}
+
+	if rj.Spec.PipeLineType == v1.Deploy {
+		rj.Status.TargetEnvs = append(rj.Status.TargetEnvs, rj.Spec.Deploy.ToEnvironment)
+	}
+
+	if rj.Spec.PipeLineType == v1.Promote {
+		rj.Status.TargetEnvs = append(rj.Status.TargetEnvs, rj.Spec.Promote.ToEnvironment)
+	}
+
+	if rj.Spec.PipeLineType == v1.BuildDeploy {
+		ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
+
+		var targetEnvs []string
+
+		if err != nil {
+			targetEnvs = append(targetEnvs, "N/A")
+		} else {
+			for _, env := range ra.Spec.Environments {
+				if env.Build.From == rj.Spec.Build.Branch {
+					targetEnvs = append(targetEnvs, env.Name)
+				}
+			}
+		}
+		rj.Status.TargetEnvs = targetEnvs
+	}
+
+	// Update RJ with accurate env data
+	job.radixclient.RadixV1().RadixJobs(rj.Namespace).UpdateStatus(rj)
+
 }
 
 // IsRadixJobDone Checks if job is done
