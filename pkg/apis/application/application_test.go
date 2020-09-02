@@ -117,10 +117,10 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "0.5")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
-	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "0.25")
-	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "256M")
+	os.Setenv(defaults.OperatorAppLimitDefaultCPUEnvironmentVariable, "0.5")
+	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "300M")
+	os.Setenv(defaults.OperatorAppLimitDefaultReqestCPUEnvironmentVariable, "0.25")
+	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "256M")
 
 	// Test
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
@@ -135,10 +135,10 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
-	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "")
-	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "")
-	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, "")
-	os.Setenv(defaults.OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable, "")
+	os.Setenv(defaults.OperatorAppLimitDefaultCPUEnvironmentVariable, "")
+	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "")
+	os.Setenv(defaults.OperatorAppLimitDefaultReqestCPUEnvironmentVariable, "")
+	os.Setenv(defaults.OperatorAppLimitDefaultRequestMemoryEnvironmentVariable, "")
 
 	// Test
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
