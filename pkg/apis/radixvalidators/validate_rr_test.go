@@ -34,6 +34,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		}},
 		{"invalid app name", func(rr *v1.RadixRegistration) { rr.Name = "invalid,char.appname" }},
 		{"empty app name", func(rr *v1.RadixRegistration) { rr.Name = "" }},
+		{"empty WBS", func(rr *v1.RadixRegistration) { rr.Spec.WBS = "" }},
 		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radix@equinor_com" }},
 		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radixatequinor.com" }},
 		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "adfasd" }},
