@@ -26,11 +26,6 @@ func AppNameCannotBeEmptyError() error {
 	return ResourceNameCannotBeEmptyError("app name")
 }
 
-// WbsCannotBeEmptyError WBS cannot be empty
-func WbsCannotBeEmptyError() error {
-	return ResourceNameCannotBeEmptyError("WBS")
-}
-
 // InvalidResourceNameLengthError Invalid resource length
 func InvalidResourceNameLengthError(resourceName, value string) error {
 	return fmt.Errorf("%s (%s) max length is 253", resourceName, value)
