@@ -1,8 +1,6 @@
 package radixvalidators_test
 
 import (
-	"testing"
-
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -11,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"strings"
+	"testing"
 )
 
 func Test_valid_rr_returns_true(t *testing.T) {
@@ -35,6 +35,9 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		{"invalid app name", func(rr *v1.RadixRegistration) { rr.Name = "invalid,char.appname" }},
 		{"empty app name", func(rr *v1.RadixRegistration) { rr.Name = "" }},
 		{"empty WBS", func(rr *v1.RadixRegistration) { rr.Spec.WBS = "" }},
+		{"empty WBS", func(rr *v1.RadixRegistration) { rr.Spec.WBS = " " }},
+		{"WBS is too short", func(rr *v1.RadixRegistration) { rr.Spec.WBS = strings.Repeat("a", 4) }},
+		{"WBS is too long", func(rr *v1.RadixRegistration) { rr.Spec.WBS = strings.Repeat("a", 101) }},
 		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radix@equinor_com" }},
 		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radixatequinor.com" }},
 		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "adfasd" }},

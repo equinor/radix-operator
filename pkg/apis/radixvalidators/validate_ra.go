@@ -565,7 +565,7 @@ func validateBranchNames(app *radixv1.RadixApplication) error {
 		}
 
 		if len(env.Build.From) > 253 {
-			return InvalidResourceNameLengthError("branch from", env.Build.From)
+			return InvalidStringValueMaxLengthError("branch from", env.Build.From, 253)
 		}
 
 		isValid := branch.IsValidPattern(env.Build.From)
@@ -596,7 +596,7 @@ func validateVariableName(resourceName, value string) error {
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
 	if len(value) > 253 {
-		return InvalidResourceNameLengthError(resourceName, value)
+		return InvalidStringValueMaxLengthError(resourceName, value, 253)
 	}
 
 	re := regexp.MustCompile(regexpExpression)
