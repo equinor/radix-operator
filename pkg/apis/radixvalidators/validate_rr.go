@@ -131,7 +131,22 @@ func validateAppName(appName string) error {
 }
 
 func validateWbs(wbs string) error {
-	return validateRequiredResourceName("WBS", wbs)
+	if wbs == "" {
+		return ResourceNameCannotBeEmptyError("WBS")
+	}
+
+	if len(wbs) < 5 || len(wbs) > 50 {
+		return InvalidResourceNameLengthError("WBS", wbs)
+	}
+
+	re := regexp.MustCompile("^(([\\w\\d][\\w\\d\\.]*)?[\\w\\d])?$")
+
+	isValid := re.MatchString(wbs)
+	if isValid {
+		return nil
+	}
+
+	return InvalidResourceNameError("WBS", wbs)
 }
 
 func validateRequiredResourceName(resourceName, value string) error {
