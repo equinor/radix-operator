@@ -1,19 +1,20 @@
 package radixvalidators
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
+	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // InvalidAppNameLengthError Invalid app length
 func InvalidAppNameLengthError(value string) error {
-	return InvalidResourceNameLengthError("app name", value)
+	return InvalidStringValueMaxLengthError("app name", value, 253)
 }
 
 // InvalidAppNameError Invalid app name
@@ -26,9 +27,14 @@ func AppNameCannotBeEmptyError() error {
 	return ResourceNameCannotBeEmptyError("app name")
 }
 
-// InvalidResourceNameLengthError Invalid resource length
-func InvalidResourceNameLengthError(resourceName, value string) error {
-	return fmt.Errorf("%s (%s) max length is 253", resourceName, value)
+// InvalidStringValueMinLengthError Invalid string value min length
+func InvalidStringValueMinLengthError(resourceName, value string, minValue int) error {
+	return fmt.Errorf("%s (\"%s\") min length is %d", resourceName, value, minValue)
+}
+
+// InvalidStringValueMaxLengthError Invalid string value max length
+func InvalidStringValueMaxLengthError(resourceName, value string, maxValue int) error {
+	return fmt.Errorf("%s (\"%s\") max length is %d", resourceName, value, maxValue)
 }
 
 // ResourceNameCannotBeEmptyError Resource name cannot be left empty
@@ -66,7 +72,7 @@ func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistrat
 	if !isValid && errUniqueAppName == nil {
 		return false, err
 	}
-	return false, errors.Concat([]error{errUniqueAppName, err})
+	return false, errorUtils.Concat([]error{errUniqueAppName, err})
 }
 
 // CanRadixRegistrationBeUpdated Validates update of RR
@@ -104,7 +110,7 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 	if len(errs) <= 0 {
 		return true, nil
 	}
-	return false, errors.Concat(errs)
+	return false, errorUtils.Concat(errs)
 }
 
 func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
@@ -131,12 +137,30 @@ func validateAppName(appName string) error {
 }
 
 func validateWbs(wbs string) error {
-	return validateRequiredResourceName("WBS", wbs)
+	value := strings.Trim(wbs, " ")
+	if len(value) == 0 {
+		return ResourceNameCannotBeEmptyError("WBS")
+	}
+	if len(value) < 5 {
+		return InvalidStringValueMinLengthError("WBS", value, 5)
+	}
+	if len(value) > 100 {
+		return InvalidStringValueMaxLengthError("WBS", value, 100)
+	}
+
+	re := regexp.MustCompile("^(([\\w\\d][\\w\\d\\.]*)?[\\w\\d])?$")
+
+	isValid := re.MatchString(wbs)
+	if isValid {
+		return nil
+	}
+
+	return errors.New("WBS can only consist of alphanumeric characters and '.'")
 }
 
 func validateRequiredResourceName(resourceName, value string) error {
 	if len(value) > 253 {
-		return InvalidResourceNameLengthError(resourceName, value)
+		return InvalidStringValueMaxLengthError(resourceName, value, 253)
 	}
 
 	if value == "" {
