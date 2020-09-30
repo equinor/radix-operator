@@ -17,7 +17,7 @@ func (kube *Kube) ApplyServiceAccount(serviceAccount corev1.ServiceAccount) (*co
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create ServiceAccount object: %v", err)
 		}
-		time.Sleep(time.Millisecond * 20) //Wait while a secret Can be returned with the ServiceAccount
+		time.Sleep(time.Millisecond * 200) //Wait while a secret Can be returned with the ServiceAccount
 		createdServiceAccount, err := kube.getServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())
 		if createdServiceAccount == nil {
 			return nil, fmt.Errorf("Cannot get created ServiceAccount: %s in namespace %s", serviceAccount.GetName(), serviceAccount.Namespace)
