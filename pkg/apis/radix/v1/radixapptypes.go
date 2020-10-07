@@ -124,7 +124,7 @@ type RadixEnvironmentConfig struct {
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	ImageTagName            string                  `json:"imageTagName" yaml:"imageTagName"`
 	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
-	VolumeMounts            []RadixVolumeMounts     `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec
@@ -144,8 +144,8 @@ type RadixPrivateImageHubCredential struct {
 	Email    string `json:"email" yaml:"email"`
 }
 
-// RadixVolumeMounts defines volume to be mounted to the container
-type RadixVolumeMounts struct {
+// RadixVolumeMount defines volume to be mounted to the container
+type RadixVolumeMount struct {
 	Type     MountType `json:"type" yaml:"type"`
 	Name     string    `json:"name" yaml:"name"`
 	FromPath string    `json:"fromPath" yaml:"fromPath"`

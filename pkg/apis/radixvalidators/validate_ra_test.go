@@ -562,6 +562,120 @@ func Test_PublicPort(t *testing.T) {
 	}
 }
 
+func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
+	var testScenarios = []struct {
+		name       string
+		updateRA   updateRAFunc
+		isValid    bool
+		isErrorNil bool
+	}{
+		{
+			"incorrect mount type",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:     "disk",
+						Name:     "some_name",
+						FromPath: "some_path",
+						Path:     "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+		},
+		{
+			"duplicate mount type",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:     v1.MountTypeBlob,
+						Name:     "some_name",
+						FromPath: "some_path",
+						Path:     "some_path",
+					},
+					{
+						Type:     v1.MountTypeBlob,
+						Name:     "some_name",
+						FromPath: "some_path",
+						Path:     "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+		},
+		{
+			"mount volume name is not set",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:     v1.MountTypeBlob,
+						FromPath: "some_path",
+						Path:     "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+		},
+		{
+			"mount volume from path is not set",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type: v1.MountTypeBlob,
+						Name: "some_name",
+						Path: "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+		},
+		{
+			"mount volume path is not set",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:     v1.MountTypeBlob,
+						Name:     "some_name",
+						FromPath: "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			isErrorNil := false
+			if err == nil {
+				isErrorNil = true
+			}
+
+			assert.Equal(t, testcase.isValid, isValid)
+			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+		})
+	}
+}
+
 func Test_ValidHPA_NoError(t *testing.T) {
 	var testScenarios = []struct {
 		name       string

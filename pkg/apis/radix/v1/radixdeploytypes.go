@@ -72,7 +72,7 @@ type RadixDeployComponent struct {
 	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
-	VolumeMounts            []RadixVolumeMounts     `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 }
 
 // GetNrOfReplicas gets number of replicas component will run
