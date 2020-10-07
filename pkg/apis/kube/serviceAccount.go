@@ -2,22 +2,26 @@ package kube
 
 import (
 	"fmt"
-
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 )
 
 // ApplyServiceAccount Creates or updates service account
 func (kube *Kube) ApplyServiceAccount(serviceAccount corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
 	oldServiceAccount, err := kube.getServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdServiceAccount, err := kube.kubeClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(&serviceAccount)
+		_, err := kube.kubeClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(&serviceAccount)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create ServiceAccount object: %v", err)
 		}
-
+		time.Sleep(time.Millisecond * 200) //Wait while a secret Can be returned with the ServiceAccount
+		createdServiceAccount, err := kube.getServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())
+		if createdServiceAccount == nil {
+			return nil, fmt.Errorf("Cannot get created ServiceAccount: %s in namespace %s", serviceAccount.GetName(), serviceAccount.Namespace)
+		}
 		log.Debugf("Created ServiceAccount: %s in namespace %s", createdServiceAccount.Name, serviceAccount.Namespace)
 		return createdServiceAccount, nil
 	} else if err != nil {

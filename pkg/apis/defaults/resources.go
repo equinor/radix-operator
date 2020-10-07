@@ -13,48 +13,59 @@ const (
 	OperatorEnvLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU"
 	OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"
 	OperatorEnvLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_CPU"
+
+	OperatorAppLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_LIMITS_DEFAULT_MEMORY"
+	OperatorAppLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_LIMITS_DEFAULT_CPU"
+	OperatorAppLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_MEMORY"
+	OperatorAppLimitDefaultReqestCPUEnvironmentVariable     = "RADIXOPERATOR_APP_LIMITS_DEFAULT_REQUEST_CPU"
 )
+
+// GetDefaultCPULimitForAppNamespace Gets the default container CPU limit for app namespaces defined as an environment variable
+func GetDefaultCPULimitForAppNamespace() *resource.Quantity {
+	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultCPUEnvironmentVariable)
+}
+
+// GetDefaultMemoryLimitForAppNamespace Gets the default container memory limit for app namespaces defined as an environment variable
+func GetDefaultMemoryLimitForAppNamespace() *resource.Quantity {
+	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultMemoryEnvironmentVariable)
+}
+
+// GetDefaultCPURequestForAppNamespace Gets the default container CPU request for app namespaces defined as an environment variable
+func GetDefaultCPURequestForAppNamespace() *resource.Quantity {
+	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultReqestCPUEnvironmentVariable)
+}
+
+// GetDefaultMemoryRequestForAppNamespace Gets the default container memory request for app namespaces defined as an environment variable
+func GetDefaultMemoryRequestForAppNamespace() *resource.Quantity {
+	return getQuantityFromEnvironmentVariable(OperatorAppLimitDefaultRequestMemoryEnvironmentVariable)
+}
 
 // GetDefaultCPULimit Gets the default container CPU limit defined as an environment variable
 func GetDefaultCPULimit() *resource.Quantity {
-	defaultCPULimitSetting := os.Getenv(OperatorEnvLimitDefaultCPUEnvironmentVariable)
-	if defaultCPULimitSetting == "" {
-		return nil
-	}
-
-	defaultCPULimit := resource.MustParse(defaultCPULimitSetting)
-	return &defaultCPULimit
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultCPUEnvironmentVariable)
 }
 
 // GetDefaultMemoryLimit Gets the default container memory limit defined as an environment variable
 func GetDefaultMemoryLimit() *resource.Quantity {
-	defaultMemoryLimitSetting := os.Getenv(OperatorEnvLimitDefaultMemoryEnvironmentVariable)
-	if defaultMemoryLimitSetting == "" {
-		return nil
-	}
-
-	defaultMemoryLimit := resource.MustParse(defaultMemoryLimitSetting)
-	return &defaultMemoryLimit
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultMemoryEnvironmentVariable)
 }
 
 // GetDefaultCPURequest Gets the default container CPU request defined as an environment variable
 func GetDefaultCPURequest() *resource.Quantity {
-	defaultCPURequestSetting := os.Getenv(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable)
-	if defaultCPURequestSetting == "" {
-		return nil
-	}
-
-	defaultCPURequest := resource.MustParse(defaultCPURequestSetting)
-	return &defaultCPURequest
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultReqestCPUEnvironmentVariable)
 }
 
 // GetDefaultMemoryRequest Gets the default container memory request defined as an environment variable
 func GetDefaultMemoryRequest() *resource.Quantity {
-	defaultMemoryRequestSetting := os.Getenv(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
-	if defaultMemoryRequestSetting == "" {
+	return getQuantityFromEnvironmentVariable(OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable)
+}
+
+func getQuantityFromEnvironmentVariable(envName string) *resource.Quantity {
+	quantityAsString := os.Getenv(envName)
+	if quantityAsString == "" {
 		return nil
 	}
 
-	defaultMemoryRequest := resource.MustParse(defaultMemoryRequestSetting)
-	return &defaultMemoryRequest
+	quantity := resource.MustParse(quantityAsString)
+	return &quantity
 }

@@ -75,6 +75,17 @@ type RadixDeployComponent struct {
 	VolumeMounts            []RadixVolumeMounts     `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 }
 
+// GetNrOfReplicas gets number of replicas component will run
+func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
+	replicas := int32(1)
+	if deployComponent.HorizontalScaling != nil && deployComponent.HorizontalScaling.MinReplicas != nil {
+		replicas = *deployComponent.HorizontalScaling.MinReplicas
+	} else if deployComponent.Replicas != nil {
+		replicas = int32(*deployComponent.Replicas)
+	}
+	return replicas
+}
+
 // GetResourceRequirements maps to core_v1.ResourceRequirements
 func (deployComponent RadixDeployComponent) GetResourceRequirements() *core_v1.ResourceRequirements {
 

@@ -11,3 +11,4 @@ spec:
   - "a6a3b81b-34gd-sfsf-saf2-7986371ea35f"
   secrets:
     test: test
+  wbs: "T.O123A.AZ.45678"

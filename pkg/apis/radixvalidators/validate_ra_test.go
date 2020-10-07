@@ -119,19 +119,19 @@ func Test_invalid_ra(t *testing.T) {
 				Secrets: []string{invalidVariableName},
 			}
 		}},
-		{"too long build secret name", radixvalidators.InvalidResourceNameLengthError("build secret name", wayTooLongName), func(ra *v1.RadixApplication) {
+		{"too long build secret name", radixvalidators.InvalidStringValueMaxLengthError("build secret name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Build = &v1.BuildSpec{
 				Secrets: []string{wayTooLongName},
 			}
 		}},
 		{"invalid secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) { ra.Spec.Components[1].Secrets[0] = invalidVariableName }},
-		{"too long secret name", radixvalidators.InvalidResourceNameLengthError("secret name", wayTooLongName), func(ra *v1.RadixApplication) {
+		{"too long secret name", radixvalidators.InvalidStringValueMaxLengthError("secret name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Secrets[0] = wayTooLongName
 		}},
 		{"invalid environment variable name", radixvalidators.InvalidResourceNameError("environment variable name", invalidVariableName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].EnvironmentConfig[0].Variables[invalidVariableName] = "Any value"
 		}},
-		{"too long environment variable name", radixvalidators.InvalidResourceNameLengthError("environment variable name", wayTooLongName), func(ra *v1.RadixApplication) {
+		{"too long environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
 		}},
 		{"conflicting variable and secret name", radixvalidators.SecretNameConfictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
@@ -141,7 +141,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid common environment variable name", radixvalidators.InvalidResourceNameError("environment variable name", invalidVariableName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Variables[invalidVariableName] = "Any value"
 		}},
-		{"too long common environment variable name", radixvalidators.InvalidResourceNameLengthError("environment variable name", wayTooLongName), func(ra *v1.RadixApplication) {
+		{"too long common environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Variables[wayTooLongName] = "Any value"
 		}},
 		{"conflicting common variable and secret name", radixvalidators.SecretNameConfictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
@@ -153,7 +153,7 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"invalid env name", radixvalidators.InvalidResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = invalidResourceName }},
 		{"invalid branch name", radixvalidators.InvalidBranchNameError(invalidBranchName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Build.From = invalidBranchName }},
-		{"too long branch name", radixvalidators.InvalidResourceNameLengthError("branch from", wayTooLongName), func(ra *v1.RadixApplication) {
+		{"too long branch name", radixvalidators.InvalidStringValueMaxLengthError("branch from", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = wayTooLongName
 		}},
 		{"dns alias non existing component", radixvalidators.ComponentForDNSAppAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = nonExistingComponent }},
@@ -254,6 +254,20 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"common cpu resource request wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Requests["cpu"] = invalidResourceValue
+		}},
+		{"cpu resource limit is empty", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["cpu"] = ""
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
+		}},
+		{"cpu resource limit not set", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
+		}},
+		{"memory resource limit is empty", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Limits["memory"] = ""
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
+		}},
+		{"memory resource limit not set", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
 		}},
 		{"wrong public image config", radixvalidators.PublicImageComponentCannotHaveSourceOrDockerfileSet(validRAFirstComponentName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Image = "redis:5.0-alpine"
