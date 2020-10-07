@@ -72,6 +72,7 @@ type RadixDeployComponent struct {
 	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+	VolumeMounts            []RadixVolumeMounts     `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 }
 
 // GetResourceRequirements maps to core_v1.ResourceRequirements
