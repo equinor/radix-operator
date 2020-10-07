@@ -986,22 +986,31 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 							"memory": "64Mi",
 							"cpu":    "250m",
 						}).
+						WithVolumeMounts([]v1.RadixVolumeMount{
+							{
+								Type:     v1.MountTypeBlob,
+								Name:     "some-name",
+								FromPath: "some-path",
+								Path:     "some-path",
+							},
+						}).
 						WithReplicas(test.IntPtr(3)))).
 		BuildRA()
 
 	var testScenarios = []struct {
-		environment             string
-		expectedReplicas        int
-		expectedDbHost          string
-		expectedDbPort          string
-		expectedMemoryLimit     string
-		expectedCPULimit        string
-		expectedMemoryRequest   string
-		expectedCPURequest      string
-		alwaysPullImageOnDeploy bool
+		environment                  string
+		expectedReplicas             int
+		expectedDbHost               string
+		expectedDbPort               string
+		expectedMemoryLimit          string
+		expectedCPULimit             string
+		expectedMemoryRequest        string
+		expectedCPURequest           string
+		expectedNumberOfVolumeMounts int
+		alwaysPullImageOnDeploy      bool
 	}{
-		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m", true},
-		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", true},
+		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m", 0, true},
+		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", 1, true},
 	}
 
 	componentImages := make(map[string]pipeline.ComponentImage)
@@ -1021,6 +1030,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 			assert.Equal(t, testcase.expectedCPURequest, rd.Spec.Components[0].Resources.Requests["cpu"])
 			assert.Equal(t, testcase.expectedCPURequest, rd.Spec.Components[0].Resources.Requests["cpu"])
 			assert.Equal(t, testcase.alwaysPullImageOnDeploy, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
+			assert.Equal(t, testcase.expectedNumberOfVolumeMounts, len(rd.Spec.Components[0].VolumeMounts))
 		})
 	}
 
