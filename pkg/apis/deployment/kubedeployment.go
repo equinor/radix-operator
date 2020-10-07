@@ -2,9 +2,10 @@ package deployment
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -141,6 +142,9 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	}
 	deployment.Spec.Strategy = deploymentStrategy
 
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
+	deployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
+
 	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName, componentName)
 }
 
@@ -168,7 +172,9 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
+	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 
 	portMap := make(map[string]v1.ComponentPort)
 	for _, port := range deployComponent.Ports {
