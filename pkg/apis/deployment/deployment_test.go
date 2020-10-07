@@ -988,10 +988,9 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 						}).
 						WithVolumeMounts([]v1.RadixVolumeMount{
 							{
-								Type:     v1.MountTypeBlob,
-								Name:     "some-name",
-								FromPath: "some-path",
-								Path:     "some-path",
+								Type: v1.MountTypeBlob,
+								Name: "some-name",
+								Path: "some-path",
 							},
 						}).
 						WithReplicas(test.IntPtr(3)))).

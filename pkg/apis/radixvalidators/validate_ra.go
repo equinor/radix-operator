@@ -125,9 +125,9 @@ func MinReplicasGreaterThanMaxReplicasError(component, environment string) error
 	return fmt.Errorf("minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-// VolumeMountTypeNameFromPathOrPathCannotBeEmpty Indicates that volume mount name is empty
-func VolumeMountTypeNameFromPathOrPathCannotBeEmpty(component, environment string) error {
-	return fmt.Errorf("type, name, from path or path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
+// VolumeMountTypeNameOrPathCannotBeEmpty Indicates that volume mount name is empty
+func VolumeMountTypeNameOrPathCannotBeEmpty(component, environment string) error {
+	return fmt.Errorf("type, name or path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
 }
 
 // DuplicateVolumeMountType Cannot have two mounts of same type
@@ -663,8 +663,8 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 			mountType := make(map[string]bool)
 
 			for _, volumeMount := range envConfig.VolumeMounts {
-				if volumeMount.Type == "" || volumeMount.Name == "" || volumeMount.FromPath == "" || volumeMount.Path == "" {
-					return VolumeMountTypeNameFromPathOrPathCannotBeEmpty(componentName, environment)
+				if volumeMount.Type == "" || volumeMount.Name == "" || volumeMount.Path == "" {
+					return VolumeMountTypeNameOrPathCannotBeEmpty(componentName, environment)
 				}
 
 				err := validateVariableName("volume mount name", volumeMount.Name)

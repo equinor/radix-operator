@@ -146,10 +146,9 @@ type RadixPrivateImageHubCredential struct {
 
 // RadixVolumeMount defines volume to be mounted to the container
 type RadixVolumeMount struct {
-	Type     MountType `json:"type" yaml:"type"`
-	Name     string    `json:"name" yaml:"name"`
-	FromPath string    `json:"fromPath" yaml:"fromPath"`
-	Path     string    `json:"path" yaml:"path"`
+	Type MountType `json:"type" yaml:"type"`
+	Name string    `json:"name" yaml:"name"`
+	Path string    `json:"path" yaml:"path"`
 }
 
 // MountType Holds types of mount

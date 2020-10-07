@@ -574,10 +574,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:     "disk",
-						Name:     "some_name",
-						FromPath: "some_path",
-						Path:     "some_path",
+						Type: "disk",
+						Name: "some_name",
+						Path: "some_path",
 					},
 				}
 
@@ -591,16 +590,14 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:     v1.MountTypeBlob,
-						Name:     "some_name",
-						FromPath: "some_path",
-						Path:     "some_path",
+						Type: v1.MountTypeBlob,
+						Name: "some_name",
+						Path: "some_path",
 					},
 					{
-						Type:     v1.MountTypeBlob,
-						Name:     "some_name",
-						FromPath: "some_path",
-						Path:     "some_path",
+						Type: v1.MountTypeBlob,
+						Name: "some_name",
+						Path: "some_path",
 					},
 				}
 
@@ -614,24 +611,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:     v1.MountTypeBlob,
-						FromPath: "some_path",
-						Path:     "some_path",
-					},
-				}
-
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
-			},
-			false,
-			false,
-		},
-		{
-			"mount volume from path is not set",
-			func(ra *v1.RadixApplication) {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
 						Type: v1.MountTypeBlob,
-						Name: "some_name",
 						Path: "some_path",
 					},
 				}
@@ -646,9 +626,8 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:     v1.MountTypeBlob,
-						Name:     "some_name",
-						FromPath: "some_path",
+						Type: v1.MountTypeBlob,
+						Name: "some_name",
 					},
 				}
 
