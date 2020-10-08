@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -68,15 +69,21 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 		}
 
 		if len(component.VolumeMounts) > 0 {
-			secretNames, err := deploy.createOrUpdateVolumeMountsSecrets(component)
-			if err != nil {
-				return err
-			}
+			for _, volumeMount := range component.VolumeMounts {
+				if volumeMount.Type == radixv1.MountTypeBlob {
+					secretName := defaults.GetBlobFuseCredsSecret(component.Name)
+					secretsToManage = append(secretsToManage, secretName)
 
-			if len(secretNames) > 0 {
-				secretsToManage = append(secretsToManage, secretNames...)
-			}
+					if deploy.kubeutil.SecretExists(ns, secretName) {
+						continue
+					}
 
+					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName)
+					if err != nil {
+						return err
+					}
+				}
+			}
 		} else {
 			err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component)
 			if err != nil {
@@ -200,6 +207,10 @@ func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployC
 
 func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
 	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
+}
+
+func (deploy *Deployment) listSecretsForForBlobVolumeMount(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
+	return deploy.listSecrets(getLabelSelectorForBlobVolumeMountSecret(component))
 }
 
 func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error) {

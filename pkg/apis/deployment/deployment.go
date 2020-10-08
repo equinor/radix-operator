@@ -455,6 +455,10 @@ func getLabelSelectorForExternalAlias(component v1.RadixDeployComponent) string 
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixExternalAliasLabel, "true")
 }
 
+func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
+}
+
 func (deploy *Deployment) maintainHistoryLimit() {
 	historyLimit := os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
 	if historyLimit != "" {

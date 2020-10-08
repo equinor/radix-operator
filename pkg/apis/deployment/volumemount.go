@@ -69,56 +69,46 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 	return volumes
 }
 
-func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(deployComponent radixv1.RadixDeployComponent) ([]string, error) {
-	namespace := deploy.radixDeployment.Namespace
-	secretsToManage := make([]string, 0)
-
-	// The rest is part of the deployment spec
-	for _, volumeMount := range deployComponent.VolumeMounts {
-		if volumeMount.Type == radixv1.MountTypeBlob {
-			secretName := defaults.GetBlobFuseCredsSecret(deployComponent.Name)
-
-			blobfusecredsSecret := v1.Secret{
-				Type: "azure/blobfuse",
-				ObjectMeta: metav1.ObjectMeta{
-					Name: secretName,
-					Labels: map[string]string{
-						kube.RadixAppLabel:       deploy.registration.Name,
-						kube.RadixComponentLabel: deployComponent.Name,
-					},
-				},
-			}
-
-			defaultValue := []byte(tlsSecretDefaultData)
-
-			// Will need to set fake data in order to apply the secret. The user then need to set data to real values
-			data := make(map[string][]byte)
-			data[defaults.BlobFuseCredsAccountKeyPart] = defaultValue
-			data[defaults.BlobFuseCredsAccountNamePart] = defaultValue
-
-			blobfusecredsSecret.Data = data
-
-			_, err := deploy.kubeutil.ApplySecret(namespace, &blobfusecredsSecret)
-			if err != nil {
-				return nil, err
-			}
-
-			secretsToManage = append(secretsToManage, secretName)
-		}
+func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName string) error {
+	blobfusecredsSecret := v1.Secret{
+		Type: "azure/blobfuse",
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+			Labels: map[string]string{
+				kube.RadixAppLabel:       deploy.registration.Name,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixMountTypeLabel: string(radixv1.MountTypeBlob),
+			},
+		},
 	}
 
-	return secretsToManage, nil
+	defaultValue := []byte(tlsSecretDefaultData)
+
+	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
+	data := make(map[string][]byte)
+	data[defaults.BlobFuseCredsAccountKeyPart] = defaultValue
+	data[defaults.BlobFuseCredsAccountNamePart] = defaultValue
+
+	blobfusecredsSecret.Data = data
+
+	_, err := deploy.kubeutil.ApplySecret(namespace, &blobfusecredsSecret)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (deploy *Deployment) garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component radixv1.RadixDeployComponent) error {
-	namespace := deploy.radixDeployment.Namespace
-	for _, volumeMount := range component.VolumeMounts {
-		if volumeMount.Type == radixv1.MountTypeBlob {
-			secretName := defaults.GetBlobFuseCredsSecret(component.Name)
-			existingSecret, _ := deploy.kubeutil.GetSecret(namespace, secretName)
-			if existingSecret != nil {
-				deploy.kubeutil.DeleteSecret(namespace, secretName)
-			}
+	secrets, err := deploy.listSecretsForForBlobVolumeMount(component)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range secrets {
+		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return err
 		}
 	}
 
