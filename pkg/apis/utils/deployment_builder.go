@@ -264,6 +264,7 @@ type DeployComponentBuilder interface {
 	WithReplicas(*int) DeployComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
+	WithVolumeMounts([]v1.RadixVolumeMount) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
@@ -290,6 +291,12 @@ type deployComponentBuilder struct {
 	externalAppAlias        []string
 	resources               v1.ResourceRequirements
 	horizontalScaling       *v1.RadixHorizontalScaling
+	volumeMounts            []v1.RadixVolumeMount
+}
+
+func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployComponentBuilder {
+	dcb.volumeMounts = volumeMounts
+	return dcb
 }
 
 func (dcb *deployComponentBuilder) WithResourceRequestsOnly(request map[string]string) DeployComponentBuilder {
@@ -411,6 +418,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		DNSExternalAlias:        dcb.externalAppAlias,
 		Resources:               dcb.resources,
 		HorizontalScaling:       dcb.horizontalScaling,
+		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 	}
 }
