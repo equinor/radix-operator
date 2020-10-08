@@ -67,6 +67,23 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 			}
 		}
 
+		if len(component.VolumeMounts) > 0 {
+			secretNames, err := deploy.createOrUpdateVolumeMountsSecrets(component)
+			if err != nil {
+				return err
+			}
+
+			if len(secretNames) > 0 {
+				secretsToManage = append(secretsToManage, secretNames...)
+			}
+
+		} else {
+			err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component)
+			if err != nil {
+				return err
+			}
+		}
+
 		err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component, secretsToManage)
 		if err != nil {
 			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)

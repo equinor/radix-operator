@@ -277,22 +277,6 @@ func (deploy *Deployment) syncDeployment() error {
 				continue
 			}
 		}
-
-		if len(v.VolumeMounts) > 0 {
-			err = deploy.createOrUpdateVolumeMounts(v)
-			if err != nil {
-				log.Infof("Failed to create volume mounts: %v", err)
-				errs = append(errs, fmt.Errorf("Failed to create volume mounts: %v", err))
-				continue
-			}
-		} else {
-			err = deploy.garbageCollectVolumeMountsNoLongerInSpecForComponent(v)
-			if err != nil {
-				log.Infof("Failed to delete ingress: %v", err)
-				errs = append(errs, fmt.Errorf("Failed to delete ingress: %v", err))
-				continue
-			}
-		}
 	}
 
 	// If any error occured when syncing of components

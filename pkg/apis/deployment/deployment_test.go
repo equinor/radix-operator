@@ -301,7 +301,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				}
 
 				if !componentsExist {
-					assert.True(t, secretByNameExists(fmt.Sprintf("%s-blobfusecreds", componentNameRadixQuote), secrets), "Volume mount secret")
+					assert.True(t, secretByNameExists(fmt.Sprintf("%s-%s-blobfusecreds", componentNameRadixQuote, "blob"), secrets), "Volume mount secret")
 				} else {
 					assert.False(t, secretByNameExists(fmt.Sprintf("%s-blobfusecreds", componentNameRadixQuote), secrets), "TLS certificate for external alias is not properly defined")
 				}
