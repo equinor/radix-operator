@@ -3,6 +3,7 @@ package deployment
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,7 +13,6 @@ import (
 
 const (
 	blobfuseDriver      = "azure/blobfuse"
-	blobfusecreds       = "%s-%s-blobfusecreds" // <componentname>-<type>-blobfusecreds
 	defaultData         = "xx"
 	defaultMountOptions = "--file-cache-timeout-in-seconds=120"
 	tempPath            = "/tmp/%s-%s" // /tmp/<namespace>-<componentname>
@@ -43,7 +43,7 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 
 		for _, volumeMount := range deployComponent.VolumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
-				secretName := fmt.Sprintf(blobfusecreds, deployComponent.Name, string(volumeMount.Type))
+				secretName := defaults.GetBlobFuseCredsSecret(deployComponent.Name)
 
 				flexVolumeOptions := make(map[string]string)
 				flexVolumeOptions["container"] = volumeMount.Name
@@ -76,7 +76,7 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(deployComponent radi
 	// The rest is part of the deployment spec
 	for _, volumeMount := range deployComponent.VolumeMounts {
 		if volumeMount.Type == radixv1.MountTypeBlob {
-			secretName := fmt.Sprintf(blobfusecreds, deployComponent.Name, string(volumeMount.Type))
+			secretName := defaults.GetBlobFuseCredsSecret(deployComponent.Name)
 
 			blobfusecredsSecret := v1.Secret{
 				Type: "azure/blobfuse",
@@ -93,8 +93,8 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(deployComponent radi
 
 			// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 			data := make(map[string][]byte)
-			data["accountkey"] = defaultValue
-			data["accountname"] = defaultValue
+			data[defaults.BlobFuseCredsAccountKeyPart] = defaultValue
+			data[defaults.BlobFuseCredsAccountNamePart] = defaultValue
 
 			blobfusecredsSecret.Data = data
 
@@ -113,10 +113,12 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(deployComponent radi
 func (deploy *Deployment) garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component radixv1.RadixDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	for _, volumeMount := range component.VolumeMounts {
-		secretName := fmt.Sprintf(blobfusecreds, component.Name, string(volumeMount.Type))
-		existingSecret, _ := deploy.kubeutil.GetSecret(namespace, secretName)
-		if existingSecret != nil {
-			deploy.kubeutil.DeleteSecret(namespace, secretName)
+		if volumeMount.Type == radixv1.MountTypeBlob {
+			secretName := defaults.GetBlobFuseCredsSecret(component.Name)
+			existingSecret, _ := deploy.kubeutil.GetSecret(namespace, secretName)
+			if existingSecret != nil {
+				deploy.kubeutil.DeleteSecret(namespace, secretName)
+			}
 		}
 	}
 
