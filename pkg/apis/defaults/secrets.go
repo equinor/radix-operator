@@ -18,9 +18,6 @@ const (
 	// BlobFuseCredsAccountKeyPart Account key part of secret data
 	BlobFuseCredsAccountKeyPart = "accountkey"
 
-	// BlobFuseCredsAccountNamePartSuffix Account name suffix of secret listed
-	BlobFuseCredsAccountNamePartSuffix = "-accountname"
-
 	// BlobFuseCredsAccountNamePart Account name part of secret data
 	BlobFuseCredsAccountNamePart = "accountname"
 
