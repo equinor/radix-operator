@@ -15,7 +15,8 @@ const (
 	blobfuseDriver      = "azure/blobfuse"
 	defaultData         = "xx"
 	defaultMountOptions = "--file-cache-timeout-in-seconds=120"
-	tempPath            = "/tmp/%s-%s" // /tmp/<namespace>-<componentname>
+	volumeName          = "blobfuse-%s" // blobfuse-<componentname>
+	tempPath            = "/tmp/%s-%s"  // /tmp/<namespace>-<componentname>
 )
 
 func (deploy *Deployment) getVolumeMounts(deployComponent *radixv1.RadixDeployComponent) []corev1.VolumeMount {
@@ -25,7 +26,7 @@ func (deploy *Deployment) getVolumeMounts(deployComponent *radixv1.RadixDeployCo
 		for _, volumeMount := range deployComponent.VolumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
 				volumeMounts = append(volumeMounts, corev1.VolumeMount{
-					Name:      volumeMount.Name,
+					Name:      fmt.Sprintf(volumeName, deployComponent.Name),
 					MountPath: volumeMount.Path,
 				})
 			}
@@ -46,12 +47,12 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 				secretName := defaults.GetBlobFuseCredsSecret(deployComponent.Name)
 
 				flexVolumeOptions := make(map[string]string)
-				flexVolumeOptions["container"] = volumeMount.Name
+				flexVolumeOptions["container"] = volumeMount.Container
 				flexVolumeOptions["mountoptions"] = defaultMountOptions
 				flexVolumeOptions["tmppath"] = fmt.Sprintf(tempPath, namespace, deployComponent.Name)
 
 				volumes = append(volumes, corev1.Volume{
-					Name: volumeMount.Name,
+					Name: fmt.Sprintf(volumeName, deployComponent.Name),
 					VolumeSource: corev1.VolumeSource{
 						FlexVolume: &corev1.FlexVolumeSource{
 							Driver:  blobfuseDriver,
@@ -69,7 +70,7 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 	return volumes
 }
 
-func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName string) error {
+func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName, accountName string, accountKey []byte) error {
 	blobfusecredsSecret := v1.Secret{
 		Type: "azure/blobfuse",
 		ObjectMeta: metav1.ObjectMeta{
@@ -82,12 +83,10 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, component
 		},
 	}
 
-	defaultValue := []byte(tlsSecretDefaultData)
-
 	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 	data := make(map[string][]byte)
-	data[defaults.BlobFuseCredsAccountKeyPart] = defaultValue
-	data[defaults.BlobFuseCredsAccountNamePart] = defaultValue
+	data[defaults.BlobFuseCredsAccountKeyPart] = accountKey
+	data[defaults.BlobFuseCredsAccountNamePart] = []byte(accountName)
 
 	blobfusecredsSecret.Data = data
 

@@ -154,9 +154,10 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPublicPort("http").
 							WithVolumeMounts([]v1.RadixVolumeMount{
 								{
-									Type: v1.MountTypeBlob,
-									Name: "some-name",
-									Path: "some-path",
+									Type:        v1.MountTypeBlob,
+									AccountName: "some-account",
+									Container:   "some-container",
+									Path:        "some-path",
 								},
 							}).
 							WithSecrets([]string{outdatedSecret, remainingSecret}))
@@ -1068,9 +1069,10 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 						}).
 						WithVolumeMounts([]v1.RadixVolumeMount{
 							{
-								Type: v1.MountTypeBlob,
-								Name: "some-name",
-								Path: "some-path",
+								Type:        v1.MountTypeBlob,
+								AccountName: "some-account",
+								Container:   "some-container",
+								Path:        "some-path",
 							},
 						}).
 						WithReplicas(test.IntPtr(3)))).

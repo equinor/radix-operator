@@ -574,9 +574,10 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type: "disk",
-						Name: "some_name",
-						Path: "some_path",
+						Type:        "disk",
+						AccountName: "some_account_name",
+						Container:   "some_container_name",
+						Path:        "some_path",
 					},
 				}
 
@@ -590,14 +591,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type: v1.MountTypeBlob,
-						Name: "some_name",
-						Path: "some_path",
+						Type:        v1.MountTypeBlob,
+						AccountName: "some_account_name",
+						Container:   "some_container_name",
+						Path:        "some_path",
 					},
 					{
-						Type: v1.MountTypeBlob,
-						Name: "some_name",
-						Path: "some_path",
+						Type:        v1.MountTypeBlob,
+						AccountName: "some_account_name",
+						Container:   "some_container_name",
+						Path:        "some_path",
 					},
 				}
 
@@ -607,12 +610,29 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			false,
 		},
 		{
-			"mount volume name is not set",
+			"mount volume account name is not set",
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type: v1.MountTypeBlob,
-						Path: "some_path",
+						Type:      v1.MountTypeBlob,
+						Container: "some_container_name",
+						Path:      "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+		},
+		{
+			"mount volume container name is not set",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:        v1.MountTypeBlob,
+						AccountName: "some_account_name",
+						Path:        "some_path",
 					},
 				}
 
@@ -626,8 +646,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type: v1.MountTypeBlob,
-						Name: "some_name",
+						Type:        v1.MountTypeBlob,
+						AccountName: "some_account_name",
+						Container:   "some_container_name",
 					},
 				}
 

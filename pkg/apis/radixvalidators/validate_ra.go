@@ -663,13 +663,8 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 			mountType := make(map[string]bool)
 
 			for _, volumeMount := range envConfig.VolumeMounts {
-				if volumeMount.Type == "" || volumeMount.Name == "" || volumeMount.Path == "" {
+				if volumeMount.Type == "" || volumeMount.AccountName == "" || volumeMount.Container == "" || volumeMount.Path == "" {
 					return VolumeMountTypeNameOrPathCannotBeEmpty(componentName, environment)
-				}
-
-				err := validateVariableName("volume mount name", volumeMount.Name)
-				if err != nil {
-					return err
 				}
 
 				if string(volumeMount.Type) != string(v1.MountTypeBlob) {

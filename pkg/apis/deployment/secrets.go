@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const tlsSecretDefaultData = "xx"
+const secretDefaultData = "xx"
 
 func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
@@ -73,12 +73,14 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 				if volumeMount.Type == radixv1.MountTypeBlob {
 					secretName := defaults.GetBlobFuseCredsSecret(component.Name)
 					secretsToManage = append(secretsToManage, secretName)
+					accountKey := []byte(secretDefaultData)
 
 					if deploy.kubeutil.SecretExists(ns, secretName) {
-						continue
+						oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
+						accountKey = oldSecret.Data[defaults.BlobFuseCredsAccountKeyPart]
 					}
 
-					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName)
+					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName, volumeMount.AccountName, accountKey)
 					if err != nil {
 						return err
 					}
@@ -242,7 +244,7 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	}
 
 	if isExternalAlias {
-		defaultValue := []byte(tlsSecretDefaultData)
+		defaultValue := []byte(secretDefaultData)
 
 		// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 		data := make(map[string][]byte)
