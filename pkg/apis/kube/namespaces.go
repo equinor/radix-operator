@@ -15,7 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const waitTimeout = 10 * time.Second
+const waitTimeout = 15 * time.Second
 
 // ApplyNamespace Creates a new namespace, if not exists allready
 func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
