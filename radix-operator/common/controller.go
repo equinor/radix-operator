@@ -93,7 +93,9 @@ func (c *Controller) runWorker() {
 
 func (c *Controller) processNextWorkItem() bool {
 	obj, shutdown := c.WorkQueue.Get()
-
+	if obj == nil || fmt.Sprint(obj) == "" {
+		return true
+	}
 	if shutdown {
 		return false
 	}

@@ -133,13 +133,17 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 	}
 
 	logger.Debugf("Applied access to ci/cd logs. Set registration to be reconciled")
+	radixRegistration, err = app.radixclient.RadixV1().RadixRegistrations().Get(radixRegistration.Name, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("Failed to get updated registration: %v", err)
+		return err
+	}
 	radixRegistration.Status.Reconciled = metav1.NewTime(time.Now().UTC())
 	_, err = app.radixclient.RadixV1().RadixRegistrations().UpdateStatus(radixRegistration)
 	if err != nil {
 		logger.Errorf("Failed to update status on registration: %v", err)
 		return err
 	}
-
 	return nil
 }
 
