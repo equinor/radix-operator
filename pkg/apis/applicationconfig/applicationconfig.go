@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// ConfigBranchFallback The branch to use for radix config if ConfigName is not configured on the radix registration
+// ConfigBranchFallback The branch to use for radix config if ConfigBranch is not configured on the radix registration
 const ConfigBranchFallback = "master"
 
 // ApplicationConfig Instance variables
