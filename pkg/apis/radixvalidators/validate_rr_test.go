@@ -51,6 +51,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		{"invalid ad group name", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = []string{"fg_some_group_name"} }},
 		{"empty ad group", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = []string{""} }},
 		{"empty configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "" }},
+		{"invalid configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "main.." }},
 	}
 
 	_, client := validRRSetup()

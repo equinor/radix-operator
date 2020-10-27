@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -250,8 +251,7 @@ func validateConfigBranch(name string) error {
 		return ResourceNameCannotBeEmptyError("branch name")
 	}
 
-	re := regexp.MustCompile("")
-	if isValid := re.MatchString(name); !isValid {
+	if isValid := branch.IsValidName(name); !isValid {
 		return fmt.Errorf("branch name is not valid")
 	}
 
