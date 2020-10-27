@@ -526,6 +526,39 @@ func Test_RadixEnvironment(t *testing.T) {
 	})
 }
 
+func Test_GetConfigBranch_notSet(t *testing.T) {
+	rr := utils.NewRegistrationBuilder().
+		BuildRR()
+
+	assert.Equal(t, ConfigBranchFallback, GetConfigBranch(rr))
+}
+
+func Test_GetConfigBranch_set(t *testing.T) {
+	configBranch := "main"
+
+	rr := utils.NewRegistrationBuilder().
+		WithConfigBranch(configBranch).
+		BuildRR()
+
+	assert.Equal(t, configBranch, GetConfigBranch(rr))
+}
+
+func Test_IsConfigBranch(t *testing.T) {
+	configBranch, otherBranch := "main", "master"
+
+	rr := utils.NewRegistrationBuilder().
+		WithConfigBranch(configBranch).
+		BuildRR()
+
+	t.Run("Branch is configBranch", func(t *testing.T) {
+		assert.True(t, IsConfigBranch(configBranch, rr))
+	})
+
+	t.Run("Branch is not configBranch", func(t *testing.T) {
+		assert.False(t, IsConfigBranch(otherBranch, rr))
+	})
+}
+
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{

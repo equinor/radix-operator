@@ -12,3 +12,4 @@ spec:
   secrets:
     test: test
   wbs: "T.O123A.AZ.45678"
+  configBranch: "main"

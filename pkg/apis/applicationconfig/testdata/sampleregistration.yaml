@@ -9,3 +9,5 @@ spec:
   sharedSecret: "NotSoSecret"
   secrets:
     test: test
+  wbs: "wbs.000"
+  configBranch: "main"
