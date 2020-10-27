@@ -90,7 +90,7 @@ func GetEnvironment(component *v1.RadixComponent, envName string) *v1.RadixEnvir
 
 // GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
 func GetConfigBranch(rr *v1.RadixRegistration) string {
-	return utils.TernaryString(rr.Spec.ConfigBranch == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
+	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
 }
 
 // IsConfigBranch Checks if given branch is were radix config lives

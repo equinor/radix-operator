@@ -251,7 +251,7 @@ func validateConfigBranch(name string) error {
 		return ResourceNameCannotBeEmptyError("branch name")
 	}
 
-	if isValid := branch.IsValidName(name); !isValid {
+	if !branch.IsValidName(name) {
 		return fmt.Errorf("branch name is not valid")
 	}
 
