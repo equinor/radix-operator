@@ -24,6 +24,7 @@ type RegistrationBuilder interface {
 	WithEmptyStatus() RegistrationBuilder
 	WithMachineUser(bool) RegistrationBuilder
 	WithWBS(string) RegistrationBuilder
+	WithConfigBranch(string) RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
@@ -43,6 +44,7 @@ type RegistrationBuilderStruct struct {
 	emptyStatus  bool
 	machineUser  bool
 	wbs          string
+	configBranch string
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -138,6 +140,12 @@ func (rb *RegistrationBuilderStruct) WithWBS(wbs string) RegistrationBuilder {
 	return rb
 }
 
+// WithConfigBranch Sets ConfigBranch
+func (rb *RegistrationBuilderStruct) WithConfigBranch(configBranch string) RegistrationBuilder {
+	rb.configBranch = configBranch
+	return rb
+}
+
 // BuildRR Builds the radix registration
 func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	cloneURL := rb.cloneURL
@@ -171,6 +179,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			Creator:         rb.creator,
 			MachineUser:     rb.machineUser,
 			WBS:             rb.wbs,
+			ConfigBranch:    rb.configBranch,
 		},
 		Status: status,
 	}
@@ -192,7 +201,8 @@ func ARadixRegistration() RegistrationBuilder {
 		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"}).
 		WithOwner("radix@equinor.com").
 		WithCreator("radix@equinor.com").
-		WithWBS("A.BCD.00.999")
+		WithWBS("A.BCD.00.999").
+		WithConfigBranch("main")
 
 	return builder
 }

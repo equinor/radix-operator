@@ -20,8 +20,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// MagicBranch The branch that radix config lives on
-const MagicBranch = "master"
+// ConfigBranchFallback The branch to use for radix config if ConfigName is not configured on the radix registration
+const ConfigBranchFallback = "master"
 
 // ApplicationConfig Instance variables
 type ApplicationConfig struct {
@@ -88,9 +88,14 @@ func GetEnvironment(component *v1.RadixComponent, envName string) *v1.RadixEnvir
 	return nil
 }
 
-// IsMagicBranch Checks if given branch is were radix config lives
-func IsMagicBranch(branch string) bool {
-	return strings.EqualFold(branch, MagicBranch)
+// GetConfigBranch Returns config branch name from radix registration, or "master" if not set.
+func GetConfigBranch(rr *v1.RadixRegistration) string {
+	return utils.TernaryString(rr.Spec.ConfigBranch == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
+}
+
+// IsConfigBranch Checks if given branch is were radix config lives
+func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
+	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
 
 // IsThereAnythingToDeploy Checks if given branch requires deployment to environments

@@ -78,32 +78,36 @@ func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistrat
 // CanRadixRegistrationBeUpdated Validates update of RR
 func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	errs := []error{}
-	err := validateAppName(radixRegistration.Name)
-	if err != nil {
+
+	if err := validateAppName(radixRegistration.Name); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateEmail("owner", radixRegistration.Spec.Owner)
-	if err != nil {
+
+	if err := validateEmail("owner", radixRegistration.Spec.Owner); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateWbs(radixRegistration.Spec.WBS)
-	if err != nil {
+
+	if err := validateWbs(radixRegistration.Spec.WBS); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateGitSSHUrl(radixRegistration.Spec.CloneURL)
-	if err != nil {
+
+	if err := validateGitSSHUrl(radixRegistration.Spec.CloneURL); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateSSHKey(radixRegistration.Spec.DeployKey)
-	if err != nil {
+
+	if err := validateSSHKey(radixRegistration.Spec.DeployKey); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateAdGroups(radixRegistration.Spec.AdGroups)
-	if err != nil {
+
+	if err := validateAdGroups(radixRegistration.Spec.AdGroups); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateNoDuplicateGitRepo(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
-	if err != nil {
+
+	if err := validateNoDuplicateGitRepo(client, radixRegistration.Name, radixRegistration.Spec.CloneURL); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateConfigBranch(radixRegistration.Spec.ConfigBranch); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -238,5 +242,18 @@ func validateDoesRRExist(client radixclient.Interface, appName string) error {
 	if rr == nil || err != nil {
 		return NoRegistrationExistsForApplicationError(appName)
 	}
+	return nil
+}
+
+func validateConfigBranch(name string) error {
+	if name == "" {
+		return ResourceNameCannotBeEmptyError("branch name")
+	}
+
+	re := regexp.MustCompile("")
+	if isValid := re.MatchString(name); !isValid {
+		return fmt.Errorf("branch name is not valid")
+	}
+
 	return nil
 }
