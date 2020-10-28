@@ -58,6 +58,10 @@ func NoRegistrationExistsForApplicationError(appName string) error {
 	return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
 }
 
+func InvalidConfigBranchName(configBranch string) error {
+	return fmt.Errorf("Config branch name is not valid (value: %s)", configBranch)
+}
+
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
@@ -252,7 +256,7 @@ func validateConfigBranch(name string) error {
 	}
 
 	if !branch.IsValidName(name) {
-		return fmt.Errorf("branch name is not valid")
+		return InvalidConfigBranchName(name)
 	}
 
 	return nil
