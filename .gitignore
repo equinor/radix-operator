@@ -18,3 +18,4 @@ bin/
 rootfs/
 .vscode/
 .idea/
+radix-operator/__debug_bin

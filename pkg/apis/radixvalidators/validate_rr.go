@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,6 +58,10 @@ func NoRegistrationExistsForApplicationError(appName string) error {
 	return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
 }
 
+func InvalidConfigBranchName(configBranch string) error {
+	return fmt.Errorf("Config branch name is not valid (value: %s)", configBranch)
+}
+
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
@@ -78,32 +83,36 @@ func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistrat
 // CanRadixRegistrationBeUpdated Validates update of RR
 func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	errs := []error{}
-	err := validateAppName(radixRegistration.Name)
-	if err != nil {
+
+	if err := validateAppName(radixRegistration.Name); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateEmail("owner", radixRegistration.Spec.Owner)
-	if err != nil {
+
+	if err := validateEmail("owner", radixRegistration.Spec.Owner); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateWbs(radixRegistration.Spec.WBS)
-	if err != nil {
+
+	if err := validateWbs(radixRegistration.Spec.WBS); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateGitSSHUrl(radixRegistration.Spec.CloneURL)
-	if err != nil {
+
+	if err := validateGitSSHUrl(radixRegistration.Spec.CloneURL); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateSSHKey(radixRegistration.Spec.DeployKey)
-	if err != nil {
+
+	if err := validateSSHKey(radixRegistration.Spec.DeployKey); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateAdGroups(radixRegistration.Spec.AdGroups)
-	if err != nil {
+
+	if err := validateAdGroups(radixRegistration.Spec.AdGroups); err != nil {
 		errs = append(errs, err)
 	}
-	err = validateNoDuplicateGitRepo(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
-	if err != nil {
+
+	if err := validateNoDuplicateGitRepo(client, radixRegistration.Name, radixRegistration.Spec.CloneURL); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := validateConfigBranch(radixRegistration.Spec.ConfigBranch); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -238,5 +247,17 @@ func validateDoesRRExist(client radixclient.Interface, appName string) error {
 	if rr == nil || err != nil {
 		return NoRegistrationExistsForApplicationError(appName)
 	}
+	return nil
+}
+
+func validateConfigBranch(name string) error {
+	if name == "" {
+		return ResourceNameCannotBeEmptyError("branch name")
+	}
+
+	if !branch.IsValidName(name) {
+		return InvalidConfigBranchName(name)
+	}
+
 	return nil
 }

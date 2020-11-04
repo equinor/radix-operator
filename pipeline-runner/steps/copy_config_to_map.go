@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -76,6 +77,7 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 	timestamp := time.Now().Format("20060102150405")
+	configBranch := applicationconfig.GetConfigBranch(registration)
 
 	backOffLimit := int32(0)
 	return &batchv1.Job{
@@ -93,7 +95,7 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.ConfigToMapRunnerRoleName,
-					InitContainers:     getInitContainers(registration.Spec.CloneURL),
+					InitContainers:     getInitContainers(registration.Spec.CloneURL, configBranch),
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
@@ -116,8 +118,8 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 
 }
 
-func getInitContainers(sshURL string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(sshURL, "master", git.CloneConfigContainerName)
+func getInitContainers(sshURL string, configBranch string) []corev1.Container {
+	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName)
 }
 
 func getJobVolumes() []corev1.Volume {

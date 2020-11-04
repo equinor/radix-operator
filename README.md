@@ -70,13 +70,21 @@ For development/staging we need to deploy from `master` branch while for product
 
 #### Operator helm chart
 
-For changes to the chart the same procedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed. We should never release Helm chart to `playground` or `prod` cluster, as this is now completely handled by Flux operator. If we want to test chart changes we need to disable Flux operator in the development cluster and use the following proceedure to release the chart into the cluster:
+For changes to the chart the same procedure applies as for changes to the code. For development/staging we need to deploy from `master` branch while for production we need to deploy from `release` branch. We should not merge to `release` branch before QA has passed. We should never release Helm chart to `playground` or `prod` cluster, as this is now completely handled by Flux operator. If we want to test chart changes we need to disable Flux operator in the development cluster and use the following procedure to release the chart into the cluster:
 
-```
 1. Go to development cluster
-2. git checkout <branch>
-3. make helm-up ENVIRONMENT=dev (will release latest version of helm chart in ACR to cluster)
-```
+2. `git checkout <branch>`
+3. Onetime
+    ```
+        helm init --client-only
+        go get -u golang.org/x/lint/golint
+    ```
+4. for `master` branch: `make helm-up ENVIRONMENT=dev` (will release latest version of helm chart in ACR to cluster)
+5. for `custom` branch: 
+    ```
+        make build-operator ENVIRONMENT=dev
+        make helm-up ENVIRONMENT=dev OVERIDE_BRANCH=true
+    ``` 
 
 ### Updating RadixApplication CRD
 
