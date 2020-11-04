@@ -5,7 +5,7 @@ DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 VAULT_NAME ?= radix-vault-$(ENVIRONMENT)
 
-# If you want to escape branch-environment contraint, pass in OVERIDE_BRANCH=true
+# If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
 
 ifeq ($(ENVIRONMENT),prod)
 	IS_PROD = yes
@@ -89,7 +89,7 @@ deploy-operator:
 
 # deploys radix operator using helm chart in radixdev/radixprod acr
 deploy-via-helm:
-ifndef OVERIDE_BRANCH
+ifndef OVERRIDE_BRANCH
 ifndef CAN_DEPLOY_OPERATOR
 		@echo "Cannot release Operator to this cluster";\
 		exit 1
