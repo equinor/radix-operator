@@ -39,6 +39,7 @@ const (
 	RadixAppAliasLabel           = "radix-app-alias"
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
+	RadixMountTypeLabel          = "mount-type"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"

@@ -343,6 +343,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithReplicas(*int) RadixEnvironmentConfigBuilder
 	WithEnvironmentVariable(string, string) RadixEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixEnvironmentConfigBuilder
+	WithVolumeMounts([]v1.RadixVolumeMount) RadixEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
 }
@@ -355,6 +356,7 @@ type radixEnvironmentConfigBuilder struct {
 	secrets                 []string
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
+	volumeMounts            []v1.RadixVolumeMount
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -362,6 +364,11 @@ func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string
 		Limits:   limit,
 		Requests: request,
 	}
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixEnvironmentConfigBuilder {
+	ceb.volumeMounts = volumeMounts
 	return ceb
 }
 
@@ -391,6 +398,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		Variables:               ceb.variables,
 		Replicas:                ceb.replicas,
 		Resources:               ceb.resources,
+		VolumeMounts:            ceb.volumeMounts,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
 	}
 }

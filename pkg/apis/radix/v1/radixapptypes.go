@@ -111,7 +111,7 @@ type RadixComponent struct {
 	EnvironmentConfig       []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
 	Resources               ResourceRequirements     `json:"resources,omitempty" yaml:"resources,omitempty"`
-	AlwaysPullImageOnDeploy *bool                     `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
@@ -124,6 +124,7 @@ type RadixEnvironmentConfig struct {
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	ImageTagName            string                  `json:"imageTagName" yaml:"imageTagName"`
 	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
+	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec
@@ -142,3 +143,20 @@ type RadixPrivateImageHubCredential struct {
 	Username string `json:"username" yaml:"username"`
 	Email    string `json:"email" yaml:"email"`
 }
+
+// RadixVolumeMount defines volume to be mounted to the container
+type RadixVolumeMount struct {
+	Type        MountType `json:"type" yaml:"type"`
+	AccountName string    `json:"accountName" yaml:"accountName"`
+	Container   string    `json:"container" yaml:"container"`
+	Path        string    `json:"path" yaml:"path"`
+}
+
+// MountType Holds types of mount
+type MountType string
+
+// These are valid types of mount
+const (
+	// MountTypeBlob Use of azure/blobfuse flexvolume
+	MountTypeBlob MountType = "blob"
+)
