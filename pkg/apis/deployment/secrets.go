@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -14,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const tlsSecretDefaultData = "xx"
+const secretDefaultData = "xx"
 
 func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
@@ -62,6 +63,31 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 			}
 		} else {
 			err := deploy.garbageCollectAllSecretsForComponentAndExternalAlias(component)
+			if err != nil {
+				return err
+			}
+		}
+
+		if len(component.VolumeMounts) > 0 {
+			for _, volumeMount := range component.VolumeMounts {
+				if volumeMount.Type == radixv1.MountTypeBlob {
+					secretName := defaults.GetBlobFuseCredsSecret(component.Name)
+					secretsToManage = append(secretsToManage, secretName)
+					accountKey := []byte(secretDefaultData)
+
+					if deploy.kubeutil.SecretExists(ns, secretName) {
+						oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
+						accountKey = oldSecret.Data[defaults.BlobFuseCredsAccountKeyPart]
+					}
+
+					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName, volumeMount.AccountName, accountKey)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		} else {
+			err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component)
 			if err != nil {
 				return err
 			}
@@ -185,6 +211,10 @@ func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1
 	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
 }
 
+func (deploy *Deployment) listSecretsForForBlobVolumeMount(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
+	return deploy.listSecrets(getLabelSelectorForBlobVolumeMountSecret(component))
+}
+
 func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error) {
 	secrets, err := deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 
@@ -214,7 +244,7 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	}
 
 	if isExternalAlias {
-		defaultValue := []byte(tlsSecretDefaultData)
+		defaultValue := []byte(secretDefaultData)
 
 		// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 		data := make(map[string][]byte)

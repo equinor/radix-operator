@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -122,6 +123,21 @@ func MaxReplicasForHPANotSetOrZeroError(component, environment string) error {
 // MinReplicasGreaterThanMaxReplicasError Indicates that minReplicas is greater than maxReplicas
 func MinReplicasGreaterThanMaxReplicasError(component, environment string) error {
 	return fmt.Errorf("minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+// VolumeMountTypeAcountNameContainerOrPathCannotBeEmpty Indicates that volume mount name is empty
+func VolumeMountTypeAcountNameContainerOrPathCannotBeEmpty(component, environment string) error {
+	return fmt.Errorf("type, account name, container or path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
+}
+
+// DuplicateVolumeMountType Cannot have two mounts of same type
+func DuplicateVolumeMountType(component, environment string) error {
+	return fmt.Errorf("duplicate type of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+// IllegalVolumeMountType Cannot have two mounts of same type
+func IllegalVolumeMountType(component, environment string) error {
+	return fmt.Errorf("type of volumeMount for component %s in environment %s is not recognized. See documentation for more info", component, environment)
 }
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -239,6 +255,11 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	}
 
 	err = validateHPAConfigForRA(app)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = validateVolumeMountConfigForRA(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -623,6 +644,38 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 			}
 			if minReplicas != nil && *minReplicas > maxReplicas {
 				return MinReplicasGreaterThanMaxReplicasError(componentName, environment)
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
+	for _, component := range app.Spec.Components {
+		for _, envConfig := range component.EnvironmentConfig {
+			componentName := component.Name
+			environment := envConfig.Environment
+			if envConfig.VolumeMounts == nil && len(envConfig.VolumeMounts) == 0 {
+				continue
+			}
+
+			mountType := make(map[string]bool)
+
+			for _, volumeMount := range envConfig.VolumeMounts {
+				if volumeMount.Type == "" || volumeMount.AccountName == "" || volumeMount.Container == "" || volumeMount.Path == "" {
+					return VolumeMountTypeAcountNameContainerOrPathCannotBeEmpty(componentName, environment)
+				}
+
+				if string(volumeMount.Type) != string(v1.MountTypeBlob) {
+					return IllegalVolumeMountType(componentName, environment)
+				}
+
+				if mountType[string(volumeMount.Type)] {
+					return DuplicateVolumeMountType(componentName, environment)
+				}
+
+				mountType[string(volumeMount.Type)] = true
 			}
 		}
 	}

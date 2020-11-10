@@ -32,6 +32,7 @@ type RadixRegistrationSpec struct {
 	Owner           string   `json:"owner" yaml:"owner"`
 	MachineUser     bool     `json:"machineUser" yaml:"machineUser"`
 	WBS             string   `json:"wbs" yaml:"wbs"`
+	ConfigBranch    string   `json:"configBranch" yaml:"configBranch"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
