@@ -74,13 +74,15 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 					secretName := defaults.GetBlobFuseCredsSecret(component.Name)
 					secretsToManage = append(secretsToManage, secretName)
 					accountKey := []byte(secretDefaultData)
+					accountName := []byte(secretDefaultData)
 
 					if deploy.kubeutil.SecretExists(ns, secretName) {
 						oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
 						accountKey = oldSecret.Data[defaults.BlobFuseCredsAccountKeyPart]
+						accountName = oldSecret.Data[defaults.BlobFuseCredsAccountNamePart]
 					}
 
-					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName, volumeMount.AccountName, accountKey)
+					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}

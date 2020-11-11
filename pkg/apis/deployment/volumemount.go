@@ -70,7 +70,7 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 	return volumes
 }
 
-func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName, accountName string, accountKey []byte) error {
+func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName string, accountName, accountKey []byte) error {
 	blobfusecredsSecret := v1.Secret{
 		Type: "azure/blobfuse",
 		ObjectMeta: metav1.ObjectMeta{
@@ -86,7 +86,7 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, component
 	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 	data := make(map[string][]byte)
 	data[defaults.BlobFuseCredsAccountKeyPart] = accountKey
-	data[defaults.BlobFuseCredsAccountNamePart] = []byte(accountName)
+	data[defaults.BlobFuseCredsAccountNamePart] = accountName
 
 	blobfusecredsSecret.Data = data
 
