@@ -12,6 +12,12 @@ const (
 	// BuildSecretDefaultData When the build secrets hold radix_undefined, it means they have not been set yet
 	BuildSecretDefaultData = "radix_undefined"
 
+	// BlobFuseCredsAccountKeyPartSuffix Account key suffix of secret listed
+	BlobFuseCredsAccountKeyPartSuffix = "-accountkey"
+
+	// BlobFuseCredsAccountNamePartSuffix Account name suffix of secret listed
+	BlobFuseCredsAccountNamePartSuffix = "-accountname"
+
 	// BlobFuseCredsAccountKeyPart Account key part of secret data
 	BlobFuseCredsAccountKeyPart = "accountkey"
 
