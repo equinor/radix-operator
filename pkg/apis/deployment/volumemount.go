@@ -44,10 +44,11 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 
 		for _, volumeMount := range deployComponent.VolumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
-				secretName := defaults.GetBlobFuseCredsSecret(deployComponent.Name)
+				secretName, _, accountName := deploy.GetBlobFuseCredsSecrets(deployComponent.Name)
 
 				flexVolumeOptions := make(map[string]string)
 				flexVolumeOptions["container"] = volumeMount.Container
+				flexVolumeOptions["accountname"] = string(accountName)
 				flexVolumeOptions["mountoptions"] = defaultMountOptions
 				flexVolumeOptions["tmppath"] = fmt.Sprintf(tempPath, namespace, deployComponent.Name, deploy.radixDeployment.Spec.Environment)
 

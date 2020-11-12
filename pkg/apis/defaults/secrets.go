@@ -27,7 +27,7 @@ const (
 	blobFuseCreds = "%s-blobfusecreds" // <componentname>-blobfusecreds
 )
 
-// GetBlobFuseCredsSecret Helper method
-func GetBlobFuseCredsSecret(componentName string) string {
+// GetBlobFuseCredsSecretName Helper method
+func GetBlobFuseCredsSecretName(componentName string) string {
 	return fmt.Sprintf(blobFuseCreds, componentName)
 }
