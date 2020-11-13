@@ -125,19 +125,19 @@ func MinReplicasGreaterThanMaxReplicasError(component, environment string) error
 	return fmt.Errorf("minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-// VolumeMountTypeAcountNameContainerOrPathCannotBeEmpty Indicates that volume mount name is empty
-func VolumeMountTypeAcountNameContainerOrPathCannotBeEmpty(component, environment string) error {
-	return fmt.Errorf("type, account name, container or path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
+// EmptyVolumeMountTypeContainerNameOrTempPathError Indicates that volume mount type, container name or temp-path are empty
+func EmptyVolumeMountTypeContainerNameOrTempPathError(component, environment string) error {
+	return fmt.Errorf("volume mount type, container and temp-path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
 }
 
 // DuplicateVolumeMountType Cannot have two mounts of same type
 func DuplicateVolumeMountType(component, environment string) error {
-	return fmt.Errorf("duplicate type of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+	return fmt.Errorf("duplicate type of volume mount type for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-// IllegalVolumeMountType Cannot have two mounts of same type
-func IllegalVolumeMountType(component, environment string) error {
-	return fmt.Errorf("type of volumeMount for component %s in environment %s is not recognized. See documentation for more info", component, environment)
+// UnknownVolumeMountTypeError Indicates unknown volume mount type
+func UnknownVolumeMountTypeError(component, environment string) error {
+	return fmt.Errorf("volume mount type for component %s in environment %s is not recognized. See documentation for more info", component, environment)
 }
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -607,10 +607,6 @@ func validateEnvNames(app *radixv1.RadixApplication) error {
 	return nil
 }
 
-func validateLabelName(resourceName, value string) error {
-	return validateResourceWithRegexp(resourceName, value, "^(([A-Za-z0-9][-A-Za-z0-9.]*)?[A-Za-z0-9])?$")
-}
-
 func validateVariableName(resourceName, value string) error {
 	return validateResourceWithRegexp(resourceName, value, "^(([A-Za-z0-9][-._A-Za-z0-9.]*)?[A-Za-z0-9])?$")
 }
@@ -660,22 +656,22 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 				continue
 			}
 
-			mountType := make(map[string]bool)
+			mountTypesInComponent := make(map[string]bool)
 
 			for _, volumeMount := range envConfig.VolumeMounts {
-				if volumeMount.Type == "" || volumeMount.AccountName == "" || volumeMount.Container == "" || volumeMount.Path == "" {
-					return VolumeMountTypeAcountNameContainerOrPathCannotBeEmpty(componentName, environment)
+				volumeMountType := strings.TrimSpace(string(volumeMount.Type))
+				if volumeMountType == "" ||
+					strings.TrimSpace(volumeMount.Container) == "" ||
+					strings.TrimSpace(volumeMount.Path) == "" {
+					return EmptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
 				}
-
-				if string(volumeMount.Type) != string(v1.MountTypeBlob) {
-					return IllegalVolumeMountType(componentName, environment)
+				if volumeMountType != string(v1.MountTypeBlob) {
+					return UnknownVolumeMountTypeError(componentName, environment)
 				}
-
-				if mountType[string(volumeMount.Type)] {
+				if _, ok := mountTypesInComponent[volumeMountType]; ok {
 					return DuplicateVolumeMountType(componentName, environment)
 				}
-
-				mountType[string(volumeMount.Type)] = true
+				mountTypesInComponent[volumeMountType] = true
 			}
 		}
 	}
