@@ -71,7 +71,7 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 		if len(component.VolumeMounts) > 0 {
 			for _, volumeMount := range component.VolumeMounts {
 				if volumeMount.Type == radixv1.MountTypeBlob {
-					secretName, accountKey, accountName := deploy.GetBlobFuseCredsSecrets(component.Name)
+					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.Name)
 					secretsToManage = append(secretsToManage, secretName)
 					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName, accountName, accountKey)
 					if err != nil {
@@ -101,11 +101,10 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 	return nil
 }
 
-func (deploy *Deployment) GetBlobFuseCredsSecrets(componentName string) (string, []byte, []byte) {
+func (deploy *Deployment) getBlobFuseCredsSecrets(ns, componentName string) (string, []byte, []byte) {
 	secretName := defaults.GetBlobFuseCredsSecretName(componentName)
 	accountKey := []byte(secretDefaultData)
 	accountName := []byte(secretDefaultData)
-	ns := deploy.radixDeployment.Namespace
 	if deploy.kubeutil.SecretExists(ns, secretName) {
 		oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
 		accountKey = oldSecret.Data[defaults.BlobFuseCredsAccountKeyPart]
