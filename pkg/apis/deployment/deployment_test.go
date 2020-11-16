@@ -154,10 +154,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithPublicPort("http").
 							WithVolumeMounts([]v1.RadixVolumeMount{
 								{
-									Type:        v1.MountTypeBlob,
-									AccountName: "some-account",
-									Container:   "some-container",
-									Path:        "some-path",
+									Type:      v1.MountTypeBlob,
+									Container: "some-container",
+									Path:      "some-path",
 								},
 							}).
 							WithSecrets([]string{outdatedSecret, remainingSecret}))
@@ -255,12 +254,14 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.True(t, envVariableByNameExistOnDeployment(addingSecret, componentNameRadixQuote, deployments))
 				}
 
+				volumesExist := len(spec.Template.Spec.Volumes) > 0
+				volumeMountsExist := len(spec.Template.Spec.Containers[0].VolumeMounts) > 0
 				if !componentsExist {
-					assert.True(t, len(spec.Template.Spec.Volumes) > 0)
-					assert.True(t, len(spec.Template.Spec.Containers[0].VolumeMounts) > 0)
+					assert.True(t, volumesExist, "expected existing volumes")
+					assert.True(t, volumeMountsExist, "expected existing volume mounts")
 				} else {
-					assert.False(t, len(spec.Template.Spec.Volumes) > 0)
-					assert.False(t, len(spec.Template.Spec.Containers[0].VolumeMounts) > 0)
+					assert.False(t, volumesExist, "unexpected existing volumes")
+					assert.False(t, volumeMountsExist, "unexpected existing volume mounts")
 				}
 			})
 
@@ -292,7 +293,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				componentSecretName := utils.GetComponentSecretName(componentNameRadixQuote)
 				assert.True(t, secretByNameExists(componentSecretName, secrets), "Component secret is not as expected")
 
-				// Exists due to external DNS, even though this is not acive cluster
+				// Exists due to external DNS, even though this is not active cluster
 				if !componentsExist {
 					assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
 					assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
@@ -301,10 +302,11 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.True(t, secretByNameExists("updated_another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
 				}
 
+				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote), secrets)
 				if !componentsExist {
-					assert.True(t, secretByNameExists(defaults.GetBlobFuseCredsSecret(componentNameRadixQuote), secrets), "Volume mount secret")
+					assert.True(t, blobFuseSecretExists, "expected volume mount secret")
 				} else {
-					assert.False(t, secretByNameExists(defaults.GetBlobFuseCredsSecret(componentNameRadixQuote), secrets), "TLS certificate for external alias is not properly defined")
+					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
 				}
 			})
 
@@ -1069,10 +1071,9 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 						}).
 						WithVolumeMounts([]v1.RadixVolumeMount{
 							{
-								Type:        v1.MountTypeBlob,
-								AccountName: "some-account",
-								Container:   "some-container",
-								Path:        "some-path",
+								Type:      v1.MountTypeBlob,
+								Container: "some-container",
+								Path:      "some-path",
 							},
 						}).
 						WithReplicas(test.IntPtr(3)))).
