@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"os"
 	"strings"
 
@@ -27,7 +28,12 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 
 	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
 	if err != nil {
-		return err
+		fmt.Printf("Failed to get ServiceMonitors. Error: %v", err)
+		if strings.EqualFold(os.Getenv(defaults.RadixIgnoreServiceMonitorErrorsEnvironmentVariable), "true") { //TODO: - temporary fix - remove this logic
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	for _, exisitingComponent := range serviceMonitors.Items {
