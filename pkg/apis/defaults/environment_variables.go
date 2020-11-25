@@ -66,4 +66,7 @@ const (
 
 	// RadixImageScannerEnvironmentVariable Points to the image scanner
 	RadixImageScannerEnvironmentVariable = "RADIX_IMAGE_SCANNER"
+
+	// RadixIgnoreServiceMonitorErrorsEnvironmentVariable Ignore errors, related to Prometheus Service Monitor
+	RadixIgnoreServiceMonitorErrorsEnvironmentVariable = "RADIX_IGNORE_ERRORS_SERVICE_MONITOR"
 )
