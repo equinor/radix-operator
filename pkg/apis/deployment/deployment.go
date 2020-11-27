@@ -273,15 +273,13 @@ func (deploy *Deployment) syncDeployment() error {
 			err = deploy.createOrUpdateServiceMonitor(v)
 			if err != nil {
 				log.Infof("Failed to create service monitor: %v", err)
-				if !strings.EqualFold(os.Getenv(defaults.RadixIgnoreServiceMonitorErrorsEnvironmentVariable), "true") { //TODO: - temporary fix - remove this logic
-					errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
-				}
+				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
 				continue
 			}
 		}
 	}
 
-	// If any error occured when syncing of components
+	// If any error occurred when syncing of components
 	if len(errs) > 0 {
 		return errorUtils.Concat(errs)
 	}

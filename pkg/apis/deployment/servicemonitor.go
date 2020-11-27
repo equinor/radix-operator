@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"os"
 	"strings"
 
@@ -29,26 +28,22 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
 	if err != nil {
 		fmt.Printf("Failed to get ServiceMonitors. Error: %v", err)
-		if strings.EqualFold(os.Getenv(defaults.RadixIgnoreServiceMonitorErrorsEnvironmentVariable), "true") { //TODO: - temporary fix - remove this logic
-			return nil
-		} else {
-			return err
-		}
+		return err
 	}
 
-	for _, exisitingComponent := range serviceMonitors.Items {
+	for _, existingComponent := range serviceMonitors.Items {
 		garbageCollect := true
-		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
+		existingComponentName := existingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
 
 		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
+			if strings.EqualFold(component.Name, existingComponentName) {
 				garbageCollect = false
 				break
 			}
 		}
 
 		if garbageCollect {
-			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(existingComponent.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
