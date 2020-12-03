@@ -346,6 +346,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
+	WithNilVariablesMap() RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -389,6 +390,11 @@ func (ceb *radixEnvironmentConfigBuilder) WithEnvironmentVariable(name, value st
 
 func (ceb *radixEnvironmentConfigBuilder) WithAlwaysPullImageOnDeploy(val bool) RadixEnvironmentConfigBuilder {
 	ceb.alwaysPullImageOnDeploy = &val
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithNilVariablesMap() RadixEnvironmentConfigBuilder {
+	ceb.variables = nil
 	return ceb
 }
 
