@@ -18,7 +18,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
 
-		variables := make(map[string]string)
+		var variables v1.EnvVarsMap
 		monitoring := false
 		var resources v1.ResourceRequirements
 
@@ -45,7 +45,9 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		} else {
 			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
 		}
-
+		if variables == nil {
+			variables = make(v1.EnvVarsMap)
+		}
 		// Append common environment variables from appComponent.Variables to variables if not available yet
 		for variableKey, variableValue := range appComponent.Variables {
 			if _, found := variables[variableKey]; !found {

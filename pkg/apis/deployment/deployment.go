@@ -279,7 +279,7 @@ func (deploy *Deployment) syncDeployment() error {
 		}
 	}
 
-	// If any error occured when syncing of components
+	// If any error occurred when syncing of components
 	if len(errs) > 0 {
 		return errorUtils.Concat(errs)
 	}
