@@ -16,7 +16,7 @@ const (
 	defaultData                         = "xx"
 	defaultMountOptions                 = "--file-cache-timeout-in-seconds=120"
 	volumeName                          = "blobfuse-%s"            // blobfuse-<componentname>
-	blobFuseVolumeNodeMountPathTemplate = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<storageaccount>/<container>
+	blobFuseVolumeNodeMountPathTemplate = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<volumename>/<container>
 )
 
 func (deploy *Deployment) getVolumeMounts(deployComponent *radixv1.RadixDeployComponent) []corev1.VolumeMount {
@@ -44,12 +44,13 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 
 		for _, volumeMount := range deployComponent.VolumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
-				secretName := defaults.GetBlobFuseCredsSecretName(deployComponent.Name)
+				secretName := defaults.GetBlobFuseCredsSecretName(deployComponent.Name, volumeMount.Name)
 
 				flexVolumeOptions := make(map[string]string)
+				flexVolumeOptions["name"] = volumeMount.Name
 				flexVolumeOptions["container"] = volumeMount.Container
 				flexVolumeOptions["mountoptions"] = defaultMountOptions
-				flexVolumeOptions["tmppath"] = fmt.Sprintf(blobFuseVolumeNodeMountPathTemplate, namespace, deployComponent.Name, deploy.radixDeployment.Spec.Environment, radixv1.MountTypeBlob, "storageaccount", volumeMount.Container)
+				flexVolumeOptions["tmppath"] = fmt.Sprintf(blobFuseVolumeNodeMountPathTemplate, namespace, deployComponent.Name, deploy.radixDeployment.Spec.Environment, radixv1.MountTypeBlob, volumeMount.Name, volumeMount.Container)
 
 				volumes = append(volumes, corev1.Volume{
 					Name: fmt.Sprintf(volumeName, deployComponent.Name),

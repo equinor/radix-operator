@@ -76,6 +76,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			outdatedSecret := "outdatedSecret"
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
+			blobVolumeName := "blob_volume_1"
 
 			if componentsExist {
 				// Update component
@@ -155,6 +156,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithVolumeMounts([]v1.RadixVolumeMount{
 								{
 									Type:      v1.MountTypeBlob,
+									Name:      blobVolumeName,
 									Container: "some-container",
 									Path:      "some-path",
 								},
@@ -302,7 +304,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.True(t, secretByNameExists("updated_another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
 				}
 
-				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote), secrets)
+				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote, blobVolumeName), secrets)
 				if !componentsExist {
 					assert.True(t, blobFuseSecretExists, "expected volume mount secret")
 				} else {
