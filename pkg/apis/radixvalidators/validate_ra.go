@@ -125,19 +125,32 @@ func MinReplicasGreaterThanMaxReplicasError(component, environment string) error
 	return fmt.Errorf("minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-// EmptyVolumeMountTypeContainerNameOrTempPathError Indicates that volume mount type, container name or temp-path are empty
-func EmptyVolumeMountTypeContainerNameOrTempPathError(component, environment string) error {
-	return fmt.Errorf("volume mount type, container and temp-path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
+func emptyVolumeMountTypeContainerNameOrTempPathError(component, environment string) error {
+	return fmt.Errorf("volume mount type, name, containers and temp-path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
 }
 
-// DuplicateVolumeMountType Cannot have two mounts of same type
-func DuplicateVolumeMountType(component, environment string) error {
+func duplicateVolumeMountType(component, environment string) error {
 	return fmt.Errorf("duplicate type of volume mount type for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-// UnknownVolumeMountTypeError Indicates unknown volume mount type
-func UnknownVolumeMountTypeError(component, environment string) error {
-	return fmt.Errorf("volume mount type for component %s in environment %s is not recognized. See documentation for more info", component, environment)
+func duplicateContainerForVolumeMountType(container, volumeMountType, component, environment string) error {
+	return fmt.Errorf("duplicate containers %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
+		container, volumeMountType, component, environment)
+}
+
+func duplicatePathForVolumeMountType(path, volumeMountType, component, environment string) error {
+	return fmt.Errorf("duplicate path %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
+		path, volumeMountType, component, environment)
+}
+
+func duplicateNameForVolumeMountType(name, volumeMountType, component, environment string) error {
+	return fmt.Errorf("duplicate names %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
+		name, volumeMountType, component, environment)
+}
+
+func unknownVolumeMountTypeError(volumeMountType, component, environment string) error {
+	return fmt.Errorf("not recognized volume mount type %s for component %s in environment %s. See documentation for more info",
+		volumeMountType, component, environment)
 }
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -656,27 +669,51 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 				continue
 			}
 
-			mountTypesInComponent := make(map[string]bool)
+			mountsInComponent := make(map[string]volumeMountConfigMaps)
 
 			for _, volumeMount := range envConfig.VolumeMounts {
 				volumeMountType := strings.TrimSpace(string(volumeMount.Type))
-				if volumeMountType == "" ||
+				switch {
+				case volumeMountType == "" ||
+					strings.TrimSpace(volumeMount.Name) == "" ||
 					strings.TrimSpace(volumeMount.Container) == "" ||
-					strings.TrimSpace(volumeMount.Path) == "" {
-					return EmptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
+					strings.TrimSpace(volumeMount.Path) == "":
+					{
+						return emptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
+					}
+				case volumeMountType == string(v1.MountTypeBlob):
+					{
+						if _, exists := mountsInComponent[volumeMountType]; !exists {
+							mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), containers: make(map[string]bool), path: make(map[string]bool)}
+						}
+						volumeMountConfigMap := mountsInComponent[volumeMountType]
+						if _, exists := volumeMountConfigMap.containers[volumeMount.Container]; exists {
+							return duplicateContainerForVolumeMountType(volumeMount.Container, volumeMountType, componentName, environment)
+						}
+						volumeMountConfigMap.containers[volumeMount.Container] = true
+						if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
+							return duplicateNameForVolumeMountType(volumeMount.Name, volumeMountType, componentName, environment)
+						}
+						volumeMountConfigMap.names[volumeMount.Name] = true
+						if _, exists := volumeMountConfigMap.path[volumeMount.Path]; exists {
+							return duplicatePathForVolumeMountType(volumeMount.Path, volumeMountType, componentName, environment)
+						}
+						volumeMountConfigMap.path[volumeMount.Path] = true
+					}
+				default:
+					return unknownVolumeMountTypeError(volumeMountType, componentName, environment)
 				}
-				if volumeMountType != string(v1.MountTypeBlob) {
-					return UnknownVolumeMountTypeError(componentName, environment)
-				}
-				if _, ok := mountTypesInComponent[volumeMountType]; ok {
-					return DuplicateVolumeMountType(componentName, environment)
-				}
-				mountTypesInComponent[volumeMountType] = true
 			}
 		}
 	}
 
 	return nil
+}
+
+type volumeMountConfigMaps struct {
+	names      map[string]bool
+	containers map[string]bool
+	path       map[string]bool
 }
 
 func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
