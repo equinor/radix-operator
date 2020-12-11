@@ -15,7 +15,7 @@ const (
 	blobfuseDriver                      = "azure/blobfuse"
 	defaultData                         = "xx"
 	defaultMountOptions                 = "--file-cache-timeout-in-seconds=120"
-	volumeName                          = "blobfuse-%s"            // blobfuse-<componentname>
+	volumeName                          = "blobfuse-%s-%s"         // blobfuse-<componentname>-<volumename>
 	blobFuseVolumeNodeMountPathTemplate = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<volumename>/<container>
 )
 
@@ -26,7 +26,7 @@ func (deploy *Deployment) getVolumeMounts(deployComponent *radixv1.RadixDeployCo
 		for _, volumeMount := range deployComponent.VolumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
 				volumeMounts = append(volumeMounts, corev1.VolumeMount{
-					Name:      fmt.Sprintf(volumeName, deployComponent.Name),
+					Name:      fmt.Sprintf(volumeName, deployComponent.Name, volumeMount.Name),
 					MountPath: volumeMount.Path,
 				})
 			}
@@ -53,7 +53,7 @@ func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployCompone
 				flexVolumeOptions["tmppath"] = fmt.Sprintf(blobFuseVolumeNodeMountPathTemplate, namespace, deployComponent.Name, deploy.radixDeployment.Spec.Environment, radixv1.MountTypeBlob, volumeMount.Name, volumeMount.Container)
 
 				volumes = append(volumes, corev1.Volume{
-					Name: fmt.Sprintf(volumeName, deployComponent.Name),
+					Name: fmt.Sprintf(volumeName, deployComponent.Name, volumeMount.Name),
 					VolumeSource: corev1.VolumeSource{
 						FlexVolume: &corev1.FlexVolumeSource{
 							Driver:  blobfuseDriver,
