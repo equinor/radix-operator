@@ -273,19 +273,24 @@ func (deploy *Deployment) setRDToInactive(rd *v1.RadixDeployment, activeTo metav
 	if rd.Status.Condition == v1.DeploymentInactive {
 		return nil
 	}
-	return deploy.updateRadixDeploymentStatusForResourceVersion(rd, func(currStatus *v1.RadixDeployStatus) {
+	_, err := deploy.updateRadixDeploymentStatusForResourceVersion(rd, func(currStatus *v1.RadixDeployStatus) {
 		currStatus.Condition = v1.DeploymentInactive
 		currStatus.ActiveTo = metav1.NewTime(activeTo.Time)
 		currStatus.ActiveFrom = getActiveFrom(rd)
 	}, rd.ResourceVersion)
+	return err
 }
 
 func (deploy *Deployment) updateRadixDeploymentStatus(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) error {
-	return deploy.updateRadixDeploymentStatusForResourceVersion(rd, changeStatusFunc, "")
+	updatedRD, err := deploy.updateRadixDeploymentStatusForResourceVersion(rd, changeStatusFunc, "")
+	if err == nil {
+		deploy.radixDeployment = updatedRD
+	}
+	return err
 }
-func (deploy *Deployment) updateRadixDeploymentStatusForResourceVersion(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus), resourceVersion string) error {
+func (deploy *Deployment) updateRadixDeploymentStatusForResourceVersion(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus), resourceVersion string) (*v1.RadixDeployment, error) {
 	radixDeploymentInterface := deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace())
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentRD, err := radixDeploymentInterface.Get(rd.GetName(), metav1.GetOptions{ResourceVersion: resourceVersion})
 		if err != nil {
 			return err
@@ -293,10 +298,11 @@ func (deploy *Deployment) updateRadixDeploymentStatusForResourceVersion(rd *v1.R
 		changeStatusFunc(&currentRD.Status)
 		_, err = radixDeploymentInterface.UpdateStatus(currentRD)
 		if err == nil {
-			deploy.radixDeployment = currentRD
+			rd = currentRD
 		}
 		return err
 	})
+	return rd, err
 }
 
 func (deploy *Deployment) setOtherRDsToInactive(allRDs []*v1.RadixDeployment) error {
