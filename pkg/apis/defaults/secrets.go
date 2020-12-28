@@ -24,10 +24,10 @@ const (
 	// BlobFuseCredsAccountNamePart Account name part of secret data
 	BlobFuseCredsAccountNamePart = "accountname"
 
-	blobFuseCreds = "%s-blobfusecreds" // <componentname>-blobfusecreds
+	blobFuseCreds = "%s-%s-blobfusecreds" // <componentname>-<volumemountname>-blobfusecreds
 )
 
 // GetBlobFuseCredsSecretName Helper method
-func GetBlobFuseCredsSecretName(componentName string) string {
-	return fmt.Sprintf(blobFuseCreds, componentName)
+func GetBlobFuseCredsSecretName(componentName string, volumeMountName string) string {
+	return fmt.Sprintf(blobFuseCreds, componentName, volumeMountName)
 }

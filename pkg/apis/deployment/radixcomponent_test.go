@@ -227,6 +227,58 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 	assert.Equal(t, "environment_common_2_dev_override", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
 }
 
+func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEnvConfig(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1").
+				WithCommonEnvironmentVariable("ENV_COMMON_1", "environment_common_1").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithNilVariablesMap(),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithNilVariablesMap()),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_2").
+				WithCommonEnvironmentVariable("ENV_COMMON_2", "environment_common_2").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").
+						WithNilVariablesMap(),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("dev").
+						WithNilVariablesMap())).BuildRA()
+
+	deployComponentProd := getRadixComponentsForEnv(ra, anyContainerRegistry, "prod", componentImages)
+	assert.Equal(t, 2, len(deployComponentProd))
+
+	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
+	assert.Equal(t, 1, len(deployComponentProd[0].EnvironmentVariables))
+	assert.Equal(t, "environment_common_1", deployComponentProd[0].EnvironmentVariables["ENV_COMMON_1"])
+
+	assert.Equal(t, "comp_2", deployComponentProd[1].Name)
+	assert.Equal(t, 1, len(deployComponentProd[1].EnvironmentVariables))
+	assert.Equal(t, "environment_common_2", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
+
+	deployComponentDev := getRadixComponentsForEnv(ra, anyContainerRegistry, "dev", componentImages)
+	assert.Equal(t, 2, len(deployComponentDev))
+
+	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
+	assert.Equal(t, 1, len(deployComponentDev[0].EnvironmentVariables))
+	assert.Equal(t, "environment_common_1", deployComponentDev[0].EnvironmentVariables["ENV_COMMON_1"])
+
+	assert.Equal(t, "comp_2", deployComponentDev[1].Name)
+	assert.Equal(t, 1, len(deployComponentDev[1].EnvironmentVariables))
+	assert.Equal(t, "environment_common_2", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
+}
+
 func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 	componentImages := make(map[string]pipeline.ComponentImage)
 	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}

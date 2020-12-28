@@ -564,10 +564,11 @@ func Test_PublicPort(t *testing.T) {
 
 func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	var testScenarios = []struct {
-		name       string
-		updateRA   updateRAFunc
-		isValid    bool
-		isErrorNil bool
+		name                 string
+		updateRA             updateRAFunc
+		isValid              bool
+		isErrorNil           bool
+		testContainedByError string
 	}{
 		{
 			"incorrect mount type",
@@ -575,6 +576,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      "disk",
+						Name:      "some_name",
 						Container: "some_container_name",
 						Path:      "some_path",
 					},
@@ -584,9 +586,123 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			false,
 			false,
+			"not recognized volume mount type",
 		},
 		{
-			"duplicate mount type",
+			"blob mount type with different name, containers and path",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name_1",
+						Container: "some_container_name_1",
+						Path:      "some_path_1",
+					},
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name_2",
+						Container: "some_container_name_2",
+						Path:      "some_path_2",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			true,
+			true,
+			"",
+		},
+		{
+			"blob mount type with duplicate names",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name",
+						Container: "some_container_name_1",
+						Path:      "some_path_1",
+					},
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name",
+						Container: "some_container_name_2",
+						Path:      "some_path_2",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+			"duplicate names",
+		},
+		{
+			"blob mount type with duplicate containers",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name_1",
+						Container: "some_container_name",
+						Path:      "some_path_1",
+					},
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name_2",
+						Container: "some_container_name",
+						Path:      "some_path_2",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+			"duplicate containers",
+		},
+		{
+			"blob mount type with duplicate path",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name_1",
+						Container: "some_container_name_1",
+						Path:      "some_path",
+					},
+					{
+						Type:      v1.MountTypeBlob,
+						Name:      "some_name_2",
+						Container: "some_container_name_2",
+						Path:      "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+			"duplicate path",
+		},
+		{
+			"mount volume type is not set",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name:      "some_name",
+						Container: "some_container_name",
+						Path:      "some_path",
+					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+			"volume mount type, name, containers and temp-path of volumeMount for component",
+		},
+		{
+			"mount volume name is not set",
 			func(ra *v1.RadixApplication) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
@@ -594,10 +710,22 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 						Container: "some_container_name",
 						Path:      "some_path",
 					},
+				}
+
+				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+			},
+			false,
+			false,
+			"volume mount type, name, containers and temp-path of volumeMount for component",
+		},
+		{
+			"mount volume containers is not set",
+			func(ra *v1.RadixApplication) {
+				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:      v1.MountTypeBlob,
-						Container: "some_container_name",
-						Path:      "some_path",
+						Type: v1.MountTypeBlob,
+						Name: "some_name",
+						Path: "some_path",
 					},
 				}
 
@@ -605,6 +733,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			false,
 			false,
+			"volume mount type, name, containers and temp-path of volumeMount for component",
 		},
 		{
 			"mount volume path is not set",
@@ -612,6 +741,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      v1.MountTypeBlob,
+						Name:      "some_name",
 						Container: "some_container_name",
 					},
 				}
@@ -620,6 +750,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			false,
 			false,
+			"volume mount type, name, containers and temp-path of volumeMount for component",
 		},
 	}
 
@@ -636,6 +767,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 
 			assert.Equal(t, testcase.isValid, isValid)
 			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+			if !isErrorNil {
+				assert.Contains(t, err.Error(), testcase.testContainedByError)
+			}
 		})
 	}
 }
