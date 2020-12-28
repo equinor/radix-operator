@@ -35,7 +35,7 @@ func setupTest() (*test.Utils, kube.Interface, *kubeUtils.Kube, radixclient.Inte
 }
 
 func teardownTest() {
-	// Celanup setup
+	// Cleanup setup
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
@@ -166,7 +166,8 @@ func applyJobWithSync(tu *test.Utils, client kube.Interface, kubeutils *kubeUtil
 		return nil, err
 	}
 
-	return rj, nil
+	updatedJob, err := radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Get(rj.Name, metav1.GetOptions{})
+	return updatedJob, err
 }
 
 func runSync(client kube.Interface, kubeutils *kubeUtils.Kube, radixclient radixclient.Interface, rj *v1.RadixJob) error {

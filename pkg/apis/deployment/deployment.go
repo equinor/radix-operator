@@ -145,7 +145,6 @@ func (deploy *Deployment) restoreStatus() bool {
 				log.Error("Unable to restore status", err)
 				return false
 			}
-
 			// Need to requeue
 			requeue = true
 		}
@@ -274,39 +273,50 @@ func (deploy *Deployment) setRDToInactive(rd *v1.RadixDeployment, activeTo metav
 	if rd.Status.Condition == v1.DeploymentInactive {
 		return nil
 	}
-	return deploy.updateRadixDeploymentStatus(rd, func(currStatus *v1.RadixDeployStatus) {
+	return deploy.updateRadixDeploymentStatusForResourceVersion(rd, func(currStatus *v1.RadixDeployStatus) {
 		currStatus.Condition = v1.DeploymentInactive
 		currStatus.ActiveTo = metav1.NewTime(activeTo.Time)
 		currStatus.ActiveFrom = getActiveFrom(rd)
-	})
+	}, rd.ResourceVersion)
 }
 
 func (deploy *Deployment) updateRadixDeploymentStatus(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) error {
+	return deploy.updateRadixDeploymentStatusForResourceVersion(rd, changeStatusFunc, "")
+}
+func (deploy *Deployment) updateRadixDeploymentStatusForResourceVersion(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus), resourceVersion string) error {
+	radixDeploymentInterface := deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace())
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRD, err := deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
+		currentRD, err := radixDeploymentInterface.Get(rd.GetName(), metav1.GetOptions{ResourceVersion: resourceVersion})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentRD.Status)
-		_, err = deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).UpdateStatus(currentRD)
+		_, err = radixDeploymentInterface.UpdateStatus(currentRD)
+		if err == nil {
+			deploy.radixDeployment = currentRD
+		}
 		return err
 	})
 }
 
 func (deploy *Deployment) setOtherRDsToInactive(allRDs []*v1.RadixDeployment) error {
 	sortedRDs := sortRDsByActiveFromTimestampDesc(allRDs)
-	prevRDActiveFrom := metav1.Time{}
+	if len(sortedRDs) == 0 {
+		return nil
+	}
+	prevRD := sortedRDs[0]
 
 	for _, rd := range sortedRDs {
-		if rd.GetName() != deploy.getName() {
-			err := deploy.setRDToInactive(rd, prevRDActiveFrom)
-			if err != nil {
-				return err
-			}
-			prevRDActiveFrom = getActiveFrom(rd)
-		} else {
-			prevRDActiveFrom = getActiveFrom(deploy.radixDeployment)
+		if strings.EqualFold(rd.GetName(), deploy.getName()) {
+			prevRD = deploy.radixDeployment
+			continue
 		}
+		activeTo := getActiveFrom(prevRD)
+		err := deploy.setRDToInactive(rd, activeTo)
+		if err != nil {
+			return err
+		}
+		prevRD = rd
 	}
 	return nil
 }

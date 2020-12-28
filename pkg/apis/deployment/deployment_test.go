@@ -1512,13 +1512,75 @@ func TestNewDeploymentStatus(t *testing.T) {
 				WithPublicPort("http"))
 
 	rd2, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, radixDeployBuilder)
-	rd, _ = radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
 
 	assert.Equal(t, v1.DeploymentInactive, rd.Status.Condition)
 	assert.Equal(t, rd.Status.ActiveTo, rd2.Status.ActiveFrom)
 
 	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
 	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
+}
+
+func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
+	anyApp := "any-app"
+	anyEnv := "dev"
+	anyComponentName := "frontend"
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	rd1 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient)
+
+	time.Sleep(2 * time.Millisecond)
+	rd2 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient)
+	rd1, _ = getUpdatedRD(radixclient, rd1)
+
+	assert.Equal(t, v1.DeploymentInactive, rd1.Status.Condition)
+	assert.Equal(t, rd1.Status.ActiveTo, rd2.Status.ActiveFrom)
+	assert.Equal(t, v1.DeploymentActive, rd2.Status.Condition)
+	assert.True(t, !rd2.Status.ActiveFrom.IsZero())
+
+	time.Sleep(3 * time.Millisecond)
+	rd3 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient)
+	rd1, _ = getUpdatedRD(radixclient, rd1)
+	rd2, _ = getUpdatedRD(radixclient, rd2)
+
+	assert.Equal(t, v1.DeploymentInactive, rd1.Status.Condition)
+	assert.Equal(t, v1.DeploymentInactive, rd2.Status.Condition)
+	assert.Equal(t, rd1.Status.ActiveTo, rd2.Status.ActiveFrom)
+	assert.Equal(t, rd2.Status.ActiveTo, rd3.Status.ActiveFrom)
+	assert.Equal(t, v1.DeploymentActive, rd3.Status.Condition)
+	assert.True(t, !rd3.Status.ActiveFrom.IsZero())
+
+	time.Sleep(4 * time.Millisecond)
+	rd4 := addRadixDeployment(anyApp, anyEnv, anyComponentName, tu, client, kubeUtil, radixclient)
+	rd1, _ = getUpdatedRD(radixclient, rd1)
+	rd2, _ = getUpdatedRD(radixclient, rd2)
+	rd3, _ = getUpdatedRD(radixclient, rd3)
+
+	assert.Equal(t, v1.DeploymentInactive, rd1.Status.Condition)
+	assert.Equal(t, v1.DeploymentInactive, rd2.Status.Condition)
+	assert.Equal(t, v1.DeploymentInactive, rd3.Status.Condition)
+	assert.Equal(t, rd1.Status.ActiveTo, rd2.Status.ActiveFrom)
+	assert.Equal(t, rd2.Status.ActiveTo, rd3.Status.ActiveFrom)
+	assert.Equal(t, rd3.Status.ActiveTo, rd4.Status.ActiveFrom)
+	assert.Equal(t, v1.DeploymentActive, rd4.Status.Condition)
+	assert.True(t, !rd4.Status.ActiveFrom.IsZero())
+}
+
+func getUpdatedRD(radixclient radixclient.Interface, rd *v1.RadixDeployment) (*v1.RadixDeployment, error) {
+	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
+}
+
+func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kube.Interface, kubeUtil *kubeUtils.Kube, radixclient radixclient.Interface) *v1.RadixDeployment {
+	radixDeployBuilder := utils.ARadixDeployment().
+		WithAppName(anyApp).
+		WithEnvironment(anyEnv).
+		WithEmptyStatus().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(anyComponentName).
+				WithPort("http", 8080).
+				WithPublicPort("http"))
+	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, radixDeployBuilder)
+	return rd
 }
 
 func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
@@ -1785,7 +1847,8 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kube.Interface, kubeUtil
 		return nil, err
 	}
 
-	return rd, nil
+	updatedRD, err := radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
+	return updatedRD, err
 }
 
 func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface, kubeUtil *kubeUtils.Kube,

@@ -598,13 +598,14 @@ func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, ori
 }
 
 func (job *Job) updateRadixJobStatus(savingRadixJob *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
+	radixJobInterface := job.radixclient.RadixV1().RadixJobs(savingRadixJob.GetNamespace())
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentJob, err := job.radixclient.RadixV1().RadixJobs(savingRadixJob.GetNamespace()).Get(savingRadixJob.GetName(), metav1.GetOptions{})
+		currentJob, err := radixJobInterface.Get(savingRadixJob.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentJob.Status)
-		_, err = job.radixclient.RadixV1().RadixJobs(savingRadixJob.GetNamespace()).UpdateStatus(currentJob)
+		_, err = radixJobInterface.UpdateStatus(currentJob)
 		return err
 	})
 	return err
