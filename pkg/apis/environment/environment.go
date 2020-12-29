@@ -2,6 +2,7 @@ package environment
 
 import (
 	"fmt"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -12,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	rbac "k8s.io/api/rbac/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -49,7 +50,7 @@ func NewEnvironment(
 
 // OnSync is called by the handler when changes are applied and must be
 // reconceliated with current state.
-func (env *Environment) OnSync(time meta.Time) error {
+func (env *Environment) OnSync(time metav1.Time) error {
 
 	// create a globally unique namespace name
 	namespaceName := utils.GetEnvironmentNamespace(env.config.Spec.AppName, env.config.Spec.EnvName)
@@ -69,18 +70,29 @@ func (env *Environment) OnSync(time meta.Time) error {
 		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
-	env.config.Status.Orphaned = !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
+	isOrphaned := !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
 
-	// time is parameterized for testability
-	env.config.Status.Reconciled = time
-	env.logger.Debugf("Environment %s reconciled", namespaceName)
-
-	_, err = env.radixclient.RadixV1().RadixEnvironments().UpdateStatus(env.config)
+	err = env.updateRadixEnvironmentStatus(env.config, func(currStatus *v1.RadixEnvironmentStatus) {
+		env.config.Status.Orphaned = isOrphaned
+		// time is parameterized for testability
+		env.config.Status.Reconciled = time
+	})
 	if err != nil {
 		return fmt.Errorf("Failed to update status on environment %s: %v", env.config.Spec.EnvName, err)
 	}
-
+	env.logger.Debugf("Environment %s reconciled", namespaceName)
 	return nil
+}
+func (env *Environment) updateRadixEnvironmentStatus(rEnv *v1.RadixEnvironment, changeStatusFunc func(currStatus *v1.RadixEnvironmentStatus)) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentEnv, err := env.radixclient.RadixV1().RadixEnvironments().Get(rEnv.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		changeStatusFunc(&currentEnv.Status)
+		_, err = env.radixclient.RadixV1().RadixEnvironments().UpdateStatus(currentEnv)
+		return err
+	})
 }
 
 // ApplyNamespace sets up namespace metadata and applies configuration to kubernetes
@@ -157,10 +169,10 @@ func (env *Environment) ApplyLimitRange(namespace string) error {
 }
 
 // AsOwnerReference creates an OwnerReference to this environment object
-func (env *Environment) AsOwnerReference() []meta.OwnerReference {
+func (env *Environment) AsOwnerReference() []metav1.OwnerReference {
 	trueVar := true
-	return []meta.OwnerReference{
-		meta.OwnerReference{
+	return []metav1.OwnerReference{
+		{
 			APIVersion: "radix.equinor.com/v1",
 			Kind:       "RadixEnvironment",
 			Name:       env.config.Name,

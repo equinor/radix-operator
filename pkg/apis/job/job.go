@@ -3,6 +3,7 @@ package job
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/client-go/util/retry"
 	"os"
 	"sort"
 	"strconv"
@@ -26,11 +27,11 @@ import (
 
 // Job Instance variables
 type Job struct {
-	kubeclient             kubernetes.Interface
-	radixclient            radixclient.Interface
-	kubeutil               *kube.Kube
-	radixJob               *v1.RadixJob
-	originalRadixJobStatus v1.RadixJobCondition
+	kubeclient                kubernetes.Interface
+	radixclient               radixclient.Interface
+	kubeutil                  *kube.Kube
+	radixJob                  *v1.RadixJob
+	originalRadixJobCondition v1.RadixJobCondition
 }
 
 // NewJob Constructor
@@ -89,8 +90,14 @@ func (job *Job) restoreStatus() {
 				return
 			}
 
-			job.radixJob.Status = status
-			err = job.saveRadixJobStatus(job.radixJob, job.originalRadixJobStatus)
+			err = job.updateRadixJobStatusWithMetrics(job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
+				currStatus.Condition = status.Condition
+				currStatus.Created = status.Created
+				currStatus.Started = status.Started
+				currStatus.Ended = status.Ended
+				currStatus.TargetEnvs = status.TargetEnvs
+				currStatus.Steps = status.Steps
+			})
 			if err != nil {
 				log.Error("Unable to restore status", err)
 				return
@@ -155,35 +162,39 @@ func (job *Job) SyncTargetEnvironments() {
 	if len(rj.Status.TargetEnvs) > 0 {
 		return
 	}
-
-	if rj.Spec.PipeLineType == v1.Deploy {
-		rj.Status.TargetEnvs = append(rj.Status.TargetEnvs, rj.Spec.Deploy.ToEnvironment)
-	}
-
-	if rj.Spec.PipeLineType == v1.Promote {
-		rj.Status.TargetEnvs = append(rj.Status.TargetEnvs, rj.Spec.Promote.ToEnvironment)
-	}
-
-	if rj.Spec.PipeLineType == v1.BuildDeploy {
-		ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
-
-		var targetEnvs []string
-
-		if err != nil {
-			targetEnvs = append(targetEnvs, "N/A")
-		} else {
-			for _, env := range ra.Spec.Environments {
-				if env.Build.From == rj.Spec.Build.Branch {
-					targetEnvs = append(targetEnvs, env.Name)
-				}
-			}
-		}
-		rj.Status.TargetEnvs = targetEnvs
-	}
+	targetEnvs := job.getTargetEnv(rj)
 
 	// Update RJ with accurate env data
-	job.radixclient.RadixV1().RadixJobs(rj.Namespace).UpdateStatus(rj)
+	err := job.updateRadixJobStatus(rj, func(currStatus *v1.RadixJobStatus) {
+		if rj.Spec.PipeLineType == v1.Deploy {
+			currStatus.TargetEnvs = append(currStatus.TargetEnvs, rj.Spec.Deploy.ToEnvironment)
+		} else if rj.Spec.PipeLineType == v1.Promote {
+			currStatus.TargetEnvs = append(currStatus.TargetEnvs, rj.Spec.Promote.ToEnvironment)
+		} else if rj.Spec.PipeLineType == v1.BuildDeploy && targetEnvs != nil {
+			currStatus.TargetEnvs = *targetEnvs
+		}
+	})
+	if err != nil {
+		log.Errorf("failed to sync target environments: %v", err)
+	}
+}
 
+func (job *Job) getTargetEnv(rj *v1.RadixJob) *[]string {
+	if rj.Spec.PipeLineType != v1.BuildDeploy {
+		return nil
+	}
+	ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
+	if err != nil {
+		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", rj.Spec.AppName)
+		return &[]string{"N/A"}
+	}
+	targetEnvs := make([]string, 0)
+	for _, env := range ra.Spec.Environments {
+		if env.Build.From == rj.Spec.Build.Branch {
+			targetEnvs = append(targetEnvs, env.Name)
+		}
+	}
+	return &targetEnvs
 }
 
 // IsRadixJobDone Checks if job is done
@@ -191,93 +202,93 @@ func IsRadixJobDone(rj *v1.RadixJob) bool {
 	return rj == nil || rj.Status.Condition == v1.JobFailed || rj.Status.Condition == v1.JobSucceeded || rj.Status.Condition == v1.JobStopped
 }
 
-func isRadixJobQueued(rj *v1.RadixJob) bool {
-	return rj == nil || rj.Status.Condition == v1.JobQueued
-}
-
 func (job *Job) setStatusOfJob() error {
-	pipelinejob, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(job.radixJob.Name, metav1.GetOptions{})
+	pipelineJob, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(job.radixJob.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		// No kubernetes job created yet, so nothing to sync
 		return nil
 	}
-
 	if err != nil {
 		return err
 	}
 
-	jobStatus := getJobConditionFromJobStatus(pipelinejob.Status)
-
-	job.radixJob.Status.Condition = jobStatus
-	job.radixJob.Status.Created = &job.radixJob.CreationTimestamp
-	job.radixJob.Status.Started = pipelinejob.Status.StartTime
-
-	if len(pipelinejob.Status.Conditions) > 0 {
-		job.radixJob.Status.Ended = &pipelinejob.Status.Conditions[0].LastTransitionTime
-	}
-
-	steps, err := job.getJobSteps(pipelinejob)
+	steps, err := job.getJobSteps(pipelineJob)
 	if err != nil {
 		return err
 	}
-
 	environments, err := job.getJobEnvironments()
 	if err != nil {
 		return err
 	}
+	jobStatusCondition := getJobConditionFromJobStatus(pipelineJob.Status)
 
-	if len(environments) > 0 {
-		job.radixJob.Status.TargetEnvs = environments
+	err = job.updateRadixJobStatusWithMetrics(job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
+		currStatus.Steps = steps
+		currStatus.Condition = jobStatusCondition
+		currStatus.Created = &job.radixJob.CreationTimestamp
+		currStatus.Started = pipelineJob.Status.StartTime
+		if len(pipelineJob.Status.Conditions) > 0 {
+			currStatus.Ended = &pipelineJob.Status.Conditions[0].LastTransitionTime
+		}
+		if len(environments) > 0 {
+			currStatus.TargetEnvs = environments
+		}
+	})
+	if err != nil {
+		return err
 	}
 
-	job.radixJob.Status.Steps = steps
-	err = job.saveRadixJobStatus(job.radixJob, job.originalRadixJobStatus)
-
-	if job.radixJob.Status.Condition == v1.JobSucceeded || job.radixJob.Status.Condition == v1.JobFailed {
+	if jobStatusCondition == v1.JobSucceeded || jobStatusCondition == v1.JobFailed {
 		err = job.setNextJobToRunning()
 	}
-
 	return err
 }
 
 func (job *Job) stopJob() error {
 	isRunning := job.radixJob.Status.Condition == v1.JobRunning
-
-	if isRunning {
-		// Delete pipeline job
-		err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(job.radixJob.Name, &metav1.DeleteOptions{})
-
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-
-		err = job.deleteStepJobs()
-		if err != nil {
-			return err
-		}
-
-		stoppedSteps := make([]v1.RadixJobStep, 0)
-		for _, step := range job.radixJob.Status.Steps {
-			if step.Condition != v1.JobSucceeded && step.Condition != v1.JobFailed {
-				step.Condition = v1.JobStopped
-			}
-
-			stoppedSteps = append(stoppedSteps, step)
-		}
-
-		job.radixJob.Status.Steps = stoppedSteps
+	stoppedSteps, err := job.getStoppedSteps(isRunning)
+	if err != nil {
+		return err
 	}
 
-	job.radixJob.Status.Created = &job.radixJob.CreationTimestamp
-	job.radixJob.Status.Condition = v1.JobStopped
-	job.radixJob.Status.Ended = &metav1.Time{Time: time.Now()}
-
-	err := job.saveRadixJobStatus(job.radixJob, job.originalRadixJobStatus)
+	err = job.updateRadixJobStatusWithMetrics(job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
+		if isRunning && stoppedSteps != nil {
+			currStatus.Steps = *stoppedSteps
+		}
+		currStatus.Created = &job.radixJob.CreationTimestamp
+		currStatus.Condition = v1.JobStopped
+		currStatus.Ended = &metav1.Time{Time: time.Now()}
+	})
 	if err == nil && isRunning {
 		err = job.setNextJobToRunning()
 	}
 
 	return err
+}
+
+func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
+	if !isRunning {
+		return nil, nil
+	}
+	// Delete pipeline job
+	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(job.radixJob.Name, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
+	}
+
+	err = job.deleteStepJobs()
+	if err != nil {
+		return nil, err
+	}
+
+	stoppedSteps := make([]v1.RadixJobStep, 0)
+	for _, step := range job.radixJob.Status.Steps {
+		if step.Condition != v1.JobSucceeded && step.Condition != v1.JobFailed {
+			step.Condition = v1.JobStopped
+		}
+		stoppedSteps = append(stoppedSteps, step)
+	}
+	return &stoppedSteps, nil
 }
 
 func (job *Job) deleteStepJobs() error {
@@ -311,13 +322,13 @@ func (job *Job) setNextJobToRunning() error {
 
 	rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
 	for _, otherRj := range rjs {
-		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued {
-			otherRj.Status.Condition = v1.JobRunning
-			err = job.saveRadixJobStatus(&otherRj, v1.JobQueued) // previous status for this otherRj was Queued
+		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued { // previous status for this otherRj was Queued
+			err = job.updateRadixJobStatusWithMetrics(&otherRj, v1.JobQueued, func(currStatus *v1.RadixJobStatus) {
+				currStatus.Condition = v1.JobRunning
+			})
 			break
 		}
 	}
-
 	return nil
 }
 
@@ -336,13 +347,14 @@ func isRJ1ActiveAfterRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
 }
 
 func (job *Job) queueJob() error {
-	job.radixJob.Status.Created = &job.radixJob.CreationTimestamp
-	job.radixJob.Status.Condition = v1.JobQueued
-	return job.saveRadixJobStatus(job.radixJob, job.originalRadixJobStatus)
+	return job.updateRadixJobStatusWithMetrics(job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
+		currStatus.Created = &job.radixJob.CreationTimestamp
+		currStatus.Condition = v1.JobQueued
+	})
 }
 
 func (job *Job) getJobSteps(kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, error) {
-	steps := []v1.RadixJobStep{}
+	var steps []v1.RadixJobStep
 
 	pipelinePod, err := job.getPipelinePod()
 	if err != nil {
@@ -361,7 +373,7 @@ func (job *Job) getJobSteps(kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, erro
 	case v1.Build, v1.BuildDeploy:
 		return job.getJobStepsBuildPipeline(pipelinePod, kubernetesJob)
 	case v1.Promote:
-		return job.getJobStepsPromotePipeline(pipelinePod, kubernetesJob)
+		return job.getJobStepsPromotePipeline(pipelinePod)
 	// TODO
 	case v1.Deploy:
 		return job.getJobStepsBuildPipeline(pipelinePod, kubernetesJob)
@@ -371,7 +383,7 @@ func (job *Job) getJobSteps(kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, erro
 }
 
 func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, error) {
-	steps := []v1.RadixJobStep{}
+	var steps []v1.RadixJobStep
 
 	pipelineJobStep := getPipelineJobStep(pipelinePod)
 
@@ -449,8 +461,8 @@ func getComponentsForContainer(name string, componentImages map[string]pipeline.
 	return components
 }
 
-func (job *Job) getJobStepsPromotePipeline(pipelinePod *corev1.Pod, kubernetesJob *batchv1.Job) ([]v1.RadixJobStep, error) {
-	steps := []v1.RadixJobStep{}
+func (job *Job) getJobStepsPromotePipeline(pipelinePod *corev1.Pod) ([]v1.RadixJobStep, error) {
+	var steps []v1.RadixJobStep
 	pipelineJobStep := getJobStepWithNoComponents(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0])
 	steps = append(steps, pipelineJobStep)
 	return steps, nil
@@ -577,19 +589,32 @@ func (job *Job) getJobEnvironments() ([]string, error) {
 	return environments, nil
 }
 
-func (job *Job) saveRadixJobStatus(savingRadixJob *v1.RadixJob, originalRadixJobStatus v1.RadixJobCondition) error {
-	recentRadixJob, err := job.radixclient.RadixV1().RadixJobs(savingRadixJob.Namespace).Get(savingRadixJob.Name, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	if recentRadixJob.ObjectMeta.ResourceVersion != savingRadixJob.ObjectMeta.ResourceVersion {
-		recentRadixJob.Spec = savingRadixJob.Spec
-		savingRadixJob = recentRadixJob
-	}
-	_, err = job.radixclient.RadixV1().RadixJobs(savingRadixJob.GetNamespace()).UpdateStatus(savingRadixJob)
-	if err == nil && originalRadixJobStatus != savingRadixJob.Status.Condition {
+func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, originalRadixJobCondition v1.RadixJobCondition, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
+	err := job.updateRadixJobStatus(savingRadixJob, changeStatusFunc)
+	if err == nil && originalRadixJobCondition != savingRadixJob.Status.Condition {
 		metrics.RadixJobStatusChanged(savingRadixJob)
 	}
+	return err
+}
+
+func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
+	rjInterface := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace())
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentJob, err := rjInterface.Get(rj.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		changeStatusFunc(&currentJob.Status)
+		_, err = rjInterface.UpdateStatus(currentJob)
+
+		if err == nil && rj.GetName() == job.radixJob.GetName() {
+			currentJob, err = rjInterface.Get(rj.GetName(), metav1.GetOptions{})
+			if err == nil {
+				job.radixJob = currentJob
+			}
+		}
+		return err
+	})
 	return err
 }
 
@@ -618,6 +643,7 @@ func (job *Job) maintainHistoryLimit() {
 			jobs = sortJobsByActiveFromTimestampAsc(jobs)
 			for i := 0; i < numToDelete; i++ {
 				log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
+				//goland:noinspection GoUnhandledErrorResult - do not fail on error
 				job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(jobs[i].Name, &metav1.DeleteOptions{})
 			}
 		}

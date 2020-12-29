@@ -3,6 +3,7 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/client-go/util/retry"
 	"os"
 	"sort"
 	"strconv"
@@ -17,7 +18,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -53,17 +53,6 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		kubeclient,
 		radixclient,
 		kubeutil, prometheusperatorclient, registration, radixDeployment}, nil
-}
-
-// GetDeploymentComponent Gets the index  of and the component given name
-func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
-	for index, component := range rd.Spec.Components {
-		if strings.EqualFold(component.Name, name) {
-			return index, &component
-		}
-	}
-
-	return -1, nil
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
@@ -124,24 +113,6 @@ func IsRadixDeploymentInactive(rd *v1.RadixDeployment) bool {
 	return rd == nil || rd.Status.Condition == v1.DeploymentInactive
 }
 
-// GetLatestDeploymentInNamespace Gets the last deployment in namespace
-func GetLatestDeploymentInNamespace(radixclient radixclient.Interface, namespace string) (*v1.RadixDeployment, error) {
-	allRDs, err := radixclient.RadixV1().RadixDeployments(namespace).List(metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(allRDs.Items) > 0 {
-		for _, rd := range allRDs.Items {
-			if isLatest(&rd, slice.PointersOf(allRDs.Items).([]*v1.RadixDeployment)) {
-				return &rd, nil
-			}
-		}
-	}
-
-	return nil, nil
-}
-
 // getNamespace gets the namespace of radixDeployment
 func (deploy *Deployment) getNamespace() string {
 	return deploy.radixDeployment.GetNamespace()
@@ -165,15 +136,15 @@ func (deploy *Deployment) restoreStatus() bool {
 				return false
 			}
 
-			deploy.radixDeployment.Status.Condition = status.Condition
-			deploy.radixDeployment.Status.ActiveFrom = status.ActiveFrom
-			deploy.radixDeployment.Status.ActiveTo = status.ActiveTo
-			err = saveStatusRD(deploy.radixclient, deploy.radixDeployment)
+			err = deploy.updateRadixDeploymentStatus(deploy.radixDeployment, func(currStatus *v1.RadixDeployStatus) {
+				currStatus.Condition = status.Condition
+				currStatus.ActiveFrom = status.ActiveFrom
+				currStatus.ActiveTo = status.ActiveTo
+			})
 			if err != nil {
 				log.Error("Unable to restore status", err)
 				return false
 			}
-
 			// Need to requeue
 			requeue = true
 		}
@@ -288,46 +259,66 @@ func (deploy *Deployment) syncDeployment() error {
 }
 
 func (deploy *Deployment) updateStatusOnActiveDeployment() error {
-	if deploy.radixDeployment.Status.Condition == v1.DeploymentActive {
-		deploy.radixDeployment.Status.Reconciled = metav1.NewTime(time.Now().UTC())
-	} else {
-		deploy.radixDeployment.Status.Condition = v1.DeploymentActive
-		deploy.radixDeployment.Status.ActiveFrom = metav1.NewTime(time.Now().UTC())
-	}
-
-	return saveStatusRD(deploy.radixclient, deploy.radixDeployment)
+	return deploy.updateRadixDeploymentStatus(deploy.radixDeployment, func(currStatus *v1.RadixDeployStatus) {
+		if deploy.radixDeployment.Status.Condition == v1.DeploymentActive {
+			currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
+		} else {
+			currStatus.Condition = v1.DeploymentActive
+			currStatus.ActiveFrom = metav1.NewTime(time.Now().UTC())
+		}
+	})
 }
 
-func setRDToInactive(radixClient radixclient.Interface, rd *v1.RadixDeployment, activeTo metav1.Time) error {
+func (deploy *Deployment) setRDToInactive(rd *v1.RadixDeployment, activeTo metav1.Time) error {
 	if rd.Status.Condition == v1.DeploymentInactive {
 		return nil
 	}
-
-	rd.Status.Condition = v1.DeploymentInactive
-	rd.Status.ActiveTo = metav1.NewTime(activeTo.Time)
-	rd.Status.ActiveFrom = getActiveFrom(rd)
-	return saveStatusRD(radixClient, rd)
+	return deploy.updateRadixDeploymentStatus(rd, func(currStatus *v1.RadixDeployStatus) {
+		currStatus.Condition = v1.DeploymentInactive
+		currStatus.ActiveTo = metav1.NewTime(activeTo.Time)
+		currStatus.ActiveFrom = getActiveFrom(rd)
+	})
 }
 
-func saveStatusRD(radixClient radixclient.Interface, rd *v1.RadixDeployment) error {
-	_, err := radixClient.RadixV1().RadixDeployments(rd.GetNamespace()).UpdateStatus(rd)
+func (deploy *Deployment) updateRadixDeploymentStatus(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) error {
+	rdInterface := deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace())
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentRD, err := rdInterface.Get(rd.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		changeStatusFunc(&currentRD.Status)
+		_, err = rdInterface.UpdateStatus(currentRD)
+
+		if err == nil && rd.GetName() == deploy.radixDeployment.GetName() {
+			currentRD, err = rdInterface.Get(rd.GetName(), metav1.GetOptions{})
+			if err == nil {
+				deploy.radixDeployment = currentRD
+			}
+		}
+		return err
+	})
 	return err
 }
 
 func (deploy *Deployment) setOtherRDsToInactive(allRDs []*v1.RadixDeployment) error {
 	sortedRDs := sortRDsByActiveFromTimestampDesc(allRDs)
-	prevRDActiveFrom := metav1.Time{}
+	if len(sortedRDs) == 0 {
+		return nil
+	}
+	prevRD := sortedRDs[0]
 
 	for _, rd := range sortedRDs {
-		if rd.GetName() != deploy.getName() {
-			err := setRDToInactive(deploy.radixclient, rd, prevRDActiveFrom)
-			if err != nil {
-				return err
-			}
-			prevRDActiveFrom = getActiveFrom(rd)
-		} else {
-			prevRDActiveFrom = getActiveFrom(deploy.radixDeployment)
+		if strings.EqualFold(rd.GetName(), deploy.getName()) {
+			prevRD = deploy.radixDeployment
+			continue
 		}
+		activeTo := getActiveFrom(prevRD)
+		err := deploy.setRDToInactive(rd, activeTo)
+		if err != nil {
+			return err
+		}
+		prevRD = rd
 	}
 	return nil
 }
@@ -460,31 +451,34 @@ func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixDeployComponent)
 }
 
 func (deploy *Deployment) maintainHistoryLimit() {
-	historyLimit := os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
-	if historyLimit != "" {
-		limit, err := strconv.Atoi(historyLimit)
+	historyLimit := strings.TrimSpace(os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable))
+	if historyLimit == "" {
+		return
+	}
+
+	limit, err := strconv.Atoi(historyLimit)
+	if err != nil {
+		log.Warnf("'%s' is not set to a proper number, %s, and cannot be parsed.", defaults.DeploymentsHistoryLimitEnvironmentVariable, historyLimit)
+		return
+	}
+
+	deployments, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
+	if err != nil {
+		log.Warnf("failed to get all Radix deployments. Error was %v", err)
+		return
+	}
+
+	numToDelete := len(deployments) - limit
+	if numToDelete <= 0 {
+		return
+	}
+
+	deployments = sortRDsByActiveFromTimestampAsc(deployments)
+	for i := 0; i < numToDelete; i++ {
+		log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
+		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(deployments[i].Name, &metav1.DeleteOptions{})
 		if err != nil {
-			log.Warnf("'%s' is not set to a proper number, %s, and cannot be parsed.", defaults.DeploymentsHistoryLimitEnvironmentVariable, historyLimit)
-			return
-		}
-
-		deployments, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
-		if err != nil {
-			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-			return
-		}
-
-		if len(deployments) > limit {
-			numToDelete := len(deployments) - limit
-			if numToDelete <= 0 {
-				return
-			}
-
-			deployments = sortRDsByActiveFromTimestampAsc(deployments)
-			for i := 0; i < numToDelete; i++ {
-				log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
-				deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(deployments[i].Name, &metav1.DeleteOptions{})
-			}
+			log.Warnf("failed to delete old deployment %s: %v", deployments[i].Name, err)
 		}
 	}
 }

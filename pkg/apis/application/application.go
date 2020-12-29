@@ -2,6 +2,7 @@ package application
 
 import (
 	"fmt"
+	"k8s.io/client-go/util/retry"
 	"os"
 	"time"
 
@@ -133,18 +134,34 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 	}
 
 	logger.Debugf("Applied access to ci/cd logs. Set registration to be reconciled")
-	radixRegistration, err = app.radixclient.RadixV1().RadixRegistrations().Get(radixRegistration.Name, metav1.GetOptions{})
-	if err != nil {
-		logger.Errorf("Failed to get updated registration: %v", err)
-		return err
-	}
-	radixRegistration.Status.Reconciled = metav1.NewTime(time.Now().UTC())
-	_, err = app.radixclient.RadixV1().RadixRegistrations().UpdateStatus(radixRegistration)
+	err = app.updateRadixRegistrationStatus(radixRegistration, func(currStatus *v1.RadixRegistrationStatus) {
+		currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
+	})
 	if err != nil {
 		logger.Errorf("Failed to update status on registration: %v", err)
 		return err
 	}
 	return nil
+}
+
+func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
+	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentRR, err := rrInterface.Get(rr.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		changeStatusFunc(&currentRR.Status)
+		_, err = rrInterface.UpdateStatus(currentRR)
+
+		if err == nil && rr.GetName() == app.registration.GetName() {
+			currentRR, err = rrInterface.Get(rr.GetName(), metav1.GetOptions{})
+			if err == nil {
+				app.registration = currentRR
+			}
+		}
+		return err
+	})
 }
 
 // Garbage collect machine user resources
