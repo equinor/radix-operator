@@ -145,13 +145,21 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 }
 
 func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
+	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRR, err := app.radixclient.RadixV1().RadixRegistrations().Get(rr.GetName(), metav1.GetOptions{})
+		currentRR, err := rrInterface.Get(rr.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentRR.Status)
-		_, err = app.radixclient.RadixV1().RadixRegistrations().UpdateStatus(currentRR)
+		_, err = rrInterface.UpdateStatus(currentRR)
+
+		if err == nil && rr.GetName() == app.registration.GetName() {
+			currentRR, err = rrInterface.Get(rr.GetName(), metav1.GetOptions{})
+			if err == nil {
+				app.registration = currentRR
+			}
+		}
 		return err
 	})
 }
