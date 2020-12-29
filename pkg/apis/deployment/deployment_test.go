@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 	"strings"
@@ -1844,8 +1843,6 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kube.Interface, kubeUtil
 	if err != nil {
 		return nil, err
 	}
-	updatedRD2, _ := radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
-	log.Debug(updatedRD2)
 	deployment, err := NewDeployment(kubeclient, kubeUtil, radixclient, nil, radixRegistration, rd)
 	err = deployment.OnSync()
 	if err != nil {
