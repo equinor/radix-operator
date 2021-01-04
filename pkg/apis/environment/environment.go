@@ -73,9 +73,9 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	isOrphaned := !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
 
 	err = env.updateRadixEnvironmentStatus(env.config, func(currStatus *v1.RadixEnvironmentStatus) {
-		env.config.Status.Orphaned = isOrphaned
+		currStatus.Orphaned = isOrphaned
 		// time is parameterized for testability
-		env.config.Status.Reconciled = time
+		currStatus.Reconciled = time
 	})
 	if err != nil {
 		return fmt.Errorf("Failed to update status on environment %s: %v", env.config.Spec.EnvName, err)
@@ -84,13 +84,20 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	return nil
 }
 func (env *Environment) updateRadixEnvironmentStatus(rEnv *v1.RadixEnvironment, changeStatusFunc func(currStatus *v1.RadixEnvironmentStatus)) error {
+	radixEnvironmentInterface := env.radixclient.RadixV1().RadixEnvironments()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentEnv, err := env.radixclient.RadixV1().RadixEnvironments().Get(rEnv.GetName(), metav1.GetOptions{})
+		currentEnv, err := radixEnvironmentInterface.Get(rEnv.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentEnv.Status)
-		_, err = env.radixclient.RadixV1().RadixEnvironments().UpdateStatus(currentEnv)
+		_, err = radixEnvironmentInterface.UpdateStatus(currentEnv)
+		if err == nil && env.config.GetName() == rEnv.GetName() {
+			currentEnv, err = radixEnvironmentInterface.Get(rEnv.GetName(), metav1.GetOptions{})
+			if err == nil {
+				env.config = currentEnv
+			}
+		}
 		return err
 	})
 }
@@ -180,6 +187,10 @@ func (env *Environment) AsOwnerReference() []metav1.OwnerReference {
 			Controller: &trueVar,
 		},
 	}
+}
+
+func (env *Environment) GetConfig() *v1.RadixEnvironment {
+	return env.config
 }
 
 func existsInAppConfig(app *v1.RadixApplication, envName string) bool {
