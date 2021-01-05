@@ -64,7 +64,7 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 }
 
 func createValidRD() *v1.RadixDeployment {
-	validRD, _ := utils.GetRadixDeploy("testdata/radixdeploy.yaml")
+	validRD, _ := utils.GetRadixDeployFromFile("testdata/radixdeploy.yaml")
 
 	return validRD
 }

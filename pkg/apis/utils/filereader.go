@@ -9,8 +9,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// GetRadixApplication Reads radix config from file
-func GetRadixApplication(filename string) (*v1.RadixApplication, error) {
+// GetRadixApplicationFromFile Reads radix config from file
+func GetRadixApplicationFromFile(filename string) (*v1.RadixApplication, error) {
 	log.Debugf("get radix application yaml from %s", filename)
 	radixApp := &v1.RadixApplication{}
 	err := getFromFile(filename, radixApp)
@@ -25,8 +25,8 @@ func GetRadixRegistrationFromFile(filename string) (*v1.RadixRegistration, error
 	return reg, err
 }
 
-// GetRadixDeploy Reads radix deployment from file
-func GetRadixDeploy(filename string) (*v1.RadixDeployment, error) {
+// GetRadixDeployFromFile Reads radix deployment from file
+func GetRadixDeployFromFile(filename string) (*v1.RadixDeployment, error) {
 	log.Debugf("get radix deploy yaml from %s", filename)
 	radixDeploy := &v1.RadixDeployment{}
 	err := getFromFile(filename, radixDeploy)
