@@ -157,7 +157,7 @@ func NewController(client kubernetes.Interface,
 			for _, envName := range droppedEnvironments(oldRa, newRa) {
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(uniqueName, metav1.GetOptions{})
-				if err != nil {
+				if err == nil {
 					controller.Enqueue(re)
 				}
 			}
@@ -166,7 +166,7 @@ func NewController(client kubernetes.Interface,
 			for _, env := range cur.(*v1.RadixApplication).Spec.Environments {
 				uniqueName := utils.GetEnvironmentNamespace(cur.(*v1.RadixApplication).Name, env.Name)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(uniqueName, metav1.GetOptions{})
-				if err != nil {
+				if err == nil {
 					controller.Enqueue(re)
 				}
 			}
@@ -192,7 +192,7 @@ func getOwner(radixClient radixclient.Interface, namespace, name string) (interf
 
 func droppedEnvironments(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {
 	droppedNames := make([]string, 0)
-	for _, oldEnvConfig := range newRa.Spec.Environments {
+	for _, oldEnvConfig := range oldRa.Spec.Environments {
 		dropped := true
 		for _, newEnvConfig := range newRa.Spec.Environments {
 			if oldEnvConfig.Name == newEnvConfig.Name {

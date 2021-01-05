@@ -52,7 +52,7 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 
 	radixRegistration, _ := utils.GetRadixRegistrationFromFile(sampleRegistration)
-	radixApp, _ := utils.GetRadixApplication(sampleApp)
+	radixApp, _ := utils.GetRadixApplicationFromFile(sampleApp)
 	app, _ := NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, radixApp)
 
 	label := fmt.Sprintf("%s=%s", kube.RadixAppLabel, radixRegistration.Name)

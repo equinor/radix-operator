@@ -70,7 +70,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncEnvironment := envConfig.DeepCopy()
 	logger.Debugf("Sync environment %s", syncEnvironment.Name)
 
-	radixRegistration, err := t.kubeutil.GetRegistration(envConfig.Spec.AppName)
+	radixRegistration, err := t.kubeutil.GetRegistration(syncEnvironment.Spec.AppName)
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
@@ -83,10 +83,10 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	// get RA error is ignored because nil is accepted
-	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(envConfig.Spec.AppName)).
-		Get(envConfig.Spec.AppName, meta.GetOptions{})
+	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(syncEnvironment.Spec.AppName)).
+		Get(syncEnvironment.Spec.AppName, meta.GetOptions{})
 
-	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, envConfig, radixRegistration, radixApplication, logger)
+	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, logger)
 
 	if err != nil {
 		return err
@@ -98,6 +98,6 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	t.hasSynced(true)
-	eventRecorder.Event(syncEnvironment, core.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	eventRecorder.Event(env.GetConfig(), core.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }

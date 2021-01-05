@@ -856,7 +856,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 }
 
 func createValidRA() *v1.RadixApplication {
-	validRA, _ := utils.GetRadixApplication("testdata/radixconfig.yaml")
+	validRA, _ := utils.GetRadixApplicationFromFile("testdata/radixconfig.yaml")
 
 	return validRA
 }
