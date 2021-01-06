@@ -26,8 +26,8 @@ import (
 const (
 	clusterName       = "AnyClusterName"
 	containerRegistry = "any.container.registry"
-	envConfig         = "./testdata/re.yaml"
-	regConfig         = "./testdata/rr.yaml"
+	envConfigFileName = "./testdata/re.yaml"
+	regConfigFileName = "./testdata/rr.yaml"
 	namespaceName     = "testapp-testenv"
 
 	limitDefaultCPU          = "432m" // 0.432
@@ -53,8 +53,8 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 }
 
 func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment) {
-	rr, _ := utils.GetRadixRegistrationFromFile(regConfig)
-	re, _ := utils.GetRadixEnvironment(envConfig)
+	rr, _ := utils.GetRadixRegistrationFromFile(regConfigFileName)
+	re, _ := utils.GetRadixEnvironmentFromFile(envConfigFileName)
 	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
 	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger)
 	// register instance with radix-client so UpdateStatus() can find it
@@ -66,7 +66,7 @@ func Test_Create_Namespace(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	rr, _, env := newEnv(client, kubeUtil, radixclient)
 
-	sync(t, env)
+	sync(t, &env)
 
 	namespaces, _ := client.CoreV1().Namespaces().List(meta.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
@@ -79,7 +79,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	rr, _, env := newEnv(client, kubeUtil, radixclient)
 
-	sync(t, env)
+	sync(t, &env)
 
 	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(meta.ListOptions{})
 
@@ -94,7 +94,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	t.Run("It contains machine-user", func(t *testing.T) {
 		rr.Spec.MachineUser = true
-		sync(t, env)
+		sync(t, &env)
 		rolebindings, _ = client.RbacV1().RoleBindings(namespaceName).List(meta.ListOptions{})
 		subjects := rolebindings.Items[0].Subjects
 		assert.Len(t, subjects, 2)
@@ -106,7 +106,7 @@ func Test_Create_LimitRange(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 	_, _, env := newEnv(client, kubeUtil, radixclient)
 
-	sync(t, env)
+	sync(t, &env)
 
 	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(meta.ListOptions{})
 
@@ -126,7 +126,7 @@ func Test_Orphaned_Status(t *testing.T) {
 	_, _, env := newEnv(client, kubeUtil, radixclient)
 
 	env.appConfig = nil
-	sync(t, env)
+	sync(t, &env)
 
 	t.Run("Orphaned is true when app config nil", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
@@ -136,7 +136,7 @@ func Test_Orphaned_Status(t *testing.T) {
 		WithAppName("testapp").
 		WithEnvironment("testenv", "master").
 		BuildRA()
-	sync(t, env)
+	sync(t, &env)
 
 	t.Run("Orphaned is false when app config contains environment name", func(t *testing.T) {
 		assert.False(t, env.config.Status.Orphaned)
@@ -145,7 +145,7 @@ func Test_Orphaned_Status(t *testing.T) {
 	env.appConfig = utils.NewRadixApplicationBuilder().
 		WithAppName("testapp").
 		BuildRA()
-	sync(t, env)
+	sync(t, &env)
 
 	t.Run("Orphaned is true when app config is cleared", func(t *testing.T) {
 		assert.True(t, env.config.Status.Orphaned)
@@ -153,7 +153,7 @@ func Test_Orphaned_Status(t *testing.T) {
 }
 
 // sync calls OnSync on the Environment resource and asserts success
-func sync(t *testing.T, env Environment) {
+func sync(t *testing.T, env *Environment) {
 	time := meta.NewTime(time.Now().UTC())
 	err := env.OnSync(time)
 
