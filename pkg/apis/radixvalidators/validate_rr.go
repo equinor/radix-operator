@@ -20,7 +20,7 @@ func InvalidAppNameLengthError(value string) error {
 
 // InvalidAppNameError Invalid app name
 func InvalidAppNameError(value string) error {
-	return InvalidResourceNameError("app name", value)
+	return InvalidLowerCaseAlphaNumericDotDashResourceNameError("app name", value)
 }
 
 // AppNameCannotBeEmptyError App name cannot be empty
@@ -51,6 +51,11 @@ func InvalidEmailError(resourceName, email string) error {
 // InvalidResourceNameError Invalid resource name
 func InvalidResourceNameError(resourceName, value string) error {
 	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
+}
+
+// InvalidLowerCaseAlphaNumericDotDashResourceNameError Invalid resource name
+func InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value string) error {
+	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
 }
 
 // NoRegistrationExistsForApplicationError No registration exists
@@ -183,7 +188,7 @@ func validateRequiredResourceName(resourceName, value string) error {
 		return nil
 	}
 
-	return InvalidResourceNameError(resourceName, value)
+	return InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value)
 }
 
 func validateAdGroups(groups []string) error {
