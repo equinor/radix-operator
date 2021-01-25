@@ -18,26 +18,6 @@ func InvalidAppNameLengthError(value string) error {
 	return InvalidStringValueMaxLengthError("app name", value, 253)
 }
 
-// InvalidEnvNameError Invalid env name
-func InvalidEnvNameError(value string) error {
-	return invalidLowerCaseAlphaNumericDotDashResourceNameError("env name", value)
-}
-
-// InvalidAppNameError Invalid app name
-func InvalidAppNameError(value string) error {
-	return invalidLowerCaseAlphaNumericDotDashResourceNameError("app name", value)
-}
-
-// InvalidComponentNameError Invalid app name
-func InvalidComponentNameError(value string) error {
-	return invalidLowerCaseAlphaNumericDotDashResourceNameError("component name", value)
-}
-
-// InvalidPortNameError Invalid app name
-func InvalidPortNameError(value string) error {
-	return invalidLowerCaseAlphaNumericDotDashResourceNameError("port name", value)
-}
-
 // AppNameCannotBeEmptyError App name cannot be empty
 func AppNameCannotBeEmptyError() error {
 	return ResourceNameCannotBeEmptyError("app name")
@@ -68,7 +48,8 @@ func InvalidResourceNameError(resourceName, value string) error {
 	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
 }
 
-func invalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value string) error {
+//InvalidLowerCaseAlphaNumericDotDashResourceNameError Invalid lower case alpha-numeric, dot, dash resource name error
+func InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value string) error {
 	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
 }
 
@@ -202,7 +183,7 @@ func validateRequiredResourceName(resourceName, value string) error {
 		return nil
 	}
 
-	return invalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value)
+	return InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value)
 }
 
 func validateAdGroups(groups []string) error {
