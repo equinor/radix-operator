@@ -95,7 +95,7 @@ func Test_invalid_ra(t *testing.T) {
 	}{
 		{"no error", nil, func(ra *v1.RadixApplication) {}},
 		{"too long app name", radixvalidators.InvalidAppNameLengthError(wayTooLongName), func(ra *v1.RadixApplication) { ra.Name = wayTooLongName }},
-		{"invalid app name", radixvalidators.InvalidAppNameError(invalidResourceName), func(ra *v1.RadixApplication) { ra.Name = invalidResourceName }},
+		{"invalid app name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("app name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Name = invalidResourceName }},
 		{"empty name", radixvalidators.AppNameCannotBeEmptyError(), func(ra *v1.RadixApplication) { ra.Name = "" }},
 		{"no related rr", radixvalidators.NoRegistrationExistsForApplicationError(noReleatedRRAppName), func(ra *v1.RadixApplication) { ra.Name = noReleatedRRAppName }},
 		{"non existing env for component", radixvalidators.EnvironmentReferencedByComponentDoesNotExistError(noExistingEnvironment, validRAFirstComponentName), func(ra *v1.RadixApplication) {
@@ -105,11 +105,11 @@ func Test_invalid_ra(t *testing.T) {
 				},
 			}
 		}},
-		{"invalid component name", radixvalidators.InvalidResourceNameError("component name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = invalidResourceName }},
-		{"uppercase component name", radixvalidators.InvalidResourceNameError("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = invalidUpperCaseResourceName }},
+		{"invalid component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = invalidResourceName }},
+		{"uppercase component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = invalidUpperCaseResourceName }},
 		{"invalid port specification. Nil value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = nil }},
 		{"invalid port specification. Empty value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = []v1.ComponentPort{} }},
-		{"invalid port name", radixvalidators.InvalidResourceNameError("port name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports[0].Name = invalidResourceName }},
+		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("port name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports[0].Name = invalidResourceName }},
 		{"too long port name", radixvalidators.InvalidPortNameLengthError(tooLongPortName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].PublicPort = tooLongPortName
 			ra.Spec.Components[0].Ports[0].Name = tooLongPortName
@@ -151,7 +151,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
 		}},
-		{"invalid env name", radixvalidators.InvalidResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = invalidResourceName }},
+		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = invalidResourceName }},
 		{"invalid branch name", radixvalidators.InvalidBranchNameError(invalidBranchName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Build.From = invalidBranchName }},
 		{"too long branch name", radixvalidators.InvalidStringValueMaxLengthError("branch from", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = wayTooLongName
