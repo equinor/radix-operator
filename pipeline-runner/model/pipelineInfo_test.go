@@ -148,13 +148,46 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 		utils.AnApplicationComponent().
 			WithName("private-hub-component").
 			WithImage("radixcanary.azurecr.io/nginx:latest").
-			BuildComponent()}
+			BuildComponent(),
+		utils.AnApplicationComponent().
+			WithName("compute-shared-1").
+			WithSourceFolder("./compute/").
+			WithDockerfileName("compute.Dockerfile").
+			BuildComponent(),
+	}
+
+	jobComponents := []v1.RadixJobComponent{
+		utils.AnApplicationJobComponent().
+			WithName("compute-shared-2").
+			WithDockerfileName("compute.Dockerfile").
+			WithSourceFolder("./compute/").
+			BuildJobComponent(),
+		utils.AnApplicationJobComponent().
+			WithName("single-job").
+			WithDockerfileName("job.Dockerfile").
+			WithSourceFolder("./job/").
+			BuildJobComponent(),
+		utils.AnApplicationJobComponent().
+			WithName("calc-1").
+			WithDockerfileName("calc.Dockerfile").
+			WithSourceFolder("./calc/").
+			BuildJobComponent(),
+		utils.AnApplicationJobComponent().
+			WithName("calc-2").
+			WithDockerfileName("calc.Dockerfile").
+			WithSourceFolder("./calc/").
+			BuildJobComponent(),
+		utils.AnApplicationJobComponent().
+			WithName("public-job-component").
+			WithImage("job/job:latest").
+			BuildJobComponent(),
+	}
 
 	anyAppName := "any-app"
 	anyContainerRegistry := "any-reg"
 	anyImageTag := "any-tag"
 
-	componentImages := getComponentImages(anyAppName, anyContainerRegistry, anyImageTag, applicationComponents)
+	componentImages := getComponentImages(anyAppName, anyContainerRegistry, anyImageTag, applicationComponents, jobComponents)
 
 	assert.Equal(t, "build-multi-component", componentImages["client-component-1"].ContainerName)
 	assert.True(t, componentImages["client-component-1"].Build)
@@ -208,6 +241,51 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	assert.Equal(t, "radixcanary.azurecr.io/nginx:latest", componentImages["private-hub-component"].ImageName)
 	assert.Equal(t, "radixcanary.azurecr.io/nginx:latest", componentImages["private-hub-component"].ImagePath)
 
+	assert.Equal(t, "build-multi-component-2", componentImages["compute-shared-1"].ContainerName)
+	assert.True(t, componentImages["compute-shared-1"].Build)
+	assert.True(t, componentImages["compute-shared-1"].Scan)
+	assert.Equal(t, "/workspace/compute/", componentImages["compute-shared-1"].Context)
+	assert.Equal(t, "compute.Dockerfile", componentImages["compute-shared-1"].Dockerfile)
+	assert.Equal(t, "multi-component-2", componentImages["compute-shared-1"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component-2", anyImageTag), componentImages["compute-shared-1"].ImagePath)
+
+	assert.Equal(t, "build-multi-component-2", componentImages["compute-shared-2"].ContainerName)
+	assert.True(t, componentImages["compute-shared-2"].Build)
+	assert.True(t, componentImages["compute-shared-2"].Scan)
+	assert.Equal(t, "/workspace/compute/", componentImages["compute-shared-2"].Context)
+	assert.Equal(t, "compute.Dockerfile", componentImages["compute-shared-2"].Dockerfile)
+	assert.Equal(t, "multi-component-2", componentImages["compute-shared-2"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component-2", anyImageTag), componentImages["compute-shared-2"].ImagePath)
+
+	assert.Equal(t, "build-single-job", componentImages["single-job"].ContainerName)
+	assert.True(t, componentImages["single-job"].Build)
+	assert.True(t, componentImages["single-job"].Scan)
+	assert.Equal(t, "/workspace/job/", componentImages["single-job"].Context)
+	assert.Equal(t, "job.Dockerfile", componentImages["single-job"].Dockerfile)
+	assert.Equal(t, "single-job", componentImages["single-job"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "single-job", anyImageTag), componentImages["single-job"].ImagePath)
+
+	assert.Equal(t, "build-multi-component-3", componentImages["calc-1"].ContainerName)
+	assert.True(t, componentImages["calc-1"].Build)
+	assert.True(t, componentImages["calc-1"].Scan)
+	assert.Equal(t, "/workspace/calc/", componentImages["calc-1"].Context)
+	assert.Equal(t, "calc.Dockerfile", componentImages["calc-1"].Dockerfile)
+	assert.Equal(t, "multi-component-3", componentImages["calc-1"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component-3", anyImageTag), componentImages["calc-1"].ImagePath)
+
+	assert.Equal(t, "build-multi-component-3", componentImages["calc-2"].ContainerName)
+	assert.True(t, componentImages["calc-2"].Build)
+	assert.True(t, componentImages["calc-2"].Scan)
+	assert.Equal(t, "/workspace/calc/", componentImages["calc-2"].Context)
+	assert.Equal(t, "calc.Dockerfile", componentImages["calc-2"].Dockerfile)
+	assert.Equal(t, "multi-component-3", componentImages["calc-2"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component-3", anyImageTag), componentImages["calc-2"].ImagePath)
+
+	assert.Equal(t, "", componentImages["public-job-component"].ContainerName)
+	assert.False(t, componentImages["public-job-component"].Build)
+	assert.False(t, componentImages["public-job-component"].Scan)
+	assert.Equal(t, "job/job:latest", componentImages["public-job-component"].ImageName)
+	assert.Equal(t, "job/job:latest", componentImages["public-job-component"].ImagePath)
 }
 
 func Test_dockerfile_from_build_folder(t *testing.T) {
