@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,10 +20,10 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 				WithName("job2"),
 		).BuildRA()
 
-	cfg := jobComponentsForEnvironmentConfig{
-		radixApplication: ra,
-		env:              "any",
-		componentImages:  make(map[string]pipeline.ComponentImage),
+	cfg := jobComponentsBuilder{
+		ra:              ra,
+		env:             "any",
+		componentImages: make(map[string]pipeline.ComponentImage),
 	}
 	jobs := cfg.JobComponents()
 
@@ -52,10 +53,10 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 				),
 		).BuildRA()
 
-	cfg := jobComponentsForEnvironmentConfig{
-		radixApplication: ra,
-		env:              "env1",
-		componentImages:  make(map[string]pipeline.ComponentImage),
+	cfg := jobComponentsBuilder{
+		ra:              ra,
+		env:             "env1",
+		componentImages: make(map[string]pipeline.ComponentImage),
 	}
 	jobComponent := cfg.JobComponents()[0]
 
@@ -79,11 +80,11 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 				),
 		).BuildRA()
 
-	cfg := jobComponentsForEnvironmentConfig{radixApplication: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
 	job := cfg.JobComponents()[0]
 	assert.True(t, job.Monitoring)
 
-	cfg = jobComponentsForEnvironmentConfig{radixApplication: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
 	job = cfg.JobComponents()[0]
 	assert.False(t, job.Monitoring)
 }
@@ -109,7 +110,7 @@ func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
 				WithName("job2"),
 		).BuildRA()
 
-	cfg := jobComponentsForEnvironmentConfig{radixApplication: ra, env: "env2", componentImages: componentImages}
+	cfg := jobComponentsBuilder{ra: ra, env: "env2", componentImages: componentImages}
 	jobs := cfg.JobComponents()
 	assert.Equal(t, "img:release", jobs[0].Image)
 	assert.Equal(t, "job2:tag", jobs[1].Image)
@@ -142,7 +143,7 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 				WithName("job2"),
 		).BuildRA()
 
-	cfg := jobComponentsForEnvironmentConfig{radixApplication: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
 	jobs := cfg.JobComponents()
 	assert.Equal(t, "1100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "1150m", jobs[0].Resources.Requests["cpu"])
@@ -150,7 +151,7 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 	assert.Equal(t, "1250m", jobs[0].Resources.Limits["cpu"])
 	assert.Empty(t, jobs[1].Resources)
 
-	cfg = jobComponentsForEnvironmentConfig{radixApplication: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
 	jobs = cfg.JobComponents()
 	assert.Equal(t, "100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "150m", jobs[0].Resources.Requests["cpu"])
@@ -169,13 +170,15 @@ func Test_GetRadixJobComponents_Ports(t *testing.T) {
 				WithName("job2"),
 		).BuildRA()
 
-	cfg := jobComponentsForEnvironmentConfig{radixApplication: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
 	jobs := cfg.JobComponents()
 	assert.Len(t, jobs[0].Ports, 2)
-	assert.Equal(t, "http", jobs[0].Ports[0].Name)
-	assert.Equal(t, int32(8080), jobs[0].Ports[0].Port)
-	assert.Equal(t, "metrics", jobs[0].Ports[1].Name)
-	assert.Equal(t, int32(9000), jobs[0].Ports[1].Port)
+	portMap := make(map[string]v1.ComponentPort)
+	for _, p := range jobs[0].Ports {
+		portMap[p.Name] = p
+	}
+	assert.Equal(t, int32(8080), portMap["http"].Port)
+	assert.Equal(t, int32(9000), portMap["metrics"].Port)
 	assert.Empty(t, jobs[1].Ports)
 }
 
@@ -189,7 +192,7 @@ func Test_GetRadixJobComponents_Secrets(t *testing.T) {
 				WithName("job2"),
 		).BuildRA()
 
-	cfg := jobComponentsForEnvironmentConfig{radixApplication: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
 	jobs := cfg.JobComponents()
 	assert.Len(t, jobs[0].Secrets, 2)
 	assert.ElementsMatch(t, []string{"SECRET1", "SECRET2"}, jobs[0].Secrets)

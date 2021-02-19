@@ -8,16 +8,30 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-type jobComponentsForEnvironmentConfig struct {
-	radixApplication *v1.RadixApplication
-	env              string
-	componentImages  map[string]pipeline.ComponentImage
+// JobComponentsBuilder builds RD job components for a given environment
+type JobComponentsBuilder interface {
+	JobComponents() []v1.RadixDeployJobComponent
 }
 
-func (c *jobComponentsForEnvironmentConfig) JobComponents() []v1.RadixDeployJobComponent {
+type jobComponentsBuilder struct {
+	ra              *v1.RadixApplication
+	env             string
+	componentImages map[string]pipeline.ComponentImage
+}
+
+// NewJobComponentsBuilder constructor for JobComponentsBuilder
+func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) JobComponentsBuilder {
+	return &jobComponentsBuilder{
+		ra:              ra,
+		env:             env,
+		componentImages: componentImages,
+	}
+}
+
+func (c *jobComponentsBuilder) JobComponents() []v1.RadixDeployJobComponent {
 	jobs := []v1.RadixDeployJobComponent{}
 
-	for _, appJob := range c.radixApplication.Spec.Jobs {
+	for _, appJob := range c.ra.Spec.Jobs {
 		deployJob := c.buildJobComponent(appJob)
 		jobs = append(jobs, deployJob)
 	}
@@ -25,7 +39,7 @@ func (c *jobComponentsForEnvironmentConfig) JobComponents() []v1.RadixDeployJobC
 	return jobs
 }
 
-func (c *jobComponentsForEnvironmentConfig) getEnvironmentConfig(appJob v1.RadixJobComponent) *v1.RadixJobComponentEnvironmentConfig {
+func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent) *v1.RadixJobComponentEnvironmentConfig {
 	if appJob.EnvironmentConfig == nil {
 		return nil
 	}
@@ -38,7 +52,7 @@ func (c *jobComponentsForEnvironmentConfig) getEnvironmentConfig(appJob v1.Radix
 	return nil
 }
 
-func (c *jobComponentsForEnvironmentConfig) buildJobComponent(appJob v1.RadixJobComponent) v1.RadixDeployJobComponent {
+func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1.RadixDeployJobComponent {
 	componentName := appJob.Name
 	componentImage := c.componentImages[componentName]
 	var variables v1.EnvVarsMap

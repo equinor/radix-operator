@@ -100,11 +100,11 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	}
 
 	rd, err := cli.GetRadixclient().RadixV1().RadixDeployments(fromNs).Get(pipelineInfo.PipelineArguments.DeploymentName, metav1.GetOptions{})
-	radixDeployment = rd.DeepCopy()
 	if err != nil {
 		return NonExistingDeployment(pipelineInfo.PipelineArguments.DeploymentName)
 	}
 
+	radixDeployment = rd.DeepCopy()
 	radixDeployment.Name = utils.GetDeploymentName(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment, pipelineInfo.PipelineArguments.ImageTag)
 
 	if _, isRestored := radixDeployment.Annotations[kube.RestoredStatusAnnotation]; isRestored {
@@ -161,6 +161,41 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 }
 
 func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
+	if err := mergeComponentsWithRadixApplication(radixConfig, radixDeployment, environment); err != nil {
+		return err
+	}
+
+	if err := mergeJobComponentsWithRadixApplication(radixConfig, radixDeployment, environment); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
+	newEnvJobs := deployment.
+		NewJobComponentsBuilder(radixConfig, environment, make(map[string]pipeline.ComponentImage)).
+		JobComponents()
+
+	newEnvJobsMap := make(map[string]v1.RadixDeployJobComponent)
+	for _, job := range newEnvJobs {
+		newEnvJobsMap[job.Name] = job
+	}
+
+	for idx, job := range radixDeployment.Spec.Jobs {
+		newEnvJob, found := newEnvJobsMap[job.Name]
+		if !found {
+			return NonExistingComponentName(radixConfig.GetName(), job.Name)
+		}
+
+		newEnvJob.Image = job.Image
+		radixDeployment.Spec.Jobs[idx] = newEnvJob
+	}
+
+	return nil
+}
+
+func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
 	for index, comp := range radixDeployment.Spec.Components {
 		raComp := getComponentConfig(radixConfig, comp.Name)
 		if raComp == nil {
