@@ -188,8 +188,8 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 			return NonExistingComponentName(radixConfig.GetName(), job.Name)
 		}
 
+		newEnvJob.Secrets = job.Secrets
 		newEnvJob.Image = job.Image
-		// TODO: Should secrets be copied from source deployment?
 		radixDeployment.Spec.Jobs[idx] = newEnvJob
 	}
 

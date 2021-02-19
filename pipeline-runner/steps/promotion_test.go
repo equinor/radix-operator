@@ -117,7 +117,17 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
 
 	commonTestUtils.ApplyDeployment(
-		utils.ARadixDeployment().
+		utils.NewDeploymentBuilder().
+			WithComponent(
+				utils.NewDeployComponentBuilder().
+					WithName("app").
+					WithSecrets([]string{"DEPLOYAPPSECRET"}),
+			).
+			WithJobComponent(
+				utils.NewDeployJobComponentBuilder().
+					WithName("job").
+					WithSecrets([]string{"DEPLOYJOBSECRET"}),
+			).
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
 					WithRadixRegistration(
@@ -131,6 +141,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 					WithComponents(
 						utils.AnApplicationComponent().
 							WithName("app").
+							WithSecrets("APPSECRET1", "APPSECRET2").
 							WithCommonEnvironmentVariable("DB_TYPE", "mysql").
 							WithCommonEnvironmentVariable("DB_NAME", "my-db").
 							WithEnvironmentConfigs(
@@ -150,6 +161,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							WithName("job").
 							WithSchedulerPort(numbers.Int32Ptr(8888)).
 							WithPayloadPath("/path").
+							WithSecrets("JOBSECRET1", "JOBSECRET2").
 							WithCommonEnvironmentVariable("COMMON1", "common1").
 							WithCommonEnvironmentVariable("COMMON2", "common2").
 							WithEnvironmentConfigs(
@@ -207,6 +219,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "my-db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_NAME"])
 	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
+	assert.Len(t, rds.Items[0].Spec.Components[0].Secrets, 1)
+	assert.Equal(t, "DEPLOYAPPSECRET", rds.Items[0].Spec.Components[0].Secrets[0])
 
 	assert.Equal(t, 1, len(rds.Items[0].Spec.Jobs))
 	assert.Equal(t, 3, len(rds.Items[0].Spec.Jobs[0].EnvironmentVariables))
@@ -215,6 +229,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "prod3", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["PROD3"])
 	assert.Equal(t, numbers.Int32Ptr(8888), rds.Items[0].Spec.Jobs[0].SchedulerPort)
 	assert.Equal(t, "/path", rds.Items[0].Spec.Jobs[0].Payload.Path)
+	assert.Len(t, rds.Items[0].Spec.Jobs[0].Secrets, 1)
+	assert.Equal(t, "DEPLOYJOBSECRET", rds.Items[0].Spec.Jobs[0].Secrets[0])
 }
 
 func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
