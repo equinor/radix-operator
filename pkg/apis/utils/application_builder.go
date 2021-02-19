@@ -197,7 +197,8 @@ func ARadixApplication() ApplicationBuilder {
 		WithRadixRegistration(ARadixRegistration()).
 		WithAppName("anyapp").
 		WithEnvironment("test", "master").
-		WithComponent(AnApplicationComponent())
+		WithComponent(AnApplicationComponent()).
+		WithJobComponent(AnApplicationJobComponent())
 
 	return builder
 }

@@ -9,12 +9,12 @@ import (
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/test"
-	builders "github.com/equinor/radix-operator/pkg/apis/utils"
 )
 
 func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
@@ -32,21 +32,21 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	// Setup
 	kubeclient, kube, radixclient, commonTestUtils := setupTest()
 
-	commonTestUtils.ApplyDeployment(builders.
+	commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment1).
 		WithAppName(anyApp1).
 		WithEnvironment(anyProdEnvironment).
 		WithImageTag(anyImageTag))
 
-	commonTestUtils.ApplyDeployment(builders.
+	commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment2).
 		WithAppName(anyApp1).
 		WithEnvironment(anyDevEnvironment).
 		WithImageTag(anyImageTag))
 
-	commonTestUtils.ApplyDeployment(builders.
+	commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
 		WithDeploymentName(anyDeployment3).
 		WithAppName(anyApp2).
@@ -117,7 +117,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
 
 	commonTestUtils.ApplyDeployment(
-		builders.ARadixDeployment().
+		utils.ARadixDeployment().
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
 					WithRadixRegistration(
@@ -144,7 +144,25 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 									WithReplicas(test.IntPtr(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
 									WithEnvironmentVariable("DB_PORT", "5678").
-									WithEnvironmentVariable("DB_NAME", "my-db-prod")))).
+									WithEnvironmentVariable("DB_NAME", "my-db-prod"))).
+					WithJobComponents(
+						utils.AnApplicationJobComponent().
+							WithName("job").
+							WithSchedulerPort(numbers.Int32Ptr(8888)).
+							WithPayloadPath("/path").
+							WithCommonEnvironmentVariable("COMMON1", "common1").
+							WithCommonEnvironmentVariable("COMMON2", "common2").
+							WithEnvironmentConfigs(
+								utils.AJobComponentEnvironmentConfig().
+									WithEnvironment(anyDevEnvironment).
+									WithEnvironmentVariable("COMMON1", "dev1").
+									WithEnvironmentVariable("COMMON2", "dev2"),
+								utils.AJobComponentEnvironmentConfig().
+									WithEnvironment(anyProdEnvironment).
+									WithEnvironmentVariable("COMMON1", "prod1").
+									WithEnvironmentVariable("PROD3", "prod3"),
+							),
+					)).
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
 			WithEnvironment(anyDevEnvironment).
@@ -189,6 +207,14 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "my-db-prod", rds.Items[0].Spec.Components[0].EnvironmentVariables["DB_NAME"])
 	assert.Equal(t, anyDNSAlias, rds.Items[0].Spec.Components[0].DNSExternalAlias[0])
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
+
+	assert.Equal(t, 1, len(rds.Items[0].Spec.Jobs))
+	assert.Equal(t, 3, len(rds.Items[0].Spec.Jobs[0].EnvironmentVariables))
+	assert.Equal(t, "prod1", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON1"])
+	assert.Equal(t, "common2", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["COMMON2"])
+	assert.Equal(t, "prod3", rds.Items[0].Spec.Jobs[0].EnvironmentVariables["PROD3"])
+	assert.Equal(t, numbers.Int32Ptr(8888), rds.Items[0].Spec.Jobs[0].SchedulerPort)
+	assert.Equal(t, "/path", rds.Items[0].Spec.Jobs[0].Payload.Path)
 }
 
 func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
@@ -204,7 +230,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
 
 	commonTestUtils.ApplyDeployment(
-		builders.ARadixDeployment().
+		utils.ARadixDeployment().
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
 					WithRadixRegistration(
@@ -222,7 +248,18 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 							}, map[string]string{
 								"memory": "128Mi",
 								"cpu":    "500m",
-							}))).
+							})).
+					WithJobComponents(
+						utils.AnApplicationJobComponent().
+							WithName("job").
+							WithCommonResource(map[string]string{
+								"memory": "11Mi",
+								"cpu":    "22m",
+							}, map[string]string{
+								"memory": "33Mi",
+								"cpu":    "44m",
+							}),
+					)).
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
 			WithEnvironment(anyDevEnvironment).
@@ -264,6 +301,10 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	assert.Equal(t, "64Mi", rds.Items[0].Spec.Components[0].Resources.Requests["memory"])
 	assert.Equal(t, "500m", rds.Items[0].Spec.Components[0].Resources.Limits["cpu"])
 	assert.Equal(t, "128Mi", rds.Items[0].Spec.Components[0].Resources.Limits["memory"])
+	assert.Equal(t, "22m", rds.Items[0].Spec.Jobs[0].Resources.Requests["cpu"])
+	assert.Equal(t, "11Mi", rds.Items[0].Spec.Jobs[0].Resources.Requests["memory"])
+	assert.Equal(t, "44m", rds.Items[0].Spec.Jobs[0].Resources.Limits["cpu"])
+	assert.Equal(t, "33Mi", rds.Items[0].Spec.Jobs[0].Resources.Limits["memory"])
 }
 
 func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) {
@@ -279,7 +320,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
 
 	commonTestUtils.ApplyDeployment(
-		builders.ARadixDeployment().
+		utils.ARadixDeployment().
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
 					WithRadixRegistration(
@@ -300,13 +341,38 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 							}).
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
-									WithEnvironment(anyProdEnvironment).WithResource(map[string]string{
-									"memory": "128Mi",
-									"cpu":    "500m",
+									WithEnvironment(anyProdEnvironment).
+									WithResource(
+										map[string]string{
+											"memory": "128Mi",
+											"cpu":    "500m",
+										}, map[string]string{
+											"memory": "256Mi",
+											"cpu":    "750m",
+										}))).
+					WithJobComponents(
+						utils.AnApplicationJobComponent().
+							WithName("job").
+							WithCommonResource(
+								map[string]string{
+									"memory": "11Mi",
+									"cpu":    "22m",
 								}, map[string]string{
-									"memory": "256Mi",
-									"cpu":    "750m",
-								})))).
+									"memory": "33Mi",
+									"cpu":    "44m",
+								}).
+							WithEnvironmentConfigs(
+								utils.AJobComponentEnvironmentConfig().
+									WithEnvironment(anyProdEnvironment).
+									WithResource(
+										map[string]string{
+											"memory": "111Mi",
+											"cpu":    "222m",
+										}, map[string]string{
+											"memory": "333Mi",
+											"cpu":    "444m",
+										})),
+					)).
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
 			WithEnvironment(anyDevEnvironment).
@@ -348,6 +414,10 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	assert.Equal(t, "128Mi", rds.Items[0].Spec.Components[0].Resources.Requests["memory"])
 	assert.Equal(t, "750m", rds.Items[0].Spec.Components[0].Resources.Limits["cpu"])
 	assert.Equal(t, "256Mi", rds.Items[0].Spec.Components[0].Resources.Limits["memory"])
+	assert.Equal(t, "222m", rds.Items[0].Spec.Jobs[0].Resources.Requests["cpu"])
+	assert.Equal(t, "111Mi", rds.Items[0].Spec.Jobs[0].Resources.Requests["memory"])
+	assert.Equal(t, "444m", rds.Items[0].Spec.Jobs[0].Resources.Limits["cpu"])
+	assert.Equal(t, "333Mi", rds.Items[0].Spec.Jobs[0].Resources.Limits["memory"])
 }
 
 func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
@@ -362,7 +432,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
 
 	commonTestUtils.ApplyDeployment(
-		builders.ARadixDeployment().
+		utils.ARadixDeployment().
 			WithAppName(anyApp).
 			WithDeploymentName(anyDeploymentName).
 			WithEnvironment(anyDevEnvironment).

@@ -133,7 +133,7 @@ func NewApplicationJobComponentBuilder() RadixApplicationJobComponentBuilder {
 // AnApplicationJobComponent Constructor for job component builder containing test data
 func AnApplicationJobComponent() RadixApplicationJobComponentBuilder {
 	return &radixApplicationJobComponentBuilder{
-		name:      "app",
+		name:      "job",
 		ports:     make(map[string]int32),
 		variables: make(map[string]string),
 	}
