@@ -158,10 +158,8 @@ func (db *DeploymentBuilderStruct) WithComponents(components ...DeployComponentB
 		applicationComponents := make([]RadixApplicationComponentBuilder, 0)
 
 		for _, comp := range components {
-			component := comp.BuildComponent()
-			builder := NewApplicationComponentBuilder().
-				WithName(component.Name)
-			applicationComponents = append(applicationComponents, builder)
+			applicationComponents = append(applicationComponents, NewApplicationComponentBuilder().
+				WithName(comp.BuildComponent().Name))
 		}
 
 		db.applicationBuilder = db.applicationBuilder.WithComponents(applicationComponents...)
@@ -272,7 +270,6 @@ type DeployComponentBuilder interface {
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
 	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
-	WithNodeGpu(string) DeployComponentBuilder
 
 	BuildComponent() v1.RadixDeployComponent
 }
@@ -295,7 +292,6 @@ type deployComponentBuilder struct {
 	resources               v1.ResourceRequirements
 	horizontalScaling       *v1.RadixHorizontalScaling
 	volumeMounts            []v1.RadixVolumeMount
-	node                    v1.RadixNode
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployComponentBuilder {
@@ -339,11 +335,6 @@ func (dcb *deployComponentBuilder) WithDNSExternalAlias(alias string) DeployComp
 	}
 
 	dcb.externalAppAlias = append(dcb.externalAppAlias, alias)
-	return dcb
-}
-
-func (dcb *deployComponentBuilder) WithNodeGpu(gpu string) DeployComponentBuilder {
-	dcb.node.Gpu = gpu
 	return dcb
 }
 
@@ -428,7 +419,6 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Resources:               dcb.resources,
 		HorizontalScaling:       dcb.horizontalScaling,
 		VolumeMounts:            dcb.volumeMounts,
-		Node:                    dcb.node,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 	}
 }

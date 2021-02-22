@@ -23,6 +23,7 @@ type RadixApplication struct {
 type RadixApplicationSpec struct {
 	Build            *BuildSpec             `json:"build" yaml:"build"`
 	Environments     []Environment          `json:"environments" yaml:"environments"`
+	Jobs             []RadixJobComponent    `json:"jobs" yaml:"jobs"`
 	Components       []RadixComponent       `json:"components" yaml:"components"`
 	DNSAppAlias      AppAlias               `json:"dnsAppAlias" yaml:"dnsAppAlias"`
 	DNSExternalAlias []ExternalAlias        `json:"dnsExternalAlias" yaml:"dnsExternalAlias"`
@@ -126,6 +127,39 @@ type RadixEnvironmentConfig struct {
 	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
+}
+
+// RadixJobComponent defines a single job component within a RadixApplication
+// The job component is used by the radix-job-scheduler to create Kubernetes Job objects
+type RadixJobComponent struct {
+	Name              string                               `json:"name" yaml:"name"`
+	SourceFolder      string                               `json:"src" yaml:"src"`
+	Image             string                               `json:"image" yaml:"image"`
+	DockerfileName    string                               `json:"dockerfileName" yaml:"dockerfileName"`
+	SchedulerPort     *int32                               `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
+	Payload           RadixJobComponentPayload             `json:"payload" yaml:"payload"`
+	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
+	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
+	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
+	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
+}
+
+// RadixJobComponentEnvironmentConfig defines environment specific settings
+// for a single job component within a RadixApplication
+type RadixJobComponentEnvironmentConfig struct {
+	Environment  string               `json:"environment" yaml:"environment"`
+	Monitoring   bool                 `json:"monitoring" yaml:"monitoring"`
+	Resources    ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Variables    EnvVarsMap           `json:"variables" yaml:"variables"`
+	ImageTagName string               `json:"imageTagName" yaml:"imageTagName"`
+	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+}
+
+// RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler
+// will be mounted to the job container
+type RadixJobComponentPayload struct {
+	Path string `json:"path" yaml:"path"`
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec

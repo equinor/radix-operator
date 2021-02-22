@@ -1103,7 +1103,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 	for _, testcase := range testScenarios {
 		t.Run(testcase.environment, func(t *testing.T) {
 
-			rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, testcase.environment)
+			rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, testcase.environment)
 
 			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
 			assert.Equal(t, testcase.expectedDbHost, rd.Spec.Components[0].EnvironmentVariables["DB_HOST"])
@@ -1160,7 +1160,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	componentImages := make(map[string]pipeline.ComponentImage)
 	componentImages["app"] = pipeline.ComponentImage{ImageName: "anyImage", ImagePath: "anyImagePath"}
 
-	rd, _ := ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "dev")
+	rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "dev")
 
 	t.Log(rd.Spec.Components[0].Name)
 	assert.True(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
@@ -1169,7 +1169,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	t.Log(rd.Spec.Components[2].Name)
 	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
 
-	rd, _ = ConstructForTargetEnvironment(ra, "anyreg", "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "prod")
+	rd, _ = ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "prod")
 
 	t.Log(rd.Spec.Components[0].Name)
 	assert.False(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
