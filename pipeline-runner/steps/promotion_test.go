@@ -20,14 +20,20 @@ import (
 func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	anyApp1 := "any-app-1"
 	anyApp2 := "any-app-2"
+	anyApp4 := "any-app-4"
+	anyApp5 := "any-app-5"
 	anyDeployment1 := "1"
 	anyDeployment2 := "2"
 	anyDeployment3 := "3"
+	anyDeployment4 := "4"
+	anyDeployment5 := "5"
 	anyProdEnvironment := "prod"
 	anyDevEnvironment := "dev"
 	anyQAEnvironment := "qa"
 	anyImageTag := "abcdef"
 	anyJobName := "radix-pipeline-abcdef"
+	nonExistingComponent := "non-existing-comp"
+	nonExistingJobComponent := "non-existing-job"
 
 	// Setup
 	kubeclient, kube, radixclient, commonTestUtils := setupTest()
@@ -53,6 +59,26 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 		WithEnvironment(anyDevEnvironment).
 		WithImageTag(anyImageTag))
 
+	commonTestUtils.ApplyDeployment(utils.
+		ARadixDeployment().
+		WithDeploymentName(anyDeployment4).
+		WithAppName(anyApp4).
+		WithEnvironment(anyDevEnvironment).
+		WithImageTag(anyImageTag).
+		WithComponent(utils.
+			NewDeployComponentBuilder().
+			WithName(nonExistingComponent)))
+
+	commonTestUtils.ApplyDeployment(utils.
+		ARadixDeployment().
+		WithDeploymentName(anyDeployment5).
+		WithAppName(anyApp5).
+		WithEnvironment(anyDevEnvironment).
+		WithImageTag(anyImageTag).
+		WithJobComponent(utils.
+			NewDeployJobComponentBuilder().
+			WithName(nonExistingJobComponent)))
+
 	test.CreateEnvNamespace(kubeclient, anyApp2, anyProdEnvironment)
 
 	var testScenarios = []struct {
@@ -73,6 +99,8 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 		{"promote from non-existing environment", anyApp1, anyQAEnvironment, anyImageTag, anyJobName, anyProdEnvironment, anyDeployment2, NonExistingFromEnvironment(anyQAEnvironment)},
 		{"promote to non-existing environment", anyApp1, anyDevEnvironment, anyImageTag, anyJobName, anyQAEnvironment, anyDeployment2, NonExistingToEnvironment(anyQAEnvironment)},
 		{"promote non-existing deployment", anyApp2, anyDevEnvironment, "nopqrst", anyJobName, anyProdEnvironment, "non-existing", NonExistingDeployment("non-existing")},
+		{"promote deployment with non-existing component", anyApp4, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment4, NonExistingComponentName(anyApp4, nonExistingComponent)},
+		{"promote deployment with non-existing job component", anyApp5, anyDevEnvironment, anyImageTag, anyJobName, anyDevEnvironment, anyDeployment5, NonExistingComponentName(anyApp5, nonExistingJobComponent)},
 	}
 
 	for _, scenario := range testScenarios {
