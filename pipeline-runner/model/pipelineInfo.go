@@ -217,10 +217,6 @@ func getRadixComponentImageSources(components []v1.RadixComponent) []pipeline.Co
 	return imageSources
 }
 
-func testit(val interface{}) {
-
-}
-
 func getRadixJobComponentImageSources(components []v1.RadixJobComponent) []pipeline.ComponentImageSource {
 	imageSources := make([]pipeline.ComponentImageSource, 0)
 
