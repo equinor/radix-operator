@@ -492,3 +492,42 @@ func (deploy *Deployment) maintainHistoryLimit() {
 		}
 	}
 }
+
+func (deploy *Deployment) getPodSpecAffinity(deployComponent *v1.RadixDeployComponent) *corev1.Affinity {
+	affinity := &corev1.Affinity{
+		NodeAffinity: &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
+		},
+	}
+
+	deploy.addGpuNodeSelectorTerms(deployComponent, affinity.NodeAffinity)
+
+	if len(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
+		return affinity
+	}
+	return nil
+}
+
+func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent *v1.RadixDeployComponent, nodeAffinity *corev1.NodeAffinity) {
+	nodeGpus := strings.Split(strings.ReplaceAll(deployComponent.Node.Gpu, " ", ""), ",")
+	if len(nodeGpus) == 0 {
+		return
+	}
+	includingGpus := make([]string, 0)
+	excludingGpus := make([]string, 0)
+	for _, gpu := range nodeGpus {
+		if strings.HasPrefix(gpu, "-") {
+			excludingGpus = append(excludingGpus, gpu[1:])
+			continue
+		}
+		includingGpus = append(includingGpus, gpu)
+	}
+	nodeSelectorTerm := corev1.NodeSelectorTerm{}
+	if len(includingGpus) > 0 {
+		nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, corev1.NodeSelectorRequirement{Key: "gpu", Operator: corev1.NodeSelectorOpIn, Values: includingGpus})
+	}
+	if len(excludingGpus) > 0 {
+		nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, corev1.NodeSelectorRequirement{Key: "gpu", Operator: corev1.NodeSelectorOpNotIn, Values: excludingGpus})
+	}
+	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
+}

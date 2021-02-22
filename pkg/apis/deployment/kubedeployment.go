@@ -144,6 +144,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 
 	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
 	deployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
+	deployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
 
 	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName, componentName)
 }

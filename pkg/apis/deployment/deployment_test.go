@@ -1835,10 +1835,12 @@ func TestUseGpuNode(t *testing.T) {
 	componentName1 := "componentName1"
 	componentName2 := "componentName2"
 	componentName3 := "componentName3"
+	componentName4 := "componentName4"
 
 	// Test
 	nodeGpu1 := "nvidia-v100"
-	nodeGpu2 := "nvidia-p100, nvidia-p100"
+	nodeGpu2 := "nvidia-v100, nvidia-p100"
+	nodeGpu3 := "nvidia-v100, nvidia-p100, -nvidia-k80"
 	rd, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
@@ -1856,6 +1858,11 @@ func TestUseGpuNode(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentName3).
 				WithPort("http", 8082).
+				WithPublicPort("http").
+				WithNodeGpu(nodeGpu3),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4).
+				WithPort("http", 8084).
 				WithPublicPort("http")))
 
 	assert.NoError(t, err)
@@ -1872,9 +1879,15 @@ func TestUseGpuNode(t *testing.T) {
 		assert.NotNil(t, component.Node)
 		assert.Equal(t, nodeGpu2, component.Node.Gpu)
 	})
-	t.Run("has node with no gpu", func(t *testing.T) {
+	t.Run("has node with gpu3", func(t *testing.T) {
 		t.Parallel()
 		component := rd.GetComponentByName(componentName3)
+		assert.NotNil(t, component.Node)
+		assert.Equal(t, nodeGpu3, component.Node.Gpu)
+	})
+	t.Run("has node with no gpu", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName4)
 		assert.NotNil(t, component.Node)
 		assert.Empty(t, component.Node.Gpu)
 	})
