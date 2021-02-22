@@ -5,6 +5,7 @@ import (
 	core_v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 // +genclient
@@ -16,6 +17,15 @@ type RadixDeployment struct {
 	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 	Spec               RadixDeploymentSpec `json:"spec" yaml:"spec"`
 	Status             RadixDeployStatus   `json:"status" yaml:"status"`
+}
+
+func (rd *RadixDeployment) GetComponentByName(name string) *RadixDeployComponent {
+	for _, component := range rd.Spec.Components {
+		if strings.EqualFold(component.Name, name) {
+			return &component
+		}
+	}
+	return nil
 }
 
 //RadixDeployStatus is the status for a rd
@@ -73,6 +83,7 @@ type RadixDeployComponent struct {
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // GetNrOfReplicas gets number of replicas component will run
@@ -129,7 +140,7 @@ func (deployComponent RadixDeployComponent) GetResourceRequirements() *core_v1.R
 	}
 
 	if len(limits) <= 0 && len(requests) <= 0 {
-		return nil
+		return &core_v1.ResourceRequirements{}
 	}
 
 	req := core_v1.ResourceRequirements{

@@ -125,6 +125,7 @@ type RadixEnvironmentConfig struct {
 	ImageTagName            string                  `json:"imageTagName" yaml:"imageTagName"`
 	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec
@@ -160,3 +161,14 @@ const (
 	// MountTypeBlob Use of azure/blobfuse flexvolume
 	MountTypeBlob MountType = "blob"
 )
+
+// RadixNode defines node attributes, where container should be scheduled
+type RadixNode struct {
+	//// Sku Holds lists of node GPU types, if present
+	//Sku RadixNodeSku
+	// Gpu Optional. Holds lists of node GPU types, with dashed types to exclude
+	Gpu string
+}
+
+//// RadixNodeSku Holds node SKU
+//type RadixNodeSku string

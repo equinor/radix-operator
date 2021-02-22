@@ -252,7 +252,6 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent *v1.RadixD
 	if resourceRequirements != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
 	}
-
 	return desiredDeployment, nil
 }
 

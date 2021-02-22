@@ -1827,6 +1827,59 @@ func TestHPAConfig(t *testing.T) {
 	})
 }
 
+func TestUseGpuNode(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName1 := "componentName1"
+	componentName2 := "componentName2"
+	componentName3 := "componentName3"
+
+	// Test
+	nodeGpu1 := "nvidia-v100"
+	nodeGpu2 := "nvidia-p100, nvidia-p100"
+	rd, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpu(nodeGpu1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2).
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithNodeGpu(nodeGpu2),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3).
+				WithPort("http", 8082).
+				WithPublicPort("http")))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with gpu1", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName1)
+		assert.NotNil(t, component.Node)
+		assert.Equal(t, nodeGpu1, component.Node.Gpu)
+	})
+	t.Run("has node with gpu2", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName2)
+		assert.NotNil(t, component.Node)
+		assert.Equal(t, nodeGpu2, component.Node.Gpu)
+	})
+	t.Run("has node with no gpu", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName3)
+		assert.NotNil(t, component.Node)
+		assert.Empty(t, component.Node.Gpu)
+	})
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q

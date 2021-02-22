@@ -207,7 +207,7 @@ type radixApplicationComponentBuilder struct {
 	dockerfileName          string
 	image                   string
 	alwaysPullImageOnDeploy *bool
-	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
+	// Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
 	public               bool
 	publicPort           string
 	ports                map[string]int32
@@ -216,6 +216,7 @@ type radixApplicationComponentBuilder struct {
 	environmentConfig    []RadixEnvironmentConfigBuilder
 	variables            v1.EnvVarsMap
 	resources            v1.ResourceRequirements
+	node                 v1.RadixNode
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -358,6 +359,7 @@ type radixEnvironmentConfigBuilder struct {
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
 	volumeMounts            []v1.RadixVolumeMount
+	node                    v1.RadixNode
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -405,6 +407,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		Replicas:                ceb.replicas,
 		Resources:               ceb.resources,
 		VolumeMounts:            ceb.volumeMounts,
+		Node:                    ceb.node,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
 	}
 }

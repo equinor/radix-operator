@@ -27,6 +27,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 
 		var horizontalScaling *v1.RadixHorizontalScaling
 		var volumeMounts []v1.RadixVolumeMount
+		var node v1.RadixNode
 		var imageTagName string
 
 		var alwaysPullImageOnDeploy bool
@@ -40,6 +41,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			resources = environmentSpecificConfig.Resources
 			horizontalScaling = environmentSpecificConfig.HorizontalScaling
 			volumeMounts = environmentSpecificConfig.VolumeMounts
+			node = environmentSpecificConfig.Node
 			imageTagName = environmentSpecificConfig.ImageTagName
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
 		} else {
@@ -83,6 +85,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			Resources:               resources,
 			HorizontalScaling:       horizontalScaling,
 			VolumeMounts:            volumeMounts,
+			Node:                    node,
 			AlwaysPullImageOnDeploy: alwaysPullImageOnDeploy,
 		}
 
