@@ -23,6 +23,7 @@ type radixEnvironmentConfigBuilder struct {
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
 	volumeMounts            []v1.RadixVolumeMount
+	node                    v1.RadixNode
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -70,6 +71,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		Replicas:                ceb.replicas,
 		Resources:               ceb.resources,
 		VolumeMounts:            ceb.volumeMounts,
+		Node:                    ceb.node,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
 	}
 }

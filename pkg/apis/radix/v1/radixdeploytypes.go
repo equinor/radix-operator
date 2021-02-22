@@ -114,6 +114,7 @@ type RadixDeployJobComponent struct {
 	Monitoring           bool                     `json:"monitoring" yaml:"monitoring"`
 	Resources            ResourceRequirements     `json:"resources,omitempty" yaml:"resources,omitempty"`
 	VolumeMounts         []RadixVolumeMount       `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node                 RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
 	SchedulerPort        *int32                   `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
 	Payload              RadixJobComponentPayload `json:"payload" yaml:"payload"`
 }

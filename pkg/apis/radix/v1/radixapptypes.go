@@ -104,7 +104,7 @@ type RadixComponent struct {
 	Image          string          `json:"image" yaml:"image"`
 	DockerfileName string          `json:"dockerfileName" yaml:"dockerfileName"`
 	Ports          []ComponentPort `json:"ports" yaml:"ports"`
-	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
+	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public                  bool                     `json:"public" yaml:"public"`
 	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
@@ -154,6 +154,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	Variables    EnvVarsMap           `json:"variables" yaml:"variables"`
 	ImageTagName string               `json:"imageTagName" yaml:"imageTagName"`
 	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node         RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler

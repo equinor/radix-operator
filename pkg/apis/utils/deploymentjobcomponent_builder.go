@@ -15,6 +15,7 @@ type DeployJobComponentBuilder interface {
 	WithResourceRequestsOnly(map[string]string) DeployJobComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) DeployJobComponentBuilder
+	WithNodeGpu(gpu string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(string) DeployJobComponentBuilder
@@ -30,12 +31,18 @@ type deployJobComponentBuilder struct {
 	secrets              []string
 	resources            v1.ResourceRequirements
 	volumeMounts         []v1.RadixVolumeMount
+	node                 v1.RadixNode
 	schedulerPort        *int32
 	payloadPath          string
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
 	dcb.volumeMounts = volumeMounts
+	return dcb
+}
+
+func (dcb *deployJobComponentBuilder) WithNodeGpu(gpu string) DeployJobComponentBuilder {
+	dcb.node.Gpu = gpu
 	return dcb
 }
 
