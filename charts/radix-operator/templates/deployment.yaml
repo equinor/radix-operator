@@ -20,6 +20,8 @@ spec:
         release: {{ .Release.Name }}
     spec:
       serviceAccount: "radix-operator"
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -96,6 +98,10 @@ spec:
             httpGet:
               path: /healthz
               port: metrics
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
           resources:
 {{ toYaml .Values.resources | indent 12 }}
       {{- with .Values.nodeSelector }}
