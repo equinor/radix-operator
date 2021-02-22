@@ -3,12 +3,13 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/client-go/util/retry"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/client-go/util/retry"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -66,9 +67,10 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
-	radixComponents := getRadixComponentsForEnv(config, containerRegistry, env, componentImages)
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, radixComponents)
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
+	components := getRadixComponentsForEnv(config, env, componentImages)
+	jobs := NewJobComponentsBuilder(config, env, componentImages).JobComponents()
+	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, components, jobs)
 	return radixDeployment, nil
 }
 
@@ -416,7 +418,7 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 	return nil
 }
 
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
@@ -442,6 +444,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 			AppName:          appName,
 			Environment:      env,
 			Components:       components,
+			Jobs:             jobs,
 			ImagePullSecrets: imagePullSecrets,
 		},
 	}

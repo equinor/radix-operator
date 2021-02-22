@@ -63,7 +63,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	job, err := createACRBuildJob(cli.GetRegistration(), pipelineInfo.RadixApplication, pipelineInfo.ContainerRegistry, pipelineInfo, buildSecrets)
+	job, err := createACRBuildJob(cli.GetRegistration(), pipelineInfo.ContainerRegistry, pipelineInfo, buildSecrets)
 	if err != nil {
 		return err
 	}
@@ -89,6 +89,12 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 
 func noBuildComponents(ra *v1.RadixApplication) bool {
 	for _, c := range ra.Spec.Components {
+		if c.Image == "" {
+			return false
+		}
+	}
+
+	for _, c := range ra.Spec.Jobs {
 		if c.Image == "" {
 			return false
 		}

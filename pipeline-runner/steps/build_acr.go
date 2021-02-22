@@ -23,14 +23,14 @@ type void struct{}
 
 var member void
 
-func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, containerRegistry string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
+func createACRBuildJob(rr *v1.RadixRegistration, containerRegistry string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, ra.Spec.Components, buildSecrets)
+	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 
@@ -93,7 +93,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, ra *v1.RadixApplication, contai
 	return &job, nil
 }
 
-func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, components []v1.RadixComponent, buildSecrets []corev1.EnvVar) []corev1.Container {
+func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 
