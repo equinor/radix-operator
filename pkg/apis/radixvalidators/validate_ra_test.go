@@ -73,6 +73,7 @@ type updateRAFunc func(rr *v1.RadixApplication)
 
 func Test_invalid_ra(t *testing.T) {
 	validRAFirstComponentName := "app"
+	validRAFirstJobName := "job"
 	validRASecondComponentName := "redis"
 
 	wayTooLongName := "waytoooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooolongname"
@@ -94,22 +95,40 @@ func Test_invalid_ra(t *testing.T) {
 		updateRA      updateRAFunc
 	}{
 		{"no error", nil, func(ra *v1.RadixApplication) {}},
-		{"too long app name", radixvalidators.InvalidAppNameLengthError(wayTooLongName), func(ra *v1.RadixApplication) { ra.Name = wayTooLongName }},
-		{"invalid app name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("app name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Name = invalidResourceName }},
-		{"empty name", radixvalidators.AppNameCannotBeEmptyError(), func(ra *v1.RadixApplication) { ra.Name = "" }},
-		{"no related rr", radixvalidators.NoRegistrationExistsForApplicationError(noReleatedRRAppName), func(ra *v1.RadixApplication) { ra.Name = noReleatedRRAppName }},
+		{"too long app name", radixvalidators.InvalidAppNameLengthError(wayTooLongName), func(ra *v1.RadixApplication) {
+			ra.Name = wayTooLongName
+		}},
+		{"invalid app name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("app name", invalidResourceName), func(ra *v1.RadixApplication) {
+			ra.Name = invalidResourceName
+		}},
+		{"empty name", radixvalidators.AppNameCannotBeEmptyError(), func(ra *v1.RadixApplication) {
+			ra.Name = ""
+		}},
+		{"no related rr", radixvalidators.NoRegistrationExistsForApplicationError(noReleatedRRAppName), func(ra *v1.RadixApplication) {
+			ra.Name = noReleatedRRAppName
+		}},
 		{"non existing env for component", radixvalidators.EnvironmentReferencedByComponentDoesNotExistError(noExistingEnvironment, validRAFirstComponentName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].EnvironmentConfig = []v1.RadixEnvironmentConfig{
-				v1.RadixEnvironmentConfig{
+				{
 					Environment: noExistingEnvironment,
 				},
 			}
 		}},
-		{"invalid component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = invalidResourceName }},
-		{"uppercase component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Name = invalidUpperCaseResourceName }},
-		{"invalid port specification. Nil value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = nil }},
-		{"invalid port specification. Empty value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports = []v1.ComponentPort{} }},
-		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("port name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Components[0].Ports[0].Name = invalidResourceName }},
+		{"invalid component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidResourceName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Name = invalidResourceName
+		}},
+		{"uppercase component name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("component name", invalidUpperCaseResourceName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Name = invalidUpperCaseResourceName
+		}},
+		{"invalid port specification. Nil value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Ports = nil
+		}},
+		{"invalid port specification. Empty value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Ports = []v1.ComponentPort{}
+		}},
+		{"invalid port name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("port name", invalidResourceName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Ports[0].Name = invalidResourceName
+		}},
 		{"too long port name", radixvalidators.InvalidPortNameLengthError(tooLongPortName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].PublicPort = tooLongPortName
 			ra.Spec.Components[0].Ports[0].Name = tooLongPortName
@@ -124,7 +143,9 @@ func Test_invalid_ra(t *testing.T) {
 				Secrets: []string{wayTooLongName},
 			}
 		}},
-		{"invalid secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) { ra.Spec.Components[1].Secrets[0] = invalidVariableName }},
+		{"invalid secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].Secrets[0] = invalidVariableName
+		}},
 		{"too long secret name", radixvalidators.InvalidStringValueMaxLengthError("secret name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Secrets[0] = wayTooLongName
 		}},
@@ -134,7 +155,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
 		}},
-		{"conflicting variable and secret name", radixvalidators.SecretNameConfictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
+		{"conflicting variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].EnvironmentConfig[0].Variables[conflicingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflicingVariableName
 		}},
@@ -144,23 +165,31 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long common environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Variables[wayTooLongName] = "Any value"
 		}},
-		{"conflicting common variable and secret name", radixvalidators.SecretNameConfictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
+		{"conflicting common variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Variables[conflicingVariableName] = "Any value"
 			ra.Spec.Components[1].Secrets[0] = conflicingVariableName
 		}},
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
 		}},
-		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Name = invalidResourceName }},
-		{"invalid branch name", radixvalidators.InvalidBranchNameError(invalidBranchName), func(ra *v1.RadixApplication) { ra.Spec.Environments[0].Build.From = invalidBranchName }},
+		{"invalid env name", radixvalidators.InvalidLowerCaseAlphaNumericDotDashResourceNameError("env name", invalidResourceName), func(ra *v1.RadixApplication) {
+			ra.Spec.Environments[0].Name = invalidResourceName
+		}},
+		{"invalid branch name", radixvalidators.InvalidBranchNameError(invalidBranchName), func(ra *v1.RadixApplication) {
+			ra.Spec.Environments[0].Build.From = invalidBranchName
+		}},
 		{"too long branch name", radixvalidators.InvalidStringValueMaxLengthError("branch from", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Environments[0].Build.From = wayTooLongName
 		}},
-		{"dns alias non existing component", radixvalidators.ComponentForDNSAppAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Component = nonExistingComponent }},
-		{"dns alias non existing env", radixvalidators.EnvForDNSAppAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) { ra.Spec.DNSAppAlias.Environment = noExistingEnvironment }},
+		{"dns alias non existing component", radixvalidators.ComponentForDNSAppAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAppAlias.Component = nonExistingComponent
+		}},
+		{"dns alias non existing env", radixvalidators.EnvForDNSAppAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
+			ra.Spec.DNSAppAlias.Environment = noExistingEnvironment
+		}},
 		{"dns external alias non existing component", radixvalidators.ComponentForDNSExternalAliasNotDefinedError(nonExistingComponent), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
-				v1.ExternalAlias{
+				{
 					Alias:       "some.alias.com",
 					Component:   nonExistingComponent,
 					Environment: ra.Spec.Environments[0].Name,
@@ -169,7 +198,7 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"dns external alias non existing environment", radixvalidators.EnvForDNSExternalAliasNotDefinedError(noExistingEnvironment), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
-				v1.ExternalAlias{
+				{
 					Alias:       "some.alias.com",
 					Component:   ra.Spec.Components[0].Name,
 					Environment: noExistingEnvironment,
@@ -178,7 +207,7 @@ func Test_invalid_ra(t *testing.T) {
 		}},
 		{"dns external alias non existing alias", radixvalidators.ExternalAliasCannotBeEmptyError(), func(ra *v1.RadixApplication) {
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
-				v1.ExternalAlias{
+				{
 					Component:   ra.Spec.Components[0].Name,
 					Environment: ra.Spec.Environments[0].Name,
 				},
@@ -189,7 +218,7 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].Public = false
 			ra.Spec.Components[0].PublicPort = ""
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
-				v1.ExternalAlias{
+				{
 					Alias:       "some.alias.com",
 					Component:   ra.Spec.Components[0].Name,
 					Environment: ra.Spec.Environments[0].Name,
@@ -199,12 +228,12 @@ func Test_invalid_ra(t *testing.T) {
 		{"duplicate dns external alias", radixvalidators.DuplicateExternalAliasError(), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Public = true
 			ra.Spec.DNSExternalAlias = []v1.ExternalAlias{
-				v1.ExternalAlias{
+				{
 					Alias:       "duplicate.alias.com",
 					Component:   ra.Spec.Components[0].Name,
 					Environment: ra.Spec.Environments[0].Name,
 				},
-				v1.ExternalAlias{
+				{
 					Alias:       "duplicate.alias.com",
 					Component:   ra.Spec.Components[0].Name,
 					Environment: ra.Spec.Environments[0].Name,
@@ -290,6 +319,124 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
 			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
 		}},
+		{"invalid job secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Secrets[0] = invalidVariableName
+		}},
+		{"too long job secret name", radixvalidators.InvalidStringValueMaxLengthError("secret name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Secrets[0] = wayTooLongName
+		}},
+		{"invalid job common environment variable name", radixvalidators.InvalidResourceNameError("environment variable name", invalidVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Variables[invalidVariableName] = "Any value"
+		}},
+		{"too long job common environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Variables[wayTooLongName] = "Any value"
+		}},
+		{"invalid job environment variable name", radixvalidators.InvalidResourceNameError("environment variable name", invalidVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[invalidVariableName] = "Any value"
+		}},
+		{"too long job environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
+		}},
+		{"conflicting job variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable("job", conflicingVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[conflicingVariableName] = "Any value"
+			ra.Spec.Jobs[0].Secrets[0] = conflicingVariableName
+		}},
+		{"non existing env for job", radixvalidators.EnvironmentReferencedByComponentDoesNotExistError(noExistingEnvironment, validRAFirstJobName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig = []v1.RadixJobComponentEnvironmentConfig{
+				{
+					Environment: noExistingEnvironment,
+				},
+			}
+		}},
+		{"scheduler port is not set", radixvalidators.SchedulerPortCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].SchedulerPort = nil
+		}},
+		{"payload is empty struct", radixvalidators.SchedulerPortCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Payload = &v1.RadixJobComponentPayload{}
+		}},
+		{"payload path is empty string", radixvalidators.SchedulerPortCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Payload = &v1.RadixJobComponentPayload{Path: ""}
+		}},
+
+		{"job resource limit unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits[unsupportedResource] = "250m"
+		}},
+		{"job memory resource limit wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = invalidResourceValue
+		}},
+		{"job memory resource request wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = invalidResourceValue
+		}},
+		{"job memory resource request larger than limit", radixvalidators.ResourceRequestOverLimitError("memory", "249Mi", "250Ki"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "250Ki"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
+		}},
+		{"job cpu resource limit wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["cpu"] = invalidResourceValue
+		}},
+		{"job cpu resource request wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["cpu"] = invalidResourceValue
+		}},
+		{"job cpu resource request larger than limit", radixvalidators.ResourceRequestOverLimitError("cpu", "251m", "250m"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["cpu"] = "250m"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
+		}},
+		{"job resource request unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests[unsupportedResource] = "250m"
+		}},
+		{"job common resource limit unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits[unsupportedResource] = "250m"
+		}},
+		{"job common resource request unsupported resource", radixvalidators.InvalidResourceError(unsupportedResource), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Requests[unsupportedResource] = "250m"
+		}},
+		{"job common memory resource limit wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = invalidResourceValue
+		}},
+		{"job common memory resource request wrong format", radixvalidators.MemoryResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = invalidResourceValue
+		}},
+		{"job common cpu resource limit wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["cpu"] = invalidResourceValue
+		}},
+		{"job common cpu resource request wrong format", radixvalidators.CPUResourceRequirementFormatError(invalidResourceValue), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Requests["cpu"] = invalidResourceValue
+		}},
+		{"job cpu resource limit is empty", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["cpu"] = ""
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
+		}},
+		{"job cpu resource limit not set", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["cpu"] = "251m"
+		}},
+		{"job memory resource limit is empty", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = ""
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
+		}},
+		{"job memory resource limit not set", nil, func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "249Mi"
+		}},
+		{"job wrong public image config", radixvalidators.PublicImageComponentCannotHaveSourceOrDockerfileSet(validRAFirstJobName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Image = "redis:5.0-alpine"
+			ra.Spec.Jobs[0].SourceFolder = "./api"
+			ra.Spec.Jobs[0].DockerfileName = ".Dockerfile"
+		}},
+		{"job missing environment config for dynamic tag", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfig(validRAFirstJobName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
+			ra.Spec.Jobs[0].EnvironmentConfig = []v1.RadixJobComponentEnvironmentConfig{}
+		}},
+		{"job missing dynamic tag config for mapped environment", radixvalidators.ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(validRAFirstJobName, "dev"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:{imageTagName}"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = ""
+			ra.Spec.Jobs[0].EnvironmentConfig = append(ra.Spec.Jobs[0].EnvironmentConfig, v1.RadixJobComponentEnvironmentConfig{
+				Environment:  "dev",
+				ImageTagName: "",
+			})
+		}},
+		{"job inconcistent dynamic tag config for environment", radixvalidators.ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(validRAFirstJobName, "dev"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = "any-tag"
+		}},
 	}
 
 	_, client := validRASetup()
@@ -312,7 +459,7 @@ func Test_invalid_ra(t *testing.T) {
 	}
 }
 
-func Test_ValidRALimitRequest_NoError(t *testing.T) {
+func Test_ValidRAComponentLimitRequest_NoError(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
 		updateRA updateRAFunc
@@ -396,7 +543,91 @@ func Test_ValidRALimitRequest_NoError(t *testing.T) {
 	}
 }
 
-func Test_InvalidRALimitRequest_Error(t *testing.T) {
+func Test_ValidRAJobLimitRequest_NoError(t *testing.T) {
+	var testScenarios = []struct {
+		name     string
+		updateRA updateRAFunc
+	}{
+		{"resource memory correct format: 50", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50"
+		}},
+		{"resource limit correct format: 50T", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50T"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50T"
+		}},
+		{"resource limit correct format: 50G", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50G"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50G"
+		}},
+		{"resource limit correct format: 50M", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50M"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50M"
+		}},
+		{"resource limit correct format: 50k", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50k"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50k"
+		}},
+		{"resource limit correct format: 50Gi", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Gi"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Gi"
+		}},
+		{"resource limit correct format: 50Mi", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Mi"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Mi"
+		}},
+		{"resource limit correct format: 50Ki", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50Ki"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50Ki"
+		}},
+		{"common resource memory correct format: 50", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50"
+		}},
+		{"common resource limit correct format: 50T", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50T"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50T"
+		}},
+		{"common resource limit correct format: 50G", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50G"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50G"
+		}},
+		{"common resource limit correct format: 50M", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50M"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50M"
+		}},
+		{"common resource limit correct format: 50k", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50k"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50k"
+		}},
+		{"common resource limit correct format: 50Gi", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50Gi"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50Gi"
+		}},
+		{"common resource limit correct format: 50Mi", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50Mi"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50Mi"
+		}},
+		{"common resource limit correct format: 50Ki", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50Ki"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50Ki"
+		}},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+
+			assert.True(t, isValid)
+			assert.Nil(t, err)
+		})
+	}
+}
+
+func Test_InvalidRAComponentLimitRequest_Error(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
 		updateRA updateRAFunc
@@ -416,6 +647,42 @@ func Test_InvalidRALimitRequest_Error(t *testing.T) {
 		{"common resource limit incorrect format: 50K", func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Resources.Limits["memory"] = "50K"
 			ra.Spec.Components[0].Resources.Requests["memory"] = "50K"
+		}},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+
+			assert.False(t, isValid)
+			assert.NotNil(t, err)
+		})
+	}
+}
+
+func Test_InvalidRAJobLimitRequest_Error(t *testing.T) {
+	var testScenarios = []struct {
+		name     string
+		updateRA updateRAFunc
+	}{
+		{"resource limit incorrect format: 50MB", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50MB"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50MB"
+		}},
+		{"resource limit incorrect format: 50K", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Limits["memory"] = "50K"
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Resources.Requests["memory"] = "50K"
+		}},
+		{"common resource limit incorrect format: 50MB", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50MB"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50MB"
+		}},
+		{"common resource limit incorrect format: 50K", func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Resources.Limits["memory"] = "50K"
+			ra.Spec.Jobs[0].Resources.Requests["memory"] = "50K"
 		}},
 	}
 
@@ -563,16 +830,30 @@ func Test_PublicPort(t *testing.T) {
 }
 
 func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
+	type volumeMountsFunc func() []v1.RadixVolumeMount
+	type setVolumeMounts func(*v1.RadixApplication, []v1.RadixVolumeMount)
+
+	setRaComponentVolumeMounts := func(ra *v1.RadixApplication, volumeMounts []v1.RadixVolumeMount) {
+		ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+	}
+
+	setRaJobsVolumeMounts := func(ra *v1.RadixApplication, volumeMounts []v1.RadixVolumeMount) {
+		ra.Spec.Jobs[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+	}
+
+	setComponentAndJobsVolumeMounts := []setVolumeMounts{setRaComponentVolumeMounts, setRaJobsVolumeMounts}
+
 	var testScenarios = []struct {
 		name                 string
-		updateRA             updateRAFunc
+		volumeMounts         volumeMountsFunc
+		updateRA             []setVolumeMounts
 		isValid              bool
 		isErrorNil           bool
 		testContainedByError string
 	}{
 		{
 			"incorrect mount type",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      "disk",
@@ -582,15 +863,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"not recognized volume mount type",
 		},
 		{
 			"blob mount type with different name, containers and path",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      v1.MountTypeBlob,
@@ -606,15 +888,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			true,
 			true,
 			"",
 		},
 		{
 			"blob mount type with duplicate names",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      v1.MountTypeBlob,
@@ -630,15 +913,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"duplicate names",
 		},
 		{
 			"blob mount type with duplicate containers",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      v1.MountTypeBlob,
@@ -654,15 +938,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"duplicate containers",
 		},
 		{
 			"blob mount type with duplicate path",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      v1.MountTypeBlob,
@@ -678,15 +963,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"duplicate path",
 		},
 		{
 			"mount volume type is not set",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Name:      "some_name",
@@ -695,15 +981,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"volume mount type, name, containers and temp-path of volumeMount for component",
 		},
 		{
 			"mount volume name is not set",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      v1.MountTypeBlob,
@@ -712,15 +999,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"volume mount type, name, containers and temp-path of volumeMount for component",
 		},
 		{
 			"mount volume containers is not set",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type: v1.MountTypeBlob,
@@ -729,15 +1017,16 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"volume mount type, name, containers and temp-path of volumeMount for component",
 		},
 		{
 			"mount volume path is not set",
-			func(ra *v1.RadixApplication) {
+			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
 						Type:      v1.MountTypeBlob,
@@ -746,8 +1035,9 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 					},
 				}
 
-				ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
+				return volumeMounts
 			},
+			setComponentAndJobsVolumeMounts,
 			false,
 			false,
 			"volume mount type, name, containers and temp-path of volumeMount for component",
@@ -757,18 +1047,26 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	_, client := validRASetup()
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
-			validRA := createValidRA()
-			testcase.updateRA(validRA)
-			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
-			isErrorNil := false
-			if err == nil {
-				isErrorNil = true
+			if testcase.updateRA == nil || len(testcase.updateRA) == 0 {
+				assert.FailNow(t, "missing updateRA functions for %s", testcase.name)
+				return
 			}
 
-			assert.Equal(t, testcase.isValid, isValid)
-			assert.Equal(t, testcase.isErrorNil, isErrorNil)
-			if !isErrorNil {
-				assert.Contains(t, err.Error(), testcase.testContainedByError)
+			for _, ra := range testcase.updateRA {
+				validRA := createValidRA()
+				volumes := testcase.volumeMounts()
+				ra(validRA, volumes)
+				isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+				isErrorNil := false
+				if err == nil {
+					isErrorNil = true
+				}
+
+				assert.Equal(t, testcase.isValid, isValid)
+				assert.Equal(t, testcase.isErrorNil, isErrorNil)
+				if !isErrorNil {
+					assert.Contains(t, err.Error(), testcase.testContainedByError)
+				}
 			}
 		})
 	}
