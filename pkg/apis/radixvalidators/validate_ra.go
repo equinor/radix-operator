@@ -86,13 +86,13 @@ func MultipleMatchingPortNamesError(matchingPortName int, publicPortName, compon
 }
 
 // SchedulerPortCannotBeEmptyForJobError Scheduler port cannot be empty for job
-func SchedulerPortCannotBeEmptyForJobError(job string) error {
-	return fmt.Errorf("Scheduler port cannot be empty for %s", job)
+func SchedulerPortCannotBeEmptyForJobError(jobName string) error {
+	return fmt.Errorf("Scheduler port cannot be empty for %s", jobName)
 }
 
 // PayloadPathCannotBeEmptyForJobError Payload path cannot be empty for job
-func PayloadPathCannotBeEmptyForJobError(job string) error {
-	return fmt.Errorf("Payload path cannot be empty for %s", job)
+func PayloadPathCannotBeEmptyForJobError(jobName string) error {
+	return fmt.Errorf("Payload path cannot be empty for %s", jobName)
 }
 
 // MemoryResourceRequirementFormatError Invalid memory resource requirement error
@@ -381,8 +381,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(component.Name))
 			} else {
 				for _, environment := range component.EnvironmentConfig {
-					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) &&
-						environment.ImageTagName == "" {
+					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
 						errs = append(errs,
 							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(component.Name, environment.Environment))
 					}
@@ -449,17 +448,15 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(job.Name))
 			} else {
 				for _, environment := range job.EnvironmentConfig {
-					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) &&
-						environment.ImageTagName == "" {
+					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
 						errs = append(errs,
 							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(job.Name, environment.Environment))
 					}
 				}
 			}
-
 		}
 
-		err := validateRequiredResourceName("component name", job.Name)
+		err := validateRequiredResourceName("job name", job.Name)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -527,7 +524,7 @@ func validateJobSchedulerPort(job *v1.RadixJobComponent) error {
 
 func validateJobPayload(job *v1.RadixJobComponent) error {
 	if job.Payload != nil && job.Payload.Path == "" {
-		return SchedulerPortCannotBeEmptyForJobError(job.Name)
+		return PayloadPathCannotBeEmptyForJobError(job.Name)
 	}
 
 	return nil

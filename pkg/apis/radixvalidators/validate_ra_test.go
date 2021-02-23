@@ -351,10 +351,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"scheduler port is not set", radixvalidators.SchedulerPortCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].SchedulerPort = nil
 		}},
-		{"payload is empty struct", radixvalidators.SchedulerPortCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
+		{"payload is empty struct", radixvalidators.PayloadPathCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].Payload = &v1.RadixJobComponentPayload{}
 		}},
-		{"payload path is empty string", radixvalidators.SchedulerPortCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
+		{"payload path is empty string", radixvalidators.PayloadPathCannotBeEmptyForJobError(validRAFirstJobName), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].Payload = &v1.RadixJobComponentPayload{Path: ""}
 		}},
 
@@ -831,7 +831,7 @@ func Test_PublicPort(t *testing.T) {
 
 func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	type volumeMountsFunc func() []v1.RadixVolumeMount
-	type setVolumeMounts func(*v1.RadixApplication, []v1.RadixVolumeMount)
+	type setVolumeMountsFunc func(*v1.RadixApplication, []v1.RadixVolumeMount)
 
 	setRaComponentVolumeMounts := func(ra *v1.RadixApplication, volumeMounts []v1.RadixVolumeMount) {
 		ra.Spec.Components[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
@@ -841,12 +841,12 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 		ra.Spec.Jobs[0].EnvironmentConfig[0].VolumeMounts = volumeMounts
 	}
 
-	setComponentAndJobsVolumeMounts := []setVolumeMounts{setRaComponentVolumeMounts, setRaJobsVolumeMounts}
+	setComponentAndJobsVolumeMounts := []setVolumeMountsFunc{setRaComponentVolumeMounts, setRaJobsVolumeMounts}
 
 	var testScenarios = []struct {
 		name                 string
 		volumeMounts         volumeMountsFunc
-		updateRA             []setVolumeMounts
+		updateRA             []setVolumeMountsFunc
 		isValid              bool
 		isErrorNil           bool
 		testContainedByError string
