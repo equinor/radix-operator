@@ -136,7 +136,7 @@ type RadixJobComponent struct {
 	Image             string                               `json:"image" yaml:"image"`
 	DockerfileName    string                               `json:"dockerfileName" yaml:"dockerfileName"`
 	SchedulerPort     *int32                               `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
-	Payload           RadixJobComponentPayload             `json:"payload" yaml:"payload"`
+	Payload           *RadixJobComponentPayload            `json:"payload,omitempty" yaml:"payload,omitempty"`
 	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
 	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`

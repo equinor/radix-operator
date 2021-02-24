@@ -188,7 +188,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 						utils.AnApplicationJobComponent().
 							WithName("job").
 							WithSchedulerPort(numbers.Int32Ptr(8888)).
-							WithPayloadPath("/path").
+							WithPayloadPath(utils.StringPtr("/path")).
 							WithSecrets("JOBSECRET1", "JOBSECRET2").
 							WithCommonEnvironmentVariable("COMMON1", "common1").
 							WithCommonEnvironmentVariable("COMMON2", "common2").

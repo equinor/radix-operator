@@ -15,7 +15,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithCommonEnvironmentVariable(string, string) RadixApplicationJobComponentBuilder
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationJobComponentBuilder
 	WithSchedulerPort(*int32) RadixApplicationJobComponentBuilder
-	WithPayloadPath(string) RadixApplicationJobComponentBuilder
+	WithPayloadPath(*string) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -30,7 +30,7 @@ type radixApplicationJobComponentBuilder struct {
 	variables         v1.EnvVarsMap
 	resources         v1.ResourceRequirements
 	schedulerPort     *int32
-	payloadPath       string
+	payloadPath       *string
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithName(name string) RadixApplicationJobComponentBuilder {
@@ -91,7 +91,7 @@ func (rcb *radixApplicationJobComponentBuilder) WithSchedulerPort(port *int32) R
 	return rcb
 }
 
-func (rcb *radixApplicationJobComponentBuilder) WithPayloadPath(path string) RadixApplicationJobComponentBuilder {
+func (rcb *radixApplicationJobComponentBuilder) WithPayloadPath(path *string) RadixApplicationJobComponentBuilder {
 	rcb.payloadPath = path
 	return rcb
 }
@@ -107,6 +107,11 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		environmentConfig = append(environmentConfig, env.BuildEnvironmentConfig())
 	}
 
+	var payload *v1.RadixJobComponentPayload
+	if rcb.payloadPath != nil {
+		payload = &v1.RadixJobComponentPayload{Path: *rcb.payloadPath}
+	}
+
 	return v1.RadixJobComponent{
 		Name:              rcb.name,
 		SourceFolder:      rcb.sourceFolder,
@@ -118,7 +123,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Variables:         rcb.variables,
 		Resources:         rcb.resources,
 		SchedulerPort:     rcb.schedulerPort,
-		Payload:           v1.RadixJobComponentPayload{Path: rcb.payloadPath},
+		Payload:           payload,
 	}
 }
 
