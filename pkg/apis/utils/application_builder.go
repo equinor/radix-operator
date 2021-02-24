@@ -2,6 +2,7 @@ package utils
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -198,7 +199,10 @@ func ARadixApplication() ApplicationBuilder {
 		WithAppName("anyapp").
 		WithEnvironment("test", "master").
 		WithComponent(AnApplicationComponent()).
-		WithJobComponent(AnApplicationJobComponent())
+		WithJobComponent(
+			AnApplicationJobComponent().
+				WithSchedulerPort(numbers.Int32Ptr(8888)),
+		)
 
 	return builder
 }
