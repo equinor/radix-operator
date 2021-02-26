@@ -1,8 +1,6 @@
 package deployment
 
 import (
-	"strings"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,19 +17,9 @@ func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixDeployCo
 func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
 
-	for _, exisitingComponent := range services {
-		garbageCollect := true
-		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
-				garbageCollect = false
-				break
-			}
-		}
-
-		if garbageCollect {
-			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+	for _, service := range services {
+		if deploy.eligibleForGarbageCollection(service) {
+			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(service.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

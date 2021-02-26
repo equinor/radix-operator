@@ -3,7 +3,6 @@ package deployment
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -31,19 +30,9 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 		return err
 	}
 
-	for _, existingComponent := range serviceMonitors.Items {
-		garbageCollect := true
-		existingComponentName := existingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, existingComponentName) {
-				garbageCollect = false
-				break
-			}
-		}
-
-		if garbageCollect {
-			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(existingComponent.Name, &metav1.DeleteOptions{})
+	for _, serviceMonitor := range serviceMonitors.Items {
+		if deploy.eligibleForGarbageCollection(serviceMonitor) {
+			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(serviceMonitor.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

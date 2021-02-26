@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -55,23 +54,14 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixDeployCompon
 func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	namespace := deploy.radixDeployment.GetNamespace()
 	hpas, err := deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(metav1.ListOptions{})
+
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range hpas.Items {
-		garbageCollect := true
-		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
-				garbageCollect = false
-				break
-			}
-		}
-
-		if garbageCollect {
-			err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+	for _, hpa := range hpas.Items {
+		if deploy.eligibleForGarbageCollection(&hpa) {
+			err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(hpa.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

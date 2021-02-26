@@ -463,6 +463,17 @@ func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixDeployComponent)
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
 }
 
+func getRadixJobSchedulerImage() (string, error) {
+	image := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+
+	if image == "" {
+		err := fmt.Errorf("Cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+		log.Error(err)
+	}
+
+	return image, nil
+}
+
 func (deploy *Deployment) maintainHistoryLimit() {
 	historyLimit := strings.TrimSpace(os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable))
 	if historyLimit == "" {

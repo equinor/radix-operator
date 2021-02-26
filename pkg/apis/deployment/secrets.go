@@ -3,7 +3,6 @@ package deployment
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -125,25 +124,21 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 			continue
 		}
 
-		garbageCollect := true
-		exisitingComponentName, exists := exisitingSecret.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		if !exists {
+		componentName, _, ok := getComponentNameAndTypeFromLabels(exisitingSecret)
+		if !ok {
+			// Secret is not labelled with radix-component as should not be handled here
 			continue
 		}
 
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
-				garbageCollect = false
-				break
-			}
+		// Keep secret if it exists in jobs or componenets list. A "component" can be moved from componenets to jobs
+		// or vice versa, and we want to keep the values the user has entered
+		if nameExistInDeploymentComponentList(deploy.radixDeployment, componentName) || nameExistInDeploymentJobList(deploy.radixDeployment, componentName) {
+			continue
 		}
 
-		if garbageCollect {
-			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingSecret.Name, &metav1.DeleteOptions{})
-			if err != nil {
-				return err
-			}
+		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingSecret.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			return err
 		}
 	}
 

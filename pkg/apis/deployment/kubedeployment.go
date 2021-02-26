@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -72,9 +71,10 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:       appName,
-				kube.RadixComponentLabel: componentName,
-				kube.RadixCommitLabel:    commitID,
+				kube.RadixAppLabel:           appName,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
+				kube.RadixCommitLabel:        commitID,
 			},
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation: branch,
@@ -85,15 +85,17 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 			Replicas: int32Ptr(DefaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					kube.RadixComponentLabel: componentName,
+					kube.RadixComponentLabel:     componentName,
+					kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						kube.RadixAppLabel:       appName,
-						kube.RadixComponentLabel: componentName,
-						kube.RadixCommitLabel:    commitID,
+						kube.RadixAppLabel:           appName,
+						kube.RadixComponentLabel:     componentName,
+						kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
+						kube.RadixCommitLabel:        commitID,
 					},
 					Annotations: map[string]string{
 						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
@@ -159,8 +161,6 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 
 	desiredDeployment.ObjectMeta.Name = componentName
 	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
@@ -309,26 +309,45 @@ func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 	return deploymentStrategy, nil
 }
 
+func getComponentNameAndTypeFromLabels(object metav1.Object) (componentName string, componentType RadixComponentType, ok bool) {
+	var nameLabelValue, typeLabelValue string
+	labels := object.GetLabels()
+
+	nameLabelValue, labelOk := labels[kube.RadixComponentLabel]
+	if !labelOk {
+		return "", "", false
+	}
+
+	typeLabelValue, labelOk = labels[kube.RadixComponentTypeLabel]
+	if !labelOk {
+		typeLabelValue = string(RadixDeploymentComponent)
+	}
+
+	return nameLabelValue, RadixComponentType(typeLabelValue), true
+}
+
+func (deploy *Deployment) eligibleForGarbageCollection(object metav1.Object) bool {
+	componentName, componentType, ok := getComponentNameAndTypeFromLabels(object)
+	if !ok {
+		return false
+	}
+
+	return !componentType.ExistInDeploymentSpec(deploy.radixDeployment, componentName)
+}
+
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	deployments, err := deploy.kubeutil.ListDeployments(deploy.radixDeployment.GetNamespace())
 	if err != nil {
 		return err
 	}
 
-	for _, exisitingComponent := range deployments {
-		garbageCollect := true
-		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
-				garbageCollect = false
-				break
-			}
-		}
-
-		if garbageCollect {
+	for _, deployment := range deployments {
+		if deploy.eligibleForGarbageCollection(deployment) {
 			propagationPolicy := metav1.DeletePropagationForeground
-			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+			deleteOption := &metav1.DeleteOptions{
+				PropagationPolicy: &propagationPolicy,
+			}
+			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(deployment.Name, deleteOption)
 			if err != nil {
 				return err
 			}

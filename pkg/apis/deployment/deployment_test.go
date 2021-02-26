@@ -1793,6 +1793,7 @@ func TestHPAConfig(t *testing.T) {
 	anyEnvironmentName := "test"
 	componentOneName := "componentOneName"
 	componentTwoName := "componentTwoName"
+	componentThreeName := "componentThreeName"
 	minReplicas := int32(2)
 	maxReplicas := int32(4)
 
@@ -1812,19 +1813,60 @@ func TestHPAConfig(t *testing.T) {
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
+				WithHorizontalScaling(&minReplicas, maxReplicas),
+			utils.NewDeployComponentBuilder().
+				WithName(componentThreeName).
+				WithPort("http", 6379).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(1)).
 				WithHorizontalScaling(&minReplicas, maxReplicas)))
 
 	assert.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate hpas", func(t *testing.T) {
-		t.Parallel()
+		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+		assert.Equal(t, 2, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
+		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
+		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
+		assert.True(t, hpaByNameExists(componentThreeName, hpas), "componentThreeName horizontal pod autoscaler should exist")
+		assert.Equal(t, int32(2), *getHPAByName(componentTwoName, hpas).Spec.MinReplicas, "componentTwoName horizontal pod autoscaler config is incorrect")
+	})
+
+	// Test - remove HPA from component three
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(0)).
+				WithHorizontalScaling(&minReplicas, maxReplicas),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(1)).
+				WithHorizontalScaling(&minReplicas, maxReplicas),
+			utils.NewDeployComponentBuilder().
+				WithName(componentThreeName).
+				WithPort("http", 6379).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(1))))
+
+	assert.NoError(t, err)
+
+	t.Run("validate hpas after reconfiguration", func(t *testing.T) {
 		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
 		assert.Equal(t, 1, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
-		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler is there")
-		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler is there")
-		assert.Equal(t, int32(2), *getHPAByName(componentTwoName, hpas).Spec.MinReplicas, "componentTwoName horizontal pod autoscaler is there")
+		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
+		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
+		assert.False(t, hpaByNameExists(componentThreeName, hpas), "componentThreeName horizontal pod autoscaler should not exist")
+		assert.Equal(t, int32(2), *getHPAByName(componentTwoName, hpas).Spec.MinReplicas, "componentTwoName horizontal pod autoscaler config is incorrect")
 	})
+
 }
 
 func parseQuantity(value string) resource.Quantity {
