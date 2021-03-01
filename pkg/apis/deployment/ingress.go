@@ -308,6 +308,7 @@ func getIngressConfig(appName string,
 			Labels: map[string]string{
 				kube.RadixAppLabel:                appName,
 				kube.RadixComponentLabel:          component.Name,
+				kube.RadixComponentTypeLabel:      string(RadixDeploymentComponent),
 				kube.RadixAppAliasLabel:           strconv.FormatBool(isAlias),
 				kube.RadixExternalAliasLabel:      strconv.FormatBool(isExternalAlias),
 				kube.RadixActiveClusterAliasLabel: strconv.FormatBool(isActiveClusterAlias),

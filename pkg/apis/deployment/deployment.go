@@ -259,6 +259,13 @@ func (deploy *Deployment) syncDeployment() error {
 				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
 				continue
 			}
+		} else {
+			err = deploy.garbageCollectServiceMonitorNoLongerInSpecForComponent(v)
+			if err != nil {
+				log.Infof("Failed to delete servicemonitor: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to delete servicemonitor: %v", err))
+				continue
+			}
 		}
 	}
 

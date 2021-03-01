@@ -80,8 +80,9 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:       appName,
-				kube.RadixComponentLabel: componentName,
+				kube.RadixAppLabel:           appName,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
 			},
 			OwnerReferences: ownerReference,
 		},

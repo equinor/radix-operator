@@ -36,15 +36,17 @@ func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
-				kube.RadixComponentLabel: componentName,
+				kube.RadixAppLabel:           radixDeployment.Spec.AppName,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
 			},
 			OwnerReferences: ownerReference,
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				kube.RadixComponentLabel: componentName,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
 			},
 		},
 	}
