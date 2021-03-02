@@ -260,7 +260,7 @@ func (deploy *Deployment) syncDeployment() error {
 				continue
 			}
 		} else {
-			err = deploy.garbageCollectServiceMonitorNoLongerInSpecForComponent(v)
+			err = deploy.deleteServiceMonitorForComponent(v)
 			if err != nil {
 				log.Infof("Failed to delete servicemonitor: %v", err)
 				errs = append(errs, fmt.Errorf("Failed to delete servicemonitor: %v", err))

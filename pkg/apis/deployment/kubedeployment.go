@@ -71,10 +71,9 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:           appName,
-				kube.RadixComponentLabel:     componentName,
-				kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
-				kube.RadixCommitLabel:        commitID,
+				kube.RadixAppLabel:       appName,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixCommitLabel:    commitID,
 			},
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation: branch,
@@ -85,17 +84,15 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 			Replicas: int32Ptr(DefaultReplicas),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					kube.RadixComponentLabel:     componentName,
-					kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
+					kube.RadixComponentLabel: componentName,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						kube.RadixAppLabel:           appName,
-						kube.RadixComponentLabel:     componentName,
-						kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
-						kube.RadixCommitLabel:        commitID,
+						kube.RadixAppLabel:       appName,
+						kube.RadixComponentLabel: componentName,
+						kube.RadixCommitLabel:    commitID,
 					},
 					Annotations: map[string]string{
 						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
@@ -162,14 +159,12 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.ObjectMeta.Name = componentName
 	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
 	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = string(RadixDeploymentComponent)
 	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations["seccomp.security.alpha.kubernetes.io/pod"] = "docker/default"
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
-	desiredDeployment.Spec.Template.Labels[kube.RadixComponentTypeLabel] = string(RadixDeploymentComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.Image
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
@@ -311,30 +306,25 @@ func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 	return deploymentStrategy, nil
 }
 
-func getComponentNameAndTypeFromLabels(object metav1.Object) (componentName string, componentType RadixComponentType, ok bool) {
-	var nameLabelValue, typeLabelValue string
+func getComponentNameFromLabels(object metav1.Object) (componentName RadixComponentName, ok bool) {
+	var nameLabelValue string
 	labels := object.GetLabels()
 
 	nameLabelValue, labelOk := labels[kube.RadixComponentLabel]
 	if !labelOk {
-		return "", "", false
+		return "", false
 	}
 
-	typeLabelValue, labelOk = labels[kube.RadixComponentTypeLabel]
-	if !labelOk {
-		typeLabelValue = string(RadixDeploymentComponent)
-	}
-
-	return nameLabelValue, RadixComponentType(typeLabelValue), true
+	return RadixComponentName(nameLabelValue), true
 }
 
 func (deploy *Deployment) eligibleForGarbageCollection(object metav1.Object) bool {
-	componentName, componentType, ok := getComponentNameAndTypeFromLabels(object)
+	componentName, ok := getComponentNameFromLabels(object)
 	if !ok {
 		return false
 	}
 
-	return !componentType.ExistInDeploymentSpec(deploy.radixDeployment, componentName)
+	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }
 
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {

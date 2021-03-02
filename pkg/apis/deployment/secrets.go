@@ -124,21 +124,11 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 			continue
 		}
 
-		componentName, _, ok := getComponentNameAndTypeFromLabels(exisitingSecret)
-		if !ok {
-			// Secret is not labelled with radix-component as should not be handled here
-			continue
-		}
-
-		// Keep secret if it exists in jobs or componenets list. A "component" can be moved from componenets to jobs
-		// or vice versa, and we want to keep the values the user has entered
-		if nameExistInDeploymentComponentList(deploy.radixDeployment, componentName) || nameExistInDeploymentJobList(deploy.radixDeployment, componentName) {
-			continue
-		}
-
-		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingSecret.Name, &metav1.DeleteOptions{})
-		if err != nil {
-			return err
+		if deploy.eligibleForGarbageCollection(exisitingSecret) {
+			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingSecret.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
+			}
 		}
 	}
 

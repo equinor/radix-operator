@@ -18,15 +18,15 @@ func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixD
 	return deploy.applyServiceMonitor(namespace, serviceMonitor)
 }
 
-func (deploy *Deployment) garbageCollectServiceMonitorNoLongerInSpecForComponent(component v1.RadixDeployComponent) error {
+func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixDeployComponent) error {
 	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, componentType, ok := getComponentNameAndTypeFromLabels(serviceMonitor)
-		if ok && componentName == component.Name && componentType == RadixDeploymentComponent {
+		componentName, ok := getComponentNameFromLabels(serviceMonitor)
+		if ok && component.Name == string(componentName) {
 			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(serviceMonitor.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -69,8 +69,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				kube.RadixComponentLabel:     componentName,
-				kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
+				kube.RadixComponentLabel: componentName,
 			},
 		},
 		Spec: monitoringv1.ServiceMonitorSpec{
@@ -88,8 +87,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 			},
 			Selector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					kube.RadixComponentLabel:     componentName,
-					kube.RadixComponentTypeLabel: string(RadixDeploymentComponent),
+					kube.RadixComponentLabel: componentName,
 				},
 			},
 		},
