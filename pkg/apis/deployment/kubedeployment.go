@@ -158,6 +158,8 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 
 	desiredDeployment.ObjectMeta.Name = componentName
 	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
+	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
