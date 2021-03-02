@@ -128,7 +128,13 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 	}
 
 	for _, ingress := range ingresses {
-		if deploy.eligibleForGarbageCollection(ingress) {
+		componentName, ok := NewRadixComponentNameFromLabels(ingress)
+		if !ok {
+			continue
+		}
+
+		// Ingresses should only exist for items in component list.
+		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingress.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err

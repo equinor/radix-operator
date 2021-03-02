@@ -306,27 +306,6 @@ func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 	return deploymentStrategy, nil
 }
 
-func getComponentNameFromLabels(object metav1.Object) (componentName RadixComponentName, ok bool) {
-	var nameLabelValue string
-	labels := object.GetLabels()
-
-	nameLabelValue, labelOk := labels[kube.RadixComponentLabel]
-	if !labelOk {
-		return "", false
-	}
-
-	return RadixComponentName(nameLabelValue), true
-}
-
-func (deploy *Deployment) eligibleForGarbageCollection(object metav1.Object) bool {
-	componentName, ok := getComponentNameFromLabels(object)
-	if !ok {
-		return false
-	}
-
-	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
-}
-
 func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	deployments, err := deploy.kubeutil.ListDeployments(deploy.radixDeployment.GetNamespace())
 	if err != nil {
@@ -334,7 +313,12 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	}
 
 	for _, deployment := range deployments {
-		if deploy.eligibleForGarbageCollection(deployment) {
+		componentName, ok := NewRadixComponentNameFromLabels(deployment)
+		if !ok {
+			continue
+		}
+
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			propagationPolicy := metav1.DeletePropagationForeground
 			deleteOption := &metav1.DeleteOptions{
 				PropagationPolicy: &propagationPolicy,

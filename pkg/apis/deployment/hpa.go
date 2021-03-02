@@ -60,7 +60,12 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	}
 
 	for _, hpa := range hpas.Items {
-		if deploy.eligibleForGarbageCollection(&hpa) {
+		componentName, ok := NewRadixComponentNameFromLabels(&hpa)
+		if !ok {
+			continue
+		}
+
+		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(hpa.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err

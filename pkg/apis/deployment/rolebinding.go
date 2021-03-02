@@ -60,7 +60,12 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 	roleBindings, err := deploy.kubeutil.ListRoleBindings(deploy.radixDeployment.GetNamespace())
 
 	for _, roleBinding := range roleBindings {
-		if deploy.eligibleForGarbageCollection(roleBinding) {
+		componentName, ok := NewRadixComponentNameFromLabels(roleBinding)
+		if !ok {
+			continue
+		}
+
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBinding.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err

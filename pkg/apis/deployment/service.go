@@ -18,7 +18,12 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
 
 	for _, service := range services {
-		if deploy.eligibleForGarbageCollection(service) {
+		componentName, ok := NewRadixComponentNameFromLabels(service)
+		if !ok {
+			continue
+		}
+
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(service.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
