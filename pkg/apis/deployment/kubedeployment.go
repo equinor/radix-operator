@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -315,20 +314,18 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 		return err
 	}
 
-	for _, exisitingComponent := range deployments {
-		garbageCollect := true
-		exisitingComponentName := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
-				garbageCollect = false
-				break
-			}
+	for _, deployment := range deployments {
+		componentName, ok := NewRadixComponentNameFromLabels(deployment)
+		if !ok {
+			continue
 		}
 
-		if garbageCollect {
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			propagationPolicy := metav1.DeletePropagationForeground
-			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+			deleteOption := &metav1.DeleteOptions{
+				PropagationPolicy: &propagationPolicy,
+			}
+			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(deployment.Name, deleteOption)
 			if err != nil {
 				return err
 			}

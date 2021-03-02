@@ -1,18 +1,18 @@
 package deployment
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"os"
 	"testing"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	corev1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
