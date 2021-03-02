@@ -30,12 +30,12 @@ const (
 )
 
 // CloneInitContainers The sidecars for cloning repo
-func CloneInitContainers(sshURL, branch string) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName)
+func CloneInitContainers(sshURL, branch string, containerSecContext corev1.SecurityContext) []corev1.Container {
+	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, containerSecContext)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
-func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string) []corev1.Container {
+func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, containerSecContext corev1.SecurityContext) []corev1.Container {
 	containers := []corev1.Container{
 		{
 			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),
@@ -43,10 +43,11 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 			Args:            []string{waitForGithubToRespond},
 			Command:         []string{"/bin/sh", "-c"},
 			ImagePullPolicy: "Always",
+			SecurityContext: &containerSecContext,
 		},
 		{
 			Name:            cloneContainerName,
-			Image:           "alpine/git",
+			Image:           "alpine/git:user",
 			ImagePullPolicy: "IfNotPresent",
 			Args: []string{
 				"clone",
@@ -65,10 +66,11 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 				},
 				{
 					Name:      GitSSHKeyVolumeName,
-					MountPath: "/root/.ssh",
+					MountPath: "/home/git-user/.ssh",
 					ReadOnly:  true,
 				},
 			},
+			SecurityContext: &containerSecContext,
 		},
 	}
 

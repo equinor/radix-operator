@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const multiComponentImageName = "multi-component"
@@ -55,6 +56,10 @@ type PipelineArguments struct {
 	FromEnvironment string
 	ToEnvironment   string
 	RadixConfigFile string
+
+	// Security context
+	PodSecurityContext       corev1.PodSecurityContext
+	ContainerSecurityContext corev1.SecurityContext
 
 	// Images used for copying radix config/building/scanning
 	ConfigToMap  string
@@ -130,6 +135,11 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	timestamp := time.Now().Format("20060102150405")
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s", timestamp, pipelineArguments.ImageTag)
+
+	podSecContext := GetPodSecurityContext(true, 1000)
+	containerSecContext := GetContainerSecurityContext(false, false, 1000, 1000)
+	pipelineArguments.ContainerSecurityContext = *containerSecContext
+	pipelineArguments.PodSecurityContext = *podSecContext
 
 	stepImplementationsForType, err := getStepstepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
