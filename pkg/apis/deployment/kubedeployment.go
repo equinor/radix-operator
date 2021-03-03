@@ -235,13 +235,8 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent *v1.RadixD
 		desiredDeployment.Spec.Replicas = deployComponent.HorizontalScaling.MinReplicas
 	}
 
-	// For backwards compatibility
-	isDeployComponentPublic := deployComponent.PublicPort != "" || deployComponent.Public
 	radixDeployment := deploy.radixDeployment
-	environmentVariables := deploy.getEnvironmentVariables(deployComponent.EnvironmentVariables, deployComponent.Secrets,
-		isDeployComponentPublic,
-		deployComponent.Ports, radixDeployment.Name, radixDeployment.Namespace, radixDeployment.Spec.Environment,
-		appName, componentName)
+	environmentVariables := GetEnvironmentVariables(appName, deploy.kubeutil, radixDeployment, deployComponent)
 
 	if environmentVariables != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables

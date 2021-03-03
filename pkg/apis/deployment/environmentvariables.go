@@ -6,16 +6,27 @@ import (
 	"sort"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	kube "github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (deploy *Deployment) getEnvironmentVariables(radixEnvVars v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort, radixDeployName, namespace, currentEnvironment, appName, componentName string) []corev1.EnvVar {
+func GetEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent *v1.RadixDeployComponent) []corev1.EnvVar {
+	var (
+		radixEnvVars          = deployComponent.EnvironmentVariables
+		radixSecrets          = deployComponent.Secrets
+		isPublic              = deployComponent.PublicPort != "" || deployComponent.Public // For backwards compatibility
+		ports                 = deployComponent.Ports
+		radixDeployName       = radixDeployment.Name
+		namespace             = radixDeployment.Namespace
+		currentEnvironment    = radixDeployment.Spec.Environment
+		componentName         = deployComponent.Name
+		radixDeploymentLabels = radixDeployment.Labels
+	)
 	var environmentVariables = appendAppEnvVariables(radixDeployName, radixEnvVars)
-	environmentVariables = deploy.appendDefaultVariables(currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports)
+	environmentVariables = appendDefaultVariables(kubeutil, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 
 	// secrets
 	if radixSecrets != nil {
@@ -69,8 +80,8 @@ func appendAppEnvVariables(radixDeployName string, radixEnvVars v1.EnvVarsMap) [
 	return environmentVariables
 }
 
-func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort) []corev1.EnvVar {
-	clusterName, err := deploy.kubeutil.GetClusterName()
+func appendDefaultVariables(kubeutil *kube.Kube, currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
+	clusterName, err := kubeutil.GetClusterName()
 	if err != nil {
 		return environmentVariables
 	}
@@ -88,7 +99,7 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 		})
 	}
 
-	containerRegistry, err := deploy.kubeutil.GetContainerRegistry()
+	containerRegistry, err := kubeutil.GetContainerRegistry()
 	if err != nil {
 		return environmentVariables
 	}
@@ -158,7 +169,7 @@ func (deploy *Deployment) appendDefaultVariables(currentEnvironment string, envi
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
 		Name:  defaults.RadixCommitHashEnvironmentVariable,
-		Value: deploy.radixDeployment.Labels[kube.RadixCommitLabel],
+		Value: radixDeploymentLabels[kube.RadixCommitLabel],
 	})
 
 	return environmentVariables
