@@ -36,6 +36,7 @@ const (
 	RadixJobTypeJob              = "job" // Outer job
 	RadixJobTypeBuild            = "build"
 	RadixJobTypeCloneConfig      = "clone-config"
+	RadixJobTypeJobSchedule      = "job-schedule"
 	RadixAppAliasLabel           = "radix-app-alias"
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
