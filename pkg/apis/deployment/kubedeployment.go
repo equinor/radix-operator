@@ -142,10 +142,10 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	}
 	deployment.Spec.Strategy = deploymentStrategy
 
-	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetVolumeMounts(deployComponent)
 	deployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 
-	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName, componentName)
+	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName)
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.RadixDeployComponent,
@@ -172,7 +172,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 
@@ -202,7 +202,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 		return nil, err
 	}
 
-	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName, componentName)
+	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
 
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
@@ -218,7 +218,7 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 	return branch, commitID
 }
 
-func (deploy *Deployment) updateDeploymentByComponent(deployComponent *v1.RadixDeployComponent, desiredDeployment *appsv1.Deployment, appName string, componentName string) (*appsv1.Deployment, error) {
+func (deploy *Deployment) updateDeploymentByComponent(deployComponent *v1.RadixDeployComponent, desiredDeployment *appsv1.Deployment, appName string) (*appsv1.Deployment, error) {
 	if deployComponent.AlwaysPullImageOnDeploy {
 		desiredDeployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
 	}

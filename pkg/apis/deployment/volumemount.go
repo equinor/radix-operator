@@ -19,7 +19,7 @@ const (
 	blobFuseVolumeNodeMountPathTemplate = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<volumename>/<container>
 )
 
-func (deploy *Deployment) getVolumeMounts(deployComponent *radixv1.RadixDeployComponent) []corev1.VolumeMount {
+func GetVolumeMounts(deployComponent *radixv1.RadixDeployComponent) []corev1.VolumeMount {
 	volumeMounts := make([]corev1.VolumeMount, 0)
 
 	if len(deployComponent.VolumeMounts) > 0 {
