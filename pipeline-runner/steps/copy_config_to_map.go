@@ -95,7 +95,8 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.ConfigToMapRunnerRoleName,
-					InitContainers:     getInitContainers(registration.Spec.CloneURL, configBranch),
+					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,
+					InitContainers:     getInitContainers(registration.Spec.CloneURL, configBranch, pipelineInfo.PipelineArguments.ContainerSecurityContext),
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
@@ -106,7 +107,8 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 								fmt.Sprintf("--configmap-name=%s", pipelineInfo.RadixConfigMapName),
 								fmt.Sprintf("--file=%s", pipelineInfo.PipelineArguments.RadixConfigFile),
 							},
-							VolumeMounts: getJobContainerVolumeMounts(),
+							VolumeMounts:    getJobContainerVolumeMounts(),
+							SecurityContext: &pipelineInfo.PipelineArguments.ContainerSecurityContext,
 						},
 					},
 					Volumes:       getJobVolumes(),
@@ -118,8 +120,8 @@ func (cli *CopyConfigToMapStepImplementation) getJobConfig(namespace, containerR
 
 }
 
-func getInitContainers(sshURL string, configBranch string) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName)
+func getInitContainers(sshURL string, configBranch string, containerSecContext corev1.SecurityContext) []corev1.Container {
+	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName, containerSecContext)
 }
 
 func getJobVolumes() []corev1.Volume {

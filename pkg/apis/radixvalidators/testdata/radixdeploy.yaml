@@ -35,3 +35,10 @@ spec:
     replicas: 0
     secrets:
     - a_secret
+  jobs:
+  - name: job1
+    schedulerPort: 8888
+  - name: job2
+    schedulerPort: 8888
+    payload:
+      path: /path/to/payload

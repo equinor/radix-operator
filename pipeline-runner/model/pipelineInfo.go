@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const multiComponentImageName = "multi-component"
@@ -55,6 +56,10 @@ type PipelineArguments struct {
 	FromEnvironment string
 	ToEnvironment   string
 	RadixConfigFile string
+
+	// Security context
+	PodSecurityContext       corev1.PodSecurityContext
+	ContainerSecurityContext corev1.SecurityContext
 
 	// Images used for copying radix config/building/scanning
 	ConfigToMap  string
@@ -131,6 +136,12 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	timestamp := time.Now().Format("20060102150405")
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s", timestamp, pipelineArguments.ImageTag)
 
+	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
+	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
+
+	pipelineArguments.ContainerSecurityContext = *containerSecContext
+	pipelineArguments.PodSecurityContext = *podSecContext
+
 	stepImplementationsForType, err := getStepstepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
 		return nil, err
@@ -189,7 +200,13 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.BranchIsMapped = branchIsMapped
 	info.TargetEnvironments = targetEnvironments
 
-	componentImages := getComponentImages(ra.GetName(), info.ContainerRegistry, info.PipelineArguments.ImageTag, ra.Spec.Components)
+	componentImages := getComponentImages(
+		ra.GetName(),
+		info.ContainerRegistry,
+		info.PipelineArguments.ImageTag,
+		ra.Spec.Components,
+		ra.Spec.Jobs,
+	)
 	info.ComponentImages = componentImages
 }
 
@@ -198,7 +215,39 @@ func (info *PipelineInfo) IsDeployOnlyPipeline() bool {
 	return info.PipelineArguments.ToEnvironment != "" && info.PipelineArguments.FromEnvironment == ""
 }
 
-func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent) map[string]pipeline.ComponentImage {
+func getRadixComponentImageSources(components []v1.RadixComponent) []pipeline.ComponentImageSource {
+	imageSources := make([]pipeline.ComponentImageSource, 0)
+
+	for _, c := range components {
+		s := pipeline.NewComponentImageSourceBuilder().
+			WithSourceFunc(pipeline.RadixComponentSource(c)).
+			Build()
+		imageSources = append(imageSources, s)
+	}
+
+	return imageSources
+}
+
+func getRadixJobComponentImageSources(components []v1.RadixJobComponent) []pipeline.ComponentImageSource {
+	imageSources := make([]pipeline.ComponentImageSource, 0)
+
+	for _, c := range components {
+		s := pipeline.NewComponentImageSourceBuilder().
+			WithSourceFunc(pipeline.RadixJobComponentSource(c)).
+			Build()
+		imageSources = append(imageSources, s)
+	}
+
+	return imageSources
+}
+
+func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent, jobComponents []v1.RadixJobComponent) map[string]pipeline.ComponentImage {
+	// Combine components and jobComponents
+
+	componentSource := make([]pipeline.ComponentImageSource, 0)
+	componentSource = append(componentSource, getRadixComponentImageSources(components)...)
+	componentSource = append(componentSource, getRadixJobComponentImageSources(jobComponents)...)
+
 	// First check if there are multiple components pointing to the same build context
 	buildContextComponents := make(map[string][]componentType)
 
@@ -206,7 +255,7 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 	// they were added
 	buildContextKeys := make([]string, 0)
 
-	for _, c := range components {
+	for _, c := range componentSource {
 		if c.Image != "" {
 			// Using public image. Nothing to build
 			continue
@@ -226,7 +275,7 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 	componentImages := make(map[string]pipeline.ComponentImage)
 
 	// Gather pre-built or public images
-	for _, c := range components {
+	for _, c := range componentSource {
 		if c.Image != "" {
 			componentImages[c.Name] = pipeline.ComponentImage{Build: false, Scan: false, ImageName: c.Image, ImagePath: c.Image}
 		}

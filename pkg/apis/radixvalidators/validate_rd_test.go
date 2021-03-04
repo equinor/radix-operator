@@ -32,21 +32,41 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 		{"to long app name", func(rd *v1.RadixDeployment) {
 			rd.Name = "way.toooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.long-app-name"
 		}},
-		{"invalid app name", func(rd *v1.RadixDeployment) { rd.Name = "invalid,char.appname" }},
-		{"empty app name", func(rd *v1.RadixDeployment) { rd.Name = "" }},
-		{"invalid nr replicas", func(rd *v1.RadixDeployment) { *rd.Spec.Components[0].Replicas = -1 }},
-		{"invalid nr replicas", func(rd *v1.RadixDeployment) { *rd.Spec.Components[0].Replicas = 200 }},
-		{"invalid component name", func(rd *v1.RadixDeployment) { rd.Spec.Components[0].Name = "invalid,char.appname" }},
-		{"invalid env name", func(rd *v1.RadixDeployment) { rd.Spec.Environment = "invalid,char.appname" }},
-		{"invalid hpa config minReplicas and maxReplicas are not set", func(rd *v1.RadixDeployment) { rd.Spec.Components[0].HorizontalScaling = &v1.RadixHorizontalScaling{} }},
-		{
-			"invalid hpa config maxReplicas is not set and minReplicas is set",
-			func(rd *v1.RadixDeployment) {
-				minReplica := int32(3)
-				rd.Spec.Components[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
-				rd.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
-			},
-		},
+		{"invalid app name", func(rd *v1.RadixDeployment) {
+			rd.Name = "invalid,char.appname"
+		}},
+		{"empty app name", func(rd *v1.RadixDeployment) {
+			rd.Name = ""
+		}},
+		{"invalid nr replicas", func(rd *v1.RadixDeployment) {
+			*rd.Spec.Components[0].Replicas = -1
+		}},
+		{"invalid nr replicas", func(rd *v1.RadixDeployment) {
+			*rd.Spec.Components[0].Replicas = 200
+		}},
+		{"invalid component name", func(rd *v1.RadixDeployment) {
+			rd.Spec.Components[0].Name = "invalid,char.appname"
+		}},
+		{"invalid env name", func(rd *v1.RadixDeployment) {
+			rd.Spec.Environment = "invalid,char.appname"
+		}},
+		{"invalid hpa config minReplicas and maxReplicas are not set", func(rd *v1.RadixDeployment) {
+			rd.Spec.Components[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+		}},
+		{"invalid hpa config maxReplicas is not set and minReplicas is set", func(rd *v1.RadixDeployment) {
+			minReplica := int32(3)
+			rd.Spec.Components[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+			rd.Spec.Components[0].HorizontalScaling.MinReplicas = &minReplica
+		}},
+		{"invalid job name", func(rd *v1.RadixDeployment) {
+			rd.Spec.Jobs[0].Name = "invalid,char.appname"
+		}},
+		{"job scheduler port is not set", func(rd *v1.RadixDeployment) {
+			rd.Spec.Jobs[0].SchedulerPort = nil
+		}},
+		{"job payload path is not set", func(rd *v1.RadixDeployment) {
+			rd.Spec.Jobs[1].Payload.Path = ""
+		}},
 	}
 
 	_, client := validRRSetup()
