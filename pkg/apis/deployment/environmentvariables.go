@@ -13,7 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetEnvironmentVariablesFromRadixDeployJobComponent(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployJobComponent *v1.RadixDeployComponent) []corev1.EnvVar {
+func GetEnvironmentVariablesFromRadixDeployJobComponent(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployJobComponent *v1.RadixDeployJobComponent) []corev1.EnvVar {
 	return getEnvironmentVariables(
 		appName,
 		kubeutil,
