@@ -141,7 +141,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	}
 	deployment.Spec.Strategy = deploymentStrategy
 
-	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetVolumeMounts(deployComponent)
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
 	deployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 
 	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName)
@@ -171,7 +171,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetVolumeMounts(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 
@@ -235,7 +235,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent *v1.RadixD
 	}
 
 	radixDeployment := deploy.radixDeployment
-	environmentVariables := GetEnvironmentVariables(appName, deploy.kubeutil, radixDeployment, deployComponent)
+	environmentVariables := GetEnvironmentVariablesFromRadixDeployComponent(appName, deploy.kubeutil, radixDeployment, deployComponent)
 
 	if environmentVariables != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables

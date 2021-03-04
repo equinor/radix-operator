@@ -19,14 +19,22 @@ const (
 	blobFuseVolumeNodeMountPathTemplate = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<volumename>/<container>
 )
 
-func GetVolumeMounts(deployComponent *radixv1.RadixDeployComponent) []corev1.VolumeMount {
+func GetRadixDeployComponentVolumeMounts(deployComponent *radixv1.RadixDeployComponent) []corev1.VolumeMount {
+	return getVolumeMounts(deployComponent.Name, &deployComponent.VolumeMounts)
+}
+
+func GetRadixDeployJobComponentVolumeMounts(deployJobComponent *radixv1.RadixDeployJobComponent) []corev1.VolumeMount {
+	return getVolumeMounts(deployJobComponent.Name, &deployJobComponent.VolumeMounts)
+}
+
+func getVolumeMounts(componentName string, componentVolumeMounts *[]radixv1.RadixVolumeMount) []v1.VolumeMount {
 	volumeMounts := make([]corev1.VolumeMount, 0)
 
-	if len(deployComponent.VolumeMounts) > 0 {
-		for _, volumeMount := range deployComponent.VolumeMounts {
+	if len(*componentVolumeMounts) > 0 {
+		for _, volumeMount := range *componentVolumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
 				volumeMounts = append(volumeMounts, corev1.VolumeMount{
-					Name:      fmt.Sprintf(volumeName, deployComponent.Name, volumeMount.Name),
+					Name:      fmt.Sprintf(volumeName, componentName, volumeMount.Name),
 					MountPath: volumeMount.Path,
 				})
 			}
