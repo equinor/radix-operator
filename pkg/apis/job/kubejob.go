@@ -19,7 +19,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const workerImage = "radix-pipeline"
+const (
+	workerImage                = "radix-pipeline"
+	PRIVILEGED_CONTAINER       = false
+	ALLOW_PRIVILEGE_ESCALATION = false
+	RUN_AS_NON_ROOT            = true
+	RUN_AS_USER                = 1000
+	RUN_AS_GROUP               = 1000
+	FS_GROUP                   = 1000
+)
 
 func (job *Job) createJob() error {
 	namespace := job.radixJob.Namespace
@@ -68,8 +76,8 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: conditionUtils.BoolPtr(true),
-						FSGroup:      numberUtils.Int64Ptr(1000),
+						RunAsNonRoot: conditionUtils.BoolPtr(RUN_AS_NON_ROOT),
+						FSGroup:      numberUtils.Int64Ptr(FS_GROUP),
 					},
 					ServiceAccountName: defaults.PipelineRoleName,
 					Containers: []corev1.Container{
@@ -79,10 +87,10 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
 							SecurityContext: &corev1.SecurityContext{
-								Privileged:               conditionUtils.BoolPtr(false),
-								AllowPrivilegeEscalation: conditionUtils.BoolPtr(false),
-								RunAsUser:                numberUtils.Int64Ptr(1000),
-								RunAsGroup:               numberUtils.Int64Ptr(1000),
+								Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
+								AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
+								RunAsUser:                numberUtils.Int64Ptr(RUN_AS_USER),
+								RunAsGroup:               numberUtils.Int64Ptr(RUN_AS_GROUP),
 							},
 						},
 					},
