@@ -11,8 +11,8 @@ import (
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	condition_utils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
-	number_utils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
+	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
+	numberUtils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -68,8 +68,8 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: condition_utils.BoolPtr(true),
-						FSGroup:      number_utils.Int64Ptr(1000),
+						RunAsNonRoot: conditionUtils.BoolPtr(true),
+						FSGroup:      numberUtils.Int64Ptr(1000),
 					},
 					ServiceAccountName: defaults.PipelineRoleName,
 					Containers: []corev1.Container{
@@ -79,10 +79,10 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
 							SecurityContext: &corev1.SecurityContext{
-								Privileged:               condition_utils.BoolPtr(false),
-								AllowPrivilegeEscalation: condition_utils.BoolPtr(false),
-								RunAsUser:                number_utils.Int64Ptr(1000),
-								RunAsGroup:               number_utils.Int64Ptr(1000),
+								Privileged:               conditionUtils.BoolPtr(false),
+								AllowPrivilegeEscalation: conditionUtils.BoolPtr(false),
+								RunAsUser:                numberUtils.Int64Ptr(1000),
+								RunAsGroup:               numberUtils.Int64Ptr(1000),
 							},
 						},
 					},
