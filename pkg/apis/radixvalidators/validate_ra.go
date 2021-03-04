@@ -85,6 +85,16 @@ func MultipleMatchingPortNamesError(matchingPortName int, publicPortName, compon
 	return fmt.Errorf("There are %d ports with name %s for component %s. Only 1 is allowed", matchingPortName, publicPortName, component)
 }
 
+// SchedulerPortCannotBeEmptyForJobError Scheduler port cannot be empty for job
+func SchedulerPortCannotBeEmptyForJobError(jobName string) error {
+	return fmt.Errorf("Scheduler port cannot be empty for %s", jobName)
+}
+
+// PayloadPathCannotBeEmptyForJobError Payload path cannot be empty for job
+func PayloadPathCannotBeEmptyForJobError(jobName string) error {
+	return fmt.Errorf("Payload path cannot be empty for %s", jobName)
+}
+
 // MemoryResourceRequirementFormatError Invalid memory resource requirement error
 func MemoryResourceRequirementFormatError(value string) error {
 	return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", "memory", value)
@@ -173,8 +183,9 @@ func IsApplicationNameLowercase(appName string) (bool, error) {
 	return true, nil
 }
 
+//ApplicationNameNotLowercaseError Indicates that application name contains upper case letters
 func ApplicationNameNotLowercaseError(appName string) error {
-	return fmt.Errorf("Application with name %s contains uppercase letters.", appName)
+	return fmt.Errorf("Application with name %s contains uppercase letters", appName)
 }
 
 // PublicImageComponentCannotHaveSourceOrDockerfileSet Error if image is set and radix config contains src or dockerfile
@@ -202,8 +213,8 @@ func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(compone
 		componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
-// SecretNameConfictsWithEnvironmentVariable If secret name is the same as environment variable fail validation
-func SecretNameConfictsWithEnvironmentVariable(componentName, secretName string) error {
+// SecretNameConflictsWithEnvironmentVariable If secret name is the same as environment variable fail validation
+func SecretNameConflictsWithEnvironmentVariable(componentName, secretName string) error {
 	return fmt.Errorf(
 		"Component %s has a secret with name %s which exists as an environment variable",
 		componentName, secretName)
@@ -222,22 +233,22 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, componentErrs...)
 	}
 
+	jobErrs := validateJobComponents(app)
+	if len(jobErrs) > 0 {
+		errs = append(errs, jobErrs...)
+	}
+
 	err = validateEnvNames(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	err = validateSecretNames(app)
+	err = validateSecrets(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	err = validateEnvironmentVariableNames(app)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = validateConflictingEnvironmentAndSecretNames(app)
+	err = validateVariables(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -370,14 +381,12 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(component.Name))
 			} else {
 				for _, environment := range component.EnvironmentConfig {
-					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) &&
-						environment.ImageTagName == "" {
+					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
 						errs = append(errs,
 							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(component.Name, environment.Environment))
 					}
 				}
 			}
-
 		}
 
 		err := validateRequiredResourceName("component name", component.Name)
@@ -385,7 +394,12 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, err)
 		}
 
-		errList := validatePorts(component)
+		errList := validatePorts(component.Name, component.Ports)
+		if errList != nil && len(errList) > 0 {
+			errs = append(errs, errList...)
+		}
+
+		errList = validatePublicPort(component)
 		if errList != nil && len(errList) > 0 {
 			errs = append(errs, errList...)
 		}
@@ -422,6 +436,73 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
+func validateJobComponents(app *radixv1.RadixApplication) []error {
+	errs := []error{}
+	for _, job := range app.Spec.Jobs {
+		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
+			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(job.Name))
+		}
+
+		if usesDynamicTaggingForDeployOnly(job.Image) {
+			if len(job.EnvironmentConfig) == 0 {
+				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(job.Name))
+			} else {
+				for _, environment := range job.EnvironmentConfig {
+					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
+						errs = append(errs,
+							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(job.Name, environment.Environment))
+					}
+				}
+			}
+		}
+
+		err := validateRequiredResourceName("job name", job.Name)
+		if err != nil {
+			errs = append(errs, err)
+		}
+
+		if err = validateJobSchedulerPort(&job); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err = validateJobPayload(&job); err != nil {
+			errs = append(errs, err)
+		}
+
+		if job.Ports != nil && len(job.Ports) > 0 {
+			errList := validatePorts(job.Name, job.Ports)
+			if errList != nil && len(errList) > 0 {
+				errs = append(errs, errList...)
+			}
+		}
+
+		// Common resource requirements
+		errList := validateResourceRequirements(&job.Resources)
+		if errList != nil && len(errList) > 0 {
+			errs = append(errs, errList...)
+		}
+
+		for _, environment := range job.EnvironmentConfig {
+			if !doesEnvExist(app, environment.Environment) {
+				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, job.Name)
+				errs = append(errs, err)
+			}
+
+			errList = validateResourceRequirements(&environment.Resources)
+			if errList != nil && len(errList) > 0 {
+				errs = append(errs, errList...)
+			}
+
+			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
+				errs = append(errs,
+					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(job.Name, environment.Environment))
+			}
+		}
+	}
+
+	return errs
+}
+
 func usesDynamicTaggingForDeployOnly(componentImage string) bool {
 	return componentImage != "" &&
 		strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig)
@@ -433,15 +514,31 @@ func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, component
 			!strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig))
 }
 
-func validatePorts(component radixv1.RadixComponent) []error {
+func validateJobSchedulerPort(job *v1.RadixJobComponent) error {
+	if job.SchedulerPort == nil {
+		return SchedulerPortCannotBeEmptyForJobError(job.Name)
+	}
+
+	return nil
+}
+
+func validateJobPayload(job *v1.RadixJobComponent) error {
+	if job.Payload != nil && job.Payload.Path == "" {
+		return PayloadPathCannotBeEmptyForJobError(job.Name)
+	}
+
+	return nil
+}
+
+func validatePorts(componentName string, ports []v1.ComponentPort) []error {
 	errs := []error{}
 
-	if component.Ports == nil || len(component.Ports) == 0 {
-		err := PortSpecificationCannotBeEmptyForComponentError(component.Name)
+	if ports == nil || len(ports) == 0 {
+		err := PortSpecificationCannotBeEmptyForComponentError(componentName)
 		errs = append(errs, err)
 	}
 
-	for _, port := range component.Ports {
+	for _, port := range ports {
 		if len(port.Name) > maxPortNameLength {
 			err := InvalidPortNameLengthError(port.Name)
 			if err != nil {
@@ -454,6 +551,12 @@ func validatePorts(component radixv1.RadixComponent) []error {
 			errs = append(errs, err)
 		}
 	}
+
+	return errs
+}
+
+func validatePublicPort(component radixv1.RadixComponent) []error {
+	errs := []error{}
 
 	publicPortName := component.PublicPort
 	if publicPortName != "" {
@@ -523,72 +626,106 @@ func validateQuantity(name, value string) (resource.Quantity, error) {
 	return quantity, nil
 }
 
-func validateSecretNames(app *radixv1.RadixApplication) error {
+func validateSecrets(app *radixv1.RadixApplication) error {
 	if app.Spec.Build != nil {
-		for _, buildSecret := range app.Spec.Build.Secrets {
-			err := validateVariableName("build secret name", buildSecret)
-			if err != nil {
-				return err
-			}
+		if err := validateSecretNames("build secret name", app.Spec.Build.Secrets); err != nil {
+			return err
 		}
 	}
 
 	for _, component := range app.Spec.Components {
-		for _, secret := range component.Secrets {
-			err := validateVariableName("secret name", secret)
-			if err != nil {
-				return err
-			}
+		if err := validateSecretNames("secret name", component.Secrets); err != nil {
+			return err
+		}
+
+		envVars := []radixv1.EnvVarsMap{component.Variables}
+		for _, env := range component.EnvironmentConfig {
+			envVars = append(envVars, env.Variables)
+		}
+
+		if err := validateConflictingEnvironmentAndSecretNames(component.Name, component.Secrets, envVars); err != nil {
+			return err
+		}
+	}
+
+	for _, job := range app.Spec.Jobs {
+		if err := validateSecretNames("secret name", job.Secrets); err != nil {
+			return err
+		}
+
+		envVars := []radixv1.EnvVarsMap{job.Variables}
+		for _, env := range job.EnvironmentConfig {
+			envVars = append(envVars, env.Variables)
+		}
+
+		if err := validateConflictingEnvironmentAndSecretNames(job.Name, job.Secrets, envVars); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateSecretNames(resourceName string, secrets []string) error {
+	for _, secret := range secrets {
+		if err := validateVariableName(resourceName, secret); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func validateEnvironmentVariableNames(app *radixv1.RadixApplication) error {
+func validateVariables(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
-		// Common environment variables
-		for commonEnvironmentVariable := range component.Variables {
-			err := validateVariableName("environment variable name", commonEnvironmentVariable)
-			if err != nil {
+		if err := validateVariableNames("environment variable name", component.Variables); err != nil {
+			return err
+		}
+
+		for _, envConfig := range component.EnvironmentConfig {
+			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
 				return err
 			}
 		}
-		// Per-environment environment variables
-		for _, envConfig := range component.EnvironmentConfig {
-			for environmentVariable := range envConfig.Variables {
-				err := validateVariableName("environment variable name", environmentVariable)
-				if err != nil {
-					return err
-				}
+	}
+
+	for _, job := range app.Spec.Jobs {
+		if err := validateVariableNames("environment variable name", job.Variables); err != nil {
+			return err
+		}
+
+		for _, envConfig := range job.EnvironmentConfig {
+			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
+				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func validateVariableNames(resourceName string, variables radixv1.EnvVarsMap) error {
+	for v := range variables {
+		if err := validateVariableName(resourceName, v); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func validateConflictingEnvironmentAndSecretNames(app *radixv1.RadixApplication) error {
-	for _, component := range app.Spec.Components {
-		secretNames := make(map[string]struct{})
-		for _, secret := range component.Secrets {
-			secretNames[secret] = struct{}{}
-		}
+func validateConflictingEnvironmentAndSecretNames(componentName string, secrets []string, variables []radixv1.EnvVarsMap) error {
+	secretNames := make(map[string]struct{})
+	for _, secret := range secrets {
+		secretNames[secret] = struct{}{}
+	}
 
-		// Common environment variables
-		for commonEnvironmentVariable := range component.Variables {
-			if _, contains := secretNames[commonEnvironmentVariable]; contains {
-				return SecretNameConfictsWithEnvironmentVariable(component.Name, commonEnvironmentVariable)
-			}
-		}
-
-		// Per-environment environment variables
-		for _, envConfig := range component.EnvironmentConfig {
-			for environmentVariable := range envConfig.Variables {
-				if _, contains := secretNames[environmentVariable]; contains {
-					return SecretNameConfictsWithEnvironmentVariable(component.Name, environmentVariable)
-				}
+	for _, envVars := range variables {
+		for envVarKey := range envVars {
+			if _, contains := secretNames[envVarKey]; contains {
+				return SecretNameConflictsWithEnvironmentVariable(componentName, envVarKey)
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -663,47 +800,61 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
 		for _, envConfig := range component.EnvironmentConfig {
-			componentName := component.Name
-			environment := envConfig.Environment
-			if envConfig.VolumeMounts == nil && len(envConfig.VolumeMounts) == 0 {
-				continue
+			if err := validateVolumeMounts(component.Name, envConfig.Environment, envConfig.VolumeMounts); err != nil {
+				return err
 			}
+		}
+	}
 
-			mountsInComponent := make(map[string]volumeMountConfigMaps)
+	for _, job := range app.Spec.Jobs {
+		for _, envConfig := range job.EnvironmentConfig {
+			if err := validateVolumeMounts(job.Name, envConfig.Environment, envConfig.VolumeMounts); err != nil {
+				return err
+			}
+		}
+	}
 
-			for _, volumeMount := range envConfig.VolumeMounts {
-				volumeMountType := strings.TrimSpace(string(volumeMount.Type))
-				switch {
-				case volumeMountType == "" ||
-					strings.TrimSpace(volumeMount.Name) == "" ||
-					strings.TrimSpace(volumeMount.Container) == "" ||
-					strings.TrimSpace(volumeMount.Path) == "":
-					{
-						return emptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
-					}
-				case volumeMountType == string(v1.MountTypeBlob):
-					{
-						if _, exists := mountsInComponent[volumeMountType]; !exists {
-							mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), containers: make(map[string]bool), path: make(map[string]bool)}
-						}
-						volumeMountConfigMap := mountsInComponent[volumeMountType]
-						if _, exists := volumeMountConfigMap.containers[volumeMount.Container]; exists {
-							return duplicateContainerForVolumeMountType(volumeMount.Container, volumeMountType, componentName, environment)
-						}
-						volumeMountConfigMap.containers[volumeMount.Container] = true
-						if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
-							return duplicateNameForVolumeMountType(volumeMount.Name, volumeMountType, componentName, environment)
-						}
-						volumeMountConfigMap.names[volumeMount.Name] = true
-						if _, exists := volumeMountConfigMap.path[volumeMount.Path]; exists {
-							return duplicatePathForVolumeMountType(volumeMount.Path, volumeMountType, componentName, environment)
-						}
-						volumeMountConfigMap.path[volumeMount.Path] = true
-					}
-				default:
-					return unknownVolumeMountTypeError(volumeMountType, componentName, environment)
+	return nil
+}
+
+func validateVolumeMounts(componentName, environment string, volumeMounts []radixv1.RadixVolumeMount) error {
+	if volumeMounts == nil || len(volumeMounts) == 0 {
+		return nil
+	}
+
+	mountsInComponent := make(map[string]volumeMountConfigMaps)
+
+	for _, volumeMount := range volumeMounts {
+		volumeMountType := strings.TrimSpace(string(volumeMount.Type))
+		switch {
+		case volumeMountType == "" ||
+			strings.TrimSpace(volumeMount.Name) == "" ||
+			strings.TrimSpace(volumeMount.Container) == "" ||
+			strings.TrimSpace(volumeMount.Path) == "":
+			{
+				return emptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
+			}
+		case volumeMountType == string(v1.MountTypeBlob):
+			{
+				if _, exists := mountsInComponent[volumeMountType]; !exists {
+					mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), containers: make(map[string]bool), path: make(map[string]bool)}
 				}
+				volumeMountConfigMap := mountsInComponent[volumeMountType]
+				if _, exists := volumeMountConfigMap.containers[volumeMount.Container]; exists {
+					return duplicateContainerForVolumeMountType(volumeMount.Container, volumeMountType, componentName, environment)
+				}
+				volumeMountConfigMap.containers[volumeMount.Container] = true
+				if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
+					return duplicateNameForVolumeMountType(volumeMount.Name, volumeMountType, componentName, environment)
+				}
+				volumeMountConfigMap.names[volumeMount.Name] = true
+				if _, exists := volumeMountConfigMap.path[volumeMount.Path]; exists {
+					return duplicatePathForVolumeMountType(volumeMount.Path, volumeMountType, componentName, environment)
+				}
+				volumeMountConfigMap.path[volumeMount.Path] = true
 			}
+		default:
+			return unknownVolumeMountTypeError(volumeMountType, componentName, environment)
 		}
 	}
 

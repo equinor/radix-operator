@@ -3,12 +3,13 @@ package deployment
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/client-go/util/retry"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"k8s.io/client-go/util/retry"
 
 	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -66,9 +67,10 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, containerRegistry, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
-	radixComponents := getRadixComponentsForEnv(config, containerRegistry, env, componentImages)
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, radixComponents)
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
+	components := getRadixComponentsForEnv(config, env, componentImages)
+	jobs := NewJobComponentsBuilder(config, env, componentImages).JobComponents()
+	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, components, jobs)
 	return radixDeployment, nil
 }
 
@@ -257,6 +259,13 @@ func (deploy *Deployment) syncDeployment() error {
 				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
 				continue
 			}
+		} else {
+			err = deploy.deleteServiceMonitorForComponent(v)
+			if err != nil {
+				log.Infof("Failed to delete servicemonitor: %v", err)
+				errs = append(errs, fmt.Errorf("Failed to delete servicemonitor: %v", err))
+				continue
+			}
 		}
 	}
 
@@ -416,7 +425,7 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 	return nil
 }
 
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent) v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
@@ -442,6 +451,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 			AppName:          appName,
 			Environment:      env,
 			Components:       components,
+			Jobs:             jobs,
 			ImagePullSecrets: imagePullSecrets,
 		},
 	}
@@ -458,6 +468,17 @@ func getLabelSelectorForExternalAlias(component v1.RadixDeployComponent) string 
 
 func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixDeployComponent) string {
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
+}
+
+func getRadixJobSchedulerImage() (string, error) {
+	image := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+
+	if image == "" {
+		err := fmt.Errorf("Cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+		log.Error(err)
+	}
+
+	return image, nil
 }
 
 func (deploy *Deployment) maintainHistoryLimit() {

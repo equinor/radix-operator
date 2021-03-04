@@ -1,8 +1,6 @@
 package deployment
 
 import (
-	"strings"
-
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -61,23 +59,14 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(c
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 	roleBindings, err := deploy.kubeutil.ListRoleBindings(deploy.radixDeployment.GetNamespace())
 
-	for _, exisitingComponent := range roleBindings {
-		garbageCollect := true
-		exisitingComponentName, exists := exisitingComponent.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		if !exists {
+	for _, roleBinding := range roleBindings {
+		componentName, ok := NewRadixComponentNameFromLabels(roleBinding)
+		if !ok {
 			continue
 		}
 
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
-				garbageCollect = false
-				break
-			}
-		}
-
-		if garbageCollect {
-			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(exisitingComponent.Name, &metav1.DeleteOptions{})
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBinding.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

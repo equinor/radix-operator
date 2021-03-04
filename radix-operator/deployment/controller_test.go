@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	prometheusclient "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	prometheusfake "github.com/coreos/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -27,14 +29,14 @@ const (
 
 var synced chan bool
 
-func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
+func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient)
-
+	prometheusclient := prometheusfake.NewSimpleClientset()
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
-	return &handlerTestUtils, client, kubeUtil, radixClient
+	return &handlerTestUtils, client, kubeUtil, radixClient, prometheusclient
 }
 
 func teardownTest() {
@@ -49,7 +51,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	anyEnvironment := "qa"
 
 	// Setup
-	tu, client, kubeUtil, radixClient := setupTest()
+	tu, client, kubeUtil, radixClient, prometheusclient := setupTest()
 
 	client.CoreV1().Namespaces().Create(&corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -74,7 +76,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		client,
 		kubeUtil,
 		radixClient,
-		nil,
+		prometheusclient,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
