@@ -33,6 +33,8 @@ func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
 	newService := oldService.DeepCopy()
 	newService.Spec.Ports = service.Spec.Ports
 	newService.ObjectMeta.OwnerReferences = service.ObjectMeta.OwnerReferences
+	newService.ObjectMeta.Labels = service.ObjectMeta.Labels
+	newService.Spec.Selector = service.Spec.Selector
 
 	oldServiceJSON, err := json.Marshal(oldService)
 	if err != nil {
