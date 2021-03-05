@@ -29,7 +29,8 @@ RUN golint `go list ./... | grep -v "pkg/client"` && \
 # Build
 WORKDIR /go/src/github.com/equinor/radix-operator/radix-operator/
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-operator
-RUN adduser -D -g '' radix-operator
+RUN addgroup -S -g 1000 radix-operator
+RUN adduser -S -u 1000 -G radix-operator radix-operator
 
 # Run operator
 FROM scratch
