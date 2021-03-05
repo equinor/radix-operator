@@ -42,3 +42,8 @@ func TernaryString(condition bool, trueValue, falseValue string) string {
 func StringPtr(s string) *string {
 	return &s
 }
+
+// BoolPtr returns a pointer to the passed bool.
+func BoolPtr(value bool) *bool {
+	return &value
+}
