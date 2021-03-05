@@ -29,6 +29,9 @@ const (
 
 	// PlatformUserRoleName Name of platform user cluster role
 	PlatformUserRoleName = "radix-platform-user"
+
+	// RadixJobSchedulerRoleName Name of the service account representing the Radix Job Scheduler
+	RadixJobSchedulerRoleName = "radix-job-scheduler"
 )
 
 // GetMachineUserRoleName Gets the name of the machine user for an app

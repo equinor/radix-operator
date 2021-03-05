@@ -45,23 +45,25 @@ func getVolumeMounts(componentName string, componentVolumeMounts *[]radixv1.Radi
 }
 
 func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployComponent) []corev1.Volume {
+	return GetVolumes(deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent.Name, &deployComponent.VolumeMounts)
+}
+
+func GetVolumes(namespace string, environment string, componentName string, volumeMounts *[]radixv1.RadixVolumeMount) []v1.Volume {
 	volumes := make([]corev1.Volume, 0)
 
-	if len(deployComponent.VolumeMounts) > 0 {
-		namespace := deploy.radixDeployment.Namespace
-
-		for _, volumeMount := range deployComponent.VolumeMounts {
+	if len(*volumeMounts) > 0 {
+		for _, volumeMount := range *volumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
-				secretName := defaults.GetBlobFuseCredsSecretName(deployComponent.Name, volumeMount.Name)
+				secretName := defaults.GetBlobFuseCredsSecretName(componentName, volumeMount.Name)
 
 				flexVolumeOptions := make(map[string]string)
 				flexVolumeOptions["name"] = volumeMount.Name
 				flexVolumeOptions["container"] = volumeMount.Container
 				flexVolumeOptions["mountoptions"] = defaultMountOptions
-				flexVolumeOptions["tmppath"] = fmt.Sprintf(blobFuseVolumeNodeMountPathTemplate, namespace, deployComponent.Name, deploy.radixDeployment.Spec.Environment, radixv1.MountTypeBlob, volumeMount.Name, volumeMount.Container)
+				flexVolumeOptions["tmppath"] = fmt.Sprintf(blobFuseVolumeNodeMountPathTemplate, namespace, componentName, environment, radixv1.MountTypeBlob, volumeMount.Name, volumeMount.Container)
 
 				volumes = append(volumes, corev1.Volume{
-					Name: fmt.Sprintf(volumeName, deployComponent.Name, volumeMount.Name),
+					Name: fmt.Sprintf(volumeName, componentName, volumeMount.Name),
 					VolumeSource: corev1.VolumeSource{
 						FlexVolume: &corev1.FlexVolumeSource{
 							Driver:  blobfuseDriver,
