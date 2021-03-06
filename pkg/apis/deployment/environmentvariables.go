@@ -2,15 +2,14 @@ package deployment
 
 import (
 	"fmt"
-	"os"
-	"sort"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"os"
+	"sort"
 )
 
 func GetEnvironmentVariablesFromRadixDeployJobComponent(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployJobComponent *v1.RadixDeployJobComponent) []corev1.EnvVar {
@@ -104,11 +103,13 @@ func appendAppEnvVariables(radixDeployName string, radixEnvVars v1.EnvVarsMap) [
 func appendDefaultVariables(kubeutil *kube.Kube, currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
 	clusterName, err := kubeutil.GetClusterName()
 	if err != nil {
+		log.Errorf("Failed to get cluster name from ConfigMap: %v", err)
 		return environmentVariables
 	}
 
 	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
+		log.Errorf("Not set environment variable %s", defaults.OperatorDNSZoneEnvironmentVariable)
 		return nil
 	}
 
@@ -118,10 +119,13 @@ func appendDefaultVariables(kubeutil *kube.Kube, currentEnvironment string, envi
 			Name:  defaults.RadixClusterTypeEnvironmentVariable,
 			Value: clusterType,
 		})
+	} else {
+		log.Debugf("Not set environment variable %s", defaults.RadixClusterTypeEnvironmentVariable)
 	}
 
 	containerRegistry, err := kubeutil.GetContainerRegistry()
 	if err != nil {
+		log.Errorf("Failed to get container registry from ConfigMap: %v", err)
 		return environmentVariables
 	}
 
@@ -186,6 +190,8 @@ func appendDefaultVariables(kubeutil *kube.Kube, currentEnvironment string, envi
 			Name:  defaults.RadixPortNamesEnvironmentVariable,
 			Value: portNames,
 		})
+	} else {
+		log.Debugf("No ports defined for the component")
 	}
 
 	environmentVariables = append(environmentVariables, corev1.EnvVar{
