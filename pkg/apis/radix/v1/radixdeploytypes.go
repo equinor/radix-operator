@@ -2,6 +2,7 @@ package v1
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,6 +77,134 @@ type RadixDeployComponent struct {
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 }
 
+func (deployComponent *RadixDeployComponent) GetName() string {
+	return deployComponent.Name
+}
+
+func (deployComponent *RadixDeployComponent) GetImage() string {
+	return deployComponent.Image
+}
+
+func (deployComponent *RadixDeployComponent) GetPorts() *[]ComponentPort {
+	return &deployComponent.Ports
+}
+
+func (deployComponent *RadixDeployComponent) GetEnvironmentVariables() *EnvVarsMap {
+	return &deployComponent.EnvironmentVariables
+}
+
+func (deployComponent *RadixDeployComponent) GetSecrets() *[]string {
+	return &deployComponent.Secrets
+}
+
+func (deployComponent *RadixDeployComponent) GetMonitoring() bool {
+	return deployComponent.Monitoring
+}
+
+func (deployComponent *RadixDeployComponent) GetResources() *ResourceRequirements {
+	return &deployComponent.Resources
+}
+
+func (deployComponent *RadixDeployComponent) GetVolumeMounts() *[]RadixVolumeMount {
+	return &deployComponent.VolumeMounts
+}
+
+func (deployComponent *RadixDeployComponent) IsAlwaysPullImageOnDeploy() bool {
+	return deployComponent.AlwaysPullImageOnDeploy
+}
+
+func (deployComponent *RadixDeployComponent) GetReplicas() *int {
+	return deployComponent.Replicas
+}
+
+func (deployComponent *RadixDeployComponent) GetHorizontalScaling() *RadixHorizontalScaling {
+	return deployComponent.HorizontalScaling
+}
+
+func (deployComponent *RadixDeployComponent) GetPublicPort() string {
+	return deployComponent.PublicPort
+}
+
+func (deployComponent *RadixDeployComponent) IsPublic() bool {
+	return len(deployComponent.PublicPort) > 0
+}
+
+func (deployComponent *RadixDeployComponent) GetDNSExternalAlias() *[]string {
+	return &deployComponent.DNSExternalAlias
+}
+
+func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
+	return deployComponent.DNSAppAlias
+}
+
+func (deployComponent *RadixDeployComponent) GetIngressConfiguration() *[]string {
+	return &deployComponent.IngressConfiguration
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetName() string {
+	return deployJobComponent.Name
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
+	return deployJobComponent.Image
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetPorts() *[]ComponentPort {
+	return &deployJobComponent.Ports
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetEnvironmentVariables() *EnvVarsMap {
+	return &deployJobComponent.EnvironmentVariables
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetSecrets() *[]string {
+	return &deployJobComponent.Secrets
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetMonitoring() bool {
+	return deployJobComponent.Monitoring
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetResources() *ResourceRequirements {
+	return &deployJobComponent.Resources
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() *[]RadixVolumeMount {
+	return &deployJobComponent.VolumeMounts
+}
+
+func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() bool {
+	return deployJobComponent.AlwaysPullImageOnDeploy
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetReplicas() *int {
+	return numbers.IntPtr(0)
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetHorizontalScaling() *RadixHorizontalScaling {
+	return nil
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetPublicPort() string {
+	return ""
+}
+
+func (deployJobComponent *RadixDeployJobComponent) IsPublic() bool {
+	return false
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetDNSExternalAlias() *[]string {
+	return nil
+}
+
+func (deployJobComponent *RadixDeployJobComponent) IsDNSAppAlias() bool {
+	return false
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() *[]string {
+	return nil
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -95,16 +224,37 @@ func (deployComponent RadixDeployComponent) GetResourceRequirements() *core_v1.R
 //RadixDeployJobComponent defines a single job component within a RadixDeployment
 // The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
-	Name                 string                    `json:"name" yaml:"name"`
-	Image                string                    `json:"image" yaml:"image"`
-	Ports                []ComponentPort           `json:"ports" yaml:"ports"`
-	EnvironmentVariables EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
-	Secrets              []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	Monitoring           bool                      `json:"monitoring" yaml:"monitoring"`
-	Resources            ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
-	VolumeMounts         []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	SchedulerPort        *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
-	Payload              *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
+	Name                    string                    `json:"name" yaml:"name"`
+	Image                   string                    `json:"image" yaml:"image"`
+	Ports                   []ComponentPort           `json:"ports" yaml:"ports"`
+	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
+	Secrets                 []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Monitoring              bool                      `json:"monitoring" yaml:"monitoring"`
+	Resources               ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
+	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	SchedulerPort           *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
+	Payload                 *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
+	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+}
+
+//RadixCommonDeployComponent defines a common component interface a RadixDeployment
+type RadixCommonDeployComponent interface {
+	GetName() string
+	GetImage() string
+	GetPorts() *[]ComponentPort
+	GetEnvironmentVariables() *EnvVarsMap
+	GetSecrets() *[]string
+	GetMonitoring() bool
+	GetResources() *ResourceRequirements
+	GetVolumeMounts() *[]RadixVolumeMount
+	IsAlwaysPullImageOnDeploy() bool
+	GetReplicas() *int
+	GetHorizontalScaling() *RadixHorizontalScaling
+	GetPublicPort() string
+	IsPublic() bool
+	GetDNSExternalAlias() *[]string
+	IsDNSAppAlias() bool
+	GetIngressConfiguration() *[]string
 }
 
 // GetResourceRequirements maps to core_v1.ResourceRequirements
