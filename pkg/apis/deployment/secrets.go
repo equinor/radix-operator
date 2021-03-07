@@ -21,18 +21,19 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
 
 	log.Debugf("Apply empty secrets based on radix deployment obj")
-	for _, component := range deployment.Spec.Components {
+	for _, comp := range deployment.Spec.Components {
+		component := radixv1.RadixCommonDeployComponent(&comp)
 		secretsToManage := make([]string, 0)
 
-		if len(component.Secrets) > 0 {
-			secretName := utils.GetComponentSecretName(component.Name)
+		if len(*component.GetSecrets()) > 0 {
+			secretName := utils.GetComponentSecretName(component.GetName())
 			if !deploy.kubeutil.SecretExists(ns, secretName) {
-				err := deploy.createOrUpdateSecret(ns, registration.Name, component.Name, secretName, false)
+				err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), secretName, false)
 				if err != nil {
 					return err
 				}
 			} else {
-				err := deploy.removeOrphanedSecrets(ns, registration.Name, component.Name, secretName, component.Secrets)
+				err := deploy.removeOrphanedSecrets(ns, registration.Name, component.GetName(), secretName, *component.GetSecrets())
 				if err != nil {
 					return err
 				}
@@ -41,21 +42,21 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 			secretsToManage = append(secretsToManage, secretName)
 		}
 
-		if len(component.DNSExternalAlias) > 0 {
+		if len(*component.GetDNSExternalAlias()) > 0 {
 			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 			if err != nil {
 				return err
 			}
 
 			// Create secrets to hold TLS certificates
-			for _, externalAlias := range component.DNSExternalAlias {
+			for _, externalAlias := range *component.GetDNSExternalAlias() {
 				secretsToManage = append(secretsToManage, externalAlias)
 
 				if deploy.kubeutil.SecretExists(ns, externalAlias) {
 					continue
 				}
 
-				err := deploy.createOrUpdateSecret(ns, registration.Name, component.Name, externalAlias, true)
+				err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), externalAlias, true)
 				if err != nil {
 					return err
 				}
@@ -67,12 +68,12 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 			}
 		}
 
-		if len(component.VolumeMounts) > 0 {
-			for _, volumeMount := range component.VolumeMounts {
+		if len(*component.GetVolumeMounts()) > 0 {
+			for _, volumeMount := range *component.GetVolumeMounts() {
 				if volumeMount.Type == radixv1.MountTypeBlob {
-					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.Name, volumeMount.Name)
+					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.GetName(), volumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.Name, secretName, accountName, accountKey)
+					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}
@@ -85,7 +86,7 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 			}
 		}
 
-		err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, &component, secretsToManage)
+		err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
 		if err != nil {
 			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
 		}
@@ -141,7 +142,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(component radixv1.RadixDeployComponent) error {
+func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
 	secrets, err := deploy.listSecretsForComponent(component)
 	if err != nil {
 		return err
@@ -162,15 +163,15 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectAllSecretsForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
+func (deploy *Deployment) garbageCollectAllSecretsForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent) error {
 	return deploy.garbageCollectSecretsForComponentAndExternalAlias(component, true)
 }
 
-func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixDeployComponent) error {
+func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent) error {
 	return deploy.garbageCollectSecretsForComponentAndExternalAlias(component, false)
 }
 
-func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(component radixv1.RadixDeployComponent, all bool) error {
+func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent, all bool) error {
 	secrets, err := deploy.listSecretsForComponentExternalAlias(component)
 	if err != nil {
 		return err
@@ -181,7 +182,7 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 
 		if !all {
 			externalAliasForSecret := secret.Name
-			for _, externalAlias := range component.DNSExternalAlias {
+			for _, externalAlias := range *component.GetDNSExternalAlias() {
 				if externalAlias == externalAliasForSecret {
 					garbageCollectSecret = false
 				}
@@ -199,15 +200,15 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 	return nil
 }
 
-func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
+func (deploy *Deployment) listSecretsForComponent(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
 	return deploy.listSecrets(getLabelSelectorForComponent(component))
 }
 
-func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
+func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
 	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
 }
 
-func (deploy *Deployment) listSecretsForForBlobVolumeMount(component radixv1.RadixDeployComponent) ([]*v1.Secret, error) {
+func (deploy *Deployment) listSecretsForForBlobVolumeMount(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
 	return deploy.listSecrets(getLabelSelectorForBlobVolumeMountSecret(component))
 }
 

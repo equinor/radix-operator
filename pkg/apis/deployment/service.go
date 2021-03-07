@@ -8,9 +8,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	service := getServiceConfig(deployComponent.Name, deploy.radixDeployment, deployComponent.Ports)
+	service := getServiceConfig(deployComponent.GetName(), deploy.radixDeployment, deployComponent.GetPorts())
 	return deploy.kubeutil.ApplyService(namespace, service)
 }
 
@@ -34,7 +34,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	return nil
 }
 
-func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
+func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts *[]v1.ComponentPort) *corev1.Service {
 	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
 
 	service := &corev1.Service{
@@ -60,9 +60,9 @@ func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment,
 	return service
 }
 
-func buildServicePorts(componentPorts []v1.ComponentPort) []corev1.ServicePort {
+func buildServicePorts(componentPorts *[]v1.ComponentPort) []corev1.ServicePort {
 	var ports []corev1.ServicePort
-	for _, v := range componentPorts {
+	for _, v := range *componentPorts {
 		servicePort := corev1.ServicePort{
 			Name:       v.Name,
 			Port:       int32(v.Port),
