@@ -1,9 +1,6 @@
 package kube
 
 import (
-	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
@@ -14,8 +11,6 @@ import (
 	coreListers "k8s.io/client-go/listers/core/v1"
 	networkingListers "k8s.io/client-go/listers/networking/v1beta1"
 	rbacListers "k8s.io/client-go/listers/rbac/v1"
-	"os"
-	"strings"
 )
 
 // Radix Annotations
@@ -116,38 +111,4 @@ func NewWithListers(client kubernetes.Interface,
 
 func isEmptyPatch(patchBytes []byte) bool {
 	return string(patchBytes) == "{}"
-}
-
-func getHostName(componentName, namespace, clustername, dnsZone string) string {
-	hostnameTemplate := "%s-%s.%s.%s"
-	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
-}
-
-func isActiveCluster(clustername string) bool {
-	activeClustername := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
-	return strings.EqualFold(clustername, activeClustername)
-}
-
-func getActiveClusterHostName(componentName, namespace string) string {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
-}
-
-func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
-	portNumbers := "("
-	portNames := "("
-	portsSize := len(ports)
-	for i, portObj := range ports {
-		if i < portsSize-1 {
-			portNumbers += fmt.Sprint(portObj.Port) + " "
-			portNames += fmt.Sprint(portObj.Name) + " "
-		} else {
-			portNumbers += fmt.Sprint(portObj.Port) + ")"
-			portNames += fmt.Sprint(portObj.Name) + ")"
-		}
-	}
-	return portNumbers, portNames
 }
