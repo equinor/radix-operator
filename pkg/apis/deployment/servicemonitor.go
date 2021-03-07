@@ -12,13 +12,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	serviceMonitor := getServiceMonitorConfig(deployComponent.Name, namespace, deployComponent.Ports)
+	serviceMonitor := getServiceMonitorConfig(deployComponent.GetName(), namespace, deployComponent.GetPorts())
 	return deploy.applyServiceMonitor(namespace, serviceMonitor)
 }
 
-func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixDeployComponent) error {
+func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixCommonDeployComponent) error {
 	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -26,7 +26,7 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixDep
 
 	for _, serviceMonitor := range serviceMonitors.Items {
 		componentName, ok := NewRadixComponentNameFromLabels(serviceMonitor)
-		if ok && component.Name == string(componentName) {
+		if ok && component.GetName() == string(componentName) {
 			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(serviceMonitor.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -69,7 +69,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	return nil
 }
 
-func getServiceMonitorConfig(componentName, namespace string, componentPorts []v1.ComponentPort) *monitoringv1.ServiceMonitor {
+func getServiceMonitorConfig(componentName, namespace string, componentPorts *[]v1.ComponentPort) *monitoringv1.ServiceMonitor {
 	serviceMonitor := &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
@@ -81,7 +81,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 			Endpoints: []monitoringv1.Endpoint{
 				{
 					Interval: "5s",
-					Port:     componentPorts[0].Name,
+					Port:     (*componentPorts)[0].Name,
 				},
 			},
 			JobLabel: fmt.Sprintf("%s-%s", namespace, componentName),

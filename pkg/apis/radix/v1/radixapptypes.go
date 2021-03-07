@@ -194,3 +194,11 @@ const (
 	// MountTypeBlob Use of azure/blobfuse flexvolume
 	MountTypeBlob MountType = "blob"
 )
+
+func (radixJobComponent *RadixJobComponent) GetName() string {
+	return radixJobComponent.Name
+}
+
+func (radixComponent *RadixComponent) GetName() string {
+	return radixComponent.Name
+}

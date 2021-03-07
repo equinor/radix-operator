@@ -12,45 +12,32 @@ import (
 	"sort"
 )
 
-func GetEnvironmentVariablesFromRadixDeployJobComponent(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployJobComponent *v1.RadixDeployJobComponent) []corev1.EnvVar {
+func GetEnvironmentVariablesFrom(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	return getEnvironmentVariables(
 		appName,
 		kubeutil,
 		radixDeployment,
-		deployJobComponent.Name,
-		deployJobComponent.EnvironmentVariables,
-		deployJobComponent.Secrets,
-		false,
-		deployJobComponent.Ports,
+		deployComponent.GetName(),
+		deployComponent.GetEnvironmentVariables(),
+		deployComponent.GetSecrets(),
+		deployComponent.GetPublicPort() != "" || deployComponent.IsPublic(), // For backwards compatibility
+		deployComponent.GetPorts(),
 	)
 }
 
-func GetEnvironmentVariablesFromRadixDeployComponent(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent *v1.RadixDeployComponent) []corev1.EnvVar {
-	return getEnvironmentVariables(
-		appName,
-		kubeutil,
-		radixDeployment,
-		deployComponent.Name,
-		deployComponent.EnvironmentVariables,
-		deployComponent.Secrets,
-		deployComponent.PublicPort != "" || deployComponent.Public, // For backwards compatibility
-		deployComponent.Ports,
-	)
-}
-
-func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars *v1.EnvVarsMap, radixSecrets *[]string, isPublic bool, ports *[]v1.ComponentPort) []corev1.EnvVar {
 	var (
 		radixDeployName       = radixDeployment.Name
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
-	var environmentVariables = appendAppEnvVariables(radixDeployName, radixEnvVars)
-	environmentVariables = appendDefaultVariables(kubeutil, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
+	var environmentVariables = appendAppEnvVariables(radixDeployName, *radixEnvVars)
+	environmentVariables = appendDefaultVariables(kubeutil, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, *ports, radixDeploymentLabels)
 
 	// secrets
-	if radixSecrets != nil && len(radixSecrets) > 0 {
-		for _, v := range radixSecrets {
+	if radixSecrets != nil && len(*radixSecrets) > 0 {
+		for _, v := range *radixSecrets {
 			componentSecretName := utils.GetComponentSecretName(componentName)
 			secretKeySelector := corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{

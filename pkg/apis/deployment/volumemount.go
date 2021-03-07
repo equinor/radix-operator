@@ -19,12 +19,8 @@ const (
 	blobFuseVolumeNodeMountPathTemplate = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<volumename>/<container>
 )
 
-func GetRadixDeployComponentVolumeMounts(deployComponent *radixv1.RadixDeployComponent) []corev1.VolumeMount {
-	return getVolumeMounts(deployComponent.Name, &deployComponent.VolumeMounts)
-}
-
-func GetRadixDeployJobComponentVolumeMounts(deployJobComponent *radixv1.RadixDeployJobComponent) []corev1.VolumeMount {
-	return getVolumeMounts(deployJobComponent.Name, &deployJobComponent.VolumeMounts)
+func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) []corev1.VolumeMount {
+	return getVolumeMounts(deployComponent.GetName(), deployComponent.GetVolumeMounts())
 }
 
 func getVolumeMounts(componentName string, componentVolumeMounts *[]radixv1.RadixVolumeMount) []v1.VolumeMount {
@@ -44,8 +40,8 @@ func getVolumeMounts(componentName string, componentVolumeMounts *[]radixv1.Radi
 	return volumeMounts
 }
 
-func (deploy *Deployment) getVolumes(deployComponent *radixv1.RadixDeployComponent) []corev1.Volume {
-	return GetVolumes(deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent.Name, &deployComponent.VolumeMounts)
+func (deploy *Deployment) getVolumes(deployComponent radixv1.RadixCommonDeployComponent) []corev1.Volume {
+	return GetVolumes(deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent.GetName(), deployComponent.GetVolumeMounts())
 }
 
 func GetVolumes(namespace string, environment string, componentName string, volumeMounts *[]radixv1.RadixVolumeMount) []v1.Volume {

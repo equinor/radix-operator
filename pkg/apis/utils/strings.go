@@ -47,3 +47,8 @@ func StringPtr(s string) *string {
 func BoolPtr(value bool) *bool {
 	return &value
 }
+
+// IntPtr returns a pointer to the passed int.
+func IntPtr(value int) *int {
+	return &value
+}
