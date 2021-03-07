@@ -177,7 +177,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
 				t.Parallel()
 				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-				assert.Equal(t, 3, len(deployments.Items), "Number of deployments wasn't as expected")
+				expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+				assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 				assert.Equal(t, componentNameApp, getDeploymentByName(componentNameApp, deployments).Name, "app deployment not there")
 
 				if !componentsExist {
@@ -280,7 +281,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate service", testScenario), func(t *testing.T) {
 				t.Parallel()
 				services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
-				assert.Equal(t, 3, len(services.Items), "Number of services wasn't as expected")
+				expectedServices := getServicesForRadixComponents(&services.Items)
+				assert.Equal(t, 3, len(expectedServices), "Number of services wasn't as expected")
 				assert.True(t, serviceByNameExists(componentNameApp, services), "app service not there")
 				assert.True(t, serviceByNameExists(componentNameRedis, services), "redis service not there")
 				assert.True(t, serviceByNameExists(componentNameRadixQuote, services), "radixquote service not there")
@@ -354,6 +356,26 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 		})
 		teardownTest()
 	}
+}
+
+func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service {
+	var result []corev1.Service
+	for _, svc := range *services {
+		if val, ok := svc.Labels["radix-component"]; ok && val != "job" {
+			result = append(result, svc)
+		}
+	}
+	return result
+}
+
+func getDeploymentsForRadixComponents(deployments *[]appsv1.Deployment) []appsv1.Deployment {
+	var result []appsv1.Deployment
+	for _, depl := range *deployments {
+		if val, ok := depl.Labels["radix-component"]; ok && val != "job" {
+			result = append(result, depl)
+		}
+	}
+	return result
 }
 
 func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecificIngresses(t *testing.T) {
@@ -561,10 +583,12 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-	assert.Equal(t, 1, len(deployments.Items), "Number of deployments wasn't as expected")
+	expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+	assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 
 	services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
-	assert.Equal(t, 1, len(services.Items), "Number of services wasn't as expected")
+	expectedServices := getServicesForRadixComponents(&services.Items)
+	assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 
 	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Number of ingresses was not according to public components")
@@ -938,14 +962,16 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(deployments.Items), "Number of deployments wasn't as expected")
+		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
 
 	t.Run("validate service", func(t *testing.T) {
 		t.Parallel()
 		services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(services.Items), "Number of services wasn't as expected")
+		expectedServices := getServicesForRadixComponents(&services.Items)
+		assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 	})
 
 	t.Run("validate ingress", func(t *testing.T) {
@@ -1248,17 +1274,28 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 				WithName(componentOneName).
 				WithPort("https", 443).
 				WithPort("http", 80).
-				WithPublicPort("").
+				WithPublicPort("https").
 				WithPublic(true)))
 
 	assert.NoError(t, err)
 	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
+	expectedIngresses := getIngressesForRadixComponents(&ingresses.Items)
+	assert.Equal(t, 1, len(expectedIngresses), "Component should be public")
 	actualPortValue := ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue()
 	expectedPortValue := int(rd.Spec.Components[0].Ports[0].Port)
 	assert.Equal(t, expectedPortValue, actualPortValue)
 
 	teardownTest()
+}
+
+func getIngressesForRadixComponents(ingresses *[]networkingv1beta1.Ingress) []networkingv1beta1.Ingress {
+	var result []networkingv1beta1.Ingress
+	for _, ing := range *ingresses {
+		if val, ok := ing.Labels["radix-component"]; ok && val != "job" {
+			result = append(result, ing)
+		}
+	}
+	return result
 }
 
 func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrectlyReconciled(t *testing.T) {

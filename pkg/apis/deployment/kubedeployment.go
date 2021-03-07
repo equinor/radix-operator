@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -242,7 +243,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
 
-	resourceRequirements := v1.GetResourceRequirements(deployComponent)
+	resourceRequirements := utils.GetResourceRequirements(deployComponent)
 
 	if resourceRequirements != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements

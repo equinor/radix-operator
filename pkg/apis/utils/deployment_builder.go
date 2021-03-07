@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"math/rand"
 	"strconv"
 	"time"
@@ -278,7 +279,8 @@ func ARadixDeployment() DeploymentBuilder {
 			WithReplicas(&replicas)).
 		WithJobComponent(NewDeployJobComponentBuilder().
 			WithName("job").
-			WithImage("radixdev.azurecr.io/job:imagetag"))
+			WithImage("radixdev.azurecr.io/job:imagetag").
+			WithSchedulerPort(numbers.Int32Ptr(8080)))
 
 	return builder
 }
