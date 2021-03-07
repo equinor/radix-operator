@@ -11,13 +11,13 @@ import (
 )
 
 // WaitForCompletionOf Will wait for job to complete
-func (kube *Kube) WaitForCompletionOf(job *batchv1.Job) error {
+func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 	errChan := make(chan error)
 	stop := make(chan struct{})
 	defer close(stop)
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
-		kube.kubeClient, 0, kubeinformers.WithNamespace(job.GetNamespace()))
+		kubeutil.kubeClient, 0, kubeinformers.WithNamespace(job.GetNamespace()))
 	informer := kubeInformerFactory.Batch().V1().Jobs().Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{

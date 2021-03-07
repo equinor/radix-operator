@@ -8,7 +8,6 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	v1Lister "github.com/equinor/radix-operator/pkg/client/listers/radix/v1"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appsv1Listers "k8s.io/client-go/listers/apps/v1"
@@ -117,101 +116,6 @@ func NewWithListers(client kubernetes.Interface,
 
 func isEmptyPatch(patchBytes []byte) bool {
 	return string(patchBytes) == "{}"
-}
-
-func (kube *Kube) AppendDefaultVariables(currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
-	clusterName, err := kube.GetClusterName()
-	if err != nil {
-		return environmentVariables
-	}
-
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return nil
-	}
-
-	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
-	if clusterType != "" {
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.RadixClusterTypeEnvironmentVariable,
-			Value: clusterType,
-		})
-	}
-
-	containerRegistry, err := kube.GetContainerRegistry()
-	if err != nil {
-		return environmentVariables
-	}
-
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.ContainerRegistryEnvironmentVariable,
-		Value: containerRegistry,
-	})
-
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixDNSZoneEnvironmentVariable,
-		Value: dnsZone,
-	})
-
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.ClusternameEnvironmentVariable,
-		Value: clusterName,
-	})
-
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.EnvironmentnameEnvironmentVariable,
-		Value: currentEnvironment,
-	})
-
-	if isPublic {
-		canonicalHostName := getHostName(componentName, namespace, clusterName, dnsZone)
-		publicHostName := ""
-
-		if isActiveCluster(clusterName) {
-			publicHostName = getActiveClusterHostName(componentName, namespace)
-		} else {
-			publicHostName = canonicalHostName
-		}
-
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.PublicEndpointEnvironmentVariable,
-			Value: publicHostName,
-		})
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.CanonicalEndpointEnvironmentVariable,
-			Value: canonicalHostName,
-		})
-	}
-
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixAppEnvironmentVariable,
-		Value: appName,
-	})
-
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixComponentEnvironmentVariable,
-		Value: componentName,
-	})
-
-	if len(ports) > 0 {
-		portNumbers, portNames := getPortNumbersAndNamesString(ports)
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.RadixPortsEnvironmentVariable,
-			Value: portNumbers,
-		})
-
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.RadixPortNamesEnvironmentVariable,
-			Value: portNames,
-		})
-	}
-
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixCommitHashEnvironmentVariable,
-		Value: radixDeploymentLabels[RadixCommitLabel],
-	})
-
-	return environmentVariables
 }
 
 func getHostName(componentName, namespace, clustername, dnsZone string) string {

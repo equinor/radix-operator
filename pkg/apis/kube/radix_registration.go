@@ -8,17 +8,17 @@ import (
 )
 
 // GetRegistration Gets registration using lister if present
-func (kube *Kube) GetRegistration(name string) (*v1.RadixRegistration, error) {
+func (kubeutil *Kube) GetRegistration(name string) (*v1.RadixRegistration, error) {
 	var registration *v1.RadixRegistration
 	var err error
 
-	if kube.RrLister != nil {
-		registration, err = kube.RrLister.Get(name)
+	if kubeutil.RrLister != nil {
+		registration, err = kubeutil.RrLister.Get(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		registration, err = kube.radixclient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
+		registration, err = kubeutil.radixclient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -28,17 +28,17 @@ func (kube *Kube) GetRegistration(name string) (*v1.RadixRegistration, error) {
 }
 
 // ListRegistrations lists registrations
-func (kube *Kube) ListRegistrations() ([]*v1.RadixRegistration, error) {
+func (kubeutil *Kube) ListRegistrations() ([]*v1.RadixRegistration, error) {
 	var registrations []*v1.RadixRegistration
 	var err error
 
-	if kube.RrLister != nil {
-		registrations, err = kube.RrLister.List(labels.NewSelector())
+	if kubeutil.RrLister != nil {
+		registrations, err = kubeutil.RrLister.List(labels.NewSelector())
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := kube.radixclient.RadixV1().RadixRegistrations().List(metav1.ListOptions{})
+		list, err := kubeutil.radixclient.RadixV1().RadixRegistrations().List(metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
