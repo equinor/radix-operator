@@ -17,6 +17,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	PRIVILEGED_CONTAINER       = false
+	ALLOW_PRIVILEGE_ESCALATION = false
+	RUN_AS_NON_ROOT            = true
+)
+
 func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixDeployComponent) error {
 	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(&deployComponent)
 	if err != nil {
@@ -65,7 +71,8 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	securityContext := getSecurityContextForContainer()
+	containerSecurityContext := getSecurityContextForContainer(deployComponent.RunAsRoot)
+	podSecurityContext := getSecurityContextForPod()
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -101,13 +108,14 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 					},
 				},
 				Spec: corev1.PodSpec{
+					SecurityContext:              podSecurityContext,
 					AutomountServiceAccountToken: &automountServiceAccountToken,
 					Containers: []corev1.Container{
 						{
 							Name:            componentName,
 							Image:           deployComponent.Image,
 							ImagePullPolicy: corev1.PullAlways,
-							SecurityContext: securityContext,
+							SecurityContext: containerSecurityContext,
 						},
 					},
 					ImagePullSecrets: deploy.radixDeployment.Spec.ImagePullSecrets,
@@ -169,11 +177,12 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.Image
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.RunAsRoot)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
+	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod()
 
 	portMap := make(map[string]v1.ComponentPort)
 	for _, port := range deployComponent.Ports {
@@ -375,17 +384,26 @@ func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error 
 	return nil
 }
 
-func getSecurityContextForContainer() *corev1.SecurityContext {
+// Returns a security context for container. If root flag is overridden from application config, it's allowed to run as root.
+func getSecurityContextForContainer(runAsRoot bool) *corev1.SecurityContext {
 	allowPrivilegeEscalation := false
-	// runAsNonRoot := true
-	// runAsUser := int64(1000)
+	privileged := false
+	runAsNonRoot := !runAsRoot
 
 	return &corev1.SecurityContext{
 		AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-		// RunAsNonRoot:             &runAsNonRoot,
-		// RunAsUser:                &runAsUser,
+		Privileged:               &privileged,
+		RunAsNonRoot:             &runAsNonRoot,
 	}
 }
+
+func getSecurityContextForPod() *corev1.PodSecurityContext {
+	runAsNonRoot := true
+	return &corev1.PodSecurityContext{
+		RunAsNonRoot: &runAsNonRoot,
+	}
+}
+
 func int32Ptr(i int32) *int32 {
 	return &i
 }
