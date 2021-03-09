@@ -18,17 +18,17 @@ const secretDefaultData = "xx"
 
 func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
-	ns := utils.GetEnvironmentNamespace(registration.Name, envName)
+	namespace := utils.GetEnvironmentNamespace(registration.Name, envName)
 
 	log.Debugf("Apply empty secrets based on radix deployment obj")
 	for _, comp := range deployment.Spec.Components {
-		err := deploy.createOrUpdateSecretsForComponent(registration, deployment, &comp, ns)
+		err := deploy.createOrUpdateSecretsForComponent(registration, deployment, &comp, namespace)
 		if err != nil {
 			return err
 		}
 	}
 	for _, comp := range deployment.Spec.Jobs {
-		err := deploy.createOrUpdateSecretsForComponent(registration, deployment, &comp, ns)
+		err := deploy.createOrUpdateSecretsForComponent(registration, deployment, &comp, namespace)
 		if err != nil {
 			return err
 		}

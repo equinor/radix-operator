@@ -46,6 +46,22 @@ func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
+func (app *ApplicationConfig) grantRadixJobSchedulerAccessToNamespaceResources(namespace string) error {
+	jobsRole := kube.GetRole(app.deploy.radixDeployment.Spec.AppName, "radix-job-scheduler", namespace, []string{"batch"}, []string{"jobs"}, []string{"get", "list", "watch", "update", "patch", "delete"}, nil)
+	err = deploy.kubeutil.ApplyRole(namespace, jobsRole)
+	if err != nil {
+		return err
+	}
+	podsRole := kube.GetRole(deploy.radixDeployment.Spec.AppName, "radix-job-scheduler", namespace, []string{""}, []string{"pods"}, []string{"get", "list", "watch", "update", "patch", "delete"}, nil)
+	err = deploy.kubeutil.ApplyRole(namespace, podsRole)
+	if err != nil {
+		return err
+	}
+
+	rolebinding := rolebindingPipelineToBuildSecrets(app.GetRadixRegistration(), role)
+	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
 func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(namespace string) error {
 	pipelineRoleName := getPipelineRoleNameToBuildSecrets(defaults.BuildSecretsName)
 	appAdminRoleName := getAppAdminRoleNameToBuildSecrets(defaults.BuildSecretsName)

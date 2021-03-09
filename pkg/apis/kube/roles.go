@@ -150,6 +150,41 @@ func CreateManageSecretRole(appName, roleName string, secretNames []string, cust
 	return role
 }
 
+// GetRole creates a role for resource, that can manage a secret with predefined set of verbs
+func GetRole(appName, roleName, namespace string, apiGroups, resources, verbs []string, customLabels *map[string]string) *auth.Role {
+	if len(apiGroups) == 0 {
+		apiGroups = append(apiGroups, "")
+	}
+	role := &auth.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"radixReg":    appName, // For backwards compatibility. Remove when cluster is migrated
+				RadixAppLabel: appName,
+			},
+		},
+		Rules: []auth.PolicyRule{
+			{
+				APIGroups: apiGroups,
+				Resources: resources,
+				Verbs:     verbs,
+			},
+		},
+	}
+	if customLabels != nil {
+		for key, value := range *customLabels {
+			role.ObjectMeta.Labels[key] = value
+		}
+	}
+
+	return role
+}
+
 // ListRoles List roles
 func (k *Kube) ListRoles(namespace string) ([]*auth.Role, error) {
 	return k.ListRolesWithSelector(namespace, nil)
