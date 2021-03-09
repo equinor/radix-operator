@@ -74,7 +74,8 @@
         "RADIX_CONFIG_TO_MAP": "radix-config-2-map:master-latest",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
         "RADIX_IMAGE_SCANNER": "radix-image-scanner:master-latest",
-        "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler:master-latest"
+        "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler:main-latest",
+        "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io"
       },
       "args": ["--useOutClusterClient=false"]
     },

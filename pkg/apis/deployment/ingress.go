@@ -68,13 +68,14 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDe
 	}
 
 	// Only the active cluster should have the DNS external alias, not to cause conflics between clusters
-	if len(*deployComponent.GetDNSExternalAlias()) > 0 && isActiveCluster(clustername) {
+	dnsExternalAlias := deployComponent.GetDNSExternalAlias()
+	if dnsExternalAlias != nil && len(*dnsExternalAlias) > 0 && isActiveCluster(clustername) {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
 		if err != nil {
 			return err
 		}
 
-		for _, externalAlias := range *deployComponent.GetDNSExternalAlias() {
+		for _, externalAlias := range *dnsExternalAlias {
 			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
 				ownerReference, config, externalAlias, deployComponent, namespace, publicPortNumber)
 			if err != nil {

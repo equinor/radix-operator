@@ -1,9 +1,12 @@
 package v1
 
 import (
+	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
 )
 
 // +genclient
@@ -144,8 +147,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
-	return "radixdev.azurecr.io/radix-job-scheduler:master-latest"
-	//return deployJobComponent.Image
+	containerRegistry := os.Getenv(defaults.ContainerRegistryEnvironmentVariable)
+	radixJobScheduler := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	radixJobSchedulerImageUrl := fmt.Sprintf("%s/%s", containerRegistry, radixJobScheduler)
+	return radixJobSchedulerImageUrl
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetPorts() *[]ComponentPort {

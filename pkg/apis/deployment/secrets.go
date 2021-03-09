@@ -22,80 +22,94 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 
 	log.Debugf("Apply empty secrets based on radix deployment obj")
 	for _, comp := range deployment.Spec.Components {
-		component := radixv1.RadixCommonDeployComponent(&comp)
-		secretsToManage := make([]string, 0)
-
-		if len(*component.GetSecrets()) > 0 {
-			secretName := utils.GetComponentSecretName(component.GetName())
-			if !deploy.kubeutil.SecretExists(ns, secretName) {
-				err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), secretName, false)
-				if err != nil {
-					return err
-				}
-			} else {
-				err := deploy.removeOrphanedSecrets(ns, registration.Name, component.GetName(), secretName, *component.GetSecrets())
-				if err != nil {
-					return err
-				}
-			}
-
-			secretsToManage = append(secretsToManage, secretName)
-		}
-
-		if len(*component.GetDNSExternalAlias()) > 0 {
-			err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
-			if err != nil {
-				return err
-			}
-
-			// Create secrets to hold TLS certificates
-			for _, externalAlias := range *component.GetDNSExternalAlias() {
-				secretsToManage = append(secretsToManage, externalAlias)
-
-				if deploy.kubeutil.SecretExists(ns, externalAlias) {
-					continue
-				}
-
-				err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), externalAlias, true)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			err := deploy.garbageCollectAllSecretsForComponentAndExternalAlias(component)
-			if err != nil {
-				return err
-			}
-		}
-
-		if len(*component.GetVolumeMounts()) > 0 {
-			for _, volumeMount := range *component.GetVolumeMounts() {
-				if volumeMount.Type == radixv1.MountTypeBlob {
-					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.GetName(), volumeMount.Name)
-					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		} else {
-			err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component)
-			if err != nil {
-				return err
-			}
-		}
-
-		err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
+		err := deploy.createOrUpdateSecretsForComponent(registration, deployment, &comp, ns)
 		if err != nil {
-			return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
+			return err
 		}
+	}
+	for _, comp := range deployment.Spec.Jobs {
+		err := deploy.createOrUpdateSecretsForComponent(registration, deployment, &comp, ns)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-		if len(secretsToManage) == 0 {
-			err := deploy.garbageCollectSecretsNoLongerInSpecForComponent(component)
+func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, ns string) error {
+	secretsToManage := make([]string, 0)
+
+	if len(*component.GetSecrets()) > 0 {
+		secretName := utils.GetComponentSecretName(component.GetName())
+		if !deploy.kubeutil.SecretExists(ns, secretName) {
+			err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), secretName, false)
 			if err != nil {
 				return err
 			}
+		} else {
+			err := deploy.removeOrphanedSecrets(ns, registration.Name, component.GetName(), secretName, *component.GetSecrets())
+			if err != nil {
+				return err
+			}
+		}
+
+		secretsToManage = append(secretsToManage, secretName)
+	}
+
+	dnsExternalAlias := component.GetDNSExternalAlias()
+	if dnsExternalAlias != nil && len(*dnsExternalAlias) > 0 {
+		err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
+		if err != nil {
+			return err
+		}
+
+		// Create secrets to hold TLS certificates
+		for _, externalAlias := range *dnsExternalAlias {
+			secretsToManage = append(secretsToManage, externalAlias)
+
+			if deploy.kubeutil.SecretExists(ns, externalAlias) {
+				continue
+			}
+
+			err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), externalAlias, true)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		err := deploy.garbageCollectAllSecretsForComponentAndExternalAlias(component)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(*component.GetVolumeMounts()) > 0 {
+		for _, volumeMount := range *component.GetVolumeMounts() {
+			if volumeMount.Type == radixv1.MountTypeBlob {
+				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.GetName(), volumeMount.Name)
+				secretsToManage = append(secretsToManage, secretName)
+				err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
+	if err != nil {
+		return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
+	}
+
+	if len(secretsToManage) == 0 {
+		err := deploy.garbageCollectSecretsNoLongerInSpecForComponent(component)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -180,9 +194,10 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 	for _, secret := range secrets {
 		garbageCollectSecret := true
 
-		if !all {
+		dnsExternalAlias := component.GetDNSExternalAlias()
+		if !all && dnsExternalAlias != nil {
 			externalAliasForSecret := secret.Name
-			for _, externalAlias := range *component.GetDNSExternalAlias() {
+			for _, externalAlias := range *dnsExternalAlias {
 				if externalAlias == externalAliasForSecret {
 					garbageCollectSecret = false
 				}

@@ -49,6 +49,23 @@ func (deploy *Deployment) customSecuritySettings(deployment *appsv1.Deployment) 
 		}
 		deployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	}
+	if len(deploy.radixDeployment.Spec.Jobs) > 0 {
+		newServiceAccount := corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      defaults.RadixJobSchedulerRoleName,
+				Namespace: namespace,
+			},
+		}
+
+		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
+		if err != nil {
+			log.Warnf("Error creating Service account for radix job scheduler. %v", err)
+		} else {
+			_ = deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-job-scheduler", serviceAccount, ownerReference)
+			deployment.Spec.Template.Spec.ServiceAccountName = defaults.RadixJobSchedulerRoleName
+		}
+		deployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
+	}
 }
 
 func isRadixAPI(appName string) bool {

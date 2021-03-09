@@ -321,7 +321,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate service accounts", testScenario), func(t *testing.T) {
 				t.Parallel()
 				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
-				assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+				expectedServiceAccounts := getServiceAccountsForRadixComponents(&serviceAccounts.Items)
+				assert.Equal(t, 0, len(expectedServiceAccounts), "Number of service accounts was not expected")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
@@ -363,6 +364,16 @@ func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service 
 	for _, svc := range *services {
 		if val, ok := svc.Labels["radix-component"]; ok && val != "job" {
 			result = append(result, svc)
+		}
+	}
+	return result
+}
+
+func getServiceAccountsForRadixComponents(serviceAccounts *[]corev1.ServiceAccount) []corev1.ServiceAccount {
+	var result []corev1.ServiceAccount
+	for _, sa := range *serviceAccounts {
+		if sa.Name != "radix-job-scheduler" {
+			result = append(result, sa)
 		}
 	}
 	return result
@@ -537,7 +548,8 @@ func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 			WithEnvironment("test"))
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		expectedServiceAccounts := getServiceAccountsForRadixComponents(&serviceAccounts.Items)
+		assert.Equal(t, 0, len(expectedServiceAccounts), "Number of service accounts was not expected")
 	})
 
 	t.Run("webhook runs custom SA", func(t *testing.T) {
@@ -546,7 +558,8 @@ func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 			WithEnvironment("test"))
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		expectedServiceAccounts := getServiceAccountsForRadixComponents(&serviceAccounts.Items)
+		assert.Equal(t, 1, len(expectedServiceAccounts), "Number of service accounts was not expected")
 	})
 
 	t.Run("radix-api runs custom SA", func(t *testing.T) {
@@ -555,7 +568,8 @@ func TestObjectSynced_RadixApiAndWebhook_GetsServiceAccount(t *testing.T) {
 			WithEnvironment("test"))
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(metav1.ListOptions{})
-		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		expectedServiceAccounts := getServiceAccountsForRadixComponents(&serviceAccounts.Items)
+		assert.Equal(t, 1, len(expectedServiceAccounts), "Number of service accounts was not expected")
 	})
 
 	teardownTest()
@@ -990,7 +1004,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate service accounts", func(t *testing.T) {
 		t.Parallel()
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		expectedServiceAccounts := getServiceAccountsForRadixComponents(&serviceAccounts.Items)
+		assert.Equal(t, 0, len(expectedServiceAccounts), "Number of service accounts was not expected")
 	})
 
 	t.Run("validate rolebindings", func(t *testing.T) {
