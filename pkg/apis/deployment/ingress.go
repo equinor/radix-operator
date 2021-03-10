@@ -45,7 +45,7 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDe
 	var publicPortNumber int32
 	// For backwards compatibility
 	if deployComponent.GetPublicPort() == "" {
-		publicPortNumber = (*deployComponent.GetPorts())[0].Port
+		publicPortNumber = deployComponent.GetPorts()[0].Port
 	} else {
 		publicPortNumber = getPublicPortNumber(deployComponent.GetPorts(), deployComponent.GetPublicPort())
 	}
@@ -69,13 +69,13 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDe
 
 	// Only the active cluster should have the DNS external alias, not to cause conflics between clusters
 	dnsExternalAlias := deployComponent.GetDNSExternalAlias()
-	if dnsExternalAlias != nil && len(*dnsExternalAlias) > 0 && isActiveCluster(clustername) {
+	if dnsExternalAlias != nil && len(dnsExternalAlias) > 0 && isActiveCluster(clustername) {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
 		if err != nil {
 			return err
 		}
 
-		for _, externalAlias := range *dnsExternalAlias {
+		for _, externalAlias := range dnsExternalAlias {
 			externalAliasIngress, err := deploy.getExternalAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
 				ownerReference, config, externalAlias, deployComponent, namespace, publicPortNumber)
 			if err != nil {
@@ -200,7 +200,7 @@ func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(comp
 
 		if !all {
 			externalAliasForIngress := ingress.Name
-			for _, externalAlias := range *component.GetDNSExternalAlias() {
+			for _, externalAlias := range component.GetDNSExternalAlias() {
 				if externalAlias == externalAliasForIngress {
 					garbageCollectIngress = false
 				}
@@ -304,7 +304,7 @@ func getIngressConfig(appName string,
 	isAlias, isExternalAlias, isActiveClusterAlias bool,
 	ingressSpec networkingv1beta1.IngressSpec) *networkingv1beta1.Ingress {
 
-	annotations := getAnnotationsFromConfigurations(config, *component.GetIngressConfiguration()...)
+	annotations := getAnnotationsFromConfigurations(config, component.GetIngressConfiguration()...)
 	annotations["kubernetes.io/ingress.class"] = "nginx"
 	annotations["ingress.kubernetes.io/force-ssl-redirect"] = "true"
 
@@ -360,8 +360,8 @@ func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 	}
 }
 
-func getPublicPortNumber(ports *[]v1.ComponentPort, publicPort string) int32 {
-	for _, port := range *ports {
+func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
+	for _, port := range ports {
 		if strings.EqualFold(port.Name, publicPort) {
 			return port.Port
 		}

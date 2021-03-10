@@ -2,11 +2,12 @@ package v1
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
 )
 
 // +genclient
@@ -86,16 +87,16 @@ func (deployComponent *RadixDeployComponent) GetImage() string {
 	return deployComponent.Image
 }
 
-func (deployComponent *RadixDeployComponent) GetPorts() *[]ComponentPort {
-	return &deployComponent.Ports
+func (deployComponent *RadixDeployComponent) GetPorts() []ComponentPort {
+	return deployComponent.Ports
 }
 
 func (deployComponent *RadixDeployComponent) GetEnvironmentVariables() *EnvVarsMap {
 	return &deployComponent.EnvironmentVariables
 }
 
-func (deployComponent *RadixDeployComponent) GetSecrets() *[]string {
-	return &deployComponent.Secrets
+func (deployComponent *RadixDeployComponent) GetSecrets() []string {
+	return deployComponent.Secrets
 }
 
 func (deployComponent *RadixDeployComponent) GetMonitoring() bool {
@@ -106,8 +107,8 @@ func (deployComponent *RadixDeployComponent) GetResources() *ResourceRequirement
 	return &deployComponent.Resources
 }
 
-func (deployComponent *RadixDeployComponent) GetVolumeMounts() *[]RadixVolumeMount {
-	return &deployComponent.VolumeMounts
+func (deployComponent *RadixDeployComponent) GetVolumeMounts() []RadixVolumeMount {
+	return deployComponent.VolumeMounts
 }
 
 func (deployComponent *RadixDeployComponent) IsAlwaysPullImageOnDeploy() bool {
@@ -130,16 +131,16 @@ func (deployComponent *RadixDeployComponent) IsPublic() bool {
 	return len(deployComponent.PublicPort) > 0
 }
 
-func (deployComponent *RadixDeployComponent) GetDNSExternalAlias() *[]string {
-	return &deployComponent.DNSExternalAlias
+func (deployComponent *RadixDeployComponent) GetDNSExternalAlias() []string {
+	return deployComponent.DNSExternalAlias
 }
 
 func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
 	return deployComponent.DNSAppAlias
 }
 
-func (deployComponent *RadixDeployComponent) GetIngressConfiguration() *[]string {
-	return &deployComponent.IngressConfiguration
+func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string {
+	return deployComponent.IngressConfiguration
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
@@ -153,8 +154,12 @@ func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
 	return radixJobSchedulerImageUrl
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetPorts() *[]ComponentPort {
-	return &[]ComponentPort{ComponentPort{
+func (deployJobComponent *RadixDeployJobComponent) GetPorts() []ComponentPort {
+	if deployJobComponent.SchedulerPort == nil {
+		return nil
+	}
+
+	return []ComponentPort{ComponentPort{
 		Name: "scheduler-port",
 		Port: *deployJobComponent.SchedulerPort,
 	}}
@@ -164,8 +169,8 @@ func (deployJobComponent *RadixDeployJobComponent) GetEnvironmentVariables() *En
 	return &deployJobComponent.EnvironmentVariables
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetSecrets() *[]string {
-	return &deployJobComponent.Secrets
+func (deployJobComponent *RadixDeployJobComponent) GetSecrets() []string {
+	return deployJobComponent.Secrets
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetMonitoring() bool {
@@ -176,8 +181,8 @@ func (deployJobComponent *RadixDeployJobComponent) GetResources() *ResourceRequi
 	return &deployJobComponent.Resources
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() *[]RadixVolumeMount {
-	return &deployJobComponent.VolumeMounts
+func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() []RadixVolumeMount {
+	return deployJobComponent.VolumeMounts
 }
 
 func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() bool {
@@ -200,7 +205,7 @@ func (deployJobComponent *RadixDeployJobComponent) IsPublic() bool {
 	return false
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetDNSExternalAlias() *[]string {
+func (deployJobComponent *RadixDeployJobComponent) GetDNSExternalAlias() []string {
 	return nil
 }
 
@@ -208,7 +213,7 @@ func (deployJobComponent *RadixDeployJobComponent) IsDNSAppAlias() bool {
 	return false
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() *[]string {
+func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []string {
 	return nil
 }
 
@@ -243,18 +248,18 @@ type RadixDeployJobComponent struct {
 type RadixCommonDeployComponent interface {
 	GetName() string
 	GetImage() string
-	GetPorts() *[]ComponentPort
+	GetPorts() []ComponentPort
 	GetEnvironmentVariables() *EnvVarsMap
-	GetSecrets() *[]string
+	GetSecrets() []string
 	GetMonitoring() bool
 	GetResources() *ResourceRequirements
-	GetVolumeMounts() *[]RadixVolumeMount
+	GetVolumeMounts() []RadixVolumeMount
 	IsAlwaysPullImageOnDeploy() bool
 	GetReplicas() *int
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetPublicPort() string
 	IsPublic() bool
-	GetDNSExternalAlias() *[]string
+	GetDNSExternalAlias() []string
 	IsDNSAppAlias() bool
-	GetIngressConfiguration() *[]string
+	GetIngressConfiguration() []string
 }

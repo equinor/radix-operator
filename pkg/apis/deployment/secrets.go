@@ -39,7 +39,7 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, ns string) error {
 	secretsToManage := make([]string, 0)
 
-	if len(*component.GetSecrets()) > 0 {
+	if len(component.GetSecrets()) > 0 {
 		secretName := utils.GetComponentSecretName(component.GetName())
 		if !deploy.kubeutil.SecretExists(ns, secretName) {
 			err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), secretName, false)
@@ -47,7 +47,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 				return err
 			}
 		} else {
-			err := deploy.removeOrphanedSecrets(ns, registration.Name, component.GetName(), secretName, *component.GetSecrets())
+			err := deploy.removeOrphanedSecrets(ns, registration.Name, component.GetName(), secretName, component.GetSecrets())
 			if err != nil {
 				return err
 			}
@@ -57,14 +57,14 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 	}
 
 	dnsExternalAlias := component.GetDNSExternalAlias()
-	if dnsExternalAlias != nil && len(*dnsExternalAlias) > 0 {
+	if dnsExternalAlias != nil && len(dnsExternalAlias) > 0 {
 		err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 		if err != nil {
 			return err
 		}
 
 		// Create secrets to hold TLS certificates
-		for _, externalAlias := range *dnsExternalAlias {
+		for _, externalAlias := range dnsExternalAlias {
 			secretsToManage = append(secretsToManage, externalAlias)
 
 			if deploy.kubeutil.SecretExists(ns, externalAlias) {
@@ -83,8 +83,8 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		}
 	}
 
-	if len(*component.GetVolumeMounts()) > 0 {
-		for _, volumeMount := range *component.GetVolumeMounts() {
+	if len(component.GetVolumeMounts()) > 0 {
+		for _, volumeMount := range component.GetVolumeMounts() {
 			if volumeMount.Type == radixv1.MountTypeBlob {
 				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.GetName(), volumeMount.Name)
 				secretsToManage = append(secretsToManage, secretName)
@@ -197,7 +197,7 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 		dnsExternalAlias := component.GetDNSExternalAlias()
 		if !all && dnsExternalAlias != nil {
 			externalAliasForSecret := secret.Name
-			for _, externalAlias := range *dnsExternalAlias {
+			for _, externalAlias := range dnsExternalAlias {
 				if externalAlias == externalAliasForSecret {
 					garbageCollectSecret = false
 				}

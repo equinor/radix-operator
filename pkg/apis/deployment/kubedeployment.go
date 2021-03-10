@@ -2,8 +2,9 @@ package deployment
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"time"
+
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -33,35 +34,65 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
-	deploy.customSecuritySettings(desiredDeployment)
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	var desiredDeployment *appsv1.Deployment
 	namespace := deploy.radixDeployment.Namespace
+
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, nil, err
 		}
-		desiredCreatedDeployment, err := deploy.getDesiredCreatedDeploymentConfig(deployComponent)
+
+		desiredDeployment, err = deploy.getDesiredCreatedDeploymentConfig(deployComponent)
 		if err == nil {
-			log.Debugf("Creating Deployment: %s in namespace %s", desiredCreatedDeployment.Name, namespace)
+			log.Debugf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
 		}
-		return currentDeployment, desiredCreatedDeployment, err
+	} else {
+		desiredDeployment, err = deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
+		if err == nil {
+			log.Debugf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
+		}
 	}
 
-	desiredUpdatedDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
-	if err == nil {
-		log.Debugf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
+	deploy.configureDeploymentServiceAccountSettings(desiredDeployment, deployComponent)
+	return currentDeployment, desiredDeployment, err
+}
+
+func (deploy *Deployment) configureDeploymentServiceAccountSettings(deployment *appsv1.Deployment, deployComponent v1.RadixCommonDeployComponent) {
+	_, isComponent := deployComponent.(*v1.RadixDeployComponent)
+	_, isJob := deployComponent.(*v1.RadixDeployJobComponent)
+
+	if isComponent && isRadixAPI(deploy.radixDeployment) {
+		deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(true)
+		deployment.Spec.Template.Spec.ServiceAccountName = defaults.RadixAPIServiceAccountName
+		return
 	}
-	return currentDeployment, desiredUpdatedDeployment, err
+
+	if isComponent && isRadixWebHook(deploy.radixDeployment) {
+		deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(true)
+		deployment.Spec.Template.Spec.ServiceAccountName = defaults.RadixGithubWebhookServiceAccountName
+		return
+	}
+
+	if isJob {
+		deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(true)
+		deployment.Spec.Template.Spec.ServiceAccountName = defaults.RadixJobSchedulerServiceName
+		return
+	}
+
+	deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
+	// TODO: Need to reset to default
+	deployment.Spec.Template.Spec.ServiceAccountName = ""
 }
 
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := deployComponent.GetName()
-	componentPorts := *deployComponent.GetPorts()
+	componentPorts := deployComponent.GetPorts()
 	automountServiceAccountToken := false
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 
@@ -177,7 +208,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 
 	portMap := make(map[string]v1.ComponentPort)
-	for _, port := range *deployComponent.GetPorts() {
+	for _, port := range deployComponent.GetPorts() {
 		portMap[port.Name] = port
 	}
 	for _, containerPort := range desiredDeployment.Spec.Template.Spec.Containers[0].Ports {
@@ -186,10 +217,10 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 		}
 	}
 
-	if len(*deployComponent.GetPorts()) > 0 {
-		log.Debugf("Deployment component has %d ports.", len(*deployComponent.GetPorts()))
+	if len(deployComponent.GetPorts()) > 0 {
+		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
 		prob := desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe
-		err := getReadinessProbeSettings(prob, &(*deployComponent.GetPorts())[0])
+		err := getReadinessProbeSettings(prob, &(deployComponent.GetPorts()[0]))
 		if err != nil {
 			return nil, err
 		}

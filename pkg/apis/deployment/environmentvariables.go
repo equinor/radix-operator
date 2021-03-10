@@ -7,7 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -26,7 +26,7 @@ func GetEnvironmentVariablesFrom(appName string, kubeutil *kube.Kube, radixDeplo
 	)
 }
 
-func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars *v1.EnvVarsMap, radixSecrets *[]string, isPublic bool, ports *[]v1.ComponentPort) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars *v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort) []corev1.EnvVar {
 	var (
 		radixDeployName       = radixDeployment.Name
 		namespace             = radixDeployment.Namespace
@@ -34,9 +34,9 @@ func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeploymen
 		radixDeploymentLabels = radixDeployment.Labels
 	)
 	var environmentVariables = appendAppEnvVariables(radixDeployName, *radixEnvVars)
-	environmentVariables = appendDefaultVariables(kubeutil, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, *ports, radixDeploymentLabels)
-	if radixSecrets != nil && len(*radixSecrets) > 0 {
-		for _, v := range *radixSecrets {
+	environmentVariables = appendDefaultVariables(kubeutil, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
+	if radixSecrets != nil && len(radixSecrets) > 0 {
+		for _, v := range radixSecrets {
 			componentSecretName := utils.GetComponentSecretName(componentName)
 			secretKeySelector := corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{

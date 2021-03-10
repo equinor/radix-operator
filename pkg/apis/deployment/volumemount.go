@@ -23,11 +23,11 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 	return getVolumeMounts(deployComponent.GetName(), deployComponent.GetVolumeMounts())
 }
 
-func getVolumeMounts(componentName string, componentVolumeMounts *[]radixv1.RadixVolumeMount) []v1.VolumeMount {
+func getVolumeMounts(componentName string, componentVolumeMounts []radixv1.RadixVolumeMount) []v1.VolumeMount {
 	volumeMounts := make([]corev1.VolumeMount, 0)
 
-	if len(*componentVolumeMounts) > 0 {
-		for _, volumeMount := range *componentVolumeMounts {
+	if len(componentVolumeMounts) > 0 {
+		for _, volumeMount := range componentVolumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
 				volumeMounts = append(volumeMounts, corev1.VolumeMount{
 					Name:      fmt.Sprintf(volumeName, componentName, volumeMount.Name),
@@ -44,11 +44,11 @@ func (deploy *Deployment) getVolumes(deployComponent radixv1.RadixCommonDeployCo
 	return GetVolumes(deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent.GetName(), deployComponent.GetVolumeMounts())
 }
 
-func GetVolumes(namespace string, environment string, componentName string, volumeMounts *[]radixv1.RadixVolumeMount) []v1.Volume {
+func GetVolumes(namespace string, environment string, componentName string, volumeMounts []radixv1.RadixVolumeMount) []v1.Volume {
 	volumes := make([]corev1.Volume, 0)
 
-	if len(*volumeMounts) > 0 {
-		for _, volumeMount := range *volumeMounts {
+	if len(volumeMounts) > 0 {
+		for _, volumeMount := range volumeMounts {
 			if volumeMount.Type == radixv1.MountTypeBlob {
 				secretName := defaults.GetBlobFuseCredsSecretName(componentName, volumeMount.Name)
 

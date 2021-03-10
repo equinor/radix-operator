@@ -69,7 +69,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	return nil
 }
 
-func getServiceMonitorConfig(componentName, namespace string, componentPorts *[]v1.ComponentPort) *monitoringv1.ServiceMonitor {
+func getServiceMonitorConfig(componentName, namespace string, componentPorts []v1.ComponentPort) *monitoringv1.ServiceMonitor {
 	serviceMonitor := &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
@@ -81,7 +81,7 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts *[]
 			Endpoints: []monitoringv1.Endpoint{
 				{
 					Interval: "5s",
-					Port:     (*componentPorts)[0].Name,
+					Port:     componentPorts[0].Name,
 				},
 			},
 			JobLabel: fmt.Sprintf("%s-%s", namespace, componentName),

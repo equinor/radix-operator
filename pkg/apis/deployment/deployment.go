@@ -202,6 +202,8 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
 	}
 
+	deploy.configureRbac()
+
 	err = deploy.createOrUpdateSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
@@ -222,6 +224,7 @@ func (deploy *Deployment) syncDeployment() error {
 			errs = append(errs, err)
 		}
 	}
+
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		if err := deploy.syncDeploymentForRadixComponent(&jobComponent); err != nil {
 			errs = append(errs, err)
@@ -234,6 +237,13 @@ func (deploy *Deployment) syncDeployment() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) configureRbac() {
+	rbacFunc := GetDeploymentRbacConfigurators(deploy)
+	for _, rbac := range rbacFunc {
+		rbac()
+	}
 }
 
 func (deploy *Deployment) updateStatusOnActiveDeployment() error {
