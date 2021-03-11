@@ -610,8 +610,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		// TODO: Fix test for default serviceAccount
-		//assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
 	t.Run("webhook runs custom SA", func(t *testing.T) {

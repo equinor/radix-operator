@@ -83,6 +83,10 @@ func (deployComponent *RadixDeployComponent) GetName() string {
 	return deployComponent.Name
 }
 
+func (deployComponent *RadixDeployComponent) GetType() string {
+	return defaults.RadixComponentTypeComponent
+}
+
 func (deployComponent *RadixDeployComponent) GetImage() string {
 	return deployComponent.Image
 }
@@ -145,6 +149,10 @@ func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string 
 
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetType() string {
+	return defaults.RadixComponentTypeJobScheduler
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
@@ -247,6 +255,7 @@ type RadixDeployJobComponent struct {
 //RadixCommonDeployComponent defines a common component interface a RadixDeployment
 type RadixCommonDeployComponent interface {
 	GetName() string
+	GetType() string
 	GetImage() string
 	GetPorts() []ComponentPort
 	GetEnvironmentVariables() *EnvVarsMap

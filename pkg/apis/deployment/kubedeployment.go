@@ -63,35 +63,15 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.Radi
 }
 
 func (deploy *Deployment) configureDeploymentServiceAccountSettings(deployment *appsv1.Deployment, deployComponent v1.RadixCommonDeployComponent) {
-	_, isComponent := deployComponent.(*v1.RadixDeployComponent)
-	_, isJob := deployComponent.(*v1.RadixDeployJobComponent)
-
-	if isComponent && isRadixAPI(deploy.radixDeployment) {
-		deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(true)
-		deployment.Spec.Template.Spec.ServiceAccountName = defaults.RadixAPIServiceAccountName
-		return
-	}
-
-	if isComponent && isRadixWebHook(deploy.radixDeployment) {
-		deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(true)
-		deployment.Spec.Template.Spec.ServiceAccountName = defaults.RadixGithubWebhookServiceAccountName
-		return
-	}
-
-	if isJob {
-		deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(true)
-		deployment.Spec.Template.Spec.ServiceAccountName = defaults.RadixJobSchedulerServiceName
-		return
-	}
-
-	deployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
-	// TODO: Need to reset to default
-	deployment.Spec.Template.Spec.ServiceAccountName = ""
+	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)
+	deployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
+	deployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
 }
 
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := deployComponent.GetName()
+	componentType := deployComponent.GetType()
 	componentPorts := deployComponent.GetPorts()
 	automountServiceAccountToken := false
 	branch, commitID := deploy.getRadixBranchAndCommitId()
@@ -103,9 +83,10 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:       appName,
-				kube.RadixComponentLabel: componentName,
-				kube.RadixCommitLabel:    commitID,
+				kube.RadixAppLabel:           appName,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixComponentTypeLabel: componentType,
+				kube.RadixCommitLabel:        commitID,
 			},
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation: branch,
@@ -185,6 +166,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	appName := deploy.radixDeployment.Spec.AppName
 	log.Debugf("Get desired updated deployment config for application: %s.", appName)
 	componentName := deployComponent.GetName()
+	componentType := deployComponent.GetType()
 	automountServiceAccountToken := false
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 
@@ -192,6 +174,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
 	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = componentType
 	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
@@ -348,7 +331,26 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 			continue
 		}
 
+		garbageCollect := false
+
 		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+			garbageCollect = true
+		} else {
+			var componentType string
+			commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
+
+			// If component type label is not set on the deployment, we default to "component"
+			if componentType, ok = deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
+				componentType = defaults.RadixComponentTypeComponent
+			}
+
+			// Garbage collect if component type has changed.
+			if componentType != commonComponent.GetType() {
+				garbageCollect = true
+			}
+		}
+
+		if garbageCollect {
 			propagationPolicy := metav1.DeletePropagationForeground
 			deleteOption := &metav1.DeleteOptions{
 				PropagationPolicy: &propagationPolicy,
