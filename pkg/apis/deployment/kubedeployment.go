@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,7 +73,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
 	containerSecurityContext := getSecurityContextForContainer(deployComponent.RunAsRoot)
-	podSecurityContext := getSecurityContextForPod()
+	podSecurityContext := getSecurityContextForPod(deployComponent.RunAsRoot)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -182,7 +183,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
-	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod()
+	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.RunAsRoot)
 
 	portMap := make(map[string]v1.ComponentPort)
 	for _, port := range deployComponent.Ports {
@@ -386,21 +387,19 @@ func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error 
 
 // Returns a security context for container. If root flag is overridden from application config, it's allowed to run as root.
 func getSecurityContextForContainer(runAsRoot bool) *corev1.SecurityContext {
-	allowPrivilegeEscalation := false
-	privileged := false
-	runAsNonRoot := !runAsRoot
-
 	return &corev1.SecurityContext{
-		AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-		Privileged:               &privileged,
-		RunAsNonRoot:             &runAsNonRoot,
+		AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
+		Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
+		RunAsNonRoot:             conditionUtils.BoolPtr(!runAsRoot),
 	}
 }
 
-func getSecurityContextForPod() *corev1.PodSecurityContext {
-	runAsNonRoot := true
+func getSecurityContextForPod(runAsRoot bool) *corev1.PodSecurityContext {
+	if runAsRoot {
+		return nil
+	}
 	return &corev1.PodSecurityContext{
-		RunAsNonRoot: &runAsNonRoot,
+		RunAsNonRoot: conditionUtils.BoolPtr(RUN_AS_NON_ROOT),
 	}
 }
 
