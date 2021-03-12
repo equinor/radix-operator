@@ -11,6 +11,7 @@ import (
 	kubeUtils "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils/maps"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	prometheusclient "github.com/coreos/prometheus-operator/pkg/client/versioned"
@@ -2103,6 +2104,62 @@ func TestMonitoringConfig(t *testing.T) {
 	})
 }
 
+func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
+	tu, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	var portTestFunc = func(portName string, portNumber int32, ports []corev1.ContainerPort) {
+		port := getPortByName(portName, ports)
+		assert.NotNil(t, port)
+		assert.Equal(t, portNumber, port.ContainerPort)
+	}
+
+	// Initial build
+	_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName("app").
+		WithEnvironment("env").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("comp").
+				WithPort("port1", 8001).
+				WithPort("port2", 8002)).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName("job").
+				WithSchedulerPort(numbers.Int32Ptr(8080))))
+
+	assert.Nil(t, err)
+	deployments, _ := kubeclient.AppsV1().Deployments("app-env").List(metav1.ListOptions{})
+	comp := getDeploymentByName("comp", deployments)
+	assert.Len(t, comp.Spec.Template.Spec.Containers[0].Ports, 2)
+	portTestFunc("port1", 8001, comp.Spec.Template.Spec.Containers[0].Ports)
+	portTestFunc("port2", 8002, comp.Spec.Template.Spec.Containers[0].Ports)
+	job := getDeploymentByName("job", deployments)
+	assert.Len(t, job.Spec.Template.Spec.Containers[0].Ports, 1)
+	portTestFunc("scheduler-port", 8080, job.Spec.Template.Spec.Containers[0].Ports)
+
+	// Update ports
+	_, err = applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName("app").
+		WithEnvironment("env").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("comp").
+				WithPort("port2", 9002)).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName("job").
+				WithSchedulerPort(numbers.Int32Ptr(9090))))
+
+	assert.Nil(t, err)
+	deployments, _ = kubeclient.AppsV1().Deployments("app-env").List(metav1.ListOptions{})
+	comp = getDeploymentByName("comp", deployments)
+	assert.Len(t, comp.Spec.Template.Spec.Containers[0].Ports, 1)
+	portTestFunc("port2", 9002, comp.Spec.Template.Spec.Containers[0].Ports)
+	job = getDeploymentByName("job", deployments)
+	assert.Len(t, job.Spec.Template.Spec.Containers[0].Ports, 1)
+	portTestFunc("scheduler-port", 9090, job.Spec.Template.Spec.Containers[0].Ports)
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
@@ -2340,4 +2397,13 @@ func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) 
 	}
 
 	return false
+}
+
+func getPortByName(name string, ports []corev1.ContainerPort) *corev1.ContainerPort {
+	for _, port := range ports {
+		if port.Name == name {
+			return &port
+		}
+	}
+	return nil
 }

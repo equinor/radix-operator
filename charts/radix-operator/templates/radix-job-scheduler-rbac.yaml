@@ -9,9 +9,10 @@ metadata:
     heritage: "{{ .Release.Service }}"
 rules:
   - apiGroups:
-      - ""
+      - '*'
     resources:
       - pods
+      - pods/log
     verbs:
       - get
       - list
@@ -25,4 +26,22 @@ rules:
       - watch
       - create
       - delete
+  - apiGroups:
+      - radix.equinor.com
+    resources:
+      - radixdeployments
+    verbs:
+      - list
+      - get
+  - apiGroups:
+      - '*'
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - patch
 ---

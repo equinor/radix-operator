@@ -72,12 +72,11 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := deployComponent.GetName()
 	componentType := deployComponent.GetType()
-	componentPorts := deployComponent.GetPorts()
 	automountServiceAccountToken := false
 	branch, commitID := deploy.getRadixBranchAndCommitId()
-
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
 	securityContext := getSecurityContextForContainer()
+	ports := getContainerPorts(deployComponent)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -121,6 +120,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 							Image:           deployComponent.GetImage(),
 							ImagePullPolicy: corev1.PullAlways,
 							SecurityContext: securityContext,
+							Ports:           ports,
 						},
 					},
 					ImagePullSecrets: deploy.radixDeployment.Spec.ImagePullSecrets,
@@ -128,16 +128,6 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 			},
 		},
 	}
-
-	var ports []corev1.ContainerPort
-	for _, v := range componentPorts {
-		containerPort := corev1.ContainerPort{
-			Name:          v.Name,
-			ContainerPort: int32(v.Port),
-		}
-		ports = append(ports, containerPort)
-	}
-	deployment.Spec.Template.Spec.Containers[0].Ports = ports
 
 	if len(ports) > 0 {
 		log.Debugln("Set readiness Prob for ports. Amount of ports: ", len(ports))
@@ -169,6 +159,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	componentType := deployComponent.GetType()
 	automountServiceAccountToken := false
 	branch, commitID := deploy.getRadixBranchAndCommitId()
+	ports := getContainerPorts(deployComponent)
 
 	desiredDeployment.ObjectMeta.Name = componentName
 	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
@@ -187,18 +178,9 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = ports
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
-
-	portMap := make(map[string]v1.ComponentPort)
-	for _, port := range deployComponent.GetPorts() {
-		portMap[port.Name] = port
-	}
-	for _, containerPort := range desiredDeployment.Spec.Template.Spec.Containers[0].Ports {
-		if componentPort, portExists := portMap[containerPort.Name]; portExists {
-			containerPort.HostPort = componentPort.Port
-		}
-	}
 
 	if len(deployComponent.GetPorts()) > 0 {
 		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
@@ -416,6 +398,20 @@ func getSecurityContextForContainer() *corev1.SecurityContext {
 		// RunAsUser:                &runAsUser,
 	}
 }
+
+func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.ContainerPort {
+	componentPorts := deployComponent.GetPorts()
+	var ports []corev1.ContainerPort
+	for _, v := range componentPorts {
+		containerPort := corev1.ContainerPort{
+			Name:          v.Name,
+			ContainerPort: int32(v.Port),
+		}
+		ports = append(ports, containerPort)
+	}
+	return ports
+}
+
 func int32Ptr(i int32) *int32 {
 	return &i
 }

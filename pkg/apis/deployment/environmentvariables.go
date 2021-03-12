@@ -14,7 +14,7 @@ import (
 )
 
 func GetEnvironmentVariablesFrom(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
-	return getEnvironmentVariables(
+	var vars = getEnvironmentVariables(
 		appName,
 		kubeutil,
 		radixDeployment,
@@ -24,6 +24,10 @@ func GetEnvironmentVariablesFrom(appName string, kubeutil *kube.Kube, radixDeplo
 		deployComponent.GetPublicPort() != "" || deployComponent.IsPublic(), // For backwards compatibility
 		deployComponent.GetPorts(),
 	)
+
+	vars = appendComponentTypeVariables(deployComponent, radixDeployment, vars)
+
+	return vars
 }
 
 func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars *v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort) []corev1.EnvVar {
@@ -82,6 +86,19 @@ func appendAppEnvVariables(radixDeployName string, radixEnvVars v1.EnvVarsMap) [
 	} else {
 		log.Debugf("No environment variable is set for this RadixDeployment %s", radixDeployName)
 	}
+	return environmentVariables
+}
+
+func appendComponentTypeVariables(component v1.RadixCommonDeployComponent, rd *v1.RadixDeployment, environmentVariables []corev1.EnvVar) []corev1.EnvVar {
+	switch component.(type) {
+	case *v1.RadixDeployJobComponent:
+		environmentVariables = append(environmentVariables, corev1.EnvVar{
+			Name:  defaults.RadixDeploymentVariable,
+			Value: rd.Name,
+		})
+
+	}
+
 	return environmentVariables
 }
 
