@@ -52,7 +52,7 @@ func (t RadixComponentName) ExistInDeploymentSpecComponentList(rd *v1.RadixDeplo
 
 // ExistInDeploymentSpecJobList checks if RadixDeployment has any job with this name
 func (t RadixComponentName) ExistInDeploymentSpecJobList(rd *v1.RadixDeployment) bool {
-	if job := t.findInDeploymentSpecJobList(rd); job != nil {
+	if t.findInDeploymentSpecJobList(rd) != nil {
 		return true
 	}
 
