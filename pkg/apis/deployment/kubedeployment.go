@@ -81,8 +81,8 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 	automountServiceAccountToken := false
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	containerSecurityContext := getSecurityContextForContainer(deployComponent.RunAsNonRoot)
-	podSecurityContext := getSecurityContextForPod(deployComponent.RunAsNonRoot)
+	containerSecurityContext := getSecurityContextForContainer(deployComponent.GetRunAsNonRoot())
+	podSecurityContext := getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
 	ports := getContainerPorts(deployComponent)
 
 	deployment := &appsv1.Deployment{
@@ -183,13 +183,13 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.RunAsNonRoot)
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.GetRunAsNonRoot())
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = ports
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
-	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.RunAsNonRoot)
+	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
 
 	if len(deployComponent.GetPorts()) > 0 {
 		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
@@ -207,7 +207,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 		return nil, err
 	}
 
-	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName, componentName)
+	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
 
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {

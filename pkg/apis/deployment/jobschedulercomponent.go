@@ -69,3 +69,7 @@ func (js *jobSchedulerComponent) GetVolumeMounts() []v1.RadixVolumeMount {
 func (js *jobSchedulerComponent) IsAlwaysPullImageOnDeploy() bool {
 	return true
 }
+
+func (js *jobSchedulerComponent) GetRunAsNonRoot() bool {
+	return true
+}
