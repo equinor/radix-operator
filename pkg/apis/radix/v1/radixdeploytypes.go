@@ -58,6 +58,7 @@ type RadixDeploymentList struct {
 //RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
 	Name     string          `json:"name" yaml:"name"`
+	RunAsNonRoot bool        `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Image    string          `json:"image" yaml:"image"`
 	Ports    []ComponentPort `json:"ports" yaml:"ports"`
 	Replicas *int            `json:"replicas" yaml:"replicas"`
@@ -226,17 +227,18 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 //RadixDeployJobComponent defines a single job component within a RadixDeployment
 // The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
-	Name                    string                    `json:"name" yaml:"name"`
-	Image                   string                    `json:"image" yaml:"image"`
-	Ports                   []ComponentPort           `json:"ports" yaml:"ports"`
-	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
-	Secrets                 []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	Monitoring              bool                      `json:"monitoring" yaml:"monitoring"`
-	Resources               ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
-	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	SchedulerPort           *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
-	Payload                 *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
-	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+	Name                 string                    `json:"name" yaml:"name"`
+	Image                string                    `json:"image" yaml:"image"`
+	Ports                []ComponentPort           `json:"ports" yaml:"ports"`
+	EnvironmentVariables EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
+	Secrets              []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Monitoring           bool                      `json:"monitoring" yaml:"monitoring"`
+	Resources            ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
+	VolumeMounts         []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	SchedulerPort        *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
+	Payload              *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
+	RunAsNonRoot         bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+	AlwaysPullImageOnDeploy bool                   `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 }
 
 //RadixCommonDeployComponent defines a common component interface a RadixDeployment
