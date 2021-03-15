@@ -70,6 +70,6 @@ const (
 	// OperatorRadixJobSchedulerEnvironmentVariable Points to the image used to deploy job scheduler REST API for RD jobs
 	OperatorRadixJobSchedulerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER"
 
-	// RadixDeploymentVariable Name of Radix Deployment
-	RadixDeploymentVariable = "RADIX_DEPLOYMENT"
+	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
+	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
 )

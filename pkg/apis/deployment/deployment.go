@@ -226,7 +226,8 @@ func (deploy *Deployment) syncDeployment() error {
 	}
 
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
-		if err := deploy.syncDeploymentForRadixComponent(&jobComponent); err != nil {
+		jobSchedulerComponent := NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
+		if err := deploy.syncDeploymentForRadixComponent(jobSchedulerComponent); err != nil {
 			errs = append(errs, err)
 		}
 	}

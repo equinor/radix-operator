@@ -24,9 +24,6 @@ func GetEnvironmentVariablesFrom(appName string, kubeutil *kube.Kube, radixDeplo
 		deployComponent.GetPublicPort() != "" || deployComponent.IsPublic(), // For backwards compatibility
 		deployComponent.GetPorts(),
 	)
-
-	vars = appendComponentTypeVariables(deployComponent, radixDeployment, vars)
-
 	return vars
 }
 
@@ -86,19 +83,6 @@ func appendAppEnvVariables(radixDeployName string, radixEnvVars v1.EnvVarsMap) [
 	} else {
 		log.Debugf("No environment variable is set for this RadixDeployment %s", radixDeployName)
 	}
-	return environmentVariables
-}
-
-func appendComponentTypeVariables(component v1.RadixCommonDeployComponent, rd *v1.RadixDeployment, environmentVariables []corev1.EnvVar) []corev1.EnvVar {
-	switch component.(type) {
-	case *v1.RadixDeployJobComponent:
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.RadixDeploymentVariable,
-			Value: rd.Name,
-		})
-
-	}
-
 	return environmentVariables
 }
 

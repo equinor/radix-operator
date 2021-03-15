@@ -1,9 +1,6 @@
 package v1
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
@@ -156,21 +153,11 @@ func (deployJobComponent *RadixDeployJobComponent) GetType() string {
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
-	containerRegistry := os.Getenv(defaults.ContainerRegistryEnvironmentVariable)
-	radixJobScheduler := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-	radixJobSchedulerImageUrl := fmt.Sprintf("%s/%s", containerRegistry, radixJobScheduler)
-	return radixJobSchedulerImageUrl
+	return deployJobComponent.Image
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetPorts() []ComponentPort {
-	if deployJobComponent.SchedulerPort == nil {
-		return nil
-	}
-
-	return []ComponentPort{ComponentPort{
-		Name: "scheduler-port",
-		Port: *deployJobComponent.SchedulerPort,
-	}}
+	return deployJobComponent.Ports
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetEnvironmentVariables() *EnvVarsMap {

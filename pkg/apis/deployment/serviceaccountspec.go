@@ -58,8 +58,8 @@ func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bo
 
 //NewServiceAccountSpec Create ServiceAccountSpec based on RadixDeployment and RadixCommonDeployComponent
 func NewServiceAccountSpec(radixDeploy *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ServiceAccountSpec {
-	_, isComponent := deployComponent.(*v1.RadixDeployComponent)
-	_, isJob := deployComponent.(*v1.RadixDeployJobComponent)
+	isComponent := deployComponent.GetType() == defaults.RadixComponentTypeComponent
+	isJobScheduler := deployComponent.GetType() == defaults.RadixComponentTypeJobScheduler
 
 	if isComponent && isRadixAPI(radixDeploy) {
 		return &radixAPIServiceAccountSpec{}
@@ -69,7 +69,7 @@ func NewServiceAccountSpec(radixDeploy *v1.RadixDeployment, deployComponent v1.R
 		return &radixWebhookServiceAccountSpec{}
 	}
 
-	if isJob {
+	if isJobScheduler {
 		return &jobSchedulerServiceAccountSpec{}
 	}
 

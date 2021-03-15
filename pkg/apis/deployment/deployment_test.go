@@ -361,10 +361,227 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	}
 }
 
+func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
+	const jobSchedulerImage = "job-scheduler:latest"
+
+	for _, jobsExist := range []bool{false, true} {
+		testScenario := utils.TernaryString(jobsExist, "Updating deployment", "Creating deployment")
+
+		tu, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
+		os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "AnotherClusterName")
+		os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, jobSchedulerImage)
+
+		t.Run("Test Suite", func(t *testing.T) {
+			aRadixRegistrationBuilder := utils.ARadixRegistration().
+				WithMachineUser(true)
+			aRadixApplicationBuilder := utils.ARadixApplication().
+				WithRadixRegistration(aRadixRegistrationBuilder)
+			environment := "test"
+			appName := "edcradix"
+			jobName := "job"
+			jobName2 := "job2"
+			schedulerPortCreate := int32(8000)
+			schedulerPortUpdate := int32(9000)
+			outdatedSecret := "outdatedSecret"
+			remainingSecret := "remainingSecret"
+			addingSecret := "addingSecret"
+			blobVolumeName := "blob_volume_1"
+			payloadPath := "payloadpath"
+			if jobsExist {
+				// Update component
+				existingRadixDeploymentBuilder := utils.ARadixDeployment().
+					WithDeploymentName("deploy-update").
+					WithRadixApplication(aRadixApplicationBuilder).
+					WithAppName(appName).
+					WithImageTag("old_axmz8").
+					WithEnvironment(environment).
+					WithJobComponents(
+						utils.NewDeployJobComponentBuilder().
+							WithName(jobName).
+							WithImage("job:latest").
+							WithPort("http", 3002).
+							WithEnvironmentVariable("a_variable", "a_value").
+							WithMonitoring(true).
+							WithResource(map[string]string{
+								"memory": "65Mi",
+								"cpu":    "251m",
+							}, map[string]string{
+								"memory": "129Mi",
+								"cpu":    "501m",
+							}).
+							WithSchedulerPort(&schedulerPortUpdate).
+							WithPayloadPath(&payloadPath).
+							WithSecrets([]string{remainingSecret, addingSecret}).
+							WithAlwaysPullImageOnDeploy(false),
+					).
+					WithComponents()
+				_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, existingRadixDeploymentBuilder)
+				assert.NoError(t, err)
+
+			} else {
+				aRadixDeploymentBuilder := utils.ARadixDeployment().
+					WithDeploymentName("deploy-create").
+					WithRadixApplication(aRadixApplicationBuilder).
+					WithAppName(appName).
+					WithImageTag("axmz8").
+					WithEnvironment(environment).
+					WithJobComponents(
+						utils.NewDeployJobComponentBuilder().
+							WithName(jobName).
+							WithImage("job:latest").
+							WithPort("http", 3002).
+							WithEnvironmentVariable("a_variable", "a_value").
+							WithMonitoring(true).
+							WithResource(map[string]string{
+								"memory": "65Mi",
+								"cpu":    "251m",
+							}, map[string]string{
+								"memory": "129Mi",
+								"cpu":    "501m",
+							}).
+							WithVolumeMounts([]v1.RadixVolumeMount{
+								{
+									Type:      v1.MountTypeBlob,
+									Name:      blobVolumeName,
+									Container: "some-container",
+									Path:      "some-path",
+								}},
+							).
+							WithSchedulerPort(&schedulerPortCreate).
+							WithPayloadPath(&payloadPath).
+							WithSecrets([]string{outdatedSecret, remainingSecret}).
+							WithAlwaysPullImageOnDeploy(false),
+						utils.NewDeployJobComponentBuilder().
+							WithName(jobName2),
+					).
+					WithComponents()
+
+				// Test
+				_, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, aRadixDeploymentBuilder)
+				assert.NoError(t, err)
+			}
+
+			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+
+			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
+				t.Parallel()
+				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+				expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+
+				if jobsExist {
+					assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
+				} else {
+					assert.Equal(t, 2, len(expectedDeployments), "Number of deployments wasn't as expected")
+				}
+
+				assert.Equal(t, jobName, getDeploymentByName(jobName, deployments).Name, "app deployment not there")
+				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
+
+				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
+				assert.Equal(t, 10, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(defaults.RadixAppEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, jobName, getEnvVariableByNameOnDeployment(defaults.RadixComponentEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "("+defaults.RadixJobSchedulerPortName+")", getEnvVariableByNameOnDeployment(defaults.RadixPortNamesEnvironmentVariable, jobName, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, jobName, deployments))
+
+				if jobsExist {
+					assert.Equal(t, "("+fmt.Sprint(schedulerPortUpdate)+")", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, jobName, deployments))
+				} else {
+					assert.Equal(t, "("+fmt.Sprint(schedulerPortCreate)+")", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, jobName, deployments))
+				}
+
+				if jobsExist {
+					assert.Equal(t, "deploy-update", getEnvVariableByNameOnDeployment(defaults.RadixDeploymentEnvironmentVariable, jobName, deployments))
+				} else {
+					assert.Equal(t, "deploy-create", getEnvVariableByNameOnDeployment(defaults.RadixDeploymentEnvironmentVariable, jobName, deployments))
+				}
+			})
+
+			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
+				t.Parallel()
+				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
+			})
+
+			t.Run(fmt.Sprintf("%s: validate service", testScenario), func(t *testing.T) {
+				t.Parallel()
+				services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+				expectedServices := getServicesForRadixComponents(&services.Items)
+
+				if jobsExist {
+					assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
+				} else {
+					assert.Equal(t, 2, len(expectedServices), "Number of services wasn't as expected")
+				}
+
+				assert.True(t, serviceByNameExists(jobName, services), "app service not there")
+			})
+
+			t.Run(fmt.Sprintf("%s: validate secrets", testScenario), func(t *testing.T) {
+				t.Parallel()
+				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+
+				if !jobsExist {
+					assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
+				} else {
+					assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
+				}
+
+				jobSecretName := utils.GetComponentSecretName(jobName)
+				assert.True(t, secretByNameExists(jobSecretName, secrets), "Job secret is not as expected")
+
+				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(jobName, blobVolumeName), secrets)
+				if !jobsExist {
+					assert.True(t, blobFuseSecretExists, "expected volume mount secret")
+				} else {
+					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
+				}
+			})
+
+			t.Run(fmt.Sprintf("%s: validate service accounts", testScenario), func(t *testing.T) {
+				t.Parallel()
+				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+			})
+
+			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
+				t.Parallel()
+				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+
+				assert.Equal(t, 1, len(roles.Items), "Number of roles was not expected")
+			})
+
+			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
+				t.Parallel()
+				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
+
+				assert.True(t, roleBindingByNameExists("radix-app-adm-job", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
+				assert.Equal(t, 2, len(getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects), "Number of rolebinding subjects was not as expected")
+				assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects[1].Name)
+
+				// Exists due to being job-scheduler
+				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler to be there to access secrets for TLS certificates")
+			})
+
+			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
+				t.Parallel()
+				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
+				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+			})
+		})
+		teardownTest()
+	}
+}
+
 func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service {
 	var result []corev1.Service
 	for _, svc := range *services {
-		if val, ok := svc.Labels["radix-component"]; ok && val != "job" {
+		if _, ok := svc.Labels["radix-component"]; ok {
 			result = append(result, svc)
 		}
 	}
@@ -693,6 +910,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName("app").
 		WithEnvironment(anyEnvironment).
+		WithJobComponents().
 		WithComponents(
 			utils.NewDeployComponentBuilder().
 				WithName("component").
