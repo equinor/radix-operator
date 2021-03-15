@@ -106,6 +106,7 @@ type RadixDeployJobComponent struct {
 	VolumeMounts         []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	SchedulerPort        *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
 	Payload              *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
+	RunAsNonRoot         bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 }
 
 // GetResourceRequirements maps to core_v1.ResourceRequirements

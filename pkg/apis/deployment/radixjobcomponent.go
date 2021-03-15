@@ -63,6 +63,8 @@ func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1
 	image := componentImage.ImagePath
 	schedulerPort := appJob.SchedulerPort
 	payload := appJob.Payload
+	// Runs as root by default unless overridden
+	runAsNonRoot := false
 
 	environmentSpecificConfig := c.getEnvironmentConfig(appJob)
 	if environmentSpecificConfig != nil {
@@ -71,6 +73,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1
 		resources = environmentSpecificConfig.Resources
 		volumeMounts = environmentSpecificConfig.VolumeMounts
 		imageTagName = environmentSpecificConfig.ImageTagName
+		runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 	}
 
 	if variables == nil {
@@ -105,6 +108,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1
 		VolumeMounts:         volumeMounts,
 		SchedulerPort:        schedulerPort,
 		Payload:              payload,
+		RunAsNonRoot:         runAsNonRoot,
 	}
 
 	return deployJob

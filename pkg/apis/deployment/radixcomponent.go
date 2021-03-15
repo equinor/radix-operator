@@ -30,7 +30,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		var imageTagName string
 
 		var alwaysPullImageOnDeploy bool
-		// Containers run as non-root unless overridden in config
+		// Containers run as root unless overridden in config
 		runAsNonRoot := false
 
 		image := componentImage.ImagePath
