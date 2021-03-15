@@ -43,20 +43,12 @@ func (t RadixComponentName) GetCommonDeployComponent(rd *v1.RadixDeployment) v1.
 
 // ExistInDeploymentSpecComponentList checks if RadixDeployment has any component with this name
 func (t RadixComponentName) ExistInDeploymentSpecComponentList(rd *v1.RadixDeployment) bool {
-	if t.findInDeploymentSpecComponentList(rd) != nil {
-		return true
-	}
-
-	return false
+	return t.findInDeploymentSpecComponentList(rd) != nil
 }
 
 // ExistInDeploymentSpecJobList checks if RadixDeployment has any job with this name
 func (t RadixComponentName) ExistInDeploymentSpecJobList(rd *v1.RadixDeployment) bool {
-	if t.findInDeploymentSpecJobList(rd) != nil {
-		return true
-	}
-
-	return false
+	return t.findInDeploymentSpecJobList(rd) != nil
 }
 
 func (t RadixComponentName) findInDeploymentSpecComponentList(rd *v1.RadixDeployment) v1.RadixCommonDeployComponent {
