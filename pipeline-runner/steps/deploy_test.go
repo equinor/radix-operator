@@ -97,6 +97,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 						WithReplicas(test.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
+						WithRunAsNonRoot(true).
 						WithReplicas(test.IntPtr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
@@ -196,6 +197,13 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.NotNil(t, rdDev.Spec.Components[1].Resources)
 		assert.Equal(t, "128Mi", rdDev.Spec.Components[1].Resources.Limits["memory"])
 		assert.Equal(t, "500m", rdDev.Spec.Components[1].Resources.Limits["cpu"])
+	})
+
+	t.Run("Validate run as non root", func(t *testing.T) {
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+
+		assert.True(t, rdDev.Spec.Components[0].RunAsNonRoot)
+		assert.False(t, rdDev.Spec.Components[1].RunAsNonRoot)
 	})
 
 }

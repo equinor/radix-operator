@@ -1873,6 +1873,35 @@ func TestHPAConfig(t *testing.T) {
 
 }
 
+func TestNonRootOverrideFlag(t *testing.T) {
+
+	for _, runAsNonRoot := range []bool{true, false} {
+		componentName := utils.TernaryString(runAsNonRoot, "root-component", "non-root-component")
+		tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithAppName("radix-root-example").
+			WithEnvironment("test").
+			WithComponent(utils.NewDeployComponentBuilder().
+				WithRunAsNonRoot(runAsNonRoot).
+				WithPort("http", 8080).
+				WithName(componentName).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(1))))
+
+		assert.NoError(t, err)
+
+		t.Run(fmt.Sprintf("%s has correct security context", componentName), func(t *testing.T) {
+			envNamespace := utils.GetEnvironmentNamespace("radix-root-example", "test")
+			deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+			expectedSecurityContext := getSecurityContextForPod(runAsNonRoot)
+			assert.Equal(t, expectedSecurityContext, getDeploymentByName(componentName, deployments).Spec.Template.Spec.SecurityContext)
+			assert.Equal(t, runAsNonRoot, *getContainerByName(componentName, getDeploymentByName(componentName, deployments).Spec.Template.Spec.Containers).SecurityContext.RunAsNonRoot)
+		})
+
+	}
+
+}
+
 func TestMonitoringConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
 

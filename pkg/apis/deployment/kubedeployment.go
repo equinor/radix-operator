@@ -12,9 +12,15 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	PRIVILEGED_CONTAINER       = false
+	ALLOW_PRIVILEGE_ESCALATION = false
 )
 
 func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixDeployComponent) error {
@@ -65,7 +71,8 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	securityContext := getSecurityContextForContainer()
+	containerSecurityContext := getSecurityContextForContainer(deployComponent.RunAsNonRoot)
+	podSecurityContext := getSecurityContextForPod(deployComponent.RunAsNonRoot)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -101,13 +108,14 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 					},
 				},
 				Spec: corev1.PodSpec{
+					SecurityContext:              podSecurityContext,
 					AutomountServiceAccountToken: &automountServiceAccountToken,
 					Containers: []corev1.Container{
 						{
 							Name:            componentName,
 							Image:           deployComponent.Image,
 							ImagePullPolicy: corev1.PullAlways,
-							SecurityContext: securityContext,
+							SecurityContext: containerSecurityContext,
 						},
 					},
 					ImagePullSecrets: deploy.radixDeployment.Spec.ImagePullSecrets,
@@ -169,11 +177,12 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.Image
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer()
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.RunAsNonRoot)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
+	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.RunAsNonRoot)
 
 	portMap := make(map[string]v1.ComponentPort)
 	for _, port := range deployComponent.Ports {
@@ -375,17 +384,23 @@ func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error 
 	return nil
 }
 
-func getSecurityContextForContainer() *corev1.SecurityContext {
-	allowPrivilegeEscalation := false
-	// runAsNonRoot := true
-	// runAsUser := int64(1000)
-
+// Returns a security context for container. If root flag is overridden from application config, it's allowed to run as root.
+func getSecurityContextForContainer(runAsNonRoot bool) *corev1.SecurityContext {
+	// runAsNonRoot is false by default
 	return &corev1.SecurityContext{
-		AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-		// RunAsNonRoot:             &runAsNonRoot,
-		// RunAsUser:                &runAsUser,
+		AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
+		Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
+		RunAsNonRoot:             conditionUtils.BoolPtr(runAsNonRoot),
 	}
 }
+
+func getSecurityContextForPod(runAsNonRoot bool) *corev1.PodSecurityContext {
+	// runAsNonRoot is false by default
+	return &corev1.PodSecurityContext{
+		RunAsNonRoot: conditionUtils.BoolPtr(runAsNonRoot),
+	}
+}
+
 func int32Ptr(i int32) *int32 {
 	return &i
 }

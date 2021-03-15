@@ -57,10 +57,11 @@ type RadixDeploymentList struct {
 
 //RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
-	Name     string          `json:"name" yaml:"name"`
-	Image    string          `json:"image" yaml:"image"`
-	Ports    []ComponentPort `json:"ports" yaml:"ports"`
-	Replicas *int            `json:"replicas" yaml:"replicas"`
+	Name         string          `json:"name" yaml:"name"`
+	RunAsNonRoot bool            `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+	Image        string          `json:"image" yaml:"image"`
+	Ports        []ComponentPort `json:"ports" yaml:"ports"`
+	Replicas     *int            `json:"replicas" yaml:"replicas"`
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public                  bool                    `json:"public" yaml:"public"`
 	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
@@ -105,6 +106,7 @@ type RadixDeployJobComponent struct {
 	VolumeMounts         []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	SchedulerPort        *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
 	Payload              *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
+	RunAsNonRoot         bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 }
 
 // GetResourceRequirements maps to core_v1.ResourceRequirements
