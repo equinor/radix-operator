@@ -21,7 +21,6 @@ import (
 const (
 	PRIVILEGED_CONTAINER       = false
 	ALLOW_PRIVILEGE_ESCALATION = false
-	RUN_AS_NON_ROOT            = true
 )
 
 func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixDeployComponent) error {
@@ -72,8 +71,8 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent *v1.
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	containerSecurityContext := getSecurityContextForContainer(deployComponent.RunAsRoot)
-	podSecurityContext := getSecurityContextForPod(deployComponent.RunAsRoot)
+	containerSecurityContext := getSecurityContextForContainer(deployComponent.RunAsNonRoot)
+	podSecurityContext := getSecurityContextForPod(deployComponent.RunAsNonRoot)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -178,12 +177,12 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent *v1.
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.Image
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.RunAsRoot)
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.RunAsNonRoot)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = deploy.getVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
-	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.RunAsRoot)
+	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.RunAsNonRoot)
 
 	portMap := make(map[string]v1.ComponentPort)
 	for _, port := range deployComponent.Ports {
@@ -386,20 +385,19 @@ func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error 
 }
 
 // Returns a security context for container. If root flag is overridden from application config, it's allowed to run as root.
-func getSecurityContextForContainer(runAsRoot bool) *corev1.SecurityContext {
+func getSecurityContextForContainer(runAsNonRoot bool) *corev1.SecurityContext {
+	// runAsNonRoot is false by default
 	return &corev1.SecurityContext{
 		AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
 		Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
-		RunAsNonRoot:             conditionUtils.BoolPtr(!runAsRoot),
+		RunAsNonRoot:             conditionUtils.BoolPtr(runAsNonRoot),
 	}
 }
 
-func getSecurityContextForPod(runAsRoot bool) *corev1.PodSecurityContext {
-	if runAsRoot {
-		return nil
-	}
+func getSecurityContextForPod(runAsNonRoot bool) *corev1.PodSecurityContext {
+	// runAsNonRoot is false by default
 	return &corev1.PodSecurityContext{
-		RunAsNonRoot: conditionUtils.BoolPtr(RUN_AS_NON_ROOT),
+		RunAsNonRoot: conditionUtils.BoolPtr(runAsNonRoot),
 	}
 }
 
