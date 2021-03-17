@@ -104,7 +104,7 @@ func noComponentNeedScanning(componentImages map[string]pipeline.ComponentImage)
 }
 
 func createScanJob(appName, scannerImage string, componentImages map[string]pipeline.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
-	imageScanContainers, imageScanComponentImages := createImageScanContainers(scannerImage, componentImages)
+	imageScanContainers, imageScanComponentImages := createImageScanContainers(scannerImage, componentImages, pipelineArguments.ContainerSecurityContext)
 	timestamp := time.Now().Format("20060102150405")
 
 	imageTag := pipelineArguments.ImageTag
@@ -135,7 +135,8 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 					},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy: "Never",
+					SecurityContext: &pipelineArguments.PodSecurityContext,
+					RestartPolicy:   "Never",
 					InitContainers: []corev1.Container{
 						{
 							Name:            fmt.Sprintf("%snslookup", internalContainerPrefix),
@@ -143,6 +144,7 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 							Args:            []string{waitForDockerHubToRespond},
 							Command:         []string{"/bin/sh", "-c"},
 							ImagePullPolicy: "Always",
+							SecurityContext: &pipelineArguments.ContainerSecurityContext,
 						}},
 					Containers: imageScanContainers,
 					Volumes: []corev1.Volume{
@@ -162,7 +164,7 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 	return &job, nil
 }
 
-func createImageScanContainers(scannerImage string, componentImages map[string]pipeline.ComponentImage) ([]corev1.Container, map[string]pipeline.ComponentImage) {
+func createImageScanContainers(scannerImage string, componentImages map[string]pipeline.ComponentImage, containerSecContext corev1.SecurityContext) ([]corev1.Container, map[string]pipeline.ComponentImage) {
 	distinctImages := make(map[string]struct{})
 	imageScanComponentImages := make(map[string]pipeline.ComponentImage)
 
@@ -213,6 +215,7 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
 			VolumeMounts:    volumeMounts,
+			SecurityContext: &containerSecContext,
 		}
 		containers = append(containers, container)
 		distinctImages[componentImage.ImagePath] = struct{}{}

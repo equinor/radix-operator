@@ -3,7 +3,6 @@ package deployment
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -125,21 +124,13 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 			continue
 		}
 
-		garbageCollect := true
-		exisitingComponentName, exists := exisitingSecret.ObjectMeta.Labels[kube.RadixComponentLabel]
-
-		if !exists {
+		componentName, ok := NewRadixComponentNameFromLabels(exisitingSecret)
+		if !ok {
 			continue
 		}
 
-		for _, component := range deploy.radixDeployment.Spec.Components {
-			if strings.EqualFold(component.Name, exisitingComponentName) {
-				garbageCollect = false
-				break
-			}
-		}
-
-		if garbageCollect {
+		// Secrets should be kept if switching a component to a job or vice versa
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingSecret.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err

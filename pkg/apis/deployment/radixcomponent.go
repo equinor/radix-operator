@@ -8,7 +8,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRegistry, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
+func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
 
@@ -30,6 +30,8 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		var imageTagName string
 
 		var alwaysPullImageOnDeploy bool
+		// Containers run as root unless overridden in config
+		runAsNonRoot := false
 
 		image := componentImage.ImagePath
 
@@ -41,6 +43,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 			horizontalScaling = environmentSpecificConfig.HorizontalScaling
 			volumeMounts = environmentSpecificConfig.VolumeMounts
 			imageTagName = environmentSpecificConfig.ImageTagName
+			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
 		} else {
 			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
@@ -69,6 +72,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, containerRe
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent := v1.RadixDeployComponent{
 			Name:                    componentName,
+			RunAsNonRoot:            runAsNonRoot,
 			Image:                   image,
 			Replicas:                replicas,
 			Public:                  false,

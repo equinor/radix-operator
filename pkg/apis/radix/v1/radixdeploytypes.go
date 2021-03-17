@@ -41,6 +41,7 @@ const (
 type RadixDeploymentSpec struct {
 	AppName          string                         `json:"appname" yaml:"appname"`
 	Components       []RadixDeployComponent         `json:"components"`
+	Jobs             []RadixDeployJobComponent      `json:"jobs"`
 	Environment      string                         `json:"environment" yaml:"environment"`
 	ImagePullSecrets []core_v1.LocalObjectReference `json:"imagePullSecrets" yaml:"imagePullSecrets"`
 }
@@ -56,10 +57,11 @@ type RadixDeploymentList struct {
 
 //RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
-	Name     string          `json:"name" yaml:"name"`
-	Image    string          `json:"image" yaml:"image"`
-	Ports    []ComponentPort `json:"ports" yaml:"ports"`
-	Replicas *int            `json:"replicas" yaml:"replicas"`
+	Name         string          `json:"name" yaml:"name"`
+	RunAsNonRoot bool            `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+	Image        string          `json:"image" yaml:"image"`
+	Ports        []ComponentPort `json:"ports" yaml:"ports"`
+	Replicas     *int            `json:"replicas" yaml:"replicas"`
 	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public                  bool                    `json:"public" yaml:"public"`
 	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
@@ -88,7 +90,31 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 
 // GetResourceRequirements maps to core_v1.ResourceRequirements
 func (deployComponent RadixDeployComponent) GetResourceRequirements() *core_v1.ResourceRequirements {
+	return buildResourceRequirement(deployComponent.Resources)
+}
 
+//RadixDeployJobComponent defines a single job component within a RadixDeployment
+// The job component is used by the radix-job-scheduler to create Kubernetes Job objects
+type RadixDeployJobComponent struct {
+	Name                 string                    `json:"name" yaml:"name"`
+	Image                string                    `json:"image" yaml:"image"`
+	Ports                []ComponentPort           `json:"ports" yaml:"ports"`
+	EnvironmentVariables EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
+	Secrets              []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Monitoring           bool                      `json:"monitoring" yaml:"monitoring"`
+	Resources            ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
+	VolumeMounts         []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	SchedulerPort        *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
+	Payload              *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
+	RunAsNonRoot         bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+}
+
+// GetResourceRequirements maps to core_v1.ResourceRequirements
+func (jobComponent RadixDeployJobComponent) GetResourceRequirements() *core_v1.ResourceRequirements {
+	return buildResourceRequirement(jobComponent.Resources)
+}
+
+func buildResourceRequirement(source ResourceRequirements) *core_v1.ResourceRequirements {
 	defaultLimits := map[core_v1.ResourceName]resource.Quantity{
 		core_v1.ResourceName("cpu"):    *defaults.GetDefaultCPULimit(),
 		core_v1.ResourceName("memory"): *defaults.GetDefaultMemoryLimit(),
@@ -98,7 +124,7 @@ func (deployComponent RadixDeployComponent) GetResourceRequirements() *core_v1.R
 	limits := core_v1.ResourceList{}
 	requests := core_v1.ResourceList{}
 
-	for name, limit := range deployComponent.Resources.Limits {
+	for name, limit := range source.Limits {
 		resName := core_v1.ResourceName(name)
 
 		if limit != "" {
@@ -108,7 +134,7 @@ func (deployComponent RadixDeployComponent) GetResourceRequirements() *core_v1.R
 		// TODO: We probably should check some hard limit that cannot by exceeded here
 	}
 
-	for name, req := range deployComponent.Resources.Requests {
+	for name, req := range source.Requests {
 		resName := core_v1.ResourceName(name)
 
 		if req != "" {
