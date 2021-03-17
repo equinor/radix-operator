@@ -26,12 +26,13 @@ type DeployComponentBuilder interface {
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
 	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
-
+	WithRunAsNonRoot(bool) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
 type deployComponentBuilder struct {
 	name                 string
+	runAsNonRoot         bool
 	image                string
 	ports                map[string]int32
 	environmentVariables map[string]string
@@ -159,6 +160,11 @@ func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, max
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithRunAsNonRoot(runAsNonRoot bool) DeployComponentBuilder {
+	dcb.runAsNonRoot = runAsNonRoot
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range dcb.ports {
@@ -167,6 +173,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 
 	return v1.RadixDeployComponent{
 		Image:                   dcb.image,
+		RunAsNonRoot:            dcb.runAsNonRoot,
 		Name:                    dcb.name,
 		Ports:                   componentPorts,
 		Public:                  dcb.public,

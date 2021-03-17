@@ -12,6 +12,7 @@ type RadixEnvironmentConfigBuilder interface {
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
 	WithNilVariablesMap() RadixEnvironmentConfigBuilder
+	WithRunAsNonRoot(bool) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -23,6 +24,7 @@ type radixEnvironmentConfigBuilder struct {
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
 	volumeMounts            []v1.RadixVolumeMount
+	runAsNonRoot            bool
 	node                    v1.RadixNode
 }
 
@@ -64,6 +66,11 @@ func (ceb *radixEnvironmentConfigBuilder) WithNilVariablesMap() RadixEnvironment
 	return ceb
 }
 
+func (ceb *radixEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonRoot bool) RadixEnvironmentConfigBuilder {
+	ceb.runAsNonRoot = runAsNonRoot
+	return ceb
+}
+
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
 	return v1.RadixEnvironmentConfig{
 		Environment:             ceb.environment,
@@ -73,6 +80,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		VolumeMounts:            ceb.volumeMounts,
 		Node:                    ceb.node,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
+		RunAsNonRoot:            ceb.runAsNonRoot,
 	}
 }
 

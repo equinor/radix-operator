@@ -29,22 +29,15 @@ func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.
 		errs = append(errs, err)
 	}
 
-	err = validateReplicas(deploy.Spec.Components)
-	if err != nil {
-		errs = append(errs, err)
+	if err := validateDeployComponents(deploy); len(err) > 0 {
+		errs = append(errs, err...)
 	}
 
-	err = validateComponentNames(deploy.Spec.Components)
-	if err != nil {
-		errs = append(errs, err)
+	if err := validateDeployJobComponents(deploy); len(err) > 0 {
+		errs = append(errs, err...)
 	}
 
 	err = validateRequiredResourceName("env name", deploy.Spec.Environment)
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	err = validateHPAConfigForRD(deploy.Spec)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -55,24 +48,42 @@ func CanRadixDeploymentBeInserted(client radixclient.Interface, deploy *radixv1.
 	return false, errors.Concat(errs)
 }
 
-func validateComponentNames(components []radixv1.RadixDeployComponent) error {
-	for _, component := range components {
-		err := validateRequiredResourceName("component name", component.Name)
-		if err != nil {
-			return err
+func validateDeployComponents(deployment *radixv1.RadixDeployment) []error {
+	errs := make([]error, 0)
+	for _, component := range deployment.Spec.Components {
+		if err := validateRequiredResourceName("component name", component.Name); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := validateReplica(component.Replicas); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := validateHPAConfigForRD(&component, deployment.Spec.Environment); err != nil {
+			errs = append(errs, err)
 		}
 	}
-	return nil
+
+	return errs
 }
 
-func validateReplicas(components []radixv1.RadixDeployComponent) error {
-	for _, component := range components {
-		err := validateReplica(component.Replicas)
-		if err != nil {
-			return err
+func validateDeployJobComponents(deployment *radixv1.RadixDeployment) []error {
+	errs := make([]error, 0)
+	for _, job := range deployment.Spec.Jobs {
+		if err := validateRequiredResourceName("job name", job.Name); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := validateDeployJobPayload(&job); err != nil {
+			errs = append(errs, err)
+		}
+
+		if err := validateDeployJobSchedulerPort(&job); err != nil {
+			errs = append(errs, err)
 		}
 	}
-	return nil
+
+	return errs
 }
 
 func validateReplica(replica *int) error {
@@ -86,22 +97,34 @@ func validateReplica(replica *int) error {
 	return nil
 }
 
-func validateHPAConfigForRD(rdSpec radixv1.RadixDeploymentSpec) error {
-	environment := rdSpec.Environment
-	components := rdSpec.Components
-	for _, component := range components {
-		componentName := component.Name
-		if component.HorizontalScaling == nil {
-			continue
-		}
+func validateHPAConfigForRD(component *radixv1.RadixDeployComponent, environmentName string) error {
+	if component.HorizontalScaling != nil {
 		maxReplicas := component.HorizontalScaling.MaxReplicas
 		minReplicas := component.HorizontalScaling.MinReplicas
+
 		if maxReplicas == 0 {
-			return MaxReplicasForHPANotSetOrZeroError(componentName, environment)
+			return MaxReplicasForHPANotSetOrZeroError(component.Name, environmentName)
 		}
 		if minReplicas != nil && *minReplicas > maxReplicas {
-			return MinReplicasGreaterThanMaxReplicasError(componentName, environment)
+			return MinReplicasGreaterThanMaxReplicasError(component.Name, environmentName)
 		}
 	}
+
+	return nil
+}
+
+func validateDeployJobSchedulerPort(job *radixv1.RadixDeployJobComponent) error {
+	if job.SchedulerPort == nil {
+		return SchedulerPortCannotBeEmptyForJobError(job.Name)
+	}
+
+	return nil
+}
+
+func validateDeployJobPayload(job *radixv1.RadixDeployJobComponent) error {
+	if job.Payload != nil && job.Payload.Path == "" {
+		return PayloadPathCannotBeEmptyForJobError(job.Name)
+	}
+
 	return nil
 }

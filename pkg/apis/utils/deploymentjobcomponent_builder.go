@@ -18,7 +18,7 @@ type DeployJobComponentBuilder interface {
 	WithNodeGpu(gpu string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
-	WithPayloadPath(string) DeployJobComponentBuilder
+	WithPayloadPath(*string) DeployJobComponentBuilder
 	BuildJobComponent() v1.RadixDeployJobComponent
 }
 
@@ -33,7 +33,7 @@ type deployJobComponentBuilder struct {
 	volumeMounts         []v1.RadixVolumeMount
 	node                 v1.RadixNode
 	schedulerPort        *int32
-	payloadPath          string
+	payloadPath          *string
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
@@ -101,7 +101,7 @@ func (dcb *deployJobComponentBuilder) WithSchedulerPort(port *int32) DeployJobCo
 	return dcb
 }
 
-func (dcb *deployJobComponentBuilder) WithPayloadPath(path string) DeployJobComponentBuilder {
+func (dcb *deployJobComponentBuilder) WithPayloadPath(path *string) DeployJobComponentBuilder {
 	dcb.payloadPath = path
 	return dcb
 }
@@ -110,6 +110,11 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range dcb.ports {
 		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
+	}
+
+	var payload *v1.RadixJobComponentPayload
+	if dcb.payloadPath != nil {
+		payload = &v1.RadixJobComponentPayload{Path: *dcb.payloadPath}
 	}
 
 	return v1.RadixDeployJobComponent{
@@ -122,7 +127,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		Resources:            dcb.resources,
 		VolumeMounts:         dcb.volumeMounts,
 		SchedulerPort:        dcb.schedulerPort,
-		Payload:              v1.RadixJobComponentPayload{Path: dcb.payloadPath},
+		Payload:              payload,
 	}
 }
 

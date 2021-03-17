@@ -458,7 +458,11 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		*out = new(int32)
 		**out = **in
 	}
-	out.Payload = in.Payload
+	if in.Payload != nil {
+		in, out := &in.Payload, &out.Payload
+		*out = new(RadixJobComponentPayload)
+		**out = **in
+	}
 	return
 }
 
@@ -799,7 +803,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(int32)
 		**out = **in
 	}
-	out.Payload = in.Payload
+	if in.Payload != nil {
+		in, out := &in.Payload, &out.Payload
+		*out = new(RadixJobComponentPayload)
+		**out = **in
+	}
 	if in.Ports != nil {
 		in, out := &in.Ports, &out.Ports
 		*out = make([]ComponentPort, len(*in))

@@ -29,7 +29,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, containerRegistry string, pipel
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 
-	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch)
+	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
 	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -61,9 +61,10 @@ func createACRBuildJob(rr *v1.RadixRegistration, containerRegistry string, pipel
 					},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy:  "Never",
-					InitContainers: initContainers,
-					Containers:     buildContainers,
+					RestartPolicy:   "Never",
+					InitContainers:  initContainers,
+					Containers:      buildContainers,
+					SecurityContext: &pipelineInfo.PipelineArguments.PodSecurityContext,
 					Volumes: []corev1.Volume{
 						{
 							Name: git.BuildContextVolumeName,
@@ -183,6 +184,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 					ReadOnly:  true,
 				},
 			},
+			SecurityContext: &pipelineInfo.PipelineArguments.ContainerSecurityContext,
 		}
 		containers = append(containers, container)
 	}

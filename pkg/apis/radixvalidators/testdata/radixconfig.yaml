@@ -32,6 +32,11 @@ spec:
             requests:
               memory: "128Mi"
               cpu: "250m"
+          volumeMounts:
+            - type: blob
+              name: blobvol
+              container: blobcontainer
+              path: /path/to/mount
     - name: redis
       src: redis/
       ports:
@@ -53,6 +58,45 @@ spec:
         - db-pass
         - db-pass2
         - db-pass3
+  jobs:
+    - name: job
+      src: job/
+      schedulerPort: 8888
+      payload:
+        path: /path/to/payload
+      ports:
+        - name: metrics
+          port: 3000
+      secrets:
+        - SECRET1
+      variables:
+        COMMON1: common1
+      resources:
+        limits:
+          memory: "128Mi"
+          cpu: "200m"
+        requests:
+          memory: "64Mi"
+          cpu: "100m"
+      environmentConfig:
+        - environment: dev
+          variables:
+            ENV1: "useless-dev"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+          volumeMounts:
+            - type: blob
+              name: blobvol
+              container: blobcontainer
+              path: /path/to/mount
+    - name: job2
+      src: job2/
+      schedulerPort: 8888
   dnsAppAlias:
     environment: prod
     component: app

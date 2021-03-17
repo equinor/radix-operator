@@ -118,6 +118,7 @@ type RadixComponent struct {
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
 type RadixEnvironmentConfig struct {
 	Environment             string                  `json:"environment" yaml:"environment"`
+	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Replicas                *int                    `json:"replicas" yaml:"replicas"`
 	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
 	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
@@ -137,7 +138,7 @@ type RadixJobComponent struct {
 	Image             string                               `json:"image" yaml:"image"`
 	DockerfileName    string                               `json:"dockerfileName" yaml:"dockerfileName"`
 	SchedulerPort     *int32                               `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
-	Payload           RadixJobComponentPayload             `json:"payload" yaml:"payload"`
+	Payload           *RadixJobComponentPayload            `json:"payload,omitempty" yaml:"payload,omitempty"`
 	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
 	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
@@ -149,6 +150,7 @@ type RadixJobComponent struct {
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
 	Environment  string               `json:"environment" yaml:"environment"`
+	RunAsNonRoot bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Monitoring   bool                 `json:"monitoring" yaml:"monitoring"`
 	Resources    ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Variables    EnvVarsMap           `json:"variables" yaml:"variables"`

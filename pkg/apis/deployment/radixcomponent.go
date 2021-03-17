@@ -31,6 +31,8 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		var imageTagName string
 
 		var alwaysPullImageOnDeploy bool
+		// Containers run as root unless overridden in config
+		runAsNonRoot := false
 
 		image := componentImage.ImagePath
 
@@ -43,6 +45,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			volumeMounts = environmentSpecificConfig.VolumeMounts
 			node = environmentSpecificConfig.Node
 			imageTagName = environmentSpecificConfig.ImageTagName
+			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
 		} else {
 			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
@@ -71,6 +74,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent := v1.RadixDeployComponent{
 			Name:                    componentName,
+			RunAsNonRoot:            runAsNonRoot,
 			Image:                   image,
 			Replicas:                replicas,
 			Public:                  false,

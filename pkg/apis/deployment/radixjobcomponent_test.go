@@ -15,7 +15,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 			utils.AnApplicationJobComponent().
 				WithName("job1").
 				WithSchedulerPort(int32Ptr(8888)).
-				WithPayloadPath("/path/to/payload"),
+				WithPayloadPath(utils.StringPtr("/path/to/payload")),
 			utils.AnApplicationJobComponent().
 				WithName("job2"),
 		).BuildRA()
@@ -33,7 +33,7 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 	assert.Equal(t, "/path/to/payload", jobs[0].Payload.Path)
 	assert.Equal(t, "job2", jobs[1].Name)
 	assert.Nil(t, jobs[1].SchedulerPort)
-	assert.Empty(t, jobs[1].Payload.Path)
+	assert.Nil(t, jobs[1].Payload)
 }
 
 func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
