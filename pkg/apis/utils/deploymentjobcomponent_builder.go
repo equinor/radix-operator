@@ -24,18 +24,18 @@ type DeployJobComponentBuilder interface {
 }
 
 type deployJobComponentBuilder struct {
-	name                 string
-	image                string
-	ports                map[string]int32
-	environmentVariables map[string]string
-	monitoring           bool
+	name                    string
+	image                   string
+	ports                   map[string]int32
+	environmentVariables    map[string]string
+	monitoring              bool
 	alwaysPullImageOnDeploy bool
-	secrets              []string
-	resources            v1.ResourceRequirements
-	volumeMounts         []v1.RadixVolumeMount
-	node                 v1.RadixNode
-	schedulerPort        *int32
-	payloadPath          *string
+	secrets                 []string
+	resources               v1.ResourceRequirements
+	volumeMounts            []v1.RadixVolumeMount
+	node                    v1.RadixNode
+	schedulerPort           *int32
+	payloadPath             *string
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
@@ -125,17 +125,18 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 	}
 
 	return v1.RadixDeployJobComponent{
-		Image:                dcb.image,
-		Name:                 dcb.name,
-		Ports:                componentPorts,
-		Monitoring:           dcb.monitoring,
-		Secrets:              dcb.secrets,
-		EnvironmentVariables: dcb.environmentVariables,
-		Resources:            dcb.resources,
-		VolumeMounts:         dcb.volumeMounts,
-		SchedulerPort:        dcb.schedulerPort,
-		Payload:              payload,
+		Image:                   dcb.image,
+		Name:                    dcb.name,
+		Ports:                   componentPorts,
+		Monitoring:              dcb.monitoring,
+		Secrets:                 dcb.secrets,
+		EnvironmentVariables:    dcb.environmentVariables,
+		Resources:               dcb.resources,
+		VolumeMounts:            dcb.volumeMounts,
+		SchedulerPort:           dcb.schedulerPort,
+		Payload:                 payload,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
+		Node:                    dcb.node,
 	}
 }
 

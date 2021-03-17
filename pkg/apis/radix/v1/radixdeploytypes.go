@@ -4,7 +4,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 )
@@ -170,6 +169,10 @@ func (deployComponent *RadixDeployComponent) GetRunAsNonRoot() bool {
 	return deployComponent.RunAsNonRoot
 }
 
+func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
+	return &deployComponent.Node
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -242,6 +245,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetRunAsNonRoot() bool {
 	return deployJobComponent.RunAsNonRoot
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
+	return &deployJobComponent.Node
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -291,4 +298,5 @@ type RadixCommonDeployComponent interface {
 	IsDNSAppAlias() bool
 	GetIngressConfiguration() []string
 	GetRunAsNonRoot() bool
+	GetNode() *RadixNode
 }

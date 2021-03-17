@@ -531,7 +531,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	return nil
 }
 
-func (deploy *Deployment) getPodSpecAffinity(deployComponent *v1.RadixDeployComponent) *corev1.Affinity {
+func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
 	affinity := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
@@ -546,8 +546,8 @@ func (deploy *Deployment) getPodSpecAffinity(deployComponent *v1.RadixDeployComp
 	return nil
 }
 
-func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent *v1.RadixDeployComponent, nodeAffinity *corev1.NodeAffinity) {
-	nodeGpus := strings.Split(strings.ReplaceAll(deployComponent.Node.Gpu, " ", ""), ",")
+func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent v1.RadixCommonDeployComponent, nodeAffinity *corev1.NodeAffinity) {
+	nodeGpus := strings.Split(strings.ReplaceAll(deployComponent.GetNode().Gpu, " ", ""), ",")
 	if len(nodeGpus) == 0 {
 		return
 	}
