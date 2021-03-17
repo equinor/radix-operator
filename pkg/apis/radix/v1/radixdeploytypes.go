@@ -28,6 +28,15 @@ func (rd *RadixDeployment) GetComponentByName(name string) *RadixDeployComponent
 	return nil
 }
 
+func (rd *RadixDeployment) GetJobComponentByName(name string) *RadixDeployJobComponent {
+	for _, jobComponent := range rd.Spec.Jobs {
+		if strings.EqualFold(jobComponent.Name, name) {
+			return &jobComponent
+		}
+	}
+	return nil
+}
+
 //RadixDeployStatus is the status for a rd
 type RadixDeployStatus struct {
 	ActiveFrom meta_v1.Time         `json:"activeFrom" yaml:"activeFrom"`

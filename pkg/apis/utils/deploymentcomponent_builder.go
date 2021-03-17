@@ -189,6 +189,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		HorizontalScaling:       dcb.horizontalScaling,
 		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
+		Node:                    dcb.node,
 	}
 }
 

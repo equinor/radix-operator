@@ -2006,7 +2006,7 @@ func TestMonitoringConfig(t *testing.T) {
 }
 
 func TestUseGpuNode(t *testing.T) {
-	tu, client, kubeUtil, radixclient := setupTest()
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
 
 	anyAppName := "anyappname"
 	anyEnvironmentName := "test"
@@ -2014,12 +2014,14 @@ func TestUseGpuNode(t *testing.T) {
 	componentName2 := "componentName2"
 	componentName3 := "componentName3"
 	componentName4 := "componentName4"
+	jobComponentName := "jobComponentName"
 
 	// Test
 	nodeGpu1 := "nvidia-v100"
 	nodeGpu2 := "nvidia-v100, nvidia-p100"
 	nodeGpu3 := "nvidia-v100, nvidia-p100, -nvidia-k80"
-	rd, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, utils.ARadixDeployment().
+	nodeGpu4 := "nvidia-p100, -nvidia-k80"
+	rd, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
 		WithComponents(
@@ -2041,7 +2043,12 @@ func TestUseGpuNode(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentName4).
 				WithPort("http", 8084).
-				WithPublicPort("http")))
+				WithPublicPort("http")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8085).
+				WithNodeGpu(nodeGpu4)))
 
 	assert.NoError(t, err)
 
@@ -2068,6 +2075,12 @@ func TestUseGpuNode(t *testing.T) {
 		component := rd.GetComponentByName(componentName4)
 		assert.NotNil(t, component.Node)
 		assert.Empty(t, component.Node.Gpu)
+	})
+	t.Run("job has node with gpu4", func(t *testing.T) {
+		t.Parallel()
+		jobComponent := rd.GetJobComponentByName(jobComponentName)
+		assert.NotNil(t, jobComponent.Node)
+		assert.Equal(t, nodeGpu4, jobComponent.Node.Gpu)
 	})
 }
 
