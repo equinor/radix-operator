@@ -204,7 +204,7 @@ type RadixNode struct {
 	//// Sku Holds lists of node GPU types, if present
 	//Sku RadixNodeSku
 	// Gpu Optional. Holds lists of node GPU types, with dashed types to exclude
-	Gpu string
+	Gpu string `json:"gpu" yaml:"gpu"`
 }
 
 //// RadixNodeSku Holds node SKU
