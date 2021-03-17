@@ -12,6 +12,7 @@ type DeployJobComponentBuilder interface {
 	WithEnvironmentVariable(string, string) DeployJobComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployJobComponentBuilder
 	WithMonitoring(bool) DeployJobComponentBuilder
+	WithAlwaysPullImageOnDeploy(bool) DeployJobComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployJobComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) DeployJobComponentBuilder
@@ -28,6 +29,7 @@ type deployJobComponentBuilder struct {
 	ports                map[string]int32
 	environmentVariables map[string]string
 	monitoring           bool
+	alwaysPullImageOnDeploy bool
 	secrets              []string
 	resources            v1.ResourceRequirements
 	volumeMounts         []v1.RadixVolumeMount
@@ -81,6 +83,11 @@ func (dcb *deployJobComponentBuilder) WithMonitoring(monitoring bool) DeployJobC
 	return dcb
 }
 
+func (dcb *deployJobComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) DeployJobComponentBuilder {
+	dcb.alwaysPullImageOnDeploy = val
+	return dcb
+}
+
 func (dcb *deployJobComponentBuilder) WithEnvironmentVariable(name string, value string) DeployJobComponentBuilder {
 	dcb.environmentVariables[name] = value
 	return dcb
@@ -128,6 +135,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		VolumeMounts:         dcb.volumeMounts,
 		SchedulerPort:        dcb.schedulerPort,
 		Payload:              payload,
+		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 	}
 }
 

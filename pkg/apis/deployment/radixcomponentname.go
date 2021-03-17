@@ -29,24 +29,44 @@ func (t RadixComponentName) ExistInDeploymentSpec(rd *v1.RadixDeployment) bool {
 	return t.ExistInDeploymentSpecComponentList(rd) || t.ExistInDeploymentSpecJobList(rd)
 }
 
-// ExistInDeploymentSpecComponentList checks if RadixDeployment has any component with this name
-func (t RadixComponentName) ExistInDeploymentSpecComponentList(rd *v1.RadixDeployment) bool {
-	for _, component := range rd.Spec.Components {
-		if strings.EqualFold(component.Name, string(t)) {
-			return true
-		}
+func (t RadixComponentName) GetCommonDeployComponent(rd *v1.RadixDeployment) v1.RadixCommonDeployComponent {
+	if comp := t.findInDeploymentSpecComponentList(rd); comp != nil {
+		return comp
 	}
 
-	return false
+	if job := t.findInDeploymentSpecJobList(rd); job != nil {
+		return job
+	}
+
+	return nil
+}
+
+// ExistInDeploymentSpecComponentList checks if RadixDeployment has any component with this name
+func (t RadixComponentName) ExistInDeploymentSpecComponentList(rd *v1.RadixDeployment) bool {
+	return t.findInDeploymentSpecComponentList(rd) != nil
 }
 
 // ExistInDeploymentSpecJobList checks if RadixDeployment has any job with this name
 func (t RadixComponentName) ExistInDeploymentSpecJobList(rd *v1.RadixDeployment) bool {
-	for _, job := range rd.Spec.Jobs {
-		if strings.EqualFold(job.Name, string(t)) {
-			return true
+	return t.findInDeploymentSpecJobList(rd) != nil
+}
+
+func (t RadixComponentName) findInDeploymentSpecComponentList(rd *v1.RadixDeployment) v1.RadixCommonDeployComponent {
+	for _, component := range rd.Spec.Components {
+		if strings.EqualFold(component.Name, string(t)) {
+			return &component
 		}
 	}
 
-	return false
+	return nil
+}
+
+func (t RadixComponentName) findInDeploymentSpecJobList(rd *v1.RadixDeployment) v1.RadixCommonDeployComponent {
+	for _, job := range rd.Spec.Jobs {
+		if strings.EqualFold(job.Name, string(t)) {
+			return &job
+		}
+	}
+
+	return nil
 }

@@ -16,13 +16,13 @@ import (
 )
 
 // ApplyIngress Will create or update ingress in provided namespace
-func (kube *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.Ingress) error {
+func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.Ingress) error {
 	ingressName := ingress.GetName()
 	log.Debugf("Creating Ingress object %s in namespace %s", ingressName, namespace)
 
-	oldIngress, err := kube.getIngress(namespace, ingressName)
+	oldIngress, err := kubeutil.getIngress(namespace, ingressName)
 	if err != nil && errors.IsNotFound(err) {
-		_, err := kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).Create(ingress)
+		_, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Create(ingress)
 		if err != nil {
 			return fmt.Errorf("Failed to create Ingress object: %v", err)
 		}
@@ -54,7 +54,7 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.Ingr
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedIngress, err := kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).Patch(ingressName, types.StrategicMergePatchType, patchBytes)
+		patchedIngress, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Patch(ingressName, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch Ingress object: %v", err)
 		}
@@ -66,17 +66,17 @@ func (kube *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.Ingr
 	return nil
 }
 
-func (kube *Kube) getIngress(namespace, name string) (*networkingv1beta1.Ingress, error) {
+func (kubeutil *Kube) getIngress(namespace, name string) (*networkingv1beta1.Ingress, error) {
 	var ingress *networkingv1beta1.Ingress
 	var err error
 
-	if kube.IngressLister != nil {
-		ingress, err = kube.IngressLister.Ingresses(namespace).Get(name)
+	if kubeutil.IngressLister != nil {
+		ingress, err = kubeutil.IngressLister.Ingresses(namespace).Get(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		ingress, err = kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).Get(name, metav1.GetOptions{})
+		ingress, err = kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Get(name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -86,16 +86,16 @@ func (kube *Kube) getIngress(namespace, name string) (*networkingv1beta1.Ingress
 }
 
 // ListIngresses lists ingresses
-func (kube *Kube) ListIngresses(namespace string) ([]*networkingv1beta1.Ingress, error) {
-	return kube.ListIngressesWithSelector(namespace, nil)
+func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1beta1.Ingress, error) {
+	return kubeutil.ListIngressesWithSelector(namespace, nil)
 }
 
 // ListIngressesWithSelector lists ingresses
-func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorString *string) ([]*networkingv1beta1.Ingress, error) {
+func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString *string) ([]*networkingv1beta1.Ingress, error) {
 	var ingresses []*networkingv1beta1.Ingress
 	var err error
 
-	if kube.IngressLister != nil {
+	if kubeutil.IngressLister != nil {
 		var selector labels.Selector
 		if labelSelectorString != nil {
 			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
@@ -112,7 +112,7 @@ func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorStrin
 			selector = labels.NewSelector()
 		}
 
-		ingresses, err = kube.IngressLister.Ingresses(namespace).List(selector)
+		ingresses, err = kubeutil.IngressLister.Ingresses(namespace).List(selector)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func (kube *Kube) ListIngressesWithSelector(namespace string, labelSelectorStrin
 			listOptions.LabelSelector = *labelSelectorString
 		}
 
-		list, err := kube.kubeClient.NetworkingV1beta1().Ingresses(namespace).List(listOptions)
+		list, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).List(listOptions)
 		if err != nil {
 			return nil, err
 		}

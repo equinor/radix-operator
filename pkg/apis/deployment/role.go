@@ -10,13 +10,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent, secrets []string) *auth.Role {
-	roleName := fmt.Sprintf("radix-app-adm-%s", component.Name)
-	return kube.CreateManageSecretRole(registration.Name, roleName, secrets, &map[string]string{kube.RadixComponentLabel: component.Name})
+func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component radixv1.RadixCommonDeployComponent, secrets []string) *auth.Role {
+	roleName := fmt.Sprintf("radix-app-adm-%s", component.GetName())
+	return kube.CreateManageSecretRole(registration.Name, roleName, secrets, &map[string]string{kube.RadixComponentLabel: component.GetName()})
 }
 
-func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
-	labelSelector := getLabelSelectorForComponent(*component)
+func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
+	labelSelector := getLabelSelectorForComponent(component)
 	roles, err := deploy.kubeutil.ListRolesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 	if err != nil {
 		return err

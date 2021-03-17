@@ -18,7 +18,7 @@ import (
 const waitTimeout = 15 * time.Second
 
 // ApplyNamespace Creates a new namespace, if not exists allready
-func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
+func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	log.Debugf("Create namespace: %s", name)
 
 	namespace := corev1.Namespace{
@@ -29,10 +29,10 @@ func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRef
 		},
 	}
 
-	oldNamespace, err := kube.getNamespace(name)
+	oldNamespace, err := kubeutil.getNamespace(name)
 	if err != nil && k8errs.IsNotFound(err) {
 		log.Debugf("Namespace object %s doesn't exists, create the object", name)
-		_, err := kube.kubeClient.CoreV1().Namespaces().Create(&namespace)
+		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(&namespace)
 		return err
 	}
 
@@ -56,7 +56,7 @@ func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRef
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedNamespace, err := kube.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
+		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
 		if err != nil {
 			return fmt.Errorf("Failed to patch namespace object: %v", err)
 		}
@@ -69,17 +69,17 @@ func (kube *Kube) ApplyNamespace(name string, labels map[string]string, ownerRef
 	return nil
 }
 
-func (kube *Kube) getNamespace(name string) (*corev1.Namespace, error) {
+func (kubeutil *Kube) getNamespace(name string) (*corev1.Namespace, error) {
 	var namespace *corev1.Namespace
 	var err error
 
-	if kube.NamespaceLister != nil {
-		namespace, err = kube.NamespaceLister.Get(name)
+	if kubeutil.NamespaceLister != nil {
+		namespace, err = kubeutil.NamespaceLister.Get(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		namespace, err = kube.kubeClient.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
+		namespace, err = kubeutil.kubeClient.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

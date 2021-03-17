@@ -202,6 +202,8 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
 	}
 
+	deploy.configureRbac()
+
 	err = deploy.createOrUpdateSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
@@ -216,56 +218,17 @@ func (deploy *Deployment) syncDeployment() error {
 	}
 
 	errs := []error{}
-	for _, v := range deploy.radixDeployment.Spec.Components {
-		// Deploy to current radixDeploy object's namespace
-		err := deploy.createOrUpdateDeployment(v)
-		if err != nil {
-			log.Infof("Failed to create deployment: %v", err)
-			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
-			continue
-		}
-		err = deploy.createOrUpdateHPA(v)
-		if err != nil {
-			log.Infof("Failed to create horizontal pod autoscaler: %v", err)
-			errs = append(errs, fmt.Errorf("Failed to create deployment: %v", err))
-			continue
-		}
-		err = deploy.createOrUpdateService(v)
-		if err != nil {
-			log.Infof("Failed to create service: %v", err)
-			errs = append(errs, fmt.Errorf("Failed to create service: %v", err))
-			continue
-		}
-		if v.PublicPort != "" || v.Public {
-			err = deploy.createOrUpdateIngress(v)
-			if err != nil {
-				log.Infof("Failed to create ingress: %v", err)
-				errs = append(errs, fmt.Errorf("Failed to create ingress: %v", err))
-				continue
-			}
-		} else {
-			err = deploy.garbageCollectIngressNoLongerInSpecForComponent(v)
-			if err != nil {
-				log.Infof("Failed to delete ingress: %v", err)
-				errs = append(errs, fmt.Errorf("Failed to delete ingress: %v", err))
-				continue
-			}
-		}
 
-		if v.Monitoring {
-			err = deploy.createOrUpdateServiceMonitor(v)
-			if err != nil {
-				log.Infof("Failed to create service monitor: %v", err)
-				errs = append(errs, fmt.Errorf("Failed to create service monitor: %v", err))
-				continue
-			}
-		} else {
-			err = deploy.deleteServiceMonitorForComponent(v)
-			if err != nil {
-				log.Infof("Failed to delete servicemonitor: %v", err)
-				errs = append(errs, fmt.Errorf("Failed to delete servicemonitor: %v", err))
-				continue
-			}
+	for _, component := range deploy.radixDeployment.Spec.Components {
+		if err := deploy.syncDeploymentForRadixComponent(&component); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
+		jobSchedulerComponent := NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
+		if err := deploy.syncDeploymentForRadixComponent(jobSchedulerComponent); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
@@ -275,6 +238,13 @@ func (deploy *Deployment) syncDeployment() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) configureRbac() {
+	rbacFunc := GetDeploymentRbacConfigurators(deploy)
+	for _, rbac := range rbacFunc {
+		rbac()
+	}
 }
 
 func (deploy *Deployment) updateStatusOnActiveDeployment() error {
@@ -458,16 +428,16 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 	return radixDeployment
 }
 
-func getLabelSelectorForComponent(component v1.RadixDeployComponent) string {
-	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.Name)
+func getLabelSelectorForComponent(component v1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s", kube.RadixComponentLabel, component.GetName())
 }
 
-func getLabelSelectorForExternalAlias(component v1.RadixDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixExternalAliasLabel, "true")
+func getLabelSelectorForExternalAlias(component v1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixExternalAliasLabel, "true")
 }
 
-func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.Name, kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
+func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
 }
 
 func getRadixJobSchedulerImage() (string, error) {
@@ -512,6 +482,53 @@ func (deploy *Deployment) maintainHistoryLimit() {
 			log.Warnf("failed to delete old deployment %s: %v", deployments[i].Name, err)
 		}
 	}
+}
+
+func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {
+	// Deploy to current radixDeploy object's namespace
+	err := deploy.createOrUpdateDeployment(component)
+	if err != nil {
+		log.Infof("Failed to create deployment: %v", err)
+		return fmt.Errorf("Failed to create deployment: %v", err)
+	}
+	err = deploy.createOrUpdateHPA(component)
+	if err != nil {
+		log.Infof("Failed to create horizontal pod autoscaler: %v", err)
+		return fmt.Errorf("Failed to create deployment: %v", err)
+	}
+	err = deploy.createOrUpdateService(component)
+	if err != nil {
+		log.Infof("Failed to create service: %v", err)
+		return fmt.Errorf("Failed to create service: %v", err)
+	}
+	if component.GetPublicPort() != "" || component.IsPublic() {
+		err = deploy.createOrUpdateIngress(component)
+		if err != nil {
+			log.Infof("Failed to create ingress: %v", err)
+			return fmt.Errorf("Failed to create ingress: %v", err)
+		}
+	} else {
+		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(component)
+		if err != nil {
+			log.Infof("Failed to delete ingress: %v", err)
+			return fmt.Errorf("Failed to delete ingress: %v", err)
+		}
+	}
+
+	if component.GetMonitoring() {
+		err = deploy.createOrUpdateServiceMonitor(component)
+		if err != nil {
+			log.Infof("Failed to create service monitor: %v", err)
+			return fmt.Errorf("Failed to create service monitor: %v", err)
+		}
+	} else {
+		err = deploy.deleteServiceMonitorForComponent(component)
+		if err != nil {
+			log.Infof("Failed to delete servicemonitor: %v", err)
+			return fmt.Errorf("Failed to delete servicemonitor: %v", err)
+		}
+	}
+	return nil
 }
 
 func (deploy *Deployment) getPodSpecAffinity(deployComponent *v1.RadixDeployComponent) *corev1.Affinity {

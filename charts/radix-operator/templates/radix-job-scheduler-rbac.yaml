@@ -1,0 +1,47 @@
+# defines roles for job-scheduler
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: radix-job-scheduler
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+rules:
+  - apiGroups:
+      - '*'
+    resources:
+      - pods
+      - pods/log
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+  - apiGroups:
+      - radix.equinor.com
+    resources:
+      - radixdeployments
+    verbs:
+      - list
+      - get
+  - apiGroups:
+      - '*'
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - patch
+---

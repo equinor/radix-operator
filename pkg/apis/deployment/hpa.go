@@ -13,11 +13,11 @@ import (
 
 const targetCPUUtilizationPercentage = 80
 
-func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	componentName := deployComponent.Name
-	replicas := deployComponent.Replicas
-	horizontalScaling := deployComponent.HorizontalScaling
+	componentName := deployComponent.GetName()
+	replicas := deployComponent.GetReplicas()
+	horizontalScaling := deployComponent.GetHorizontalScaling()
 
 	// Check if hpa config exists
 	if horizontalScaling == nil {
@@ -105,9 +105,8 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 	return hpa
 }
 
-func (deploy *Deployment) deleteHPAIfExists(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) deleteHPAIfExists(componentName string) error {
 	namespace := deploy.radixDeployment.GetNamespace()
-	componentName := deployComponent.Name
 	_, err := deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(componentName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		return nil

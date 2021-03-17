@@ -57,13 +57,13 @@ func GetRolebindingToClusterRole(appName, roleName string, groups []string) *aut
 
 // GetRolebindingToClusterRoleForSubjects Get role binding object for list of subjects
 func GetRolebindingToClusterRoleForSubjects(appName, roleName string, subjects []auth.Subject) *auth.RoleBinding {
-	return GetRolebindingToClusterRoleForSubjectsWithLabels(appName, roleName, subjects, map[string]string{
+	return GetRolebindingToClusterRoleForSubjectsWithLabels(roleName, subjects, map[string]string{
 		RadixAppLabel: appName,
 	})
 }
 
 // GetRolebindingToClusterRoleForSubjectsWithLabels Get role binding object for list of subjects with labels set
-func GetRolebindingToClusterRoleForSubjectsWithLabels(appName, roleName string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
+func GetRolebindingToClusterRoleForSubjectsWithLabels(roleName string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
 	return getRoleBindingForSubjects(roleName, "ClusterRole", subjects, labels)
 }
 
@@ -81,7 +81,7 @@ func GetRolebindingToRoleForSubjectsWithLabels(appName, roleName string, subject
 // GetRolebindingToRoleForServiceAccountWithLabels Get role binding object
 func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
 	subjects := []auth.Subject{
-		auth.Subject{
+		{
 			Kind:      "ServiceAccount",
 			Name:      serviceAccountName,
 			Namespace: serviceAccountNamespace,
@@ -93,7 +93,7 @@ func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountNam
 // GetRolebindingToClusterRoleForServiceAccountWithLabels Get role binding object
 func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
 	subjects := []auth.Subject{
-		auth.Subject{
+		{
 			Kind:      "ServiceAccount",
 			Name:      serviceAccountName,
 			Namespace: serviceAccountNamespace,
