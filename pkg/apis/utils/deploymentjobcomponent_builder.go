@@ -12,6 +12,7 @@ type DeployJobComponentBuilder interface {
 	WithEnvironmentVariable(string, string) DeployJobComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployJobComponentBuilder
 	WithMonitoring(bool) DeployJobComponentBuilder
+	WithAlwaysPullImageOnDeploy(bool) DeployJobComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployJobComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) DeployJobComponentBuilder
@@ -22,16 +23,17 @@ type DeployJobComponentBuilder interface {
 }
 
 type deployJobComponentBuilder struct {
-	name                 string
-	image                string
-	ports                map[string]int32
-	environmentVariables map[string]string
-	monitoring           bool
-	secrets              []string
-	resources            v1.ResourceRequirements
-	volumeMounts         []v1.RadixVolumeMount
-	schedulerPort        *int32
-	payloadPath          *string
+	name                    string
+	image                   string
+	ports                   map[string]int32
+	environmentVariables    map[string]string
+	monitoring              bool
+	alwaysPullImageOnDeploy bool
+	secrets                 []string
+	resources               v1.ResourceRequirements
+	volumeMounts            []v1.RadixVolumeMount
+	schedulerPort           *int32
+	payloadPath             *string
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
@@ -74,6 +76,11 @@ func (dcb *deployJobComponentBuilder) WithMonitoring(monitoring bool) DeployJobC
 	return dcb
 }
 
+func (dcb *deployJobComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) DeployJobComponentBuilder {
+	dcb.alwaysPullImageOnDeploy = val
+	return dcb
+}
+
 func (dcb *deployJobComponentBuilder) WithEnvironmentVariable(name string, value string) DeployJobComponentBuilder {
 	dcb.environmentVariables[name] = value
 	return dcb
@@ -111,16 +118,17 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 	}
 
 	return v1.RadixDeployJobComponent{
-		Image:                dcb.image,
-		Name:                 dcb.name,
-		Ports:                componentPorts,
-		Monitoring:           dcb.monitoring,
-		Secrets:              dcb.secrets,
-		EnvironmentVariables: dcb.environmentVariables,
-		Resources:            dcb.resources,
-		VolumeMounts:         dcb.volumeMounts,
-		SchedulerPort:        dcb.schedulerPort,
-		Payload:              payload,
+		Image:                   dcb.image,
+		Name:                    dcb.name,
+		Ports:                   componentPorts,
+		Monitoring:              dcb.monitoring,
+		Secrets:                 dcb.secrets,
+		EnvironmentVariables:    dcb.environmentVariables,
+		Resources:               dcb.resources,
+		VolumeMounts:            dcb.volumeMounts,
+		SchedulerPort:           dcb.schedulerPort,
+		Payload:                 payload,
+		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 	}
 }
 

@@ -12,13 +12,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixDeployComponent) error {
+func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	serviceMonitor := getServiceMonitorConfig(deployComponent.Name, namespace, deployComponent.Ports)
+	serviceMonitor := getServiceMonitorConfig(deployComponent.GetName(), namespace, deployComponent.GetPorts())
 	return deploy.applyServiceMonitor(namespace, serviceMonitor)
 }
 
-func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixDeployComponent) error {
+func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixCommonDeployComponent) error {
 	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
 	if err != nil {
 		return err
@@ -26,7 +26,7 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixDep
 
 	for _, serviceMonitor := range serviceMonitors.Items {
 		componentName, ok := NewRadixComponentNameFromLabels(serviceMonitor)
-		if ok && component.Name == string(componentName) {
+		if ok && component.GetName() == string(componentName) {
 			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(serviceMonitor.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
