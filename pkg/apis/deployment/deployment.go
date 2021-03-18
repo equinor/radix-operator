@@ -56,11 +56,19 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		kubeutil, prometheusperatorclient, registration, radixDeployment}, nil
 }
 
-// GetDeploymentComponent Gets the index  of and the component given name
-func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
+// GetDeploymentCommonComponent Gets the index and component/job from a RadixDeployment
+// The index refers the the index in either the components or jobs spec of the RadixDeployment
+// Use GetType() to identify if the index refers to the components or jobs section
+// Returns -1, nil if component/job does not exist
+func GetDeploymentCommonComponent(rd *v1.RadixDeployment, name string) (int, v1.RadixCommonDeployComponent) {
 	for index, component := range rd.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
 			return index, &component
+		}
+	}
+	for index, job := range rd.Spec.Jobs {
+		if strings.EqualFold(job.Name, name) {
+			return index, &job
 		}
 	}
 	return -1, nil
