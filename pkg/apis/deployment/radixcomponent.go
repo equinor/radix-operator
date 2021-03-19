@@ -71,6 +71,16 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
 		}
 
+		if len(node.Gpu) <= 0 {
+			node.Gpu = appComponent.Node.Gpu
+		}
+		// Append common environment variables from appComponent.Variables to variables if not available yet
+		for variableKey, variableValue := range appComponent.Variables {
+			if _, found := variables[variableKey]; !found {
+				variables[variableKey] = variableValue
+			}
+		}
+
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent := v1.RadixDeployComponent{
 			Name:                    componentName,

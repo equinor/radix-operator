@@ -555,18 +555,22 @@ func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeplo
 }
 
 func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent v1.RadixCommonDeployComponent, nodeAffinity *corev1.NodeAffinity) {
-	nodeGpus := strings.Split(strings.ReplaceAll(deployComponent.GetNode().Gpu, " ", ""), ",")
-	if len(nodeGpus) == 0 {
+	nodeGpuValue := strings.ReplaceAll(deployComponent.GetNode().Gpu, " ", "")
+	if len(nodeGpuValue) == 0 {
+		return
+	}
+	nodeGpuList := strings.Split(nodeGpuValue, ",")
+	if len(nodeGpuList) == 0 {
 		return
 	}
 	includingGpus := make([]string, 0)
 	excludingGpus := make([]string, 0)
-	for _, gpu := range nodeGpus {
+	for _, gpu := range nodeGpuList {
 		if strings.HasPrefix(gpu, "-") {
-			excludingGpus = append(excludingGpus, gpu[1:])
+			excludingGpus = append(excludingGpus, strings.ToLower(gpu[1:]))
 			continue
 		}
-		includingGpus = append(includingGpus, gpu)
+		includingGpus = append(includingGpus, strings.ToLower(gpu))
 	}
 	nodeSelectorTerm := corev1.NodeSelectorTerm{}
 	if len(includingGpus) > 0 {

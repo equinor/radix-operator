@@ -37,6 +37,7 @@ type radixApplicationComponentBuilder struct {
 	environmentConfig    []RadixEnvironmentConfigBuilder
 	variables            v1.EnvVarsMap
 	resources            v1.ResourceRequirements
+	node                 v1.RadixNode
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -138,6 +139,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Variables:               rcb.variables,
 		Resources:               rcb.resources,
 		AlwaysPullImageOnDeploy: rcb.alwaysPullImageOnDeploy,
+		Node:                    rcb.node,
 	}
 }
 

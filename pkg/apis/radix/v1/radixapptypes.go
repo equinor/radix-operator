@@ -113,6 +113,7 @@ type RadixComponent struct {
 	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
 	Resources               ResourceRequirements     `json:"resources,omitempty" yaml:"resources,omitempty"`
 	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
