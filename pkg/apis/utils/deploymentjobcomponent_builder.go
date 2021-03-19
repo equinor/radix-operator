@@ -17,6 +17,7 @@ type DeployJobComponentBuilder interface {
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) DeployJobComponentBuilder
 	WithNodeGpu(gpu string) DeployJobComponentBuilder
+	WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
@@ -45,6 +46,11 @@ func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVo
 
 func (dcb *deployJobComponentBuilder) WithNodeGpu(gpu string) DeployJobComponentBuilder {
 	dcb.node.Gpu = gpu
+	return dcb
+}
+
+func (dcb *deployJobComponentBuilder) WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder {
+	dcb.node.GpuCount = gpuCount
 	return dcb
 }
 

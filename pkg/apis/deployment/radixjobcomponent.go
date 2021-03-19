@@ -52,21 +52,22 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 	return nil
 }
 
-func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1.RadixDeployJobComponent {
-	componentName := appJob.Name
+func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComponent) v1.RadixDeployJobComponent {
+	componentName := appJobComponent.Name
 	componentImage := c.componentImages[componentName]
 	var variables v1.EnvVarsMap
 	monitoring := false
 	var resources v1.ResourceRequirements
+	var node v1.RadixNode
 	var volumeMounts []v1.RadixVolumeMount
 	var imageTagName string
 	image := componentImage.ImagePath
-	schedulerPort := appJob.SchedulerPort
-	payload := appJob.Payload
+	schedulerPort := appJobComponent.SchedulerPort
+	payload := appJobComponent.Payload
 	// Runs as root by default unless overridden
 	runAsNonRoot := false
 
-	environmentSpecificConfig := c.getEnvironmentConfig(appJob)
+	environmentSpecificConfig := c.getEnvironmentConfig(appJobComponent)
 	if environmentSpecificConfig != nil {
 		variables = environmentSpecificConfig.Variables
 		monitoring = environmentSpecificConfig.Monitoring
@@ -79,8 +80,11 @@ func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1
 	if variables == nil {
 		variables = make(v1.EnvVarsMap)
 	}
+
+	updateComponentNode(&appJobComponent, &node)
+
 	// Append common environment variables from appComponent.Variables to variables if not available yet
-	for variableKey, variableValue := range appJob.Variables {
+	for variableKey, variableValue := range appJobComponent.Variables {
 		if _, found := variables[variableKey]; !found {
 			variables[variableKey] = variableValue
 		}
@@ -88,7 +92,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1
 
 	// Append common resources settings if currently empty
 	if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
-		resources = appJob.Resources
+		resources = appJobComponent.Resources
 	}
 
 	// For deploy-only images, we will replace the dynamic tag with the tag from the environment
@@ -100,8 +104,8 @@ func (c *jobComponentsBuilder) buildJobComponent(appJob v1.RadixJobComponent) v1
 	deployJob := v1.RadixDeployJobComponent{
 		Name:                 componentName,
 		Image:                image,
-		Ports:                appJob.Ports,
-		Secrets:              appJob.Secrets,
+		Ports:                appJobComponent.Ports,
+		Secrets:              appJobComponent.Secrets,
 		EnvironmentVariables: variables, // todo: use single EnvVars instead
 		Monitoring:           monitoring,
 		Resources:            resources,

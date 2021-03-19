@@ -145,6 +145,7 @@ type RadixJobComponent struct {
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -202,11 +203,30 @@ const (
 
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
-	//// Sku Holds lists of node GPU types, if present
-	//Sku RadixNodeSku
 	// Gpu Optional. Holds lists of node GPU types, with dashed types to exclude
 	Gpu string `json:"gpu" yaml:"gpu"`
+	// GpuCount Optional. Holds minimum count of GPU on node
+	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
 
-//// RadixNodeSku Holds node SKU
-//type RadixNodeSku string
+//RadixCommonComponent defines a common component interface for Radix components
+type RadixCommonComponent interface {
+	GetName() string
+	GetNode() *RadixNode
+}
+
+func (component *RadixComponent) GetName() string {
+	return component.Name
+}
+
+func (component *RadixComponent) GetNode() *RadixNode {
+	return &component.Node
+}
+
+func (component *RadixJobComponent) GetName() string {
+	return component.Name
+}
+
+func (component *RadixJobComponent) GetNode() *RadixNode {
+	return &component.Node
+}

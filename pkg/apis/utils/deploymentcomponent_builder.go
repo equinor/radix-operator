@@ -21,6 +21,7 @@ type DeployComponentBuilder interface {
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) DeployComponentBuilder
 	WithNodeGpu(gpu string) DeployComponentBuilder
+	WithNodeGpuCount(gpuCount string) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
@@ -59,6 +60,11 @@ func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolum
 
 func (dcb *deployComponentBuilder) WithNodeGpu(gpu string) DeployComponentBuilder {
 	dcb.node.Gpu = gpu
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithNodeGpuCount(gpuCount string) DeployComponentBuilder {
+	dcb.node.GpuCount = gpuCount
 	return dcb
 }
 

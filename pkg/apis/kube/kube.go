@@ -42,6 +42,8 @@ const (
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
 	RadixMountTypeLabel          = "mount-type"
+	RadixGpuLabel                = "radix-node-gpu"
+	RadixGpuCountLabel           = "radix-node-gpu-count"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"

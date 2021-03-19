@@ -563,6 +563,14 @@ func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent v1.RadixCommon
 	if len(nodeGpuList) == 0 {
 		return
 	}
+	nodeSelectorTerm := corev1.NodeSelectorTerm{}
+	includingGpus, excludingGpus := getGpuLists(nodeGpuList)
+	addNodeSelectorRequirement(&nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpIn, includingGpus)
+	addNodeSelectorRequirement(&nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpNotIn, excludingGpus)
+	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
+}
+
+func getGpuLists(nodeGpuList []string) ([]string, []string) {
 	includingGpus := make([]string, 0)
 	excludingGpus := make([]string, 0)
 	for _, gpu := range nodeGpuList {
@@ -572,12 +580,12 @@ func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent v1.RadixCommon
 		}
 		includingGpus = append(includingGpus, strings.ToLower(gpu))
 	}
-	nodeSelectorTerm := corev1.NodeSelectorTerm{}
-	if len(includingGpus) > 0 {
-		nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, corev1.NodeSelectorRequirement{Key: "gpu", Operator: corev1.NodeSelectorOpIn, Values: includingGpus})
+	return includingGpus, excludingGpus
+}
+
+func addNodeSelectorRequirement(nodeSelectorTerm *corev1.NodeSelectorTerm, key string, operator corev1.NodeSelectorOperator, values []string) {
+	if len(values) <= 0 {
+		return
 	}
-	if len(excludingGpus) > 0 {
-		nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, corev1.NodeSelectorRequirement{Key: "gpu", Operator: corev1.NodeSelectorOpNotIn, Values: excludingGpus})
-	}
-	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
+	nodeSelectorTerm.MatchExpressions = append(nodeSelectorTerm.MatchExpressions, corev1.NodeSelectorRequirement{Key: key, Operator: operator, Values: values})
 }
