@@ -2407,35 +2407,6 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 	portTestFunc("scheduler-port", 9090, job.Spec.Template.Spec.Containers[0].Ports)
 }
 
-func Test_GetDeploymentCommonComponent(t *testing.T) {
-	rd := utils.NewDeploymentBuilder().
-		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("app1"),
-			utils.NewDeployComponentBuilder().WithName("app2"),
-		).
-		WithJobComponents(
-			utils.NewDeployJobComponentBuilder().WithName("job1"),
-			utils.NewDeployJobComponentBuilder().WithName("job2"),
-		).
-		BuildRD()
-
-	index, comp := GetDeploymentCommonComponent(rd, "app1")
-	assert.Equal(t, 0, index)
-	assert.Equal(t, "app1", comp.GetName())
-
-	index, comp = GetDeploymentCommonComponent(rd, "app2")
-	assert.Equal(t, 1, index)
-	assert.Equal(t, "app2", comp.GetName())
-
-	index, comp = GetDeploymentCommonComponent(rd, "job1")
-	assert.Equal(t, 0, index)
-	assert.Equal(t, "job1", comp.GetName())
-
-	index, comp = GetDeploymentCommonComponent(rd, "job2")
-	assert.Equal(t, 1, index)
-	assert.Equal(t, "job2", comp.GetName())
-}
-
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
