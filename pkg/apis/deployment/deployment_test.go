@@ -2526,10 +2526,9 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	jobComponentName := "jobComponentName"
 
 	// Test
-	nodeGpu1 := "nvidia-v100"
-	nodeGpu2 := "nvidia-v100, nvidia-p100"
-	nodeGpu3 := "nvidia-v100, nvidia-p100, -nvidia-k80"
-	nodeGpu4 := "nvidia-p100, -nvidia-k80"
+	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaP100 := "nvidia-p100"
+	gpuNvidiaK80 := "nvidia-k80"
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 		WithAppName(anyAppName).
 		WithEnvironment(anyEnvironmentName).
@@ -2538,17 +2537,17 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 				WithName(componentName1).
 				WithPort("http", 8080).
 				WithPublicPort("http").
-				WithNodeGpu(nodeGpu1),
+				WithNodeGpu(gpuNvidiaV100),
 			utils.NewDeployComponentBuilder().
 				WithName(componentName2).
 				WithPort("http", 8081).
 				WithPublicPort("http").
-				WithNodeGpu(nodeGpu2),
+				WithNodeGpu(fmt.Sprintf("%s, %s", gpuNvidiaV100, gpuNvidiaP100)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentName3).
 				WithPort("http", 8082).
 				WithPublicPort("http").
-				WithNodeGpu(nodeGpu3),
+				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentName4).
 				WithPort("http", 8084).
@@ -2557,13 +2556,12 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 			utils.NewDeployJobComponentBuilder().
 				WithName(jobComponentName).
 				WithPort("http", 8085).
-				WithNodeGpu(nodeGpu4)))
+				WithNodeGpu(fmt.Sprintf("%s, -%s", gpuNvidiaP100, gpuNvidiaK80))))
 
 	assert.NoError(t, err)
 
-	t.Run("has node with gpu1", func(t *testing.T) {
+	t.Run("has node with nvidia-v100", func(t *testing.T) {
 		t.Parallel()
-
 		deployment, _ := client.AppsV1().Deployments("").Get(componentName1, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
@@ -2575,7 +2573,69 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Equal(t, kube.RadixGpuLabel, expression.Key)
 		assert.Equal(t, corev1.NodeSelectorOpIn, expression.Operator)
 		assert.Equal(t, 1, len(expression.Values))
-		assert.Contains(t, expression.Values, nodeGpu1)
+		assert.Contains(t, expression.Values, gpuNvidiaV100)
+	})
+	t.Run("has node with nvidia-v100, nvidia-p100", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName2, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression.Operator)
+		assert.Equal(t, 2, len(expression.Values))
+		assert.Contains(t, expression.Values, gpuNvidiaV100)
+		assert.Contains(t, expression.Values, gpuNvidiaP100)
+	})
+	t.Run("has node with nvidia-v100, nvidia-p100, not nvidia-k80", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName3, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 2, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 2, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaV100)
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+	})
+	t.Run("has node with no gpu", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName4, metav1.GetOptions{})
+		assert.Nil(t, deployment.Spec.Template.Spec.Affinity)
+	})
+	t.Run("job has node with nvidia-p100, not nvidia-k80", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 2, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
 	})
 }
 
