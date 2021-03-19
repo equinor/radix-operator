@@ -555,7 +555,16 @@ func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeplo
 }
 
 func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent v1.RadixCommonDeployComponent, nodeAffinity *corev1.NodeAffinity) {
-	nodeGpuValue := strings.ReplaceAll(deployComponent.GetNode().Gpu, " ", "")
+	nodeSelectorTerm := corev1.NodeSelectorTerm{}
+	addNodeSelectorRequirementForGpu(deployComponent.GetNode().Gpu, &nodeSelectorTerm)
+	addNodeSelectorRequirementForGpuCount(deployComponent.GetNode().GpuCount, &nodeSelectorTerm)
+	if len(nodeSelectorTerm.MatchExpressions) > 0 {
+		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
+	}
+}
+
+func addNodeSelectorRequirementForGpu(gpu string, nodeSelectorTerm *corev1.NodeSelectorTerm) {
+	nodeGpuValue := strings.ReplaceAll(gpu, " ", "")
 	if len(nodeGpuValue) == 0 {
 		return
 	}
@@ -563,11 +572,23 @@ func (deploy *Deployment) addGpuNodeSelectorTerms(deployComponent v1.RadixCommon
 	if len(nodeGpuList) == 0 {
 		return
 	}
-	nodeSelectorTerm := corev1.NodeSelectorTerm{}
 	includingGpus, excludingGpus := getGpuLists(nodeGpuList)
-	addNodeSelectorRequirement(&nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpIn, includingGpus)
-	addNodeSelectorRequirement(&nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpNotIn, excludingGpus)
-	nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
+	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpIn, includingGpus...)
+	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuLabel, corev1.NodeSelectorOpNotIn, excludingGpus...)
+}
+
+func addNodeSelectorRequirementForGpuCount(gpuCount string, nodeSelectorTerm *corev1.NodeSelectorTerm) {
+	gpuCount = strings.ReplaceAll(gpuCount, " ", "")
+	if len(gpuCount) == 0 {
+		return
+	}
+	gpuCountValue, err := strconv.Atoi(gpuCount)
+	if err != nil || gpuCountValue <= 0 {
+		log.Error(fmt.Sprintf("invalid node GPU count: %s", gpuCount))
+		return
+	}
+	values := strconv.Itoa(gpuCountValue - 1)
+	addNodeSelectorRequirement(nodeSelectorTerm, kube.RadixGpuCountLabel, corev1.NodeSelectorOpGt, values)
 }
 
 func getGpuLists(nodeGpuList []string) ([]string, []string) {
@@ -583,7 +604,7 @@ func getGpuLists(nodeGpuList []string) ([]string, []string) {
 	return includingGpus, excludingGpus
 }
 
-func addNodeSelectorRequirement(nodeSelectorTerm *corev1.NodeSelectorTerm, key string, operator corev1.NodeSelectorOperator, values []string) {
+func addNodeSelectorRequirement(nodeSelectorTerm *corev1.NodeSelectorTerm, key string, operator corev1.NodeSelectorOperator, values ...string) {
 	if len(values) <= 0 {
 		return
 	}

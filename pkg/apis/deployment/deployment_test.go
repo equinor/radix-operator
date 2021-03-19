@@ -2737,6 +2737,223 @@ func TestUseGpuNodeCount(t *testing.T) {
 	})
 }
 
+func TestUseGpuNodeCountOnDeployment(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName1 := "componentName1"
+	componentName2 := "componentName2"
+	componentName3 := "componentName3"
+	componentName4 := "componentName4"
+	componentName5 := "componentName5"
+	componentName6 := "componentName6"
+	jobComponentName := "jobComponentName"
+
+	// Test
+	nodeGpuCount1 := "1"
+	nodeGpuCount10 := "10"
+	nodeGpuCount0 := "0"
+	nodeGpuCountMinus1 := "-1"
+	nodeGpuCountInvalidTextValue := "invalid-count"
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2).
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount10),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3).
+				WithPort("http", 8082).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount0),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4).
+				WithPort("http", 8083).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCountMinus1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName5).
+				WithPort("http", 8085).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCountInvalidTextValue),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName6).
+				WithPort("http", 8086).
+				WithPublicPort("http")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8087).
+				WithNodeGpuCount(nodeGpuCount10)))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with gpu-count 1", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName1, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, "0")
+	})
+	t.Run("has node with gpu-count 10", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName2, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, "9")
+	})
+	t.Run("has node with gpu-count 0", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName3, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("has node with gpu-count -1", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName4, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("has node with invalid value of gpu-count", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName5, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("has node with no gpu-count", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName6, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("job has node with gpu-count 10 ", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, "9")
+	})
+}
+
+func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName := "componentName"
+	jobComponentName := "jobComponentName"
+
+	// Test
+	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaP100 := "nvidia-p100"
+	gpuNvidiaK80 := "nvidia-k80"
+	nodeGpuCount10 := "10"
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80)).
+				WithNodeGpuCount(nodeGpuCount10)).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8081).
+				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80)).
+				WithNodeGpuCount(nodeGpuCount10)))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with gpu and gpu-count 10", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 3, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 2, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaV100)
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+		expression3 := nodeSelectorTerms[0].MatchExpressions[2]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression3.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression3.Operator)
+		assert.Equal(t, 1, len(expression3.Values))
+		assert.Contains(t, expression3.Values, "9")
+	})
+	t.Run("job has node with gpu and gpu-count 10 ", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 3, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 2, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaV100)
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+		expression3 := nodeSelectorTerms[0].MatchExpressions[2]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression3.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression3.Operator)
+		assert.Equal(t, 1, len(expression3.Values))
+		assert.Contains(t, expression3.Values, "9")
+	})
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
