@@ -94,7 +94,6 @@ type RadixDeployComponent struct {
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -169,8 +168,8 @@ func (deployComponent *RadixDeployComponent) GetRunAsNonRoot() bool {
 	return deployComponent.RunAsNonRoot
 }
 
-func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
-	return &deployComponent.Node
+func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
+	return &deployJobComponent.Node
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {

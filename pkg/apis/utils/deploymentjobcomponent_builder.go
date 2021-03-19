@@ -33,9 +33,9 @@ type deployJobComponentBuilder struct {
 	secrets                 []string
 	resources               v1.ResourceRequirements
 	volumeMounts            []v1.RadixVolumeMount
-	node                    v1.RadixNode
 	schedulerPort           *int32
 	payloadPath             *string
+	node                    v1.RadixNode
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
