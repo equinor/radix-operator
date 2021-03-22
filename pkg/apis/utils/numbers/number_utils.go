@@ -9,3 +9,8 @@ func Int32Ptr(n int32) *int32 {
 func Int64Ptr(n int64) *int64 {
 	return &n
 }
+
+// IntPtr Helper function to get the pointer of an int
+func IntPtr(i int) *int {
+	return &i
+}

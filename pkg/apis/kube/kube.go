@@ -28,6 +28,7 @@ const (
 	RadixAppLabel                = "radix-app"
 	RadixEnvLabel                = "radix-env"
 	RadixComponentLabel          = "radix-component"
+	RadixComponentTypeLabel      = "radix-component-type"
 	RadixJobNameLabel            = "radix-job-name"
 	RadixBuildLabel              = "radix-build"
 	RadixCommitLabel             = "radix-commit"
@@ -36,6 +37,7 @@ const (
 	RadixJobTypeJob              = "job" // Outer job
 	RadixJobTypeBuild            = "build"
 	RadixJobTypeCloneConfig      = "clone-config"
+	RadixJobTypeJobSchedule      = "job-scheduler"
 	RadixAppAliasLabel           = "radix-app-alias"
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
@@ -74,11 +76,11 @@ func init() {
 
 // New Constructor
 func New(client kubernetes.Interface, radixClient radixclient.Interface) (*Kube, error) {
-	kube := &Kube{
+	kubeutil := &Kube{
 		kubeClient:  client,
 		radixclient: radixClient,
 	}
-	return kube, nil
+	return kubeutil, nil
 }
 
 // NewWithListers Constructor
@@ -86,7 +88,7 @@ func NewWithListers(client kubernetes.Interface,
 	radixclient radixclient.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory) (*Kube, error) {
-	kube := &Kube{
+	kubeutil := &Kube{
 		kubeClient:               client,
 		radixclient:              radixclient,
 		RrLister:                 radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
@@ -105,7 +107,7 @@ func NewWithListers(client kubernetes.Interface,
 		LimitRangeLister:         kubeInformerFactory.Core().V1().LimitRanges().Lister(),
 	}
 
-	return kube, nil
+	return kubeutil, nil
 }
 
 func isEmptyPatch(patchBytes []byte) bool {

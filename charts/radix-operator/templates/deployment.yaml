@@ -97,6 +97,8 @@ spec:
               value: {{ .Values.jobScheduler }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: RADIX_CONTAINER_REGISTRY
+              value: {{ .Values.containerRegistry }}
           livenessProbe:
             httpGet:
               path: /healthz

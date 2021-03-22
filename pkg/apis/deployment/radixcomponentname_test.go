@@ -34,6 +34,30 @@ func Test_ComponentNameExistsInRD(t *testing.T) {
 	assert.False(t, nonExistingName.ExistInDeploymentSpecJobList(rd))
 }
 
+func Test_FindCommonComponentInRD(t *testing.T) {
+	rd := utils.ARadixDeployment().
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("component")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName("job")).
+		BuildRD()
+
+	componentName := RadixComponentName("component")
+	comp := componentName.GetCommonDeployComponent(rd)
+	assert.NotNil(t, comp)
+	assert.Equal(t, "component", comp.GetName())
+
+	jobName := RadixComponentName("job")
+	job := jobName.GetCommonDeployComponent(rd)
+	assert.NotNil(t, job)
+	assert.Equal(t, "job", job.GetName())
+
+	nonExistingName := RadixComponentName("nonexisting")
+	nonExisting := nonExistingName.GetCommonDeployComponent(rd)
+	assert.Nil(t, nonExisting)
+
+}
+
 func Test_NewRadixComponentNameFromLabels(t *testing.T) {
 	nonRadix := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

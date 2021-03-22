@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -68,7 +69,7 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 	defaultMemory := defaults.GetDefaultMemoryRequest()
 
 	for _, comp := range rd.Spec.Components {
-		resources := comp.GetResourceRequirements()
+		resources := utils.GetResourceRequirements(&comp)
 		nrReplicas := float64(comp.GetNrOfReplicas())
 
 		if resources == nil {

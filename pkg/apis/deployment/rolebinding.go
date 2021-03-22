@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component *radixv1.RadixDeployComponent, secrets []string) error {
+func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, registration *radixv1.RadixRegistration, component radixv1.RadixCommonDeployComponent, secrets []string) error {
 	if len(secrets) <= 0 {
 		err := deploy.garbageCollectRoleBindingsNoLongerInSpecForComponent(component)
 		if err != nil {
@@ -36,8 +36,8 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 	return deploy.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component *v1.RadixDeployComponent) error {
-	labelSelector := getLabelSelectorForComponent(*component)
+func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
+	labelSelector := getLabelSelectorForComponent(component)
 	roleBindings, err := deploy.kubeutil.ListRoleBindingsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
 
 	if err != nil {
