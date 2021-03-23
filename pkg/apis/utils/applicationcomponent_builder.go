@@ -19,6 +19,7 @@ type RadixApplicationComponentBuilder interface {
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationComponentBuilder
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
+	WithNode(node v1.RadixNode) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -28,7 +29,7 @@ type radixApplicationComponentBuilder struct {
 	dockerfileName          string
 	image                   string
 	alwaysPullImageOnDeploy *bool
-	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
+	// Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
 	public               bool
 	publicPort           string
 	ports                map[string]int32
@@ -103,6 +104,11 @@ func (rcb *radixApplicationComponentBuilder) WithEnvironmentConfigs(environmentC
 
 func (rcb *radixApplicationComponentBuilder) WithCommonEnvironmentVariable(name, value string) RadixApplicationComponentBuilder {
 	rcb.variables[name] = value
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithNode(node v1.RadixNode) RadixApplicationComponentBuilder {
+	rcb.node = node
 	return rcb
 }
 

@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -321,4 +322,59 @@ func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 	assert.Equal(t, "64Mi", deployComponentDev[0].Resources.Requests["memory"])
 	assert.Equal(t, "500m", deployComponentDev[0].Resources.Limits["cpu"])
 	assert.Equal(t, "128Mi", deployComponentDev[0].Resources.Limits["memory"])
+}
+
+func Test_GetRadixComponents_NodeName(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	compGpu := "comp gpu"
+	compGpuCount := "10"
+	envGpu1 := "env1 gpu"
+	envGpuCount1 := "20"
+	envGpuCount2 := "30"
+	envGpu3 := "env3 gpu"
+	ra := utils.ARadixApplication().
+		WithComponents(
+			utils.AnApplicationComponent().
+				WithName("comp").
+				WithNode(v1.RadixNode{Gpu: compGpu, GpuCount: compGpuCount}).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("env1").
+						WithNode(v1.RadixNode{Gpu: envGpu1, GpuCount: envGpuCount1}),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("env2").
+						WithNode(v1.RadixNode{GpuCount: envGpuCount2}),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("env3").
+						WithNode(v1.RadixNode{Gpu: envGpu3}),
+					utils.AnEnvironmentConfig().
+						WithEnvironment("env4"),
+				),
+		).BuildRA()
+
+	t.Run("override job gpu and gpu-count with environment gpu and gpu-count", func(t *testing.T) {
+		t.Parallel()
+		deployComponent := getRadixComponentsForEnv(ra, "env1", componentImages)
+		assert.Equal(t, envGpu1, deployComponent[0].Node.Gpu)
+		assert.Equal(t, envGpuCount1, deployComponent[0].Node.GpuCount)
+	})
+	t.Run("override job gpu-count with environment gpu-count", func(t *testing.T) {
+		t.Parallel()
+		deployComponent := getRadixComponentsForEnv(ra, "env2", componentImages)
+		assert.Equal(t, compGpu, deployComponent[0].Node.Gpu)
+		assert.Equal(t, envGpuCount2, deployComponent[0].Node.GpuCount)
+	})
+	t.Run("override job gpu with environment gpu", func(t *testing.T) {
+		t.Parallel()
+		deployComponent := getRadixComponentsForEnv(ra, "env3", componentImages)
+		assert.Equal(t, envGpu3, deployComponent[0].Node.Gpu)
+		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
+	})
+	t.Run("do not override job gpu or gpu-count with environment gpu or gpu-count", func(t *testing.T) {
+		t.Parallel()
+		deployComponent := getRadixComponentsForEnv(ra, "env4", componentImages)
+		assert.Equal(t, compGpu, deployComponent[0].Node.Gpu)
+		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
+	})
 }

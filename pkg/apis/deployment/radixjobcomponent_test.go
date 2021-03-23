@@ -36,6 +36,34 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 	assert.Nil(t, jobs[1].Payload)
 }
 
+func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
+	gpu := "any-gpu"
+	gpuCount := "12"
+	ra := utils.ARadixApplication().
+		WithJobComponents(
+			utils.AnApplicationJobComponent().
+				WithName("job1").
+				WithSchedulerPort(int32Ptr(8888)).
+				WithPayloadPath(utils.StringPtr("/path/to/payload")).
+				WithNode(v1.RadixNode{Gpu: gpu, GpuCount: gpuCount}),
+			utils.AnApplicationJobComponent().
+				WithName("job2"),
+		).BuildRA()
+
+	cfg := jobComponentsBuilder{
+		ra:              ra,
+		env:             "any",
+		componentImages: make(map[string]pipeline.ComponentImage),
+	}
+	jobs := cfg.JobComponents()
+
+	assert.Len(t, jobs, 2)
+	assert.Equal(t, gpu, jobs[0].Node.Gpu)
+	assert.Equal(t, gpuCount, jobs[0].Node.GpuCount)
+	assert.Empty(t, jobs[1].Node.Gpu)
+	assert.Empty(t, jobs[1].Node.GpuCount)
+}
+
 func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 	ra := utils.ARadixApplication().
 		WithJobComponents(
@@ -114,6 +142,63 @@ func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
 	jobs := cfg.JobComponents()
 	assert.Equal(t, "img:release", jobs[0].Image)
 	assert.Equal(t, "job2:tag", jobs[1].Image)
+}
+
+func Test_GetRadixJobComponents_NodeName(t *testing.T) {
+	compGpu := "comp gpu"
+	compGpuCount := "10"
+	envGpu1 := "env1 gpu"
+	envGpuCount1 := "20"
+	envGpuCount2 := "30"
+	envGpu3 := "env3 gpu"
+	ra := utils.ARadixApplication().
+		WithJobComponents(
+			utils.AnApplicationJobComponent().
+				WithName("job").
+				WithNode(v1.RadixNode{Gpu: compGpu, GpuCount: compGpuCount}).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env1").
+						WithNode(v1.RadixNode{Gpu: envGpu1, GpuCount: envGpuCount1}),
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env2").
+						WithNode(v1.RadixNode{GpuCount: envGpuCount2}),
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env3").
+						WithNode(v1.RadixNode{Gpu: envGpu3}),
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env4"),
+				),
+		).BuildRA()
+
+	t.Run("override job gpu and gpu-count with environment gpu and gpu-count", func(t *testing.T) {
+		t.Parallel()
+		cfg := jobComponentsBuilder{ra: ra, env: "env1"}
+		jobs := cfg.JobComponents()
+		assert.Equal(t, envGpu1, jobs[0].Node.Gpu)
+		assert.Equal(t, envGpuCount1, jobs[0].Node.GpuCount)
+	})
+	t.Run("override job gpu-count with environment gpu-count", func(t *testing.T) {
+		t.Parallel()
+		cfg := jobComponentsBuilder{ra: ra, env: "env2"}
+		jobs := cfg.JobComponents()
+		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
+		assert.Equal(t, envGpuCount2, jobs[0].Node.GpuCount)
+	})
+	t.Run("override job gpu with environment gpu", func(t *testing.T) {
+		t.Parallel()
+		cfg := jobComponentsBuilder{ra: ra, env: "env3"}
+		jobs := cfg.JobComponents()
+		assert.Equal(t, envGpu3, jobs[0].Node.Gpu)
+		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
+	})
+	t.Run("do not override job gpu or gpu-count with environment gpu or gpu-count", func(t *testing.T) {
+		t.Parallel()
+		cfg := jobComponentsBuilder{ra: ra, env: "env4"}
+		jobs := cfg.JobComponents()
+		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
+		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
+	})
 }
 
 func Test_GetRadixJobComponents_Resources(t *testing.T) {

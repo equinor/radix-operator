@@ -75,6 +75,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 		volumeMounts = environmentSpecificConfig.VolumeMounts
 		imageTagName = environmentSpecificConfig.ImageTagName
 		runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
+		node = environmentSpecificConfig.Node
 	}
 
 	if variables == nil {
@@ -113,6 +114,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 		SchedulerPort:        schedulerPort,
 		Payload:              payload,
 		RunAsNonRoot:         runAsNonRoot,
+		Node:                 node,
 	}
 
 	return deployJob

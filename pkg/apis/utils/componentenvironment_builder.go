@@ -13,6 +13,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
 	WithNilVariablesMap() RadixEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixEnvironmentConfigBuilder
+	WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -68,6 +69,11 @@ func (ceb *radixEnvironmentConfigBuilder) WithNilVariablesMap() RadixEnvironment
 
 func (ceb *radixEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonRoot bool) RadixEnvironmentConfigBuilder {
 	ceb.runAsNonRoot = runAsNonRoot
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder {
+	ceb.node = node
 	return ceb
 }
 
