@@ -16,6 +16,8 @@ type DeployJobComponentBuilder interface {
 	WithResourceRequestsOnly(map[string]string) DeployJobComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) DeployJobComponentBuilder
+	WithNodeGpu(gpu string) DeployJobComponentBuilder
+	WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
@@ -34,10 +36,21 @@ type deployJobComponentBuilder struct {
 	volumeMounts            []v1.RadixVolumeMount
 	schedulerPort           *int32
 	payloadPath             *string
+	node                    v1.RadixNode
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
 	dcb.volumeMounts = volumeMounts
+	return dcb
+}
+
+func (dcb *deployJobComponentBuilder) WithNodeGpu(gpu string) DeployJobComponentBuilder {
+	dcb.node.Gpu = gpu
+	return dcb
+}
+
+func (dcb *deployJobComponentBuilder) WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder {
+	dcb.node.GpuCount = gpuCount
 	return dcb
 }
 
@@ -129,6 +142,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		SchedulerPort:           dcb.schedulerPort,
 		Payload:                 payload,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
+		Node:                    dcb.node,
 	}
 }
 

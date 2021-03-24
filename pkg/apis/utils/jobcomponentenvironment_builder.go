@@ -11,6 +11,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithNilVariablesMap() RadixJobComponentEnvironmentConfigBuilder
 	WithMonitoring(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithImageTagName(string) RadixJobComponentEnvironmentConfigBuilder
+	WithNode(node v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
@@ -21,6 +22,7 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	volumeMounts []v1.RadixVolumeMount
 	imageTagName string
 	monitoring   bool
+	node         v1.RadixNode
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixJobComponentEnvironmentConfigBuilder {
@@ -61,6 +63,11 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithImageTagName(imageTagN
 	return ceb
 }
 
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithNode(node v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.node = node
+	return ceb
+}
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
 		Environment:  ceb.environment,
@@ -69,6 +76,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		VolumeMounts: ceb.volumeMounts,
 		Monitoring:   ceb.monitoring,
 		ImageTagName: ceb.imageTagName,
+		Node:         ceb.node,
 	}
 }
 

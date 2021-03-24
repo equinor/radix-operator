@@ -27,6 +27,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 
 		var horizontalScaling *v1.RadixHorizontalScaling
 		var volumeMounts []v1.RadixVolumeMount
+		var node v1.RadixNode
 		var imageTagName string
 
 		var alwaysPullImageOnDeploy bool
@@ -42,6 +43,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			resources = environmentSpecificConfig.Resources
 			horizontalScaling = environmentSpecificConfig.HorizontalScaling
 			volumeMounts = environmentSpecificConfig.VolumeMounts
+			node = environmentSpecificConfig.Node
 			imageTagName = environmentSpecificConfig.ImageTagName
 			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
@@ -69,6 +71,15 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
 		}
 
+		updateComponentNode(&appComponent, &node)
+
+		// Append common environment variables from appComponent.Variables to variables if not available yet
+		for variableKey, variableValue := range appComponent.Variables {
+			if _, found := variables[variableKey]; !found {
+				variables[variableKey] = variableValue
+			}
+		}
+
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent := v1.RadixDeployComponent{
 			Name:                    componentName,
@@ -87,6 +98,7 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			Resources:               resources,
 			HorizontalScaling:       horizontalScaling,
 			VolumeMounts:            volumeMounts,
+			Node:                    node,
 			AlwaysPullImageOnDeploy: alwaysPullImageOnDeploy,
 		}
 

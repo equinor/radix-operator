@@ -104,7 +104,7 @@ type RadixComponent struct {
 	Image          string          `json:"image" yaml:"image"`
 	DockerfileName string          `json:"dockerfileName" yaml:"dockerfileName"`
 	Ports          []ComponentPort `json:"ports" yaml:"ports"`
-	// Deprecated: For backwards comptibility Public is still supported, new code should use PublicPort instead
+	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	Public                  bool                     `json:"public" yaml:"public"`
 	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
@@ -113,6 +113,7 @@ type RadixComponent struct {
 	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
 	Resources               ResourceRequirements     `json:"resources,omitempty" yaml:"resources,omitempty"`
 	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
@@ -127,6 +128,7 @@ type RadixEnvironmentConfig struct {
 	ImageTagName            string                  `json:"imageTagName" yaml:"imageTagName"`
 	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -143,6 +145,7 @@ type RadixJobComponent struct {
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -155,6 +158,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	Variables    EnvVarsMap           `json:"variables" yaml:"variables"`
 	ImageTagName string               `json:"imageTagName" yaml:"imageTagName"`
 	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node         RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler
@@ -196,3 +200,33 @@ const (
 	// MountTypeBlob Use of azure/blobfuse flexvolume
 	MountTypeBlob MountType = "blob"
 )
+
+// RadixNode defines node attributes, where container should be scheduled
+type RadixNode struct {
+	// Gpu Optional. Holds lists of node GPU types, with dashed types to exclude
+	Gpu string `json:"gpu" yaml:"gpu"`
+	// GpuCount Optional. Holds minimum count of GPU on node
+	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
+}
+
+//RadixCommonComponent defines a common component interface for Radix components
+type RadixCommonComponent interface {
+	GetName() string
+	GetNode() *RadixNode
+}
+
+func (component *RadixComponent) GetName() string {
+	return component.Name
+}
+
+func (component *RadixComponent) GetNode() *RadixNode {
+	return &component.Node
+}
+
+func (component *RadixJobComponent) GetName() string {
+	return component.Name
+}
+
+func (component *RadixJobComponent) GetNode() *RadixNode {
+	return &component.Node
+}

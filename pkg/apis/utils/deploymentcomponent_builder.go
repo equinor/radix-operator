@@ -11,7 +11,7 @@ type DeployComponentBuilder interface {
 	WithPort(string, int32) DeployComponentBuilder
 	WithEnvironmentVariable(string, string) DeployComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
-	// Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
+	// Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublic(bool) DeployComponentBuilder
 	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
@@ -20,6 +20,8 @@ type DeployComponentBuilder interface {
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) DeployComponentBuilder
+	WithNodeGpu(gpu string) DeployComponentBuilder
+	WithNodeGpuCount(gpuCount string) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
@@ -48,10 +50,21 @@ type deployComponentBuilder struct {
 	resources               v1.ResourceRequirements
 	horizontalScaling       *v1.RadixHorizontalScaling
 	volumeMounts            []v1.RadixVolumeMount
+	node                    v1.RadixNode
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployComponentBuilder {
 	dcb.volumeMounts = volumeMounts
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithNodeGpu(gpu string) DeployComponentBuilder {
+	dcb.node.Gpu = gpu
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithNodeGpuCount(gpuCount string) DeployComponentBuilder {
+	dcb.node.GpuCount = gpuCount
 	return dcb
 }
 
@@ -182,6 +195,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		HorizontalScaling:       dcb.horizontalScaling,
 		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
+		Node:                    dcb.node,
 	}
 }
 

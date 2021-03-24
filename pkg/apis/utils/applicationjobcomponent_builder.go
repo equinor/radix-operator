@@ -16,6 +16,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationJobComponentBuilder
 	WithSchedulerPort(*int32) RadixApplicationJobComponentBuilder
 	WithPayloadPath(*string) RadixApplicationJobComponentBuilder
+	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -31,6 +32,7 @@ type radixApplicationJobComponentBuilder struct {
 	resources         v1.ResourceRequirements
 	schedulerPort     *int32
 	payloadPath       *string
+	node              v1.RadixNode
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithName(name string) RadixApplicationJobComponentBuilder {
@@ -96,6 +98,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithPayloadPath(path *string) Ra
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder {
+	rcb.node = node
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range rcb.ports {
@@ -124,6 +131,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Resources:         rcb.resources,
 		SchedulerPort:     rcb.schedulerPort,
 		Payload:           payload,
+		Node:              rcb.node,
 	}
 }
 
