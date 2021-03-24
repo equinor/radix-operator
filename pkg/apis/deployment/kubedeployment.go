@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
@@ -227,7 +226,7 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 
 func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName string) (*appsv1.Deployment, error) {
 	if deployComponent.IsAlwaysPullImageOnDeploy() {
-		desiredDeployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
+		desiredDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation] = deploy.radixDeployment.Name
 	}
 
 	replicas := deployComponent.GetReplicas()

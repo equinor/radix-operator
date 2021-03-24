@@ -1053,7 +1053,53 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	teardownTest()
 }
 
-func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
+func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	// Test first deployment
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("first_deployment").
+		WithAppName("anyapp1").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("first").
+				WithAlwaysPullImageOnDeploy(true),
+			utils.NewDeployComponentBuilder().
+				WithName("second").
+				WithAlwaysPullImageOnDeploy(false)))
+
+	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
+
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	firstDeployment := getDeploymentByName("first", deployments)
+	assert.Equal(t, "first_deployment", firstDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+	secondDeployment := getDeploymentByName("second", deployments)
+	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+
+	// Test second deployment
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("second_deployment").
+		WithAppName("anyapp1").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("first").
+				WithAlwaysPullImageOnDeploy(true),
+			utils.NewDeployComponentBuilder().
+				WithName("second").
+				WithAlwaysPullImageOnDeploy(false)))
+
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	firstDeployment = getDeploymentByName("first", deployments)
+	assert.Equal(t, "second_deployment", firstDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+	secondDeployment = getDeploymentByName("second", deployments)
+	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+
+	teardownTest()
+}
+
+func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
 
 	// Test
@@ -1081,12 +1127,6 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-	firstDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
-	assert.NotEqual(t, "", firstDeploymentUpdateTime)
-	assert.Empty(t, deployments.Items[1].Spec.Template.Annotations["radix-update-time"])
-	assert.Empty(t, deployments.Items[2].Spec.Template.Annotations["radix-update-time"])
-
 	time.Sleep(1 * time.Second)
 
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1102,12 +1142,6 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 
 	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-
-	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-	secondDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
-	assert.NotEqual(t, "", secondDeploymentUpdateTime)
-	assert.NotEqual(t, firstDeploymentUpdateTime, secondDeploymentUpdateTime)
-	assert.True(t, firstDeploymentUpdateTime < secondDeploymentUpdateTime)
 
 	teardownTest()
 }
