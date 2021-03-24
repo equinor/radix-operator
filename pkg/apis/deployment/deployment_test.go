@@ -1073,9 +1073,9 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	firstDeployment := getDeploymentByName("first", deployments)
-	assert.Equal(t, "first_deployment", firstDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+	assert.Equal(t, "first_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 	secondDeployment := getDeploymentByName("second", deployments)
-	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 
 	// Test second deployment
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1092,9 +1092,9 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
 	firstDeployment = getDeploymentByName("first", deployments)
-	assert.Equal(t, "second_deployment", firstDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+	assert.Equal(t, "second_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 	secondDeployment = getDeploymentByName("second", deployments)
-	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kubeUtils.RadixDeploymentNameAnnotation])
+	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 
 	teardownTest()
 }
