@@ -164,6 +164,98 @@ func TestGetReadinessProbe_Custom(t *testing.T) {
 	teardownReadinessProbe()
 }
 
+func Test_UpdateResourcesInDeployment(t *testing.T) {
+	t.Run("update requests and limits", func(t *testing.T) {
+		origRequests := map[string]string{"cpu": "10mi", "memory": "100M"}
+		origLimits := map[string]string{"cpu": "100mi", "memory": "1000M"}
+		deployment := applyDeploymentWithSyncWithComponentResources(origRequests, origLimits)
+
+		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
+		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
+		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, expectedLimits).BuildComponent()
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
+
+		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
+		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
+		assert.Equal(t, parseQuantity(expectedRequests["memory"]), desiredRes.Requests["memory"])
+		assert.Equal(t, parseQuantity(expectedLimits["cpu"]), desiredRes.Limits["cpu"])
+		assert.Equal(t, parseQuantity(expectedLimits["memory"]), desiredRes.Limits["memory"])
+	})
+	t.Run("keep requests and update limits", func(t *testing.T) {
+		origRequests := map[string]string{"cpu": "10mi", "memory": "100M"}
+		origLimits := map[string]string{"cpu": "100mi", "memory": "1000M"}
+		deployment := applyDeploymentWithSyncWithComponentResources(origRequests, origLimits)
+
+		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
+		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(origRequests, expectedLimits).BuildComponent()
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
+
+		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
+		assert.Equal(t, parseQuantity(origRequests["cpu"]), desiredRes.Requests["cpu"])
+		assert.Equal(t, parseQuantity(origRequests["memory"]), desiredRes.Requests["memory"])
+		assert.Equal(t, parseQuantity(expectedLimits["cpu"]), desiredRes.Limits["cpu"])
+		assert.Equal(t, parseQuantity(expectedLimits["memory"]), desiredRes.Limits["memory"])
+	})
+	t.Run("update requests and keep limits", func(t *testing.T) {
+		origRequests := map[string]string{"cpu": "10mi", "memory": "100M"}
+		origLimits := map[string]string{"cpu": "100mi", "memory": "1000M"}
+		deployment := applyDeploymentWithSyncWithComponentResources(origRequests, origLimits)
+
+		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
+		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, origLimits).BuildComponent()
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
+
+		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
+		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
+		assert.Equal(t, parseQuantity(expectedRequests["memory"]), desiredRes.Requests["memory"])
+		assert.Equal(t, parseQuantity(origLimits["cpu"]), desiredRes.Limits["cpu"])
+		assert.Equal(t, parseQuantity(origLimits["memory"]), desiredRes.Limits["memory"])
+	})
+	t.Run("remove requests and limits", func(t *testing.T) {
+		origRequests := map[string]string{"cpu": "10m", "memory": "100Mi"}
+		origLimits := map[string]string{"cpu": "100m", "memory": "1000Mi"}
+		deployment := applyDeploymentWithSyncWithComponentResources(origRequests, origLimits)
+
+		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(nil, nil).BuildComponent()
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
+
+		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
+		assert.Nil(t, desiredRes.Requests)
+		assert.Nil(t, desiredRes.Requests)
+		assert.Nil(t, desiredRes.Limits)
+		assert.Nil(t, desiredRes.Limits)
+	})
+	t.Run("update requests and remove limit", func(t *testing.T) {
+		origRequests := map[string]string{"cpu": "10m", "memory": "100Mi"}
+		origLimits := map[string]string{"cpu": "100m", "memory": "1000Mi"}
+		deployment := applyDeploymentWithSyncWithComponentResources(origRequests, origLimits)
+
+		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
+		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, nil).BuildComponent()
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
+
+		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
+		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
+		assert.Equal(t, parseQuantity(expectedRequests["memory"]), desiredRes.Requests["memory"])
+		assert.Equal(t, 0, len(desiredRes.Limits))
+	})
+	t.Run("remove requests and update limit", func(t *testing.T) {
+		origRequests := map[string]string{"cpu": "10m", "memory": "100Mi"}
+		origLimits := map[string]string{"cpu": "100m", "memory": "1000Mi"}
+		deployment := applyDeploymentWithSyncWithComponentResources(origRequests, origLimits)
+
+		var expectedRequests map[string]string
+		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
+		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, expectedLimits).BuildComponent()
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
+
+		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
+		assert.Equal(t, 0, len(desiredRes.Requests))
+		assert.Equal(t, parseQuantity(expectedLimits["cpu"]), desiredRes.Limits["cpu"])
+		assert.Equal(t, parseQuantity(expectedLimits["memory"]), desiredRes.Limits["memory"])
+	})
+}
+
 func TestSetDeploymentStrategy_Default(t *testing.T) {
 	teardownRollingUpdate()
 	deploymentStrategy := createDeploymentStrategy()
@@ -197,4 +289,16 @@ func createDeploymentStrategy() *appsv1.DeploymentStrategy {
 		},
 	}
 	return &deploymentStrategy
+}
+
+func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[string]string) Deployment {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
+		utils.ARadixDeployment().
+			WithComponents(utils.NewDeployComponentBuilder().
+				WithName("comp1").
+				WithResource(origRequests, origLimits)).
+			WithAppName("any-app").
+			WithEnvironment("test"))
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
 }
