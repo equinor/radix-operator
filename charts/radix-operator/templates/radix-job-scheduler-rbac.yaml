@@ -45,11 +45,11 @@ rules:
       - delete
       - patch
   - apiGroups:
-    - '*'
+      - '*'
     resources:
-    - services
+      - services
     verbs:
-    - get
-    - create
-    - delete
+      - get
+      - create
+      - delete
 ---
