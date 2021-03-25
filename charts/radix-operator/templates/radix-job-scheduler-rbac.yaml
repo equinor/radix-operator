@@ -52,4 +52,5 @@ rules:
       - get
       - create
       - delete
+      - list
 ---
