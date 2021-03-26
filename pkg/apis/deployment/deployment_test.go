@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	kubeUtils "github.com/equinor/radix-operator/pkg/apis/kube"
+	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
@@ -31,20 +31,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	kube "k8s.io/client-go/kubernetes"
-	kubernetes "k8s.io/client-go/kubernetes/fake"
+	kubernetes "k8s.io/client-go/kubernetes"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 
-func setupTest() (*test.Utils, kube.Interface, *kubeUtils.Kube, radixclient.Interface, prometheusclient.Interface) {
+func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
-	kubeclient := kubernetes.NewSimpleClientset()
+	kubeclient := kubefake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	prometheusclient := prometheusfake.NewSimpleClientset()
-	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient)
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)
@@ -633,17 +633,17 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 
 	appIngress := getIngressByName("app", ingresses)
 	assert.Equal(t, int32(8080), appIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-	assert.Equal(t, "false", appIngress.Labels[kubeUtils.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "false", appIngress.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "false", appIngress.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", appIngress.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, "false", appIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "false", appIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", appIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", appIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	quoteIngress := getIngressByName("radixquote", ingresses)
 	assert.Equal(t, int32(3000), quoteIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-	assert.Equal(t, "false", quoteIngress.Labels[kubeUtils.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "false", quoteIngress.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "false", quoteIngress.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "radixquote", quoteIngress.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, "false", quoteIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "false", quoteIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", quoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "radixquote", quoteIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	teardownTest()
 
@@ -689,41 +689,41 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 
 	appAlias := getIngressByName("edcradix-url-alias", ingresses)
 	assert.Equal(t, int32(8080), appAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-	assert.Equal(t, "true", appAlias.Labels[kubeUtils.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "false", appAlias.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "false", appAlias.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", appAlias.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, "true", appAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "false", appAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", appAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", appAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", appAlias.Spec.Rules[0].Host, "App should have an external alias")
 
 	externalAlias := getIngressByName("some.alias.com", ingresses)
 	assert.Equal(t, int32(8080), externalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-	assert.Equal(t, "false", externalAlias.Labels[kubeUtils.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", externalAlias.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "false", externalAlias.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", externalAlias.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, "false", externalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", externalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", externalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", externalAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 	assert.Equal(t, "some.alias.com", externalAlias.Spec.Rules[0].Host, "App should have an external alias")
 
 	anotherExternalAlias := getIngressByName("another.alias.com", ingresses)
 	assert.Equal(t, int32(8080), anotherExternalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-	assert.Equal(t, "false", anotherExternalAlias.Labels[kubeUtils.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "true", anotherExternalAlias.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "false", anotherExternalAlias.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", anotherExternalAlias.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, "false", anotherExternalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "true", anotherExternalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "false", anotherExternalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", anotherExternalAlias.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 	assert.Equal(t, "another.alias.com", anotherExternalAlias.Spec.Rules[0].Host, "App should have an external alias")
 
 	appActiveClusterIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
 	assert.Equal(t, int32(8080), appActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-	assert.Equal(t, "false", appActiveClusterIngress.Labels[kubeUtils.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "false", appActiveClusterIngress.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "true", appActiveClusterIngress.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "app", appActiveClusterIngress.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, "false", appActiveClusterIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "false", appActiveClusterIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "true", appActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "app", appActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	quoteActiveClusterIngress := getIngressByName("radixquote-active-cluster-url-alias", ingresses)
 	assert.Equal(t, int32(3000), quoteActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-	assert.Equal(t, "false", quoteActiveClusterIngress.Labels[kubeUtils.RadixAppAliasLabel], "Ingress should not be an app alias")
-	assert.Equal(t, "false", quoteActiveClusterIngress.Labels[kubeUtils.RadixExternalAliasLabel], "Ingress should not be an external app alias")
-	assert.Equal(t, "true", quoteActiveClusterIngress.Labels[kubeUtils.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
-	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kubeUtils.RadixComponentLabel], "Ingress should have the corresponding component")
+	assert.Equal(t, "false", quoteActiveClusterIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
+	assert.Equal(t, "false", quoteActiveClusterIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
+	assert.Equal(t, "true", quoteActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
+	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
@@ -961,7 +961,7 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 	t.Run("validate deploy labels", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-		assert.Equal(t, "master", deployments.Items[0].Annotations[kubeUtils.RadixBranchAnnotation])
+		assert.Equal(t, "master", deployments.Items[0].Annotations[kube.RadixBranchAnnotation])
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["radix-commit"])
 	})
 
@@ -1053,7 +1053,53 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	teardownTest()
 }
 
-func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
+func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	// Test first deployment
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("first_deployment").
+		WithAppName("anyapp1").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("first").
+				WithAlwaysPullImageOnDeploy(true),
+			utils.NewDeployComponentBuilder().
+				WithName("second").
+				WithAlwaysPullImageOnDeploy(false)))
+
+	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
+
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	firstDeployment := getDeploymentByName("first", deployments)
+	assert.Equal(t, "first_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
+	secondDeployment := getDeploymentByName("second", deployments)
+	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
+
+	// Test second deployment
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("second_deployment").
+		WithAppName("anyapp1").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("first").
+				WithAlwaysPullImageOnDeploy(true),
+			utils.NewDeployComponentBuilder().
+				WithName("second").
+				WithAlwaysPullImageOnDeploy(false)))
+
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	firstDeployment = getDeploymentByName("first", deployments)
+	assert.Equal(t, "second_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
+	secondDeployment = getDeploymentByName("second", deployments)
+	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
+
+	teardownTest()
+}
+
+func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
 
 	// Test
@@ -1081,12 +1127,6 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-	firstDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
-	assert.NotEqual(t, "", firstDeploymentUpdateTime)
-	assert.Empty(t, deployments.Items[1].Spec.Template.Annotations["radix-update-time"])
-	assert.Empty(t, deployments.Items[2].Spec.Template.Annotations["radix-update-time"])
-
 	time.Sleep(1 * time.Second)
 
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1102,12 +1142,6 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled_DeploymentAnnotat
 
 	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
-
-	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
-	secondDeploymentUpdateTime := deployments.Items[0].Spec.Template.Annotations["radix-update-time"]
-	assert.NotEqual(t, "", secondDeploymentUpdateTime)
-	assert.NotEqual(t, firstDeploymentUpdateTime, secondDeploymentUpdateTime)
-	assert.True(t, firstDeploymentUpdateTime < secondDeploymentUpdateTime)
 
 	teardownTest()
 }
@@ -1922,7 +1956,7 @@ func getUpdatedRD(radixclient radixclient.Interface, rd *v1.RadixDeployment) (*v
 	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
 }
 
-func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kube.Interface, kubeUtil *kubeUtils.Kube, radixclient radixclient.Interface, prometheusclient prometheusclient.Interface) *v1.RadixDeployment {
+func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusclient prometheusclient.Interface) *v1.RadixDeployment {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(anyApp).
 		WithEnvironment(anyEnv).
@@ -2279,7 +2313,7 @@ func TestMonitoringConfig(t *testing.T) {
 		assert.Len(t, serviceMonitor.Spec.NamespaceSelector.MatchNames, 1)
 		assert.Equal(t, fmt.Sprintf("%s-%s", anyAppName, anyEnvironmentName), serviceMonitor.Spec.NamespaceSelector.MatchNames[0])
 		assert.Len(t, serviceMonitor.Spec.Selector.MatchLabels, 1)
-		assert.Equal(t, componentName, serviceMonitor.Spec.Selector.MatchLabels[kubeUtils.RadixComponentLabel])
+		assert.Equal(t, componentName, serviceMonitor.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 	}
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -2407,12 +2441,530 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 	portTestFunc("scheduler-port", 9090, job.Spec.Template.Spec.Containers[0].Ports)
 }
 
+func TestUseGpuNode(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName1 := "componentName1"
+	componentName2 := "componentName2"
+	componentName3 := "componentName3"
+	componentName4 := "componentName4"
+	jobComponentName := "jobComponentName"
+
+	// Test
+	nodeGpu1 := "nvidia-v100"
+	nodeGpu2 := "nvidia-v100, nvidia-p100"
+	nodeGpu3 := "nvidia-v100, nvidia-p100, -nvidia-k80"
+	nodeGpu4 := "nvidia-p100, -nvidia-k80"
+	rd, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpu(nodeGpu1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2).
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithNodeGpu(nodeGpu2),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3).
+				WithPort("http", 8082).
+				WithPublicPort("http").
+				WithNodeGpu(nodeGpu3),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4).
+				WithPort("http", 8084).
+				WithPublicPort("http")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8085).
+				WithNodeGpu(nodeGpu4)))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with gpu1", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName1)
+		assert.NotNil(t, component.Node)
+		assert.Equal(t, nodeGpu1, component.Node.Gpu)
+	})
+	t.Run("has node with gpu2", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName2)
+		assert.NotNil(t, component.Node)
+		assert.Equal(t, nodeGpu2, component.Node.Gpu)
+	})
+	t.Run("has node with gpu3", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName3)
+		assert.NotNil(t, component.Node)
+		assert.Equal(t, nodeGpu3, component.Node.Gpu)
+	})
+	t.Run("has node with no gpu", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName4)
+		assert.NotNil(t, component.Node)
+		assert.Empty(t, component.Node.Gpu)
+	})
+	t.Run("job has node with gpu4", func(t *testing.T) {
+		t.Parallel()
+		jobComponent := rd.GetJobComponentByName(jobComponentName)
+		assert.NotNil(t, jobComponent.Node)
+		assert.Equal(t, nodeGpu4, jobComponent.Node.Gpu)
+	})
+}
+func TestUseGpuNodeOnDeploy(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName1 := "componentName1"
+	componentName2 := "componentName2"
+	componentName3 := "componentName3"
+	componentName4 := "componentName4"
+	jobComponentName := "jobComponentName"
+
+	// Test
+	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaP100 := "nvidia-p100"
+	gpuNvidiaK80 := "nvidia-k80"
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpu(gpuNvidiaV100),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2).
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithNodeGpu(fmt.Sprintf("%s, %s", gpuNvidiaV100, gpuNvidiaP100)),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3).
+				WithPort("http", 8082).
+				WithPublicPort("http").
+				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80)),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4).
+				WithPort("http", 8084).
+				WithPublicPort("http")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8085).
+				WithNodeGpu(fmt.Sprintf("%s, -%s", gpuNvidiaP100, gpuNvidiaK80))))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with nvidia-v100", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName1, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression.Operator)
+		assert.Equal(t, 1, len(expression.Values))
+		assert.Contains(t, expression.Values, gpuNvidiaV100)
+	})
+	t.Run("has node with nvidia-v100, nvidia-p100", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName2, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression.Operator)
+		assert.Equal(t, 2, len(expression.Values))
+		assert.Contains(t, expression.Values, gpuNvidiaV100)
+		assert.Contains(t, expression.Values, gpuNvidiaP100)
+	})
+	t.Run("has node with nvidia-v100, nvidia-p100, not nvidia-k80", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName3, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 2, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 2, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaV100)
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+	})
+	t.Run("has node with no gpu", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName4, metav1.GetOptions{})
+		assert.Nil(t, deployment.Spec.Template.Spec.Affinity)
+	})
+	t.Run("job has node with nvidia-p100, not nvidia-k80", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 2, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+	})
+}
+
+func TestUseGpuNodeCount(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName1 := "componentName1"
+	componentName2 := "componentName2"
+	componentName3 := "componentName3"
+	componentName4 := "componentName4"
+	componentName5 := "componentName5"
+	componentName6 := "componentName6"
+	jobComponentName := "jobComponentName"
+
+	// Test
+	nodeGpuCount1 := "1"
+	nodeGpuCount10 := "10"
+	nodeGpuCount0 := "0"
+	nodeGpuCountMinus1 := "-1"
+	nodeGpuCountInvalidTextValue := "invalid-count"
+	rd, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2).
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount10),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3).
+				WithPort("http", 8082).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount0),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4).
+				WithPort("http", 8083).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCountMinus1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName5).
+				WithPort("http", 8085).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCountInvalidTextValue),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName6).
+				WithPort("http", 8086).
+				WithPublicPort("http")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8087).
+				WithNodeGpuCount(nodeGpuCount10)))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with gpu-count 1", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName1)
+		assert.Equal(t, nodeGpuCount1, component.Node.GpuCount)
+	})
+	t.Run("has node with gpu-count 10", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName2)
+		assert.Equal(t, nodeGpuCount10, component.Node.GpuCount)
+	})
+	t.Run("has node with gpu-count 0", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName3)
+		assert.Equal(t, nodeGpuCount0, component.Node.GpuCount)
+	})
+	t.Run("has node with gpu-count -1", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName4)
+		assert.Equal(t, nodeGpuCountMinus1, component.Node.GpuCount)
+	})
+	t.Run("has node with invalid value of gpu-count", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName5)
+		assert.Equal(t, nodeGpuCountInvalidTextValue, component.Node.GpuCount)
+	})
+	t.Run("has node with no gpu-count", func(t *testing.T) {
+		t.Parallel()
+		component := rd.GetComponentByName(componentName6)
+		assert.Empty(t, component.Node.GpuCount)
+	})
+	t.Run("job has node with gpu-count 10 ", func(t *testing.T) {
+		t.Parallel()
+		jobComponent := rd.GetJobComponentByName(jobComponentName)
+		assert.NotNil(t, jobComponent.Node)
+		assert.Equal(t, nodeGpuCount10, jobComponent.Node.GpuCount)
+	})
+}
+
+func TestUseGpuNodeCountOnDeployment(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName1 := "componentName1"
+	componentName2 := "componentName2"
+	componentName3 := "componentName3"
+	componentName4 := "componentName4"
+	componentName5 := "componentName5"
+	componentName6 := "componentName6"
+	jobComponentName := "jobComponentName"
+
+	// Test
+	nodeGpuCount1 := "1"
+	nodeGpuCount10 := "10"
+	nodeGpuCount0 := "0"
+	nodeGpuCountMinus1 := "-1"
+	nodeGpuCountInvalidTextValue := "invalid-count"
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2).
+				WithPort("http", 8081).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount10),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3).
+				WithPort("http", 8082).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCount0),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4).
+				WithPort("http", 8083).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCountMinus1),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName5).
+				WithPort("http", 8085).
+				WithPublicPort("http").
+				WithNodeGpuCount(nodeGpuCountInvalidTextValue),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName6).
+				WithPort("http", 8086).
+				WithPublicPort("http")).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8087).
+				WithNodeGpuCount(nodeGpuCount10)))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with gpu-count 1", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName1, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, "0")
+	})
+	t.Run("has node with gpu-count 10", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName2, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, "9")
+	})
+	t.Run("has node with gpu-count 0", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName3, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("has node with gpu-count -1", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName4, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("has node with invalid value of gpu-count", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName5, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("has node with no gpu-count", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName6, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.Nil(t, affinity)
+	})
+	t.Run("job has node with gpu-count 10 ", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression0.Operator)
+		assert.Equal(t, 1, len(expression0.Values))
+		assert.Contains(t, expression0.Values, "9")
+	})
+}
+
+func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentName := "componentName"
+	jobComponentName := "jobComponentName"
+
+	// Test
+	gpuNvidiaV100 := "nvidia-v100"
+	gpuNvidiaP100 := "nvidia-p100"
+	gpuNvidiaK80 := "nvidia-k80"
+	nodeGpuCount10 := "10"
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80)).
+				WithNodeGpuCount(nodeGpuCount10)).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().
+				WithName(jobComponentName).
+				WithPort("http", 8081).
+				WithNodeGpu(fmt.Sprintf("%s, %s, -%s", gpuNvidiaV100, gpuNvidiaP100, gpuNvidiaK80)).
+				WithNodeGpuCount(nodeGpuCount10)))
+
+	assert.NoError(t, err)
+
+	t.Run("has node with gpu and gpu-count 10", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(componentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 3, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 2, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaV100)
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+		expression3 := nodeSelectorTerms[0].MatchExpressions[2]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression3.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression3.Operator)
+		assert.Equal(t, 1, len(expression3.Values))
+		assert.Contains(t, expression3.Values, "9")
+	})
+	t.Run("job has node with gpu and gpu-count 10 ", func(t *testing.T) {
+		t.Parallel()
+		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		affinity := deployment.Spec.Template.Spec.Affinity
+		assert.NotNil(t, affinity)
+		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
+		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
+		assert.Equal(t, 1, len(nodeSelectorTerms))
+		assert.Equal(t, 3, len(nodeSelectorTerms[0].MatchExpressions))
+		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
+		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
+		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
+		assert.Equal(t, 2, len(expression0.Values))
+		assert.Contains(t, expression0.Values, gpuNvidiaV100)
+		assert.Contains(t, expression0.Values, gpuNvidiaP100)
+		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
+		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
+		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
+		assert.Equal(t, 1, len(expression1.Values))
+		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+		expression3 := nodeSelectorTerms[0].MatchExpressions[2]
+		assert.Equal(t, kube.RadixGpuCountLabel, expression3.Key)
+		assert.Equal(t, corev1.NodeSelectorOpGt, expression3.Operator)
+		assert.Equal(t, 1, len(expression3.Values))
+		assert.Contains(t, expression3.Values, "9")
+	})
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
 }
 
-func applyDeploymentWithSync(tu *test.Utils, kubeclient kube.Interface, kubeUtil *kubeUtils.Kube,
+func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
 	rd, err := tu.ApplyDeployment(deploymentBuilder)
 	if err != nil {
@@ -2433,7 +2985,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kube.Interface, kubeUtil
 	return updatedRD, err
 }
 
-func applyDeploymentUpdateWithSync(tu *test.Utils, client kube.Interface, kubeUtil *kubeUtils.Kube,
+func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, prometheusclient prometheusclient.Interface, deploymentBuilder utils.DeploymentBuilder) error {
 	rd, err := tu.ApplyDeploymentUpdate(deploymentBuilder)
 	if err != nil {

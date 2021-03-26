@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
@@ -154,6 +153,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 
 	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
 	deployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
+	deployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
 
 	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName)
 }
@@ -190,6 +190,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
+	desiredDeployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
 
 	if len(deployComponent.GetPorts()) > 0 {
 		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
@@ -225,7 +226,7 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 
 func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName string) (*appsv1.Deployment, error) {
 	if deployComponent.IsAlwaysPullImageOnDeploy() {
-		desiredDeployment.Spec.Template.Annotations[kube.RadixUpdateTimeAnnotation] = time.Now().Format(time.RFC3339)
+		desiredDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation] = deploy.radixDeployment.Name
 	}
 
 	replicas := deployComponent.GetReplicas()
@@ -248,11 +249,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
 
-	resourceRequirements := utils.GetResourceRequirements(deployComponent)
-
-	if resourceRequirements != nil {
-		desiredDeployment.Spec.Template.Spec.Containers[0].Resources = *resourceRequirements
-	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = *utils.GetResourceRequirements(deployComponent)
 
 	return desiredDeployment, nil
 }

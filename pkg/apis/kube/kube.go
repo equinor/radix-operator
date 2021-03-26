@@ -17,7 +17,7 @@ import (
 const (
 	RadixBranchAnnotation          = "radix-branch"
 	RadixComponentImagesAnnotation = "radix-component-images"
-	RadixUpdateTimeAnnotation      = "radix-update-time"
+	RadixDeploymentNameAnnotation  = "radix-deployment-name"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 	RestoredStatusAnnotation = "equinor.com/velero-restored-status"
@@ -42,6 +42,8 @@ const (
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
 	RadixMountTypeLabel          = "mount-type"
+	RadixGpuLabel                = "radix-node-gpu"
+	RadixGpuCountLabel           = "radix-node-gpu-count"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"

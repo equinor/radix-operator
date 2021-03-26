@@ -5,6 +5,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 // +genclient
@@ -16,6 +17,24 @@ type RadixDeployment struct {
 	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 	Spec               RadixDeploymentSpec `json:"spec" yaml:"spec"`
 	Status             RadixDeployStatus   `json:"status" yaml:"status"`
+}
+
+func (rd *RadixDeployment) GetComponentByName(name string) *RadixDeployComponent {
+	for _, component := range rd.Spec.Components {
+		if strings.EqualFold(component.Name, name) {
+			return &component
+		}
+	}
+	return nil
+}
+
+func (rd *RadixDeployment) GetJobComponentByName(name string) *RadixDeployJobComponent {
+	for _, jobComponent := range rd.Spec.Jobs {
+		if strings.EqualFold(jobComponent.Name, name) {
+			return &jobComponent
+		}
+	}
+	return nil
 }
 
 //RadixDeployStatus is the status for a rd
@@ -75,6 +94,7 @@ type RadixDeployComponent struct {
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -149,6 +169,10 @@ func (deployComponent *RadixDeployComponent) GetRunAsNonRoot() bool {
 	return deployComponent.RunAsNonRoot
 }
 
+func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
+	return &deployComponent.Node
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -221,6 +245,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetRunAsNonRoot() bool {
 	return deployJobComponent.RunAsNonRoot
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
+	return &deployJobComponent.Node
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -247,6 +275,7 @@ type RadixDeployJobComponent struct {
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
 	RunAsNonRoot            bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
+	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 }
 
 //RadixCommonDeployComponent defines a common component interface a RadixDeployment
@@ -269,4 +298,5 @@ type RadixCommonDeployComponent interface {
 	IsDNSAppAlias() bool
 	GetIngressConfiguration() []string
 	GetRunAsNonRoot() bool
+	GetNode() *RadixNode
 }

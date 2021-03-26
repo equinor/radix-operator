@@ -44,4 +44,13 @@ rules:
       - update
       - delete
       - patch
+  - apiGroups:
+      - '*'
+    resources:
+      - services
+    verbs:
+      - get
+      - create
+      - delete
+      - list
 ---
