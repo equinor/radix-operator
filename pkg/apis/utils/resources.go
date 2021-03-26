@@ -52,7 +52,7 @@ func buildResourceRequirement(source *v1.ResourceRequirements) *corev1.ResourceR
 	}
 
 	if len(limits) <= 0 && len(requests) <= 0 {
-		return nil
+		return &corev1.ResourceRequirements{}
 	}
 
 	req := corev1.ResourceRequirements{
