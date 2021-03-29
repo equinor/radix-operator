@@ -20,8 +20,8 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 			continue
 		}
 
-		// If value of radix-job-type equal job-scheduler, it means the job was created from a component in jobs section of RD
-		// If value for radix-component-name label does not exist in the jobs section, we can delete the job
+		// If value of radix-job-type equal job-scheduler, it means the job was created from a component in jobs section of RD,
+		// and if value for radix-component-name label does not exist in the jobs section, we can delete the job
 		if jobType == kube.RadixJobTypeJobSchedule {
 			if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
 				err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(job.Name, &metav1.DeleteOptions{})

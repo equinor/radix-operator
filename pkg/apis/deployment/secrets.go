@@ -134,6 +134,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 	}
 
 	for _, exisitingSecret := range secrets {
+		garbageCollect := false
 		if exisitingSecret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
 			// Not handled here
 			continue
@@ -144,8 +145,15 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 			continue
 		}
 
-		// Secrets should be kept if switching a component to a job or vice versa
-		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+		// Garbage collect if secret is labelled radix-job-type=job-scheduler and not defined in RD jobs
+		if jobType, ok := exisitingSecret.GetLabels()[kube.RadixJobTypeLabel]; ok && jobType == kube.RadixJobTypeJobSchedule {
+			garbageCollect = !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
+		} else {
+			// Garbage collect secret if not defined in RD components or jobs
+			garbageCollect = !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
+		}
+
+		if garbageCollect {
 			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(exisitingSecret.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -163,8 +171,13 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 	}
 
 	for _, secret := range secrets {
+		// External alias not handled here
 		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
-			// Not handled here
+			continue
+		}
+
+		// Secrets for jobs not handled here
+		if secret.GetLabels()[kube.RadixJobTypeLabel] != "" {
 			continue
 		}
 
