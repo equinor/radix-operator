@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -14,20 +13,16 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 			continue
 		}
 
-		// Get value for label radix-job-type. If label doesn't exist, the job is not handled by a job in RD
-		jobType, ok := job.GetLabels()[kube.RadixJobTypeLabel]
+		jobType, ok := NewRadixJobTypeFromObjectLabels(job)
 		if !ok {
 			continue
 		}
 
-		// If value of radix-job-type equal job-scheduler, it means the job was created from a component in jobs section of RD,
-		// and if value for radix-component-name label does not exist in the jobs section, we can delete the job
-		if jobType == kube.RadixJobTypeJobSchedule {
-			if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
-				err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(job.Name, &metav1.DeleteOptions{})
-				if err != nil {
-					return err
-				}
+		// Delete job is it originates from job-scheduler and is no longed defined in RD jobs section
+		if jobType.IsJobScheduler() && !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
+			err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(job.Name, &metav1.DeleteOptions{})
+			if err != nil {
+				return err
 			}
 		}
 	}

@@ -18,14 +18,14 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
 
 	for _, service := range services {
-		garbageCollect := false
 		componentName, ok := NewRadixComponentNameFromLabels(service)
 		if !ok {
 			continue
 		}
 
 		// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
-		if jobType, ok := service.GetLabels()[kube.RadixJobTypeLabel]; ok && jobType == kube.RadixJobTypeJobSchedule {
+		garbageCollect := false
+		if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
 			garbageCollect = !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
 		} else {
 			// Garbage collect service if not defined in RD components or jobs
