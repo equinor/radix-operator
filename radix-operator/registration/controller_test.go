@@ -1,6 +1,7 @@
 package registration
 
 import (
+	"context"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -99,7 +100,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.Equal(t, "test", updatedApp.Annotations["update"])
 
 	// Delete namespace should sync
-	client.CoreV1().Namespaces().Delete(utils.GetAppNamespace("testapp"), &metav1.DeleteOptions{})
+	client.CoreV1().Namespaces().Delete(context.TODO(), utils.GetAppNamespace("testapp"), metav1.DeleteOptions{})
 
 	op, ok = <-synced
 	assert.True(t, ok)

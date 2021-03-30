@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -258,27 +259,33 @@ func SetRequiredEnvironmentVariables() {
 func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry string) {
 	SetRequiredEnvironmentVariables()
 
-	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
-		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-known-hosts-git",
-			Namespace: corev1.NamespaceDefault,
+	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+		context.TODO(),
+		&corev1.Secret{
+			Type: "Opaque",
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "radix-known-hosts-git",
+				Namespace: corev1.NamespaceDefault,
+			},
+			Data: map[string][]byte{
+				"known_hosts": []byte("abcd"),
+			},
 		},
-		Data: map[string][]byte{
-			"known_hosts": []byte("abcd"),
-		},
-	})
+		metav1.CreateOptions{})
 
-	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-config",
-			Namespace: corev1.NamespaceDefault,
+	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+		context.TODO(),
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "radix-config",
+				Namespace: corev1.NamespaceDefault,
+			},
+			Data: map[string]string{
+				"clustername":       clustername,
+				"containerRegistry": containerRegistry,
+			},
 		},
-		Data: map[string]string{
-			"clustername":       clustername,
-			"containerRegistry": containerRegistry,
-		},
-	})
+		metav1.CreateOptions{})
 }
 
 // CreateAppNamespace Helper method to creat app namespace
@@ -306,7 +313,7 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		},
 	}
 
-	kubeclient.CoreV1().Namespaces().Create(&namespace)
+	kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 }
 
 // IntPtr Helper function to get the pointer of an int

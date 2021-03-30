@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -340,10 +341,10 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 
 		if garbageCollect {
 			propagationPolicy := metav1.DeletePropagationForeground
-			deleteOption := &metav1.DeleteOptions{
+			deleteOption := metav1.DeleteOptions{
 				PropagationPolicy: &propagationPolicy,
 			}
-			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(deployment.Name, deleteOption)
+			err = deploy.kubeclient.AppsV1().Deployments(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), deployment.Name, deleteOption)
 			if err != nil {
 				return err
 			}

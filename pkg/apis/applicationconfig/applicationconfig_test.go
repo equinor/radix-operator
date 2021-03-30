@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -269,7 +270,7 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret1", "secret2"))
 
-	secrets, _ := client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
 	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
@@ -278,11 +279,11 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret1"])
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret2"])
 
-	roles, _ := client.RbacV1().Roles(appNamespace).List(metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-admin-build-secrets", roles))
 	assert.True(t, roleByNameExists("pipeline-build-secrets", roles))
 
-	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 
@@ -292,7 +293,7 @@ func Test_WithBuildSecretsSet_SecretsCorrectlyAdded(t *testing.T) {
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret4", "secret5", "secret6"))
 
-	secrets, _ = client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	buildSecrets = getSecretByName(defaults.BuildSecretsName, secrets)
 	assert.Equal(t, 3, len(buildSecrets.Data))
 	assert.Equal(t, defaultValue, buildSecrets.Data["secret4"])
@@ -318,7 +319,7 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithEnvironment("dev", "master").
 			WithBuildSecrets("secret2"))
 
-	secrets, _ := client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	defaultValue := []byte(defaults.BuildSecretDefaultData)
 
 	buildSecrets := getSecretByName(defaults.BuildSecretsName, secrets)
@@ -335,15 +336,15 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithBuildSecrets())
 
 	// Secret is left intact, for simplicity
-	secrets, _ = client.CoreV1().Secrets(appNamespace).List(metav1.ListOptions{})
+	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, secretByNameExists(defaults.BuildSecretsName, secrets))
 	assert.Equal(t, 0, len(getSecretByName(defaults.BuildSecretsName, secrets).Data))
 
-	roles, _ := client.RbacV1().Roles(appNamespace).List(metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-admin-build-secrets", roles))
 	assert.True(t, roleByNameExists("pipeline-build-secrets", roles))
 
-	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
 	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 }
@@ -356,7 +357,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
@@ -375,7 +376,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_SetPassword(t *testing.T) {
 	assert.Equal(t, "privaterepodeleteme.azurecr.io", pendingSecrets[0])
 
 	appConfig.UpdatePrivateImageHubsSecretsPassword("privaterepodeleteme.azurecr.io", "a-password")
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	pendingSecrets, _ = appConfig.GetPendingPrivateImageHubSecrets()
 
 	assert.Equal(t,
@@ -403,7 +404,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdatedNewAdded(t *testing.T) 
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
@@ -425,7 +426,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateUsername(t *testing.T) {
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abb2\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmIyOg==\"}}}",
@@ -446,7 +447,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_UpdateServerName(t *testing.T)
 			Email:    "radix@equinor.com",
 		},
 	})
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme1.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
@@ -465,7 +466,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		},
 	})
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"},\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
@@ -477,7 +478,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_Delete(t *testing.T) {
 		},
 	})
 
-	secret, _ = client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ = client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 	assert.Equal(t,
 		"{\"auths\":{\"privaterepodeleteme2.azurecr.io\":{\"username\":\"814607e6-3d71-44a7-8476-50e8b281abbc\",\"password\":\"\",\"email\":\"radix@equinor.com\",\"auth\":\"ODE0NjA3ZTYtM2Q3MS00NGE3LTg0NzYtNTBlOGIyODFhYmJjOg==\"}}}",
 		string(secret.Data[corev1.DockerConfigJsonKey]))
@@ -487,7 +488,7 @@ func Test_WithPrivateImageHubSet_SecretsCorrectly_NoImageHubs(t *testing.T) {
 	client, appConfig, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{})
 	pendingSecrets, _ := appConfig.GetPendingPrivateImageHubSecrets()
 
-	secret, _ := client.CoreV1().Secrets("any-app-app").Get(defaults.PrivateImageHubSecretName, metav1.GetOptions{})
+	secret, _ := client.CoreV1().Secrets("any-app-app").Get(context.TODO(), defaults.PrivateImageHubSecretName, metav1.GetOptions{})
 
 	assert.NotNil(t, secret)
 	assert.Equal(t,

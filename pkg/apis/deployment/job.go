@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -20,7 +22,7 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 
 		// Delete job is it originates from job-scheduler and is no longed defined in RD jobs section
 		if jobType.IsJobScheduler() && !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
-			err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(job.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), job.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

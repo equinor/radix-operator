@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -21,7 +22,7 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	logger.Debugf("Apply role %s", role.Name)
 	oldRole, err := k.GetRole(namespace, role.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdRole, err := k.kubeClient.RbacV1().Roles(namespace).Create(role)
+		createdRole, err := k.kubeClient.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create Role object: %v", err)
 		}
@@ -55,7 +56,7 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedRole, err := k.kubeClient.RbacV1().Roles(namespace).Patch(role.GetName(), types.StrategicMergePatchType, patchBytes)
+		patchedRole, err := k.kubeClient.RbacV1().Roles(namespace).Patch(context.TODO(), role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch role object: %v", err)
 		}
@@ -72,7 +73,7 @@ func (k *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 	logger.Debugf("Apply clusterrole %s", clusterrole.Name)
 	oldClusterRole, err := k.GetClusterRole(clusterrole.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdClusterRole, err := k.kubeClient.RbacV1().ClusterRoles().Create(clusterrole)
+		createdClusterRole, err := k.kubeClient.RbacV1().ClusterRoles().Create(context.TODO(), clusterrole, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create cluster role object: %v", err)
 		}
@@ -106,7 +107,7 @@ func (k *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedClusterRole, err := k.kubeClient.RbacV1().ClusterRoles().Patch(clusterrole.GetName(), types.StrategicMergePatchType, patchBytes)
+		patchedClusterRole, err := k.kubeClient.RbacV1().ClusterRoles().Patch(context.TODO(), clusterrole.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch clusterrole object: %v", err)
 		}
@@ -182,9 +183,11 @@ func (k *Kube) ListRolesWithSelector(namespace string, labelSelectorString *stri
 			return nil, err
 		}
 	} else {
-		list, err := k.kubeClient.RbacV1().Roles(namespace).List(metav1.ListOptions{
-			LabelSelector: *labelSelectorString,
-		})
+		list, err := k.kubeClient.RbacV1().Roles(namespace).List(
+			context.TODO(),
+			metav1.ListOptions{
+				LabelSelector: *labelSelectorString,
+			})
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +209,7 @@ func (k *Kube) GetRole(namespace, name string) (*auth.Role, error) {
 			return nil, err
 		}
 	} else {
-		role, err = k.kubeClient.RbacV1().Roles(namespace).Get(name, metav1.GetOptions{})
+		role, err = k.kubeClient.RbacV1().Roles(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +229,7 @@ func (k *Kube) ListClusterRoles(namespace string) ([]*auth.ClusterRole, error) {
 			return nil, err
 		}
 	} else {
-		list, err := k.kubeClient.RbacV1().ClusterRoles().List(metav1.ListOptions{})
+		list, err := k.kubeClient.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -245,7 +248,7 @@ func (k *Kube) DeleteRole(namespace, name string) error {
 	} else if err != nil {
 		return fmt.Errorf("Failed to get role object: %v", err)
 	}
-	err = k.kubeClient.RbacV1().Roles(namespace).Delete(name, &metav1.DeleteOptions{})
+	err = k.kubeClient.RbacV1().Roles(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to delete role object: %v", err)
 	}
@@ -263,7 +266,7 @@ func (k *Kube) GetClusterRole(name string) (*auth.ClusterRole, error) {
 			return nil, err
 		}
 	} else {
-		clusterRole, err = k.kubeClient.RbacV1().ClusterRoles().Get(name, metav1.GetOptions{})
+		clusterRole, err = k.kubeClient.RbacV1().ClusterRoles().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

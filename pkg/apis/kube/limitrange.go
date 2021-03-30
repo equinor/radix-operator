@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -21,7 +22,7 @@ func (k *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) 
 
 	oldLimitRange, err := k.getLimitRange(namespace, limitRange.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Create(limitRange)
+		createdLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create LimitRange object: %v", err)
 		}
@@ -54,7 +55,7 @@ func (k *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) 
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Patch(limitRange.GetName(), types.StrategicMergePatchType, patchBytes)
+		patchedLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Patch(context.TODO(), limitRange.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch limitRange object: %v", err)
 		}
@@ -114,7 +115,7 @@ func (k *Kube) getLimitRange(namespace, name string) (*corev1.LimitRange, error)
 			return nil, err
 		}
 	} else {
-		limitRange, err = k.kubeClient.CoreV1().LimitRanges(namespace).Get(name, metav1.GetOptions{})
+		limitRange, err = k.kubeClient.CoreV1().LimitRanges(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -24,7 +25,7 @@ func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(componen
 
 	if len(roles) > 0 {
 		for n := range roles {
-			err = deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.GetNamespace()).Delete(roles[n].Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.RbacV1().Roles(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), roles[n].Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,7 +18,7 @@ func getBuildSecretsAsVariables(kubeclient kubernetes.Interface, ra *v1.RadixApp
 	var environmentVariables []corev1.EnvVar
 
 	if ra.Spec.Build != nil {
-		buildSecrets, err := kubeclient.CoreV1().Secrets(appNamespace).Get(defaults.BuildSecretsName, metav1.GetOptions{})
+		buildSecrets, err := kubeclient.CoreV1().Secrets(appNamespace).Get(context.TODO(), defaults.BuildSecretsName, metav1.GetOptions{})
 		if err != nil || buildSecrets == nil {
 			return nil, errors.New("Build secrets has not been set")
 		}

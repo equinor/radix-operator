@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -68,7 +69,7 @@ func Test_Create_Namespace(t *testing.T) {
 
 	sync(t, &env)
 
-	namespaces, _ := client.CoreV1().Namespaces().List(meta.ListOptions{
+	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), meta.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
 	})
 
@@ -81,7 +82,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	sync(t, &env)
 
-	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(meta.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
 
 	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-app-admin-envs")
 
@@ -95,7 +96,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 	t.Run("It contains machine-user", func(t *testing.T) {
 		rr.Spec.MachineUser = true
 		sync(t, &env)
-		rolebindings, _ = client.RbacV1().RoleBindings(namespaceName).List(meta.ListOptions{})
+		rolebindings, _ = client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
 		subjects := rolebindings.Items[0].Subjects
 		assert.Len(t, subjects, 2)
 		assert.Equal(t, "testapp-machine-user", subjects[1].Name)
@@ -108,7 +109,7 @@ func Test_Create_LimitRange(t *testing.T) {
 
 	sync(t, &env)
 
-	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(meta.ListOptions{})
+	limitranges, _ := client.CoreV1().LimitRanges(namespaceName).List(context.TODO(), meta.ListOptions{})
 
 	commonAsserts(t, env, limitRangesAsMeta(limitranges.Items), "mem-cpu-limit-range-env")
 

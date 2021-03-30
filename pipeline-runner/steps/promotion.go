@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -89,12 +90,12 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 	fromNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.FromEnvironment)
 	toNs := utils.GetEnvironmentNamespace(cli.GetAppName(), pipelineInfo.PipelineArguments.ToEnvironment)
 
-	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(fromNs, metav1.GetOptions{})
+	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(context.TODO(), fromNs, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingFromEnvironment(pipelineInfo.PipelineArguments.FromEnvironment)
 	}
 
-	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(toNs, metav1.GetOptions{})
+	_, err = cli.GetKubeclient().CoreV1().Namespaces().Get(context.TODO(), toNs, metav1.GetOptions{})
 	if err != nil {
 		return NonExistingToEnvironment(pipelineInfo.PipelineArguments.ToEnvironment)
 	}
