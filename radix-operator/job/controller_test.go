@@ -84,7 +84,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	radixClient.RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(rj)
+	radixClient.RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
 
 	op, ok = <-synced
 	assert.True(t, ok)

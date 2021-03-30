@@ -1852,8 +1852,10 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 
 	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
-	assert.False(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, clusterName))
-	assert.True(t, strings.Contains(ingresses.Items[1].Spec.Rules[0].Host, clusterName))
+	activeClusterIngress := getIngressByName(getActiveClusterIngressName(anyComponentName), ingresses)
+	assert.False(t, strings.Contains(activeClusterIngress.Spec.Rules[0].Host, clusterName))
+	defaultIngress := getIngressByName(getDefaultIngressName(anyComponentName), ingresses)
+	assert.True(t, strings.Contains(defaultIngress.Spec.Rules[0].Host, clusterName))
 
 	// Current cluster is not active cluster
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "newClusterName")
@@ -1955,7 +1957,7 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 }
 
 func getUpdatedRD(radixclient radixclient.Interface, rd *v1.RadixDeployment) (*v1.RadixDeployment, error) {
-	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
+	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.TODO(), rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
 }
 
 func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusclient prometheusclient.Interface) *v1.RadixDeployment {
@@ -1994,8 +1996,8 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithSecrets([]string{"a_secret", "another_secret", "a_third_secret"})))
 
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	anyComponentSecret := secrets.Items[0]
-	assert.Equal(t, utils.GetComponentSecretName(anyComponentName), anyComponentSecret.GetName(), "Component secret is not as expected")
+	anyComponentSecret := getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
+	assert.NotNil(t, anyComponentSecret, "Component secret is not found")
 
 	// Secret is initially empty but get filled with data from the API
 	assert.Equal(t, []string{}, maps.GetKeysFromByteMap(anyComponentSecret.Data), "Component secret data is not as expected")
@@ -2008,7 +2010,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	secretData["a_third_secret"] = []byte(anySecretValue)
 
 	anyComponentSecret.Data = secretData
-	client.CoreV1().Secrets(envNamespace).Update(context.TODO(), &anyComponentSecret, metav1.UpdateOptions{})
+	client.CoreV1().Secrets(envNamespace).Update(context.TODO(), anyComponentSecret, metav1.UpdateOptions{})
 
 	// Removing one secret from config and therefor from the deployment
 	// should cause it to disappear
@@ -2025,7 +2027,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithSecrets([]string{"a_secret", "a_third_secret"})))
 
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	anyComponentSecret = secrets.Items[0]
+	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, maps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 
@@ -2085,7 +2087,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")))
 
-	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
 
 	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
@@ -2104,7 +2106,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")))
 
-	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
 
 	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
@@ -3198,7 +3200,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 		return nil, err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -3208,7 +3210,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 		return nil, err
 	}
 
-	updatedRD, err := radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
+	updatedRD, err := radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	return updatedRD, err
 }
 
@@ -3219,7 +3221,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

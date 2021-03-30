@@ -99,20 +99,20 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, op)
 
-	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	lastReconciled := syncedRd.Status.Reconciled
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 
 	// Update deployment should sync. Only actual updates will be handled by the controller
 	noReplicas := 0
 	rd.Spec.Components[0].Replicas = &noReplicas
-	radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(rd)
+	radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
 
 	op, ok = <-synced
 	assert.True(t, ok)
 	assert.True(t, op)
 
-	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
 	lastReconciled = syncedRd.Status.Reconciled
@@ -132,7 +132,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		assert.True(t, op)
 	}
 
-	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
 	lastReconciled = syncedRd.Status.Reconciled

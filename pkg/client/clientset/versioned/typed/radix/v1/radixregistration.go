@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -37,15 +38,15 @@ type RadixRegistrationsGetter interface {
 
 // RadixRegistrationInterface has methods to work with RadixRegistration resources.
 type RadixRegistrationInterface interface {
-	Create(*v1.RadixRegistration) (*v1.RadixRegistration, error)
-	Update(*v1.RadixRegistration) (*v1.RadixRegistration, error)
-	UpdateStatus(*v1.RadixRegistration) (*v1.RadixRegistration, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.RadixRegistration, error)
-	List(opts metav1.ListOptions) (*v1.RadixRegistrationList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixRegistration, err error)
+	Create(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.CreateOptions) (*v1.RadixRegistration, error)
+	Update(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (*v1.RadixRegistration, error)
+	UpdateStatus(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (*v1.RadixRegistration, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixRegistration, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixRegistrationList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixRegistration, err error)
 	RadixRegistrationExpansion
 }
 
@@ -62,19 +63,19 @@ func newRadixRegistrations(c *RadixV1Client) *radixRegistrations {
 }
 
 // Get takes name of the radixRegistration, and returns the corresponding radixRegistration object, and an error if there is any.
-func (c *radixRegistrations) Get(name string, options metav1.GetOptions) (result *v1.RadixRegistration, err error) {
+func (c *radixRegistrations) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixRegistration, err error) {
 	result = &v1.RadixRegistration{}
 	err = c.client.Get().
 		Resource("radixregistrations").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of RadixRegistrations that match those selectors.
-func (c *radixRegistrations) List(opts metav1.ListOptions) (result *v1.RadixRegistrationList, err error) {
+func (c *radixRegistrations) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixRegistrationList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -84,13 +85,13 @@ func (c *radixRegistrations) List(opts metav1.ListOptions) (result *v1.RadixRegi
 		Resource("radixregistrations").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested radixRegistrations.
-func (c *radixRegistrations) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *radixRegistrations) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -100,81 +101,84 @@ func (c *radixRegistrations) Watch(opts metav1.ListOptions) (watch.Interface, er
 		Resource("radixregistrations").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a radixRegistration and creates it.  Returns the server's representation of the radixRegistration, and an error, if there is any.
-func (c *radixRegistrations) Create(radixRegistration *v1.RadixRegistration) (result *v1.RadixRegistration, err error) {
+func (c *radixRegistrations) Create(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.CreateOptions) (result *v1.RadixRegistration, err error) {
 	result = &v1.RadixRegistration{}
 	err = c.client.Post().
 		Resource("radixregistrations").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixRegistration).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a radixRegistration and updates it. Returns the server's representation of the radixRegistration, and an error, if there is any.
-func (c *radixRegistrations) Update(radixRegistration *v1.RadixRegistration) (result *v1.RadixRegistration, err error) {
+func (c *radixRegistrations) Update(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (result *v1.RadixRegistration, err error) {
 	result = &v1.RadixRegistration{}
 	err = c.client.Put().
 		Resource("radixregistrations").
 		Name(radixRegistration.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixRegistration).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *radixRegistrations) UpdateStatus(radixRegistration *v1.RadixRegistration) (result *v1.RadixRegistration, err error) {
+func (c *radixRegistrations) UpdateStatus(ctx context.Context, radixRegistration *v1.RadixRegistration, opts metav1.UpdateOptions) (result *v1.RadixRegistration, err error) {
 	result = &v1.RadixRegistration{}
 	err = c.client.Put().
 		Resource("radixregistrations").
 		Name(radixRegistration.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixRegistration).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the radixRegistration and deletes it. Returns an error if one occurs.
-func (c *radixRegistrations) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *radixRegistrations) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Resource("radixregistrations").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *radixRegistrations) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *radixRegistrations) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Resource("radixregistrations").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched radixRegistration.
-func (c *radixRegistrations) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixRegistration, err error) {
+func (c *radixRegistrations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixRegistration, err error) {
 	result = &v1.RadixRegistration{}
 	err = c.client.Patch(pt).
 		Resource("radixregistrations").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

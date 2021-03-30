@@ -152,5 +152,5 @@ func NewController(client kubernetes.Interface,
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixJobs(namespace).Get(name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }

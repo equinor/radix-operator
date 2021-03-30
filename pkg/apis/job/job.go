@@ -120,7 +120,7 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 		return true, nil
 	}
 
-	allJobs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(metav1.ListOptions{})
+	allJobs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		err = fmt.Errorf("Failed to get all RadixJobs. Error was %v", err)
 		return false, err
@@ -185,7 +185,7 @@ func (job *Job) getTargetEnv(rj *v1.RadixJob) *[]string {
 	if rj.Spec.PipeLineType != v1.BuildDeploy {
 		return nil
 	}
-	ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(rj.Spec.AppName, metav1.GetOptions{})
+	ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(context.TODO(), rj.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", rj.Spec.AppName)
 		return &[]string{"N/A"}
@@ -317,7 +317,7 @@ func (job *Job) deleteStepJobs() error {
 }
 
 func (job *Job) setNextJobToRunning() error {
-	rjList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(metav1.ListOptions{})
+	rjList, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -576,9 +576,11 @@ func getJobStepWithContainerName(podName, containerName string, containerStatus 
 }
 
 func (job *Job) getJobEnvironments() ([]string, error) {
-	deploymentsLinkedToJob, err := job.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", "radix-job-name", job.radixJob.Name),
-	})
+	deploymentsLinkedToJob, err := job.radixclient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(
+		context.TODO(),
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", "radix-job-name", job.radixJob.Name),
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -602,15 +604,15 @@ func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, ori
 func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
 	rjInterface := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace())
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentJob, err := rjInterface.Get(rj.Name, metav1.GetOptions{})
+		currentJob, err := rjInterface.Get(context.TODO(), rj.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentJob.Status)
-		_, err = rjInterface.UpdateStatus(currentJob)
+		_, err = rjInterface.UpdateStatus(context.TODO(), currentJob, metav1.UpdateOptions{})
 
 		if err == nil && rj.GetName() == job.radixJob.GetName() {
-			currentJob, err = rjInterface.Get(rj.GetName(), metav1.GetOptions{})
+			currentJob, err = rjInterface.Get(context.TODO(), rj.GetName(), metav1.GetOptions{})
 			if err == nil {
 				job.radixJob = currentJob
 			}
@@ -629,7 +631,7 @@ func (job *Job) maintainHistoryLimit() {
 			return
 		}
 
-		allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(metav1.ListOptions{})
+		allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
 			return
@@ -646,7 +648,7 @@ func (job *Job) maintainHistoryLimit() {
 			for i := 0; i < numToDelete; i++ {
 				log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
 				//goland:noinspection GoUnhandledErrorResult - do not fail on error
-				job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(jobs[i].Name, &metav1.DeleteOptions{})
+				job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(context.TODO(), jobs[i].Name, metav1.DeleteOptions{})
 			}
 		}
 	}

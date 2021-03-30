@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -105,7 +106,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 
 	for _, scenario := range testScenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(scenario.appName, metav1.GetOptions{})
+			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), scenario.appName, metav1.GetOptions{})
 
 			cli := NewPromoteStep()
 			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
@@ -212,8 +213,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	// Create prod environment without any deployments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
-	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(anyApp, metav1.GetOptions{})
-	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
@@ -234,7 +235,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
-	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(metav1.ListOptions{})
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
 	assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
 	assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
@@ -314,8 +315,8 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	// Create prod environment without any deployments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
-	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(anyApp, metav1.GetOptions{})
-	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
@@ -336,7 +337,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
-	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(metav1.ListOptions{})
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
 	assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
 	assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
@@ -428,8 +429,8 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	// Create prod environment without any deployments
 	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
-	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(anyApp, metav1.GetOptions{})
-	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
@@ -450,7 +451,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
-	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(metav1.ListOptions{})
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
 	assert.True(t, strings.HasPrefix(rds.Items[0].Name, fmt.Sprintf("%s-%s-", anyProdEnvironment, anyImageTag)))
 	assert.Equal(t, anyProdEnvironment, rds.Items[0].Labels[kube.RadixEnvLabel])
@@ -485,8 +486,8 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 			WithImageTag(anyImageTag).
 			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName))
 
-	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(anyApp, metav1.GetOptions{})
-	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(anyApp, metav1.GetOptions{})
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
 	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
@@ -507,6 +508,6 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
-	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyDevEnvironment)).List(metav1.ListOptions{})
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyDevEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(rds.Items))
 }

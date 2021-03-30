@@ -168,7 +168,7 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeU
 
 func updateRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, rr *v1.RadixRegistration) error {
-	_, err := radixclient.RadixV1().RadixRegistrations().Update(rr)
+	_, err := radixclient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}

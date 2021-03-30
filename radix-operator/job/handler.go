@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/job"
@@ -50,7 +51,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 
 // Sync Is created on sync of resource
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(name, metav1.GetOptions{})
+	radixJob, err := t.radixclient.RadixV1().RadixJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		// The Job resource may no longer exist, in which case we stop
 		// processing.

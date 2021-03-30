@@ -71,7 +71,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		log.Fatalf("Could not read configuration data: %v", err)
 	}
 
-	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(registration)
+	registeredApp, err := radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), registration, metav1.CreateOptions{})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, registeredApp)
@@ -80,7 +80,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, op)
 
-	syncedRr, _ := radixClient.RadixV1().RadixRegistrations().Get(registration.GetName(), metav1.GetOptions{})
+	syncedRr, _ := radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), registration.GetName(), metav1.GetOptions{})
 	lastReconciled := syncedRr.Status.Reconciled
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 
@@ -88,7 +88,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	registration.ObjectMeta.Annotations = map[string]string{
 		"update": "test",
 	}
-	updatedApp, err := radixClient.RadixV1().RadixRegistrations().Update(registration)
+	updatedApp, err := radixClient.RadixV1().RadixRegistrations().Update(context.TODO(), registration, metav1.UpdateOptions{})
 
 	op, ok = <-synced
 	assert.True(t, ok)

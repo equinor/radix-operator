@@ -127,5 +127,5 @@ func deepEqual(old, new *v1.RadixRegistration) bool {
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), name, metav1.GetOptions{})
 }

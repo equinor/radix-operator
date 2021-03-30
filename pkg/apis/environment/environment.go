@@ -1,7 +1,9 @@
 package environment
 
 import (
+	"context"
 	"fmt"
+
 	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
@@ -86,14 +88,14 @@ func (env *Environment) OnSync(time metav1.Time) error {
 func (env *Environment) updateRadixEnvironmentStatus(rEnv *v1.RadixEnvironment, changeStatusFunc func(currStatus *v1.RadixEnvironmentStatus)) error {
 	radixEnvironmentInterface := env.radixclient.RadixV1().RadixEnvironments()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentEnv, err := radixEnvironmentInterface.Get(rEnv.GetName(), metav1.GetOptions{})
+		currentEnv, err := radixEnvironmentInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentEnv.Status)
-		_, err = radixEnvironmentInterface.UpdateStatus(currentEnv)
+		_, err = radixEnvironmentInterface.UpdateStatus(context.TODO(), currentEnv, metav1.UpdateOptions{})
 		if err == nil && env.config.GetName() == rEnv.GetName() {
-			currentEnv, err = radixEnvironmentInterface.Get(rEnv.GetName(), metav1.GetOptions{})
+			currentEnv, err = radixEnvironmentInterface.Get(context.TODO(), rEnv.GetName(), metav1.GetOptions{})
 			if err == nil {
 				env.config = currentEnv
 			}

@@ -1,10 +1,12 @@
 package application
 
 import (
+	"context"
 	"fmt"
-	"k8s.io/client-go/util/retry"
 	"os"
 	"time"
+
+	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -147,15 +149,15 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, changeStatusFunc func(currStatus *v1.RadixRegistrationStatus)) error {
 	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRR, err := rrInterface.Get(rr.GetName(), metav1.GetOptions{})
+		currentRR, err := rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentRR.Status)
-		_, err = rrInterface.UpdateStatus(currentRR)
+		_, err = rrInterface.UpdateStatus(context.TODO(), currentRR, metav1.UpdateOptions{})
 
 		if err == nil && rr.GetName() == app.registration.GetName() {
-			currentRR, err = rrInterface.Get(rr.GetName(), metav1.GetOptions{})
+			currentRR, err = rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
 			if err == nil {
 				app.registration = currentRR
 			}

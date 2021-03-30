@@ -60,18 +60,22 @@ func Test_Create_Radix_Environments(t *testing.T) {
 	t.Run("It can create environments", func(t *testing.T) {
 		err := app.createEnvironments()
 		assert.NoError(t, err)
-		environments, _ := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
-			LabelSelector: label,
-		})
+		environments, _ := radixclient.RadixV1().RadixEnvironments().List(
+			context.TODO(),
+			metav1.ListOptions{
+				LabelSelector: label,
+			})
 		assert.Len(t, environments.Items, 2)
 	})
 
 	t.Run("It doesn't fail when re-running creation", func(t *testing.T) {
 		err := app.createEnvironments()
 		assert.NoError(t, err)
-		environments, _ := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
-			LabelSelector: label,
-		})
+		environments, _ := radixclient.RadixV1().RadixEnvironments().List(
+			context.TODO(),
+			metav1.ListOptions{
+				LabelSelector: label,
+			})
 		assert.Len(t, environments.Items, 2)
 	})
 }
@@ -81,17 +85,23 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
 
 	// Create environments manually
-	radixclient.RadixV1().RadixEnvironments().Create(&radixv1.RadixEnvironment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "any-app-qa",
+	radixclient.RadixV1().RadixEnvironments().Create(
+		context.TODO(),
+		&radixv1.RadixEnvironment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "any-app-qa",
+			},
 		},
-	})
+		metav1.CreateOptions{})
 
-	radixclient.RadixV1().RadixEnvironments().Create(&radixv1.RadixEnvironment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "any-app-prod",
+	radixclient.RadixV1().RadixEnvironments().Create(
+		context.TODO(),
+		&radixv1.RadixEnvironment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "any-app-prod",
+			},
 		},
-	})
+		metav1.CreateOptions{})
 
 	adGroups := []string{"5678-91011-1234", "9876-54321-0987"}
 	rr := utils.NewRegistrationBuilder().
@@ -110,9 +120,11 @@ func Test_Reconciles_Radix_Environments(t *testing.T) {
 
 	// Test
 	app.createEnvironments()
-	environments, _ := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
-		LabelSelector: label,
-	})
+	environments, _ := radixclient.RadixV1().RadixEnvironments().List(
+		context.TODO(),
+		metav1.ListOptions{
+			LabelSelector: label,
+		})
 	assert.Equal(t, 2, len(environments.Items))
 }
 
@@ -505,9 +517,9 @@ func Test_RadixEnvironment(t *testing.T) {
 		utils.ARadixApplication().
 			WithAppName("any-app"))
 
-	rr, _ := radixclient.RadixV1().RadixRegistrations().Get("any-app", metav1.GetOptions{})
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), "any-app", metav1.GetOptions{})
 
-	environments, err := radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{})
+	environments, err := radixclient.RadixV1().RadixEnvironments().List(context.TODO(), metav1.ListOptions{})
 
 	t.Run("It creates a single environment", func(t *testing.T) {
 		assert.NoError(t, err)
@@ -589,7 +601,7 @@ func applyRadixAppWithPrivateImageHub(privateImageHubs radixv1.PrivateImageHubEn
 
 func getAppConfig(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, applicationBuilder utils.ApplicationBuilder) (*ApplicationConfig, error) {
 	ra := applicationBuilder.BuildRA()
-	radixRegistration, _ := radixclient.RadixV1().RadixRegistrations().Get(ra.Name, metav1.GetOptions{})
+	radixRegistration, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 
 	return NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, ra)
 }
@@ -602,7 +614,7 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 		return err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(ra.Name, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

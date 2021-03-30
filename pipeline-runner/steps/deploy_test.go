@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -152,7 +153,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 	err := cli.Run(pipelineInfo)
-	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(metav1.ListOptions{})
+	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(context.TODO(), metav1.ListOptions{})
 
 	t.Run("validate deploy", func(t *testing.T) {
 		assert.NoError(t, err)
@@ -162,15 +163,15 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	rdNameDev := rds.Items[0].Name
 
 	t.Run("validate deployment exist in only the namespace of the modified branch", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 		assert.NotNil(t, rdDev)
 
-		rdProd, _ := radixclient.RadixV1().RadixDeployments("any-app-prod").Get(rdNameDev, metav1.GetOptions{})
+		rdProd, _ := radixclient.RadixV1().RadixDeployments("any-app-prod").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 		assert.Nil(t, rdProd)
 	})
 
 	t.Run("validate deployment environment variables", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 		assert.Equal(t, 2, len(rdDev.Spec.Components))
 		assert.Equal(t, 2, len(rdDev.Spec.Components[1].EnvironmentVariables))
 		assert.Equal(t, "db-dev", rdDev.Spec.Components[1].EnvironmentVariables["DB_HOST"])
@@ -184,13 +185,13 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	})
 
 	t.Run("validate dns app alias", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 		assert.True(t, rdDev.Spec.Components[0].DNSAppAlias)
 		assert.False(t, rdDev.Spec.Components[1].DNSAppAlias)
 	})
 
 	t.Run("validate resources", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 
 		fmt.Print(rdDev.Spec.Components[0].Resources)
 		fmt.Print(rdDev.Spec.Components[1].Resources)
@@ -200,7 +201,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	})
 
 	t.Run("Validate run as non root", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(rdNameDev, metav1.GetOptions{})
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 
 		assert.True(t, rdDev.Spec.Components[0].RunAsNonRoot)
 		assert.False(t, rdDev.Spec.Components[1].RunAsNonRoot)

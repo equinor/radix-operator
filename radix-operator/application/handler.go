@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"fmt"
 
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -51,7 +52,7 @@ func NewHandler(
 
 // Sync Is created on sync of resource
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(name, metav1.GetOptions{})
+	radixApplication, err := t.radixclient.RadixV1().RadixApplications(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		// The Application resource may no longer exist, in which case we stop
 		// processing.

@@ -46,7 +46,7 @@ func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfa
 
 // PrepareRun Runs preparations before build
 func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) error {
-	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(cli.appName, metav1.GetOptions{})
+	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), cli.appName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", cli.appName, err)
 		return err

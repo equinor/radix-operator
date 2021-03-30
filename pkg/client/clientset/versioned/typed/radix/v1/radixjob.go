@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -37,15 +38,15 @@ type RadixJobsGetter interface {
 
 // RadixJobInterface has methods to work with RadixJob resources.
 type RadixJobInterface interface {
-	Create(*v1.RadixJob) (*v1.RadixJob, error)
-	Update(*v1.RadixJob) (*v1.RadixJob, error)
-	UpdateStatus(*v1.RadixJob) (*v1.RadixJob, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.RadixJob, error)
-	List(opts metav1.ListOptions) (*v1.RadixJobList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixJob, err error)
+	Create(ctx context.Context, radixJob *v1.RadixJob, opts metav1.CreateOptions) (*v1.RadixJob, error)
+	Update(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (*v1.RadixJob, error)
+	UpdateStatus(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (*v1.RadixJob, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixJob, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixJobList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixJob, err error)
 	RadixJobExpansion
 }
 
@@ -64,20 +65,20 @@ func newRadixJobs(c *RadixV1Client, namespace string) *radixJobs {
 }
 
 // Get takes name of the radixJob, and returns the corresponding radixJob object, and an error if there is any.
-func (c *radixJobs) Get(name string, options metav1.GetOptions) (result *v1.RadixJob, err error) {
+func (c *radixJobs) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixJob, err error) {
 	result = &v1.RadixJob{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("radixjobs").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of RadixJobs that match those selectors.
-func (c *radixJobs) List(opts metav1.ListOptions) (result *v1.RadixJobList, err error) {
+func (c *radixJobs) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixJobList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -88,13 +89,13 @@ func (c *radixJobs) List(opts metav1.ListOptions) (result *v1.RadixJobList, err 
 		Resource("radixjobs").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested radixJobs.
-func (c *radixJobs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *radixJobs) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -105,87 +106,90 @@ func (c *radixJobs) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 		Resource("radixjobs").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a radixJob and creates it.  Returns the server's representation of the radixJob, and an error, if there is any.
-func (c *radixJobs) Create(radixJob *v1.RadixJob) (result *v1.RadixJob, err error) {
+func (c *radixJobs) Create(ctx context.Context, radixJob *v1.RadixJob, opts metav1.CreateOptions) (result *v1.RadixJob, err error) {
 	result = &v1.RadixJob{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("radixjobs").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixJob).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a radixJob and updates it. Returns the server's representation of the radixJob, and an error, if there is any.
-func (c *radixJobs) Update(radixJob *v1.RadixJob) (result *v1.RadixJob, err error) {
+func (c *radixJobs) Update(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (result *v1.RadixJob, err error) {
 	result = &v1.RadixJob{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("radixjobs").
 		Name(radixJob.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixJob).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *radixJobs) UpdateStatus(radixJob *v1.RadixJob) (result *v1.RadixJob, err error) {
+func (c *radixJobs) UpdateStatus(ctx context.Context, radixJob *v1.RadixJob, opts metav1.UpdateOptions) (result *v1.RadixJob, err error) {
 	result = &v1.RadixJob{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("radixjobs").
 		Name(radixJob.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixJob).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the radixJob and deletes it. Returns an error if one occurs.
-func (c *radixJobs) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *radixJobs) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("radixjobs").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *radixJobs) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *radixJobs) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("radixjobs").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched radixJob.
-func (c *radixJobs) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixJob, err error) {
+func (c *radixJobs) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixJob, err error) {
 	result = &v1.RadixJob{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("radixjobs").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
