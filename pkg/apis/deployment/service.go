@@ -23,16 +23,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 			continue
 		}
 
-		// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
-		garbageCollect := false
-		if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
-			garbageCollect = !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
-		} else {
-			// Garbage collect service if not defined in RD components or jobs
-			garbageCollect = !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
-		}
-
-		if garbageCollect {
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(service.Name, &metav1.DeleteOptions{})
 			if err != nil {
 				return err

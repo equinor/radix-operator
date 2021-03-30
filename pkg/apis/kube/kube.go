@@ -8,7 +8,6 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	appsv1Listers "k8s.io/client-go/listers/apps/v1"
-	batchListers "k8s.io/client-go/listers/batch/v1"
 	coreListers "k8s.io/client-go/listers/core/v1"
 	networkingListers "k8s.io/client-go/listers/networking/v1beta1"
 	rbacListers "k8s.io/client-go/listers/rbac/v1"
@@ -69,7 +68,6 @@ type Kube struct {
 	ClusterRoleLister        rbacListers.ClusterRoleLister
 	ServiceAccountLister     coreListers.ServiceAccountLister
 	LimitRangeLister         coreListers.LimitRangeLister
-	JobLister                batchListers.JobLister
 }
 
 var logger *log.Entry
@@ -109,7 +107,6 @@ func NewWithListers(client kubernetes.Interface,
 		RoleLister:               kubeInformerFactory.Rbac().V1().Roles().Lister(),
 		ClusterRoleLister:        kubeInformerFactory.Rbac().V1().ClusterRoles().Lister(),
 		LimitRangeLister:         kubeInformerFactory.Core().V1().LimitRanges().Lister(),
-		JobLister:                kubeInformerFactory.Batch().V1().Jobs().Lister(),
 	}
 
 	return kubeutil, nil

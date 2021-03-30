@@ -4,11 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
@@ -52,23 +49,4 @@ func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 
 	err := <-errChan
 	return err
-}
-
-// ListJobs Lists jobs from cache or from cluster
-func (k *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
-	if k.JobLister != nil {
-		jobs, err := k.JobLister.Jobs(namespace).List(labels.NewSelector())
-		if err != nil {
-			return nil, err
-		}
-		return jobs, nil
-	} else {
-		list, err := k.kubeClient.BatchV1().Jobs(namespace).List(metav1.ListOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		jobs := slice.PointersOf(list.Items).([]*batchv1.Job)
-		return jobs, nil
-	}
 }
