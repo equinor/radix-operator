@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// RadixComponentName defines values for radix-component-type label
+// RadixComponentName defines values for radix-component label
 type RadixComponentName string
 
 // NewRadixComponentNameFromLabels returns RadixComponentName from labels defined for the object
