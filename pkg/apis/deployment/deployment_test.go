@@ -2536,7 +2536,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	componentName3 := "componentName3"
 	componentName4 := "componentName4"
 	jobComponentName := "jobComponentName"
-
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	// Test
 	gpuNvidiaV100 := "nvidia-v100"
 	gpuNvidiaP100 := "nvidia-p100"
@@ -2574,7 +2574,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 
 	t.Run("has node with nvidia-v100", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName1, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName1, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2589,7 +2589,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	})
 	t.Run("has node with nvidia-v100, nvidia-p100", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName2, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName2, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2605,7 +2605,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	})
 	t.Run("has node with nvidia-v100, nvidia-p100, not nvidia-k80", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName3, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName3, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2626,12 +2626,12 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	})
 	t.Run("has node with no gpu", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName4, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
 		assert.Nil(t, deployment.Spec.Template.Spec.Affinity)
 	})
 	t.Run("job has node with nvidia-p100, not nvidia-k80", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), jobComponentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2761,6 +2761,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	componentName5 := "componentName5"
 	componentName6 := "componentName6"
 	jobComponentName := "jobComponentName"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
 	nodeGpuCount1 := "1"
@@ -2811,7 +2812,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 
 	t.Run("has node with gpu-count 1", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName1, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName1, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2826,7 +2827,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	})
 	t.Run("has node with gpu-count 10", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName2, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName2, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2841,31 +2842,31 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	})
 	t.Run("has node with gpu-count 0", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName3, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName3, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("has node with gpu-count -1", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName4, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("has node with invalid value of gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName5, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName5, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("has node with no gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName6, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName6, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("job has node with gpu-count 10 ", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), jobComponentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2887,6 +2888,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	anyEnvironmentName := "test"
 	componentName := "componentName"
 	jobComponentName := "jobComponentName"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
 	gpuNvidiaV100 := "nvidia-v100"
@@ -2914,7 +2916,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 
 	t.Run("has node with gpu and gpu-count 10", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), componentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2940,7 +2942,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	})
 	t.Run("job has node with gpu and gpu-count 10 ", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(context.TODO(), jobComponentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
