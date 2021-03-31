@@ -15,6 +15,5 @@ require (
 )
 
 replace (
-	github.com/nats-io/nats-server/v2 v2.1.2 => github.com/nats-io/nats-server/v2 v2.2.0
 	k8s.io/client-go => k8s.io/client-go v0.19.9
 )
