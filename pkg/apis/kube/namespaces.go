@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,7 +33,7 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 	oldNamespace, err := kubeutil.getNamespace(name)
 	if err != nil && k8errs.IsNotFound(err) {
 		log.Debugf("Namespace object %s doesn't exists, create the object", name)
-		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(&namespace)
+		_, err := kubeutil.kubeClient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 		return err
 	}
 
@@ -56,7 +57,7 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(name, types.StrategicMergePatchType, patchBytes)
+		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(context.TODO(), name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch namespace object: %v", err)
 		}
@@ -79,7 +80,7 @@ func (kubeutil *Kube) getNamespace(name string) (*corev1.Namespace, error) {
 			return nil, err
 		}
 	} else {
-		namespace, err = kubeutil.kubeClient.CoreV1().Namespaces().Get(name, metav1.GetOptions{})
+		namespace, err = kubeutil.kubeClient.CoreV1().Namespaces().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +127,7 @@ func waitForNamespace(client kubernetes.Interface, namespace string) error {
 
 	for {
 		go func() {
-			ns, err := client.CoreV1().Namespaces().Get(namespace, metav1.GetOptions{})
+			ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
 			if !k8errs.IsNotFound(err) {
 				errorCh <- err
 			}

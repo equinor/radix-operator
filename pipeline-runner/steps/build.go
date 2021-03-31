@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -9,6 +10,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // BuildStepImplementation Step to build docker image
@@ -79,7 +81,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	}
 
 	log.Infof("Apply job (%s) to build components for app %s", job.Name, cli.GetAppName())
-	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
+	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

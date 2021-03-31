@@ -1,11 +1,10 @@
 package deployment
 
 import (
+	"context"
 	"os"
 	"testing"
 
-	prometheusclient "github.com/coreos/prometheus-operator/pkg/client/versioned"
-	prometheusfake "github.com/coreos/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -13,6 +12,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,15 +54,18 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient, prometheusclient := setupTest()
 
-	client.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: utils.GetEnvironmentNamespace(anyAppName, anyEnvironment),
-			Labels: map[string]string{
-				kube.RadixAppLabel: anyAppName,
-				kube.RadixEnvLabel: anyEnvironment,
+	client.CoreV1().Namespaces().Create(
+		context.TODO(),
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: utils.GetEnvironmentNamespace(anyAppName, anyEnvironment),
+				Labels: map[string]string{
+					kube.RadixAppLabel: anyAppName,
+					kube.RadixEnvLabel: anyEnvironment,
+				},
 			},
 		},
-	})
+		metav1.CreateOptions{})
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -95,38 +99,40 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.True(t, ok)
 	assert.True(t, op)
 
-	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	syncedRd, _ := radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	lastReconciled := syncedRd.Status.Reconciled
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 
 	// Update deployment should sync. Only actual updates will be handled by the controller
 	noReplicas := 0
 	rd.Spec.Components[0].Replicas = &noReplicas
-	radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(rd)
+	radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
 
 	op, ok = <-synced
 	assert.True(t, ok)
 	assert.True(t, op)
 
-	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
 	lastReconciled = syncedRd.Status.Reconciled
 
 	// Delete service should sync
-	services, _ := client.CoreV1().Services(rd.ObjectMeta.Namespace).List(metav1.ListOptions{
-		LabelSelector: "radix-app=test-app",
-	})
+	services, _ := client.CoreV1().Services(rd.ObjectMeta.Namespace).List(
+		context.TODO(),
+		metav1.ListOptions{
+			LabelSelector: "radix-app=test-app",
+		})
 
 	for _, aservice := range services.Items {
-		client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(aservice.Name, &metav1.DeleteOptions{})
+		client.CoreV1().Services(rd.ObjectMeta.Namespace).Delete(context.TODO(), aservice.Name, metav1.DeleteOptions{})
 
 		op, ok = <-synced
 		assert.True(t, ok)
 		assert.True(t, op)
 	}
 
-	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(rd.GetName(), metav1.GetOptions{})
+	syncedRd, _ = radixClient.RadixV1().RadixDeployments(rd.ObjectMeta.Namespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	assert.Truef(t, !lastReconciled.Time.IsZero(), "Reconciled on status should have been set")
 	assert.NotEqual(t, lastReconciled, syncedRd.Status.Reconciled)
 	lastReconciled = syncedRd.Status.Reconciled

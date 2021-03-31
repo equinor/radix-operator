@@ -26,8 +26,10 @@ import (
 )
 
 // RadixDeploymentLister helps list RadixDeployments.
+// All objects returned here must be treated as read-only.
 type RadixDeploymentLister interface {
 	// List lists all RadixDeployments in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixDeployment, err error)
 	// RadixDeployments returns an object that can list and get RadixDeployments.
 	RadixDeployments(namespace string) RadixDeploymentNamespaceLister
@@ -58,10 +60,13 @@ func (s *radixDeploymentLister) RadixDeployments(namespace string) RadixDeployme
 }
 
 // RadixDeploymentNamespaceLister helps list and get RadixDeployments.
+// All objects returned here must be treated as read-only.
 type RadixDeploymentNamespaceLister interface {
 	// List lists all RadixDeployments in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixDeployment, err error)
 	// Get retrieves the RadixDeployment from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.RadixDeployment, error)
 	RadixDeploymentNamespaceListerExpansion
 }

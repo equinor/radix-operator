@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -148,9 +149,11 @@ func NewController(client kubernetes.Interface,
 			}
 
 			// Trigger sync of active RD, living in the namespaces of the app
-			rds, err := radixClient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
-			})
+			rds, err := radixClient.RadixV1().RadixDeployments(corev1.NamespaceAll).List(
+				context.TODO(),
+				metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
+				})
 
 			if err == nil && len(rds.Items) > 0 {
 				// Will sync the active RD (there can only be one within each namespace)
@@ -179,5 +182,5 @@ func deepEqual(old, new *v1.RadixDeployment) bool {
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixDeployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }

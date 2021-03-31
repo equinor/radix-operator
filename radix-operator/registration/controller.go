@@ -1,6 +1,7 @@
 package registration
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -96,7 +97,7 @@ func NewController(client kubernetes.Interface,
 	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
 			secret, _ := obj.(*corev1.Secret)
-			namespace, _ := client.CoreV1().Namespaces().Get(secret.Namespace, metav1.GetOptions{})
+			namespace, _ := client.CoreV1().Namespaces().Get(context.TODO(), secret.Namespace, metav1.GetOptions{})
 			appName := namespace.Labels[kube.RadixAppLabel]
 
 			if isMachineUserToken(appName, secret) {
@@ -126,5 +127,5 @@ func deepEqual(old, new *v1.RadixRegistration) bool {
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixRegistrations().Get(name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), name, metav1.GetOptions{})
 }

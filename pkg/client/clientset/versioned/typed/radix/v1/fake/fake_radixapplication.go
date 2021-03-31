@@ -19,6 +19,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -39,7 +41,7 @@ var radixapplicationsResource = schema.GroupVersionResource{Group: "radix.equino
 var radixapplicationsKind = schema.GroupVersionKind{Group: "radix.equinor.com", Version: "v1", Kind: "RadixApplication"}
 
 // Get takes name of the radixApplication, and returns the corresponding radixApplication object, and an error if there is any.
-func (c *FakeRadixApplications) Get(name string, options v1.GetOptions) (result *radixv1.RadixApplication, err error) {
+func (c *FakeRadixApplications) Get(ctx context.Context, name string, options v1.GetOptions) (result *radixv1.RadixApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(radixapplicationsResource, c.ns, name), &radixv1.RadixApplication{})
 
@@ -50,7 +52,7 @@ func (c *FakeRadixApplications) Get(name string, options v1.GetOptions) (result 
 }
 
 // List takes label and field selectors, and returns the list of RadixApplications that match those selectors.
-func (c *FakeRadixApplications) List(opts v1.ListOptions) (result *radixv1.RadixApplicationList, err error) {
+func (c *FakeRadixApplications) List(ctx context.Context, opts v1.ListOptions) (result *radixv1.RadixApplicationList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(radixapplicationsResource, radixapplicationsKind, c.ns, opts), &radixv1.RadixApplicationList{})
 
@@ -72,14 +74,14 @@ func (c *FakeRadixApplications) List(opts v1.ListOptions) (result *radixv1.Radix
 }
 
 // Watch returns a watch.Interface that watches the requested radixApplications.
-func (c *FakeRadixApplications) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeRadixApplications) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(radixapplicationsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a radixApplication and creates it.  Returns the server's representation of the radixApplication, and an error, if there is any.
-func (c *FakeRadixApplications) Create(radixApplication *radixv1.RadixApplication) (result *radixv1.RadixApplication, err error) {
+func (c *FakeRadixApplications) Create(ctx context.Context, radixApplication *radixv1.RadixApplication, opts v1.CreateOptions) (result *radixv1.RadixApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(radixapplicationsResource, c.ns, radixApplication), &radixv1.RadixApplication{})
 
@@ -90,7 +92,7 @@ func (c *FakeRadixApplications) Create(radixApplication *radixv1.RadixApplicatio
 }
 
 // Update takes the representation of a radixApplication and updates it. Returns the server's representation of the radixApplication, and an error, if there is any.
-func (c *FakeRadixApplications) Update(radixApplication *radixv1.RadixApplication) (result *radixv1.RadixApplication, err error) {
+func (c *FakeRadixApplications) Update(ctx context.Context, radixApplication *radixv1.RadixApplication, opts v1.UpdateOptions) (result *radixv1.RadixApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(radixapplicationsResource, c.ns, radixApplication), &radixv1.RadixApplication{})
 
@@ -101,7 +103,7 @@ func (c *FakeRadixApplications) Update(radixApplication *radixv1.RadixApplicatio
 }
 
 // Delete takes name of the radixApplication and deletes it. Returns an error if one occurs.
-func (c *FakeRadixApplications) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeRadixApplications) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(radixapplicationsResource, c.ns, name), &radixv1.RadixApplication{})
 
@@ -109,15 +111,15 @@ func (c *FakeRadixApplications) Delete(name string, options *v1.DeleteOptions) e
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeRadixApplications) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(radixapplicationsResource, c.ns, listOptions)
+func (c *FakeRadixApplications) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(radixapplicationsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &radixv1.RadixApplicationList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched radixApplication.
-func (c *FakeRadixApplications) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *radixv1.RadixApplication, err error) {
+func (c *FakeRadixApplications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *radixv1.RadixApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(radixapplicationsResource, c.ns, name, pt, data, subresources...), &radixv1.RadixApplication{})
 

@@ -93,7 +93,7 @@ In order for these objects to work with the SDK, they need to implement certain 
 Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by setting up following way:
 * Add following line to the `go.mod` file. This particular version is specified in the `Makefile`  
 ```
-k8s.io/code-generator v0.17.3
+k8s.io/code-generator v0.19.9
 ```
 * Execute in a terminal following command (NOTE: after executing any `go mod tidy` command - this line will be removed as "not used dependency")
 ```

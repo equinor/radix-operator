@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"time"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -37,15 +38,15 @@ type RadixEnvironmentsGetter interface {
 
 // RadixEnvironmentInterface has methods to work with RadixEnvironment resources.
 type RadixEnvironmentInterface interface {
-	Create(*v1.RadixEnvironment) (*v1.RadixEnvironment, error)
-	Update(*v1.RadixEnvironment) (*v1.RadixEnvironment, error)
-	UpdateStatus(*v1.RadixEnvironment) (*v1.RadixEnvironment, error)
-	Delete(name string, options *metav1.DeleteOptions) error
-	DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error
-	Get(name string, options metav1.GetOptions) (*v1.RadixEnvironment, error)
-	List(opts metav1.ListOptions) (*v1.RadixEnvironmentList, error)
-	Watch(opts metav1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixEnvironment, err error)
+	Create(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.CreateOptions) (*v1.RadixEnvironment, error)
+	Update(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (*v1.RadixEnvironment, error)
+	UpdateStatus(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (*v1.RadixEnvironment, error)
+	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
+	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.RadixEnvironment, error)
+	List(ctx context.Context, opts metav1.ListOptions) (*v1.RadixEnvironmentList, error)
+	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixEnvironment, err error)
 	RadixEnvironmentExpansion
 }
 
@@ -62,19 +63,19 @@ func newRadixEnvironments(c *RadixV1Client) *radixEnvironments {
 }
 
 // Get takes name of the radixEnvironment, and returns the corresponding radixEnvironment object, and an error if there is any.
-func (c *radixEnvironments) Get(name string, options metav1.GetOptions) (result *v1.RadixEnvironment, err error) {
+func (c *radixEnvironments) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.RadixEnvironment, err error) {
 	result = &v1.RadixEnvironment{}
 	err = c.client.Get().
 		Resource("radixenvironments").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of RadixEnvironments that match those selectors.
-func (c *radixEnvironments) List(opts metav1.ListOptions) (result *v1.RadixEnvironmentList, err error) {
+func (c *radixEnvironments) List(ctx context.Context, opts metav1.ListOptions) (result *v1.RadixEnvironmentList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -84,13 +85,13 @@ func (c *radixEnvironments) List(opts metav1.ListOptions) (result *v1.RadixEnvir
 		Resource("radixenvironments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested radixEnvironments.
-func (c *radixEnvironments) Watch(opts metav1.ListOptions) (watch.Interface, error) {
+func (c *radixEnvironments) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -100,81 +101,84 @@ func (c *radixEnvironments) Watch(opts metav1.ListOptions) (watch.Interface, err
 		Resource("radixenvironments").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a radixEnvironment and creates it.  Returns the server's representation of the radixEnvironment, and an error, if there is any.
-func (c *radixEnvironments) Create(radixEnvironment *v1.RadixEnvironment) (result *v1.RadixEnvironment, err error) {
+func (c *radixEnvironments) Create(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.CreateOptions) (result *v1.RadixEnvironment, err error) {
 	result = &v1.RadixEnvironment{}
 	err = c.client.Post().
 		Resource("radixenvironments").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixEnvironment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a radixEnvironment and updates it. Returns the server's representation of the radixEnvironment, and an error, if there is any.
-func (c *radixEnvironments) Update(radixEnvironment *v1.RadixEnvironment) (result *v1.RadixEnvironment, err error) {
+func (c *radixEnvironments) Update(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (result *v1.RadixEnvironment, err error) {
 	result = &v1.RadixEnvironment{}
 	err = c.client.Put().
 		Resource("radixenvironments").
 		Name(radixEnvironment.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixEnvironment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *radixEnvironments) UpdateStatus(radixEnvironment *v1.RadixEnvironment) (result *v1.RadixEnvironment, err error) {
+func (c *radixEnvironments) UpdateStatus(ctx context.Context, radixEnvironment *v1.RadixEnvironment, opts metav1.UpdateOptions) (result *v1.RadixEnvironment, err error) {
 	result = &v1.RadixEnvironment{}
 	err = c.client.Put().
 		Resource("radixenvironments").
 		Name(radixEnvironment.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(radixEnvironment).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the radixEnvironment and deletes it. Returns an error if one occurs.
-func (c *radixEnvironments) Delete(name string, options *metav1.DeleteOptions) error {
+func (c *radixEnvironments) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	return c.client.Delete().
 		Resource("radixenvironments").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *radixEnvironments) DeleteCollection(options *metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (c *radixEnvironments) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Resource("radixenvironments").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched radixEnvironment.
-func (c *radixEnvironments) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1.RadixEnvironment, err error) {
+func (c *radixEnvironments) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.RadixEnvironment, err error) {
 	result = &v1.RadixEnvironment{}
 	err = c.client.Patch(pt).
 		Resource("radixenvironments").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

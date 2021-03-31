@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -42,15 +43,18 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
 
-	client.CoreV1().Namespaces().Create(&corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: utils.GetAppNamespace(anyAppName),
-			Labels: map[string]string{
-				kube.RadixAppLabel: anyAppName,
-				kube.RadixEnvLabel: "app",
+	client.CoreV1().Namespaces().Create(
+		context.TODO(),
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: utils.GetAppNamespace(anyAppName),
+				Labels: map[string]string{
+					kube.RadixAppLabel: anyAppName,
+					kube.RadixEnvLabel: "app",
+				},
 			},
 		},
-	})
+		metav1.CreateOptions{})
 
 	stop := make(chan struct{})
 	synced := make(chan bool)

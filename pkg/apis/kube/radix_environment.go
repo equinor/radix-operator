@@ -1,6 +1,8 @@
 package kube
 
 import (
+	"context"
+
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +20,7 @@ func (kubeutil *Kube) GetEnvironment(name string) (*v1.RadixEnvironment, error) 
 			return nil, err
 		}
 	} else {
-		environment, err = kubeutil.radixclient.RadixV1().RadixEnvironments().Get(name, metav1.GetOptions{})
+		environment, err = kubeutil.radixclient.RadixV1().RadixEnvironments().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -38,7 +40,7 @@ func (kubeutil *Kube) ListEnvironments() ([]*v1.RadixEnvironment, error) {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.radixclient.RadixV1().RadixEnvironments().List(metav1.ListOptions{})
+		list, err := kubeutil.radixclient.RadixV1().RadixEnvironments().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}

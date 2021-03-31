@@ -1,6 +1,8 @@
 package job
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 
@@ -134,7 +136,7 @@ func NewController(client kubernetes.Interface,
 					return
 				}
 
-				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
+				job, err := client.BatchV1().Jobs(newPod.Namespace).Get(context.TODO(), newPod.Labels[kube.RadixJobNameLabel], metav1.GetOptions{})
 				if err != nil {
 					// This job may not be found because application is being deleted and resources are being deleted
 					logger.Debugf("Could not find owning job of pod %s due to %v", newPod.Name, err)
@@ -150,5 +152,5 @@ func NewController(client kubernetes.Interface,
 }
 
 func getObject(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixJobs(namespace).Get(name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }

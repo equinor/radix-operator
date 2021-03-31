@@ -2,7 +2,7 @@ package application
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

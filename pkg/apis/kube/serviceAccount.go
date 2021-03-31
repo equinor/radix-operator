@@ -1,19 +1,21 @@
 package kube
 
 import (
+	"context"
 	"fmt"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 // ApplyServiceAccount Creates or updates service account
 func (kubeutil *Kube) ApplyServiceAccount(serviceAccount corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
 	oldServiceAccount, err := kubeutil.getServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		_, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(&serviceAccount)
+		_, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(context.TODO(), &serviceAccount, metav1.CreateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create ServiceAccount object: %v", err)
 		}
@@ -41,7 +43,7 @@ func (kubeutil *Kube) DeleteServiceAccount(namespace, name string) error {
 	} else if err != nil {
 		return fmt.Errorf("Failed to get service account object: %v", err)
 	}
-	err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Delete(name, &metav1.DeleteOptions{})
+	err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to delete ServiceAccount object: %v", err)
 	}
@@ -58,7 +60,7 @@ func (kubeutil *Kube) getServiceAccount(namespace, name string) (*corev1.Service
 			return nil, err
 		}
 	} else {
-		serviceAccount, err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Get(name, metav1.GetOptions{})
+		serviceAccount, err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

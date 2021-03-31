@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -136,7 +137,7 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 
 		// Ingresses should only exist for items in component list.
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingress.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), ingress.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -170,7 +171,7 @@ func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(compo
 
 	if len(ingresses) > 0 {
 		for n := range ingresses {
-			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingresses[n].Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), ingresses[n].Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -208,7 +209,7 @@ func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(comp
 		}
 
 		if garbageCollectIngress {
-			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(ingress.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.NetworkingV1beta1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), ingress.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -233,7 +234,11 @@ func getAppAliasIngressConfig(
 	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
 	ingressSpec := getIngressSpec(hostname, component.GetName(), appAliasTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(appName, component, fmt.Sprintf("%s-url-alias", appName), ownerReference, config, true, false, false, ingressSpec)
+	return getIngressConfig(appName, component, getAppAliasIngressName(appName), ownerReference, config, true, false, false, ingressSpec)
+}
+
+func getAppAliasIngressName(appName string) string {
+	return fmt.Sprintf("%s-url-alias", appName)
 }
 
 func getActiveClusterAliasIngressConfig(
@@ -248,9 +253,13 @@ func getActiveClusterAliasIngressConfig(
 		return nil
 	}
 	ingressSpec := getIngressSpec(hostname, component.GetName(), activeClusterTLSSecretName, publicPortNumber)
-	ingressName := fmt.Sprintf("%s-active-cluster-url-alias", component.GetName())
+	ingressName := getActiveClusterIngressName(component.GetName())
 
 	return getIngressConfig(appName, component, ingressName, ownerReference, config, false, false, true, ingressSpec)
+}
+
+func getActiveClusterIngressName(componentName string) string {
+	return fmt.Sprintf("%s-active-cluster-url-alias", componentName)
 }
 
 func getDefaultIngressConfig(
@@ -267,7 +276,11 @@ func getDefaultIngressConfig(
 	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
 	ingressSpec := getIngressSpec(hostname, component.GetName(), clusterDefaultTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(appName, component, component.GetName(), ownerReference, config, false, false, false, ingressSpec)
+	return getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, config, false, false, false, ingressSpec)
+}
+
+func getDefaultIngressName(componentName string) string {
+	return componentName
 }
 
 func (deploy *Deployment) getExternalAliasIngressConfig(

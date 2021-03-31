@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -20,7 +21,7 @@ func (kubeutil *Kube) GetRadixDeployment(namespace, name string) (*v1.RadixDeplo
 			return nil, err
 		}
 	} else {
-		deployment, err = kubeutil.radixclient.RadixV1().RadixDeployments(namespace).Get(name, metav1.GetOptions{})
+		deployment, err = kubeutil.radixclient.RadixV1().RadixDeployments(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +41,7 @@ func (kubeutil *Kube) ListRadixDeployments(namespace string) ([]*v1.RadixDeploym
 			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
 		}
 	} else {
-		rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(metav1.ListOptions{})
+		rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
 		}

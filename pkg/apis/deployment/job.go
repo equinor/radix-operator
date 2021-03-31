@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -22,8 +24,9 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 		if jobType.IsJobScheduler() && !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
 			propagationPolicy := metav1.DeletePropagationBackground
 			err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(
+				context.TODO(),
 				job.Name,
-				&metav1.DeleteOptions{
+				metav1.DeleteOptions{
 					PropagationPolicy: &propagationPolicy,
 				})
 			if err != nil {

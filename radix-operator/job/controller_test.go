@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -83,7 +84,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	radixClient.RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(rj)
+	radixClient.RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
 
 	op, ok = <-synced
 	assert.True(t, ok)
@@ -97,9 +98,9 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}
 
 	// Only update of Kubernetes Job is something that the job-controller handles
-	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(&childJob)
+	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
 	childJob.ObjectMeta.ResourceVersion = "1234"
-	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(&childJob)
+	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
 
 	op, ok = <-synced
 	assert.True(t, ok)

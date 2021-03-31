@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"testing"
@@ -75,10 +76,10 @@ func TestObjectSynced_MultipleJobs_SecondJobQueued(t *testing.T) {
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
-	radixclient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(firstJob)
+	radixclient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
 	runSync(client, kubeutils, radixclient, firstJob)
 
-	secondJob, _ = radixclient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(secondJob.Name, metav1.GetOptions{})
+	secondJob, _ = radixclient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.TODO(), secondJob.Name, metav1.GetOptions{})
 	assert.True(t, secondJob.Status.Condition == v1.JobRunning)
 }
 
@@ -116,7 +117,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
 
-	jobs, _ := radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
+	jobs, _ := radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(jobs.Items), "Number of jobs should match limit")
 
 	assert.False(t, radixJobByNameExists("FirstJob", jobs))
@@ -127,7 +128,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
 	applyJobWithSync(tu, client, kubeutils, radixclient,
 		utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
 
-	jobs, _ = radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(metav1.ListOptions{})
+	jobs, _ = radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(jobs.Items), "Number of jobs should match limit")
 
 	assert.False(t, radixJobByNameExists("FirstJob", jobs))
@@ -166,7 +167,7 @@ func applyJobWithSync(tu *test.Utils, client kube.Interface, kubeutils *kubeUtil
 		return nil, err
 	}
 
-	updatedJob, err := radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Get(rj.Name, metav1.GetOptions{})
+	updatedJob, err := radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.TODO(), rj.Name, metav1.GetOptions{})
 	return updatedJob, err
 }
 

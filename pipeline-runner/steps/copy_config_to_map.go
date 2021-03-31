@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -64,7 +65,7 @@ func (cli *CopyConfigToMapStepImplementation) Run(pipelineInfo *model.PipelineIn
 	}
 
 	log.Infof("Apply job (%s) to copy radixconfig to configmap for app %s", job.Name, cli.GetAppName())
-	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(job)
+	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

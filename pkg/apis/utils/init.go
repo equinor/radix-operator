@@ -6,8 +6,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"

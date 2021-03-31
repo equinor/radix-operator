@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -35,7 +36,7 @@ func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface
 func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
 
-	_, err := tu.radixclient.RadixV1().RadixRegistrations().Create(rr)
+	_, err := tu.radixclient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			return tu.ApplyRegistrationUpdate(registrationBuilder)
@@ -50,13 +51,13 @@ func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuil
 func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder builders.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
 
-	rrPrev, err := tu.radixclient.RadixV1().RadixRegistrations().Get(rr.GetName(), metav1.GetOptions{})
+	rrPrev, err := tu.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	rr.Status = rrPrev.Status
 
-	rr, err = tu.radixclient.RadixV1().RadixRegistrations().Update(rr)
+	rr, err = tu.radixclient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 
 	ra := applicationBuilder.BuildRA()
 	appNamespace := CreateAppNamespace(tu.client, ra.GetName())
-	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(ra)
+	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			return tu.ApplyApplicationUpdate(applicationBuilder)
@@ -103,7 +104,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationB
 	ra := applicationBuilder.BuildRA()
 	appNamespace := builders.GetAppNamespace(ra.GetName())
 
-	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Update(ra)
+	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), ra, metav1.UpdateOptions{})
 	if err != nil {
 		return ra, err
 	}
@@ -113,7 +114,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationB
 	if regBuilder != nil {
 		rr, err = tu.ApplyRegistration(regBuilder)
 	} else {
-		rr, err = tu.radixclient.RadixV1().RadixRegistrations().Get(ra.GetName(), metav1.GetOptions{})
+		rr, err = tu.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), ra.GetName(), metav1.GetOptions{})
 	}
 	if err != nil && !errors.IsNotFound(err) {
 		return ra, err
@@ -141,7 +142,7 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (
 	log.Debugf("%s", rd.GetObjectMeta().GetCreationTimestamp())
 
 	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
-	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(rd)
+	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(context.TODO(), rd, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -154,13 +155,13 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuil
 	rd := deploymentBuilder.BuildRD()
 	envNamespace := builders.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
 
-	rdPrev, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(rd.GetName(), metav1.GetOptions{})
+	rdPrev, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	rd.Status = rdPrev.Status
 
-	rd, err = tu.radixclient.RadixV1().RadixDeployments(envNamespace).Update(rd)
+	rd, err = tu.radixclient.RadixV1().RadixDeployments(envNamespace).Update(context.TODO(), rd, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +178,7 @@ func (tu *Utils) ApplyJob(jobBuilder builders.JobBuilder) (*v1.RadixJob, error) 
 	rj := jobBuilder.BuildRJ()
 
 	appNamespace := CreateAppNamespace(tu.client, rj.Spec.AppName)
-	newRj, err := tu.radixclient.RadixV1().RadixJobs(appNamespace).Create(rj)
+	newRj, err := tu.radixclient.RadixV1().RadixJobs(appNamespace).Create(context.TODO(), rj, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -191,13 +192,13 @@ func (tu *Utils) ApplyJobUpdate(jobBuilder builders.JobBuilder) (*v1.RadixJob, e
 
 	appNamespace := CreateAppNamespace(tu.client, rj.Spec.AppName)
 
-	rjPrev, err := tu.radixclient.RadixV1().RadixJobs(appNamespace).Get(rj.GetName(), metav1.GetOptions{})
+	rjPrev, err := tu.radixclient.RadixV1().RadixJobs(appNamespace).Get(context.TODO(), rj.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	rj.Status = rjPrev.Status
 
-	rj, err = tu.radixclient.RadixV1().RadixJobs(appNamespace).Update(rj)
+	rj, err = tu.radixclient.RadixV1().RadixJobs(appNamespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +211,7 @@ func (tu *Utils) ApplyEnvironment(environmentBuilder builders.EnvironmentBuilder
 	re := environmentBuilder.BuildRE()
 	log.Debugf("%s", re.GetObjectMeta().GetCreationTimestamp())
 
-	newRe, err := tu.radixclient.RadixV1().RadixEnvironments().Create(re)
+	newRe, err := tu.radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, metav1.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
 			return tu.ApplyEnvironmentUpdate(environmentBuilder)
@@ -225,13 +226,13 @@ func (tu *Utils) ApplyEnvironment(environmentBuilder builders.EnvironmentBuilder
 func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder builders.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
 	re := environmentBuilder.BuildRE()
 
-	rePrev, err := tu.radixclient.RadixV1().RadixEnvironments().Get(re.GetName(), metav1.GetOptions{})
+	rePrev, err := tu.radixclient.RadixV1().RadixEnvironments().Get(context.TODO(), re.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	re.Status = rePrev.Status
 
-	re, err = tu.radixclient.RadixV1().RadixEnvironments().Update(re)
+	re, err = tu.radixclient.RadixV1().RadixEnvironments().Update(context.TODO(), re, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -258,27 +259,33 @@ func SetRequiredEnvironmentVariables() {
 func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry string) {
 	SetRequiredEnvironmentVariables()
 
-	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(&corev1.Secret{
-		Type: "Opaque",
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-known-hosts-git",
-			Namespace: corev1.NamespaceDefault,
+	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
+		context.TODO(),
+		&corev1.Secret{
+			Type: "Opaque",
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "radix-known-hosts-git",
+				Namespace: corev1.NamespaceDefault,
+			},
+			Data: map[string][]byte{
+				"known_hosts": []byte("abcd"),
+			},
 		},
-		Data: map[string][]byte{
-			"known_hosts": []byte("abcd"),
-		},
-	})
+		metav1.CreateOptions{})
 
-	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "radix-config",
-			Namespace: corev1.NamespaceDefault,
+	tu.client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+		context.TODO(),
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "radix-config",
+				Namespace: corev1.NamespaceDefault,
+			},
+			Data: map[string]string{
+				"clustername":       clustername,
+				"containerRegistry": containerRegistry,
+			},
 		},
-		Data: map[string]string{
-			"clustername":       clustername,
-			"containerRegistry": containerRegistry,
-		},
-	})
+		metav1.CreateOptions{})
 }
 
 // CreateAppNamespace Helper method to creat app namespace
@@ -306,7 +313,7 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 		},
 	}
 
-	kubeclient.CoreV1().Namespaces().Create(&namespace)
+	kubeclient.CoreV1().Namespaces().Create(context.TODO(), &namespace, metav1.CreateOptions{})
 }
 
 // IntPtr Helper function to get the pointer of an int

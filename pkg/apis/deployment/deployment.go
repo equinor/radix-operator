@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,7 +12,6 @@ import (
 
 	"k8s.io/client-go/util/retry"
 
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -20,6 +20,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,7 +78,7 @@ func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTa
 // Apply Will make deployment effective
 func (deploy *Deployment) Apply() error {
 	log.Infof("Apply radix deployment %s on env %s", deploy.radixDeployment.ObjectMeta.Name, deploy.radixDeployment.ObjectMeta.Namespace)
-	_, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.ObjectMeta.Namespace).Create(deploy.radixDeployment)
+	_, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.ObjectMeta.Namespace).Create(context.TODO(), deploy.radixDeployment, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -272,15 +273,15 @@ func (deploy *Deployment) setRDToInactive(rd *v1.RadixDeployment, activeTo metav
 func (deploy *Deployment) updateRadixDeploymentStatus(rd *v1.RadixDeployment, changeStatusFunc func(currStatus *v1.RadixDeployStatus)) error {
 	rdInterface := deploy.radixclient.RadixV1().RadixDeployments(rd.GetNamespace())
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRD, err := rdInterface.Get(rd.GetName(), metav1.GetOptions{})
+		currentRD, err := rdInterface.Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		changeStatusFunc(&currentRD.Status)
-		_, err = rdInterface.UpdateStatus(currentRD)
+		_, err = rdInterface.UpdateStatus(context.TODO(), currentRD, metav1.UpdateOptions{})
 
 		if err == nil && rd.GetName() == deploy.radixDeployment.GetName() {
-			currentRD, err = rdInterface.Get(rd.GetName(), metav1.GetOptions{})
+			currentRD, err = rdInterface.Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 			if err == nil {
 				deploy.radixDeployment = currentRD
 			}
@@ -482,7 +483,7 @@ func (deploy *Deployment) maintainHistoryLimit() {
 	deployments = sortRDsByActiveFromTimestampAsc(deployments)
 	for i := 0; i < numToDelete; i++ {
 		log.Infof("Removing deployment %s from %s", deployments[i].Name, deployments[i].Namespace)
-		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(deployments[i].Name, &metav1.DeleteOptions{})
+		err := deploy.radixclient.RadixV1().RadixDeployments(deploy.getNamespace()).Delete(context.TODO(), deployments[i].Name, metav1.DeleteOptions{})
 		if err != nil {
 			log.Warnf("failed to delete old deployment %s: %v", deployments[i].Name, err)
 		}

@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -55,7 +56,7 @@ func NewHandler(
 // Sync is called by kubernetes after the Controller Enqueues a work-item
 // and collects components and determines whether state must be reconciled.
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	envConfig, err := t.radixclient.RadixV1().RadixEnvironments().Get(name, meta.GetOptions{})
+	envConfig, err := t.radixclient.RadixV1().RadixEnvironments().Get(context.TODO(), name, meta.GetOptions{})
 	if err != nil {
 		// The Environment resource may no longer exist, in which case we stop
 		// processing.
@@ -84,7 +85,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 
 	// get RA error is ignored because nil is accepted
 	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(syncEnvironment.Spec.AppName)).
-		Get(syncEnvironment.Spec.AppName, meta.GetOptions{})
+		Get(context.TODO(), syncEnvironment.Spec.AppName, meta.GetOptions{})
 
 	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, logger)
 
