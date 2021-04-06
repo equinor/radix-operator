@@ -154,6 +154,16 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 			WithSourceFolder("./compute/").
 			WithDockerfileName("compute.Dockerfile").
 			BuildComponent(),
+		utils.AnApplicationComponent().
+			WithName("compute-shared-with-different-dockerfile-1").
+			WithSourceFolder("./compute-with-different-dockerfile/").
+			WithDockerfileName("compute-custom1.Dockerfile").
+			BuildComponent(),
+		utils.AnApplicationComponent().
+			WithName("compute-shared-with-different-dockerfile-2").
+			WithSourceFolder("./compute-with-different-dockerfile/").
+			WithDockerfileName("compute-custom2.Dockerfile").
+			BuildComponent(),
 	}
 
 	jobComponents := []v1.RadixJobComponent{
@@ -161,6 +171,11 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 			WithName("compute-shared-2").
 			WithDockerfileName("compute.Dockerfile").
 			WithSourceFolder("./compute/").
+			BuildJobComponent(),
+		utils.AnApplicationJobComponent().
+			WithName("compute-shared-with-different-dockerfile-3").
+			WithSourceFolder("./compute-with-different-dockerfile/").
+			WithDockerfileName("compute-custom3.Dockerfile").
 			BuildJobComponent(),
 		utils.AnApplicationJobComponent().
 			WithName("single-job").
@@ -248,6 +263,33 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	assert.Equal(t, "compute.Dockerfile", componentImages["compute-shared-1"].Dockerfile)
 	assert.Equal(t, "multi-component-2", componentImages["compute-shared-1"].ImageName)
 	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component-2", anyImageTag), componentImages["compute-shared-1"].ImagePath)
+
+	componentWithSharedSourceAndDiffDockerFile1 := componentImages["compute-shared-with-different-dockerfile-1"]
+	assert.Equal(t, "build-compute-shared-with-different-dockerfile-1", componentWithSharedSourceAndDiffDockerFile1.ContainerName)
+	assert.True(t, componentWithSharedSourceAndDiffDockerFile1.Build)
+	assert.True(t, componentWithSharedSourceAndDiffDockerFile1.Scan)
+	assert.Equal(t, "/workspace/compute-with-different-dockerfile/", componentWithSharedSourceAndDiffDockerFile1.Context)
+	assert.Equal(t, "compute-custom1.Dockerfile", componentWithSharedSourceAndDiffDockerFile1.Dockerfile)
+	assert.Equal(t, "compute-shared-with-different-dockerfile-1", componentWithSharedSourceAndDiffDockerFile1.ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "compute-shared-with-different-dockerfile-1", anyImageTag), componentWithSharedSourceAndDiffDockerFile1.ImagePath)
+
+	componentWithSharedSourceAndDiffDockerFile2 := componentImages["compute-shared-with-different-dockerfile-2"]
+	assert.Equal(t, "build-compute-shared-with-different-dockerfile-2", componentWithSharedSourceAndDiffDockerFile2.ContainerName)
+	assert.True(t, componentWithSharedSourceAndDiffDockerFile2.Build)
+	assert.True(t, componentWithSharedSourceAndDiffDockerFile2.Scan)
+	assert.Equal(t, "/workspace/compute-with-different-dockerfile/", componentWithSharedSourceAndDiffDockerFile2.Context)
+	assert.Equal(t, "compute-custom2.Dockerfile", componentWithSharedSourceAndDiffDockerFile2.Dockerfile)
+	assert.Equal(t, "compute-shared-with-different-dockerfile-2", componentWithSharedSourceAndDiffDockerFile2.ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "compute-shared-with-different-dockerfile-2", anyImageTag), componentWithSharedSourceAndDiffDockerFile2.ImagePath)
+
+	componentWithSharedSourceAndDiffDockerFile3 := componentImages["compute-shared-with-different-dockerfile-3"]
+	assert.Equal(t, "build-compute-shared-with-different-dockerfile-3", componentWithSharedSourceAndDiffDockerFile3.ContainerName)
+	assert.True(t, componentWithSharedSourceAndDiffDockerFile3.Build)
+	assert.True(t, componentWithSharedSourceAndDiffDockerFile3.Scan)
+	assert.Equal(t, "/workspace/compute-with-different-dockerfile/", componentWithSharedSourceAndDiffDockerFile3.Context)
+	assert.Equal(t, "compute-custom3.Dockerfile", componentWithSharedSourceAndDiffDockerFile3.Dockerfile)
+	assert.Equal(t, "compute-shared-with-different-dockerfile-3", componentWithSharedSourceAndDiffDockerFile3.ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "compute-shared-with-different-dockerfile-3", anyImageTag), componentWithSharedSourceAndDiffDockerFile3.ImagePath)
 
 	assert.Equal(t, "build-multi-component-2", componentImages["compute-shared-2"].ContainerName)
 	assert.True(t, componentImages["compute-shared-2"].Build)
