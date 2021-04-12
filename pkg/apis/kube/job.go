@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -63,7 +64,7 @@ func (k *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
 		}
 		return jobs, nil
 	} else {
-		list, err := k.kubeClient.BatchV1().Jobs(namespace).List(metav1.ListOptions{})
+		list, err := k.kubeClient.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}

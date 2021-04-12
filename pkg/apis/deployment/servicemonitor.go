@@ -1,12 +1,13 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +20,7 @@ func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixC
 }
 
 func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixCommonDeployComponent) error {
-	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -27,7 +28,7 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixCom
 	for _, serviceMonitor := range serviceMonitors.Items {
 		componentName, ok := NewRadixComponentNameFromLabels(serviceMonitor)
 		if ok && component.GetName() == string(componentName) {
-			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(serviceMonitor.Name, &metav1.DeleteOptions{})
+			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceMonitor.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -38,7 +39,7 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixCom
 }
 
 func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
-	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(metav1.ListOptions{})
+	serviceMonitors, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		fmt.Printf("Failed to get ServiceMonitors. Error: %v", err)
 		return err
@@ -59,7 +60,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 		}
 
 		if garbageCollectBackwardCompatibility || !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
-			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(serviceMonitor.Name, &metav1.DeleteOptions{})
+			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceMonitor.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -104,7 +105,7 @@ func (deploy *Deployment) getServiceMonitor(namespace, name string) (serviceMoni
 	serviceMonitor, err = deploy.prometheusperatorclient.
 		MonitoringV1().
 		ServiceMonitors(namespace).
-		Get(name, metav1.GetOptions{})
+		Get(context.TODO(), name, metav1.GetOptions{})
 	return
 }
 
@@ -112,7 +113,7 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 	serviceMonitorName := serviceMonitor.Name
 	oldServiceMonitor, err := deploy.getServiceMonitor(namespace, serviceMonitorName)
 	if err != nil && errors.IsNotFound(err) {
-		createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(serviceMonitor)
+		createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(context.TODO(), serviceMonitor, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
 		}
@@ -129,7 +130,7 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 	newServiceMonitor.ObjectMeta.OwnerReferences = serviceMonitor.ObjectMeta.OwnerReferences
 	newServiceMonitor.Spec = serviceMonitor.Spec
 
-	_, err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(newServiceMonitor)
+	_, err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(context.TODO(), newServiceMonitor, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
 	}

@@ -1,6 +1,7 @@
 package job
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -40,7 +41,7 @@ func (job *Job) createJob() error {
 	}
 
 	jobConfig.OwnerReferences = ownerReference
-	_, err = job.kubeclient.BatchV1().Jobs(namespace).Create(jobConfig)
+	_, err = job.kubeclient.BatchV1().Jobs(namespace).Create(context.TODO(), jobConfig, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

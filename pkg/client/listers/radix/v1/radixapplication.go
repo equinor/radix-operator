@@ -26,8 +26,10 @@ import (
 )
 
 // RadixApplicationLister helps list RadixApplications.
+// All objects returned here must be treated as read-only.
 type RadixApplicationLister interface {
 	// List lists all RadixApplications in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixApplication, err error)
 	// RadixApplications returns an object that can list and get RadixApplications.
 	RadixApplications(namespace string) RadixApplicationNamespaceLister
@@ -58,10 +60,13 @@ func (s *radixApplicationLister) RadixApplications(namespace string) RadixApplic
 }
 
 // RadixApplicationNamespaceLister helps list and get RadixApplications.
+// All objects returned here must be treated as read-only.
 type RadixApplicationNamespaceLister interface {
 	// List lists all RadixApplications in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixApplication, err error)
 	// Get retrieves the RadixApplication from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.RadixApplication, error)
 	RadixApplicationNamespaceListerExpansion
 }

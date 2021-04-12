@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -18,7 +19,7 @@ import (
 
 // SecretExists Checks if secret allready exists
 func (k *Kube) SecretExists(namespace, secretName string) bool {
-	_, err := k.kubeClient.CoreV1().Secrets(namespace).Get(secretName, metav1.GetOptions{})
+	_, err := k.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		return false
 	}
@@ -36,7 +37,7 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret
 
 	oldSecret, err := k.GetSecret(namespace, secretName)
 	if err != nil && errors.IsNotFound(err) {
-		savedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Create(secret)
+		savedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 		return savedSecret, err
 	} else if err != nil {
 		return nil, fmt.Errorf("Failed to get Secret object: %v", err)
@@ -68,7 +69,7 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret
 
 	if !isEmptyPatch(patchBytes) {
 		// Will perform update as patching not properly remove secret data entries
-		patchedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Update(newSecret)
+		patchedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("Failed to update secret object: %v", err)
 		}
@@ -93,7 +94,7 @@ func (k *Kube) GetSecret(namespace, name string) (*corev1.Secret, error) {
 			return nil, err
 		}
 	} else {
-		secret, err = k.kubeClient.CoreV1().Secrets(namespace).Get(name, metav1.GetOptions{})
+		secret, err = k.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +140,7 @@ func (k *Kube) ListSecretsWithSelector(namespace string, labelSelectorString *st
 			listOptions.LabelSelector = *labelSelectorString
 		}
 
-		list, err := k.kubeClient.CoreV1().Secrets(namespace).List(listOptions)
+		list, err := k.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), listOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -152,7 +153,7 @@ func (k *Kube) ListSecretsWithSelector(namespace string, labelSelectorString *st
 
 // DeleteSecret Deletes a secret in a namespace
 func (k *Kube) DeleteSecret(namespace, secretName string) error {
-	err := k.kubeClient.CoreV1().Secrets(namespace).Delete(secretName, &metav1.DeleteOptions{})
+	err := k.kubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

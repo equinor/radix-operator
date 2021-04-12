@@ -26,8 +26,10 @@ import (
 )
 
 // RadixJobLister helps list RadixJobs.
+// All objects returned here must be treated as read-only.
 type RadixJobLister interface {
 	// List lists all RadixJobs in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixJob, err error)
 	// RadixJobs returns an object that can list and get RadixJobs.
 	RadixJobs(namespace string) RadixJobNamespaceLister
@@ -58,10 +60,13 @@ func (s *radixJobLister) RadixJobs(namespace string) RadixJobNamespaceLister {
 }
 
 // RadixJobNamespaceLister helps list and get RadixJobs.
+// All objects returned here must be treated as read-only.
 type RadixJobNamespaceLister interface {
 	// List lists all RadixJobs in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixJob, err error)
 	// Get retrieves the RadixJob from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.RadixJob, error)
 	RadixJobNamespaceListerExpansion
 }

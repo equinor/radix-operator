@@ -1,7 +1,8 @@
 package onpush
 
 import (
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
+	"context"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -9,6 +10,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -44,7 +46,7 @@ func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfa
 
 // PrepareRun Runs preparations before build
 func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) error {
-	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(cli.appName, metav1.GetOptions{})
+	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), cli.appName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", cli.appName, err)
 		return err
@@ -86,7 +88,7 @@ func (cli *PipelineRunner) Run() error {
 
 // TearDown performs any needed cleanup
 func (cli *PipelineRunner) TearDown() {
-	cli.kubeclient.CoreV1().ConfigMaps(utils.GetAppNamespace(cli.appName)).Delete(cli.pipelineInfo.RadixConfigMapName, &metav1.DeleteOptions{})
+	cli.kubeclient.CoreV1().ConfigMaps(utils.GetAppNamespace(cli.appName)).Delete(context.TODO(), cli.pipelineInfo.RadixConfigMapName, metav1.DeleteOptions{})
 }
 
 func initStepImplementations(

@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v1"
+	"gopkg.in/yaml.v2"
 )
 
 // ApplyConfigStepImplementation Step to apply RA

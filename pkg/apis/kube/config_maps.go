@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -44,7 +45,7 @@ func (kubeutil *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, e
 			return nil, err
 		}
 	} else {
-		configMap, err = kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+		configMap, err = kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

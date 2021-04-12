@@ -3,7 +3,6 @@ package steps
 import (
 	"testing"
 
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -11,6 +10,7 @@ import (
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/stretchr/testify/assert"

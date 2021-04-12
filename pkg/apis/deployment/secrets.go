@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -154,7 +155,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 		}
 
 		if garbageCollect {
-			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(existingSecret.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), existingSecret.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -181,7 +182,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 			continue
 		}
 
-		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
+		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
@@ -218,7 +219,7 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 		}
 
 		if garbageCollectSecret {
-			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(secret.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

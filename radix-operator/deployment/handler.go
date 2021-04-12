@@ -1,14 +1,15 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 
-	monitoring "github.com/coreos/prometheus-operator/pkg/client/versioned"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/prometheus/common/log"
+	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	log "github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -75,7 +76,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncRD := rd.DeepCopy()
 	logger.Debugf("Sync deployment %s", syncRD.Name)
 
-	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(syncRD.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := t.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), syncRD.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.

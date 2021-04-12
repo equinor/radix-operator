@@ -1,6 +1,7 @@
 package applicationconfig
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -112,11 +113,11 @@ func (app *ApplicationConfig) IsThereAnythingToDeploy(branch string) (bool, map[
 func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 
-	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(app.config.Name, metav1.GetOptions{})
+	existingRA, err := app.radixclient.RadixV1().RadixApplications(appNamespace).Get(context.TODO(), app.config.Name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Debugf("RadixApplication %s doesn't exist in namespace %s, creating now", app.config.Name, appNamespace)
-			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(app.config)
+			_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), app.config, metav1.CreateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create radix application. %v", err)
 			}
@@ -132,7 +133,7 @@ func (app *ApplicationConfig) ApplyConfigToApplicationNamespace() error {
 		log.Debugf("RadixApplication %s in namespace %s has changed, updating now", app.config.Name, appNamespace)
 		// For an update, ResourceVersion of the new object must be the same with the old object
 		app.config.SetResourceVersion(existingRA.GetResourceVersion())
-		_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(app.config)
+		_, err = app.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), app.config, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update existing radix application. %v", err)
 		}
@@ -239,7 +240,7 @@ func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error
 	if err != nil && errors.IsNotFound(err) {
 		// Environment does not exist yet
 
-		newRe, err = repository.Create(newRe)
+		newRe, err = repository.Create(context.TODO(), newRe, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create RadixEnvironment object: %v", err)
 		}
@@ -283,7 +284,7 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.
 
 	if !isEmptyPatch(patchBytes) {
 		// Will perform update as patching does not seem to work for this custom resource
-		patchedEnvironment, err := repository.Update(radixEnvironment)
+		patchedEnvironment, err := repository.Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch RadixEnvironment object: %v", err)
 		}

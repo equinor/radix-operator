@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -46,7 +48,7 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(c
 
 	if len(roleBindings) > 0 {
 		for n := range roleBindings {
-			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBindings[n].Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), roleBindings[n].Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -66,7 +68,7 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 		}
 
 		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
-			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(roleBinding.Name, &metav1.DeleteOptions{})
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), roleBinding.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,15 +14,15 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	prometheusclient "github.com/coreos/prometheus-operator/pkg/client/versioned"
-	prometheusfake "github.com/coreos/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
@@ -180,7 +181,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
 				t.Parallel()
-				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 				assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 				assert.Equal(t, componentNameApp, getDeploymentByName(componentNameApp, deployments).Name, "app deployment not there")
@@ -278,13 +279,13 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
 				t.Parallel()
-				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate service", testScenario), func(t *testing.T) {
 				t.Parallel()
-				services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+				services, _ := kubeclient.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedServices := getServicesForRadixComponents(&services.Items)
 				assert.Equal(t, 3, len(expectedServices), "Number of services wasn't as expected")
 				assert.True(t, serviceByNameExists(componentNameApp, services), "app service not there")
@@ -294,7 +295,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate secrets", testScenario), func(t *testing.T) {
 				t.Parallel()
-				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				if !componentsExist {
 					assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
@@ -324,13 +325,13 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate service accounts", testScenario), func(t *testing.T) {
 				t.Parallel()
-				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
 				t.Parallel()
-				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				assert.Equal(t, 2, len(roles.Items), "Number of roles was not expected")
 				assert.True(t, roleByNameExists("radix-app-adm-radixquote", roles), "Expected role radix-app-adm-radixquote to be there to access secret")
@@ -341,7 +342,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				t.Parallel()
-				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
 				assert.True(t, roleBindingByNameExists("radix-app-adm-radixquote", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
@@ -354,7 +355,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				t.Parallel()
-				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
+				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
@@ -466,7 +467,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
 				t.Parallel()
-				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 
 				if jobsExist {
@@ -504,13 +505,13 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
 				t.Parallel()
-				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate service", testScenario), func(t *testing.T) {
 				t.Parallel()
-				services, _ := kubeclient.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+				services, _ := kubeclient.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedServices := getServicesForRadixComponents(&services.Items)
 
 				if jobsExist {
@@ -524,7 +525,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate secrets", testScenario), func(t *testing.T) {
 				t.Parallel()
-				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				if !jobsExist {
 					assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
@@ -545,20 +546,20 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate service accounts", testScenario), func(t *testing.T) {
 				t.Parallel()
-				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate roles", testScenario), func(t *testing.T) {
 				t.Parallel()
-				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+				roles, _ := kubeclient.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				assert.Equal(t, 1, len(roles.Items), "Number of roles was not expected")
 			})
 
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
 				t.Parallel()
-				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
 				assert.True(t, roleBindingByNameExists("radix-app-adm-job", rolebindings), "Expected rolebinding radix-app-adm-radixquote to be there to access secret")
@@ -571,7 +572,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				t.Parallel()
-				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(metav1.ListOptions{})
+				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
@@ -627,7 +628,7 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Only cluster specific ingresses for the two public components should appear")
 	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
@@ -678,7 +679,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 7, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
 	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
@@ -726,7 +727,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "true", quoteActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "radixquote", quoteActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
-	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleByNameExists("radix-app-adm-app", roles), "Expected role radix-app-adm-app to be there to access secrets for TLS certificates")
 
 	appAdmAppRole := getRoleByName("radix-app-adm-app", roles)
@@ -734,14 +735,14 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "some.alias.com", appAdmAppRole.Rules[0].ResourceNames[0], "Expected role should be able to access TLS certificate for external alias")
 	assert.Equal(t, "another.alias.com", appAdmAppRole.Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
 
-	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, secretByNameExists("some.alias.com", secrets), "TLS certificate for external alias is not properly defined")
 	assert.True(t, secretByNameExists("another.alias.com", secrets), "TLS certificate for second external alias is not properly defined")
 
 	assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), getSecretByName("some.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
 	assert.Equal(t, corev1.SecretType("kubernetes.io/tls"), getSecretByName("another.alias.com", secrets).Type, "TLS certificate for external alias is not properly defined type")
 
-	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, roleBindingByNameExists("radix-app-adm-app", rolebindings), "Expected rolebinding radix-app-adm-app to be there to access secrets for TLS certificates")
 
 	teardownTest()
@@ -756,9 +757,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
@@ -771,9 +772,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
@@ -792,9 +793,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
@@ -807,9 +808,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
-		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
@@ -823,9 +824,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
-		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(metav1.ListOptions{})
+		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
@@ -839,9 +840,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithAppName("radix-github-webhook").
 			WithEnvironment("test"))
 
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(metav1.ListOptions{})
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
@@ -855,9 +856,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithAppName("radix-api").
 			WithEnvironment("test"))
 
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(metav1.ListOptions{})
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-api", "test")).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixAPIServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
@@ -888,15 +889,15 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 	assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 
-	services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	services, _ := client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	expectedServices := getServicesForRadixComponents(&services.Items)
 	assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Number of ingresses was not according to public components")
 
 	teardownTest()
@@ -921,7 +922,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 7, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "Should only have default environment variables")
 		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
 		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
@@ -939,7 +940,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
-		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(secrets.Items), "Should have no secrets")
 	})
 
@@ -961,7 +962,7 @@ func TestObjectSynced_WithLabels_LabelsAppliedToDeployment(t *testing.T) {
 
 	t.Run("validate deploy labels", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, "master", deployments.Items[0].Annotations[kube.RadixBranchAnnotation])
 		assert.Equal(t, "4faca8595c5283a9d0f17a623b9255a0d9866a2e", deployments.Items[0].Labels["radix-commit"])
 	})
@@ -994,13 +995,13 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("app1", "prod")
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, firstUID, deployments.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
-	services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	services, _ := client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, firstUID, services.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
 	time.Sleep(1 * time.Millisecond)
@@ -1017,13 +1018,13 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
-	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
-	services, _ = client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	services, _ = client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
 	// Re-apply the first  This should be ignored and cause an error as it is not the latest
@@ -1042,13 +1043,13 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, rdBuilder)
 
-	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, deployments.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 
-	services, _ = client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+	services, _ = client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 
 	teardownTest()
@@ -1072,7 +1073,7 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
 
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	firstDeployment := getDeploymentByName("first", deployments)
 	assert.Equal(t, "first_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 	secondDeployment := getDeploymentByName("second", deployments)
@@ -1091,7 +1092,7 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 				WithName("second").
 				WithAlwaysPullImageOnDeploy(false)))
 
-	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	firstDeployment = getDeploymentByName("first", deployments)
 	assert.Equal(t, "second_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 	secondDeployment = getDeploymentByName("second", deployments)
@@ -1125,7 +1126,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
 	time.Sleep(1 * time.Second)
@@ -1141,7 +1142,7 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 				WithAlwaysPullImageOnDeploy(true).
 				WithPublicPort("http")))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
 
 	teardownTest()
@@ -1163,7 +1164,7 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 				WithReplicas(test.IntPtr(0))))
 
 	time.Sleep(1 * time.Second)
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(0), *deployments.Items[0].Spec.Replicas)
 
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1174,7 +1175,7 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 			utils.NewDeployComponentBuilder().
 				WithName("app")))
 
-	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
 
 	teardownTest()
@@ -1196,7 +1197,7 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 				WithReplicas(test.IntPtr(3))))
 
 	time.Sleep(1 * time.Second)
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(3), *deployments.Items[0].Spec.Replicas)
 
 	applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1207,7 +1208,7 @@ func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefault
 			utils.NewDeployComponentBuilder().
 				WithName("app")))
 
-	deployments, _ = client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
 
 	teardownTest()
@@ -1229,7 +1230,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 				WithDNSAppAlias(true)))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Truef(t, ingressByNameExists("any-app-url-alias", ingresses), "App should have had an app alias ingress")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "Cluster specific ingress for public component should exist")
@@ -1246,7 +1247,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 				WithPublicPort("http").
 				WithDNSAppAlias(false)))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Alias ingress should have been removed")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have another external alias")
@@ -1304,7 +1305,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
-		deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
@@ -1312,33 +1313,33 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 
 	t.Run("validate service", func(t *testing.T) {
 		t.Parallel()
-		services, _ := client.CoreV1().Services(envNamespace).List(metav1.ListOptions{})
+		services, _ := client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		expectedServices := getServicesForRadixComponents(&services.Items)
 		assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 	})
 
 	t.Run("validate ingress", func(t *testing.T) {
 		t.Parallel()
-		ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+		ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(ingresses.Items), "Number of ingresses was not according to public components")
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {
 		t.Parallel()
-		secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
+		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 		assert.Equal(t, utils.GetComponentSecretName(componentThreeName), secrets.Items[0].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
 		t.Parallel()
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(envNamespace).List(metav1.ListOptions{})
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 	})
 
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
-		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
 	})
 
@@ -1369,7 +1370,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Both components should be public")
 
 	// Remove public on component 2
@@ -1387,7 +1388,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 				WithPublicPort("")))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Only component 1 should be public")
 
 	// Remove public on component 1
@@ -1406,7 +1407,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
 
 	teardownTest()
@@ -1571,7 +1572,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
 	assert.Equal(t, 80, ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue())
 
@@ -1588,7 +1589,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
 	assert.Equal(t, 80, ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue())
 
@@ -1605,7 +1606,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(false)))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(ingresses.Items), "Component should not be public")
 
 	// New publicPort does not exist, old public exists (used)
@@ -1621,7 +1622,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	expectedIngresses := getIngressesForRadixComponents(&ingresses.Items)
 	assert.Equal(t, 1, len(expectedIngresses), "Component should be public")
 	actualPortValue := ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue()
@@ -1662,10 +1663,10 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithDNSExternalAlias("some.alias.com")))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
-	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
@@ -1692,9 +1693,9 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
-	secrets, _ = client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-	rolebindings, _ = client.RbacV1().RoleBindings(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	rolebindings, _ = client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
@@ -1730,7 +1731,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithSecrets([]string{"a_secret"})))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 4, len(ingresses.Items), "Environment should have four ingresses")
 	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
 	assert.Truef(t, ingressByNameExists("another.alias.com", ingresses), "App should have had another external alias ingress")
@@ -1746,7 +1747,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "another.alias.com", anotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8080), anotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
-	roles, _ := client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
 	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for external alias")
 	assert.Equal(t, "another.alias.com", roles.Items[0].Rules[0].ResourceNames[2], "Expected role should be able to access TLS certificate for second external alias")
@@ -1763,7 +1764,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithDNSExternalAlias("yet.another.alias.com").
 				WithSecrets([]string{"a_secret"})))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 4, len(ingresses.Items), "Environment should have four ingresses")
 	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
 	assert.Truef(t, ingressByNameExists("yet.another.alias.com", ingresses), "App should have had another external alias ingress")
@@ -1778,7 +1779,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
-	roles, _ = client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
 	assert.Equal(t, "some.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for external alias")
 	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[2], "Expected role should be able to access TLS certificate for second external alias")
@@ -1794,7 +1795,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithDNSExternalAlias("yet.another.alias.com").
 				WithSecrets([]string{"a_secret"})))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Truef(t, ingressByNameExists("yet.another.alias.com", ingresses), "App should have had another external alias ingress")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
@@ -1804,7 +1805,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
 	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
 
-	roles, _ = client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(roles.Items[0].Rules[0].ResourceNames))
 	assert.Equal(t, "yet.another.alias.com", roles.Items[0].Rules[0].ResourceNames[1], "Expected role should be able to access TLS certificate for second external alias")
 
@@ -1818,12 +1819,12 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
 
-	roles, _ = client.RbacV1().Roles(envNamespace).List(metav1.ListOptions{})
+	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(roles.Items), "Role should have been removed")
 
 }
@@ -1849,15 +1850,17 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
-	assert.False(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, clusterName))
-	assert.True(t, strings.Contains(ingresses.Items[1].Spec.Rules[0].Host, clusterName))
+	activeClusterIngress := getIngressByName(getActiveClusterIngressName(anyComponentName), ingresses)
+	assert.False(t, strings.Contains(activeClusterIngress.Spec.Rules[0].Host, clusterName))
+	defaultIngress := getIngressByName(getDefaultIngressName(anyComponentName), ingresses)
+	assert.True(t, strings.Contains(defaultIngress.Spec.Rules[0].Host, clusterName))
 
 	// Current cluster is not active cluster
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "newClusterName")
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Environment should have one ingresses")
 	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, clusterName))
 
@@ -1954,7 +1957,7 @@ func Test_AddMultipleNewDeployments_CorrectStatuses(t *testing.T) {
 }
 
 func getUpdatedRD(radixclient radixclient.Interface, rd *v1.RadixDeployment) (*v1.RadixDeployment, error) {
-	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
+	return radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.TODO(), rd.GetName(), metav1.GetOptions{ResourceVersion: rd.ResourceVersion})
 }
 
 func addRadixDeployment(anyApp string, anyEnv string, anyComponentName string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusclient prometheusclient.Interface) *v1.RadixDeployment {
@@ -1992,9 +1995,9 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithDNSExternalAlias("another.alias.com").
 				WithSecrets([]string{"a_secret", "another_secret", "a_third_secret"})))
 
-	secrets, _ := client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-	anyComponentSecret := secrets.Items[0]
-	assert.Equal(t, utils.GetComponentSecretName(anyComponentName), anyComponentSecret.GetName(), "Component secret is not as expected")
+	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	anyComponentSecret := getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
+	assert.NotNil(t, anyComponentSecret, "Component secret is not found")
 
 	// Secret is initially empty but get filled with data from the API
 	assert.Equal(t, []string{}, maps.GetKeysFromByteMap(anyComponentSecret.Data), "Component secret data is not as expected")
@@ -2007,7 +2010,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	secretData["a_third_secret"] = []byte(anySecretValue)
 
 	anyComponentSecret.Data = secretData
-	client.CoreV1().Secrets(envNamespace).Update(&anyComponentSecret)
+	client.CoreV1().Secrets(envNamespace).Update(context.TODO(), anyComponentSecret, metav1.UpdateOptions{})
 
 	// Removing one secret from config and therefor from the deployment
 	// should cause it to disappear
@@ -2023,8 +2026,8 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 				WithDNSExternalAlias("another.alias.com").
 				WithSecrets([]string{"a_secret", "a_third_secret"})))
 
-	secrets, _ = client.CoreV1().Secrets(envNamespace).List(metav1.ListOptions{})
-	anyComponentSecret = secrets.Items[0]
+	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
 	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, maps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 
@@ -2084,7 +2087,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")))
 
-	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ := radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
 
 	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
@@ -2103,7 +2106,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 					WithPort("http", 8080).
 					WithPublicPort("http")))
 
-	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(metav1.ListOptions{})
+	deployments, _ = radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, anyLimit, len(deployments.Items), "Number of deployments should match limit")
 
 	assert.False(t, radixDeploymentByNameExists("firstdeployment", deployments))
@@ -2119,15 +2122,18 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
 
 	// Setup
-	client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ingressConfigurationMap,
-			Namespace: corev1.NamespaceDefault,
+	client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+		context.TODO(),
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ingressConfigurationMap,
+				Namespace: corev1.NamespaceDefault,
+			},
+			Data: map[string]string{
+				"ingressConfiguration": testIngressConfiguration,
+			},
 		},
-		Data: map[string]string{
-			"ingressConfiguration": testIngressConfiguration,
-		},
-	})
+		metav1.CreateOptions{})
 
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -2153,7 +2159,7 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 				WithIngressConfiguration("socket")))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
 	appAliasIngress := getIngressByName("any-app-url-alias", ingresses)
 	clusterSpecificIngress := getIngressByName("frontend", ingresses)
 	activeClusterIngress := getIngressByName("frontend-active-cluster-url-alias", ingresses)
@@ -2161,7 +2167,7 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 	assert.Equal(t, 2, len(clusterSpecificIngress.ObjectMeta.Annotations))
 	assert.Equal(t, 2, len(activeClusterIngress.ObjectMeta.Annotations))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(context.TODO(), metav1.ListOptions{})
 	appAliasIngress = getIngressByName("any-app-2-url-alias", ingresses)
 	clusterSpecificIngress = getIngressByName("frontend", ingresses)
 	activeClusterIngress = getIngressByName("frontend-active-cluster-url-alias", ingresses)
@@ -2210,7 +2216,7 @@ func TestHPAConfig(t *testing.T) {
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate hpas", func(t *testing.T) {
-		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 2, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
@@ -2244,7 +2250,7 @@ func TestHPAConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("validate hpas after reconfiguration", func(t *testing.T) {
-		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(metav1.ListOptions{})
+		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
@@ -2273,7 +2279,7 @@ func TestNonRootOverrideFlag(t *testing.T) {
 
 		t.Run(fmt.Sprintf("%s has correct security context", componentName), func(t *testing.T) {
 			envNamespace := utils.GetEnvironmentNamespace("radix-root-example", "test")
-			deployments, _ := client.AppsV1().Deployments(envNamespace).List(metav1.ListOptions{})
+			deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 			expectedSecurityContext := getSecurityContextForPod(runAsNonRoot)
 			assert.Equal(t, expectedSecurityContext, getDeploymentByName(componentName, deployments).Spec.Template.Spec.SecurityContext)
 			assert.Equal(t, runAsNonRoot, *getContainerByName(componentName, getDeploymentByName(componentName, deployments).Spec.Template.Spec.Containers).SecurityContext.RunAsNonRoot)
@@ -2319,7 +2325,7 @@ func TestMonitoringConfig(t *testing.T) {
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate service montitors", func(t *testing.T) {
-		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(metav1.ListOptions{})
+		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 2, len(servicemonitors.Items), "Number of service monitors was not as expected")
 		assert.True(t, serviceMonitorByNameExists(componentOneName, servicemonitors), "componentTwoName service monitor should exist")
 		assert.True(t, serviceMonitorByNameExists(componentTwoName, servicemonitors), "componentTwoName service monitor should exist")
@@ -2347,7 +2353,7 @@ func TestMonitoringConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("validate service monitoring after renaming port", func(t *testing.T) {
-		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(metav1.ListOptions{})
+		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 2, len(servicemonitors.Items), "Number of service monitors was not as expected")
 		assert.True(t, serviceMonitorByNameExists(componentOneName, servicemonitors), "componentTwoName service monitor should exist")
 		assert.True(t, serviceMonitorByNameExists(componentTwoName, servicemonitors), "componentTwoName service monitor should exist")
@@ -2375,7 +2381,7 @@ func TestMonitoringConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("validate hpas after deleting component one and adding component three", func(t *testing.T) {
-		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(metav1.ListOptions{})
+		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(servicemonitors.Items), "Number of service monitors was not as expected")
 		assert.False(t, serviceMonitorByNameExists(componentOneName, servicemonitors), "componentOneName service monitor not should exist")
 		assert.False(t, serviceMonitorByNameExists(componentTwoName, servicemonitors), "componentTwoName service monitor not should exist")
@@ -2410,7 +2416,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 				WithSchedulerPort(numbers.Int32Ptr(8080))))
 
 	assert.Nil(t, err)
-	deployments, _ := kubeclient.AppsV1().Deployments("app-env").List(metav1.ListOptions{})
+	deployments, _ := kubeclient.AppsV1().Deployments("app-env").List(context.TODO(), metav1.ListOptions{})
 	comp := getDeploymentByName("comp", deployments)
 	assert.Len(t, comp.Spec.Template.Spec.Containers[0].Ports, 2)
 	portTestFunc("port1", 8001, comp.Spec.Template.Spec.Containers[0].Ports)
@@ -2433,7 +2439,7 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 				WithSchedulerPort(numbers.Int32Ptr(9090))))
 
 	assert.Nil(t, err)
-	deployments, _ = kubeclient.AppsV1().Deployments("app-env").List(metav1.ListOptions{})
+	deployments, _ = kubeclient.AppsV1().Deployments("app-env").List(context.TODO(), metav1.ListOptions{})
 	comp = getDeploymentByName("comp", deployments)
 	assert.Len(t, comp.Spec.Template.Spec.Containers[0].Ports, 1)
 	portTestFunc("port2", 9002, comp.Spec.Template.Spec.Containers[0].Ports)
@@ -2530,7 +2536,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	componentName3 := "componentName3"
 	componentName4 := "componentName4"
 	jobComponentName := "jobComponentName"
-
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	// Test
 	gpuNvidiaV100 := "nvidia-v100"
 	gpuNvidiaP100 := "nvidia-p100"
@@ -2568,7 +2574,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 
 	t.Run("has node with nvidia-v100", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName1, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName1, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2583,7 +2589,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	})
 	t.Run("has node with nvidia-v100, nvidia-p100", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName2, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName2, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2599,7 +2605,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	})
 	t.Run("has node with nvidia-v100, nvidia-p100, not nvidia-k80", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName3, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName3, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2620,12 +2626,12 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	})
 	t.Run("has node with no gpu", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName4, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
 		assert.Nil(t, deployment.Spec.Template.Spec.Affinity)
 	})
 	t.Run("job has node with nvidia-p100, not nvidia-k80", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2755,6 +2761,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	componentName5 := "componentName5"
 	componentName6 := "componentName6"
 	jobComponentName := "jobComponentName"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
 	nodeGpuCount1 := "1"
@@ -2805,7 +2812,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 
 	t.Run("has node with gpu-count 1", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName1, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName1, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2820,7 +2827,7 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	})
 	t.Run("has node with gpu-count 10", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName2, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName2, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2835,31 +2842,31 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 	})
 	t.Run("has node with gpu-count 0", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName3, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName3, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("has node with gpu-count -1", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName4, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("has node with invalid value of gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName5, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName5, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("has node with no gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName6, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName6, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
 	t.Run("job has node with gpu-count 10 ", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2881,6 +2888,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	anyEnvironmentName := "test"
 	componentName := "componentName"
 	jobComponentName := "jobComponentName"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	// Test
 	gpuNvidiaV100 := "nvidia-v100"
@@ -2908,7 +2916,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 
 	t.Run("has node with gpu and gpu-count 10", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(componentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2934,7 +2942,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 	})
 	t.Run("job has node with gpu and gpu-count 10 ", func(t *testing.T) {
 		t.Parallel()
-		deployment, _ := client.AppsV1().Deployments("").Get(jobComponentName, metav1.GetOptions{})
+		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.NotNil(t, affinity)
 		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
@@ -2982,12 +2990,14 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 				labels[kube.RadixJobTypeLabel] = kube.RadixJobTypeJobSchedule
 			}
 
-			client.BatchV1().Jobs(namespace).Create(&batchv1.Job{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   name,
-					Labels: labels,
+			client.BatchV1().Jobs(namespace).Create(context.TODO(),
+				&batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   name,
+						Labels: labels,
+					},
 				},
-			})
+				metav1.CreateOptions{})
 		}
 
 		addSecret := func(client kubernetes.Interface, name, namespace, componentName string) {
@@ -2997,12 +3007,14 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 				labels[kube.RadixComponentLabel] = componentName
 			}
 
-			client.CoreV1().Secrets(namespace).Create(&corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   name,
-					Labels: labels,
+			client.CoreV1().Secrets(namespace).Create(context.TODO(),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   name,
+						Labels: labels,
+					},
 				},
-			})
+				metav1.CreateOptions{})
 		}
 
 		addService := func(client kubernetes.Interface, name, namespace, componentName string) {
@@ -3012,12 +3024,14 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 				labels[kube.RadixComponentLabel] = componentName
 			}
 
-			client.CoreV1().Services(namespace).Create(&corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   name,
-					Labels: labels,
+			client.CoreV1().Services(namespace).Create(context.TODO(),
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   name,
+						Labels: labels,
+					},
 				},
-			})
+				metav1.CreateOptions{})
 		}
 
 		t.Run(theory.name, func(t *testing.T) {
@@ -3051,21 +3065,21 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 			}
 
 			// Verify expected jobs
-			kubeJobs, _ := client.BatchV1().Jobs("").List(metav1.ListOptions{LabelSelector: "item-in-test=true"})
+			kubeJobs, _ := client.BatchV1().Jobs("").List(context.TODO(), metav1.ListOptions{LabelSelector: "item-in-test=true"})
 			assert.Equal(t, len(theory.expectedJobs), len(kubeJobs.Items), "incorrect number of jobs")
 			for _, job := range kubeJobs.Items {
 				assert.Contains(t, theory.expectedJobs, job.Name, fmt.Sprintf("expected job %s", job.Name))
 			}
 
 			// Verify expected secrets
-			kubeSecrets, _ := client.CoreV1().Secrets("").List(metav1.ListOptions{LabelSelector: "item-in-test=true"})
+			kubeSecrets, _ := client.CoreV1().Secrets("").List(context.TODO(), metav1.ListOptions{LabelSelector: "item-in-test=true"})
 			assert.Equal(t, len(theory.expectedSecrets), len(kubeSecrets.Items), "incorrect number of secrets")
 			for _, secret := range kubeSecrets.Items {
 				assert.Contains(t, theory.expectedSecrets, secret.Name, fmt.Sprintf("expected secrets %s", secret.Name))
 			}
 
 			// Verify expected services
-			kubeServices, _ := client.CoreV1().Services("").List(metav1.ListOptions{LabelSelector: "item-in-test=true"})
+			kubeServices, _ := client.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{LabelSelector: "item-in-test=true"})
 			assert.Equal(t, len(theory.expectedSecrets), len(kubeServices.Items), "incorrect number of services")
 			for _, service := range kubeServices.Items {
 				assert.Contains(t, theory.expectedServices, service.Name, fmt.Sprintf("expected service %s", service.Name))
@@ -3188,7 +3202,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 		return nil, err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -3198,7 +3212,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 		return nil, err
 	}
 
-	updatedRD, err := radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(rd.GetName(), metav1.GetOptions{})
+	updatedRD, err := radixclient.RadixV1().RadixDeployments(rd.GetNamespace()).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	return updatedRD, err
 }
 
@@ -3209,7 +3223,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(rd.Spec.AppName, metav1.GetOptions{})
+	radixRegistration, err := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), rd.Spec.AppName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

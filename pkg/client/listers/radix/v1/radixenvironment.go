@@ -26,10 +26,13 @@ import (
 )
 
 // RadixEnvironmentLister helps list RadixEnvironments.
+// All objects returned here must be treated as read-only.
 type RadixEnvironmentLister interface {
 	// List lists all RadixEnvironments in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixEnvironment, err error)
 	// Get retrieves the RadixEnvironment from the index for a given name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.RadixEnvironment, error)
 	RadixEnvironmentListerExpansion
 }

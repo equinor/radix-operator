@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -18,7 +19,7 @@ import (
 func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
 	oldService, err := k.getService(namespace, service.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		_, err := k.kubeClient.CoreV1().Services(namespace).Create(service)
+		_, err := k.kubeClient.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 
 		if err != nil {
 			return fmt.Errorf("Failed to create service object: %v", err)
@@ -52,7 +53,7 @@ func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
 	}
 
 	if !isEmptyPatch(patchBytes) {
-		patchedService, err := k.kubeClient.CoreV1().Services(namespace).Patch(service.GetName(), types.StrategicMergePatchType, patchBytes)
+		patchedService, err := k.kubeClient.CoreV1().Services(namespace).Patch(context.TODO(), service.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
 		}
@@ -75,7 +76,7 @@ func (k *Kube) ListServices(namespace string) ([]*corev1.Service, error) {
 			return nil, err
 		}
 	} else {
-		list, err := k.kubeClient.CoreV1().Services(namespace).List(metav1.ListOptions{})
+		list, err := k.kubeClient.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +98,7 @@ func (k *Kube) getService(namespace, name string) (*corev1.Service, error) {
 			return nil, err
 		}
 	} else {
-		service, err = k.kubeClient.CoreV1().Services(namespace).Get(name, metav1.GetOptions{})
+		service, err = k.kubeClient.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

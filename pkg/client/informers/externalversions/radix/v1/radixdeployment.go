@@ -19,6 +19,7 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	time "time"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -61,13 +62,13 @@ func NewFilteredRadixDeploymentInformer(client versioned.Interface, namespace st
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixDeployments(namespace).List(options)
+				return client.RadixV1().RadixDeployments(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixDeployments(namespace).Watch(options)
+				return client.RadixV1().RadixDeployments(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&radixv1.RadixDeployment{},

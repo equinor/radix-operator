@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -131,9 +132,11 @@ func NewController(client kubernetes.Interface,
 			}
 
 			// Trigger sync of all REs, belonging to the registration
-			environments, err := radixClient.RadixV1().RadixEnvironments().List(metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, oldRr.Name),
-			})
+			environments, err := radixClient.RadixV1().RadixEnvironments().List(
+				context.TODO(),
+				metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, oldRr.Name),
+				})
 
 			if err == nil {
 				for _, environment := range environments.Items {
@@ -156,7 +159,7 @@ func NewController(client kubernetes.Interface,
 
 			for _, envName := range droppedEnvironments(oldRa, newRa) {
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
-				re, err := radixClient.RadixV1().RadixEnvironments().Get(uniqueName, metav1.GetOptions{})
+				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
 					controller.Enqueue(re)
 				}
@@ -165,7 +168,7 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(cur interface{}) {
 			for _, env := range cur.(*v1.RadixApplication).Spec.Environments {
 				uniqueName := utils.GetEnvironmentNamespace(cur.(*v1.RadixApplication).Name, env.Name)
-				re, err := radixClient.RadixV1().RadixEnvironments().Get(uniqueName, metav1.GetOptions{})
+				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
 					controller.Enqueue(re)
 				}
@@ -187,7 +190,7 @@ func deepEqual(old, new *v1.RadixEnvironment) bool {
 }
 
 func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixEnvironments().Get(name, meta.GetOptions{})
+	return radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), name, meta.GetOptions{})
 }
 
 func droppedEnvironments(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {

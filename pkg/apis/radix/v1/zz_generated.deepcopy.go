@@ -354,6 +354,7 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		*out = new(bool)
 		**out = **in
 	}
+	out.Node = in.Node
 	return
 }
 
@@ -463,6 +464,7 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		*out = new(RadixJobComponentPayload)
 		**out = **in
 	}
+	out.Node = in.Node
 	return
 }
 
@@ -833,6 +835,7 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		}
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
+	out.Node = in.Node
 	return
 }
 
@@ -862,6 +865,7 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		*out = make([]RadixVolumeMount, len(*in))
 		copy(*out, *in)
 	}
+	out.Node = in.Node
 	return
 }
 

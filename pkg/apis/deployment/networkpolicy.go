@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	v1 "k8s.io/api/networking/v1"
@@ -17,9 +19,9 @@ func (deploy *Deployment) denyTrafficFromOtherNamespaces() error {
 
 	networkPolicy := defaultNetworkPolicy(appName, env, owner)
 
-	_, err := deploy.kubeclient.NetworkingV1().NetworkPolicies(ns).Create(networkPolicy)
+	_, err := deploy.kubeclient.NetworkingV1().NetworkPolicies(ns).Create(context.TODO(), networkPolicy, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
-		_, err = deploy.kubeclient.NetworkingV1().NetworkPolicies(ns).Update(networkPolicy)
+		_, err = deploy.kubeclient.NetworkingV1().NetworkPolicies(ns).Update(context.TODO(), networkPolicy, metav1.UpdateOptions{})
 	}
 
 	if err != nil {

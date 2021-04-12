@@ -26,10 +26,13 @@ import (
 )
 
 // RadixRegistrationLister helps list RadixRegistrations.
+// All objects returned here must be treated as read-only.
 type RadixRegistrationLister interface {
 	// List lists all RadixRegistrations in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1.RadixRegistration, err error)
 	// Get retrieves the RadixRegistration from the index for a given name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1.RadixRegistration, error)
 	RadixRegistrationListerExpansion
 }
