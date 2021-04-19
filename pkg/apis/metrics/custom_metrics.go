@@ -1,13 +1,15 @@
 package metrics
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"time"
+
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -65,34 +67,38 @@ func RequestedResources(rr *v1.RadixRegistration, rd *v1.RadixDeployment) {
 	if rd == nil || rd.Status.Condition == v1.DeploymentInactive || rr == nil {
 		return
 	}
+
 	defaultCPU := defaults.GetDefaultCPURequest()
 	defaultMemory := defaults.GetDefaultMemoryRequest()
 
 	for _, comp := range rd.Spec.Components {
 		resources := utils.GetResourceRequirements(&comp)
 		nrReplicas := float64(comp.GetNrOfReplicas())
+		var cpu, memory resource.Quantity
 
-		if resources == nil {
-			if defaultCPU != nil {
-				radixRequestedCPU.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(defaultCPU.MilliValue()))
-			}
-			if defaultMemory != nil {
-				radixRequestedMemory.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(defaultMemory.ScaledValue(resource.Mega)))
-			}
-			radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(nrReplicas)
-			continue
+		if defaultCPU != nil {
+			cpu = *defaultCPU
 		}
-		requestedResources := resources.Requests
-
-		if cpu := requestedResources.Cpu(); cpu != nil {
-			radixRequestedCPU.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(cpu.MilliValue()))
+		if defaultMemory != nil {
+			memory = *defaultMemory
 		}
 
-		if memory := requestedResources.Memory(); memory != nil {
-			radixRequestedMemory.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(float64(memory.ScaledValue(resource.Mega)))
+		if componentCpu, ok := resources.Requests[corev1.ResourceCPU]; ok {
+			cpu = componentCpu
+		}
+		if componentMemory, ok := resources.Requests[corev1.ResourceMemory]; ok {
+			memory = componentMemory
 		}
 
-		radixRequestedReplicas.With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).Set(nrReplicas)
+		radixRequestedCPU.
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).
+			Set(float64(cpu.MilliValue()))
+		radixRequestedMemory.
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).
+			Set(float64(memory.ScaledValue(resource.Mega)))
+		radixRequestedReplicas.
+			With(prometheus.Labels{"application": rd.Spec.AppName, "environment": rd.Spec.Environment, "component": comp.Name, "wbs": rr.Spec.WBS}).
+			Set(nrReplicas)
 	}
 }
 
