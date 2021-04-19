@@ -7,11 +7,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func GetResourceRequirements(deployComponent v1.RadixCommonDeployComponent) *corev1.ResourceRequirements {
+func GetResourceRequirements(deployComponent v1.RadixCommonDeployComponent) corev1.ResourceRequirements {
 	return buildResourceRequirement(deployComponent.GetResources())
 }
 
-func buildResourceRequirement(source *v1.ResourceRequirements) *corev1.ResourceRequirements {
+func buildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRequirements {
 	defaultLimits := map[corev1.ResourceName]resource.Quantity{
 		corev1.ResourceName("cpu"):    *defaults.GetDefaultCPULimit(),
 		corev1.ResourceName("memory"): *defaults.GetDefaultMemoryLimit(),
@@ -52,7 +52,7 @@ func buildResourceRequirement(source *v1.ResourceRequirements) *corev1.ResourceR
 	}
 
 	if len(limits) <= 0 && len(requests) <= 0 {
-		return &corev1.ResourceRequirements{}
+		return corev1.ResourceRequirements{}
 	}
 
 	req := corev1.ResourceRequirements{
@@ -60,5 +60,5 @@ func buildResourceRequirement(source *v1.ResourceRequirements) *corev1.ResourceR
 		Requests: requests,
 	}
 
-	return &req
+	return req
 }
