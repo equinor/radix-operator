@@ -480,13 +480,15 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
 
 				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
-				assert.Equal(t, 10, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 12, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(defaults.RadixAppEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, jobName, getEnvVariableByNameOnDeployment(defaults.RadixComponentEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "1", getEnvVariableByNameOnDeployment(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "300M", getEnvVariableByNameOnDeployment(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "("+defaults.RadixJobSchedulerPortName+")", getEnvVariableByNameOnDeployment(defaults.RadixPortNamesEnvironmentVariable, jobName, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, jobName, deployments))
 
