@@ -144,6 +144,29 @@ func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
 	assert.Equal(t, "job2:tag", jobs[1].Image)
 }
 
+func Test_GetRadixJobComponents_RunAsNonRoot(t *testing.T) {
+	ra := utils.ARadixApplication().
+		WithJobComponents(
+			utils.AnApplicationJobComponent().
+				WithName("job").
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env1").
+						WithRunAsNonRoot(true),
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env2"),
+				),
+		).BuildRA()
+
+	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	job := cfg.JobComponents()[0]
+	assert.True(t, job.RunAsNonRoot)
+
+	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
+	job = cfg.JobComponents()[0]
+	assert.False(t, job.RunAsNonRoot)
+}
+
 func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 	compGpu := "comp gpu"
 	compGpuCount := "10"
