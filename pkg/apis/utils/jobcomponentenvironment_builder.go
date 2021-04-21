@@ -12,6 +12,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithMonitoring(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithImageTagName(string) RadixJobComponentEnvironmentConfigBuilder
 	WithNode(node v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
+	WithRunAsNonRoot(bool) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
@@ -23,6 +24,7 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	imageTagName string
 	monitoring   bool
 	node         v1.RadixNode
+	runAsNonRoot bool
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixJobComponentEnvironmentConfigBuilder {
@@ -68,6 +70,11 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithNode(node v1.RadixNode
 	return ceb
 }
 
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonRoot bool) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.runAsNonRoot = runAsNonRoot
+	return ceb
+}
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
 		Environment:  ceb.environment,
@@ -77,6 +84,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		Monitoring:   ceb.monitoring,
 		ImageTagName: ceb.imageTagName,
 		Node:         ceb.node,
+		RunAsNonRoot: ceb.runAsNonRoot,
 	}
 }
 
