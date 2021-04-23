@@ -9,8 +9,7 @@ type RadixApplicationComponentBuilder interface {
 	WithSourceFolder(string) RadixApplicationComponentBuilder
 	WithDockerfileName(string) RadixApplicationComponentBuilder
 	WithImage(string) RadixApplicationComponentBuilder
-	// Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
-	WithPublic(bool) RadixApplicationComponentBuilder
+	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
@@ -20,6 +19,7 @@ type RadixApplicationComponentBuilder interface {
 	WithCommonEnvironmentVariable(string, string) RadixApplicationComponentBuilder
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationComponentBuilder
+	WithAuthentication(authentication *v1.Authentication) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -29,16 +29,16 @@ type radixApplicationComponentBuilder struct {
 	dockerfileName          string
 	image                   string
 	alwaysPullImageOnDeploy *bool
-	// Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
-	public               bool
-	publicPort           string
-	ports                map[string]int32
-	secrets              []string
-	ingressConfiguration []string
-	environmentConfig    []RadixEnvironmentConfigBuilder
-	variables            v1.EnvVarsMap
-	resources            v1.ResourceRequirements
-	node                 v1.RadixNode
+	public                  bool // Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
+	publicPort              string
+	ports                   map[string]int32
+	secrets                 []string
+	ingressConfiguration    []string
+	environmentConfig       []RadixEnvironmentConfigBuilder
+	variables               v1.EnvVarsMap
+	resources               v1.ResourceRequirements
+	node                    v1.RadixNode
+	authentication          *v1.Authentication
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -112,6 +112,11 @@ func (rcb *radixApplicationComponentBuilder) WithNode(node v1.RadixNode) RadixAp
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithAuthentication(authentication *v1.Authentication) RadixApplicationComponentBuilder {
+	rcb.authentication = authentication
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) WithCommonResource(request map[string]string, limit map[string]string) RadixApplicationComponentBuilder {
 	rcb.resources = v1.ResourceRequirements{
 		Limits:   limit,
@@ -146,6 +151,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Resources:               rcb.resources,
 		AlwaysPullImageOnDeploy: rcb.alwaysPullImageOnDeploy,
 		Node:                    rcb.node,
+		Authentication:          rcb.authentication,
 	}
 }
 

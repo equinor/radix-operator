@@ -11,6 +11,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -103,6 +104,10 @@ func MemoryResourceRequirementFormatError(value string) error {
 // CPUResourceRequirementFormatError Invalid CPU resource requirement
 func CPUResourceRequirementFormatError(value string) error {
 	return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
+}
+
+func InvalidVerificationType(verification string) error {
+	return fmt.Errorf("Invalid VerificationType (value %s)", verification)
 }
 
 // ResourceRequestOverLimitError Invalid resource requirement error
@@ -410,6 +415,11 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
+		err = validateAuthentication(component.Authentication)
+		if err != nil {
+			errs = append(errs, err)
+		}
+
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, component.Name)
@@ -429,6 +439,11 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
 				errs = append(errs,
 					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
+			}
+
+			err = validateAuthentication(environment.Authentication)
+			if err != nil {
+				errs = append(errs, err)
 			}
 		}
 	}
@@ -501,6 +516,42 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 	}
 
 	return errs
+}
+
+func validateAuthentication(authentication *v1.Authentication) error {
+	if authentication == nil {
+		return nil
+	}
+
+	return validateClientCertificate(authentication.ClientCertificate)
+}
+
+func validateClientCertificate(clientCertificate *v1.ClientCertificate) error {
+	if clientCertificate == nil {
+		return nil
+	}
+
+	return validateVerificationType(clientCertificate.Verification)
+}
+
+func validateVerificationType(verificationType *v1.VerificationType) error {
+	if verificationType == nil {
+		return nil
+	}
+
+	validValues := []string{
+		string(v1.VerificationTypeOff),
+		string(v1.VerificationTypeOn),
+		string(v1.VerificationTypeOptional),
+		string(v1.VerificationTypeOptionalNoCa),
+	}
+
+	actualValue := string(*verificationType)
+	if !slice.ContainsString(validValues, actualValue) {
+		return InvalidVerificationType(actualValue)
+	} else {
+		return nil
+	}
 }
 
 func usesDynamicTaggingForDeployOnly(componentImage string) bool {

@@ -1,6 +1,8 @@
 package utils
 
-import v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
 
 // RadixEnvironmentConfigBuilder Handles construction of RA component environment
 type RadixEnvironmentConfigBuilder interface {
@@ -14,6 +16,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithNilVariablesMap() RadixEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixEnvironmentConfigBuilder
 	WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder
+	WithAuthentication(authentication *v1.Authentication) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -27,6 +30,7 @@ type radixEnvironmentConfigBuilder struct {
 	volumeMounts            []v1.RadixVolumeMount
 	runAsNonRoot            bool
 	node                    v1.RadixNode
+	authentication          *v1.Authentication
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -77,6 +81,11 @@ func (ceb *radixEnvironmentConfigBuilder) WithNode(node v1.RadixNode) RadixEnvir
 	return ceb
 }
 
+func (ceb *radixEnvironmentConfigBuilder) WithAuthentication(authentication *v1.Authentication) RadixEnvironmentConfigBuilder {
+	ceb.authentication = authentication
+	return ceb
+}
+
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
 	return v1.RadixEnvironmentConfig{
 		Environment:             ceb.environment,
@@ -87,6 +96,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		Node:                    ceb.node,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
 		RunAsNonRoot:            ceb.runAsNonRoot,
+		Authentication:          ceb.authentication,
 	}
 }
 

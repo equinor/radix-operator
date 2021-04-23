@@ -208,6 +208,7 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 			deployment.IsDNSAppAlias(environment, comp.Name, radixConfig.Spec.DNSAppAlias)
 		radixDeployment.Spec.Components[index].DNSExternalAlias =
 			deployment.GetExternalDNSAliasForComponentEnvironment(radixConfig, comp.Name, environment)
+		radixDeployment.Spec.Components[index].Authentication = raComp.Authentication
 
 		environmentConfig := getEnvironmentConfig(raComp, environment)
 		if environmentConfig != nil {
@@ -215,6 +216,8 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 			radixDeployment.Spec.Components[index].Monitoring = environmentConfig.Monitoring
 			radixDeployment.Spec.Components[index].Replicas = environmentConfig.Replicas
 			radixDeployment.Spec.Components[index].EnvironmentVariables = environmentConfig.Variables
+			radixDeployment.Spec.Components[index].Authentication =
+				deployment.GetAuthenticationForComponent(raComp.Authentication, environmentConfig.Authentication)
 		}
 
 		// Append common environment variables if not available yet
