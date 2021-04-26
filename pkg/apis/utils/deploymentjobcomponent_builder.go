@@ -21,6 +21,7 @@ type DeployJobComponentBuilder interface {
 	WithSecrets([]string) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
+	WithRunAsNonRoot(bool) DeployJobComponentBuilder
 	BuildJobComponent() v1.RadixDeployJobComponent
 }
 
@@ -37,6 +38,7 @@ type deployJobComponentBuilder struct {
 	schedulerPort           *int32
 	payloadPath             *string
 	node                    v1.RadixNode
+	runAsNonRoot            bool
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
@@ -119,6 +121,11 @@ func (dcb *deployJobComponentBuilder) WithPayloadPath(path *string) DeployJobCom
 	return dcb
 }
 
+func (dcb *deployJobComponentBuilder) WithRunAsNonRoot(runAsNonRoot bool) DeployJobComponentBuilder {
+	dcb.runAsNonRoot = runAsNonRoot
+	return dcb
+}
+
 func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range dcb.ports {
@@ -143,6 +150,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		Payload:                 payload,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 		Node:                    dcb.node,
+		RunAsNonRoot:            dcb.runAsNonRoot,
 	}
 }
 

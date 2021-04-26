@@ -250,7 +250,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 	}
 
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = *utils.GetResourceRequirements(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
 
 	return desiredDeployment, nil
 }
