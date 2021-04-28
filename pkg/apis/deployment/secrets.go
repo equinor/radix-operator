@@ -86,16 +86,29 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 
 	if len(component.GetVolumeMounts()) > 0 {
 		for _, volumeMount := range component.GetVolumeMounts() {
-			if volumeMount.Type == radixv1.MountTypeBlob {
-				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.GetName(), volumeMount.Name)
-				secretsToManage = append(secretsToManage, secretName)
-				err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
-				if err != nil {
-					return err
+			switch volumeMount.Type {
+			case radixv1.MountTypeBlob:
+				{
+					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.GetName(), volumeMount.Name)
+					secretsToManage = append(secretsToManage, secretName)
+					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
+					if err != nil {
+						return err
+					}
+				}
+			case radixv1.MountTypeBlobCsiAzure:
+				{
+					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(ns, component.GetName(), volumeMount.Name)
+					secretsToManage = append(secretsToManage, secretName)
+					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
 	} else {
+		//TODO: garbage collect all types of volumes, for all containers, if applied
 		err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component)
 		if err != nil {
 			return err
@@ -124,6 +137,18 @@ func (deploy *Deployment) getBlobFuseCredsSecrets(ns, componentName, volumeMount
 		oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
 		accountKey = oldSecret.Data[defaults.BlobFuseCredsAccountKeyPart]
 		accountName = oldSecret.Data[defaults.BlobFuseCredsAccountNamePart]
+	}
+	return secretName, accountKey, accountName
+}
+
+func (deploy *Deployment) getCsiAzureCredsSecrets(ns, componentName, volumeMountName string) (string, []byte, []byte) {
+	secretName := defaults.GetCsiAzureCredsSecretName(componentName, volumeMountName)
+	accountKey := []byte(secretDefaultData)
+	accountName := []byte(secretDefaultData)
+	if deploy.kubeutil.SecretExists(ns, secretName) {
+		oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
+		accountKey = oldSecret.Data[defaults.CsiAzureCredsAccountKeyPart]
+		accountName = oldSecret.Data[defaults.CsiAzureCredsAccountNamePart]
 	}
 	return secretName, accountKey, accountName
 }
@@ -238,7 +263,18 @@ func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1
 }
 
 func (deploy *Deployment) listSecretsForForBlobVolumeMount(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
-	return deploy.listSecrets(getLabelSelectorForBlobVolumeMountSecret(component))
+	blobVolumeMountSecret := getLabelSelectorForBlobVolumeMountSecret(component)
+	secrets, err := deploy.listSecrets(blobVolumeMountSecret)
+	if err != nil {
+		return nil, err
+	}
+	blobCsiAzureVolumeMountSecret := getLabelSelectorForBlobVolumeMountSecret(component)
+	blobCsiAzureVolumeMountSecrets, err := deploy.listSecrets(blobCsiAzureVolumeMountSecret)
+	if err != nil {
+		return nil, err
+	}
+	secrets = append(secrets, blobCsiAzureVolumeMountSecrets...)
+	return secrets, err
 }
 
 func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error) {

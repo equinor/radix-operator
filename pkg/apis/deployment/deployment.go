@@ -446,6 +446,10 @@ func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComp
 	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlob))
 }
 
+func getLabelSelectorForBlobCsiAzureVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
+	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure))
+}
+
 func getRadixJobSchedulerImage() (string, error) {
 	image := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 

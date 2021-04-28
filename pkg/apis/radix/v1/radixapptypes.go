@@ -199,6 +199,8 @@ type MountType string
 const (
 	// MountTypeBlob Use of azure/blobfuse flexvolume
 	MountTypeBlob MountType = "blob"
+	// MountTypeBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
+	MountTypeBlobCsiAzure MountType = "blob-csi-azure"
 )
 
 // RadixNode defines node attributes, where container should be scheduled

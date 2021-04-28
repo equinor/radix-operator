@@ -40,7 +40,17 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
+	deploy.createOrUpdateCsiAzureProperties(currentDeployment, desiredDeployment)
+
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
+}
+
+func (deploy *Deployment) createOrUpdateCsiAzureProperties(currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) {
+	//TODO: garbageCollectCsiAzureStorageClasses()
+	//TODO: garbageCollectCsiAzurePersistentVolumeClaims()
+
+	deploy.createOrUpdateCsiAzureStorageClasses(currentDeployment, desiredDeployment)
+	deploy.createOrUpdateCsiAzurePersistentVolumeClaims(currentDeployment, desiredDeployment)
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {

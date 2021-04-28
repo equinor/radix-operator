@@ -14,6 +14,7 @@ import (
 
 const (
 	blobfuseDriver                      = "azure/blobfuse"
+	csiAzureDriver                      = "azure/csi"
 	defaultData                         = "xx"
 	defaultMountOptions                 = "--file-cache-timeout-in-seconds=120"
 	volumeName                          = "blobfuse-%s-%s"         // blobfuse-<componentname>-<volumename>
@@ -50,37 +51,54 @@ func GetVolumes(namespace string, environment string, componentName string, volu
 
 	if len(volumeMounts) > 0 {
 		for _, volumeMount := range volumeMounts {
-			if volumeMount.Type == radixv1.MountTypeBlob {
-				secretName := defaults.GetBlobFuseCredsSecretName(componentName, volumeMount.Name)
+			switch volumeMount.Type {
+			case radixv1.MountTypeBlob:
+				{
+					secretName := defaults.GetBlobFuseCredsSecretName(componentName, volumeMount.Name)
 
-				flexVolumeOptions := make(map[string]string)
-				flexVolumeOptions["name"] = volumeMount.Name
-				flexVolumeOptions["container"] = volumeMount.Container
-				flexVolumeOptions["mountoptions"] = defaultMountOptions
-				flexVolumeOptions["tmppath"] = fmt.Sprintf(blobFuseVolumeNodeMountPathTemplate, namespace, componentName, environment, radixv1.MountTypeBlob, volumeMount.Name, volumeMount.Container)
+					flexVolumeOptions := make(map[string]string)
+					flexVolumeOptions["name"] = volumeMount.Name
+					flexVolumeOptions["container"] = volumeMount.Container
+					flexVolumeOptions["mountoptions"] = defaultMountOptions
+					flexVolumeOptions["tmppath"] = fmt.Sprintf(blobFuseVolumeNodeMountPathTemplate, namespace, componentName, environment, radixv1.MountTypeBlob, volumeMount.Name, volumeMount.Container)
 
-				volumes = append(volumes, corev1.Volume{
-					Name: fmt.Sprintf(volumeName, componentName, volumeMount.Name),
-					VolumeSource: corev1.VolumeSource{
-						FlexVolume: &corev1.FlexVolumeSource{
-							Driver:  blobfuseDriver,
-							Options: flexVolumeOptions,
-							SecretRef: &corev1.LocalObjectReference{
-								Name: secretName,
+					volumes = append(volumes, corev1.Volume{
+						Name: fmt.Sprintf(volumeName, componentName, volumeMount.Name),
+						VolumeSource: corev1.VolumeSource{
+							FlexVolume: &corev1.FlexVolumeSource{
+								Driver:  blobfuseDriver,
+								Options: flexVolumeOptions,
+								SecretRef: &corev1.LocalObjectReference{
+									Name: secretName,
+								},
 							},
 						},
-					},
-				})
+					})
+				}
+			case radixv1.MountTypeBlobCsiAzure:
+				{
+					volumes = append(volumes, corev1.Volume{
+						Name: fmt.Sprintf(volumeName, componentName, volumeMount.Name),
+						VolumeSource: corev1.VolumeSource{
+							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+								ClaimName: GetPersistentVolumeClaimName(namespace, componentName, environment, volumeMount.Name, volumeMount.Container),
+							},
+						},
+					})
+				}
 			}
 		}
 	}
-
 	return volumes
+}
+
+func GetPersistentVolumeClaimName(namespace, componentName, environment, volumeMountName, container string) string {
+	return fmt.Sprintf("pvc-%s-%s-%s-%s-%s", namespace, componentName, environment, volumeMountName, container)
 }
 
 func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName string, accountName, accountKey []byte) error {
 	blobfusecredsSecret := v1.Secret{
-		Type: "azure/blobfuse",
+		Type: blobfuseDriver,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
@@ -99,6 +117,33 @@ func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, component
 	blobfusecredsSecret.Data = data
 
 	_, err := deploy.kubeutil.ApplySecret(namespace, &blobfusecredsSecret)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, componentName, secretName string, accountName, accountKey []byte) error {
+	secret := v1.Secret{
+		Type: csiAzureDriver,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+			Labels: map[string]string{
+				kube.RadixAppLabel:       deploy.registration.Name,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixMountTypeLabel: string(radixv1.MountTypeBlobCsiAzure),
+			},
+		},
+	}
+
+	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
+	data := make(map[string][]byte)
+	data[defaults.CsiAzureCredsAccountKeyPart] = accountKey
+	data[defaults.CsiAzureCredsAccountNamePart] = accountName
+
+	secret.Data = data
+
+	_, err := deploy.kubeutil.ApplySecret(namespace, &secret)
 	if err != nil {
 		return err
 	}
