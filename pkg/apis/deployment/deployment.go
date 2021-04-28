@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"os"
 	"sort"
 	"strconv"
@@ -13,7 +15,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
+	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -543,4 +545,58 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 
 func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
 	return utils.GetPodSpecAffinity(deployComponent)
+}
+
+func createCsiAzureStorageClasses(namespace, componentName, storageClassName, secretName string) *storagev1.StorageClass {
+	reclaimPolicy := corev1.PersistentVolumeReclaimRetain
+	bindingMode := storagev1.VolumeBindingImmediate
+	storageClass := storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: storageClassName,
+			Labels: map[string]string{
+				kube.RadixNamespace:      namespace,
+				kube.RadixComponentLabel: componentName,
+				kube.RadixMountTypeLabel: string(v1.MountTypeBlobCsiAzure),
+			},
+		},
+		Provisioner: "blob.csi.azure.com", //TODO - get from radix-config
+		Parameters: map[string]string{
+			"csi.storage.k8s.io/provisioner-secret-name":      secretName,
+			"csi.storage.k8s.io/provisioner-secret-namespace": namespace,
+			"csi.storage.k8s.io/node-stage-secret-name":       secretName,
+			"csi.storage.k8s.io/node-stage-secret-namespace":  namespace,
+			"skuName": "Standard_LRS", //available values: Standard_LRS, Premium_LRS, Standard_GRS, Standard_RAGRS
+		},
+		ReclaimPolicy: &reclaimPolicy,
+		MountOptions: []string{
+			"-o allow_other",
+			"--file-cache-timeout-in-seconds=120",
+			"--use-attr-cache=true",
+			"-o attr_timeout=120",
+			"-o entry_timeout=120",
+			"-o negative_timeout=120",
+		},
+		VolumeBindingMode: &bindingMode,
+	}
+	return &storageClass
+}
+
+func createPersistentVolumeClaim(namespace, componentName, pvcName, storageClassName string) *corev1.PersistentVolumeClaim {
+	return &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pvcName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				kube.RadixComponentLabel: componentName,
+				kube.RadixMountTypeLabel: string(v1.MountTypeBlobCsiAzure),
+			},
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, //TODO - specify in configuration
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("50Mi")}, //TODO - check if it is needed
+			},
+			StorageClassName: &storageClassName,
+		},
+	}
 }

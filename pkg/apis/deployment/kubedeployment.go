@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	storagev1 "k8s.io/api/storage/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
@@ -40,17 +41,76 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
-	deploy.createOrUpdateCsiAzureProperties(currentDeployment, desiredDeployment)
+	err = deploy.createOrUpdateCsiAzureProperties(desiredDeployment)
+	if err != nil {
+		return err
+	}
 
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) createOrUpdateCsiAzureProperties(currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) {
+func (deploy *Deployment) createOrUpdateCsiAzureProperties(desiredDeployment *appsv1.Deployment) error {
 	//TODO: garbageCollectCsiAzureStorageClasses()
 	//TODO: garbageCollectCsiAzurePersistentVolumeClaims()
+	namespace := deploy.radixDeployment.GetNamespace()
+	componentName := deploy.radixDeployment.GetName()
+	storageClassList, err := deploy.kubeclient.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{
+		LabelSelector: getLabelSelectorForCsiAzureStorageClass(namespace, componentName),
+	})
+	if err != nil {
+		return nil
+	}
+	pvcList, err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaim(componentName),
+	})
+	if err != nil {
+		return nil
+	}
 
-	deploy.createOrUpdateCsiAzureStorageClasses(currentDeployment, desiredDeployment)
-	deploy.createOrUpdateCsiAzurePersistentVolumeClaims(currentDeployment, desiredDeployment)
+	storageClassMap := getStorageClassMap(storageClassList)
+	pvcMap := getPersistentVolumeClaimMap(pvcList)
+
+	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
+		if volume.PersistentVolumeClaim == nil {
+			continue
+		}
+		pvcName := volume.PersistentVolumeClaim.ClaimName
+		if _, ok := pvcMap[pvcName]; ok {
+			continue
+		}
+		containerName := "containerName" //TODO - get from config
+		storageClassName := GetCsiAzureStorageClassName(namespace, componentName, containerName, volumeName)
+		pvcMap[pvcName] = *createPersistentVolumeClaim(namespace, componentName, pvcName, storageClassName)
+		if _, ok := storageClassMap[storageClassName]; !ok {
+			secretName := GetCsiAzureSecretName(namespace, componentName, containerName, volumeName)
+			storageClassMap[storageClassName] = createCsiAzureStorageClasses(namespace, componentName, storageClassName, secretName)
+		}
+	}
+	return nil
+}
+
+func getPersistentVolumeClaimMap(persistentVolumeClaims *corev1.PersistentVolumeClaimList) map[string]corev1.PersistentVolumeClaim {
+	var pvcMap map[string]corev1.PersistentVolumeClaim
+	for _, pvc := range persistentVolumeClaims.Items {
+		pvcMap[pvc.Name] = pvc
+	}
+	return pvcMap
+}
+
+func getStorageClassMap(storageClassList *storagev1.StorageClassList) map[string]*storagev1.StorageClass {
+	var storageClassMap map[string]*storagev1.StorageClass
+	for _, sc := range storageClassList.Items {
+		storageClassMap[sc.Name] = &sc
+	}
+	return storageClassMap
+}
+
+func getLabelSelectorForCsiAzureStorageClass(namespace, componentName string) string {
+	return fmt.Sprintf("%s=%s, %s=%s, %s=%s", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure))
+}
+
+func getLabelSelectorForCsiAzurePersistenceVolumeClaim(componentName string) string {
+	return fmt.Sprintf("%s=%s, %s=%s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure))
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {

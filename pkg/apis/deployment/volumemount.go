@@ -75,13 +75,13 @@ func GetVolumes(namespace string, environment string, componentName string, volu
 						},
 					})
 				}
-			case radixv1.MountTypeBlobCsiAzure:
+			case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeDiskCsiAzure:
 				{
 					volumes = append(volumes, corev1.Volume{
 						Name: fmt.Sprintf(volumeName, componentName, volumeMount.Name),
 						VolumeSource: corev1.VolumeSource{
 							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-								ClaimName: GetPersistentVolumeClaimName(namespace, componentName, environment, volumeMount.Name, volumeMount.Container),
+								ClaimName: GetPersistentVolumeClaimName(namespace, componentName, volumeMount.Container, volumeMount.Name),
 							},
 						},
 					})
@@ -92,8 +92,16 @@ func GetVolumes(namespace string, environment string, componentName string, volu
 	return volumes
 }
 
-func GetPersistentVolumeClaimName(namespace, componentName, environment, volumeMountName, container string) string {
-	return fmt.Sprintf("pvc-%s-%s-%s-%s-%s", namespace, componentName, environment, volumeMountName, container)
+func GetPersistentVolumeClaimName(namespace, componentName, containerName, volumeMountName string) string {
+	return fmt.Sprintf("csi-azure-%s-%s-%s-%s", namespace, componentName, containerName, volumeMountName)
+}
+
+func GetCsiAzureStorageClassName(namespace, componentName, containerName, volumeMountName string) string {
+	return fmt.Sprintf("csi-azure-%s-%s-%s-%s", namespace, componentName, containerName, volumeMountName)
+}
+
+func GetCsiAzureSecretName(namespace, componentName, containerName, volumeMountName string) string {
+	return fmt.Sprintf("csi-azure-%s-%s-%s-%s", namespace, componentName, containerName, volumeMountName)
 }
 
 func (deploy *Deployment) createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName string, accountName, accountKey []byte) error {

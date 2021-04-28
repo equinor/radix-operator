@@ -100,7 +100,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 				{
 					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(ns, component.GetName(), volumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
+					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}

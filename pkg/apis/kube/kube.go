@@ -45,6 +45,7 @@ const (
 	RadixMountTypeLabel          = "mount-type"
 	RadixGpuLabel                = "radix-node-gpu"
 	RadixGpuCountLabel           = "radix-node-gpu-count"
+	RadixNamespace               = "radix-namespace"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
