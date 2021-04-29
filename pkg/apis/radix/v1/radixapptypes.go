@@ -205,6 +205,14 @@ const (
 	MountTypeDiskCsiAzure MountType = "disk.csi.azure.com"
 )
 
+func IsKnownVolumeMount(volumeMount string) bool {
+	switch volumeMount {
+	case string(MountTypeBlob), string(MountTypeBlobCsiAzure), string(MountTypeDiskCsiAzure):
+		return true
+	}
+	return false
+}
+
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
 	// Gpu Optional. Holds lists of node GPU types, with dashed types to exclude

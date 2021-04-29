@@ -834,7 +834,7 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 			{
 				return emptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
 			}
-		case volumeMountType == string(v1.MountTypeBlob):
+		case v1.IsKnownVolumeMount(volumeMountType):
 			{
 				if _, exists := mountsInComponent[volumeMountType]; !exists {
 					mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), containers: make(map[string]bool), path: make(map[string]bool)}
