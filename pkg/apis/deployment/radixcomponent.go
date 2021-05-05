@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/imdario/mergo"
 )
 
 func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
@@ -18,19 +19,18 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
 
+		// Will later be overriden by default replicas if not set specifically
+		var replicas *int
 		var variables v1.EnvVarsMap
 		monitoring := false
 		var resources v1.ResourceRequirements
-
-		// Will later be overriden by default replicas if not set specifically
-		var replicas *int
-
 		var horizontalScaling *v1.RadixHorizontalScaling
 		var volumeMounts []v1.RadixVolumeMount
 		var node v1.RadixNode
 		var imageTagName string
-
 		var alwaysPullImageOnDeploy bool
+		var environmentAuthentication *v1.Authentication
+
 		// Containers run as root unless overridden in config
 		runAsNonRoot := false
 
@@ -47,12 +47,15 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			imageTagName = environmentSpecificConfig.ImageTagName
 			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
+			environmentAuthentication = environmentSpecificConfig.Authentication
 		} else {
 			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
 		}
+
 		if variables == nil {
 			variables = make(v1.EnvVarsMap)
 		}
+
 		// Append common environment variables from appComponent.Variables to variables if not available yet
 		for variableKey, variableValue := range appComponent.Variables {
 			if _, found := variables[variableKey]; !found {
@@ -81,6 +84,8 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		authentication := GetAuthenticationForComponent(appComponent.Authentication, environmentAuthentication)
+
 		deployComponent := v1.RadixDeployComponent{
 			Name:                    componentName,
 			RunAsNonRoot:            runAsNonRoot,
@@ -100,11 +105,27 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			VolumeMounts:            volumeMounts,
 			Node:                    node,
 			AlwaysPullImageOnDeploy: alwaysPullImageOnDeploy,
+			Authentication:          authentication,
 		}
 
 		components = append(components, deployComponent)
 	}
+
 	return components
+}
+
+func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) *v1.Authentication {
+	var authentication *v1.Authentication
+	if componentAuthentication == nil {
+		authentication = environmentAuthentication
+	} else if environmentAuthentication == nil {
+		authentication = componentAuthentication.DeepCopy()
+	} else {
+		authentication = componentAuthentication.DeepCopy()
+		mergo.Merge(authentication, environmentAuthentication)
+	}
+
+	return authentication
 }
 
 // IsDNSAppAlias Checks if environment and component represents the DNS app alias

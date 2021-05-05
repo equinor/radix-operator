@@ -11,8 +11,7 @@ type DeployComponentBuilder interface {
 	WithPort(string, int32) DeployComponentBuilder
 	WithEnvironmentVariable(string, string) DeployComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
-	// Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
-	WithPublic(bool) DeployComponentBuilder
+	WithPublic(bool) DeployComponentBuilder // Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
 	WithAlwaysPullImageOnDeploy(bool) DeployComponentBuilder
@@ -28,17 +27,17 @@ type DeployComponentBuilder interface {
 	WithDNSExternalAlias(string) DeployComponentBuilder
 	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
+	WithAuthentication(authentication *v1.Authentication) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
 type deployComponentBuilder struct {
-	name                 string
-	runAsNonRoot         bool
-	image                string
-	ports                map[string]int32
-	environmentVariables map[string]string
-	// Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
-	public                  bool
+	name                    string
+	runAsNonRoot            bool
+	image                   string
+	ports                   map[string]int32
+	environmentVariables    map[string]string
+	public                  bool // Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
 	publicPort              string
 	monitoring              bool
 	replicas                *int
@@ -51,6 +50,7 @@ type deployComponentBuilder struct {
 	horizontalScaling       *v1.RadixHorizontalScaling
 	volumeMounts            []v1.RadixVolumeMount
 	node                    v1.RadixNode
+	authentication          *v1.Authentication
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployComponentBuilder {
@@ -171,6 +171,11 @@ func (dcb *deployComponentBuilder) WithRunAsNonRoot(runAsNonRoot bool) DeployCom
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithAuthentication(authentication *v1.Authentication) DeployComponentBuilder {
+	dcb.authentication = authentication
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range dcb.ports {
@@ -196,6 +201,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		VolumeMounts:            dcb.volumeMounts,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 		Node:                    dcb.node,
+		Authentication:          dcb.authentication,
 	}
 }
 

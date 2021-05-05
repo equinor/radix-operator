@@ -1,8 +1,9 @@
 package deployment
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"testing"
+
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -19,6 +20,42 @@ const (
 	anyImagePath = anyImage
 	anyImageTag  = "latest"
 )
+
+func TestGetAuthenticationForComponent(t *testing.T) {
+	var x0 *v1.Authentication
+	x0 = nil
+
+	verificationOpt := v1.VerificationTypeOptionalNoCa
+	x1 := &v1.Authentication{
+		ClientCertificate: &v1.ClientCertificate{
+			PassCertificateToUpstream: utils.BoolPtr(true),
+		},
+	}
+	x2 := &v1.Authentication{
+		ClientCertificate: &v1.ClientCertificate{
+			Verification:              &verificationOpt,
+			PassCertificateToUpstream: utils.BoolPtr(false),
+		},
+	}
+	expected := &v1.Authentication{
+		ClientCertificate: &v1.ClientCertificate{
+			Verification:              &verificationOpt,
+			PassCertificateToUpstream: utils.BoolPtr(true),
+		},
+	}
+
+	auth1 := GetAuthenticationForComponent(x1, x2)
+	assert.Equal(t, expected, auth1)
+
+	auth2 := GetAuthenticationForComponent(x1, nil)
+	assert.Equal(t, x1, auth2)
+
+	auth3 := GetAuthenticationForComponent(nil, x2)
+	assert.Equal(t, x2, auth3)
+
+	auth4 := GetAuthenticationForComponent(nil, nil)
+	assert.Equal(t, x0, auth4)
+}
 
 func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	// New publicPort does not exist, old public does not exist
