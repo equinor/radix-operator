@@ -108,6 +108,14 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 						WithReplicas(test.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
+						WithAuthentication(
+							&v1.Authentication{
+								ClientCertificate: &v1.ClientCertificate{
+									Verification:              &certificateVerification,
+									PassCertificateToUpstream: utils.BoolPtr(false),
+								},
+							},
+						).
 						WithRunAsNonRoot(true).
 						WithReplicas(test.IntPtr(4))),
 			utils.AnApplicationComponent().
@@ -117,8 +125,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				WithAuthentication(
 					&v1.Authentication{
 						ClientCertificate: &v1.ClientCertificate{
-							PassCertificateToUpstream: utils.BoolPtr(false),
-							Verification:              &certificateVerification,
+							PassCertificateToUpstream: utils.BoolPtr(true),
 						},
 					},
 				).
@@ -205,14 +212,26 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	t.Run("validate authentication variable", func(t *testing.T) {
 		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 
+		x0 := &v1.Authentication{
+			ClientCertificate: &v1.ClientCertificate{
+				Verification:              &certificateVerification,
+				PassCertificateToUpstream: utils.BoolPtr(false),
+			},
+		}
+
+		x1 := &v1.Authentication{
+			ClientCertificate: &v1.ClientCertificate{
+				PassCertificateToUpstream: utils.BoolPtr(true),
+			},
+		}
+
 		assert.NotNil(t, rdDev.Spec.Components[0].Authentication)
 		assert.NotNil(t, rdDev.Spec.Components[0].Authentication.ClientCertificate)
-		assert.Equal(t, utils.BoolPtr(true), rdDev.Spec.Components[0].Authentication.ClientCertificate.PassCertificateToUpstream)
+		assert.Equal(t, x0, rdDev.Spec.Components[0].Authentication)
 
 		assert.NotNil(t, rdDev.Spec.Components[1].Authentication)
 		assert.NotNil(t, rdDev.Spec.Components[1].Authentication.ClientCertificate)
-		assert.Equal(t, &certificateVerification, rdDev.Spec.Components[1].Authentication.ClientCertificate.Verification)
-		assert.Equal(t, utils.BoolPtr(false), rdDev.Spec.Components[1].Authentication.ClientCertificate.PassCertificateToUpstream)
+		assert.Equal(t, x1, rdDev.Spec.Components[1].Authentication)
 	})
 
 	t.Run("validate dns app alias", func(t *testing.T) {

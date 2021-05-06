@@ -6,7 +6,6 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/imdario/mergo"
 )
 
 func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
@@ -116,16 +115,43 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 
 func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) *v1.Authentication {
 	var authentication *v1.Authentication
-	if componentAuthentication == nil {
-		authentication = environmentAuthentication
+
+	if componentAuthentication == nil && environmentAuthentication == nil {
+		authentication = nil
+	} else if componentAuthentication == nil {
+		authentication = environmentAuthentication.DeepCopy()
 	} else if environmentAuthentication == nil {
 		authentication = componentAuthentication.DeepCopy()
 	} else {
-		authentication = componentAuthentication.DeepCopy()
-		mergo.Merge(authentication, environmentAuthentication)
+		authentication = &v1.Authentication{
+			ClientCertificate: GetClientCertificateForComponent(componentAuthentication.ClientCertificate, environmentAuthentication.ClientCertificate),
+		}
 	}
 
 	return authentication
+}
+
+func GetClientCertificateForComponent(componentCertificate *v1.ClientCertificate, environmentCertificate *v1.ClientCertificate) *v1.ClientCertificate {
+	var certificate *v1.ClientCertificate
+	if componentCertificate == nil && environmentCertificate == nil {
+		certificate = nil
+	} else if componentCertificate == nil {
+		certificate = environmentCertificate.DeepCopy()
+	} else if environmentCertificate == nil {
+		certificate = componentCertificate.DeepCopy()
+	} else {
+		certificate = componentCertificate.DeepCopy()
+		envCert := environmentCertificate.DeepCopy()
+		if envCert.PassCertificateToUpstream != nil {
+			certificate.PassCertificateToUpstream = envCert.PassCertificateToUpstream
+		}
+
+		if envCert.Verification != nil {
+			certificate.Verification = envCert.Verification
+		}
+	}
+
+	return certificate
 }
 
 // IsDNSAppAlias Checks if environment and component represents the DNS app alias
