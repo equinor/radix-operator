@@ -430,10 +430,15 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(rds.Items))
 
+	x0 := &v1.Authentication{
+		ClientCertificate: &v1.ClientCertificate{
+			Verification:              &verification,
+			PassCertificateToUpstream: utils.BoolPtr(true),
+		},
+	}
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)
 	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication.ClientCertificate)
-	assert.Equal(t, utils.BoolPtr(true), rds.Items[0].Spec.Components[0].Authentication.ClientCertificate.PassCertificateToUpstream)
-	assert.Equal(t, &verification, rds.Items[0].Spec.Components[0].Authentication.ClientCertificate.Verification)
+	assert.Equal(t, x0, rds.Items[0].Spec.Components[0].Authentication)
 }
 
 func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) {
