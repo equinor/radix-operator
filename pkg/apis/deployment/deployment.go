@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
+	"github.com/pkg/errors"
 	"os"
 	"sort"
 	"strconv"
@@ -547,56 +546,16 @@ func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeplo
 	return utils.GetPodSpecAffinity(deployComponent)
 }
 
-func createCsiAzureStorageClasses(namespace, componentName, storageClassName, secretName string) *storagev1.StorageClass {
-	reclaimPolicy := corev1.PersistentVolumeReclaimRetain
-	bindingMode := storagev1.VolumeBindingImmediate
-	storageClass := storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: storageClassName,
-			Labels: map[string]string{
-				kube.RadixNamespace:      namespace,
-				kube.RadixComponentLabel: componentName,
-				kube.RadixMountTypeLabel: string(v1.MountTypeBlobCsiAzure),
-			},
-		},
-		Provisioner: "blob.csi.azure.com", //TODO - get from radix-config
-		Parameters: map[string]string{
-			"csi.storage.k8s.io/provisioner-secret-name":      secretName,
-			"csi.storage.k8s.io/provisioner-secret-namespace": namespace,
-			"csi.storage.k8s.io/node-stage-secret-name":       secretName,
-			"csi.storage.k8s.io/node-stage-secret-namespace":  namespace,
-			"skuName": "Standard_LRS", //available values: Standard_LRS, Premium_LRS, Standard_GRS, Standard_RAGRS
-		},
-		ReclaimPolicy: &reclaimPolicy,
-		MountOptions: []string{
-			"-o allow_other",
-			"--file-cache-timeout-in-seconds=120",
-			"--use-attr-cache=true",
-			"-o attr_timeout=120",
-			"-o entry_timeout=120",
-			"-o negative_timeout=120",
-		},
-		VolumeBindingMode: &bindingMode,
+func (deploy *Deployment) getRadixComponentByName(name string) (v1.RadixCommonComponent, error) {
+	for _, component := range deploy.radixDeployment.Spec.Components {
+		if strings.EqualFold(name, component.GetName()) {
+			return &component, nil
+		}
 	}
-	return &storageClass
-}
-
-func createPersistentVolumeClaim(namespace, componentName, pvcName, storageClassName string) *corev1.PersistentVolumeClaim {
-	return &corev1.PersistentVolumeClaim{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      pvcName,
-			Namespace: namespace,
-			Labels: map[string]string{
-				kube.RadixComponentLabel: componentName,
-				kube.RadixMountTypeLabel: string(v1.MountTypeBlobCsiAzure),
-			},
-		},
-		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, //TODO - specify in configuration
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("50Mi")}, //TODO - check if it is needed
-			},
-			StorageClassName: &storageClassName,
-		},
+	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
+		if strings.EqualFold(name, jobComponent.GetName()) {
+			return &component, nil
+		}
 	}
+	return nil, errors.New(fmt.Sprintf("Radix component of job not found by name %s", name))
 }

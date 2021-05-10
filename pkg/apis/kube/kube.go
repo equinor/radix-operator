@@ -43,6 +43,7 @@ const (
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
 	RadixMountTypeLabel          = "mount-type"
+	RadixVolumeMountNameLabel    = "radix-volume-mount-name"
 	RadixGpuLabel                = "radix-node-gpu"
 	RadixGpuCountLabel           = "radix-node-gpu-count"
 	RadixNamespace               = "radix-namespace"

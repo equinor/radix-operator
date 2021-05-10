@@ -2,6 +2,7 @@ package v1
 
 import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -225,6 +226,7 @@ type RadixNode struct {
 type RadixCommonComponent interface {
 	GetName() string
 	GetNode() *RadixNode
+	GetVolumeMountsForEnvironment(env string) []RadixVolumeMount
 }
 
 func (component *RadixComponent) GetName() string {
@@ -235,10 +237,28 @@ func (component *RadixComponent) GetNode() *RadixNode {
 	return &component.Node
 }
 
+func (component *RadixComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
+	for _, envConfig := range component.EnvironmentConfig {
+		if strings.EqualFold(env, envConfig.Environment) {
+			return envConfig.VolumeMounts
+		}
+	}
+	return nil
+}
+
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
 }
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
 	return &component.Node
+}
+
+func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
+	for _, envConfig := range component.EnvironmentConfig {
+		if strings.EqualFold(env, envConfig.Environment) {
+			return envConfig.VolumeMounts
+		}
+	}
+	return nil
 }

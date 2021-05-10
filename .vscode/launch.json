@@ -12,8 +12,8 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "RADIX_APP=radix-github-webhook",
-        "BRANCH=master",
+        "RADIX_APP=radix-app-satr",
+        "BRANCH=main",
         "COMMIT_ID=1234",
         "IMAGE_TAG=abcdef",
         "JOB_NAME=radix-pipeline-build-deploy-1",
@@ -24,12 +24,12 @@
         "RADIX_IMAGE_BUILDER=radix-image-builder:master-latest",
         "RADIX_IMAGE_SCANNER=radix-image-scanner:master-latest",
         "RADIX_CLUSTER_TYPE=development",
-        "RADIX_CLUSTERNAME=weekly-1",
+        "RADIX_CLUSTERNAME=weekly-16",
         "RADIX_FILE_NAME=/workspace/radixconfig.yaml",
         "DEBUG=true"
       ]
     },
-    {
+    { 
       "name": "Launch-promote-pipeline",
       "type": "go",
       "request": "launch",
