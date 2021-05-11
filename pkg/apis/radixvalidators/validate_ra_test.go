@@ -15,6 +15,8 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
+type updateRAFunc func(rr *v1.RadixApplication)
+
 func Test_valid_ra_returns_true(t *testing.T) {
 	_, client := validRASetup()
 	validRA := createValidRA()
@@ -34,7 +36,6 @@ func Test_missing_rr(t *testing.T) {
 }
 
 func Test_application_name_casing_is_validated(t *testing.T) {
-
 	mixedCaseName := "Radix-Test-APPLICATION"
 	lowerCaseName := "radix-test-application"
 	upperCaseName := "RADIX-TEST-APPLICATION"
@@ -69,8 +70,6 @@ func Test_application_name_casing_is_validated(t *testing.T) {
 	}
 }
 
-type updateRAFunc func(rr *v1.RadixApplication)
-
 func Test_invalid_ra(t *testing.T) {
 	validRAFirstComponentName := "app"
 	validRAFirstJobName := "job"
@@ -87,7 +86,8 @@ func Test_invalid_ra(t *testing.T) {
 	nonExistingComponent := "non existing"
 	unsupportedResource := "unsupportedResource"
 	invalidResourceValue := "asdfasd"
-	conflicingVariableName := "some-variable"
+	conflictingVariableName := "some-variable"
+	invalidCertificateVerification := v1.VerificationType("obviously_an_invalid_value")
 
 	var testScenarios = []struct {
 		name          string
@@ -155,9 +155,9 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
 		}},
-		{"conflicting variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[1].EnvironmentConfig[0].Variables[conflicingVariableName] = "Any value"
-			ra.Spec.Components[1].Secrets[0] = conflicingVariableName
+		{"conflicting variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflictingVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].EnvironmentConfig[0].Variables[conflictingVariableName] = "Any value"
+			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 		}},
 		{"invalid common environment variable name", radixvalidators.InvalidResourceNameError("environment variable name", invalidVariableName), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Variables[invalidVariableName] = "Any value"
@@ -165,9 +165,9 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long common environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[1].Variables[wayTooLongName] = "Any value"
 		}},
-		{"conflicting common variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflicingVariableName), func(ra *v1.RadixApplication) {
-			ra.Spec.Components[1].Variables[conflicingVariableName] = "Any value"
-			ra.Spec.Components[1].Secrets[0] = conflicingVariableName
+		{"conflicting common variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable(validRASecondComponentName, conflictingVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[1].Variables[conflictingVariableName] = "Any value"
+			ra.Spec.Components[1].Secrets[0] = conflictingVariableName
 		}},
 		{"invalid number of replicas", radixvalidators.InvalidNumberOfReplicaError(radixvalidators.MaxReplica + 1), func(ra *v1.RadixApplication) {
 			*ra.Spec.Components[0].EnvironmentConfig[0].Replicas = radixvalidators.MaxReplica + 1
@@ -319,6 +319,20 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Spec.Components[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
 			ra.Spec.Components[0].EnvironmentConfig[0].ImageTagName = "any-tag"
 		}},
+		{"invalid verificationType for component", radixvalidators.InvalidVerificationType(string(invalidCertificateVerification)), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Authentication = &v1.Authentication{
+				ClientCertificate: &v1.ClientCertificate{
+					Verification: &invalidCertificateVerification,
+				},
+			}
+		}},
+		{"invalid verificationType for environment", radixvalidators.InvalidVerificationType(string(invalidCertificateVerification)), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Authentication = &v1.Authentication{
+				ClientCertificate: &v1.ClientCertificate{
+					Verification: &invalidCertificateVerification,
+				},
+			}
+		}},
 		{"invalid job secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].Secrets[0] = invalidVariableName
 		}},
@@ -337,9 +351,9 @@ func Test_invalid_ra(t *testing.T) {
 		{"too long job environment variable name", radixvalidators.InvalidStringValueMaxLengthError("environment variable name", wayTooLongName, 253), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[wayTooLongName] = "Any value"
 		}},
-		{"conflicting job variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable("job", conflicingVariableName), func(ra *v1.RadixApplication) {
-			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[conflicingVariableName] = "Any value"
-			ra.Spec.Jobs[0].Secrets[0] = conflicingVariableName
+		{"conflicting job variable and secret name", radixvalidators.SecretNameConflictsWithEnvironmentVariable("job", conflictingVariableName), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Variables[conflictingVariableName] = "Any value"
+			ra.Spec.Jobs[0].Secrets[0] = conflictingVariableName
 		}},
 		{"non existing env for job", radixvalidators.EnvironmentReferencedByComponentDoesNotExistError(noExistingEnvironment, validRAFirstJobName), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].EnvironmentConfig = []v1.RadixJobComponentEnvironmentConfig{

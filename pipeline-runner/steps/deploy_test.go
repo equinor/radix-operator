@@ -8,6 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -82,6 +83,8 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		WithName(anyAppName).
 		BuildRR()
 
+	certificateVerification := v1.VerificationTypeOptional
+
 	ra := utils.NewRadixApplicationBuilder().
 		WithAppName(anyAppName).
 		WithEnvironment("dev", "master").
@@ -92,18 +95,40 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 				WithName("app").
 				WithPublicPort("http").
 				WithPort("http", 8080).
+				WithAuthentication(
+					&v1.Authentication{
+						ClientCertificate: &v1.ClientCertificate{
+							PassCertificateToUpstream: utils.BoolPtr(true),
+						},
+					},
+				).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
 						WithReplicas(test.IntPtr(4)),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
+						WithAuthentication(
+							&v1.Authentication{
+								ClientCertificate: &v1.ClientCertificate{
+									Verification:              &certificateVerification,
+									PassCertificateToUpstream: utils.BoolPtr(false),
+								},
+							},
+						).
 						WithRunAsNonRoot(true).
 						WithReplicas(test.IntPtr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
 				WithPublicPort("").
 				WithPort("http", 6379).
+				WithAuthentication(
+					&v1.Authentication{
+						ClientCertificate: &v1.ClientCertificate{
+							PassCertificateToUpstream: utils.BoolPtr(true),
+						},
+					},
+				).
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
@@ -182,6 +207,31 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, "master", rdDev.Annotations[kube.RadixBranchAnnotation])
 		assert.Equal(t, anyCommitID, rdDev.Labels[kube.RadixCommitLabel])
 		assert.Equal(t, anyJobName, rdDev.Labels["radix-job-name"])
+	})
+
+	t.Run("validate authentication variable", func(t *testing.T) {
+		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
+
+		x0 := &v1.Authentication{
+			ClientCertificate: &v1.ClientCertificate{
+				Verification:              &certificateVerification,
+				PassCertificateToUpstream: utils.BoolPtr(false),
+			},
+		}
+
+		x1 := &v1.Authentication{
+			ClientCertificate: &v1.ClientCertificate{
+				PassCertificateToUpstream: utils.BoolPtr(true),
+			},
+		}
+
+		assert.NotNil(t, rdDev.Spec.Components[0].Authentication)
+		assert.NotNil(t, rdDev.Spec.Components[0].Authentication.ClientCertificate)
+		assert.Equal(t, x0, rdDev.Spec.Components[0].Authentication)
+
+		assert.NotNil(t, rdDev.Spec.Components[1].Authentication)
+		assert.NotNil(t, rdDev.Spec.Components[1].Authentication.ClientCertificate)
+		assert.Equal(t, x1, rdDev.Spec.Components[1].Authentication)
 	})
 
 	t.Run("validate dns app alias", func(t *testing.T) {

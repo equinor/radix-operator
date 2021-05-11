@@ -8,6 +8,7 @@ import (
 
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -351,6 +352,93 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	assert.Equal(t, "11Mi", rds.Items[0].Spec.Jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "44m", rds.Items[0].Spec.Jobs[0].Resources.Limits["cpu"])
 	assert.Equal(t, "33Mi", rds.Items[0].Spec.Jobs[0].Resources.Limits["memory"])
+}
+
+func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
+	anyApp := "any-app"
+	anyDeploymentName := "deployment-1"
+	anyImageTag := "abcdef"
+	anyBuildDeployJobName := "any-build-deploy-job"
+	anyPromoteJobName := "any-promote-job"
+	anyProdEnvironment := "prod"
+	anyDevEnvironment := "dev"
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+
+	verification := v1.VerificationTypeOptional
+	commonTestUtils.ApplyDeployment(
+		utils.NewDeploymentBuilder().
+			WithAppName(anyApp).
+			WithDeploymentName(anyDeploymentName).
+			WithEnvironment(anyDevEnvironment).
+			WithComponents(
+				utils.NewDeployComponentBuilder().WithName("app").WithAuthentication(nil),
+			).
+			WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithRadixRegistration(utils.ARadixRegistration().WithName(anyApp)).
+					WithAppName(anyApp).
+					WithEnvironment(anyProdEnvironment, "").
+					WithComponents(
+						utils.AnApplicationComponent().
+							WithName("app").
+							WithAuthentication(
+								&v1.Authentication{
+									ClientCertificate: &v1.ClientCertificate{
+										PassCertificateToUpstream: utils.BoolPtr(true),
+									},
+								},
+							).
+							WithEnvironmentConfigs(
+								utils.NewComponentEnvironmentBuilder().WithEnvironment(anyProdEnvironment).WithAuthentication(
+									&v1.Authentication{
+										ClientCertificate: &v1.ClientCertificate{
+											Verification: &verification,
+										},
+									},
+								),
+							),
+					)))
+
+	// Create prod environment without any deployments
+	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
+
+	cli := NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: anyDevEnvironment,
+			ToEnvironment:   anyProdEnvironment,
+			DeploymentName:  anyDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
+	}
+
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	err := cli.Run(pipelineInfo)
+	assert.NoError(t, err)
+
+	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 1, len(rds.Items))
+
+	x0 := &v1.Authentication{
+		ClientCertificate: &v1.ClientCertificate{
+			Verification:              &verification,
+			PassCertificateToUpstream: utils.BoolPtr(true),
+		},
+	}
+	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication)
+	assert.NotNil(t, rds.Items[0].Spec.Components[0].Authentication.ClientCertificate)
+	assert.Equal(t, x0, rds.Items[0].Spec.Components[0].Authentication)
 }
 
 func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) {

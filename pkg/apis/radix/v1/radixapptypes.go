@@ -100,13 +100,12 @@ type ResourceRequirements struct {
 
 // RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
 type RadixComponent struct {
-	Name           string          `json:"name" yaml:"name"`
-	SourceFolder   string          `json:"src" yaml:"src"`
-	Image          string          `json:"image" yaml:"image"`
-	DockerfileName string          `json:"dockerfileName" yaml:"dockerfileName"`
-	Ports          []ComponentPort `json:"ports" yaml:"ports"`
-	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
-	Public                  bool                     `json:"public" yaml:"public"`
+	Name                    string                   `json:"name" yaml:"name"`
+	SourceFolder            string                   `json:"src" yaml:"src"`
+	Image                   string                   `json:"image" yaml:"image"`
+	DockerfileName          string                   `json:"dockerfileName" yaml:"dockerfileName"`
+	Ports                   []ComponentPort          `json:"ports" yaml:"ports"`
+	Public                  bool                     `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	IngressConfiguration    []string                 `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
@@ -115,6 +114,7 @@ type RadixComponent struct {
 	Resources               ResourceRequirements     `json:"resources,omitempty" yaml:"resources,omitempty"`
 	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
+	Authentication          *Authentication          `json:"authentication,omitempty" yaml:"authentication,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
@@ -130,6 +130,7 @@ type RadixEnvironmentConfig struct {
 	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
+	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -221,6 +222,24 @@ type RadixNode struct {
 	// GpuCount Optional. Holds minimum count of GPU on node
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
+
+type Authentication struct {
+	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
+}
+
+type ClientCertificate struct {
+	Verification              *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
+	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
+}
+
+type VerificationType string
+
+const (
+	VerificationTypeOff          VerificationType = "off"
+	VerificationTypeOn           VerificationType = "on"
+	VerificationTypeOptional     VerificationType = "optional"
+	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
+)
 
 //RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
