@@ -226,7 +226,6 @@ type RadixNode struct {
 type RadixCommonComponent interface {
 	GetName() string
 	GetNode() *RadixNode
-	GetVolumeMountsForEnvironment(env string) []RadixVolumeMount
 }
 
 func (component *RadixComponent) GetName() string {
@@ -235,15 +234,6 @@ func (component *RadixComponent) GetName() string {
 
 func (component *RadixComponent) GetNode() *RadixNode {
 	return &component.Node
-}
-
-func (component *RadixComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
-	for _, envConfig := range component.EnvironmentConfig {
-		if strings.EqualFold(env, envConfig.Environment) {
-			return envConfig.VolumeMounts
-		}
-	}
-	return nil
 }
 
 func (component *RadixJobComponent) GetName() string {

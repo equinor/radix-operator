@@ -546,7 +546,7 @@ func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeplo
 	return utils.GetPodSpecAffinity(deployComponent)
 }
 
-func (deploy *Deployment) getRadixComponentByName(name string) (v1.RadixCommonComponent, error) {
+func (deploy *Deployment) getRadixComponentByName(name string) (v1.RadixCommonDeployComponent, error) {
 	for _, component := range deploy.radixDeployment.Spec.Components {
 		if strings.EqualFold(name, component.GetName()) {
 			return &component, nil
@@ -554,7 +554,7 @@ func (deploy *Deployment) getRadixComponentByName(name string) (v1.RadixCommonCo
 	}
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
 		if strings.EqualFold(name, jobComponent.GetName()) {
-			return &component, nil
+			return &jobComponent, nil
 		}
 	}
 	return nil, errors.New(fmt.Sprintf("Radix component of job not found by name %s", name))

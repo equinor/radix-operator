@@ -37,18 +37,18 @@ func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegis
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, ns string) error {
+func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment, component radixv1.RadixCommonDeployComponent, namespace string) error {
 	secretsToManage := make([]string, 0)
 
 	if len(component.GetSecrets()) > 0 {
 		secretName := utils.GetComponentSecretName(component.GetName())
-		if !deploy.kubeutil.SecretExists(ns, secretName) {
-			err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), secretName, false)
+		if !deploy.kubeutil.SecretExists(namespace, secretName) {
+			err := deploy.createOrUpdateSecret(namespace, registration.Name, component.GetName(), secretName, false)
 			if err != nil {
 				return err
 			}
 		} else {
-			err := deploy.removeOrphanedSecrets(ns, registration.Name, component.GetName(), secretName, component.GetSecrets())
+			err := deploy.removeOrphanedSecrets(namespace, registration.Name, component.GetName(), secretName, component.GetSecrets())
 			if err != nil {
 				return err
 			}
@@ -68,11 +68,11 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		for _, externalAlias := range dnsExternalAlias {
 			secretsToManage = append(secretsToManage, externalAlias)
 
-			if deploy.kubeutil.SecretExists(ns, externalAlias) {
+			if deploy.kubeutil.SecretExists(namespace, externalAlias) {
 				continue
 			}
 
-			err := deploy.createOrUpdateSecret(ns, registration.Name, component.GetName(), externalAlias, true)
+			err := deploy.createOrUpdateSecret(namespace, registration.Name, component.GetName(), externalAlias, true)
 			if err != nil {
 				return err
 			}
@@ -89,18 +89,18 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 			switch volumeMount.Type {
 			case radixv1.MountTypeBlob:
 				{
-					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(ns, component.GetName(), volumeMount.Name)
+					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, component.GetName(), volumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
+					err := deploy.createOrUpdateVolumeMountsSecrets(namespace, component.GetName(), secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}
 				}
 			case radixv1.MountTypeBlobCsiAzure:
 				{
-					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(ns, component.GetName(), volumeMount.Name)
+					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), volumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(ns, component.GetName(), secretName, accountName, accountKey)
+					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), volumeMount.Name, secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}
@@ -141,12 +141,12 @@ func (deploy *Deployment) getBlobFuseCredsSecrets(ns, componentName, volumeMount
 	return secretName, accountKey, accountName
 }
 
-func (deploy *Deployment) getCsiAzureCredsSecrets(ns, componentName, volumeMountName string) (string, []byte, []byte) {
+func (deploy *Deployment) getCsiAzureCredsSecrets(namespace, componentName, volumeMountName string) (string, []byte, []byte) {
 	secretName := defaults.GetCsiAzureCredsSecretName(componentName, volumeMountName)
 	accountKey := []byte(secretDefaultData)
 	accountName := []byte(secretDefaultData)
-	if deploy.kubeutil.SecretExists(ns, secretName) {
-		oldSecret, _ := deploy.kubeutil.GetSecret(ns, secretName)
+	if deploy.kubeutil.SecretExists(namespace, secretName) {
+		oldSecret, _ := deploy.kubeutil.GetSecret(namespace, secretName)
 		accountKey = oldSecret.Data[defaults.CsiAzureCredsAccountKeyPart]
 		accountName = oldSecret.Data[defaults.CsiAzureCredsAccountNamePart]
 	}
