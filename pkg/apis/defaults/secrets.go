@@ -24,7 +24,7 @@ const (
 	// BlobFuseCredsAccountNamePart Account name part of secret data
 	BlobFuseCredsAccountNamePart = "accountname"
 
-	blobFuseCreds = "%s-%s-blobfusecreds" // <componentname>-<volumemountname>-blobfusecreds
+	blobFuseCreds = "%s-%s-blobfusecreds" // <componentname>-<radixvolumemountname>-blobfusecreds
 
 	// CsiAzureCredsAccountKeyPartSuffix Account key suffix of secret listed
 	CsiAzureCredsAccountKeyPartSuffix = "-accountkey"
@@ -38,7 +38,7 @@ const (
 	// CsiAzureCredsAccountNamePart Account name part of secret data
 	CsiAzureCredsAccountNamePart = "accountname"
 
-	csiAzureCreds = "%s-%s-csiazurecreds" // <componentname>-<volumemountname>-csiazurecreds
+	csiAzureCreds = "%s-%s-csiazurecreds" // <componentname>-<radixvolumemountname>-csiazurecreds
 )
 
 // GetBlobFuseCredsSecretName Helper method
@@ -47,6 +47,6 @@ func GetBlobFuseCredsSecretName(componentName string, volumeMountName string) st
 }
 
 // GetCsiAzureCredsSecretName Helper method
-func GetCsiAzureCredsSecretName(componentName string, volumeMountName string) string {
-	return fmt.Sprintf(csiAzureCreds, componentName, volumeMountName)
+func GetCsiAzureCredsSecretName(componentName, radixVolumeMountName string) string {
+	return fmt.Sprintf(csiAzureCreds, componentName, radixVolumeMountName)
 }

@@ -21,32 +21,33 @@ const (
 	csiAzureDriver                       = "azure/csi"
 	defaultData                          = "xx"
 	defaultMountOptions                  = "--file-cache-timeout-in-seconds=120"
-	blobFuseVolumeNameTemplate           = "blobfuse-%s-%s"         // blobfuse-<componentname>-<volumename>
-	csiVolumeNameTemplate                = "%s-%s-%s"               // <volumemounttype>-<componentname>-<volumename>
-	csiPersistentVolumeClaimNameTemplate = "csi-pvc-%s-%s"          // csi-pvc-<componentname>-<volumename>
-	csiStorageClassNameTemplate          = "csi-sc-%s-%s-%s"        // csi-sc-<namespace>-<componentname>-<volumename>
+	blobFuseVolumeNameTemplate           = "blobfuse-%s-%s"         // blobfuse-<componentname>-<radixvolumename>
+	csiVolumeNameTemplate                = "%s-%s-%s"               // <csidriverdashed>-<componentname>-<radixvolumename>
+	csiPersistentVolumeClaimNameTemplate = "csi-pvc-%s"             // csi-pvc-<volumename>
+	csiStorageClassNameTemplate          = "csi-sc-%s-%s"           // csi-sc-<namespace>-<volumename>
 	blobFuseVolumeNodeMountPathTemplate  = "/tmp/%s/%s/%s/%s/%s/%s" // /tmp/<namespace>/<componentname>/<environment>/<volumetype>/<volumename>/<container>
 )
 
 func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) []corev1.VolumeMount {
 	componentName := deployComponent.GetName()
-	componentVolumeMounts := deployComponent.GetVolumeMounts()
+	radixVolumeMounts := deployComponent.GetVolumeMounts()
 	volumeMounts := make([]corev1.VolumeMount, 0)
 
-	if len(componentVolumeMounts) > 0 {
-		for _, volumeMount := range componentVolumeMounts {
-			switch volumeMount.Type {
-			case radixv1.MountTypeBlob:
-				volumeMounts = append(volumeMounts, corev1.VolumeMount{
-					Name:      getBlobFuseVolumeMountName(volumeMount, componentName),
-					MountPath: volumeMount.Path,
-				})
-			case radixv1.MountTypeDiskCsiAzure, radixv1.MountTypeBlobCsiAzure:
-				volumeMounts = append(volumeMounts, corev1.VolumeMount{
-					Name:      getCsiVolumeMountName(volumeMount, componentName),
-					MountPath: volumeMount.Path,
-				})
-			}
+	if len(radixVolumeMounts) <= 0 {
+		return volumeMounts
+	}
+	for _, radixVolumeMount := range radixVolumeMounts {
+		switch radixVolumeMount.Type {
+		case radixv1.MountTypeBlob:
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      getBlobFuseVolumeMountName(radixVolumeMount, componentName),
+				MountPath: radixVolumeMount.Path,
+			})
+		case radixv1.MountTypeDiskCsiAzure, radixv1.MountTypeBlobCsiAzure:
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      getCsiVolumeMountName(componentName, radixVolumeMount),
+				MountPath: radixVolumeMount.Path,
+			})
 		}
 	}
 
@@ -57,9 +58,9 @@ func getBlobFuseVolumeMountName(volumeMount radixv1.RadixVolumeMount, componentN
 	return fmt.Sprintf(blobFuseVolumeNameTemplate, componentName, volumeMount.Name)
 }
 
-func getCsiVolumeMountName(volumeMount radixv1.RadixVolumeMount, componentName string) string {
-	volumeMountTypePart := strings.Replace(string(volumeMount.Type), ".", "-", -1)
-	sprintf := fmt.Sprintf(csiVolumeNameTemplate, volumeMountTypePart, componentName, volumeMount.Name)
+func getCsiVolumeMountName(componentName string, radixVolumeMount radixv1.RadixVolumeMount) string {
+	csiDriverName := strings.Replace(string(radixVolumeMount.Type), ".", "-", -1)
+	sprintf := fmt.Sprintf(csiVolumeNameTemplate, csiDriverName, componentName, radixVolumeMount.Name)
 	return sprintf
 }
 
@@ -74,18 +75,19 @@ func GetVolumes(namespace string, environment string, componentName string, volu
 		case radixv1.MountTypeBlob:
 			volumes = append(volumes, getBlobFuseVolume(namespace, environment, componentName, volumeMount))
 		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeDiskCsiAzure:
-			volumes = append(volumes, getCsiVolume(namespace, componentName, volumeMount))
+			volumes = append(volumes, getCsiVolume(componentName, volumeMount))
 		}
 	}
 	return volumes
 }
 
-func getCsiVolume(namespace string, componentName string, volumeMount radixv1.RadixVolumeMount) v1.Volume {
+func getCsiVolume(componentName string, radixVolumeMount radixv1.RadixVolumeMount) v1.Volume {
+	volumeName := getCsiVolumeMountName(componentName, radixVolumeMount)
 	volume := corev1.Volume{
-		Name: getCsiVolumeMountName(volumeMount, componentName),
+		Name: getCsiVolumeMountName(componentName, radixVolumeMount),
 		VolumeSource: corev1.VolumeSource{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-				ClaimName: GetCsiPersistentVolumeClaimName(namespace, componentName, volumeMount.Name),
+				ClaimName: GetCsiPersistentVolumeClaimName(volumeName),
 			},
 		},
 	}
@@ -93,13 +95,13 @@ func getCsiVolume(namespace string, componentName string, volumeMount radixv1.Ra
 }
 
 //GetCsiPersistentVolumeClaimName hold a name of CSI volume persistent volume claim
-func GetCsiPersistentVolumeClaimName(namespace, componentName, volumeName string) string {
-	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, componentName, volumeName)
+func GetCsiPersistentVolumeClaimName(volumeName string) string {
+	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName) //volumeName: <csi-driver-dashed>-<component-name>-<radix-volume-name>
 }
 
 //GetCsiStorageClassName hold a name of CSI volume storage class
-func GetCsiStorageClassName(namespace, componentName, volumeName string) string {
-	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, componentName, volumeName)
+func GetCsiStorageClassName(namespace, volumeName string) string {
+	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, volumeName) //volumeName: <csi-driver-dashed>-<component-name>-<radix-volume-name>
 }
 
 func getBlobFuseVolume(namespace, environment, componentName string, volumeMount radixv1.RadixVolumeMount) v1.Volume {
@@ -164,7 +166,6 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, c
 			Labels: map[string]string{
 				kube.RadixAppLabel:             deploy.registration.Name,
 				kube.RadixComponentLabel:       componentName,
-				kube.RadixMountTypeLabel:       string(radixv1.MountTypeBlobCsiAzure),
 				kube.RadixVolumeMountNameLabel: volumeMountName,
 			},
 		},
@@ -228,7 +229,6 @@ func (deploy *Deployment) CreatePersistentVolumeClaim(namespace, componentName, 
 			Namespace: namespace,
 			Labels: map[string]string{
 				kube.RadixComponentLabel:       componentName,
-				kube.RadixMountTypeLabel:       string(radixv1.MountTypeBlobCsiAzure),
 				kube.RadixVolumeMountNameLabel: volumeName,
 			},
 		},
@@ -252,7 +252,7 @@ func (deploy *Deployment) DeleteCsiAzureStorageClasses(storageClassName string) 
 	return deploy.kubeclient.StorageV1().StorageClasses().Delete(context.TODO(), storageClassName, metav1.DeleteOptions{})
 }
 
-func (deploy *Deployment) CreateCsiAzureStorageClasses(namespace, componentName, storageClassName, secretName, volumeName string) (*storagev1.StorageClass, error) {
+func (deploy *Deployment) CreateCsiAzureStorageClasses(namespace, componentName, storageClassName, containerName, secretName, volumeName string) (*storagev1.StorageClass, error) {
 	reclaimPolicy := corev1.PersistentVolumeReclaimRetain
 	bindingMode := storagev1.VolumeBindingImmediate
 	storageClass := &storagev1.StorageClass{
@@ -267,10 +267,9 @@ func (deploy *Deployment) CreateCsiAzureStorageClasses(namespace, componentName,
 		},
 		Provisioner: "blob.csi.azure.com", //TODO - get from radix-config
 		Parameters: map[string]string{
+			"containerName": containerName,
 			"csi.storage.k8s.io/provisioner-secret-name":      secretName,
 			"csi.storage.k8s.io/provisioner-secret-namespace": namespace,
-			"csi.storage.k8s.io/node-stage-secret-name":       secretName,
-			"csi.storage.k8s.io/node-stage-secret-namespace":  namespace,
 			"skuName": "Standard_LRS", //available values: Standard_LRS, Premium_LRS, Standard_GRS, Standard_RAGRS
 		},
 		ReclaimPolicy: &reclaimPolicy,

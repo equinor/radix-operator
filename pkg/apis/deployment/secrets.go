@@ -85,22 +85,22 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 	}
 
 	if len(component.GetVolumeMounts()) > 0 {
-		for _, volumeMount := range component.GetVolumeMounts() {
-			switch volumeMount.Type {
+		for _, radixVolumeMount := range component.GetVolumeMounts() {
+			switch radixVolumeMount.Type {
 			case radixv1.MountTypeBlob:
 				{
-					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, component.GetName(), volumeMount.Name)
+					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)
 					err := deploy.createOrUpdateVolumeMountsSecrets(namespace, component.GetName(), secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}
 				}
-			case radixv1.MountTypeBlobCsiAzure:
+			case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeDiskCsiAzure:
 				{
-					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), volumeMount.Name)
+					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), volumeMount.Name, secretName, accountName, accountKey)
+					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), radixVolumeMount.Name, secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}
