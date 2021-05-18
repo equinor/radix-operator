@@ -11,6 +11,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/maps"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1beta1 "k8s.io/api/networking/v1beta1"
@@ -225,7 +227,8 @@ func getAppAliasIngressConfig(
 	config IngressConfiguration,
 	component v1.RadixCommonDeployComponent,
 	clustername, namespace string,
-	publicPortNumber int32) *networkingv1beta1.Ingress {
+	publicPortNumber int32,
+) *networkingv1beta1.Ingress {
 	appAlias := os.Getenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable) // .app.dev.radix.equinor.com in launch.json
 	if appAlias == "" {
 		return nil
@@ -234,7 +237,7 @@ func getAppAliasIngressConfig(
 	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
 	ingressSpec := getIngressSpec(hostname, component.GetName(), appAliasTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(appName, component, getAppAliasIngressName(appName), ownerReference, config, true, false, false, ingressSpec)
+	return getIngressConfig(appName, component, getAppAliasIngressName(appName), ownerReference, config, true, false, false, ingressSpec, namespace)
 }
 
 func getAppAliasIngressName(appName string) string {
@@ -247,7 +250,8 @@ func getActiveClusterAliasIngressConfig(
 	config IngressConfiguration,
 	component v1.RadixCommonDeployComponent,
 	namespace string,
-	publicPortNumber int32) *networkingv1beta1.Ingress {
+	publicPortNumber int32,
+) *networkingv1beta1.Ingress {
 	hostname := getActiveClusterHostName(component.GetName(), namespace)
 	if hostname == "" {
 		return nil
@@ -255,7 +259,7 @@ func getActiveClusterAliasIngressConfig(
 	ingressSpec := getIngressSpec(hostname, component.GetName(), activeClusterTLSSecretName, publicPortNumber)
 	ingressName := getActiveClusterIngressName(component.GetName())
 
-	return getIngressConfig(appName, component, ingressName, ownerReference, config, false, false, true, ingressSpec)
+	return getIngressConfig(appName, component, ingressName, ownerReference, config, false, false, true, ingressSpec, namespace)
 }
 
 func getActiveClusterIngressName(componentName string) string {
@@ -268,7 +272,8 @@ func getDefaultIngressConfig(
 	config IngressConfiguration,
 	component v1.RadixCommonDeployComponent,
 	clustername, namespace string,
-	publicPortNumber int32) *networkingv1beta1.Ingress {
+	publicPortNumber int32,
+) *networkingv1beta1.Ingress {
 	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		return nil
@@ -276,7 +281,7 @@ func getDefaultIngressConfig(
 	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
 	ingressSpec := getIngressSpec(hostname, component.GetName(), clusterDefaultTLSSecretName, publicPortNumber)
 
-	return getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, config, false, false, false, ingressSpec)
+	return getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, config, false, false, false, ingressSpec, namespace)
 }
 
 func getDefaultIngressName(componentName string) string {
@@ -290,10 +295,10 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	externalAlias string,
 	component v1.RadixCommonDeployComponent,
 	namespace string,
-	publicPortNumber int32) (*networkingv1beta1.Ingress, error) {
-
+	publicPortNumber int32,
+) (*networkingv1beta1.Ingress, error) {
 	ingressSpec := getIngressSpec(externalAlias, component.GetName(), externalAlias, publicPortNumber)
-	return getIngressConfig(appName, component, externalAlias, ownerReference, config, false, true, false, ingressSpec), nil
+	return getIngressConfig(appName, component, externalAlias, ownerReference, config, false, true, false, ingressSpec, namespace), nil
 }
 
 func getActiveClusterHostName(componentName, namespace string) string {
@@ -309,15 +314,56 @@ func getHostName(componentName, namespace, clustername, dnsZone string) string {
 	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
 
-func getIngressConfig(appName string,
+func getAuthenticationAnnotationsFromConfiguration(authentication *v1.Authentication, componentName, namespace string) map[string]string {
+	result := make(map[string]string)
+	if authentication != nil {
+		if authentication.ClientCertificate != nil {
+			if IsSecretRequiredForClientCertificate(authentication.ClientCertificate) {
+				result["nginx.ingress.kubernetes.io/auth-tls-secret"] = fmt.Sprintf("%s/%s", namespace, utils.GetComponentClientCertificateSecretName(componentName))
+			}
+
+			certificateConfig := parseClientCertificateConfiguration(*authentication.ClientCertificate)
+			result["nginx.ingress.kubernetes.io/auth-tls-verify-client"] = string(*certificateConfig.Verification)
+			result["nginx.ingress.kubernetes.io/auth-tls-pass-certificate-to-upstream"] = utils.TernaryString(*certificateConfig.PassCertificateToUpstream, "true", "false")
+		}
+	}
+
+	return result
+}
+
+func parseClientCertificateConfiguration(clientCertificate v1.ClientCertificate) (certificate v1.ClientCertificate) {
+	verification := v1.VerificationTypeOff
+	certificate = v1.ClientCertificate{
+		Verification:              &verification,
+		PassCertificateToUpstream: utils.BoolPtr(false),
+	}
+
+	if passUpstream := clientCertificate.PassCertificateToUpstream; passUpstream != nil {
+		certificate.PassCertificateToUpstream = passUpstream
+	}
+
+	if verification := clientCertificate.Verification; verification != nil {
+		certificate.Verification = verification
+	}
+
+	return
+}
+
+func getIngressConfig(
+	appName string,
 	component v1.RadixCommonDeployComponent,
 	ingressName string,
 	ownerReference []metav1.OwnerReference,
 	config IngressConfiguration,
 	isAlias, isExternalAlias, isActiveClusterAlias bool,
-	ingressSpec networkingv1beta1.IngressSpec) *networkingv1beta1.Ingress {
-
+	ingressSpec networkingv1beta1.IngressSpec,
+	namespace string,
+) *networkingv1beta1.Ingress {
 	annotations := getAnnotationsFromConfigurations(config, component.GetIngressConfiguration()...)
+
+	authentication := getAuthenticationAnnotationsFromConfiguration(component.GetAuthentication(), component.GetName(), namespace)
+	annotations = maps.MergeStringMaps(annotations, authentication)
+
 	annotations["kubernetes.io/ingress.class"] = "nginx"
 	annotations["ingress.kubernetes.io/force-ssl-redirect"] = "true"
 

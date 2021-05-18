@@ -174,6 +174,10 @@ func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
 }
 
+func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
+	return deployComponent.Authentication
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -250,6 +254,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
+	return nil
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -300,4 +308,5 @@ type RadixCommonDeployComponent interface {
 	GetIngressConfiguration() []string
 	GetRunAsNonRoot() bool
 	GetNode() *RadixNode
+	GetAuthentication() *Authentication
 }
