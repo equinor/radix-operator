@@ -100,7 +100,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 				{
 					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), radixVolumeMount.Name, secretName, accountName, accountKey)
+					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), radixVolumeMount.Name, radixVolumeMount.Type, secretName, accountName, accountKey)
 					if err != nil {
 						return err
 					}
@@ -109,7 +109,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		}
 	} else {
 		//TODO: garbage collect all types of volumes, for all containers, if applied
-		err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component)
+		err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component) //TODO: check if this is correct!
 		if err != nil {
 			return err
 		}
@@ -262,18 +262,18 @@ func (deploy *Deployment) listSecretsForComponentExternalAlias(component radixv1
 	return deploy.listSecrets(getLabelSelectorForExternalAlias(component))
 }
 
-func (deploy *Deployment) listSecretsForForBlobVolumeMount(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
+func (deploy *Deployment) listSecretsForVolumeMounts(component radixv1.RadixCommonDeployComponent) ([]*v1.Secret, error) {
 	blobVolumeMountSecret := getLabelSelectorForBlobVolumeMountSecret(component)
 	secrets, err := deploy.listSecrets(blobVolumeMountSecret)
 	if err != nil {
 		return nil, err
 	}
-	blobCsiAzureVolumeMountSecret := getLabelSelectorForBlobVolumeMountSecret(component)
-	blobCsiAzureVolumeMountSecrets, err := deploy.listSecrets(blobCsiAzureVolumeMountSecret)
+	csiAzureVolumeMountSecret := getLabelSelectorForCsiAzureVolumeMountSecret(component)
+	csiSecrets, err := deploy.listSecrets(csiAzureVolumeMountSecret)
 	if err != nil {
 		return nil, err
 	}
-	secrets = append(secrets, blobCsiAzureVolumeMountSecrets...)
+	secrets = append(secrets, csiSecrets...)
 	return secrets, err
 }
 
