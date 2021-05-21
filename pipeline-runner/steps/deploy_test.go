@@ -256,5 +256,4 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.True(t, rdDev.Spec.Components[0].RunAsNonRoot)
 		assert.False(t, rdDev.Spec.Components[1].RunAsNonRoot)
 	})
-
 }
