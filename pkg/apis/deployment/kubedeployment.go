@@ -54,41 +54,42 @@ func (deploy *Deployment) createOrUpdateCsiAzureResources(desiredDeployment *app
 	namespace := deploy.radixDeployment.GetNamespace()
 	componentName := desiredDeployment.ObjectMeta.Name
 	volumeRootMount := "/tmp" //TODO: add to environment variable, so this volume can be mounted to external disk
-	scList, err := deploy.GetStorageClasses(namespace, componentName)
+	scList, err := deploy.GetCsiAzureStorageClasses(namespace, componentName)
 	if err != nil {
 		return err
 	}
-	pvcList, err := deploy.GetPersistentVolumeClaims(namespace, componentName)
+	pvcList, err := deploy.GetCsiAzurePersistentVolumeClaims(namespace, componentName)
 	if err != nil {
 		return err
 	}
 
-	scMap := getStorageClassMap(scList)
-	pvcMap := getPersistentVolumeClaimMap(pvcList)
-	radixVolumeMountMap := deploy.getRadixVolumeMountMap(componentName)
+	scMap := getStorageClassMapByName(scList)
+	pvcMap := getPersistentVolumeClaimMapByName(pvcList)
+	radixVolumeMountMap := deploy.getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName)
 
 	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
 		if volume.CSI == nil || volume.PersistentVolumeClaim == nil {
 			continue //not CSI volume
 		}
-		radixVolumeMount, foundRadixVolumeMount := radixVolumeMountMap[volume.Name]
-		if !foundRadixVolumeMount {
-			return errors.New(fmt.Sprintf("not found Radix volume mount for desired volume mount %s", volume.Name))
+		radixVolumeMount, existsRadixVolumeMount := radixVolumeMountMap[volume.Name]
+		if !existsRadixVolumeMount {
+			return errors.New(fmt.Sprintf("not found Radix volume mount for desired volume %s", volume.Name))
 		}
-
 		err := deploy.createOrUpdateCsiAzureResource(namespace, componentName, radixVolumeMount, &volume, volumeRootMount, scMap, pvcMap)
 		if err != nil {
 			return err
 		}
 	}
 
+	//TODO: garbageCollectCsiAzureSecrets()
 	//TODO: garbageCollectCsiAzureStorageClasses()
 	//TODO: garbageCollectCsiAzurePersistentVolumeClaims()
+	//TODO: garbageCollectCsiAzurePersistentVolumes()
 	return nil
 }
 
 func (deploy *Deployment) createOrUpdateCsiAzureResource(namespace, componentName string, radixVolumeMount *v1.RadixVolumeMount, volume *corev1.Volume, volumeRootMount string, scMap map[string]*storagev1.StorageClass, pvcMap map[string]*corev1.PersistentVolumeClaim) error {
-	csiVolumeStorageClassName := GetCsiStorageClassName(namespace, volume.Name)
+	csiVolumeStorageClassName := GetCsiAzureStorageClassName(namespace, volume.Name)
 	if storageClass, ok := scMap[csiVolumeStorageClassName]; ok {
 		if err := validateCsiAzureStorageClass(storageClass, radixVolumeMount); err != nil {
 			deploy.DeleteCsiAzureStorageClasses(storageClass.Name)
@@ -100,7 +101,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureResource(namespace, componentNam
 		return err
 	}
 
-	csiPersistentVolumeClaimName := GetCsiPersistentVolumeClaimName(volume.Name)
+	csiPersistentVolumeClaimName := GetCsiAzurePersistentVolumeClaimName(volume.Name)
 	if pvc, ok := pvcMap[volume.PersistentVolumeClaim.ClaimName]; ok {
 		if pvc.Spec.StorageClassName == nil || len(*pvc.Spec.StorageClassName) == 0 {
 			return nil //Not CSI volume
@@ -126,17 +127,26 @@ func validateCsiAzureStorageClass(storageClass *storagev1.StorageClass, radixVol
 	return nil
 }
 
-func (deploy *Deployment) getRadixVolumeMountMap(componentName string) map[string]*v1.RadixVolumeMount {
+func (deploy *Deployment) getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName string) map[string]*v1.RadixVolumeMount {
 	volumeMountMap := make(map[string]*v1.RadixVolumeMount)
 	for _, component := range deploy.radixDeployment.Spec.Components {
 		if !strings.EqualFold(componentName, component.GetName()) {
 			continue
 		}
 		for _, radixVolumeMount := range component.VolumeMounts {
-			volumeMountMap[getCsiVolumeMountName(componentName, radixVolumeMount)] = &radixVolumeMount
+			volumeMountMap[getCsiAzureVolumeMountName(componentName, radixVolumeMount)] = &radixVolumeMount
 		}
+		break
 	}
 	return volumeMountMap
+}
+
+func getPersistentVolumeClaimMapByName(pvcList *corev1.PersistentVolumeClaimList) map[string]*corev1.PersistentVolumeClaim {
+	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
+	for _, pvc := range pvcList.Items {
+		pvcMap[pvc.Name] = &pvc
+	}
+	return pvcMap
 }
 
 //func garbageCollectCsiAzureStorageClass() {
@@ -163,42 +173,13 @@ func (deploy *Deployment) getRadixVolumeMountMap(componentName string) map[strin
 //}
 //
 
-func getPersistentVolumeClaimMap(pvcList *corev1.PersistentVolumeClaimList) map[string]*corev1.PersistentVolumeClaim {
-	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
-	for _, pvc := range pvcList.Items {
-		pvcMap[pvc.Name] = &pvc
-	}
-	return pvcMap
-}
-
-func getStorageClassMap(scList *storagev1.StorageClassList) map[string]*storagev1.StorageClass {
+func getStorageClassMapByName(scList *storagev1.StorageClassList) map[string]*storagev1.StorageClass {
 	scMap := make(map[string]*storagev1.StorageClass)
 	for _, sc := range scList.Items {
 		scMap[sc.Name] = &sc
 	}
 	return scMap
 }
-
-//func getPersistentVolumeClaimMap(pvcList *corev1.PersistentVolumeClaimList) (map[string]*corev1.PersistentVolumeClaim, map[string]*corev1.PersistentVolumeClaim) {
-//	pvcNameMap := make(map[string]*corev1.PersistentVolumeClaim)
-//	pvcCsiVolumeKeyMap := make(map[string]*corev1.PersistentVolumeClaim)
-//	for _, pvc := range pvcList.Items {
-//		pvcNameMap[pvc.Name] = &pvc
-//		pvcCsiVolumeKeyMap[getCsiVolumeKeyByLabels(pvc.Labels)] = &pvc
-//	}
-//	return pvcNameMap, pvcCsiVolumeKeyMap
-//}
-//
-//func getStorageClassMap(scList *storagev1.StorageClassList) (map[string]*storagev1.StorageClass, map[string]*storagev1.StorageClass) {
-//	scNameMap := make(map[string]*storagev1.StorageClass)
-//	scCsiVolumeKeyMap := make(map[string]*storagev1.StorageClass)
-//	for _, sc := range scList.Items {
-//		key := getCsiVolumeKey(getLabel(sc.Labels, kube.RadixMountTypeLabel), getLabel(sc.Labels, kube.RadixVolumeMountNameLabel))
-//		scNameMap[sc.Name] = &sc
-//		scCsiVolumeKeyMap[key] = &sc
-//	}
-//	return scNameMap, scCsiVolumeKeyMap
-//}
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	var desiredDeployment *appsv1.Deployment
