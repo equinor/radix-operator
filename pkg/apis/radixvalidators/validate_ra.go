@@ -3,6 +3,7 @@ package radixvalidators
 import (
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"regexp"
 	"strings"
 	"unicode"
@@ -148,9 +149,9 @@ func duplicateVolumeMountType(component, environment string) error {
 	return fmt.Errorf("duplicate type of volume mount type for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-func duplicateContainerForVolumeMountType(container, volumeMountType, component, environment string) error {
+func duplicateContainerForVolumeMountType(storage, volumeMountType, component, environment string) error {
 	return fmt.Errorf("duplicate containers %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
-		container, volumeMountType, component, environment)
+		storage, volumeMountType, component, environment)
 }
 
 func duplicatePathForVolumeMountType(path, volumeMountType, component, environment string) error {
@@ -877,10 +878,11 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 
 	for _, volumeMount := range volumeMounts {
 		volumeMountType := strings.TrimSpace(string(volumeMount.Type))
+		volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
 		switch {
 		case volumeMountType == "" ||
 			strings.TrimSpace(volumeMount.Name) == "" ||
-			strings.TrimSpace(volumeMount.Container) == "" ||
+			strings.TrimSpace(volumeMountStorage) == "" ||
 			strings.TrimSpace(volumeMount.Path) == "":
 			{
 				return emptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
@@ -891,10 +893,10 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 					mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), containers: make(map[string]bool), path: make(map[string]bool)}
 				}
 				volumeMountConfigMap := mountsInComponent[volumeMountType]
-				if _, exists := volumeMountConfigMap.containers[volumeMount.Container]; exists {
-					return duplicateContainerForVolumeMountType(volumeMount.Container, volumeMountType, componentName, environment)
+				if _, exists := volumeMountConfigMap.containers[volumeMountStorage]; exists {
+					return duplicateContainerForVolumeMountType(volumeMountStorage, volumeMountType, componentName, environment)
 				}
-				volumeMountConfigMap.containers[volumeMount.Container] = true
+				volumeMountConfigMap.containers[volumeMountStorage] = true
 				if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
 					return duplicateNameForVolumeMountType(volumeMount.Name, volumeMountType, componentName, environment)
 				}

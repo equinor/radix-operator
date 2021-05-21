@@ -96,7 +96,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 						return err
 					}
 				}
-			case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeDiskCsiAzure:
+			case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
 				{
 					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
 					secretsToManage = append(secretsToManage, secretName)

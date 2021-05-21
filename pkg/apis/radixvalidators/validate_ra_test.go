@@ -870,10 +870,10 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:      "disk",
-						Name:      "some_name",
-						Container: "some_container_name",
-						Path:      "some_path",
+						Type:    "disk",
+						Name:    "some_name",
+						Storage: "some_container_name",
+						Path:    "some_path",
 					},
 				}
 

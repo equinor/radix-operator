@@ -68,8 +68,8 @@ func (deploy *Deployment) createOrUpdateCsiAzureResources(desiredDeployment *app
 	radixVolumeMountMap := deploy.getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName)
 
 	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
-		if volume.CSI == nil || volume.PersistentVolumeClaim == nil {
-			continue //not CSI volume
+		if volume.PersistentVolumeClaim == nil {
+			continue
 		}
 		radixVolumeMount, existsRadixVolumeMount := radixVolumeMountMap[volume.Name]
 		if !existsRadixVolumeMount {
@@ -96,18 +96,17 @@ func (deploy *Deployment) createOrUpdateCsiAzureResource(namespace, componentNam
 		}
 	}
 	csiVolumeSecretName := defaults.GetCsiAzureCredsSecretName(componentName, radixVolumeMount.Name)
-	_, err := deploy.CreateCsiAzureStorageClasses(volumeRootMount, namespace, componentName, csiVolumeStorageClassName, radixVolumeMount.Type, radixVolumeMount.Container, radixVolumeMount.Name, csiVolumeSecretName)
+	_, err := deploy.CreateCsiAzureStorageClasses(volumeRootMount, namespace, componentName, csiVolumeStorageClassName, radixVolumeMount.Type, radixVolumeMount.Storage, radixVolumeMount.Name, csiVolumeSecretName)
 	if err != nil {
 		return err
 	}
 
-	csiPersistentVolumeClaimName := GetCsiAzurePersistentVolumeClaimName(volume.Name)
 	if pvc, ok := pvcMap[volume.PersistentVolumeClaim.ClaimName]; ok {
 		if pvc.Spec.StorageClassName == nil || len(*pvc.Spec.StorageClassName) == 0 {
 			return nil //Not CSI volume
 		}
 	} else {
-		pvc, err := deploy.CreatePersistentVolumeClaim(namespace, componentName, csiPersistentVolumeClaimName, csiVolumeStorageClassName, radixVolumeMount.Type, volume.Name)
+		pvc, err := deploy.CreatePersistentVolumeClaim(namespace, componentName, volume.PersistentVolumeClaim.ClaimName, csiVolumeStorageClassName, radixVolumeMount.Type, volume.Name)
 		if err != nil {
 			return err
 		}
@@ -117,12 +116,22 @@ func (deploy *Deployment) createOrUpdateCsiAzureResource(namespace, componentNam
 }
 
 func validateCsiAzureStorageClass(storageClass *storagev1.StorageClass, radixVolumeMount *v1.RadixVolumeMount) error {
-	radixVolumeType := string(radixVolumeMount.Type)
-	if !strings.EqualFold(storageClass.Provisioner, radixVolumeType) {
-		return fmt.Errorf("component volume type %s does not match to storage class provisioner %s", radixVolumeType, storageClass.Provisioner)
+	radixVolumeExpectedProvisioner, foundProvisioner := v1.GetStorageClassProvisionerByVolumeMountType(radixVolumeMount.Type)
+	if !foundProvisioner {
+		return fmt.Errorf("not found Storage Class for volume mount type %s", string(radixVolumeMount.Type))
 	}
-	if containerName, ok := storageClass.Parameters["containerName"]; !ok || strings.EqualFold(containerName, radixVolumeMount.Container) {
-		return fmt.Errorf("component container name %s does not match to storage class container parameter %s", radixVolumeMount.Container, containerName)
+	if !strings.EqualFold(storageClass.Provisioner, radixVolumeExpectedProvisioner) {
+		return fmt.Errorf("component volume type %s does not match to storage class provisioner %s", radixVolumeExpectedProvisioner, storageClass.Provisioner)
+	}
+	switch radixVolumeMount.Type {
+	case v1.MountTypeBlobCsiAzure:
+		if containerName, ok := storageClass.Parameters["containerName"]; !ok || strings.EqualFold(containerName, radixVolumeMount.Storage) {
+			return fmt.Errorf("component storage name %s does not match to storage class containerName parameter %s", radixVolumeMount.Storage, containerName)
+		}
+	case v1.MountTypeFileCsiAzure:
+		if shareName, ok := storageClass.Parameters["shareName"]; !ok || strings.EqualFold(shareName, radixVolumeMount.Storage) {
+			return fmt.Errorf("component storage name %s does not match to storage class shareName parameter %s", radixVolumeMount.Storage, shareName)
+		}
 	}
 	return nil
 }

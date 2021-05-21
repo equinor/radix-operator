@@ -190,7 +190,8 @@ type RadixPrivateImageHubCredential struct {
 type RadixVolumeMount struct {
 	Type      MountType `json:"type" yaml:"type"`
 	Name      string    `json:"name" yaml:"name"`
-	Container string    `json:"container" yaml:"container"`
+	Container string    `json:"container" yaml:"container"` //Outdated - use Storage instead
+	Storage   string    `json:"storage" yaml:"storage"`
 	Path      string    `json:"path" yaml:"path"`
 }
 
@@ -202,14 +203,33 @@ const (
 	// MountTypeBlob Use of azure/blobfuse flexvolume
 	MountTypeBlob MountType = "blob"
 	// MountTypeBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
-	MountTypeBlobCsiAzure MountType = "blob.csi.azure.com"
-	// MountTypeDiskCsiAzure Use of azure/csi driver for disk in Azure storage account
-	MountTypeDiskCsiAzure MountType = "disk.csi.azure.com"
+	MountTypeBlobCsiAzure MountType = "azure-blob"
+	// MountTypeFileCsiAzure Use of azure/csi driver for files in Azure storage account
+	MountTypeFileCsiAzure MountType = "azure-file"
 )
+
+// These are valid storage class provisioners
+const (
+	// ProvisionerBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
+	ProvisionerBlobCsiAzure string = "blob.csi.azure.com"
+	// ProvisionerFileCsiAzure Use of azure/csi driver for files in Azure storage account
+	ProvisionerFileCsiAzure string = "file.csi.azure.com"
+)
+
+//GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
+func GetStorageClassProvisionerByVolumeMountType(volumeMountType MountType) (string, bool) {
+	switch volumeMountType {
+	case MountTypeBlobCsiAzure:
+		return ProvisionerBlobCsiAzure, true
+	case MountTypeFileCsiAzure:
+		return ProvisionerFileCsiAzure, true
+	}
+	return "", false
+}
 
 func IsKnownVolumeMount(volumeMount string) bool {
 	switch volumeMount {
-	case string(MountTypeBlob), string(MountTypeBlobCsiAzure), string(MountTypeDiskCsiAzure):
+	case string(MountTypeBlob), string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
 		return true
 	}
 	return false
