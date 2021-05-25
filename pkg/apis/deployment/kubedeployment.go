@@ -91,7 +91,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureResources(desiredDeployment *app
 func (deploy *Deployment) createOrUpdateCsiAzureResource(namespace, componentName string, radixVolumeMount *v1.RadixVolumeMount, volume *corev1.Volume, volumeRootMount string, scMap map[string]*storagev1.StorageClass, pvcMap map[string]*corev1.PersistentVolumeClaim) error {
 	csiVolumeStorageClassName := GetCsiAzureStorageClassName(namespace, volume.Name)
 	if storageClass, ok := scMap[csiVolumeStorageClassName]; ok {
-		if err := validateCsiAzureStorageClass(storageClass, radixVolumeMount); err != nil {
+		if err := validateCsiAzureStorageClass(namespace, storageClass, radixVolumeMount); err != nil {
 			deploy.DeleteCsiAzureStorageClasses(storageClass.Name)
 		}
 	}
@@ -115,7 +115,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureResource(namespace, componentNam
 	return nil
 }
 
-func validateCsiAzureStorageClass(storageClass *storagev1.StorageClass, radixVolumeMount *v1.RadixVolumeMount) error {
+func validateCsiAzureStorageClass(namespace string, storageClass *storagev1.StorageClass, radixVolumeMount *v1.RadixVolumeMount) error {
 	radixVolumeExpectedProvisioner, foundProvisioner := v1.GetStorageClassProvisionerByVolumeMountType(radixVolumeMount.Type)
 	if !foundProvisioner {
 		return fmt.Errorf("not found Storage Class for volume mount type %s", string(radixVolumeMount.Type))
@@ -131,6 +131,19 @@ func validateCsiAzureStorageClass(storageClass *storagev1.StorageClass, radixVol
 	case v1.MountTypeFileCsiAzure:
 		if shareName, ok := storageClass.Parameters["shareName"]; !ok || strings.EqualFold(shareName, radixVolumeMount.Storage) {
 			return fmt.Errorf("component storage name %s does not match to storage class shareName parameter %s", radixVolumeMount.Storage, shareName)
+		}
+	}
+	//StorageClass is cluster-wide. This is a safety check to prevent using StorageClass made for one namespace for a component in another namespace
+	//StorageClass name template: sc-<namespace>-<volumename>
+	//Namespace name template: <appName>-<env>
+	//Volume name template: <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
+	//Example (application|environment|componentName|radixVolumeName|storageName):
+	// following configurations can be interfered by storage classes name: "a-b|c|d|e|f", "a|b-c|d|e|f", "a|b|c-d|e|f", "a|b|c|d-e|f", "a|b|c|d|e-f"
+	if scNamespace, namespaceLabelFound := storageClass.Labels[kube.RadixNamespace]; !namespaceLabelFound || strings.EqualFold(scNamespace, namespace) {
+		if !namespaceLabelFound {
+			return fmt.Errorf("storage class namespace label not found")
+		} else {
+			return fmt.Errorf("component namespace %s does not match to storage class namespace %s", scNamespace, namespace)
 		}
 	}
 	return nil
