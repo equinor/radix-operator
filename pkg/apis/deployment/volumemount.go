@@ -237,7 +237,7 @@ func (deploy *Deployment) CreatePersistentVolumeClaim(namespace, componentName, 
 			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, //TODO - specify in configuration
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}, //TODO - specify in configuration
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("1Mi")}, //it seems correct number is not needed for CSI driver
 			},
