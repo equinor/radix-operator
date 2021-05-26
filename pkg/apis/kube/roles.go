@@ -119,7 +119,7 @@ func (k *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 	return nil
 }
 
-// CreateManageSecretRole creates a role that can manage a secret with predifined set of verbs
+// CreateManageSecretRole creates a role that can manage a secret with predefined set of verbs
 func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels *map[string]string) *auth.Role {
 	role := &auth.Role{
 		TypeMeta: metav1.TypeMeta{

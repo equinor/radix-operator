@@ -190,9 +190,11 @@ type RadixPrivateImageHubCredential struct {
 type RadixVolumeMount struct {
 	Type      MountType `json:"type" yaml:"type"`
 	Name      string    `json:"name" yaml:"name"`
-	Container string    `json:"container" yaml:"container"` //Outdated - use Storage instead
-	Storage   string    `json:"storage" yaml:"storage"`
-	Path      string    `json:"path" yaml:"path"`
+	Container string    `json:"container" yaml:"container"` //Outdated. Use Storage instead
+	Storage   string    `json:"storage" yaml:"storage"`     //Container name, file Share name, etc.
+	Path      string    `json:"path" yaml:"path"`           //Path within the pod (replica), where the volume mount has been mounted to
+	GID       string    `json:"gid" yaml:"gid"`             //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
+	SkuName   string    `json:"skuName" yaml:"skuName"`     //Optional. Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS
 }
 
 // MountType Holds types of mount

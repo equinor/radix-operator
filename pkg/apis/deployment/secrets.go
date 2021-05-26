@@ -84,38 +84,34 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		}
 	}
 
-	if len(component.GetVolumeMounts()) > 0 {
-		for _, radixVolumeMount := range component.GetVolumeMounts() {
-			switch radixVolumeMount.Type {
-			case radixv1.MountTypeBlob:
-				{
-					secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
-					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateVolumeMountsSecrets(namespace, component.GetName(), secretName, accountName, accountKey)
-					if err != nil {
-						return err
-					}
+	for _, radixVolumeMount := range component.GetVolumeMounts() {
+		switch radixVolumeMount.Type {
+		case radixv1.MountTypeBlob:
+			{
+				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
+				secretsToManage = append(secretsToManage, secretName)
+				err := deploy.createOrUpdateVolumeMountsSecrets(namespace, component.GetName(), secretName, accountName, accountKey)
+				if err != nil {
+					return err
 				}
-			case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
-				{
-					secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
-					secretsToManage = append(secretsToManage, secretName)
-					err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), radixVolumeMount.Name, radixVolumeMount.Type, secretName, accountName, accountKey)
-					if err != nil {
-						return err
-					}
+			}
+		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
+			{
+				secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
+				secretsToManage = append(secretsToManage, secretName)
+				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), radixVolumeMount.Name, radixVolumeMount.Type, secretName, accountName, accountKey)
+				if err != nil {
+					return err
 				}
 			}
 		}
-	} else {
-		//TODO: garbage collect all types of volumes, for all containers, if applied
-		err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component) //TODO: check if this is correct!
-		if err != nil {
-			return err
-		}
+	}
+	err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component, secretsToManage)
+	if err != nil {
+		return err
 	}
 
-	err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
+	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
 	if err != nil {
 		return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
 	}
