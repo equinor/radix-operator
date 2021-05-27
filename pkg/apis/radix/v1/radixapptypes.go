@@ -194,7 +194,7 @@ type RadixVolumeMount struct {
 	Storage   string    `json:"storage" yaml:"storage"`     //Container name, file Share name, etc.
 	Path      string    `json:"path" yaml:"path"`           //Path within the pod (replica), where the volume mount has been mounted to
 	GID       string    `json:"gid" yaml:"gid"`             //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
-	SkuName   string    `json:"skuName" yaml:"skuName"`     //Optional. Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS
+	SkuName   string    `json:"skuName" yaml:"skuName"`     //Optional. Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 }
 
 // MountType Holds types of mount
@@ -227,6 +227,11 @@ func GetStorageClassProvisionerByVolumeMountType(volumeMountType MountType) (str
 		return ProvisionerFileCsiAzure, true
 	}
 	return "", false
+}
+
+//GetCsiAzureStorageClassProvisioners CSI Azure provisioners
+func GetCsiAzureStorageClassProvisioners() []string {
+	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
 }
 
 func IsKnownVolumeMount(volumeMount string) bool {

@@ -2,14 +2,9 @@ package deployment
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	storagev1 "k8s.io/api/storage/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"strings"
-
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	log "github.com/sirupsen/logrus"
@@ -43,182 +38,12 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
-	err = deploy.createOrUpdateCsiAzureResources(desiredDeployment)
+	err = deploy.CreateOrUpdateCsiAzureResources(desiredDeployment)
 	if err != nil {
 		return err
 	}
 
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
-}
-
-func (deploy *Deployment) createOrUpdateCsiAzureResources(desiredDeployment *appsv1.Deployment) error {
-	namespace := deploy.radixDeployment.GetNamespace()
-	componentName := desiredDeployment.ObjectMeta.Name
-	volumeRootMount := "/tmp" //TODO: add to environment variable, so this volume can be mounted to external disk
-	scList, err := deploy.GetCsiAzureStorageClasses(namespace, componentName)
-	if err != nil {
-		return err
-	}
-	pvcList, err := deploy.GetCsiAzurePersistentVolumeClaims(namespace, componentName)
-	if err != nil {
-		return err
-	}
-
-	scMap := getStorageClassMapByName(scList)
-	pvcMap := getPersistentVolumeClaimMapByName(pvcList)
-	radixVolumeMountMap := deploy.getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName)
-	var actualStorageClassNames, actualPvcNames []string
-	for _, volume := range desiredDeployment.Spec.Template.Spec.Volumes {
-		if volume.PersistentVolumeClaim == nil {
-			continue
-		}
-		radixVolumeMount, existsRadixVolumeMount := radixVolumeMountMap[volume.Name]
-		if !existsRadixVolumeMount {
-			return errors.New(fmt.Sprintf("not found Radix volume mount for desired volume %s", volume.Name))
-		}
-		storageClass, err := deploy.createCsiAzureStorageClass(volumeRootMount, namespace, componentName, radixVolumeMount, &volume, scMap)
-		if err != nil {
-			return err
-		}
-		actualStorageClassNames = append(actualStorageClassNames, storageClass.Name)
-		pvc, err := deploy.createCsiAzurePersistentVolumeClaim(storageClass, namespace, componentName, radixVolumeMount, &volume, pvcMap)
-		if err != nil {
-			return err
-		}
-		actualPvcNames = append(actualPvcNames, pvc.Name)
-	}
-	deploy.garbageCollectCsiAzureStorageClasses(scList, actualStorageClassNames)
-	deploy.garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(namespace, pvcList, actualPvcNames)
-	return nil
-}
-
-func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1.StorageClassList, excludeSecretName []string) {
-	for _, sc := range scList.Items {
-		if !slice.ContainsString(excludeSecretName, sc.Name) {
-			deploy.DeleteCsiAzureStorageClasses(sc.Name)
-		}
-	}
-}
-
-func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(namespace string, pvcList *corev1.PersistentVolumeClaimList, excludePvcNames []string) {
-	for _, pvc := range pvcList.Items {
-		if !slice.ContainsString(excludePvcNames, pvc.Name) {
-			pvName := pvc.Spec.VolumeName
-			deploy.DeletePersistentVolumeClaim(namespace, pvc.Name)
-			deploy.DeletePersistentVolume(pvName)
-		}
-	}
-}
-
-func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(storageClass *storagev1.StorageClass, namespace string, componentName string, radixVolumeMount *v1.RadixVolumeMount, volume *corev1.Volume, pvcMap map[string]*corev1.PersistentVolumeClaim) (*corev1.PersistentVolumeClaim, error) {
-	if pvc, ok := pvcMap[volume.PersistentVolumeClaim.ClaimName]; ok {
-		if pvc.Spec.StorageClassName == nil || len(*pvc.Spec.StorageClassName) == 0 || strings.EqualFold(*pvc.Spec.StorageClassName, storageClass.Name) {
-			return pvc, nil
-		}
-		deploy.DeletePersistentVolumeClaim(namespace, pvc.Name)
-	}
-	return deploy.CreatePersistentVolumeClaim(namespace, componentName, volume.PersistentVolumeClaim.ClaimName, storageClass.Name, radixVolumeMount)
-}
-
-func (deploy *Deployment) createCsiAzureStorageClass(volumeRootMount string, namespace string, componentName string, radixVolumeMount *v1.RadixVolumeMount, volume *corev1.Volume, scMap map[string]*storagev1.StorageClass) (*storagev1.StorageClass, error) {
-	csiVolumeStorageClassName := GetCsiAzureStorageClassName(namespace, volume.Name)
-	if storageClass, ok := scMap[csiVolumeStorageClassName]; ok {
-		if err := validateCsiAzureStorageClass(namespace, storageClass, radixVolumeMount); err == nil {
-			return storageClass, err
-		}
-		deploy.DeleteCsiAzureStorageClasses(storageClass.Name)
-	}
-	csiVolumeSecretName := defaults.GetCsiAzureCredsSecretName(componentName, radixVolumeMount.Name)
-	storageClass, err := deploy.CreateCsiAzureStorageClasses(volumeRootMount, namespace, componentName, csiVolumeStorageClassName, radixVolumeMount, csiVolumeSecretName)
-	return storageClass, err
-}
-
-func validateCsiAzureStorageClass(namespace string, storageClass *storagev1.StorageClass, radixVolumeMount *v1.RadixVolumeMount) error {
-	radixVolumeExpectedProvisioner, foundProvisioner := v1.GetStorageClassProvisionerByVolumeMountType(radixVolumeMount.Type)
-	if !foundProvisioner {
-		return fmt.Errorf("not found Storage Class for volume mount type %s", string(radixVolumeMount.Type))
-	}
-	if !strings.EqualFold(storageClass.Provisioner, radixVolumeExpectedProvisioner) {
-		return fmt.Errorf("component volume type %s does not match to storage class provisioner %s", radixVolumeExpectedProvisioner, storageClass.Provisioner)
-	}
-	switch radixVolumeMount.Type {
-	case v1.MountTypeBlobCsiAzure:
-		if containerName, ok := storageClass.Parameters["containerName"]; !ok || strings.EqualFold(containerName, radixVolumeMount.Storage) {
-			return fmt.Errorf("component storage name %s does not match to storage class containerName parameter %s", radixVolumeMount.Storage, containerName)
-		}
-	case v1.MountTypeFileCsiAzure:
-		if shareName, ok := storageClass.Parameters["shareName"]; !ok || strings.EqualFold(shareName, radixVolumeMount.Storage) {
-			return fmt.Errorf("component storage name %s does not match to storage class shareName parameter %s", radixVolumeMount.Storage, shareName)
-		}
-	}
-	//StorageClass is cluster-wide. This is a safety check to prevent using StorageClass made for one namespace for a component in another namespace
-	//StorageClass name template: sc-<namespace>-<volumename>
-	//Namespace name template: <appName>-<env>
-	//Volume name template: <radixvolumeid>-<componentname>-<radixvolumename>-<storage>
-	//Example (application|environment|componentName|radixVolumeName|storageName):
-	// following configurations can be interfered by storage classes name: "a-b|c|d|e|f", "a|b-c|d|e|f", "a|b|c-d|e|f", "a|b|c|d-e|f", "a|b|c|d|e-f"
-	if scNamespace, namespaceLabelFound := storageClass.Labels[kube.RadixNamespace]; !namespaceLabelFound || strings.EqualFold(scNamespace, namespace) {
-		if !namespaceLabelFound {
-			return fmt.Errorf("storage class namespace label not found")
-		} else {
-			return fmt.Errorf("component namespace %s does not match to storage class namespace %s", scNamespace, namespace)
-		}
-	}
-	return nil
-}
-
-func (deploy *Deployment) getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName string) map[string]*v1.RadixVolumeMount {
-	volumeMountMap := make(map[string]*v1.RadixVolumeMount)
-	for _, component := range deploy.radixDeployment.Spec.Components {
-		if !strings.EqualFold(componentName, component.GetName()) {
-			continue
-		}
-		for _, radixVolumeMount := range component.VolumeMounts {
-			volumeMountMap[getCsiAzureVolumeMountName(componentName, radixVolumeMount)] = &radixVolumeMount
-		}
-		break
-	}
-	return volumeMountMap
-}
-
-func getPersistentVolumeClaimMapByName(pvcList *corev1.PersistentVolumeClaimList) map[string]*corev1.PersistentVolumeClaim {
-	pvcMap := make(map[string]*corev1.PersistentVolumeClaim)
-	for _, pvc := range pvcList.Items {
-		pvcMap[pvc.Name] = &pvc
-	}
-	return pvcMap
-}
-
-//func garbageCollectCsiAzureStorageClass() {
-//log.Debugf("GC outdated PVC %s and its Storage Class: %v", pvcName, err)
-//err = deploy.garbageCollectCsiAzurePersistentVolumeClaim(namespace, componentName, pvc)
-//if err != nil {
-//	return err
-//}
-//if pvc.Spec.StorageClassName != nil {
-//	delete(scNameMap, *pvc.Spec.StorageClassName)
-//}
-//delete(scCsiVolumeKeyMap, csiVolumeKey)
-//delete(pvcCsiVolumeKeyMap, csiVolumeKey)
-//delete(pvcNameMap, pvc.Name)
-//}
-//func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaim(namespace string, pvc *corev1.PersistentVolumeClaim) error {
-//	if pvc.Spec.StorageClassName != nil {
-//		err := deploy.DeleteCsiAzureStorageClasses(*pvc.Spec.StorageClassName)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	return deploy.DeletePersistentVolumeClaim(namespace, pvc.Name)
-//}
-//
-
-func getStorageClassMapByName(scList *storagev1.StorageClassList) map[string]*storagev1.StorageClass {
-	scMap := make(map[string]*storagev1.StorageClass)
-	for _, sc := range scList.Items {
-		scMap[sc.Name] = &sc
-	}
-	return scMap
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
