@@ -188,13 +188,16 @@ type RadixPrivateImageHubCredential struct {
 
 // RadixVolumeMount defines volume to be mounted to the container
 type RadixVolumeMount struct {
-	Type      MountType `json:"type" yaml:"type"`
-	Name      string    `json:"name" yaml:"name"`
-	Container string    `json:"container" yaml:"container"` //Outdated. Use Storage instead
-	Storage   string    `json:"storage" yaml:"storage"`     //Container name, file Share name, etc.
-	Path      string    `json:"path" yaml:"path"`           //Path within the pod (replica), where the volume mount has been mounted to
-	GID       string    `json:"gid" yaml:"gid"`             //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
-	SkuName   string    `json:"skuName" yaml:"skuName"`     //Optional. Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	Type            MountType `json:"type" yaml:"type"`
+	Name            string    `json:"name" yaml:"name"`
+	Container       string    `json:"container" yaml:"container"`             //Outdated. Use Storage instead
+	Storage         string    `json:"storage" yaml:"storage"`                 //Container name, file Share name, etc.
+	Path            string    `json:"path" yaml:"path"`                       //Path within the pod (replica), where the volume mount has been mounted to
+	GID             string    `json:"gid" yaml:"gid"`                         //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
+	SkuName         string    `json:"skuName" yaml:"skuName"`                 //Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	RequestsStorage string    `json:"requestsStorage" yaml:"requestsStorage"` //Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+	AccessMode      string    `json:"accessMode" yaml:"accessMode"`           //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+	BindingMode     string    `json:"bindingMode" yaml:"bindingMode"`         //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 }
 
 // MountType Holds types of mount

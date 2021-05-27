@@ -48,7 +48,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 				return err
 			}
 		} else {
-			err := deploy.removeOrphanedSecrets(namespace, registration.Name, component.GetName(), secretName, component.GetSecrets())
+			err := deploy.removeOrphanedSecrets(namespace, secretName, component.GetSecrets())
 			if err != nil {
 				return err
 			}
@@ -113,7 +113,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
 	if err != nil {
-		return fmt.Errorf("Failed to grant app admin access to own secrets. %v", err)
+		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
 	}
 
 	if len(secretsToManage) == 0 {
@@ -176,6 +176,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 		}
 
 		if garbageCollect {
+			log.Debugf("Delete secret %s", existingSecret.Name)
 			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), existingSecret.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -203,6 +204,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 			continue
 		}
 
+		log.Debugf("Delete secret %s no longer in spec for component %s", secret.Name, component.GetName())
 		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
@@ -240,6 +242,7 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 		}
 
 		if garbageCollectSecret {
+			log.Debugf("Delete secret %s for component %s and external alias %s", secret.Name, component.GetName(), dnsExternalAlias)
 			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -320,7 +323,7 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	return nil
 }
 
-func (deploy *Deployment) removeOrphanedSecrets(ns, app, component, secretName string, secrets []string) error {
+func (deploy *Deployment) removeOrphanedSecrets(ns, secretName string, secrets []string) error {
 	secret, err := deploy.kubeutil.GetSecret(ns, secretName)
 	if err != nil {
 		return err
