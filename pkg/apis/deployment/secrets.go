@@ -112,6 +112,19 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 	}
 
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
+	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
+	if auth := component.GetAuthentication(); auth != nil && component.GetPublicPort() != "" && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
+		if !deploy.kubeutil.SecretExists(ns, clientCertificateSecretName) {
+			if err := deploy.createClientCertificateSecret(ns, registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
+				return err
+			}
+		}
+		secretsToManage = append(secretsToManage, clientCertificateSecretName)
+	} else if deploy.kubeutil.SecretExists(ns, clientCertificateSecretName) {
+		deploy.kubeutil.DeleteSecret(ns, clientCertificateSecretName)
+	}
+
+	err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
 	if err != nil {
 		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
 	}
@@ -323,6 +336,29 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	return nil
 }
 
+func (deploy *Deployment) createClientCertificateSecret(ns, app, component, secretName string) error {
+	secret := v1.Secret{
+		Type: v1.SecretType("Opaque"),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+			Labels: map[string]string{
+				kube.RadixAppLabel:       app,
+				kube.RadixComponentLabel: component,
+			},
+		},
+	}
+
+	defaultValue := []byte(secretDefaultData)
+
+	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
+	data := make(map[string][]byte)
+	data["ca.crt"] = defaultValue
+	secret.Data = data
+
+	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
+	return err
+}
+
 func (deploy *Deployment) removeOrphanedSecrets(ns, secretName string, secrets []string) error {
 	secret, err := deploy.kubeutil.GetSecret(ns, secretName)
 	if err != nil {
@@ -345,4 +381,15 @@ func (deploy *Deployment) removeOrphanedSecrets(ns, secretName string, secrets [
 	}
 
 	return nil
+}
+
+func IsSecretRequiredForClientCertificate(clientCertificate *radixv1.ClientCertificate) bool {
+	if clientCertificate != nil {
+		certificateConfig := parseClientCertificateConfiguration(*clientCertificate)
+		if *certificateConfig.PassCertificateToUpstream || *certificateConfig.Verification != radixv1.VerificationTypeOff {
+			return true
+		}
+	}
+
+	return false
 }

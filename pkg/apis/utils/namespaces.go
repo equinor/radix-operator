@@ -32,6 +32,11 @@ func GetComponentSecretName(componentame string) string {
 	return fmt.Sprintf("%s-%s", componentame, hash)
 }
 
+// GetComponentClientCertificateSecretName Gets name of the component secret that holds the ca.crt public key for clientcertificate authentication
+func GetComponentClientCertificateSecretName(componentame string) string {
+	return fmt.Sprintf("%s-clientcertca", componentame)
+}
+
 // GetAppAndTagPairFromName Reverse engineer deployment name
 func GetAppAndTagPairFromName(name string) (string, string) {
 	runes := []rune(name)
