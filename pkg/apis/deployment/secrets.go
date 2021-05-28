@@ -114,17 +114,17 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
 	if auth := component.GetAuthentication(); auth != nil && component.GetPublicPort() != "" && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
-		if !deploy.kubeutil.SecretExists(ns, clientCertificateSecretName) {
-			if err := deploy.createClientCertificateSecret(ns, registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
+		if !deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
+			if err := deploy.createClientCertificateSecret(namespace, registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
 				return err
 			}
 		}
 		secretsToManage = append(secretsToManage, clientCertificateSecretName)
-	} else if deploy.kubeutil.SecretExists(ns, clientCertificateSecretName) {
-		deploy.kubeutil.DeleteSecret(ns, clientCertificateSecretName)
+	} else if deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
+		deploy.kubeutil.DeleteSecret(namespace, clientCertificateSecretName)
 	}
 
-	err := deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
+	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
 	if err != nil {
 		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
 	}
