@@ -890,13 +890,9 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 		case v1.IsKnownVolumeMount(volumeMountType):
 			{
 				if _, exists := mountsInComponent[volumeMountType]; !exists {
-					mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), containers: make(map[string]bool), path: make(map[string]bool)}
+					mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), path: make(map[string]bool)}
 				}
 				volumeMountConfigMap := mountsInComponent[volumeMountType]
-				if _, exists := volumeMountConfigMap.containers[volumeMountStorage]; exists {
-					return duplicateContainerForVolumeMountType(volumeMountStorage, volumeMountType, componentName, environment)
-				}
-				volumeMountConfigMap.containers[volumeMountStorage] = true
 				if _, exists := volumeMountConfigMap.names[volumeMount.Name]; exists {
 					return duplicateNameForVolumeMountType(volumeMount.Name, volumeMountType, componentName, environment)
 				}
@@ -915,9 +911,8 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 }
 
 type volumeMountConfigMaps struct {
-	names      map[string]bool
-	containers map[string]bool
-	path       map[string]bool
+	names map[string]bool
+	path  map[string]bool
 }
 
 func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
