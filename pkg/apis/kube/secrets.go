@@ -17,7 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-// SecretExists Checks if secret allready exists
+// SecretExists Checks if secret already exists
 func (k *Kube) SecretExists(namespace, secretName string) bool {
 	_, err := k.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
@@ -48,14 +48,12 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret
 		return nil, fmt.Errorf("Failed to marshal old secret object: %v", err)
 	}
 
-	// Avvoid uneccessary patching
+	// Avoid uneccessary patching
 	newSecret := oldSecret.DeepCopy()
 	newSecret.ObjectMeta.Labels = secret.ObjectMeta.Labels
 	newSecret.ObjectMeta.Annotations = secret.ObjectMeta.Annotations
 	newSecret.ObjectMeta.OwnerReferences = secret.ObjectMeta.OwnerReferences
 	newSecret.Data = secret.Data
-
-	print(newSecret.Data)
 
 	newSecretJSON, err := json.Marshal(newSecret)
 	if err != nil {

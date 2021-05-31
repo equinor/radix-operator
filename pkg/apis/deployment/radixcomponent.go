@@ -18,19 +18,18 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
 
+		// Will later be overriden by default replicas if not set specifically
+		var replicas *int
 		var variables v1.EnvVarsMap
 		monitoring := false
 		var resources v1.ResourceRequirements
-
-		// Will later be overriden by default replicas if not set specifically
-		var replicas *int
-
 		var horizontalScaling *v1.RadixHorizontalScaling
 		var volumeMounts []v1.RadixVolumeMount
 		var node v1.RadixNode
 		var imageTagName string
-
 		var alwaysPullImageOnDeploy bool
+		var environmentAuthentication *v1.Authentication
+
 		// Containers run as root unless overridden in config
 		runAsNonRoot := false
 
@@ -47,12 +46,15 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			imageTagName = environmentSpecificConfig.ImageTagName
 			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
+			environmentAuthentication = environmentSpecificConfig.Authentication
 		} else {
 			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
 		}
+
 		if variables == nil {
 			variables = make(v1.EnvVarsMap)
 		}
+
 		// Append common environment variables from appComponent.Variables to variables if not available yet
 		for variableKey, variableValue := range appComponent.Variables {
 			if _, found := variables[variableKey]; !found {
@@ -81,6 +83,8 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		authentication := GetAuthenticationForComponent(appComponent.Authentication, environmentAuthentication)
+
 		deployComponent := v1.RadixDeployComponent{
 			Name:                    componentName,
 			RunAsNonRoot:            runAsNonRoot,
@@ -100,11 +104,54 @@ func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			VolumeMounts:            volumeMounts,
 			Node:                    node,
 			AlwaysPullImageOnDeploy: alwaysPullImageOnDeploy,
+			Authentication:          authentication,
 		}
 
 		components = append(components, deployComponent)
 	}
+
 	return components
+}
+
+func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) *v1.Authentication {
+	var authentication *v1.Authentication
+
+	if componentAuthentication == nil && environmentAuthentication == nil {
+		authentication = nil
+	} else if componentAuthentication == nil {
+		authentication = environmentAuthentication.DeepCopy()
+	} else if environmentAuthentication == nil {
+		authentication = componentAuthentication.DeepCopy()
+	} else {
+		authentication = &v1.Authentication{
+			ClientCertificate: GetClientCertificateForComponent(componentAuthentication.ClientCertificate, environmentAuthentication.ClientCertificate),
+		}
+	}
+
+	return authentication
+}
+
+func GetClientCertificateForComponent(componentCertificate *v1.ClientCertificate, environmentCertificate *v1.ClientCertificate) *v1.ClientCertificate {
+	var certificate *v1.ClientCertificate
+	if componentCertificate == nil && environmentCertificate == nil {
+		certificate = nil
+	} else if componentCertificate == nil {
+		certificate = environmentCertificate.DeepCopy()
+	} else if environmentCertificate == nil {
+		certificate = componentCertificate.DeepCopy()
+	} else {
+		certificate = componentCertificate.DeepCopy()
+		envCert := environmentCertificate.DeepCopy()
+		if envCert.PassCertificateToUpstream != nil {
+			certificate.PassCertificateToUpstream = envCert.PassCertificateToUpstream
+		}
+
+		if envCert.Verification != nil {
+			certificate.Verification = envCert.Verification
+		}
+	}
+
+	return certificate
 }
 
 // IsDNSAppAlias Checks if environment and component represents the DNS app alias

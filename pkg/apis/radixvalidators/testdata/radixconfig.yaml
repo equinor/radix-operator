@@ -15,6 +15,10 @@ spec:
        - name: http
          port: 8080
       publicPort: http
+      authentication:
+        clientCertificate:
+          verification: optional
+          passCertificateToUpstream: false
       resources:
         limits:
           memory: "128Mi"
@@ -25,6 +29,10 @@ spec:
       environmentConfig:
         - environment: prod
           replicas: 4
+          authentication:
+            clientCertificate:
+              verification: on
+              passCertificateToUpstream: true
           resources:
             limits:
               memory: "512Mi"

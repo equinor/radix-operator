@@ -1,11 +1,12 @@
 package v1
 
 import (
+	"strings"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 )
 
 // +genclient
@@ -76,13 +77,12 @@ type RadixDeploymentList struct {
 
 //RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
-	Name         string          `json:"name" yaml:"name"`
-	RunAsNonRoot bool            `json:"runAsNonRoot" yaml:"runAsNonRoot"`
-	Image        string          `json:"image" yaml:"image"`
-	Ports        []ComponentPort `json:"ports" yaml:"ports"`
-	Replicas     *int            `json:"replicas" yaml:"replicas"`
-	// Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
-	Public                  bool                    `json:"public" yaml:"public"`
+	Name                    string                  `json:"name" yaml:"name"`
+	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+	Image                   string                  `json:"image" yaml:"image"`
+	Ports                   []ComponentPort         `json:"ports" yaml:"ports"`
+	Replicas                *int                    `json:"replicas" yaml:"replicas"`
+	Public                  bool                    `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	EnvironmentVariables    EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets                 []string                `json:"secrets,omitempty" yaml:"secrets,omitempty"`
@@ -95,6 +95,7 @@ type RadixDeployComponent struct {
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
+	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -173,6 +174,10 @@ func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
 }
 
+func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
+	return deployComponent.Authentication
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -249,6 +254,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
+	return nil
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -299,4 +308,5 @@ type RadixCommonDeployComponent interface {
 	GetIngressConfiguration() []string
 	GetRunAsNonRoot() bool
 	GetNode() *RadixNode
+	GetAuthentication() *Authentication
 }

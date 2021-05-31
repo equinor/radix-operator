@@ -1,10 +1,11 @@
 package utils
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"math/rand"
 	"strconv"
 	"time"
+
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
