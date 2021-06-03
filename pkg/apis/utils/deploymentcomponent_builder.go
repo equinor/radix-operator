@@ -113,6 +113,10 @@ func (dcb *deployComponentBuilder) WithImage(image string) DeployComponentBuilde
 }
 
 func (dcb *deployComponentBuilder) WithPort(name string, port int32) DeployComponentBuilder {
+	if dcb.ports == nil {
+		dcb.ports = make(map[string]int32)
+	}
+
 	dcb.ports[name] = port
 	return dcb
 }
@@ -139,6 +143,10 @@ func (dcb *deployComponentBuilder) WithReplicas(replicas *int) DeployComponentBu
 }
 
 func (dcb *deployComponentBuilder) WithEnvironmentVariable(name string, value string) DeployComponentBuilder {
+	if dcb.environmentVariables == nil {
+		dcb.environmentVariables = make(map[string]string)
+	}
+
 	dcb.environmentVariables[name] = value
 	return dcb
 }
@@ -207,8 +215,5 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 
 // NewDeployComponentBuilder Constructor for component builder
 func NewDeployComponentBuilder() DeployComponentBuilder {
-	return &deployComponentBuilder{
-		ports:                make(map[string]int32),
-		environmentVariables: make(map[string]string),
-	}
+	return &deployComponentBuilder{}
 }

@@ -105,7 +105,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	componentImages := make(map[string]pipeline.ComponentImage)
 	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
 
-	deployComponent := getRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent := GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "", deployComponent[0].PublicPort)
@@ -119,7 +119,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443).
 				WithPublicPort("http")).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent = GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
@@ -134,7 +134,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("https", 443).
 				WithPublicPort("http").
 				WithPublic(true)).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent = GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
@@ -148,7 +148,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443).
 				WithPublic(true)).BuildRA()
-	deployComponent = getRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent = GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].Ports[0].Name, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, false, deployComponent[0].Public)
@@ -170,7 +170,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 		WithDNSExternalAlias("another.alias.com", "prod", "componentA").
 		WithDNSExternalAlias("athird.alias.com", "prod", "componentB").BuildRA()
 
-	deployComponent := getRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponent := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponent))
 	assert.Equal(t, 2, len(deployComponent[0].DNSExternalAlias))
 	assert.Equal(t, "some.alias.com", deployComponent[0].DNSExternalAlias[0])
@@ -179,7 +179,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 	assert.Equal(t, 1, len(deployComponent[1].DNSExternalAlias))
 	assert.Equal(t, "athird.alias.com", deployComponent[1].DNSExternalAlias[0])
 
-	deployComponent = getRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponent = GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponent))
 	assert.Equal(t, 0, len(deployComponent[0].DNSExternalAlias))
 }
@@ -213,7 +213,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 						WithEnvironment("dev").
 						WithEnvironmentVariable("ENV_4", "environment_4"))).BuildRA()
 
-	deployComponentProd := getRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponentProd))
 
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
@@ -226,7 +226,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 	assert.Equal(t, "environment_3", deployComponentProd[1].EnvironmentVariables["ENV_3"])
 	assert.Equal(t, "environment_common_2", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
 
-	deployComponentDev := getRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponentDev))
 
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
@@ -274,7 +274,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 						WithEnvironmentVariable("ENV_4", "environment_4").
 						WithEnvironmentVariable("ENV_COMMON_2", "environment_common_2_dev_override"))).BuildRA()
 
-	deployComponentProd := getRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponentProd))
 
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
@@ -287,7 +287,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 	assert.Equal(t, "environment_3", deployComponentProd[1].EnvironmentVariables["ENV_3"])
 	assert.Equal(t, "environment_common_2_prod_override", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
 
-	deployComponentDev := getRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponentDev))
 
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
@@ -314,23 +314,19 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 				WithCommonEnvironmentVariable("ENV_COMMON_1", "environment_common_1").
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
-						WithEnvironment("prod").
-						WithNilVariablesMap(),
+						WithEnvironment("prod"),
 					utils.AnEnvironmentConfig().
-						WithEnvironment("dev").
-						WithNilVariablesMap()),
+						WithEnvironment("dev")),
 			utils.NewApplicationComponentBuilder().
 				WithName("comp_2").
 				WithCommonEnvironmentVariable("ENV_COMMON_2", "environment_common_2").
 				WithEnvironmentConfigs(
 					utils.AnEnvironmentConfig().
-						WithEnvironment("prod").
-						WithNilVariablesMap(),
+						WithEnvironment("prod"),
 					utils.AnEnvironmentConfig().
-						WithEnvironment("dev").
-						WithNilVariablesMap())).BuildRA()
+						WithEnvironment("dev"))).BuildRA()
 
-	deployComponentProd := getRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponentProd))
 
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
@@ -341,7 +337,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 	assert.Equal(t, 1, len(deployComponentProd[1].EnvironmentVariables))
 	assert.Equal(t, "environment_common_2", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
 
-	deployComponentDev := getRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponentDev))
 
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
@@ -380,7 +376,7 @@ func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 						"cpu":    "750m",
 					}))).BuildRA()
 
-	deployComponentProd := getRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 1, len(deployComponentProd))
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
 	assert.Equal(t, "500m", deployComponentProd[0].Resources.Requests["cpu"])
@@ -388,7 +384,7 @@ func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 	assert.Equal(t, "750m", deployComponentProd[0].Resources.Limits["cpu"])
 	assert.Equal(t, "256Mi", deployComponentProd[0].Resources.Limits["memory"])
 
-	deployComponentDev := getRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 1, len(deployComponentDev))
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
 	assert.Equal(t, "250m", deployComponentDev[0].Resources.Requests["cpu"])
@@ -428,25 +424,25 @@ func Test_GetRadixComponents_NodeName(t *testing.T) {
 
 	t.Run("override job gpu and gpu-count with environment gpu and gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := getRadixComponentsForEnv(ra, "env1", componentImages)
+		deployComponent := GetRadixComponentsForEnv(ra, "env1", componentImages)
 		assert.Equal(t, envGpu1, deployComponent[0].Node.Gpu)
 		assert.Equal(t, envGpuCount1, deployComponent[0].Node.GpuCount)
 	})
 	t.Run("override job gpu-count with environment gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := getRadixComponentsForEnv(ra, "env2", componentImages)
+		deployComponent := GetRadixComponentsForEnv(ra, "env2", componentImages)
 		assert.Equal(t, compGpu, deployComponent[0].Node.Gpu)
 		assert.Equal(t, envGpuCount2, deployComponent[0].Node.GpuCount)
 	})
 	t.Run("override job gpu with environment gpu", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := getRadixComponentsForEnv(ra, "env3", componentImages)
+		deployComponent := GetRadixComponentsForEnv(ra, "env3", componentImages)
 		assert.Equal(t, envGpu3, deployComponent[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
 	})
 	t.Run("do not override job gpu or gpu-count with environment gpu or gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := getRadixComponentsForEnv(ra, "env4", componentImages)
+		deployComponent := GetRadixComponentsForEnv(ra, "env4", componentImages)
 		assert.Equal(t, compGpu, deployComponent[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
 	})
