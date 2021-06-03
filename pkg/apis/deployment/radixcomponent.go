@@ -8,7 +8,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func getRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
+func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
 

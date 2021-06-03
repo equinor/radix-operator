@@ -142,6 +142,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	anyProdEnvironment := "prod"
 	anyDevEnvironment := "dev"
 	anyDNSAlias := "a-dns-alias"
+	prodNode := v1.RadixNode{Gpu: "prod-gpu", GpuCount: "2"}
 
 	// Setup
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
@@ -151,7 +152,9 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 			WithComponent(
 				utils.NewDeployComponentBuilder().
 					WithName("app").
-					WithSecrets([]string{"DEPLOYAPPSECRET"}),
+					WithSecrets([]string{"DEPLOYAPPSECRET"}).
+					WithNodeGpu("dev-gpu").
+					WithNodeGpuCount("1"),
 			).
 			WithJobComponent(
 				utils.NewDeployJobComponentBuilder().
@@ -185,7 +188,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 									WithReplicas(test.IntPtr(4)).
 									WithEnvironmentVariable("DB_HOST", "db-prod").
 									WithEnvironmentVariable("DB_PORT", "5678").
-									WithEnvironmentVariable("DB_NAME", "my-db-prod"))).
+									WithEnvironmentVariable("DB_NAME", "my-db-prod").
+									WithNode(prodNode))).
 					WithJobComponents(
 						utils.AnApplicationJobComponent().
 							WithName("job").
@@ -251,6 +255,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.True(t, rds.Items[0].Spec.Components[0].DNSAppAlias)
 	assert.Len(t, rds.Items[0].Spec.Components[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYAPPSECRET", rds.Items[0].Spec.Components[0].Secrets[0])
+	assert.Equal(t, prodNode, rds.Items[0].Spec.Components[0].Node)
 
 	assert.Equal(t, 1, len(rds.Items[0].Spec.Jobs))
 	assert.Equal(t, 3, len(rds.Items[0].Spec.Jobs[0].EnvironmentVariables))
@@ -598,4 +603,78 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyDevEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(rds.Items))
+}
+
+// This test covers a bug causing nil map panic
+// when component variables are set and environment variables are not
+func TestPromote_PromoteToOtherEnvironment_EnvironmentVariablesNotSet(t *testing.T) {
+	anyApp := "any-app"
+	anyDeploymentName := "deployment-1"
+	anyImageTag := "abcdef"
+	anyPromoteJobName := "any-promote-job"
+	anyProdEnvironment := "prod"
+	anyDevEnvironment := "dev"
+	anyComponentName := "component"
+	anyJobName := "job"
+
+	// Setup
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+
+	deployment := utils.NewDeploymentBuilder().
+		WithAppName(anyApp).
+		WithDeploymentName(anyDeploymentName).
+		WithEnvironment(anyDevEnvironment).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(anyComponentName)).
+		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(anyJobName)).
+		WithRadixApplication(
+			utils.NewRadixApplicationBuilder().
+				WithRadixRegistration(
+					utils.ARadixRegistration().
+						WithName(anyApp)).
+				WithAppName(anyApp).
+				WithEnvironment(anyDevEnvironment, "master").
+				WithEnvironment(anyProdEnvironment, "").
+				WithComponents(
+					utils.AnApplicationComponent().
+						WithName(anyComponentName).
+						WithCommonEnvironmentVariable("ENV1", "value").
+						WithEnvironmentConfigs(
+							utils.AnEnvironmentConfig().
+								WithEnvironment(anyProdEnvironment))).
+				WithJobComponents(
+					utils.AnApplicationJobComponent().
+						WithName(anyJobName).
+						WithCommonEnvironmentVariable("ENV1", "value").
+						WithSchedulerPort(numbers.Int32Ptr(8888)).
+						WithEnvironmentConfigs(
+							utils.AJobComponentEnvironmentConfig().
+								WithEnvironment(anyProdEnvironment)),
+				))
+
+	commonTestUtils.ApplyDeployment(deployment)
+
+	// Create prod environment without any deployments
+	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+
+	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
+	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
+
+	cli := NewPromoteStep()
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+
+	pipelineInfo := &model.PipelineInfo{
+		PipelineArguments: model.PipelineArguments{
+			FromEnvironment: anyDevEnvironment,
+			ToEnvironment:   anyProdEnvironment,
+			DeploymentName:  anyDeploymentName,
+			JobName:         anyPromoteJobName,
+			ImageTag:        anyImageTag,
+			CommitID:        anyCommitID,
+		},
+	}
+
+	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	err := cli.Run(pipelineInfo)
+	assert.NoError(t, err)
 }
