@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"os"
 	"sort"
 	"strconv"
@@ -544,18 +543,4 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 
 func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
 	return utils.GetPodSpecAffinity(deployComponent)
-}
-
-func (deploy *Deployment) getRadixComponentByName(name string) (v1.RadixCommonDeployComponent, error) {
-	for _, component := range deploy.radixDeployment.Spec.Components {
-		if strings.EqualFold(name, component.GetName()) {
-			return &component, nil
-		}
-	}
-	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
-		if strings.EqualFold(name, jobComponent.GetName()) {
-			return &jobComponent, nil
-		}
-	}
-	return nil, errors.New(fmt.Sprintf("Radix component of job not found by name %s", name))
 }
