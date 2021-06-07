@@ -82,6 +82,10 @@ func (dcb *deployJobComponentBuilder) WithImage(image string) DeployJobComponent
 }
 
 func (dcb *deployJobComponentBuilder) WithPort(name string, port int32) DeployJobComponentBuilder {
+	if dcb.ports == nil {
+		dcb.ports = make(map[string]int32)
+	}
+
 	dcb.ports[name] = port
 	return dcb
 }
@@ -97,6 +101,10 @@ func (dcb *deployJobComponentBuilder) WithAlwaysPullImageOnDeploy(val bool) Depl
 }
 
 func (dcb *deployJobComponentBuilder) WithEnvironmentVariable(name string, value string) DeployJobComponentBuilder {
+	if dcb.environmentVariables == nil {
+		dcb.environmentVariables = make(map[string]string)
+	}
+
 	dcb.environmentVariables[name] = value
 	return dcb
 }
@@ -156,8 +164,5 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 
 // NewDeployJobComponentBuilder Constructor for jop component builder
 func NewDeployJobComponentBuilder() DeployJobComponentBuilder {
-	return &deployJobComponentBuilder{
-		ports:                make(map[string]int32),
-		environmentVariables: make(map[string]string),
-	}
+	return &deployJobComponentBuilder{}
 }

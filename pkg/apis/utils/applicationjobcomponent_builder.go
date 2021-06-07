@@ -61,6 +61,10 @@ func (rcb *radixApplicationJobComponentBuilder) WithSecrets(secrets ...string) R
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithPort(name string, port int32) RadixApplicationJobComponentBuilder {
+	if rcb.ports == nil {
+		rcb.ports = make(map[string]int32)
+	}
+
 	rcb.ports[name] = port
 	return rcb
 }
@@ -76,6 +80,10 @@ func (rcb *radixApplicationJobComponentBuilder) WithEnvironmentConfigs(environme
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithCommonEnvironmentVariable(name, value string) RadixApplicationJobComponentBuilder {
+	if rcb.variables == nil {
+		rcb.variables = make(v1.EnvVarsMap)
+	}
+
 	rcb.variables[name] = value
 	return rcb
 }
@@ -137,17 +145,12 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 
 // NewApplicationJobComponentBuilder Constructor for job component builder
 func NewApplicationJobComponentBuilder() RadixApplicationJobComponentBuilder {
-	return &radixApplicationJobComponentBuilder{
-		ports:     make(map[string]int32),
-		variables: make(map[string]string),
-	}
+	return &radixApplicationJobComponentBuilder{}
 }
 
 // AnApplicationJobComponent Constructor for job component builder containing test data
 func AnApplicationJobComponent() RadixApplicationJobComponentBuilder {
 	return &radixApplicationJobComponentBuilder{
-		name:      "job",
-		ports:     make(map[string]int32),
-		variables: make(map[string]string),
+		name: "job",
 	}
 }

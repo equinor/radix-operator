@@ -3,7 +3,6 @@ package steps
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -198,39 +197,22 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 }
 
 func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
-	for index, comp := range radixDeployment.Spec.Components {
-		raComp := getComponentConfig(radixConfig, comp.Name)
-		if raComp == nil {
-			return NonExistingComponentName(radixConfig.GetName(), comp.Name)
+	newEnvComponents := deployment.GetRadixComponentsForEnv(radixConfig, environment, make(map[string]pipeline.ComponentImage))
+
+	newEnvComponentsMap := make(map[string]v1.RadixDeployComponent)
+	for _, component := range newEnvComponents {
+		newEnvComponentsMap[component.Name] = component
+	}
+
+	for idx, component := range radixDeployment.Spec.Components {
+		newEnvComponent, found := newEnvComponentsMap[component.Name]
+		if !found {
+			return NonExistingComponentName(radixConfig.GetName(), component.Name)
 		}
 
-		radixDeployment.Spec.Components[index].DNSAppAlias =
-			deployment.IsDNSAppAlias(environment, comp.Name, radixConfig.Spec.DNSAppAlias)
-		radixDeployment.Spec.Components[index].DNSExternalAlias =
-			deployment.GetExternalDNSAliasForComponentEnvironment(radixConfig, comp.Name, environment)
-		radixDeployment.Spec.Components[index].Authentication = raComp.Authentication
-
-		environmentConfig := getEnvironmentConfig(raComp, environment)
-		if environmentConfig != nil {
-			radixDeployment.Spec.Components[index].Resources = environmentConfig.Resources
-			radixDeployment.Spec.Components[index].Monitoring = environmentConfig.Monitoring
-			radixDeployment.Spec.Components[index].Replicas = environmentConfig.Replicas
-			radixDeployment.Spec.Components[index].EnvironmentVariables = environmentConfig.Variables
-			radixDeployment.Spec.Components[index].Authentication =
-				deployment.GetAuthenticationForComponent(raComp.Authentication, environmentConfig.Authentication)
-		}
-
-		// Append common environment variables if not available yet
-		for variableKey, variableValue := range raComp.Variables {
-			if _, found := radixDeployment.Spec.Components[index].EnvironmentVariables[variableKey]; !found {
-				radixDeployment.Spec.Components[index].EnvironmentVariables[variableKey] = variableValue
-			}
-		}
-
-		// Append common resources settings if currently empty
-		if reflect.DeepEqual(radixDeployment.Spec.Components[index].Resources, v1.ResourceRequirements{}) {
-			radixDeployment.Spec.Components[index].Resources = raComp.Resources
-		}
+		newEnvComponent.Secrets = component.Secrets
+		newEnvComponent.Image = component.Image
+		radixDeployment.Spec.Components[idx] = newEnvComponent
 	}
 
 	return nil

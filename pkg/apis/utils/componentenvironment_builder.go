@@ -13,7 +13,6 @@ type RadixEnvironmentConfigBuilder interface {
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
-	WithNilVariablesMap() RadixEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixEnvironmentConfigBuilder
 	WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder
 	WithAuthentication(authentication *v1.Authentication) RadixEnvironmentConfigBuilder
@@ -23,7 +22,6 @@ type radixEnvironmentConfigBuilder struct {
 	environment             string
 	variables               v1.EnvVarsMap
 	replicas                *int
-	ports                   map[string]int32
 	secrets                 []string
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
@@ -57,17 +55,16 @@ func (ceb *radixEnvironmentConfigBuilder) WithReplicas(replicas *int) RadixEnvir
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithEnvironmentVariable(name, value string) RadixEnvironmentConfigBuilder {
+	if ceb.variables == nil {
+		ceb.variables = make(v1.EnvVarsMap)
+	}
+
 	ceb.variables[name] = value
 	return ceb
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithAlwaysPullImageOnDeploy(val bool) RadixEnvironmentConfigBuilder {
 	ceb.alwaysPullImageOnDeploy = &val
-	return ceb
-}
-
-func (ceb *radixEnvironmentConfigBuilder) WithNilVariablesMap() RadixEnvironmentConfigBuilder {
-	ceb.variables = nil
 	return ceb
 }
 
@@ -102,15 +99,12 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 
 // NewComponentEnvironmentBuilder Constructor for component environment builder
 func NewComponentEnvironmentBuilder() RadixEnvironmentConfigBuilder {
-	return &radixEnvironmentConfigBuilder{
-		variables: make(map[string]string),
-	}
+	return &radixEnvironmentConfigBuilder{}
 }
 
 // AnEnvironmentConfig Constructor for component environment builder containing test data
 func AnEnvironmentConfig() RadixEnvironmentConfigBuilder {
 	return &radixEnvironmentConfigBuilder{
 		environment: "app",
-		variables:   make(map[string]string),
 	}
 }
