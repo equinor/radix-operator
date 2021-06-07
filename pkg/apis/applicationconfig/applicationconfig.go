@@ -188,6 +188,8 @@ func (app *ApplicationConfig) createEnvironments() error {
 			WithRegistrationOwner(app.registration).
 			// Orphaned flag will be set by the environment handler but until
 			// reconciliation we must ensure it is false
+			// Update: It seems Update method does not update status object when using real k8s client. The fake client works differently.
+			// Only an explicit call to UpdateStatus can update status object, and it is only handled by the RadixEnvironment controller.
 			WithOrphaned(false).
 			BuildRE())
 	}
