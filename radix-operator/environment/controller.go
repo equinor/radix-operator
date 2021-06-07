@@ -157,8 +157,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			addedOrDroppedEnvionments := getAddedOrDroppedEnvironmentNames(oldRa, newRa)
-			for _, envName := range addedOrDroppedEnvionments {
+			environmentsToResync := getAddedOrDroppedEnvironmentNames(oldRa, newRa)
+			for _, envName := range environmentsToResync {
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
