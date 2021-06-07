@@ -455,9 +455,9 @@ func (deploy *Deployment) CreateOrUpdateCsiAzureResources(desiredDeployment *app
 	return err
 }
 
-func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1.StorageClassList, excludeSecretName []string) error {
+func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1.StorageClassList, excludeStorageClassName []string) error {
 	for _, storageClass := range scList.Items {
-		if !slice.ContainsString(excludeSecretName, storageClass.Name) {
+		if !slice.ContainsString(excludeStorageClassName, storageClass.Name) {
 			log.Debugf("Delete Csi Azure StorageClass %s", storageClass.Name)
 			err := deploy.DeleteCsiAzureStorageClasses(storageClass.Name)
 			if err != nil {
@@ -558,16 +558,27 @@ func validateCsiAzureStorageClass(namespace string, storageClass *storagev1.Stor
 func (deploy *Deployment) getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName string) map[string]*radixv1.RadixVolumeMount {
 	volumeMountMap := make(map[string]*radixv1.RadixVolumeMount)
 	for _, component := range deploy.radixDeployment.Spec.Components {
-		if !strings.EqualFold(componentName, component.GetName()) {
-			continue
+		if findVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
+			break
 		}
-		for _, radixVolumeMount := range component.VolumeMounts {
-			mount := radixVolumeMount
-			volumeMountMap[getCsiAzureVolumeMountName(componentName, radixVolumeMount)] = &mount
+	}
+	for _, component := range deploy.radixDeployment.Spec.Jobs {
+		if findVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
+			break
 		}
-		break
 	}
 	return volumeMountMap
+}
+
+func findVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolumeMount, volumeMounts []radixv1.RadixVolumeMount, componentName string, component radixv1.RadixCommonDeployComponent) bool {
+	if !strings.EqualFold(componentName, component.GetName()) {
+		return false
+	}
+	for _, radixVolumeMount := range volumeMounts {
+		mount := radixVolumeMount
+		volumeMountMap[getCsiAzureVolumeMountName(componentName, radixVolumeMount)] = &mount
+	}
+	return true
 }
 
 func getPersistentVolumeClaimMapByName(pvcList *corev1.PersistentVolumeClaimList) map[string]*corev1.PersistentVolumeClaim {
