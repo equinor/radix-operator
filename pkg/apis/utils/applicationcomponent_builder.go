@@ -88,6 +88,10 @@ func (rcb *radixApplicationComponentBuilder) WithIngressConfiguration(ingressCon
 }
 
 func (rcb *radixApplicationComponentBuilder) WithPort(name string, port int32) RadixApplicationComponentBuilder {
+	if rcb.ports == nil {
+		rcb.ports = make(map[string]int32)
+	}
+
 	rcb.ports[name] = port
 	return rcb
 }
@@ -103,6 +107,10 @@ func (rcb *radixApplicationComponentBuilder) WithEnvironmentConfigs(environmentC
 }
 
 func (rcb *radixApplicationComponentBuilder) WithCommonEnvironmentVariable(name, value string) RadixApplicationComponentBuilder {
+	if rcb.variables == nil {
+		rcb.variables = make(v1.EnvVarsMap)
+	}
+
 	rcb.variables[name] = value
 	return rcb
 }
@@ -157,17 +165,12 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 
 // NewApplicationComponentBuilder Constructor for component builder
 func NewApplicationComponentBuilder() RadixApplicationComponentBuilder {
-	return &radixApplicationComponentBuilder{
-		ports:     make(map[string]int32),
-		variables: make(map[string]string),
-	}
+	return &radixApplicationComponentBuilder{}
 }
 
 // AnApplicationComponent Constructor for component builder builder containing test data
 func AnApplicationComponent() RadixApplicationComponentBuilder {
 	return &radixApplicationComponentBuilder{
-		name:      "app",
-		ports:     make(map[string]int32),
-		variables: make(map[string]string),
+		name: "app",
 	}
 }

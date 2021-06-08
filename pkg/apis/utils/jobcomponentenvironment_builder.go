@@ -8,7 +8,6 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithEnvironmentVariable(string, string) RadixJobComponentEnvironmentConfigBuilder
 	WithResource(map[string]string, map[string]string) RadixJobComponentEnvironmentConfigBuilder
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixJobComponentEnvironmentConfigBuilder
-	WithNilVariablesMap() RadixJobComponentEnvironmentConfigBuilder
 	WithMonitoring(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithImageTagName(string) RadixJobComponentEnvironmentConfigBuilder
 	WithNode(node v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
@@ -46,12 +45,11 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithEnvironment(environmen
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithEnvironmentVariable(name, value string) RadixJobComponentEnvironmentConfigBuilder {
-	ceb.variables[name] = value
-	return ceb
-}
+	if ceb.variables == nil {
+		ceb.variables = make(v1.EnvVarsMap)
+	}
 
-func (ceb *radixJobComponentEnvironmentConfigBuilder) WithNilVariablesMap() RadixJobComponentEnvironmentConfigBuilder {
-	ceb.variables = nil
+	ceb.variables[name] = value
 	return ceb
 }
 
@@ -90,15 +88,12 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 
 // NewJobComponentEnvironmentBuilder Constructor for job component environment builder
 func NewJobComponentEnvironmentBuilder() RadixJobComponentEnvironmentConfigBuilder {
-	return &radixJobComponentEnvironmentConfigBuilder{
-		variables: make(map[string]string),
-	}
+	return &radixJobComponentEnvironmentConfigBuilder{}
 }
 
 // AJobComponentEnvironmentConfig Constructor for job component environment builder containing test data
 func AJobComponentEnvironmentConfig() RadixJobComponentEnvironmentConfigBuilder {
 	return &radixJobComponentEnvironmentConfigBuilder{
 		environment: "app",
-		variables:   make(map[string]string),
 	}
 }
