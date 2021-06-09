@@ -42,6 +42,7 @@ const (
 	csiStorageClassShareNameParameter                  = "shareName"                                       //File Share name - for file storages
 	csiStorageClassTmpPathMountOption                  = "tmp-path"                                        //Path within the node, where the volume mount has been mounted to
 	csiStorageClassGidMountOption                      = "gid"                                             //Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
+	csiStorageClassUidMountOption                      = "uid"                                             //Volume mount owner UserID. Used instead of GroupID
 )
 
 func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) []corev1.VolumeMount {
@@ -356,6 +357,8 @@ func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentNa
 	}
 	if len(radixVolumeMount.GID) > 0 {
 		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassGidMountOption, radixVolumeMount.GID))
+	} else if len(radixVolumeMount.UID) > 0 {
+		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassUidMountOption, radixVolumeMount.UID))
 	}
 	return mountOptions
 }
