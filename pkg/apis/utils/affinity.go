@@ -11,14 +11,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetPodSpecAffinity(deployComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
+func GetPodSpecAffinity(node *v1.RadixNode) *corev1.Affinity {
 	affinity := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
 		},
 	}
 
-	addGpuNodeSelectorTerms(deployComponent, affinity.NodeAffinity)
+	addGpuNodeSelectorTerms(node, affinity.NodeAffinity)
 
 	if len(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
 		return affinity
@@ -26,10 +26,14 @@ func GetPodSpecAffinity(deployComponent v1.RadixCommonDeployComponent) *corev1.A
 	return nil
 }
 
-func addGpuNodeSelectorTerms(deployComponent v1.RadixCommonDeployComponent, nodeAffinity *corev1.NodeAffinity) {
+func addGpuNodeSelectorTerms(node *v1.RadixNode, nodeAffinity *corev1.NodeAffinity) {
 	nodeSelectorTerm := corev1.NodeSelectorTerm{}
-	addNodeSelectorRequirementForGpu(deployComponent.GetNode().Gpu, &nodeSelectorTerm)
-	addNodeSelectorRequirementForGpuCount(deployComponent.GetNode().GpuCount, &nodeSelectorTerm)
+
+	if node != nil {
+		addNodeSelectorRequirementForGpu(node.Gpu, &nodeSelectorTerm)
+		addNodeSelectorRequirementForGpuCount(node.GpuCount, &nodeSelectorTerm)
+	}
+
 	if len(nodeSelectorTerm.MatchExpressions) > 0 {
 		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms, nodeSelectorTerm)
 	}
