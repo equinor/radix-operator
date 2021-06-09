@@ -65,7 +65,7 @@ func (js *jobSchedulerComponent) GetResources() *v1.ResourceRequirements {
 }
 
 func (js *jobSchedulerComponent) GetVolumeMounts() []v1.RadixVolumeMount {
-	return nil
+	return js.RadixDeployJobComponent.VolumeMounts
 }
 
 func (js *jobSchedulerComponent) IsAlwaysPullImageOnDeploy() bool {
