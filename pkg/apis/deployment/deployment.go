@@ -542,5 +542,5 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 }
 
 func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
-	return utils.GetPodSpecAffinity(deployComponent)
+	return utils.GetPodSpecAffinity(deployComponent.GetNode())
 }
