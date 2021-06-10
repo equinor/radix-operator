@@ -155,8 +155,10 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 	}
 	deployment.Spec.Strategy = deploymentStrategy
 
-	deploy.setCommonPodSpecProperties(&deployment.Spec.Template.Spec, deployComponent)
-
+	err = deploy.setCommonPodSpecProperties(&deployment.Spec.Template.Spec, deployComponent)
+	if err != nil {
+		return nil, err
+	}
 	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName)
 }
 
@@ -190,7 +192,10 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = ports
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
-	deploy.setCommonPodSpecProperties(&desiredDeployment.Spec.Template.Spec, deployComponent)
+	err := deploy.setCommonPodSpecProperties(&desiredDeployment.Spec.Template.Spec, deployComponent)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(deployComponent.GetPorts()) > 0 {
 		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
@@ -203,7 +208,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 		log.Debugf("Deployment component has no ports - Readiness Probe is not set.")
 	}
 
-	err := setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
+	err = setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
 	if err != nil {
 		return nil, err
 	}
@@ -211,10 +216,15 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
 
-func (deploy *Deployment) setCommonPodSpecProperties(podSpec *corev1.PodSpec, deployComponent v1.RadixCommonDeployComponent) {
+func (deploy *Deployment) setCommonPodSpecProperties(podSpec *corev1.PodSpec, deployComponent v1.RadixCommonDeployComponent) error {
 	podSpec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
-	podSpec.Volumes = deploy.getVolumes(deployComponent)
+	volumes, err := deploy.GetVolumesForComponent(deployComponent)
+	if err != nil {
+		return err
+	}
+	podSpec.Volumes = volumes
 	podSpec.Affinity = deploy.getPodSpecAffinity(deployComponent)
+	return nil
 }
 
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {

@@ -40,7 +40,7 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 		return fmt.Errorf("Failed to create two way merge patch deployment objects: %v", err)
 	}
 
-	if isEmptyPatch(patchBytes) {
+	if IsEmptyPatch(patchBytes) {
 		log.Debugf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}

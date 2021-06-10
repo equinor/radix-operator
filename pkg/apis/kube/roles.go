@@ -55,7 +55,7 @@ func (k *Kube) ApplyRole(namespace string, role *auth.Role) error {
 		return fmt.Errorf("Failed to create two way merge patch role objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		patchedRole, err := k.kubeClient.RbacV1().Roles(namespace).Patch(context.TODO(), role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch role object: %v", err)
@@ -106,7 +106,7 @@ func (k *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 		return fmt.Errorf("Failed to create two way merge patch cluster role objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		patchedClusterRole, err := k.kubeClient.RbacV1().ClusterRoles().Patch(context.TODO(), clusterrole.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch clusterrole object: %v", err)
