@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
+	"sort"
 	"strings"
 )
 
@@ -143,13 +144,14 @@ func getPvcNotTerminating(kubeclient kubernetes.Interface, namespace string, com
 	existingPvcForComponentStorage, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMount.Name),
 	})
+	existingPvcs := sortPvcsByCreatedTimestampDesc(existingPvcForComponentStorage.Items)
 	if err != nil {
 		return nil, err
 	}
-	if len(existingPvcForComponentStorage.Items) == 0 {
+	if len(existingPvcs) == 0 {
 		return nil, nil
 	}
-	for _, pvc := range existingPvcForComponentStorage.Items {
+	for _, pvc := range existingPvcs {
 		switch pvc.Status.Phase {
 		case corev1.ClaimPending, corev1.ClaimBound:
 			return &pvc, nil
@@ -648,4 +650,11 @@ func getVolumeAccessMode(modeValue string) v1.PersistentVolumeAccessMode {
 		return corev1.ReadWriteMany
 	}
 	return corev1.ReadOnlyMany
+}
+
+func sortPvcsByCreatedTimestampDesc(persistentVolumeClaims []v1.PersistentVolumeClaim) []v1.PersistentVolumeClaim {
+	sort.Slice(persistentVolumeClaims, func(i, j int) bool {
+		return persistentVolumeClaims[j].ObjectMeta.CreationTimestamp.Before(&persistentVolumeClaims[i].ObjectMeta.CreationTimestamp)
+	})
+	return persistentVolumeClaims
 }
