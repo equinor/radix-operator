@@ -157,7 +157,8 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			for _, envName := range droppedEnvironments(oldRa, newRa) {
+			environmentsToResync := getAddedOrDroppedEnvironmentNames(oldRa, newRa)
+			for _, envName := range environmentsToResync {
 				uniqueName := utils.GetEnvironmentNamespace(oldRa.Name, envName)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
@@ -193,11 +194,19 @@ func getOwner(radixClient radixclient.Interface, namespace, name string) (interf
 	return radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), name, meta.GetOptions{})
 }
 
-func droppedEnvironments(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {
+func getAddedOrDroppedEnvironmentNames(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {
+	var environmentNames []string
+	environmentNames = append(environmentNames, getMissingEnvironmentNames(oldRa.Spec.Environments, newRa.Spec.Environments)...)
+	environmentNames = append(environmentNames, getMissingEnvironmentNames(newRa.Spec.Environments, oldRa.Spec.Environments)...)
+	return environmentNames
+}
+
+// getMissingEnvironmentNames returns environment names that exists in source list but not in target list
+func getMissingEnvironmentNames(source []v1.Environment, target []v1.Environment) []string {
 	droppedNames := make([]string, 0)
-	for _, oldEnvConfig := range oldRa.Spec.Environments {
+	for _, oldEnvConfig := range source {
 		dropped := true
-		for _, newEnvConfig := range newRa.Spec.Environments {
+		for _, newEnvConfig := range target {
 			if oldEnvConfig.Name == newEnvConfig.Name {
 				dropped = false
 			}
