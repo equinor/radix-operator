@@ -117,19 +117,14 @@ func (deploy *Deployment) GetVolumes(namespace string, environment string, compo
 }
 
 func (deploy *Deployment) getCsiAzureVolume(namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*v1.Volume, error) {
-	existingPvcForComponentStorage, err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMount.Name),
-	})
+	existingNotTerminatingPvcForComponentStorage, err := deploy.getPvcNotTerminating(namespace, componentName, radixVolumeMount)
 	if err != nil {
 		return nil, err
 	}
-	if len(existingPvcForComponentStorage.Items) > 1 {
-		return nil, errors.New(fmt.Sprintf("multiple volumes found for component %s and storage %s, but only one allowed", componentName, radixVolumeMount.Name))
-	}
 
 	var pvcName string
-	if len(existingPvcForComponentStorage.Items) > 0 {
-		pvcName = existingPvcForComponentStorage.Items[0].Name
+	if existingNotTerminatingPvcForComponentStorage != nil {
+		pvcName = existingNotTerminatingPvcForComponentStorage.Name
 	} else {
 		pvcName = createCsiAzurePersistentVolumeClaimName(componentName, radixVolumeMount)
 	}
@@ -141,6 +136,25 @@ func (deploy *Deployment) getCsiAzureVolume(namespace, componentName string, rad
 			},
 		},
 	}, nil
+}
+
+func (deploy *Deployment) getPvcNotTerminating(namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*v1.PersistentVolumeClaim, error) {
+	existingPvcForComponentStorage, err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMount.Name),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(existingPvcForComponentStorage.Items) == 0 {
+		return nil, nil
+	}
+	for _, pvc := range existingPvcForComponentStorage.Items {
+		switch pvc.Status.Phase {
+		case corev1.ClaimPending, corev1.ClaimBound:
+			return &pvc, nil
+		}
+	}
+	return nil, nil
 }
 
 func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMount *radixv1.RadixVolumeMount) string {
