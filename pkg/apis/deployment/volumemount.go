@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/client-go/kubernetes"
 	"strings"
 )
 
@@ -95,18 +96,18 @@ func getRadixVolumeTypeIdForName(radixVolumeMountType radixv1.MountType) string 
 
 //GetVolumesForComponent Gets volumes for Radix deploy component or job
 func (deploy *Deployment) GetVolumesForComponent(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
-	return deploy.GetVolumes(deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent.GetName(), deployComponent.GetVolumeMounts())
+	return GetVolumes(deploy.kubeclient, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent.GetName(), deployComponent.GetVolumeMounts())
 }
 
 //GetVolumes Get volumes of a component by RadixVolumeMounts
-func (deploy *Deployment) GetVolumes(namespace string, environment string, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]v1.Volume, error) {
+func GetVolumes(kubeclient kubernetes.Interface, namespace string, environment string, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]v1.Volume, error) {
 	volumes := make([]corev1.Volume, 0)
 	for _, volumeMount := range volumeMounts {
 		switch volumeMount.Type {
 		case radixv1.MountTypeBlob:
 			volumes = append(volumes, getBlobFuseVolume(namespace, environment, componentName, volumeMount))
 		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
-			volume, err := deploy.getCsiAzureVolume(namespace, componentName, &volumeMount)
+			volume, err := getCsiAzureVolume(kubeclient, namespace, componentName, &volumeMount)
 			if err != nil {
 				return nil, err
 			}
@@ -116,8 +117,8 @@ func (deploy *Deployment) GetVolumes(namespace string, environment string, compo
 	return volumes, nil
 }
 
-func (deploy *Deployment) getCsiAzureVolume(namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*v1.Volume, error) {
-	existingNotTerminatingPvcForComponentStorage, err := deploy.getPvcNotTerminating(namespace, componentName, radixVolumeMount)
+func getCsiAzureVolume(kubeclient kubernetes.Interface, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*v1.Volume, error) {
+	existingNotTerminatingPvcForComponentStorage, err := getPvcNotTerminating(kubeclient, namespace, componentName, radixVolumeMount)
 	if err != nil {
 		return nil, err
 	}
@@ -138,8 +139,8 @@ func (deploy *Deployment) getCsiAzureVolume(namespace, componentName string, rad
 	}, nil
 }
 
-func (deploy *Deployment) getPvcNotTerminating(namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*v1.PersistentVolumeClaim, error) {
-	existingPvcForComponentStorage, err := deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
+func getPvcNotTerminating(kubeclient kubernetes.Interface, namespace string, componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (*v1.PersistentVolumeClaim, error) {
+	existingPvcForComponentStorage, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMount.Name),
 	})
 	if err != nil {
