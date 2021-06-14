@@ -8,10 +8,10 @@ import (
 )
 
 func GetResourceRequirements(deployComponent v1.RadixCommonDeployComponent) corev1.ResourceRequirements {
-	return buildResourceRequirement(deployComponent.GetResources())
+	return BuildResourceRequirement(deployComponent.GetResources())
 }
 
-func buildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRequirements {
+func BuildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRequirements {
 	defaultLimits := map[corev1.ResourceName]resource.Quantity{
 		corev1.ResourceName("cpu"):    *defaults.GetDefaultCPULimit(),
 		corev1.ResourceName("memory"): *defaults.GetDefaultMemoryLimit(),
@@ -22,9 +22,8 @@ func buildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRe
 	requests := corev1.ResourceList{}
 
 	for name, limit := range source.Limits {
-		resName := corev1.ResourceName(name)
-
 		if limit != "" {
+			resName := corev1.ResourceName(name)
 			limits[resName], _ = resource.ParseQuantity(limit)
 		}
 
@@ -32,9 +31,8 @@ func buildResourceRequirement(source *v1.ResourceRequirements) corev1.ResourceRe
 	}
 
 	for name, req := range source.Requests {
-		resName := corev1.ResourceName(name)
-
 		if req != "" {
+			resName := corev1.ResourceName(name)
 			requests[resName], _ = resource.ParseQuantity(req)
 
 			if _, hasLimit := limits[resName]; !hasLimit {
