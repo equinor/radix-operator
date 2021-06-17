@@ -870,10 +870,10 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:      "disk",
-						Name:      "some_name",
-						Container: "some_container_name",
-						Path:      "some_path",
+						Type:    "disk",
+						Name:    "some_name",
+						Storage: "some_container_name",
+						Path:    "some_path",
 					},
 				}
 
@@ -933,31 +933,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			false,
 			false,
 			"duplicate names",
-		},
-		{
-			"blob mount type with duplicate containers",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name_1",
-						Container: "some_container_name",
-						Path:      "some_path_1",
-					},
-					{
-						Type:      v1.MountTypeBlob,
-						Name:      "some_name_2",
-						Container: "some_container_name",
-						Path:      "some_path_2",
-					},
-				}
-
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts,
-			false,
-			false,
-			"duplicate containers",
 		},
 		{
 			"blob mount type with duplicate path",

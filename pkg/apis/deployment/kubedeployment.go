@@ -3,13 +3,11 @@ package deployment
 import (
 	"context"
 	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -40,6 +38,11 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
+	err = deploy.CreateOrUpdateCsiAzureResources(desiredDeployment)
+	if err != nil {
+		return err
+	}
+
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
@@ -49,7 +52,7 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.Radi
 
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8sErrors.IsNotFound(err) {
 			return nil, nil, err
 		}
 
@@ -152,10 +155,10 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 	}
 	deployment.Spec.Strategy = deploymentStrategy
 
-	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
-	deployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
-	deployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
-
+	err = deploy.setCommonPodSpecProperties(&deployment.Spec.Template.Spec, deployComponent)
+	if err != nil {
+		return nil, err
+	}
 	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName)
 }
 
@@ -186,12 +189,13 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.GetRunAsNonRoot())
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = ports
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
 	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
-	desiredDeployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
+	err := deploy.setCommonPodSpecProperties(&desiredDeployment.Spec.Template.Spec, deployComponent)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(deployComponent.GetPorts()) > 0 {
 		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
@@ -204,12 +208,23 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 		log.Debugf("Deployment component has no ports - Readiness Probe is not set.")
 	}
 
-	err := setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
+	err = setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
 	if err != nil {
 		return nil, err
 	}
 
 	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
+}
+
+func (deploy *Deployment) setCommonPodSpecProperties(podSpec *corev1.PodSpec, deployComponent v1.RadixCommonDeployComponent) error {
+	podSpec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
+	volumes, err := deploy.GetVolumesForComponent(deployComponent)
+	if err != nil {
+		return err
+	}
+	podSpec.Volumes = volumes
+	podSpec.Affinity = deploy.getPodSpecAffinity(deployComponent)
+	return nil
 }
 
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {

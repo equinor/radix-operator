@@ -2,6 +2,7 @@ package v1
 
 import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -187,10 +188,17 @@ type RadixPrivateImageHubCredential struct {
 
 // RadixVolumeMount defines volume to be mounted to the container
 type RadixVolumeMount struct {
-	Type      MountType `json:"type" yaml:"type"`
-	Name      string    `json:"name" yaml:"name"`
-	Container string    `json:"container" yaml:"container"`
-	Path      string    `json:"path" yaml:"path"`
+	Type            MountType `json:"type" yaml:"type"`
+	Name            string    `json:"name" yaml:"name"`
+	Container       string    `json:"container" yaml:"container"`             //Outdated. Use Storage instead
+	Storage         string    `json:"storage" yaml:"storage"`                 //Container name, file Share name, etc.
+	Path            string    `json:"path" yaml:"path"`                       //Path within the pod (replica), where the volume mount has been mounted to
+	GID             string    `json:"gid" yaml:"gid"`                         //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
+	UID             string    `json:"uid" yaml:"uid"`                         //Optional. Volume mount owner UserID. Used instead of GID.
+	SkuName         string    `json:"skuName" yaml:"skuName"`                 //Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	RequestsStorage string    `json:"requestsStorage" yaml:"requestsStorage"` //Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+	AccessMode      string    `json:"accessMode" yaml:"accessMode"`           //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+	BindingMode     string    `json:"bindingMode" yaml:"bindingMode"`         //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 }
 
 // MountType Holds types of mount
@@ -200,7 +208,43 @@ type MountType string
 const (
 	// MountTypeBlob Use of azure/blobfuse flexvolume
 	MountTypeBlob MountType = "blob"
+	// MountTypeBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
+	MountTypeBlobCsiAzure MountType = "azure-blob"
+	// MountTypeFileCsiAzure Use of azure/csi driver for files in Azure storage account
+	MountTypeFileCsiAzure MountType = "azure-file"
 )
+
+// These are valid storage class provisioners
+const (
+	// ProvisionerBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
+	ProvisionerBlobCsiAzure string = "blob.csi.azure.com"
+	// ProvisionerFileCsiAzure Use of azure/csi driver for files in Azure storage account
+	ProvisionerFileCsiAzure string = "file.csi.azure.com"
+)
+
+//GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
+func GetStorageClassProvisionerByVolumeMountType(volumeMountType MountType) (string, bool) {
+	switch volumeMountType {
+	case MountTypeBlobCsiAzure:
+		return ProvisionerBlobCsiAzure, true
+	case MountTypeFileCsiAzure:
+		return ProvisionerFileCsiAzure, true
+	}
+	return "", false
+}
+
+//GetCsiAzureStorageClassProvisioners CSI Azure provisioners
+func GetCsiAzureStorageClassProvisioners() []string {
+	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
+}
+
+func IsKnownVolumeMount(volumeMount string) bool {
+	switch volumeMount {
+	case string(MountTypeBlob), string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
+		return true
+	}
+	return false
+}
 
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
@@ -248,4 +292,13 @@ func (component *RadixJobComponent) GetName() string {
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
 	return &component.Node
+}
+
+func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
+	for _, envConfig := range component.EnvironmentConfig {
+		if strings.EqualFold(env, envConfig.Environment) {
+			return envConfig.VolumeMounts
+		}
+	}
+	return nil
 }

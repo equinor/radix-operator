@@ -54,7 +54,7 @@ func (k *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) 
 		return fmt.Errorf("Failed to create two way merge patch limitRange objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		patchedLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Patch(context.TODO(), limitRange.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch limitRange object: %v", err)

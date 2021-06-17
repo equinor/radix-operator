@@ -56,7 +56,7 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 		return fmt.Errorf("Failed to create two way merge patch namespace objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(context.TODO(), name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch namespace object: %v", err)

@@ -52,7 +52,7 @@ func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
 		return fmt.Errorf("Failed to create two way merge patch Service objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		patchedService, err := k.kubeClient.CoreV1().Services(namespace).Patch(context.TODO(), service.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)

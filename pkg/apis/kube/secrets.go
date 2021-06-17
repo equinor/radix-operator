@@ -65,7 +65,7 @@ func (k *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret
 		return nil, fmt.Errorf("Failed to create two way merge patch secret objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		// Will perform update as patching not properly remove secret data entries
 		patchedSecret, err := k.kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
 		if err != nil {

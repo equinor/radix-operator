@@ -11,9 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component radixv1.RadixCommonDeployComponent, secrets []string) *auth.Role {
+func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component radixv1.RadixCommonDeployComponent, secretNames []string) *auth.Role {
 	roleName := fmt.Sprintf("radix-app-adm-%s", component.GetName())
-	return kube.CreateManageSecretRole(registration.Name, roleName, secrets, &map[string]string{kube.RadixComponentLabel: component.GetName()})
+	return kube.CreateManageSecretRole(registration.Name, roleName, secretNames, &map[string]string{kube.RadixComponentLabel: component.GetName()})
 }
 
 func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
