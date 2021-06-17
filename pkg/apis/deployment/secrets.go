@@ -189,8 +189,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 		}
 
 		if garbageCollect {
-			log.Debugf("Delete secret %s", existingSecret.Name)
-			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), existingSecret.Name, metav1.DeleteOptions{})
+			deploy.deleteSecret(existingSecret)
 			if err != nil {
 				return err
 			}
@@ -218,7 +217,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 		}
 
 		log.Debugf("Delete secret %s no longer in spec for component %s", secret.Name, component.GetName())
-		err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
+		err = deploy.deleteSecret(secret)
 		if err != nil {
 			return err
 		}
@@ -256,7 +255,7 @@ func (deploy *Deployment) garbageCollectSecretsForComponentAndExternalAlias(comp
 
 		if garbageCollectSecret {
 			log.Debugf("Delete secret %s for component %s and external alias %s", secret.Name, component.GetName(), dnsExternalAlias)
-			err = deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
+			err = deploy.deleteSecret(secret)
 			if err != nil {
 				return err
 			}
@@ -392,4 +391,23 @@ func IsSecretRequiredForClientCertificate(clientCertificate *radixv1.ClientCerti
 	}
 
 	return false
+}
+
+//GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
+func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSecretNames []string) error {
+	for _, secret := range secrets {
+		if slice.ContainsString(excludeSecretNames, secret.Name) {
+			continue
+		}
+		err := deploy.deleteSecret(secret)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (deploy *Deployment) deleteSecret(secret *v1.Secret) error {
+	log.Debugf("Delete secret %s", secret.Name)
+	return deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
 }

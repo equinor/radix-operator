@@ -249,26 +249,12 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeMountsSecrets(namespace, c
 	return nil
 }
 
-func (deploy *Deployment) garbageCollectSecrets(secrets []*v1.Secret, excludeSecretNames []string) error {
-	for _, secret := range secrets {
-		if slice.ContainsString(excludeSecretNames, secret.Name) {
-			continue
-		}
-		log.Debugf("Delete secret %s", secret.Name)
-		err := deploy.kubeclient.CoreV1().Secrets(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (deploy *Deployment) garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent, excludeSecretNames []string) error {
 	secrets, err := deploy.listSecretsForVolumeMounts(component)
 	if err != nil {
 		return err
 	}
-	return deploy.garbageCollectSecrets(secrets, excludeSecretNames)
+	return deploy.GarbageCollectSecrets(secrets, excludeSecretNames)
 }
 
 func (deploy *Deployment) GetCsiAzureStorageClasses(namespace, componentName string) (*storagev1.StorageClassList, error) {
