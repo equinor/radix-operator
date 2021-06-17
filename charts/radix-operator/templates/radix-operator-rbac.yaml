@@ -67,6 +67,8 @@ rules:
   - servicemonitors
   - networkpolicies
   - storageclasses
+  - persistentvolumeclaims
+  - persistentvolumes
   verbs:
   - get
   - list
