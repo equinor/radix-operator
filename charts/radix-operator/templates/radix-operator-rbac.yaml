@@ -66,6 +66,7 @@ rules:
   - ingresses
   - servicemonitors
   - networkpolicies
+  - storageclasses
   verbs:
   - get
   - list
