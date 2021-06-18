@@ -99,14 +99,13 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 		return nil, err
 	}
 
-	container := desiredDeployment.Spec.Template.Spec.Containers[0]
-	if len(container.Ports) > 0 {
-		log.Debugln("Set readiness Prob for ports. Amount of ports: ", len(container.Ports))
-		readinessProbe, err := getReadinessProbe(container.Ports[0].ContainerPort)
+	if len(desiredDeployment.Spec.Template.Spec.Containers[0].Ports) > 0 {
+		log.Debugln("Set readiness Prob for ports. Amount of ports: ", len(desiredDeployment.Spec.Template.Spec.Containers[0].Ports))
+		readinessProbe, err := getReadinessProbe(desiredDeployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
 		if err != nil {
 			return nil, err
 		}
-		container.ReadinessProbe = readinessProbe
+		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 	}
 
 	deploymentStrategy, err := getDeploymentStrategy()
@@ -132,8 +131,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 
 	if len(deployComponent.GetPorts()) > 0 {
 		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
-		prob := desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe
-		err := getReadinessProbeSettings(prob, &(deployComponent.GetPorts()[0]))
+		err := getReadinessProbeSettings(desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe, &(deployComponent.GetPorts()[0]))
 		if err != nil {
 			return nil, err
 		}
