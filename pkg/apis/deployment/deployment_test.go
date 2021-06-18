@@ -2631,25 +2631,11 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
 		assert.Nil(t, deployment.Spec.Template.Spec.Affinity)
 	})
-	t.Run("job has node with nvidia-p100, not nvidia-k80", func(t *testing.T) {
+	t.Run("job has node, but pod template of Job Scheduler does not have it", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
-		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-		assert.Equal(t, 1, len(nodeSelectorTerms))
-		assert.Equal(t, 2, len(nodeSelectorTerms[0].MatchExpressions))
-		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
-		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
-		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
-		assert.Equal(t, 1, len(expression0.Values))
-		assert.Contains(t, expression0.Values, gpuNvidiaP100)
-		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
-		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
-		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
-		assert.Equal(t, 1, len(expression1.Values))
-		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+		assert.Nil(t, affinity)
 	})
 }
 
@@ -2866,20 +2852,11 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
 	})
-	t.Run("job has node with gpu-count 10 ", func(t *testing.T) {
+	t.Run("job has node, but pod template of Job Scheduler does not have it", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
-		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-		assert.Equal(t, 1, len(nodeSelectorTerms))
-		assert.Equal(t, 1, len(nodeSelectorTerms[0].MatchExpressions))
-		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
-		assert.Equal(t, kube.RadixGpuCountLabel, expression0.Key)
-		assert.Equal(t, corev1.NodeSelectorOpGt, expression0.Operator)
-		assert.Equal(t, 1, len(expression0.Values))
-		assert.Contains(t, expression0.Values, "9")
+		assert.Nil(t, affinity)
 	})
 }
 
@@ -2942,31 +2919,11 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 		assert.Equal(t, 1, len(expression3.Values))
 		assert.Contains(t, expression3.Values, "9")
 	})
-	t.Run("job has node with gpu and gpu-count 10 ", func(t *testing.T) {
+	t.Run("job has node, but pod template of Job Scheduler does not have it", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.NotNil(t, affinity)
-		assert.NotNil(t, affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution)
-		nodeSelectorTerms := affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms
-		assert.Equal(t, 1, len(nodeSelectorTerms))
-		assert.Equal(t, 3, len(nodeSelectorTerms[0].MatchExpressions))
-		expression0 := nodeSelectorTerms[0].MatchExpressions[0]
-		assert.Equal(t, kube.RadixGpuLabel, expression0.Key)
-		assert.Equal(t, corev1.NodeSelectorOpIn, expression0.Operator)
-		assert.Equal(t, 2, len(expression0.Values))
-		assert.Contains(t, expression0.Values, gpuNvidiaV100)
-		assert.Contains(t, expression0.Values, gpuNvidiaP100)
-		expression1 := nodeSelectorTerms[0].MatchExpressions[1]
-		assert.Equal(t, kube.RadixGpuLabel, expression1.Key)
-		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
-		assert.Equal(t, 1, len(expression1.Values))
-		assert.Contains(t, expression1.Values, gpuNvidiaK80)
-		expression3 := nodeSelectorTerms[0].MatchExpressions[2]
-		assert.Equal(t, kube.RadixGpuCountLabel, expression3.Key)
-		assert.Equal(t, corev1.NodeSelectorOpGt, expression3.Operator)
-		assert.Equal(t, 1, len(expression3.Values))
-		assert.Contains(t, expression3.Values, "9")
+		assert.Nil(t, affinity)
 	})
 }
 
