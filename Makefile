@@ -30,6 +30,8 @@ endif
 ifdef IS_DEV
 ifdef IS_DEV_BRANCH
 	CAN_DEPLOY_OPERATOR = yes
+else
+	VERSION = dev
 endif
 endif
 
@@ -62,6 +64,8 @@ echo:
 	@echo "IS_PROD_BRANCH : " $(IS_PROD_BRANCH)
 	@echo "IS_DEV_BRANCH : " $(IS_DEV_BRANCH)
 	@echo "CAN_DEPLOY_OPERATOR : " $(CAN_DEPLOY_OPERATOR)
+	@echo "VERSION : " $(VERSION)
+	@echo "TAG : " $(TAG)
 
 .PHONY: test
 test:	

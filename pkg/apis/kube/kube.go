@@ -43,8 +43,10 @@ const (
 	RadixExternalAliasLabel      = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
 	RadixMountTypeLabel          = "mount-type"
+	RadixVolumeMountNameLabel    = "radix-volume-mount-name"
 	RadixGpuLabel                = "radix-node-gpu"
 	RadixGpuCountLabel           = "radix-node-gpu-count"
+	RadixNamespace               = "radix-namespace"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
@@ -115,6 +117,6 @@ func NewWithListers(client kubernetes.Interface,
 	return kubeutil, nil
 }
 
-func isEmptyPatch(patchBytes []byte) bool {
+func IsEmptyPatch(patchBytes []byte) bool {
 	return string(patchBytes) == "{}"
 }

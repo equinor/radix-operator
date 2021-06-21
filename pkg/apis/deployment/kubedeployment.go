@@ -3,13 +3,11 @@ package deployment
 import (
 	"context"
 	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -40,6 +38,11 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
+	err = deploy.CreateOrUpdateCsiAzureResources(desiredDeployment)
+	if err != nil {
+		return err
+	}
+
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
@@ -49,7 +52,7 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.Radi
 
 	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
 	if err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8sErrors.IsNotFound(err) {
 			return nil, nil, err
 		}
 
@@ -77,126 +80,58 @@ func (deploy *Deployment) configureDeploymentServiceAccountSettings(deployment *
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := deployComponent.GetName()
-	componentType := deployComponent.GetType()
-	automountServiceAccountToken := false
-	branch, commitID := deploy.getRadixBranchAndCommitId()
-	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	containerSecurityContext := getSecurityContextForContainer(deployComponent.GetRunAsNonRoot())
-	podSecurityContext := getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
-	ports := getContainerPorts(deployComponent)
+	log.Debugf("Get desired created deployment config for application: %s.", appName)
 
-	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: componentName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:           appName,
-				kube.RadixComponentLabel:     componentName,
-				kube.RadixComponentTypeLabel: componentType,
-				kube.RadixCommitLabel:        commitID,
-			},
-			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: branch,
-			},
-			OwnerReferences: ownerReference,
-		},
+	desiredDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(DefaultReplicas),
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kube.RadixComponentLabel: componentName,
-				},
-			},
+			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						kube.RadixAppLabel:       appName,
-						kube.RadixComponentLabel: componentName,
-						kube.RadixCommitLabel:    commitID,
-					},
-					Annotations: map[string]string{
-						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
-						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
-						kube.RadixBranchAnnotation:                 branch,
-					},
-				},
-				Spec: corev1.PodSpec{
-					SecurityContext:              podSecurityContext,
-					AutomountServiceAccountToken: &automountServiceAccountToken,
-					Containers: []corev1.Container{
-						{
-							Name:            componentName,
-							Image:           deployComponent.GetImage(),
-							ImagePullPolicy: corev1.PullAlways,
-							SecurityContext: containerSecurityContext,
-							Ports:           ports,
-						},
-					},
-					ImagePullSecrets: deploy.radixDeployment.Spec.ImagePullSecrets,
-				},
+				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: componentName}}},
 			},
 		},
 	}
 
-	if len(ports) > 0 {
-		log.Debugln("Set readiness Prob for ports. Amount of ports: ", len(ports))
-		readinessProbe, err := getReadinessProbe(ports[0].ContainerPort)
+	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment, appName, componentName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(desiredDeployment.Spec.Template.Spec.Containers[0].Ports) > 0 {
+		log.Debugln("Set readiness Prob for ports. Amount of ports: ", len(desiredDeployment.Spec.Template.Spec.Containers[0].Ports))
+		readinessProbe, err := getReadinessProbe(desiredDeployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
 		if err != nil {
 			return nil, err
 		}
-		deployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
+		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 	}
 
 	deploymentStrategy, err := getDeploymentStrategy()
 	if err != nil {
 		return nil, err
 	}
-	deployment.Spec.Strategy = deploymentStrategy
+	desiredDeployment.Spec.Strategy = deploymentStrategy
 
-	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
-	deployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
-	deployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
-
-	return deploy.updateDeploymentByComponent(deployComponent, deployment, appName)
+	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent,
 	currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	desiredDeployment := currentDeployment.DeepCopy()
 	appName := deploy.radixDeployment.Spec.AppName
-	log.Debugf("Get desired updated deployment config for application: %s.", appName)
 	componentName := deployComponent.GetName()
-	componentType := deployComponent.GetType()
-	automountServiceAccountToken := false
-	branch, commitID := deploy.getRadixBranchAndCommitId()
-	ports := getContainerPorts(deployComponent)
+	log.Debugf("Get desired updated deployment config for application: %s.", appName)
 
-	desiredDeployment.ObjectMeta.Name = componentName
-	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
-	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = componentType
-	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
-	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations["seccomp.security.alpha.kubernetes.io/pod"] = "docker/default"
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = &automountServiceAccountToken
-	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
-	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.GetRunAsNonRoot())
-	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
-	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = ports
-	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-	desiredDeployment.Spec.Template.Spec.Volumes = deploy.getVolumes(deployComponent)
-	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
-	desiredDeployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
+	desiredDeployment := currentDeployment.DeepCopy()
+	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment, appName, componentName)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(deployComponent.GetPorts()) > 0 {
 		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
-		prob := desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe
-		err := getReadinessProbeSettings(prob, &(deployComponent.GetPorts()[0]))
+		err := getReadinessProbeSettings(desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe, &(deployComponent.GetPorts()[0]))
 		if err != nil {
 			return nil, err
 		}
@@ -204,12 +139,55 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 		log.Debugf("Deployment component has no ports - Readiness Probe is not set.")
 	}
 
-	err := setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
+	err = setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
 	if err != nil {
 		return nil, err
 	}
 
 	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
+}
+
+func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName, componentName string) error {
+	branch, commitID := deploy.getRadixBranchAndCommitId()
+
+	desiredDeployment.ObjectMeta.Name = componentName
+	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
+	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = deployComponent.GetType()
+	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
+	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+
+	desiredDeployment.Spec.Selector.MatchLabels[kube.RadixComponentLabel] = componentName
+
+	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixAppLabel] = appName
+	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
+	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations["seccomp.security.alpha.kubernetes.io/pod"] = "docker/default"
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+
+	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.GetRunAsNonRoot())
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
+	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
+	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
+
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = GetRadixDeployComponentVolumeMounts(deployComponent)
+	volumes, err := deploy.GetVolumesForComponent(deployComponent)
+	if err != nil {
+		return err
+	}
+	desiredDeployment.Spec.Template.Spec.Volumes = volumes
+
+	if deployComponent.GetType() != defaults.RadixComponentTypeJobScheduler {
+		desiredDeployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
+	}
+
+	return nil
 }
 
 func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {

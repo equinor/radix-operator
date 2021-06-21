@@ -54,7 +54,7 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.
 		return fmt.Errorf("Failed to create two way merge patch Ingess objects: %v", err)
 	}
 
-	if !isEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		patchedIngress, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Patch(context.TODO(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch Ingress object: %v", err)
