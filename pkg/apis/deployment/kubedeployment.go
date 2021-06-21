@@ -182,10 +182,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 		return err
 	}
 	desiredDeployment.Spec.Template.Spec.Volumes = volumes
-
-	if deployComponent.GetType() != defaults.RadixComponentTypeJobScheduler {
-		desiredDeployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
-	}
+	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent)
 
 	return nil
 }
