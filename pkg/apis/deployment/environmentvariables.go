@@ -13,10 +13,55 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetEnvironmentVariablesFrom(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+type envVariablesSourceDecorator interface {
+	getClusterName() (string, error)
+	GetContainerRegistry() (string, error)
+}
+
+type radixApplicationEnvVariablesSourceDecorator struct{}
+type radixOperatorEnvVariablesSourceDecorator struct {
+	kubeutil *kube.Kube
+}
+
+func (envVariablesSource *radixApplicationEnvVariablesSourceDecorator) getClusterName() (string, error) {
+	return os.Getenv(defaults.ClusternameEnvironmentVariable), nil
+}
+
+func (envVariablesSource *radixApplicationEnvVariablesSourceDecorator) GetContainerRegistry() (string, error) {
+	return os.Getenv(defaults.ContainerRegistryEnvironmentVariable), nil
+}
+
+func (envVariablesSource *radixOperatorEnvVariablesSourceDecorator) getClusterName() (string, error) {
+	clusterName, err := envVariablesSource.kubeutil.GetClusterName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get cluster name from ConfigMap: %v", err)
+	}
+	return clusterName, nil
+}
+
+func (envVariablesSource *radixOperatorEnvVariablesSourceDecorator) GetContainerRegistry() (string, error) {
+	containerRegistry, err := envVariablesSource.kubeutil.GetContainerRegistry()
+	if err != nil {
+		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
+	}
+	return containerRegistry, nil
+}
+
+//getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
+//It requires service account having access to config map in default namespace.
+func getEnvironmentVariablesForRadixOperator(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+	return getEnvironmentVariablesFrom(appName, &radixOperatorEnvVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent)
+}
+
+//GetEnvironmentVariablesFrom Provides RADIX_* environment variables for Radix applications.
+func GetEnvironmentVariablesFrom(appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+	return getEnvironmentVariablesFrom(appName, &radixApplicationEnvVariablesSourceDecorator{}, radixDeployment, deployComponent)
+}
+
+func getEnvironmentVariablesFrom(appName string, envVariablesSource envVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var vars = getEnvironmentVariables(
 		appName,
-		kubeutil,
+		envVariablesSource,
 		radixDeployment,
 		deployComponent.GetName(),
 		deployComponent.GetEnvironmentVariables(),
@@ -27,7 +72,7 @@ func GetEnvironmentVariablesFrom(appName string, kubeutil *kube.Kube, radixDeplo
 	return vars
 }
 
-func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars *v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, environmentVariablesSource envVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars *v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort) []corev1.EnvVar {
 	var (
 		radixDeployName       = radixDeployment.Name
 		namespace             = radixDeployment.Namespace
@@ -35,7 +80,7 @@ func getEnvironmentVariables(appName string, kubeutil *kube.Kube, radixDeploymen
 		radixDeploymentLabels = radixDeployment.Labels
 	)
 	var environmentVariables = appendAppEnvVariables(radixDeployName, *radixEnvVars)
-	environmentVariables = appendDefaultVariables(kubeutil, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
+	environmentVariables = appendDefaultVariables(environmentVariablesSource, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	if radixSecrets != nil && len(radixSecrets) > 0 {
 		for _, v := range radixSecrets {
 			componentSecretName := utils.GetComponentSecretName(componentName)
@@ -86,13 +131,8 @@ func appendAppEnvVariables(radixDeployName string, radixEnvVars v1.EnvVarsMap) [
 	return environmentVariables
 }
 
-func appendDefaultVariables(kubeutil *kube.Kube, currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
-	clusterName, err := kubeutil.GetClusterName()
-	if err != nil {
-		log.Errorf("Failed to get cluster name from ConfigMap: %v", err)
-		return environmentVariables
-	}
-
+func appendDefaultVariables(envVariablesSource envVariablesSourceDecorator, currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
+	envVarSet := utils.NewEnvironmentVariablesSet().Init(environmentVariables)
 	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		log.Errorf("Not set environment variable %s", defaults.OperatorDNSZoneEnvironmentVariable)
@@ -101,36 +141,26 @@ func appendDefaultVariables(kubeutil *kube.Kube, currentEnvironment string, envi
 
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 	if clusterType != "" {
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.RadixClusterTypeEnvironmentVariable,
-			Value: clusterType,
-		})
+		envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, clusterType)
 	} else {
 		log.Debugf("Not set environment variable %s", defaults.RadixClusterTypeEnvironmentVariable)
 	}
 
-	containerRegistry, err := kubeutil.GetContainerRegistry()
+	containerRegistry, err := envVariablesSource.GetContainerRegistry()
 	if err != nil {
-		log.Errorf("Failed to get container registry from ConfigMap: %v", err)
+		log.Error(err)
 		return environmentVariables
 	}
 
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.ContainerRegistryEnvironmentVariable,
-		Value: containerRegistry,
-	})
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixDNSZoneEnvironmentVariable,
-		Value: dnsZone,
-	})
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.ClusternameEnvironmentVariable,
-		Value: clusterName,
-	})
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.EnvironmentnameEnvironmentVariable,
-		Value: currentEnvironment,
-	})
+	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
+	envVarSet.Add(defaults.RadixDNSZoneEnvironmentVariable, dnsZone)
+	clusterName, err := envVariablesSource.getClusterName()
+	if err != nil {
+		log.Error(err)
+		return environmentVariables
+	}
+	envVarSet.Add(defaults.ClusternameEnvironmentVariable, clusterName)
+	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)
 	if isPublic {
 		canonicalHostName := getHostName(componentName, namespace, clusterName, dnsZone)
 		publicHostName := ""
@@ -139,42 +169,21 @@ func appendDefaultVariables(kubeutil *kube.Kube, currentEnvironment string, envi
 		} else {
 			publicHostName = canonicalHostName
 		}
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.PublicEndpointEnvironmentVariable,
-			Value: publicHostName,
-		})
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.CanonicalEndpointEnvironmentVariable,
-			Value: canonicalHostName,
-		})
+		envVarSet.Add(defaults.PublicEndpointEnvironmentVariable, publicHostName)
+		envVarSet.Add(defaults.CanonicalEndpointEnvironmentVariable, canonicalHostName)
 	}
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixAppEnvironmentVariable,
-		Value: appName,
-	})
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixComponentEnvironmentVariable,
-		Value: componentName,
-	})
+	envVarSet.Add(defaults.RadixAppEnvironmentVariable, appName)
+	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, componentName)
 	if len(ports) > 0 {
 		portNumbers, portNames := getPortNumbersAndNamesString(ports)
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.RadixPortsEnvironmentVariable,
-			Value: portNumbers,
-		})
-		environmentVariables = append(environmentVariables, corev1.EnvVar{
-			Name:  defaults.RadixPortNamesEnvironmentVariable,
-			Value: portNames,
-		})
+		envVarSet.Add(defaults.RadixPortsEnvironmentVariable, portNumbers)
+		envVarSet.Add(defaults.RadixPortNamesEnvironmentVariable, portNames)
 	} else {
 		log.Debugf("No ports defined for the component")
 	}
 
-	environmentVariables = append(environmentVariables, corev1.EnvVar{
-		Name:  defaults.RadixCommitHashEnvironmentVariable,
-		Value: radixDeploymentLabels[kube.RadixCommitLabel],
-	})
-	return environmentVariables
+	envVarSet.Add(defaults.RadixCommitHashEnvironmentVariable, radixDeploymentLabels[kube.RadixCommitLabel])
+	return envVarSet.Items()
 }
 
 func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
