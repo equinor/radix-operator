@@ -16,6 +16,7 @@ import (
 type envVariablesSourceDecorator interface {
 	getClusterName() (string, error)
 	GetContainerRegistry() (string, error)
+	getDnsZone() (string, error)
 }
 
 type radixApplicationEnvVariablesSourceDecorator struct{}
@@ -24,11 +25,15 @@ type radixOperatorEnvVariablesSourceDecorator struct {
 }
 
 func (envVariablesSource *radixApplicationEnvVariablesSourceDecorator) getClusterName() (string, error) {
-	return os.Getenv(defaults.ClusternameEnvironmentVariable), nil
+	return tryGetEnvVar(defaults.ClusternameEnvironmentVariable)
 }
 
 func (envVariablesSource *radixApplicationEnvVariablesSourceDecorator) GetContainerRegistry() (string, error) {
-	return os.Getenv(defaults.ContainerRegistryEnvironmentVariable), nil
+	return tryGetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
+}
+
+func (envVariablesSource *radixApplicationEnvVariablesSourceDecorator) getDnsZone() (string, error) {
+	return tryGetEnvVar(defaults.RadixDNSZoneEnvironmentVariable)
 }
 
 func (envVariablesSource *radixOperatorEnvVariablesSourceDecorator) getClusterName() (string, error) {
@@ -45,6 +50,10 @@ func (envVariablesSource *radixOperatorEnvVariablesSourceDecorator) GetContainer
 		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
 	}
 	return containerRegistry, nil
+}
+
+func (envVariablesSource *radixOperatorEnvVariablesSourceDecorator) getDnsZone() (string, error) {
+	return tryGetEnvVar(defaults.OperatorDNSZoneEnvironmentVariable)
 }
 
 //getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
@@ -133,9 +142,9 @@ func appendAppEnvVariables(radixDeployName string, radixEnvVars v1.EnvVarsMap) [
 
 func appendDefaultVariables(envVariablesSource envVariablesSourceDecorator, currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(environmentVariables)
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		log.Errorf("Not set environment variable %s", defaults.OperatorDNSZoneEnvironmentVariable)
+	dnsZone, err := envVariablesSource.getDnsZone()
+	if err != nil {
+		log.Errorf(err.Error())
 		return envVarSet.Items()
 	}
 
@@ -200,4 +209,12 @@ func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 		}
 	}
 	return portNumbers, portNames
+}
+
+func tryGetEnvVar(name string) (string, error) {
+	envVar := os.Getenv(name)
+	if len(envVar) > 0 {
+		return envVar, nil
+	}
+	return "", fmt.Errorf("not set environment variable %s", name)
 }
