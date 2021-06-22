@@ -89,6 +89,12 @@ func getCsiAzureVolumeMountName(componentName string, radixVolumeMount *radixv1.
 	if len(radixVolumeMount.Name) == 0 {
 		return "", fmt.Errorf("name is empty for volume mount in the component %s", componentName)
 	}
+	if len(radixVolumeMount.Storage) == 0 {
+		return "", fmt.Errorf("storage is empty for volume mount %s in the component %s", radixVolumeMount.Name, componentName)
+	}
+	if len(radixVolumeMount.Path) == 0 {
+		return "", fmt.Errorf("path is empty for volume mount %s in the component %s", radixVolumeMount.Name, componentName)
+	}
 	return fmt.Sprintf(csiVolumeNameTemplate, csiVolumeType, componentName, radixVolumeMount.Name, radixVolumeMount.Storage), nil
 }
 
@@ -158,10 +164,10 @@ func getPvcNotTerminating(kubeclient kubernetes.Interface, namespace string, com
 	existingPvcForComponentStorage, err := kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMount.Name),
 	})
-	existingPvcs := sortPvcsByCreatedTimestampDesc(existingPvcForComponentStorage.Items)
 	if err != nil {
 		return nil, err
 	}
+	existingPvcs := sortPvcsByCreatedTimestampDesc(existingPvcForComponentStorage.Items)
 	if len(existingPvcs) == 0 {
 		return nil, nil
 	}
