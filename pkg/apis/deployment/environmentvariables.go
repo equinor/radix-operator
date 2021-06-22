@@ -149,7 +149,7 @@ func appendDefaultVariables(envVariablesSource envVariablesSourceDecorator, curr
 	containerRegistry, err := envVariablesSource.GetContainerRegistry()
 	if err != nil {
 		log.Error(err)
-		return environmentVariables
+		return envVarSet.Items()
 	}
 
 	envVarSet.Add(defaults.ContainerRegistryEnvironmentVariable, containerRegistry)
@@ -157,7 +157,7 @@ func appendDefaultVariables(envVariablesSource envVariablesSourceDecorator, curr
 	clusterName, err := envVariablesSource.getClusterName()
 	if err != nil {
 		log.Error(err)
-		return environmentVariables
+		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.ClusternameEnvironmentVariable, clusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)
