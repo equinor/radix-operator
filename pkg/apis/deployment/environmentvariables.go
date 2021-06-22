@@ -136,7 +136,7 @@ func appendDefaultVariables(envVariablesSource envVariablesSourceDecorator, curr
 	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	if dnsZone == "" {
 		log.Errorf("Not set environment variable %s", defaults.OperatorDNSZoneEnvironmentVariable)
-		return nil
+		return envVarSet.Items()
 	}
 
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
