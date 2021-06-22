@@ -11,8 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetPodSpecAffinity(radixComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
-	node := radixComponent.GetNode()
+func GetPodSpecAffinity(node *v1.RadixNode) *corev1.Affinity {
 	if node == nil {
 		return nil
 	}

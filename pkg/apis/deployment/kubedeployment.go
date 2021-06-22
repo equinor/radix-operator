@@ -182,7 +182,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 		return err
 	}
 	desiredDeployment.Spec.Template.Spec.Volumes = volumes
-	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode())
 
 	return nil
 }
