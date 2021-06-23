@@ -4,16 +4,32 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
+
+var radixCommonDeployComponentFactories []v1.RadixCommonDeployComponentFactory
+
+func TestMain(m *testing.M) {
+	radixCommonDeployComponentFactories = []v1.RadixCommonDeployComponentFactory{
+		v1.RadixDeployComponentFactory{},
+		v1.RadixDeployJobComponentFactory{},
+	}
+	os.Exit(m.Run())
+}
 
 func Test_NoVolumeMounts(t *testing.T) {
 	t.Run("app", func(t *testing.T) {
 		t.Parallel()
-		component := utils.NewDeployComponentBuilder().WithName("app").BuildComponent()
+		for _, factory := range radixCommonDeployComponentFactories {
 
-		volumeMounts, _ := GetRadixDeployComponentVolumeMounts(&component)
-		assert.Equal(t, 0, len(volumeMounts))
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				BuildComponent()
+
+			volumeMounts, _ := GetRadixDeployComponentVolumeMounts(component)
+			assert.Equal(t, 0, len(volumeMounts))
+		}
 	})
 }
 
@@ -47,29 +63,35 @@ func Test_ValidFileCsiAzureVolumeMounts(t *testing.T) {
 	}
 	t.Run("One File CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
-		component := utils.NewDeployComponentBuilder().WithName("app").
-			WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount}).
-			BuildComponent()
+		for _, factory := range radixCommonDeployComponentFactories {
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount}).
+				BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
-		assert.Nil(t, err)
-		assert.Equal(t, 1, len(volumeMounts))
-		mount := volumeMounts[0]
-		assert.Equal(t, testScenarios[0].expectedVolumeName, mount.Name)
-		assert.Equal(t, testScenarios[0].volumeMount.Path, mount.MountPath)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(volumeMounts))
+			mount := volumeMounts[0]
+			assert.Equal(t, testScenarios[0].expectedVolumeName, mount.Name)
+			assert.Equal(t, testScenarios[0].volumeMount.Path, mount.MountPath)
+		}
 	})
 	t.Run("Multiple File CSI Azure volume mount", func(t *testing.T) {
 		t.Parallel()
-		component := utils.NewDeployComponentBuilder().WithName("app").
-			WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount, testScenarios[1].volumeMount}).
-			BuildComponent()
+		for _, factory := range radixCommonDeployComponentFactories {
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount, testScenarios[1].volumeMount}).
+				BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
-		assert.Nil(t, err)
-		for idx, testCase := range testScenarios {
-			assert.Equal(t, 2, len(volumeMounts))
-			assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
-			assert.Equal(t, testCase.volumeMount.Path, volumeMounts[idx].MountPath)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			assert.Nil(t, err)
+			for idx, testCase := range testScenarios {
+				assert.Equal(t, 2, len(volumeMounts))
+				assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+				assert.Equal(t, testCase.volumeMount.Path, volumeMounts[idx].MountPath)
+			}
 		}
 	})
 }
@@ -97,29 +119,34 @@ func Test_ValidBlobCsiAzureVolumeMounts(t *testing.T) {
 	}
 	t.Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
-		component := utils.NewDeployComponentBuilder().WithName("app").
-			WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount}).
-			BuildComponent()
+		for _, factory := range radixCommonDeployComponentFactories {
+			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount}).
+				BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
-		assert.Nil(t, err)
-		assert.Equal(t, 1, len(volumeMounts))
-		mount := volumeMounts[0]
-		assert.Equal(t, testScenarios[0].expectedVolumeName, mount.Name)
-		assert.Equal(t, testScenarios[0].volumeMount.Path, mount.MountPath)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(volumeMounts))
+			mount := volumeMounts[0]
+			assert.Equal(t, testScenarios[0].expectedVolumeName, mount.Name)
+			assert.Equal(t, testScenarios[0].volumeMount.Path, mount.MountPath)
+		}
 	})
 	t.Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
-		component := utils.NewDeployComponentBuilder().WithName("app").
-			WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount, testScenarios[1].volumeMount}).
-			BuildComponent()
+		for _, factory := range radixCommonDeployComponentFactories {
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{testScenarios[0].volumeMount, testScenarios[1].volumeMount}).
+				BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
-		assert.Nil(t, err)
-		for idx, testCase := range testScenarios {
-			assert.Equal(t, 2, len(volumeMounts))
-			assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
-			assert.Equal(t, testCase.volumeMount.Path, volumeMounts[idx].MountPath)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			assert.Nil(t, err)
+			for idx, testCase := range testScenarios {
+				assert.Equal(t, 2, len(volumeMounts))
+				assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+				assert.Equal(t, testCase.volumeMount.Path, volumeMounts[idx].MountPath)
+			}
 		}
 	})
 }
@@ -156,25 +183,30 @@ func Test_FailBlobCsiAzureVolumeMounts(t *testing.T) {
 	}
 	t.Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
 		t.Parallel()
-		for _, testCase := range testScenarios {
-			t.Logf("Test case: %s", testCase.name)
-			component := utils.NewDeployComponentBuilder().WithName("app").
-				WithVolumeMounts([]v1.RadixVolumeMount{
-					testCase.volumeMount}).
-				BuildComponent()
+		for _, factory := range radixCommonDeployComponentFactories {
 
-			_, err := GetRadixDeployComponentVolumeMounts(&component)
-			assert.NotNil(t, err)
-			assert.Equal(t, testCase.expectedError, err.Error())
+			for _, testCase := range testScenarios {
+				t.Logf("Test case: %s", testCase.name)
+				component := utils.NewDeployCommonComponentBuilder(factory).
+					WithName("app").
+					WithVolumeMounts([]v1.RadixVolumeMount{
+						testCase.volumeMount}).
+					BuildComponent()
+
+				_, err := GetRadixDeployComponentVolumeMounts(component)
+				assert.NotNil(t, err)
+				assert.Equal(t, testCase.expectedError, err.Error())
+			}
 		}
 	})
 }
 
+//Blobfuse support has been deprecated, this test to be deleted, when Blobfuse logic is deleted
 func Test_BlobfuseAzureVolumeMounts(t *testing.T) {
 	testScenarios := []testScenario{
 		{
 			volumeMount: v1.RadixVolumeMount{
-				Type:      v1.MountTypeBlobCsiAzure,
+				Type:      v1.MountTypeBlob,
 				Name:      "volume1",
 				Container: "storageName1",
 				Path:      "TestPath1",
@@ -183,7 +215,7 @@ func Test_BlobfuseAzureVolumeMounts(t *testing.T) {
 		},
 		{
 			volumeMount: v1.RadixVolumeMount{
-				Type:      v1.MountTypeBlobCsiAzure,
+				Type:      v1.MountTypeBlob,
 				Name:      "volume2",
 				Container: "storageName2",
 				Path:      "TestPath2",
