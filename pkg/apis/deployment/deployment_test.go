@@ -84,6 +84,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
 			blobVolumeName := "blob_volume_1"
+			blobCsiAzureVolumeName := "blobCsiAzure_volume_1"
 
 			if componentsExist {
 				// Update component
@@ -168,6 +169,13 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 									Name:      blobVolumeName,
 									Container: "some-container",
 									Path:      "some-path",
+								},
+								{
+									Type:    v1.MountTypeBlobCsiAzure,
+									Name:    blobCsiAzureVolumeName,
+									Storage: "some-storage",
+									Path:    "some-path2",
+									GID:     "1000",
 								},
 							}).
 							WithSecrets([]string{outdatedSecret, remainingSecret}))
@@ -266,8 +274,8 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.True(t, envVariableByNameExistOnDeployment(addingSecret, componentNameRadixQuote, deployments))
 				}
 
-				volumesExist := len(spec.Template.Spec.Volumes) > 0
-				volumeMountsExist := len(spec.Template.Spec.Containers[0].VolumeMounts) > 0
+				volumesExist := len(spec.Template.Spec.Volumes) > 1
+				volumeMountsExist := len(spec.Template.Spec.Containers[0].VolumeMounts) > 1
 				if !componentsExist {
 					assert.True(t, volumesExist, "expected existing volumes")
 					assert.True(t, volumeMountsExist, "expected existing volume mounts")
@@ -298,7 +306,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				if !componentsExist {
-					assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
+					assert.Equal(t, 5, len(secrets.Items), "Number of secrets was not according to spec")
 				} else {
 					assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
 				}
@@ -316,8 +324,10 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				}
 
 				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote, blobVolumeName), secrets)
+				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureCredsSecretName(componentNameRadixQuote, blobCsiAzureVolumeName), secrets)
 				if !componentsExist {
-					assert.True(t, blobFuseSecretExists, "expected volume mount secret")
+					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
+					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
 				} else {
 					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
 				}
@@ -388,6 +398,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			remainingSecret := "remainingSecret"
 			addingSecret := "addingSecret"
 			blobVolumeName := "blob_volume_1"
+			blobCsiAzureVolumeName := "blobCsiAzure_volume_1"
 			payloadPath := "payloadpath"
 			if jobsExist {
 				// Update component
@@ -447,8 +458,14 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 									Name:      blobVolumeName,
 									Container: "some-container",
 									Path:      "some-path",
-								}},
-							).
+								},
+								{
+									Type:    v1.MountTypeBlobCsiAzure,
+									Name:    blobCsiAzureVolumeName,
+									Storage: "some-storage",
+									Path:    "some-path",
+								},
+							}).
 							WithSchedulerPort(&schedulerPortCreate).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
@@ -530,7 +547,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				if !jobsExist {
-					assert.Equal(t, 2, len(secrets.Items), "Number of secrets was not according to spec")
+					assert.Equal(t, 3, len(secrets.Items), "Number of secrets was not according to spec")
 				} else {
 					assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
 				}
@@ -539,8 +556,10 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.True(t, secretByNameExists(jobSecretName, secrets), "Job secret is not as expected")
 
 				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(jobName, blobVolumeName), secrets)
+				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureCredsSecretName(jobName, blobCsiAzureVolumeName), secrets)
 				if !jobsExist {
-					assert.True(t, blobFuseSecretExists, "expected volume mount secret")
+					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
+					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
 				} else {
 					assert.False(t, blobFuseSecretExists, "unexpected volume mount secrets")
 				}
@@ -1453,6 +1472,12 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 								Container: "some-container",
 								Path:      "some-path",
 							},
+							{
+								Type:    v1.MountTypeBlobCsiAzure,
+								Storage: "some-storage",
+								Path:    "some-path",
+								GID:     "1000",
+							},
 						}).
 						WithReplicas(test.IntPtr(3)))).
 		BuildRA()
@@ -1470,7 +1495,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		alwaysPullImageOnDeploy      bool
 	}{
 		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m", 0, true},
-		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", 1, true},
+		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", 2, true},
 	}
 
 	componentImages := make(map[string]pipeline.ComponentImage)

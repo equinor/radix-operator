@@ -613,29 +613,32 @@ func compareStorageClasses(sc1 *storagev1.StorageClass, sc2 *storagev1.StorageCl
 func (deploy *Deployment) getRadixVolumeMountMapByCsiAzureVolumeMountName(componentName string) map[string]*radixv1.RadixVolumeMount {
 	volumeMountMap := make(map[string]*radixv1.RadixVolumeMount)
 	for _, component := range deploy.radixDeployment.Spec.Components {
-		if findVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
+		if findCsiAzureVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
 			break
 		}
 	}
 	for _, component := range deploy.radixDeployment.Spec.Jobs {
-		if findVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
+		if findCsiAzureVolumeForComponent(volumeMountMap, component.VolumeMounts, componentName, &component) {
 			break
 		}
 	}
 	return volumeMountMap
 }
 
-func findVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolumeMount, volumeMounts []radixv1.RadixVolumeMount, componentName string, component radixv1.RadixCommonDeployComponent) bool {
+func findCsiAzureVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolumeMount, volumeMounts []radixv1.RadixVolumeMount, componentName string, component radixv1.RadixCommonDeployComponent) bool {
 	if !strings.EqualFold(componentName, component.GetName()) {
 		return false
 	}
 	for _, radixVolumeMount := range volumeMounts {
-		mount := radixVolumeMount
+		if !radixv1.IsKnownCsiAzureVolumeMount(string(radixVolumeMount.Type)) {
+			continue
+		}
+		radixVolumeMount := radixVolumeMount
 		volumeMountName, err := getCsiAzureVolumeMountName(componentName, &radixVolumeMount)
 		if err != nil {
 			return false
 		}
-		volumeMountMap[volumeMountName] = &mount
+		volumeMountMap[volumeMountName] = &radixVolumeMount
 	}
 	return true
 }

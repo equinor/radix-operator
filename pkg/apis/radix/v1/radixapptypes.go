@@ -239,11 +239,20 @@ func GetCsiAzureStorageClassProvisioners() []string {
 }
 
 func IsKnownVolumeMount(volumeMount string) bool {
+	return IsKnownBlobFlexVolumeMount(volumeMount) ||
+		IsKnownCsiAzureVolumeMount(volumeMount)
+}
+
+func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
-	case string(MountTypeBlob), string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
+	case string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
 		return true
 	}
 	return false
+}
+
+func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
+	return volumeMount == string(MountTypeBlob)
 }
 
 // RadixNode defines node attributes, where container should be scheduled
