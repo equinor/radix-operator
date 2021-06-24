@@ -429,13 +429,18 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 			steps = append(steps, getJobStepWithNoComponents(pod.GetName(), &containerStatus))
 		}
 
-		componentImages, err := getComponentImagesFromJob(&jobStep)
+		componentImages, err := getComponentImagesForJob(&jobStep)
 		if err != nil {
 			return nil, err
 		}
+		// _, err := getContainerOutputforJob(&jobStep)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
+			//containerOutputConfigMap := containerOutputMap[containerStatus.Name]
 			steps = append(steps, getJobStep(pod.GetName(), &containerStatus, components))
 		}
 	}
@@ -443,7 +448,22 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 	return steps, nil
 }
 
-func getComponentImagesFromJob(job *batchv1.Job) (map[string]pipeline.ComponentImage, error) {
+func getContainerOutputforJob(job *batchv1.Job) (pipeline.ContainerOutput, error) {
+	containerOutputAnnotation := job.GetObjectMeta().GetAnnotations()[kube.RadixContainerOutputAnnotation]
+	componentOutput := make(pipeline.ContainerOutput)
+
+	if !strings.EqualFold(containerOutputAnnotation, "") {
+		err := json.Unmarshal([]byte(containerOutputAnnotation), &componentOutput)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return componentOutput, nil
+}
+
+func getComponentImagesForJob(job *batchv1.Job) (map[string]pipeline.ComponentImage, error) {
 	componentImagesAnnotation := job.GetObjectMeta().GetAnnotations()[kube.RadixComponentImagesAnnotation]
 	componentImages := make(map[string]pipeline.ComponentImage)
 
