@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -14,7 +15,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -65,23 +69,21 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
 	scannerImage := fmt.Sprintf("%s/%s", pipelineInfo.ContainerRegistry, pipelineInfo.PipelineArguments.ImageScanner)
 
-	job, err := createScanJob(cli.GetAppName(), scannerImage, pipelineInfo.ComponentImages, pipelineInfo.PipelineArguments)
-	if err != nil {
-		return err
-	}
-
+	var ownerReference []metav1.OwnerReference
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
-		ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+		var err error
+		ownerReference, err = jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
 		if err != nil {
 			return err
 		}
-
-		job.OwnerReferences = ownerReference
 	}
 
+	job, scanOutputConfigMaps := createScanJob(cli.GetAppName(), scannerImage, pipelineInfo.ComponentImages, pipelineInfo.PipelineArguments)
+	job.OwnerReferences = ownerReference
+
 	log.Infof("Apply job (%s) to scan component images for app %s", job.Name, cli.GetAppName())
-	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -89,6 +91,41 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	err = cli.GetKubeutil().WaitForCompletionOf(job)
 	if err != nil {
 		log.Errorf("Error scanning image for app %s: %v", cli.GetAppName(), err)
+	}
+
+	if err = setOwnerReferenceForScanOutputConfigMaps(cli.GetKubeclient(), scanOutputConfigMaps, namespace, ownerReference); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setOwnerReferenceForScanOutputConfigMaps(kubeClient kubernetes.Interface, scanOutputConfigMap pipeline.ContainerOutput, namespace string, ownerReference []metav1.OwnerReference) error {
+	if scanOutputConfigMap == nil {
+		return nil
+	}
+
+	for _, configMapName := range scanOutputConfigMap {
+		configMap, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
+		if err != nil {
+			// Do not fail the scan job if scanning container failed to create the configmap with scan results
+			if kubeErrors.IsNotFound(err) {
+				continue
+			}
+
+			return err
+		}
+
+		configMap.OwnerReferences = ownerReference
+
+		// Retry configmap update on conflict. If final error is other than NotFound (e.g. permission error) we fail the step
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			_, err := kubeClient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+			return err
+		})
+		if err != nil && !kubeErrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil
@@ -104,27 +141,30 @@ func noComponentNeedScanning(componentImages map[string]pipeline.ComponentImage)
 	return true
 }
 
-func createScanJob(appName, scannerImage string, componentImages map[string]pipeline.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, error) {
-	imageScanContainers, imageScanComponentImages := createImageScanContainers(scannerImage, componentImages, pipelineArguments.ContainerSecurityContext)
+func createScanJob(appName, scannerImage string, componentImages map[string]pipeline.ComponentImage, pipelineArguments model.PipelineArguments) (*batchv1.Job, pipeline.ContainerOutput) {
 	timestamp := time.Now().Format("20060102150405")
-
 	imageTag := pipelineArguments.ImageTag
 	jobName := pipelineArguments.JobName
-
+	scanJobName := fmt.Sprintf("radix-scanner-%s-%s", timestamp, imageTag)
 	backOffLimit := int32(0)
 
+	imageScanContainers, imageScanComponentImages, containerOutput := createImageScanContainers(appName, scannerImage, scanJobName, componentImages, pipelineArguments.ContainerSecurityContext)
+
 	componentImagesAnnotation, _ := json.Marshal(imageScanComponentImages)
+	containerOutputAnnotation, _ := json.Marshal(containerOutput)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("radix-scanner-%s-%s", timestamp, imageTag),
+			Name: scanJobName,
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
+				kube.RadixJobTypeLabel:  kube.RadixJobTypeScan,
 			},
 			Annotations: map[string]string{
 				kube.RadixComponentImagesAnnotation: string(componentImagesAnnotation),
+				kube.RadixContainerOutputAnnotation: string(containerOutputAnnotation),
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -136,8 +176,9 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 					},
 				},
 				Spec: corev1.PodSpec{
-					SecurityContext: &pipelineArguments.PodSecurityContext,
-					RestartPolicy:   "Never",
+					SecurityContext:    &pipelineArguments.PodSecurityContext,
+					ServiceAccountName: defaults.ScanImageRunnerRoleName,
+					RestartPolicy:      "Never",
 					InitContainers: []corev1.Container{
 						{
 							Name:            fmt.Sprintf("%snslookup", internalContainerPrefix),
@@ -162,15 +203,18 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 			},
 		},
 	}
-	return &job, nil
+	return &job, containerOutput
 }
 
-func createImageScanContainers(scannerImage string, componentImages map[string]pipeline.ComponentImage, containerSecContext corev1.SecurityContext) ([]corev1.Container, map[string]pipeline.ComponentImage) {
+func createImageScanContainers(appName, scannerImage, scanJobName string, componentImages map[string]pipeline.ComponentImage, containerSecContext corev1.SecurityContext) ([]corev1.Container, map[string]pipeline.ComponentImage, pipeline.ContainerOutput) {
 	distinctImages := make(map[string]struct{})
 	imageScanComponentImages := make(map[string]pipeline.ComponentImage)
 
 	containers := []corev1.Container{}
 	azureServicePrincipleContext := "/radix-image-scanner/.azure"
+
+	scanResultConfigMapNamespace := utils.GetAppNamespace(appName)
+	containerOutput := make(pipeline.ContainerOutput)
 
 	for componentName, componentImage := range componentImages {
 		if !componentImage.Scan {
@@ -190,6 +234,9 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 			continue
 		}
 
+		scanOutputConfigMapName := fmt.Sprintf("%s-%s", scanJobName, scanContainerName)
+		containerOutput[scanContainerName] = scanOutputConfigMapName
+
 		log.Infof("Scanning image %s for component %s", componentImage.ImageName, componentName)
 		envVars := []corev1.EnvVar{
 			{
@@ -199,6 +246,14 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 			{
 				Name:  "AZURE_CREDENTIALS",
 				Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
+			},
+			{
+				Name:  "OUTPUT_CONFIGMAP_NAMESPACE",
+				Value: scanResultConfigMapNamespace,
+			},
+			{
+				Name:  "OUTPUT_CONFIGMAP_NAME",
+				Value: scanOutputConfigMapName,
 			},
 		}
 
@@ -221,5 +276,5 @@ func createImageScanContainers(scannerImage string, componentImages map[string]p
 		containers = append(containers, container)
 		distinctImages[componentImage.ImagePath] = struct{}{}
 	}
-	return containers, imageScanComponentImages
+	return containers, imageScanComponentImages, containerOutput
 }

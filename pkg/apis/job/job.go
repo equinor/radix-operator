@@ -404,31 +404,18 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 	// pipeline coordinator
 	steps = append(steps, cloneConfigStep, applyConfigStep, pipelineJobStep)
 	for _, jobStep := range jobStepList.Items {
-		if strings.EqualFold(jobStep.GetLabels()[kube.RadixJobTypeLabel], kube.RadixJobTypeCloneConfig) {
+		jobType := jobStep.GetLabels()[kube.RadixJobTypeLabel]
+		if strings.EqualFold(jobType, kube.RadixJobTypeCloneConfig) {
 			// Clone of radix config represented as an initial step
 			continue
-		}
-
-		// Does it hold annotations component to container mapping
-		componentImagesAnnotation := jobStep.GetObjectMeta().GetAnnotations()[kube.RadixComponentImagesAnnotation]
-		componentImages := make(map[string]pipeline.ComponentImage)
-
-		if !strings.EqualFold(componentImagesAnnotation, "") {
-			err := json.Unmarshal([]byte(componentImagesAnnotation), &componentImages)
-
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		jobStepPod, err := job.kubeclient.CoreV1().Pods(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s", "job-name", jobStep.Name),
 		})
-
 		if err != nil {
 			return nil, err
 		}
-
 		if len(jobStepPod.Items) == 0 {
 			continue
 		}
@@ -442,6 +429,11 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 			steps = append(steps, getJobStepWithNoComponents(pod.GetName(), &containerStatus))
 		}
 
+		componentImages, err := getComponentImagesFromJob(&jobStep)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
 			steps = append(steps, getJobStep(pod.GetName(), &containerStatus, components))
@@ -449,6 +441,21 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, kubernetesJob 
 	}
 
 	return steps, nil
+}
+
+func getComponentImagesFromJob(job *batchv1.Job) (map[string]pipeline.ComponentImage, error) {
+	componentImagesAnnotation := job.GetObjectMeta().GetAnnotations()[kube.RadixComponentImagesAnnotation]
+	componentImages := make(map[string]pipeline.ComponentImage)
+
+	if !strings.EqualFold(componentImagesAnnotation, "") {
+		err := json.Unmarshal([]byte(componentImagesAnnotation), &componentImages)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return componentImages, nil
 }
 
 func getComponentsForContainer(name string, componentImages map[string]pipeline.ComponentImage) []string {
