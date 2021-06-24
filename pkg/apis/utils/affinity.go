@@ -11,7 +11,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetPodSpecAffinity(node *v1.RadixNode) *corev1.Affinity {
+func GetPodSpecAffinity(radixComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
+	node := radixComponent.GetNode()
+	if node == nil {
+		return nil
+	}
+
 	affinity := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},

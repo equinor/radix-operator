@@ -227,7 +227,7 @@ func (deploy *Deployment) syncDeployment() error {
 	}
 
 	for _, jobComponent := range deploy.radixDeployment.Spec.Jobs {
-		jobSchedulerComponent := NewJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
+		jobSchedulerComponent := newJobSchedulerComponent(&jobComponent, deploy.radixDeployment)
 		if err := deploy.syncDeploymentForRadixComponent(jobSchedulerComponent); err != nil {
 			errs = append(errs, err)
 		}
@@ -539,8 +539,4 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		}
 	}
 	return nil
-}
-
-func (deploy *Deployment) getPodSpecAffinity(deployComponent v1.RadixCommonDeployComponent) *corev1.Affinity {
-	return utils.GetPodSpecAffinity(deployComponent.GetNode())
 }
