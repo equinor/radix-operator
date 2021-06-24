@@ -61,6 +61,8 @@ func teardownTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 	os.Unsetenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
@@ -192,7 +194,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, int32(2), *getDeploymentByName(componentNameApp, deployments).Spec.Replicas, "number of replicas was unexpected")
 				}
 
-				assert.Equal(t, 11, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 12, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
@@ -231,12 +233,13 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, int32(1), *getDeploymentByName(componentNameRedis, deployments).Spec.Replicas, "number of replicas was unexpected")
 				}
 
-				assert.Equal(t, 10, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 11, len(getContainerByName(componentNameRedis, getDeploymentByName(componentNameRedis, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.True(t, envVariableByNameExistOnDeployment("a_variable", componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameRedis, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameRedis, deployments))
+				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixClusterTypeEnvironmentVariable, componentNameRedis, deployments))
 
 				if !componentsExist {
 					assert.Equal(t, "3001", getEnvVariableByNameOnDeployment("a_variable", componentNameRedis, deployments))
@@ -480,7 +483,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, int32(1), *getDeploymentByName(jobName, deployments).Spec.Replicas, "number of replicas was unexpected")
 
 				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
-				assert.Equal(t, 12, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
+				assert.Equal(t, 13, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
 				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, jobName, deployments))
@@ -925,19 +928,22 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 7, len(deployments.Items[0].Spec.Template.Spec.Containers[0].Env), "Should only have default environment variables")
-		assert.Equal(t, defaults.ContainerRegistryEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Name)
-		assert.Equal(t, defaults.RadixDNSZoneEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Name)
-		assert.Equal(t, defaults.ClusternameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Name)
-		assert.Equal(t, anyContainerRegistry, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[0].Value)
-		assert.Equal(t, dnsZone, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[1].Value)
-		assert.Equal(t, clusterName, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[2].Value)
-		assert.Equal(t, defaults.EnvironmentnameEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Name)
-		assert.Equal(t, anyEnvironment, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[3].Value)
-		assert.Equal(t, defaults.RadixAppEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Name)
-		assert.Equal(t, "app", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[4].Value)
-		assert.Equal(t, defaults.RadixComponentEnvironmentVariable, deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Name)
-		assert.Equal(t, "component", deployments.Items[0].Spec.Template.Spec.Containers[0].Env[5].Value)
+		templateSpecEnv := deployments.Items[0].Spec.Template.Spec.Containers[0].Env
+		assert.Equal(t, 8, len(templateSpecEnv), "Should only have default environment variables")
+		assert.True(t, envVariableByNameExist(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.ClusternameEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.RadixClusterTypeEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
+		assert.True(t, envVariableByNameExist(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
+		assert.Equal(t, anyContainerRegistry, getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv))
+		assert.Equal(t, dnsZone, getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv))
+		assert.Equal(t, clusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv))
+		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv))
+		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
+		assert.Equal(t, "component", getEnvVariableByName(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {
