@@ -17,9 +17,9 @@ func NewEnvironmentVariablesSet() *environmentVariablesSet {
 
 //Init Init set with environment variables list
 func (set *environmentVariablesSet) Init(environmentVariables []corev1.EnvVar) *environmentVariablesSet {
-	(*set).items = environmentVariables
-	(*set).newItems = make([]*corev1.EnvVar, 0)
-	(*set).itemsMap = getMap(&environmentVariables)
+	set.items = environmentVariables
+	set.newItems = make([]*corev1.EnvVar, 0)
+	set.itemsMap = getMap(environmentVariables)
 	return set
 }
 
@@ -54,11 +54,10 @@ func (set *environmentVariablesSet) Get(name string) (corev1.EnvVar, bool) {
 	return corev1.EnvVar{}, false
 }
 
-func getMap(environmentVariables *[]corev1.EnvVar) map[string]*corev1.EnvVar {
-	envVars := *environmentVariables
-	environmentVariablesMap := make(map[string]*corev1.EnvVar, len(envVars))
-	for i := 0; i < len(envVars); i++ {
-		environmentVariablesMap[envVars[i].Name] = &(envVars[i])
+func getMap(environmentVariables []corev1.EnvVar) map[string]*corev1.EnvVar {
+	environmentVariablesMap := make(map[string]*corev1.EnvVar, len(environmentVariables))
+	for i := 0; i < len(environmentVariables); i++ {
+		environmentVariablesMap[environmentVariables[i].Name] = &(environmentVariables[i])
 	}
 	return environmentVariablesMap
 }

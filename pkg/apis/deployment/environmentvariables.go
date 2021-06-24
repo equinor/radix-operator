@@ -17,6 +17,7 @@ type environmentVariablesSourceDecorator interface {
 	getClusterName() (string, error)
 	getContainerRegistry() (string, error)
 	getDnsZone() (string, error)
+	getClusterType() (string, error)
 }
 
 type radixApplicationEnvironmentVariablesSourceDecorator struct{}
@@ -34,6 +35,10 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getCon
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getDnsZone() (string, error) {
 	return getEnvVar(defaults.RadixDNSZoneEnvironmentVariable)
+}
+
+func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
+	return getEnvVar(defaults.RadixClusterTypeEnvironmentVariable)
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
@@ -54,6 +59,10 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContai
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getDnsZone() (string, error) {
 	return getEnvVar(defaults.OperatorDNSZoneEnvironmentVariable)
+}
+
+func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
+	return getEnvVar(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 
 //getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
@@ -148,7 +157,7 @@ func appendDefaultVariables(envVarsSource environmentVariablesSourceDecorator, c
 		return envVarSet.Items()
 	}
 
-	clusterType, err := getEnvVar(defaults.RadixClusterTypeEnvironmentVariable)
+	clusterType, err := envVarsSource.getClusterType()
 	if err == nil {
 		envVarSet.Add(defaults.RadixClusterTypeEnvironmentVariable, clusterType)
 	} else {

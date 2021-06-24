@@ -40,6 +40,8 @@ func teardownSecretsTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 	os.Unsetenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 
 func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
