@@ -126,6 +126,8 @@ func GetVolumes(kubeclient kubernetes.Interface, namespace string, environment s
 				return nil, err
 			}
 			volumes = append(volumes, *volume)
+		default:
+			return nil, fmt.Errorf("unsupported volume type %s", volumeMount.Type)
 		}
 	}
 	return volumes, nil

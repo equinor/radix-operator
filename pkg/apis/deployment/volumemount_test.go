@@ -294,4 +294,14 @@ func (suite *VolumeMountTestSuite) Test_GetVolumes() {
 			assert.Equal(t, len(scenario.expectedVolumeClaimNamePrefix) > 0, volume.PersistentVolumeClaim != nil)
 		}
 	})
+	suite.T().Run("Unsupported volume type", func(t *testing.T) {
+		t.Parallel()
+		mounts := []v1.RadixVolumeMount{
+			v1.RadixVolumeMount{Type: "unsupported-type", Name: "volume1", Container: "storage1", Path: "path1"},
+		}
+		volumes, err := GetVolumes(suite.kubeclient, namespace, environment, componentName, mounts)
+		assert.Len(t, volumes, 0)
+		assert.NotNil(t, err)
+		assert.Equal(t, "unsupported volume type unsupported-type", err.Error())
+	})
 }
