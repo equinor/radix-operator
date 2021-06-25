@@ -101,25 +101,25 @@ type RadixJobList struct {
 
 //RadixJobStep holds status for a single step
 type RadixJobStep struct {
-	Name       string               `json:"name" yaml:"name"`
-	Condition  RadixJobCondition    `json:"condition" yaml:"condition"`
-	Started    *meta_v1.Time        `json:"started" yaml:"started"`
-	Ended      *meta_v1.Time        `json:"ended" yaml:"ended"`
-	PodName    string               `json:"podName" yaml:"podName"`
-	Components []string             `json:"components,omitempty" yaml:"components,omitempty"`
-	Response   RadixJobStepResponse `json:"response" yaml:"response"`
+	Name       string              `json:"name" yaml:"name"`
+	Condition  RadixJobCondition   `json:"condition" yaml:"condition"`
+	Started    *meta_v1.Time       `json:"started" yaml:"started"`
+	Ended      *meta_v1.Time       `json:"ended" yaml:"ended"`
+	PodName    string              `json:"podName" yaml:"podName"`
+	Components []string            `json:"components,omitempty" yaml:"components,omitempty"`
+	Output     *RadixJobStepOutput `json:"output,omitempty" yaml:"output,omitempty"`
 }
 
-// RadixJobStepResponse holds information about output from a single step
-type RadixJobStepResponse struct {
-	Scan *RadixJobStepScanResponse `json:"scan,omitempty" yaml:"scan,omitempty"`
+// RadixJobStepOutput holds information about output from a single step
+type RadixJobStepOutput struct {
+	Scan *RadixJobStepScanOutput `json:"scan,omitempty" yaml:"scan,omitempty"`
 }
 
-// RadixJobStepScanResponse holds information about output from a single scan step
-type RadixJobStepScanResponse struct {
-	State ScanState `json:"state" yaml:"state"`
+// RadixJobStepScanOutput holds information about output from a single scan step
+type RadixJobStepScanOutput struct {
+	Status ScanStatus `json:"status" yaml:"status"`
 	// Vulnerabilities is a map of severity level and number of vulnerabilities found
-	Vulnerabilities map[string]uint `json:"vulnerabilities" yaml:"vulnerabilities"`
+	Vulnerabilities VulnerabilityMap `json:"vulnerabilities" yaml:"vulnerabilities"`
 	// Name of the ConfigMap with detailed information about vulnerabilities found during scan
 	// the ConfigMap must be in the same namespace as the RadixJob
 	VulnerabilityDetailConfigMap string `json:"vulnerabilityDetailConfigMap" yaml:"vulnerabilityDetailConfigMap"`
@@ -127,9 +127,13 @@ type RadixJobStepScanResponse struct {
 	VulnerabilityDetailKey string `json:"vulnerabilityDetailKey" yaml:"vulnerabilityDetailKey"`
 }
 
-type ScanState string
+type VulnerabilityMap map[string]uint
+
+// ScanStatus defines the statuys of the vulnerability scanning
+type ScanStatus string
 
 const (
-	ScanCompleted ScanState = "Completed"
-	ScanFailed    ScanState = "Failed"
+	ScanSuccess ScanStatus = "Success" // Scan completed successfully
+	ScanFailed  ScanStatus = "Failed"  // Scan failed
+	ScanMissing ScanStatus = "Missing" // Scan was not exewcuted
 )

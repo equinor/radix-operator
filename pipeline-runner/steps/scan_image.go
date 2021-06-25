@@ -255,6 +255,14 @@ func createImageScanContainers(appName, scannerImage, scanJobName string, compon
 				Name:  "OUTPUT_CONFIGMAP_NAME",
 				Value: scanOutputConfigMapName,
 			},
+			{
+				Name:  "VULNERABILITY_LIST_KEY",
+				Value: defaults.RadixPipelineScanStepVulnerabilityListKey,
+			},
+			{
+				Name:  "VULNERABILITY_COUNT_KEY",
+				Value: defaults.RadixPipelineScanStepVulnerabilityCountKey,
+			},
 		}
 
 		volumeMounts := []corev1.VolumeMount{
