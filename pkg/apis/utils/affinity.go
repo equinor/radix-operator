@@ -12,6 +12,10 @@ import (
 )
 
 func GetPodSpecAffinity(node *v1.RadixNode) *corev1.Affinity {
+	if node == nil {
+		return nil
+	}
+
 	affinity := &corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},

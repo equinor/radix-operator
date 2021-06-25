@@ -182,10 +182,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 		return err
 	}
 	desiredDeployment.Spec.Template.Spec.Volumes = volumes
-
-	if deployComponent.GetType() != defaults.RadixComponentTypeJobScheduler {
-		desiredDeployment.Spec.Template.Spec.Affinity = deploy.getPodSpecAffinity(deployComponent)
-	}
+	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode())
 
 	return nil
 }
@@ -222,7 +219,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 	}
 
 	radixDeployment := deploy.radixDeployment
-	environmentVariables := GetEnvironmentVariablesFrom(appName, deploy.kubeutil, radixDeployment, deployComponent)
+	environmentVariables := getEnvironmentVariablesForRadixOperator(appName, deploy.kubeutil, radixDeployment, deployComponent)
 
 	if environmentVariables != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
