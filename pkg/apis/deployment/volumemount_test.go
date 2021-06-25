@@ -54,21 +54,11 @@ func (suite *VolumeMountTestSuite) Test_NoVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			volumeMount: v1.RadixVolumeMount{
-				Type:    v1.MountTypeFileCsiAzure,
-				Name:    "volume1",
-				Storage: "storageName1",
-				Path:    "TestPath1",
-			},
+			volumeMount:        v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
 			expectedVolumeName: "csi-az-file-app-volume1-storageName1",
 		},
 		{
-			volumeMount: v1.RadixVolumeMount{
-				Type:    v1.MountTypeFileCsiAzure,
-				Name:    "volume2",
-				Storage: "storageName2",
-				Path:    "TestPath2",
-			},
+			volumeMount:        v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
 		},
 	}
@@ -111,21 +101,11 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			volumeMount: v1.RadixVolumeMount{
-				Type:    v1.MountTypeBlobCsiAzure,
-				Name:    "volume1",
-				Storage: "storageName1",
-				Path:    "TestPath1",
-			},
+			volumeMount:        v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
 			expectedVolumeName: "csi-az-blob-app-volume1-storageName1",
 		},
 		{
-			volumeMount: v1.RadixVolumeMount{
-				Type:    v1.MountTypeBlobCsiAzure,
-				Name:    "volume2",
-				Storage: "storageName2",
-				Path:    "TestPath2",
-			},
+			volumeMount:        v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-blob-app-volume2-storageName2",
 		},
 	}
@@ -168,30 +148,18 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			name: "Missed volume mount name",
-			volumeMount: v1.RadixVolumeMount{
-				Type:    v1.MountTypeBlobCsiAzure,
-				Storage: "storageName1",
-				Path:    "TestPath1",
-			},
+			name:          "Missed volume mount name",
+			volumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Storage: "storageName1", Path: "TestPath1"},
 			expectedError: "name is empty for volume mount in the component app",
 		},
 		{
-			name: "Missed volume mount storage",
-			volumeMount: v1.RadixVolumeMount{
-				Type: v1.MountTypeBlobCsiAzure,
-				Name: "volume1",
-				Path: "TestPath1",
-			},
+			name:          "Missed volume mount storage",
+			volumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Path: "TestPath1"},
 			expectedError: "storage is empty for volume mount volume1 in the component app",
 		},
 		{
-			name: "Missed volume mount path",
-			volumeMount: v1.RadixVolumeMount{
-				Type:    v1.MountTypeBlobCsiAzure,
-				Name:    "volume1",
-				Storage: "storageName1",
-			},
+			name:          "Missed volume mount path",
+			volumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Storage: "storageName1"},
 			expectedError: "path is empty for volume mount volume1 in the component app",
 		},
 	}
@@ -219,21 +187,11 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			volumeMount: v1.RadixVolumeMount{
-				Type:      v1.MountTypeBlob,
-				Name:      "volume1",
-				Container: "storageName1",
-				Path:      "TestPath1",
-			},
+			volumeMount:        v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "volume1", Container: "storageName1", Path: "TestPath1"},
 			expectedVolumeName: "blobfuse-app-volume1",
 		},
 		{
-			volumeMount: v1.RadixVolumeMount{
-				Type:      v1.MountTypeBlob,
-				Name:      "volume2",
-				Container: "storageName2",
-				Path:      "TestPath2",
-			},
+			volumeMount:        v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "volume2", Container: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "blobfuse-app-volume2",
 		},
 	}
@@ -278,27 +236,62 @@ func (suite *VolumeMountTestSuite) Test_GetVolumes() {
 	})
 	scenarios := []volumeMountTestScenario{
 		{
-			name: "Blob CSI Azure volume",
-			volumeMount: v1.RadixVolumeMount{
-				Type:    v1.MountTypeBlobCsiAzure,
-				Name:    "volume1",
-				Storage: "storage1",
-				Path:    "path1",
-				GID:     "1000",
-			},
+			name:                          "Blob CSI Azure volume",
+			volumeMount:                   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
 			expectedVolumeName:            "csi-az-blob-some-component-volume1-storage1",
 			expectedVolumeClaimNamePrefix: "pvc-csi-az-blob-some-component-volume1-storage1",
 		},
+		{
+			name:                          "File CSI Azure volume",
+			volumeMount:                   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+			expectedVolumeName:            "csi-az-file-some-component-volume1-storage1",
+			expectedVolumeClaimNamePrefix: "pvc-csi-az-file-some-component-volume1-storage1",
+		},
 	}
-	suite.T().Run("BlobCsiAzure volume", func(t *testing.T) {
+	blobFuseScenario := volumeMountTestScenario{
+		name:               "Blob Azure FlexVolume",
+		volumeMount:        v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "volume1", Container: "storage1", Path: "path1"},
+		expectedVolumeName: "blobfuse-some-component-volume1",
+	}
+	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
 		t.Parallel()
-		mounts := []v1.RadixVolumeMount{scenarios[0].volumeMount}
+		for _, scenario := range scenarios {
+			mounts := []v1.RadixVolumeMount{scenario.volumeMount}
+			volumes, err := GetVolumes(suite.kubeclient, namespace, environment, componentName, mounts)
+			assert.Nil(t, err)
+			assert.Len(t, volumes, 1)
+			volume := volumes[0]
+			assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+			assert.NotNil(t, volume.PersistentVolumeClaim)
+			assert.Contains(t, volume.PersistentVolumeClaim.ClaimName, scenario.expectedVolumeClaimNamePrefix)
+		}
+	})
+	suite.T().Run("Blobfuse-flex volume", func(t *testing.T) {
+		t.Parallel()
+		mounts := []v1.RadixVolumeMount{blobFuseScenario.volumeMount}
 		volumes, err := GetVolumes(suite.kubeclient, namespace, environment, componentName, mounts)
 		assert.Nil(t, err)
 		assert.Len(t, volumes, 1)
 		volume := volumes[0]
-		assert.Equal(t, scenarios[0].expectedVolumeName, volume.Name)
-		assert.NotNil(t, volume.PersistentVolumeClaim)
-		assert.Contains(t, volume.PersistentVolumeClaim.ClaimName, scenarios[0].expectedVolumeClaimNamePrefix)
+		assert.Equal(t, blobFuseScenario.expectedVolumeName, volume.Name)
+		assert.Nil(t, volume.PersistentVolumeClaim)
+		assert.NotNil(t, volume.FlexVolume)
+		assert.Equal(t, "azure/blobfuse", volume.FlexVolume.Driver)
+		assert.Equal(t, "volume1", volume.FlexVolume.Options["name"])
+		assert.Equal(t, "storage1", volume.FlexVolume.Options["container"])
+		assert.Equal(t, "--file-cache-timeout-in-seconds=120", volume.FlexVolume.Options["mountoptions"])
+		assert.Equal(t, "/tmp/some-namespace/some-component/some-env/blob/volume1/storage1", volume.FlexVolume.Options["tmppath"])
+	})
+	suite.T().Run("CSI Azure and Blobfuse-flex volumes", func(t *testing.T) {
+		t.Parallel()
+		for _, scenario := range append(scenarios, blobFuseScenario) {
+			mounts := []v1.RadixVolumeMount{scenario.volumeMount}
+			volumes, err := GetVolumes(suite.kubeclient, namespace, environment, componentName, mounts)
+			assert.Nil(t, err)
+			assert.Len(t, volumes, 1)
+			volume := volumes[0]
+			assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+			assert.Equal(t, len(scenario.expectedVolumeClaimNamePrefix) > 0, volume.PersistentVolumeClaim != nil)
+		}
 	})
 }
