@@ -1,10 +1,14 @@
 package deployment
 
 import (
+	"context"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"testing"
@@ -22,6 +26,11 @@ type volumeMountTestScenario struct {
 	expectedVolumeName            string
 	expectedError                 string
 	expectedVolumeClaimNamePrefix string
+}
+
+type pvcTestScenario struct {
+	volumeMountTestScenario
+	pvc corev1.PersistentVolumeClaim
 }
 
 func TestVolumeMountTestSuite(t *testing.T) {
@@ -224,7 +233,7 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 	})
 }
 
-func (suite *VolumeMountTestSuite) Test_GetVolumes() {
+func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	namespace := "some-namespace"
 	environment := "some-env"
 	componentName := "some-component"
@@ -303,5 +312,51 @@ func (suite *VolumeMountTestSuite) Test_GetVolumes() {
 		assert.Len(t, volumes, 0)
 		assert.NotNil(t, err)
 		assert.Equal(t, "unsupported volume type unsupported-type", err.Error())
+	})
+}
+
+func (suite *VolumeMountTestSuite) Test_GetExistingCsiVolumes() {
+	namespace := "some-namespace"
+	environment := "some-env"
+	componentName := "some-component"
+	volumeMountName := "volume1"
+	mountType := v1.MountTypeBlobCsiAzure
+	pvc := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "some-pvc-name",
+			Namespace: namespace,
+			Labels: map[string]string{
+				kube.RadixAppLabel:             appName,
+				kube.RadixComponentLabel:       componentName,
+				kube.RadixMountTypeLabel:       string(mountType),
+				kube.RadixVolumeMountNameLabel: volumeMountName,
+			},
+		},
+	}
+	scenarios := []pvcTestScenario{
+		{
+			volumeMountTestScenario: volumeMountTestScenario{
+				name:                          "Blob CSI Azure volume",
+				volumeMount:                   v1.RadixVolumeMount{Type: mountType, Name: volumeMountName, Storage: "storage1", Path: "path1", GID: "1000"},
+				expectedVolumeName:            "csi-az-blob-some-component-volume1-storage1",
+				expectedVolumeClaimNamePrefix: "pvc-csi-az-blob-some-component-volume1-storage1",
+			},
+			pvc: pvc,
+		},
+	}
+
+	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
+		t.Parallel()
+		for _, scenario := range scenarios {
+			suite.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), &scenario.pvc, metav1.CreateOptions{})
+			mounts := []v1.RadixVolumeMount{scenario.volumeMount}
+			volumes, err := GetVolumes(suite.kubeclient, namespace, environment, componentName, mounts)
+			assert.Nil(t, err)
+			assert.Len(t, volumes, 1)
+			volume := volumes[0]
+			assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+			assert.NotNil(t, volume.PersistentVolumeClaim)
+			assert.Equal(t, volume.PersistentVolumeClaim.ClaimName, scenario.pvc.Name)
+		}
 	})
 }
