@@ -28,7 +28,7 @@ func TestVolumeMountTestSuite(t *testing.T) {
 	suite.Run(t, new(VolumeMountTestSuite))
 }
 
-func (suite *VolumeMountTestSuite) SetupTest() {
+func (suite *VolumeMountTestSuite) SetupSuite() {
 	suite.radixCommonDeployComponentFactories = []v1.RadixCommonDeployComponentFactory{
 		v1.RadixDeployComponentFactory{},
 		v1.RadixDeployJobComponentFactory{},
