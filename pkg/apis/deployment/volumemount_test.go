@@ -42,6 +42,9 @@ func (suite *VolumeMountTestSuite) SetupSuite() {
 		v1.RadixDeployComponentFactory{},
 		v1.RadixDeployJobComponentFactory{},
 	}
+}
+
+func (suite *VolumeMountTestSuite) SetupTest() {
 	suite.kubeclient = kubefake.NewSimpleClientset()
 }
 
@@ -74,7 +77,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
+			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].volumeMount}).
@@ -121,7 +124,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
+			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].volumeMount}).
 				BuildComponent()
@@ -137,7 +140,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	suite.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
+			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].volumeMount, scenarios[1].volumeMount}).
@@ -177,7 +180,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 
 			for _, testCase := range scenarios {
-				t.Logf("Test case %s for component %s", testCase.name, factory.GetTargetType())
+				t.Logf("Test case '%s' for component '%s'", testCase.name, factory.GetTargetType())
 				component := utils.NewDeployCommonComponentBuilder(factory).
 					WithName("app").
 					WithVolumeMounts([]v1.RadixVolumeMount{
@@ -265,6 +268,7 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
+			t.Logf("Scenario '%s'", scenario.name)
 			mounts := []v1.RadixVolumeMount{scenario.volumeMount}
 			volumes, err := GetVolumes(suite.kubeclient, namespace, environment, componentName, mounts)
 			assert.Nil(t, err)
@@ -320,35 +324,61 @@ func (suite *VolumeMountTestSuite) Test_GetExistingCsiVolumes() {
 	environment := "some-env"
 	componentName := "some-component"
 	volumeMountName := "volume1"
-	mountType := v1.MountTypeBlobCsiAzure
-	pvc := corev1.PersistentVolumeClaim{
+	basePvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some-pvc-name",
+			Name:      "existing-pvc-name",
 			Namespace: namespace,
 			Labels: map[string]string{
-				kube.RadixAppLabel:             appName,
-				kube.RadixComponentLabel:       componentName,
-				kube.RadixMountTypeLabel:       string(mountType),
+				kube.RadixAppLabel:       appName,
+				kube.RadixComponentLabel: componentName,
+				//kube.RadixMountTypeLabel:       string(mountType),//set below
 				kube.RadixVolumeMountNameLabel: volumeMountName,
 			},
 		},
 	}
+	pvcBlobAzure := modifyPvc(basePvc, func(v *corev1.PersistentVolumeClaim) {
+		v.ObjectMeta.Labels[kube.RadixMountTypeLabel] = string(v1.MountTypeBlobCsiAzure)
+	})
+	pvcFileAzure := modifyPvc(basePvc, func(v *corev1.PersistentVolumeClaim) {
+		v.ObjectMeta.Labels[kube.RadixMountTypeLabel] = string(v1.MountTypeFileCsiAzure)
+	})
+	scenarioBlobAzure := volumeMountTestScenario{
+		name:                          "Blob CSI Azure volume",
+		volumeMount:                   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: volumeMountName, Storage: "storage1", Path: "path1", GID: "1000"},
+		expectedVolumeName:            "csi-az-blob-some-component-volume1-storage1",
+		expectedVolumeClaimNamePrefix: "pvc-csi-az-blob-some-component-volume1-storage1",
+	}
+	scenarioFileAzure := volumeMountTestScenario{
+		name:                          "File CSI Azure volume",
+		volumeMount:                   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: volumeMountName, Storage: "storage1", Path: "path1", GID: "1000"},
+		expectedVolumeName:            "csi-az-file-some-component-volume1-storage1",
+		expectedVolumeClaimNamePrefix: "pvc-csi-az-file-some-component-volume1-storage1",
+	}
 	scenarios := []pvcTestScenario{
 		{
-			volumeMountTestScenario: volumeMountTestScenario{
-				name:                          "Blob CSI Azure volume",
-				volumeMount:                   v1.RadixVolumeMount{Type: mountType, Name: volumeMountName, Storage: "storage1", Path: "path1", GID: "1000"},
-				expectedVolumeName:            "csi-az-blob-some-component-volume1-storage1",
-				expectedVolumeClaimNamePrefix: "pvc-csi-az-blob-some-component-volume1-storage1",
-			},
-			pvc: pvc,
+			volumeMountTestScenario: scenarioBlobAzure,
+			pvc:                     modifyPvc(pvcBlobAzure, func(v *corev1.PersistentVolumeClaim) { v.Status.Phase = corev1.ClaimBound }),
+		},
+		{
+			volumeMountTestScenario: scenarioBlobAzure,
+			pvc:                     modifyPvc(pvcBlobAzure, func(v *corev1.PersistentVolumeClaim) { v.Status.Phase = corev1.ClaimPending }),
+		},
+		{
+			volumeMountTestScenario: scenarioFileAzure,
+			pvc:                     modifyPvc(pvcFileAzure, func(v *corev1.PersistentVolumeClaim) { v.Status.Phase = corev1.ClaimBound }),
+		},
+		{
+			volumeMountTestScenario: scenarioFileAzure,
+			pvc:                     modifyPvc(pvcFileAzure, func(v *corev1.PersistentVolumeClaim) { v.Status.Phase = corev1.ClaimPending }),
 		},
 	}
 
 	suite.T().Run("CSI Azure volumes", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
+			t.Logf("Scenario '%s' for volume mount type '%s', PVC status phase '%v'", scenario.name, string(scenario.volumeMount.Type), scenario.pvc.Status.Phase)
 			suite.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), &scenario.pvc, metav1.CreateOptions{})
+
 			mounts := []v1.RadixVolumeMount{scenario.volumeMount}
 			volumes, err := GetVolumes(suite.kubeclient, namespace, environment, componentName, mounts)
 			assert.Nil(t, err)
@@ -359,4 +389,9 @@ func (suite *VolumeMountTestSuite) Test_GetExistingCsiVolumes() {
 			assert.Equal(t, volume.PersistentVolumeClaim.ClaimName, scenario.pvc.Name)
 		}
 	})
+}
+
+func modifyPvc(pvc corev1.PersistentVolumeClaim, with func(*corev1.PersistentVolumeClaim)) corev1.PersistentVolumeClaim {
+	with(&pvc)
+	return pvc
 }

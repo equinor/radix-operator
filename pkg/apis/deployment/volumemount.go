@@ -674,8 +674,8 @@ func getVolumeAccessMode(modeValue string) v1.PersistentVolumeAccessMode {
 }
 
 func sortPvcsByCreatedTimestampDesc(persistentVolumeClaims []v1.PersistentVolumeClaim) []v1.PersistentVolumeClaim {
-	sort.Slice(persistentVolumeClaims, func(i, j int) bool {
-		return persistentVolumeClaims[j].ObjectMeta.CreationTimestamp.Before(&persistentVolumeClaims[i].ObjectMeta.CreationTimestamp)
+	sort.SliceStable(persistentVolumeClaims, func(i, j int) bool {
+		return (persistentVolumeClaims)[j].ObjectMeta.CreationTimestamp.Before(&(persistentVolumeClaims)[i].ObjectMeta.CreationTimestamp)
 	})
 	return persistentVolumeClaims
 }
