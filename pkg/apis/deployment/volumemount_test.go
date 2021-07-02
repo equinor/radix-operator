@@ -539,6 +539,26 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 	})
 }
 
+type expectedPvcScProperties struct {
+	appName                 string
+	environment             string
+	componentName           string
+	radixVolumeMountName    string
+	radixStorageName        string
+	pvcName                 string
+	storageClassName        string
+	radixVolumeMountType    v1.MountType
+	requestsVolumeMountSize string
+	volumeAccessMode        corev1.PersistentVolumeAccessMode
+	volumeName              string
+	scProvisioner           string
+	scSecretName            string
+	scTmpPath               string
+	scGid                   string
+	scUid                   string
+	namespace               string
+}
+
 func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	appName := "any-app"
 	environment := "some-env"
@@ -613,9 +633,90 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	appName := "any-app"
 	environment := "some-env"
 	componentName := "some-component"
-	propsCsiBlobVolume1Storage1 := expectedPvcScProperties{
+
+	scenarios := []deploymentVolumesTestScenario{
+		getDeploymentVolumesTestScenario(func() deploymentVolumesTestScenario {
+			props := getPropsCsiBlobVolume1Storage1(nil)
+			return deploymentVolumesTestScenario{
+				name: "Blob CSI Azure volume",
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(sc *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(sc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+				},
+			}
+		}),
+		getDeploymentVolumesTestScenario(func() deploymentVolumesTestScenario {
+			props := getPropsCsiFileVolume2Storage2(nil)
+			return deploymentVolumesTestScenario{
+				name: "File CSI Azure volume",
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) {}),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(sc *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(sc *corev1.PersistentVolumeClaim) {}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+				},
+			}
+		}),
+	}
+
+	suite.T().Run("TBD", func(t *testing.T) {
+		//t.Parallel()
+		for _, factory := range suite.radixCommonDeployComponentFactories {
+			for _, scenario := range scenarios {
+				t.Logf("Test case '%s' for component '%s'", scenario.name, factory.GetTargetType())
+				testEnv := getTestEnv()
+				deployment := getDeployment(testEnv)
+				deployment.radixDeployment = buildRd(appName, environment, componentName, scenario.radixVolumeMounts)
+				putExistingDeploymentVolumesScenarioDataToFakeCluster(&scenario, deployment)
+				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
+
+				//action
+				err := deployment.createOrUpdateCsiAzureResources(desiredDeployment)
+				assert.Nil(t, err)
+
+				existingPvcs, existingScs, err := getExistingPvcsAndStorageClassesFromFakeCluster(deployment)
+				assert.Nil(t, err)
+				equalPvcLists, err := utils.EqualPvcLists(&scenario.existingPvcsAfterTestRun, &existingPvcs, true)
+				assert.Nil(t, err)
+				assert.True(t, equalPvcLists)
+				equalStorageClassLists, err := utils.EqualStorageClassLists(&scenario.existingStorageClassesAfterTestRun, &existingScs)
+				assert.Nil(t, err)
+				assert.True(t, equalStorageClassLists)
+			}
+		}
+	})
+}
+
+func getDeploymentVolumesTestScenario(f func() deploymentVolumesTestScenario) deploymentVolumesTestScenario {
+	return f()
+}
+
+func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expectedPvcScProperties {
+	appName := "any-app"
+	environment := "some-env"
+	componentName := "some-component"
+	props := expectedPvcScProperties{
 		appName:                 appName,
 		environment:             environment,
+		namespace:               fmt.Sprintf("%s-%s", appName, environment),
 		componentName:           componentName,
 		radixVolumeMountName:    "volume1",
 		radixStorageName:        "storage1",
@@ -625,122 +726,75 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadOnlyMany,
 		volumeName:              "csi-az-blob-some-component-volume1-storage1",
+		scProvisioner:           v1.ProvisionerBlobCsiAzure,
+		scSecretName:            "some-component-volume1-csiazurecreds",
+		scTmpPath:               "/tmp/any-app-some-env/csi-az-blob/some-component/volume1/storage1",
+		scGid:                   "1000",
+		scUid:                   "",
 	}
-	propsCsiFileVolume2Storage2 := expectedPvcScProperties{
+	if modify != nil {
+		modify(&props)
+	}
+	return props
+}
+
+func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expectedPvcScProperties {
+	appName := "any-app"
+	environment := "some-env"
+	componentName := "some-component"
+	props := expectedPvcScProperties{
 		appName:                 appName,
 		environment:             environment,
+		namespace:               fmt.Sprintf("%s-%s", appName, environment),
 		componentName:           componentName,
-		radixVolumeMountName:    "volume1",
-		radixStorageName:        "storage1",
+		radixVolumeMountName:    "volume2",
+		radixStorageName:        "storage2",
 		pvcName:                 "pvc-csi-az-file-some-component-volume2-storage2-12345",
-		storageClassName:        "sc-any-app-some-env-csi-az-csi-some-component-volume2-storage2",
+		storageClassName:        "sc-any-app-some-env-csi-az-file-some-component-volume2-storage2",
 		radixVolumeMountType:    v1.MountTypeFileCsiAzure,
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadOnlyMany,
 		volumeName:              "csi-az-file-some-component-volume2-storage2",
+		scProvisioner:           v1.ProvisionerFileCsiAzure,
+		scSecretName:            "some-component-volume2-csiazurecreds",
+		scTmpPath:               "/tmp/any-app-some-env/csi-az-file/some-component/volume2/storage2",
+		scGid:                   "1000",
+		scUid:                   "",
 	}
-	scenarios := []deploymentVolumesTestScenario{
-		{
-			name: "Blob CSI Azure volume",
-			radixVolumeMounts: []v1.RadixVolumeMount{
-				createRadixVolumeMount(propsCsiBlobVolume1Storage1, func(vm *v1.RadixVolumeMount) {}),
-			},
-			volumes: []corev1.Volume{
-				createVolume(propsCsiBlobVolume1Storage1, func(sc *corev1.Volume) {}),
-			},
-			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
-			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-				createExpectedPvc(propsCsiBlobVolume1Storage1, func(sc *corev1.PersistentVolumeClaim) {}),
-			},
-			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
-			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-				createExpectedStorageClass(propsCsiBlobVolume1Storage1, func(sc *storagev1.StorageClass) {}),
-			},
-		},
-		{
-			name: "File CSI Azure volume",
-			radixVolumeMounts: []v1.RadixVolumeMount{
-				createRadixVolumeMount(propsCsiFileVolume2Storage2, func(vm *v1.RadixVolumeMount) {}),
-			},
-			volumes: []corev1.Volume{
-				createVolume(propsCsiFileVolume2Storage2, func(sc *corev1.Volume) {}),
-			},
-			existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{},
-			existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
-				createExpectedPvc(propsCsiFileVolume2Storage2, func(sc *corev1.PersistentVolumeClaim) {}),
-			},
-			existingStorageClassesBeforeTestRun: []storagev1.StorageClass{},
-			existingStorageClassesAfterTestRun: []storagev1.StorageClass{
-				createExpectedStorageClass(propsCsiFileVolume2Storage2, func(sc *storagev1.StorageClass) {}),
-			},
-		},
+	if modify != nil {
+		modify(&props)
 	}
-
-	suite.T().Run("TBD", func(t *testing.T) {
-		t.Parallel()
-		testEnv := getTestEnv()
-		deployment := getDeployment(testEnv)
-		for _, factory := range suite.radixCommonDeployComponentFactories {
-			for _, scenario := range scenarios {
-				t.Logf("Test case '%s' for component '%s'", scenario.name, factory.GetTargetType())
-
-				putExistingDeploymentVolumesScenarioDataToFakeCluster(&scenario, deployment)
-
-				deployment.radixDeployment = buildRd(appName, environment, componentName, scenario.radixVolumeMounts)
-
-				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
-				//action
-				err := deployment.createOrUpdateCsiAzureResources(desiredDeployment)
-				assert.Nil(t, err)
-
-				existingPvcs, existingScs, err := getExistingPvcsAndStorageClassesFromFakeCluster(deployment)
-				assert.Nil(t, err)
-
-				equalPvcLists, err := utils.EqualPvcLists(&scenario.existingPvcsAfterTestRun, &existingPvcs.Items, true)
-				assert.Nil(t, err)
-				assert.True(t, equalPvcLists)
-
-				equalStorageClassLists, err := utils.EqualStorageClassLists(&scenario.existingStorageClassesAfterTestRun, &existingScs.Items)
-				assert.Nil(t, err)
-				assert.True(t, equalStorageClassLists)
-			}
-		}
-	})
-}
-
-type expectedPvcScProperties struct {
-	appName                 string
-	environment             string
-	componentName           string
-	radixVolumeMountName    string
-	radixStorageName        string
-	pvcName                 string
-	storageClassName        string
-	radixVolumeMountType    v1.MountType
-	requestsVolumeMountSize string
-	volumeAccessMode        corev1.PersistentVolumeAccessMode
-	volumeName              string
+	return props
 }
 
 func putExistingDeploymentVolumesScenarioDataToFakeCluster(scenario *deploymentVolumesTestScenario, deployment *Deployment) {
 	for _, pvc := range scenario.existingPvcsBeforeTestRun {
-		deployment.kubeclient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), &pvc, metav1.CreateOptions{})
+		_, _ = deployment.kubeclient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(context.TODO(), &pvc, metav1.CreateOptions{})
 	}
 	for _, sc := range scenario.existingStorageClassesBeforeTestRun {
-		deployment.kubeclient.StorageV1().StorageClasses().Create(context.TODO(), &sc, metav1.CreateOptions{})
+		_, _ = deployment.kubeclient.StorageV1().StorageClasses().Create(context.TODO(), &sc, metav1.CreateOptions{})
 	}
 }
 
-func getExistingPvcsAndStorageClassesFromFakeCluster(deployment *Deployment) (*corev1.PersistentVolumeClaimList, *storagev1.StorageClassList, error) {
-	pvcs, err := deployment.kubeclient.CoreV1().PersistentVolumeClaims("").List(context.TODO(), metav1.ListOptions{})
+func getExistingPvcsAndStorageClassesFromFakeCluster(deployment *Deployment) ([]corev1.PersistentVolumeClaim, []storagev1.StorageClass, error) {
+	namespace := deployment.getNamespace()
+	var pvcItems []corev1.PersistentVolumeClaim
+	var scItems []storagev1.StorageClass
+	pvcList, err := deployment.kubeclient.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return nil, nil, err
+		return pvcItems, scItems, err
+	}
+	if pvcList != nil && pvcList.Items != nil {
+		pvcItems = pvcList.Items
 	}
 	storageClassList, err := deployment.kubeclient.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return nil, nil, err
+		return pvcItems, scItems, err
 	}
-	return pvcs, storageClassList, nil
+	if storageClassList != nil && storageClassList.Items != nil {
+		scItems = storageClassList.Items
+	}
+	return pvcItems, scItems, nil
 }
 
 func getDesiredDeployment(componentName string, volumes []corev1.Volume) *appsv1.Deployment {
@@ -795,12 +849,64 @@ func createPvc(namespace, componentName string, mountType v1.MountType, modify f
 	return pvc
 }
 
-func createExpectedStorageClass(expectedProps expectedPvcScProperties, modify func(class *storagev1.StorageClass)) storagev1.StorageClass {
-	sc := storagev1.StorageClass{}
+func createExpectedStorageClass(props expectedPvcScProperties, modify func(class *storagev1.StorageClass)) storagev1.StorageClass {
+	mountOptions := []string{
+		"--file-cache-timeout-in-seconds=120",
+		"--use-attr-cache=true",
+		"-o allow_other",
+		"-o attr_timeout=120",
+		"-o entry_timeout=120",
+		"-o negative_timeout=120",
+		fmt.Sprintf("--tmp-path=%s", props.scTmpPath),
+	}
+	idOption := getStorageClassIdMountOption(props)
+	if len(idOption) > 0 {
+		mountOptions = append(mountOptions, idOption)
+	}
+	reclaimPolicy := corev1.PersistentVolumeReclaimRetain
+	bindingMode := storagev1.VolumeBindingImmediate
+	sc := storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: props.storageClassName,
+			Labels: map[string]string{
+				kube.RadixAppLabel:             props.appName,
+				kube.RadixNamespace:            props.namespace,
+				kube.RadixComponentLabel:       props.componentName,
+				kube.RadixMountTypeLabel:       string(props.radixVolumeMountType),
+				kube.RadixVolumeMountNameLabel: props.radixVolumeMountName,
+			},
+		},
+		Provisioner: props.scProvisioner,
+		Parameters: map[string]string{
+			"csi.storage.k8s.io/provisioner-secret-name":      props.scSecretName,
+			"csi.storage.k8s.io/provisioner-secret-namespace": props.namespace,
+			"csi.storage.k8s.io/node-stage-secret-name":       props.scSecretName,
+			"csi.storage.k8s.io/node-stage-secret-namespace":  props.namespace,
+		},
+		MountOptions:      mountOptions,
+		ReclaimPolicy:     &reclaimPolicy,
+		VolumeBindingMode: &bindingMode,
+	}
+	switch props.radixVolumeMountType {
+	case v1.MountTypeBlobCsiAzure:
+		sc.Parameters[csiStorageClassContainerNameParameter] = props.radixStorageName
+	case v1.MountTypeFileCsiAzure:
+		sc.Parameters[csiStorageClassShareNameParameter] = props.radixStorageName
+	}
 	if modify != nil {
 		modify(&sc)
 	}
 	return sc
+}
+
+func getStorageClassIdMountOption(props expectedPvcScProperties) string {
+	if len(props.scGid) > 0 {
+		return fmt.Sprintf("-o gid=%s", props.scGid)
+	}
+	if len(props.scUid) > 0 {
+		return fmt.Sprintf("-o uid=%s", props.scGid)
+	}
+	return ""
 }
 
 func createExpectedPvc(props expectedPvcScProperties, modify func(*corev1.PersistentVolumeClaim)) corev1.PersistentVolumeClaim {
@@ -813,7 +919,7 @@ func createExpectedPvc(props expectedPvcScProperties, modify func(*corev1.Persis
 	pvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      props.pvcName,
-			Namespace: fmt.Sprintf("%s-%s", props.appName, props.environment),
+			Namespace: props.namespace,
 			Labels:    labels,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
@@ -845,7 +951,8 @@ func createVolume(pvcProps expectedPvcScProperties, modify func(*corev1.Volume))
 
 func createRadixVolumeMount(props expectedPvcScProperties, modify func(mount *v1.RadixVolumeMount)) v1.RadixVolumeMount {
 	volumeMount := v1.RadixVolumeMount{
-		Name:    props.volumeName,
+		Type:    props.radixVolumeMountType,
+		Name:    props.radixVolumeMountName,
 		Storage: props.radixStorageName,
 		Path:    "path1",
 		GID:     "1000",

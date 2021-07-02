@@ -43,35 +43,39 @@ func StringPtr(s string) *string {
 	return &s
 }
 
-func EqualStringsAsPtr(s1 *string, s2 *string) bool {
+func EqualStringsAsPtr(s1, s2 *string) bool {
 	return ((s1 == nil) == (s2 == nil)) && (s1 != nil && strings.EqualFold(*s1, *s2))
 }
 
 //EqualStringMaps Compare two string maps
-func EqualStringMaps(map1 map[string]string, map2 map[string]string) bool {
+func EqualStringMaps(map1, map2 map[string]string) bool {
 	if len(map1) != len(map2) {
 		return false
 	}
-	processedStringKeySet := make(map[string]bool)
-	if !equalStringMapsWithCache(map1, map2, processedStringKeySet) {
-		return false
+	for key, val1 := range map1 {
+		val2, ok := map2[key]
+		if !ok || !strings.EqualFold(val1, val2) {
+			return false
+		}
 	}
-	return equalStringMapsWithCache(map2, map1, processedStringKeySet)
+	return true
 }
 
-func equalStringMapsWithCache(map1 map[string]string, map2 map[string]string, processedKeySet map[string]bool) bool {
-	for key, val1 := range map1 {
-		if _, ok := processedKeySet[key]; ok {
-			continue
-		}
-		val2, ok := map2[key]
-		if !ok {
+//EqualStringLists Compare two string lists
+func EqualStringLists(list1, list2 []string) bool {
+	return len(list1) == len(list2) &&
+		equalStringLists(list1, list2)
+}
+
+func equalStringLists(list1, list2 []string) bool {
+	list1Map := map[string]bool{}
+	for _, val := range list1 {
+		list1Map[val] = false
+	}
+	for _, val := range list2 {
+		if _, ok := list1Map[val]; !ok {
 			return false
 		}
-		if !strings.EqualFold(val1, val2) {
-			return false
-		}
-		processedKeySet[key] = false
 	}
 	return true
 }

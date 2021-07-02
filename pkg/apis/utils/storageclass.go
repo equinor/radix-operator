@@ -18,57 +18,61 @@ func GetStorageClassMap(scList *[]storagev1.StorageClass) map[string]*storagev1.
 }
 
 //EqualStorageClassLists Compare two StorageClass lists
-func EqualStorageClassLists(list1 *[]storagev1.StorageClass, list2 *[]storagev1.StorageClass) (bool, error) {
-	if len(*list1) != len(*list2) {
+func EqualStorageClassLists(scList1, scList2 *[]storagev1.StorageClass) (bool, error) {
+	if len(*scList1) != len(*scList2) {
 		return false, nil
 	}
-	map1 := GetStorageClassMap(list1)
-	map2 := GetStorageClassMap(list2)
-	processedPvcNameSet := make(map[string]bool)
-	equals, err := equalStorageClassMaps(map1, map2, processedPvcNameSet)
-	if err != nil {
-		return false, err
-	}
-	if !equals {
-		return false, err
-	}
-	return equalStorageClassMaps(map2, map1, processedPvcNameSet)
-}
-
-func equalStorageClassMaps(map1 map[string]*storagev1.StorageClass, map2 map[string]*storagev1.StorageClass, processedKeySet map[string]bool) (bool, error) {
-	for pvcName, pvc1 := range map1 {
-		if _, ok := processedKeySet[pvcName]; ok {
-			continue
-		}
-		pvc2, ok := map2[pvcName]
+	scMap1 := GetStorageClassMap(scList1)
+	scMap2 := GetStorageClassMap(scList2)
+	for scName, sc1 := range scMap1 {
+		sc2, ok := scMap2[scName]
 		if !ok {
 			return false, nil
 		}
-		if equal, err := EqualStorageClasses(pvc1, pvc2); err != nil || !equal {
+		if equal, err := EqualStorageClasses(sc1, sc2); err != nil || !equal {
 			return false, err
 		}
-		processedKeySet[pvcName] = false
 	}
 	return true, nil
 }
 
 //EqualStorageClasses Compare two StorageClass pointers
-func EqualStorageClasses(sc1 *storagev1.StorageClass, sc2 *storagev1.StorageClass) (bool, error) {
-	sc1Copy := sc1.DeepCopy()
-	sc1Copy.ObjectMeta.ManagedFields = nil //HACK: to avoid ManagedFields comparison
-	sc2Copy := sc2.DeepCopy()
-	sc2Copy.ObjectMeta.ManagedFields = nil //HACK: to avoid ManagedFields comparison
-	json1, err := json.Marshal(sc1Copy)
+func EqualStorageClasses(sc1, sc2 *storagev1.StorageClass) (bool, error) {
+	sc1Copy, labels1, params1, mountOptions1 := getStorageClassCopyWithCollections(sc1)
+	sc2Copy, labels2, params2, mountOptions2 := getStorageClassCopyWithCollections(sc2)
+	patchBytes, err := getStorageClassesPatch(sc1Copy, sc2Copy)
 	if err != nil {
 		return false, err
 	}
-	json2, err := json.Marshal(sc2Copy)
+	return EqualStringMaps(labels1, labels2) &&
+		EqualStringMaps(params1, params2) &&
+		EqualStringLists(mountOptions1, mountOptions2) &&
+		kube.IsEmptyPatch(patchBytes), nil
+}
+
+func getStorageClassCopyWithCollections(sc *storagev1.StorageClass) (*storagev1.StorageClass, map[string]string, map[string]string, []string) {
+	scCopy := sc.DeepCopy()
+	scCopy.ObjectMeta.ManagedFields = nil //HACK: to avoid ManagedFields comparison
+	//to avoid label order variations
+	labels := scCopy.ObjectMeta.Labels
+	scCopy.ObjectMeta.Labels = map[string]string{}
+	//to avoid Parameters order variations
+	scParams := scCopy.Parameters
+	scCopy.Parameters = map[string]string{}
+	//to avoid MountOptions order variations
+	scMountOptions := scCopy.MountOptions
+	scCopy.MountOptions = []string{}
+	return scCopy, labels, scParams, scMountOptions
+}
+
+func getStorageClassesPatch(sc1, sc2 *storagev1.StorageClass) ([]byte, error) {
+	json1, err := json.Marshal(sc1)
 	if err != nil {
-		return false, err
+		return []byte{}, err
 	}
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(json1, json2, storagev1.StorageClass{})
+	json2, err := json.Marshal(sc2)
 	if err != nil {
-		return false, err
+		return []byte{}, err
 	}
-	return kube.IsEmptyPatch(patchBytes), nil
+	return strategicpatch.CreateTwoWayMergePatch(json1, json2, storagev1.StorageClass{})
 }
