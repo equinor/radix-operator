@@ -406,15 +406,27 @@ func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentNa
 }
 
 func (deploy *Deployment) deletePersistentVolumeClaim(namespace, pvcName string) error {
-	return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvcName, metav1.DeleteOptions{})
+	if len(namespace) > 0 && len(pvcName) > 0 {
+		return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvcName, metav1.DeleteOptions{})
+	}
+	log.Debugf("Skip deleting PVC - namespace '%s' or name '%s' is empty", namespace, pvcName)
+	return nil
 }
 
 func (deploy *Deployment) deleteCsiAzureStorageClasses(storageClassName string) error {
-	return deploy.kubeclient.StorageV1().StorageClasses().Delete(context.TODO(), storageClassName, metav1.DeleteOptions{})
+	if len(storageClassName) > 0 {
+		return deploy.kubeclient.StorageV1().StorageClasses().Delete(context.TODO(), storageClassName, metav1.DeleteOptions{})
+	}
+	log.Debugf("Skip deleting StorageClass - name is empty")
+	return nil
 }
 
 func (deploy *Deployment) deletePersistentVolume(pvName string) error {
-	return deploy.kubeclient.CoreV1().PersistentVolumes().Delete(context.TODO(), pvName, metav1.DeleteOptions{})
+	if len(pvName) > 0 {
+		return deploy.kubeclient.CoreV1().PersistentVolumes().Delete(context.TODO(), pvName, metav1.DeleteOptions{})
+	}
+	log.Debugf("Skip deleting PersistentVolume - name is empty")
+	return nil
 }
 
 //GetRadixVolumeMountStorage get RadixVolumeMount storage property, depend on volume type

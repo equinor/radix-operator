@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -35,7 +36,7 @@ func EqualPvcLists(pvcList1, pvcList2 *[]corev1.PersistentVolumeClaim, ignoreRan
 	for pvcName, pvc1 := range pvcMap1 {
 		pvc2, ok := pvcMap2[pvcName]
 		if !ok {
-			return false, nil
+			return false, fmt.Errorf("PVS not found by name '%s' in second list", pvcName)
 		}
 		if equal, err := EqualPvcs(pvc1, pvc2, ignoreRandomPostfixInName); err != nil || !equal {
 			return false, err
@@ -52,8 +53,13 @@ func EqualPvcs(pvc1 *corev1.PersistentVolumeClaim, pvc2 *corev1.PersistentVolume
 	if err != nil {
 		return false, err
 	}
-	return EqualStringMaps(labels1, labels2) &&
-		kube.IsEmptyPatch(patchBytes), nil
+	if !EqualStringMaps(labels1, labels2) {
+		return false, fmt.Errorf("PVC-s labels are not equal")
+	}
+	if !kube.IsEmptyPatch(patchBytes) {
+		return false, fmt.Errorf("PVC-s are not equal: %s", patchBytes)
+	}
+	return true, nil
 }
 
 func getPvcCopyWithLabels(pvc *corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (*corev1.PersistentVolumeClaim, map[string]string) {

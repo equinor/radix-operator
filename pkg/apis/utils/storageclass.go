@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -20,14 +21,14 @@ func GetStorageClassMap(scList *[]storagev1.StorageClass) map[string]*storagev1.
 //EqualStorageClassLists Compare two StorageClass lists
 func EqualStorageClassLists(scList1, scList2 *[]storagev1.StorageClass) (bool, error) {
 	if len(*scList1) != len(*scList2) {
-		return false, nil
+		return false, fmt.Errorf("different StorageClass list sizes: %v, %v", len(*scList1), len(*scList2))
 	}
 	scMap1 := GetStorageClassMap(scList1)
 	scMap2 := GetStorageClassMap(scList2)
 	for scName, sc1 := range scMap1 {
 		sc2, ok := scMap2[scName]
 		if !ok {
-			return false, nil
+			return false, fmt.Errorf("StorageClass not found by name '%s' in second list", scName)
 		}
 		if equal, err := EqualStorageClasses(sc1, sc2); err != nil || !equal {
 			return false, err
@@ -44,10 +45,19 @@ func EqualStorageClasses(sc1, sc2 *storagev1.StorageClass) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return EqualStringMaps(labels1, labels2) &&
-		EqualStringMaps(params1, params2) &&
-		EqualStringLists(mountOptions1, mountOptions2) &&
-		kube.IsEmptyPatch(patchBytes), nil
+	if !EqualStringMaps(labels1, labels2) {
+		return false, fmt.Errorf("StorageClass-es labels are not equal")
+	}
+	if !EqualStringMaps(params1, params2) {
+		return false, fmt.Errorf("StorageClass-es parameters are not equal")
+	}
+	if !EqualStringLists(mountOptions1, mountOptions2) {
+		return false, fmt.Errorf("StorageClass-es MountOptions are not equal")
+	}
+	if !kube.IsEmptyPatch(patchBytes) {
+		return false, fmt.Errorf("StorageClass-es are not equal: %s", patchBytes)
+	}
+	return true, nil
 }
 
 func getStorageClassCopyWithCollections(sc *storagev1.StorageClass) (*storagev1.StorageClass, map[string]string, map[string]string, []string) {
