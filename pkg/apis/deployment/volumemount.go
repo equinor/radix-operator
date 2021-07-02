@@ -516,12 +516,13 @@ func (deploy *Deployment) createOrUpdateCsiAzureResources(desiredDeployment *app
 
 func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1.StorageClassList, excludeStorageClassName []string) error {
 	for _, storageClass := range scList.Items {
-		if !slice.ContainsString(excludeStorageClassName, storageClass.Name) {
-			log.Debugf("Delete Csi Azure StorageClass %s", storageClass.Name)
-			err := deploy.deleteCsiAzureStorageClasses(storageClass.Name)
-			if err != nil {
-				return err
-			}
+		if slice.ContainsString(excludeStorageClassName, storageClass.Name) {
+			continue
+		}
+		log.Debugf("Delete Csi Azure StorageClass %s", storageClass.Name)
+		err := deploy.deleteCsiAzureStorageClasses(storageClass.Name)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -529,18 +530,19 @@ func (deploy *Deployment) garbageCollectCsiAzureStorageClasses(scList *storagev1
 
 func (deploy *Deployment) garbageCollectCsiAzurePersistentVolumeClaimsAndPersistentVolumes(namespace string, pvcList *v1.PersistentVolumeClaimList, excludePvcNames []string) error {
 	for _, pvc := range pvcList.Items {
-		if !slice.ContainsString(excludePvcNames, pvc.Name) {
-			pvName := pvc.Spec.VolumeName
-			log.Debugf("Delete not used CSI Azure PersistentVolumeClaim %s in namespace %s", pvc.Name, namespace)
-			err := deploy.deletePersistentVolumeClaim(namespace, pvc.Name)
-			if err != nil {
-				return err
-			}
-			log.Debugf("Delete not used CSI Azure PersistentVolume %s in namespace %s", pvName, namespace)
-			err = deploy.deletePersistentVolume(pvName)
-			if err != nil {
-				return err
-			}
+		if slice.ContainsString(excludePvcNames, pvc.Name) {
+			continue
+		}
+		pvName := pvc.Spec.VolumeName
+		log.Debugf("Delete not used CSI Azure PersistentVolumeClaim %s in namespace %s", pvc.Name, namespace)
+		err := deploy.deletePersistentVolumeClaim(namespace, pvc.Name)
+		if err != nil {
+			return err
+		}
+		log.Debugf("Delete not used CSI Azure PersistentVolume %s in namespace %s", pvName, namespace)
+		err = deploy.deletePersistentVolume(pvName)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
