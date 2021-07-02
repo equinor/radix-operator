@@ -26,7 +26,7 @@ func getPersistentVolumeClaimMap(pvcList *[]corev1.PersistentVolumeClaim, ignore
 	return pvcMap
 }
 
-//EqualPvcLists Compare two PersistentVolumeClaim lists. When ignoreRandomPostfixInName=true - last 5 chars of the name are ignored
+//EqualPvcLists Compare two PersistentVolumeClaim lists. When ignoreRandomPostfixInName=true - last 6 chars of the name (e.g.'-abc12') are ignored during comparison
 func EqualPvcLists(pvcList1, pvcList2 *[]corev1.PersistentVolumeClaim, ignoreRandomPostfixInName bool) (bool, error) {
 	if len(*pvcList1) != len(*pvcList2) {
 		return false, nil

@@ -176,7 +176,11 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
 
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts, _ = GetRadixDeployComponentVolumeMounts(deployComponent)
+	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent)
+	if err != nil {
+		return err
+	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 	volumes, err := deploy.GetVolumesForComponent(deployComponent)
 	if err != nil {
 		return err
