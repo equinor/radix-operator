@@ -1,11 +1,13 @@
 package v1
 
 import (
+	"reflect"
+	"strings"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 )
 
 // +genclient
@@ -177,6 +179,14 @@ func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication
 	return deployComponent.Authentication
 }
 
+func (deployComponent *RadixDeployComponent) SetName(name string) {
+	deployComponent.Name = name
+}
+
+func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolumeMount) {
+	deployComponent.VolumeMounts = mounts
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -257,6 +267,14 @@ func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authenti
 	return nil
 }
 
+func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
+	deployJobComponent.Name = name
+}
+
+func (deployJobComponent *RadixDeployJobComponent) SetVolumeMounts(mounts []RadixVolumeMount) {
+	deployJobComponent.VolumeMounts = mounts
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -308,4 +326,31 @@ type RadixCommonDeployComponent interface {
 	GetRunAsNonRoot() bool
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
+	SetName(name string)
+	SetVolumeMounts(mounts []RadixVolumeMount)
+}
+
+//RadixCommonDeployComponentFactory defines a common component factory
+type RadixCommonDeployComponentFactory interface {
+	Create() RadixCommonDeployComponent
+	GetTargetType() reflect.Type
+}
+
+type RadixDeployComponentFactory struct{}
+type RadixDeployJobComponentFactory struct{}
+
+func (factory RadixDeployComponentFactory) Create() RadixCommonDeployComponent {
+	return &RadixDeployComponent{}
+}
+
+func (factory RadixDeployComponentFactory) GetTargetType() reflect.Type {
+	return reflect.TypeOf(&RadixDeployComponent{}).Elem()
+}
+
+func (factory RadixDeployJobComponentFactory) Create() RadixCommonDeployComponent {
+	return &RadixDeployJobComponent{}
+}
+
+func (factory RadixDeployJobComponentFactory) GetTargetType() reflect.Type {
+	return reflect.TypeOf(&RadixDeployJobComponentFactory{}).Elem()
 }
