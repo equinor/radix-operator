@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
@@ -13,16 +15,21 @@ import (
 )
 
 const (
-	configMapName                = "radix-config"
-	clusterNameConfig            = "clustername"
-	containerRegistryConfig      = "containerRegistry"
-	radixConfigEnvVarsPrefix     = "radixconfig-environment-variables"      //Environment variables, existing in radixconfig
-	noneRadixConfigEnvVarsPrefix = "none-radixconfig-environment-variables" //Environment variables, not existing in radixconfig
+	configMapName           = "radix-config"
+	clusterNameConfig       = "clustername"
+	containerRegistryConfig = "containerRegistry"
+	envVarsPrefix           = "env-vars"          //Environment variables
+	envVarsMetadataPrefix   = "env-vars-metadata" //Metadata for environment variables
 )
 
-//GetRadixConfigEnvVarsConfigMapName Get config-map name for environment variables, existing in radixconfig.yaml
-func GetRadixConfigEnvVarsConfigMapName(componentName string) string {
-	return fmt.Sprintf("%s-%s", radixConfigEnvVarsPrefix, componentName)
+//GetEnvVarsConfigMapName Get config-map name for environment variables
+func GetEnvVarsConfigMapName(componentName string) string {
+	return fmt.Sprintf("%s-%s", envVarsPrefix, componentName)
+}
+
+//GetEnvVarsMetadataConfigMapName Get config-map name for environment variables metadata
+func GetEnvVarsMetadataConfigMapName(componentName string) string {
+	return fmt.Sprintf("%s-%s", envVarsMetadataPrefix, componentName)
 }
 
 // GetClusterName Gets the global name of the cluster from config map in default namespace
@@ -108,4 +115,69 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 	}
 	log.Debugf("Patched config-map: %s in namespace %s", patchedConfigMap.Name, namespace)
 	return err
+}
+
+func (kubeutil *Kube) ApplyEnvVarsMetadata(namespace string, currentMap, desiredMap map[string]v1.EnvVarsMetadata) error {
+	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(componentName)
+	//TODO!!!!!!!!!!!!!!!!!!!!!!!!
+	return nil
+}
+
+func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(componentName string) (*corev1.ConfigMap, map[string]v1.EnvVarsMetadata, error) {
+	envVarConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsConfigMap(componentName)
+	if err != nil {
+		err := fmt.Errorf("failed to create config-map for environment variables methadata: %v", err)
+		log.Error(err)
+		return nil, nil, err
+	}
+	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(componentName)
+	if err != nil {
+		err := fmt.Errorf("failed to create config-map for environment variables methadata: %v", err)
+		log.Error(err)
+		return nil, nil, err
+	}
+	if envVarsMetadata, ok := envVarMetadataConfigMap.Data["metadata"]; ok {
+		envVarsMetadataMap := make(map[string]v1.EnvVarsMetadata, 0)
+		err := json.Unmarshal([]byte(envVarsMetadata), &envVarsMetadataMap)
+		if err != nil {
+			return nil, nil, err
+		}
+		return envVarConfigMap, envVarsMetadataMap, nil
+	}
+	return envVarConfigMap, map[string]v1.EnvVarsMetadata{}, err
+}
+
+func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(componentName string) (*corev1.ConfigMap, error) {
+	configMapName := GetEnvVarsConfigMapName(componentName)
+	configMapType := v1.EnvVarsConfigMap
+	return kubeutil.getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType, configMapName, componentName)
+}
+
+func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(componentName string) (*corev1.ConfigMap, error) {
+	configMapName := GetEnvVarsMetadataConfigMapName(componentName)
+	configMapType := v1.EnvVarsMetadataConfigMap
+	return kubeutil.getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType, configMapName, componentName)
+}
+
+func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType v1.RadixConfigMapType, configMapName, componentName string) (*corev1.ConfigMap, error) {
+	namespace := deploy.radixDeployment.GetNamespace()
+	configMap, err := kubeutil.GetConfigMap(namespace, configMapName)
+	if err != nil {
+		statusError := err.(*k8sErrors.StatusError)
+		if statusError == nil || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
+			return nil, err
+		}
+	}
+	if configMap == nil {
+		labels := map[string]string{
+			RadixAppLabel:       deploy.radixDeployment.GetName(),
+			RadixComponentLabel: componentName,
+			RadixConfigMapType:  string(configMapType),
+		}
+		configMap, err = kubeutil.CreateConfigMap(namespace, configMapName, labels)
+	}
+	if configMap.Data == nil {
+		configMap.Data = make(map[string]string, 0)
+	}
+	return configMap, err
 }

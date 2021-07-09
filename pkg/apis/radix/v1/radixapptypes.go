@@ -286,7 +286,9 @@ type RadixConfigMapType string
 
 const (
 	//EnvVarsConfigMap ConfigMap contains environment variables
-	EnvVarsConfigMap RadixConfigMapType = "environment-variables"
+	EnvVarsConfigMap RadixConfigMapType = "env-vars"
+	//EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
+	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
 )
 
 //RadixCommonComponent defines a common component interface for Radix components
@@ -318,4 +320,15 @@ func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []
 		}
 	}
 	return nil
+}
+
+//EnvVarsMetadata Metadata for environment variables
+type EnvVarsMetadata struct {
+	RadixConfigValue string
+}
+
+func DeepCopyEnvVarsMetadata(envVarsMetadata EnvVarsMetadata) EnvVarsMetadata {
+	return EnvVarsMetadata{
+		RadixConfigValue: envVarsMetadata.RadixConfigValue,
+	}
 }

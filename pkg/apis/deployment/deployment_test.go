@@ -949,7 +949,7 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		container := deployments.Items[0].Spec.Template.Spec.Containers[0]
-		cm, _ := client.CoreV1().ConfigMaps(envNamespace).Get(context.TODO(), kube.GetRadixConfigEnvVarsConfigMapName(container.Name), metav1.GetOptions{})
+		cm, _ := client.CoreV1().ConfigMaps(envNamespace).Get(context.TODO(), kube.GetEnvVarsConfigMapName(container.Name), metav1.GetOptions{})
 
 		templateSpecEnv := container.Env
 		assert.Equal(t, 8, len(templateSpecEnv), "Should only have default environment variables")
@@ -3238,7 +3238,7 @@ func envVariableByNameExistOnDeployment(name, deploymentName string, deployments
 func getEnvVariableByNameOnDeployment(kubeclient kubernetes.Interface, name, deploymentName string, deployments *appsv1.DeploymentList) string {
 	deployment := getDeploymentByName(deploymentName, deployments)
 	container := getContainerByName(deploymentName, deployment.Spec.Template.Spec.Containers)
-	envVarsConfigMapName := kube.GetRadixConfigEnvVarsConfigMapName(container.Name)
+	envVarsConfigMapName := kube.GetEnvVarsConfigMapName(container.Name)
 	cm, _ := kubeclient.CoreV1().ConfigMaps(deployment.Namespace).Get(context.TODO(), envVarsConfigMapName, metav1.GetOptions{})
 	return getEnvVariableByName(name, container.Env, cm)
 }
