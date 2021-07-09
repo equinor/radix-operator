@@ -115,8 +115,8 @@ func (deployComponent *RadixDeployComponent) GetPorts() []ComponentPort {
 	return deployComponent.Ports
 }
 
-func (deployComponent *RadixDeployComponent) GetEnvironmentVariables() *EnvVarsMap {
-	return &deployComponent.EnvironmentVariables
+func (deployComponent *RadixDeployComponent) GetEnvironmentVariables() EnvVarsMap {
+	return deployComponent.EnvironmentVariables
 }
 
 func (deployComponent *RadixDeployComponent) GetSecrets() []string {
@@ -203,8 +203,8 @@ func (deployJobComponent *RadixDeployJobComponent) GetPorts() []ComponentPort {
 	return deployJobComponent.Ports
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetEnvironmentVariables() *EnvVarsMap {
-	return &deployJobComponent.EnvironmentVariables
+func (deployJobComponent *RadixDeployJobComponent) GetEnvironmentVariables() EnvVarsMap {
+	return deployJobComponent.EnvironmentVariables
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetSecrets() []string {
@@ -310,7 +310,7 @@ type RadixCommonDeployComponent interface {
 	GetType() string
 	GetImage() string
 	GetPorts() []ComponentPort
-	GetEnvironmentVariables() *EnvVarsMap
+	GetEnvironmentVariables() EnvVarsMap
 	GetSecrets() []string
 	GetMonitoring() bool
 	GetResources() *ResourceRequirements

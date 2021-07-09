@@ -23,8 +23,9 @@ const (
 	ALLOW_PRIVILEGE_ESCALATION = false
 )
 
-func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent) error {
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent)
+func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent, currentRadixConfigEnvVarConfigMap *corev1.ConfigMap) error {
+	desiredRadixConfigEnvVarConfigMap := currentRadixConfigEnvVarConfigMap.DeepCopy()
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent, desiredRadixConfigEnvVarConfigMap)
 	if err != nil {
 		return err
 	}
@@ -43,10 +44,12 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		return err
 	}
 
+	deploy.kubeutil.ApplyConfigMap(deploy.radixDeployment.Namespace, currentRadixConfigEnvVarConfigMap, desiredRadixConfigEnvVarConfigMap)
+
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 
-func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) (*appsv1.Deployment, *appsv1.Deployment, error) {
 	var desiredDeployment *appsv1.Deployment
 	namespace := deploy.radixDeployment.Namespace
 
@@ -56,12 +59,12 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.Radi
 			return nil, nil, err
 		}
 
-		desiredDeployment, err = deploy.getDesiredCreatedDeploymentConfig(deployComponent)
+		desiredDeployment, err = deploy.getDesiredCreatedDeploymentConfig(deployComponent, envVarConfigMap)
 		if err == nil {
 			log.Debugf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
 		}
 	} else {
-		desiredDeployment, err = deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
+		desiredDeployment, err = deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment, envVarConfigMap)
 		if err == nil {
 			log.Debugf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
 		}
@@ -77,7 +80,7 @@ func (deploy *Deployment) configureDeploymentServiceAccountSettings(deployment *
 	deployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
 }
 
-func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := deployComponent.GetName()
 	log.Debugf("Get desired created deployment config for application: %s.", appName)
@@ -114,11 +117,10 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 	}
 	desiredDeployment.Spec.Strategy = deploymentStrategy
 
-	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
+	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName, envVarConfigMap)
 }
 
-func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent,
-	currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment, envVarConfigMap *corev1.ConfigMap) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := deployComponent.GetName()
 	log.Debugf("Get desired updated deployment config for application: %s.", appName)
@@ -144,7 +146,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 		return nil, err
 	}
 
-	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
+	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName, envVarConfigMap)
 }
 
 func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName, componentName string) error {
@@ -204,7 +206,7 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 	return branch, commitID
 }
 
-func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName string) (*appsv1.Deployment, error) {
+func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName string, envVarConfigMap *corev1.ConfigMap) (*appsv1.Deployment, error) {
 	if deployComponent.IsAlwaysPullImageOnDeploy() {
 		desiredDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation] = deploy.radixDeployment.Name
 	}
@@ -223,7 +225,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 	}
 
 	radixDeployment := deploy.radixDeployment
-	environmentVariables := getEnvironmentVariablesForRadixOperator(appName, deploy.kubeutil, radixDeployment, deployComponent)
+	environmentVariables := getEnvironmentVariablesForRadixOperator(appName, deploy.kubeutil, radixDeployment, deployComponent, envVarConfigMap)
 
 	if environmentVariables != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables

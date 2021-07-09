@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"sort"
 	"strconv"
@@ -495,8 +496,13 @@ func (deploy *Deployment) maintainHistoryLimit() {
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {
+	radixConfigEnvVarConfigMap, err := deploy.getOrCreateRadixConfigEnvVarsConfigMaps(component)
+	if err != nil {
+		log.Infof("Failed to create config-map for environment variables: %v", err)
+		return fmt.Errorf("Failed to create config-map for environment variables: %v", err)
+	}
 	// Deploy to current radixDeploy object's namespace
-	err := deploy.createOrUpdateDeployment(component)
+	err = deploy.createOrUpdateDeployment(component, radixConfigEnvVarConfigMap)
 	if err != nil {
 		log.Infof("Failed to create deployment: %v", err)
 		return fmt.Errorf("Failed to create deployment: %v", err)
@@ -539,4 +545,33 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		}
 	}
 	return nil
+}
+
+func (deploy *Deployment) getOrCreateRadixConfigEnvVarsConfigMaps(component v1.RadixCommonDeployComponent) (*corev1.ConfigMap, error) {
+	configMapName := kube.GetRadixConfigEnvVarsConfigMapName(component.GetName())
+	configMapType := v1.EnvVarsConfigMap
+	return deploy.getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType, configMapName, component)
+}
+
+func (deploy *Deployment) getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType v1.RadixConfigMapType, name string, component v1.RadixCommonDeployComponent) (*corev1.ConfigMap, error) {
+	namespace := deploy.radixDeployment.GetNamespace()
+	configMap, err := deploy.kubeutil.GetConfigMap(namespace, name)
+	if err != nil {
+		statusError := err.(*k8sErrors.StatusError)
+		if statusError == nil || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
+			return nil, err
+		}
+	}
+	if configMap == nil {
+		labels := map[string]string{
+			kube.RadixAppLabel:       deploy.radixDeployment.GetName(),
+			kube.RadixComponentLabel: component.GetName(),
+			kube.RadixConfigMapType:  string(configMapType),
+		}
+		configMap, err = deploy.kubeutil.CreateConfigMap(namespace, name, labels)
+	}
+	if configMap.Data == nil {
+		configMap.Data = make(map[string]string, 0)
+	}
+	return configMap, err
 }

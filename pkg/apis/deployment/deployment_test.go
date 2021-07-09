@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	radixutils "github.com/equinor/radix-common/utils"
 	"os"
 	"strconv"
 	"strings"
@@ -11,9 +12,9 @@ import (
 
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	"github.com/equinor/radix-operator/pkg/apis/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 
+	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -44,13 +45,13 @@ const anyContainerRegistry = "any.container.registry"
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
-	radixclient := radix.NewSimpleClientset()
-	prometheusclient := prometheusfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeclient, radixclient)
+	radixClient := radix.NewSimpleClientset()
+	prometheusClient := prometheusfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(kubeclient, radixClient)
 
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)
-	return &handlerTestUtils, kubeclient, kubeUtil, radixclient, prometheusclient
+	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient
 }
 
 func teardownTest() {
@@ -203,22 +204,22 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				}
 
 				assert.Equal(t, 12, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
-				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.PublicEndpointEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(defaults.CanonicalEndpointEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(defaults.RadixAppEnvironmentVariable, componentNameApp, deployments))
-				assert.Equal(t, componentNameApp, getEnvVariableByNameOnDeployment(defaults.RadixComponentEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.PublicEndpointEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "app-edcradix-test.AnyClusterName.dev.radix.equinor.com", getEnvVariableByNameOnDeployment(kubeclient, defaults.CanonicalEndpointEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, componentNameApp, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixComponentEnvironmentVariable, componentNameApp, deployments))
 
 				if !componentsExist {
-					assert.Equal(t, "(8080)", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, componentNameApp, deployments))
+					assert.Equal(t, "(8080)", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, componentNameApp, deployments))
 				} else {
-					assert.Equal(t, "(8081)", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, componentNameApp, deployments))
+					assert.Equal(t, "(8081)", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, componentNameApp, deployments))
 				}
 
-				assert.Equal(t, "(http)", getEnvVariableByNameOnDeployment(defaults.RadixPortNamesEnvironmentVariable, componentNameApp, deployments))
+				assert.Equal(t, "(http)", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortNamesEnvironmentVariable, componentNameApp, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, componentNameApp, deployments))
 
 				if !componentsExist {
@@ -250,9 +251,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixClusterTypeEnvironmentVariable, componentNameRedis, deployments))
 
 				if !componentsExist {
-					assert.Equal(t, "3001", getEnvVariableByNameOnDeployment("a_variable", componentNameRedis, deployments))
+					assert.Equal(t, "3001", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", componentNameRedis, deployments))
 				} else {
-					assert.Equal(t, "3002", getEnvVariableByNameOnDeployment("a_variable", componentNameRedis, deployments))
+					assert.Equal(t, "3002", getEnvVariableByNameOnDeployment(kubeclient, "a_variable", componentNameRedis, deployments))
 				}
 
 				assert.True(t, deploymentByNameExists(componentNameRadixQuote, deployments), "radixquote deployment not there")
@@ -501,27 +502,27 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 				envVars := getContainerByName(jobName, getDeploymentByName(jobName, deployments).Spec.Template.Spec.Containers).Env
 				assert.Equal(t, 13, len(envVars), "number of environment variables was unexpected for component. It should contain default and custom")
-				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(defaults.ClusternameEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(defaults.RadixAppEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, jobName, getEnvVariableByNameOnDeployment(defaults.RadixComponentEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, "1", getEnvVariableByNameOnDeployment(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, "300M", getEnvVariableByNameOnDeployment(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, jobName, deployments))
-				assert.Equal(t, "("+defaults.RadixJobSchedulerPortName+")", getEnvVariableByNameOnDeployment(defaults.RadixPortNamesEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, dnsZone, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDNSZoneEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "AnyClusterName", getEnvVariableByNameOnDeployment(kubeclient, defaults.ClusternameEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, environment, getEnvVariableByNameOnDeployment(kubeclient, defaults.EnvironmentnameEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, appName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixAppEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, jobName, getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixComponentEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "1", getEnvVariableByNameOnDeployment(kubeclient, defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "300M", getEnvVariableByNameOnDeployment(kubeclient, defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, jobName, deployments))
+				assert.Equal(t, "("+defaults.RadixJobSchedulerPortName+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortNamesEnvironmentVariable, jobName, deployments))
 				assert.True(t, envVariableByNameExistOnDeployment(defaults.RadixCommitHashEnvironmentVariable, jobName, deployments))
 
 				if jobsExist {
-					assert.Equal(t, "("+fmt.Sprint(schedulerPortUpdate)+")", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, jobName, deployments))
+					assert.Equal(t, "("+fmt.Sprint(schedulerPortUpdate)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
 				} else {
-					assert.Equal(t, "("+fmt.Sprint(schedulerPortCreate)+")", getEnvVariableByNameOnDeployment(defaults.RadixPortsEnvironmentVariable, jobName, deployments))
+					assert.Equal(t, "("+fmt.Sprint(schedulerPortCreate)+")", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixPortsEnvironmentVariable, jobName, deployments))
 				}
 
 				if jobsExist {
-					assert.Equal(t, "deploy-update", getEnvVariableByNameOnDeployment(defaults.RadixDeploymentEnvironmentVariable, jobName, deployments))
+					assert.Equal(t, "deploy-update", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDeploymentEnvironmentVariable, jobName, deployments))
 				} else {
-					assert.Equal(t, "deploy-create", getEnvVariableByNameOnDeployment(defaults.RadixDeploymentEnvironmentVariable, jobName, deployments))
+					assert.Equal(t, "deploy-create", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDeploymentEnvironmentVariable, jobName, deployments))
 				}
 			})
 
@@ -947,7 +948,10 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		templateSpecEnv := deployments.Items[0].Spec.Template.Spec.Containers[0].Env
+		container := deployments.Items[0].Spec.Template.Spec.Containers[0]
+		cm, _ := client.CoreV1().ConfigMaps(envNamespace).Get(context.TODO(), kube.GetRadixConfigEnvVarsConfigMapName(container.Name), metav1.GetOptions{})
+
+		templateSpecEnv := container.Env
 		assert.Equal(t, 8, len(templateSpecEnv), "Should only have default environment variables")
 		assert.True(t, envVariableByNameExist(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv))
@@ -957,12 +961,12 @@ func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T
 		assert.True(t, envVariableByNameExist(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixCommitHashEnvironmentVariable, templateSpecEnv))
 		assert.True(t, envVariableByNameExist(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, anyContainerRegistry, getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, dnsZone, getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, clusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv))
-		assert.Equal(t, "component", getEnvVariableByName(defaults.RadixComponentEnvironmentVariable, templateSpecEnv))
+		assert.Equal(t, anyContainerRegistry, getEnvVariableByName(defaults.ContainerRegistryEnvironmentVariable, templateSpecEnv, nil))
+		assert.Equal(t, dnsZone, getEnvVariableByName(defaults.RadixDNSZoneEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, clusterName, getEnvVariableByName(defaults.ClusternameEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, anyEnvironment, getEnvVariableByName(defaults.EnvironmentnameEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, "app", getEnvVariableByName(defaults.RadixAppEnvironmentVariable, templateSpecEnv, cm))
+		assert.Equal(t, "component", getEnvVariableByName(defaults.RadixComponentEnvironmentVariable, templateSpecEnv, cm))
 	})
 
 	t.Run("validate secrets", func(t *testing.T) {
@@ -2033,7 +2037,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 	assert.NotNil(t, anyComponentSecret, "Component secret is not found")
 
 	// Secret is initially empty but get filled with data from the API
-	assert.Equal(t, []string{}, maps.GetKeysFromByteMap(anyComponentSecret.Data), "Component secret data is not as expected")
+	assert.Len(t, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data), 0, "Component secret data is not as expected")
 
 	// Will emulate that data is set from the API
 	anySecretValue := "anySecretValue"
@@ -2061,7 +2065,7 @@ func TestObjectUpdated_RemoveOneSecret_SecretIsRemoved(t *testing.T) {
 
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	anyComponentSecret = getSecretByName(utils.GetComponentSecretName(anyComponentName), secrets)
-	assert.True(t, utils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, maps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
+	assert.True(t, radixutils.ArrayEqualElements([]string{"a_secret", "a_third_secret"}, radixmaps.GetKeysFromByteMap(anyComponentSecret.Data)), "Component secret data is not as expected")
 }
 
 func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
@@ -3231,8 +3235,12 @@ func envVariableByNameExistOnDeployment(name, deploymentName string, deployments
 	return envVariableByNameExist(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
 }
 
-func getEnvVariableByNameOnDeployment(name, deploymentName string, deployments *appsv1.DeploymentList) string {
-	return getEnvVariableByName(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
+func getEnvVariableByNameOnDeployment(kubeclient kubernetes.Interface, name, deploymentName string, deployments *appsv1.DeploymentList) string {
+	deployment := getDeploymentByName(deploymentName, deployments)
+	container := getContainerByName(deploymentName, deployment.Spec.Template.Spec.Containers)
+	envVarsConfigMapName := kube.GetRadixConfigEnvVarsConfigMapName(container.Name)
+	cm, _ := kubeclient.CoreV1().ConfigMaps(deployment.Namespace).Get(context.TODO(), envVarsConfigMapName, metav1.GetOptions{})
+	return getEnvVariableByName(name, container.Env, cm)
 }
 
 func radixDeploymentByNameExists(name string, deployments *v1.RadixDeploymentList) bool {
@@ -3283,11 +3291,16 @@ func envVariableByNameExist(name string, envVars []corev1.EnvVar) bool {
 	return false
 }
 
-func getEnvVariableByName(name string, envVars []corev1.EnvVar) string {
+func getEnvVariableByName(name string, envVars []corev1.EnvVar, envVarsConfigMap *corev1.ConfigMap) string {
 	for _, envVar := range envVars {
-		if envVar.Name == name {
+		if envVar.Name != name {
+			continue
+		}
+		if envVar.ValueFrom == nil {
 			return envVar.Value
 		}
+		value := envVarsConfigMap.Data[envVar.ValueFrom.ConfigMapKeyRef.Key]
+		return value
 	}
 
 	return ""

@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 
+	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -67,16 +68,16 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 
 //getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
 //It requires service account having access to config map in default namespace.
-func getEnvironmentVariablesForRadixOperator(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
-	return getEnvironmentVariablesFrom(appName, &radixOperatorEnvironmentVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent)
+func getEnvironmentVariablesForRadixOperator(appName string, kubeutil *kube.Kube, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, radixConfigEnvVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
+	return getEnvironmentVariablesFrom(appName, &radixOperatorEnvironmentVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent, radixConfigEnvVarConfigMap)
 }
 
 //GetEnvironmentVariablesFrom Provides RADIX_* environment variables for Radix applications.
-func GetEnvironmentVariablesFrom(appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
-	return getEnvironmentVariablesFrom(appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent)
+func GetEnvironmentVariablesFrom(appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, radixConfigEnvVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
+	return getEnvironmentVariablesFrom(appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent, radixConfigEnvVarConfigMap)
 }
 
-func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) []corev1.EnvVar {
+func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, radixConfigEnvVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var vars = getEnvironmentVariables(
 		appName,
 		envVarsSource,
@@ -86,71 +87,102 @@ func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariab
 		deployComponent.GetSecrets(),
 		deployComponent.GetPublicPort() != "" || deployComponent.IsPublic(), // For backwards compatibility
 		deployComponent.GetPorts(),
+		radixConfigEnvVarConfigMap,
 	)
 	return vars
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars *v1.EnvVarsMap, radixSecrets []string, isPublic bool, ports []v1.ComponentPort) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars v1.EnvVarsMap, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, radixConfigEnvVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
-		radixDeployName       = radixDeployment.Name
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
-	var environmentVariables = appendAppEnvVariables(radixDeployName, *radixEnvVars)
-	environmentVariables = appendDefaultVariables(envVarsSource, currentEnvironment, environmentVariables, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
-	if radixSecrets != nil && len(radixSecrets) > 0 {
-		for _, v := range radixSecrets {
-			componentSecretName := utils.GetComponentSecretName(componentName)
-			secretKeySelector := corev1.SecretKeySelector{
+	var envVars = getEnvVarsFromRadixConfig(radixEnvVars, radixConfigEnvVarConfigMap)
+	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
+	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
+	return envVars
+}
+
+func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string, componentSecretName string) []corev1.EnvVar {
+	if radixSecretNames != nil && len(radixSecretNames) > 0 {
+		for _, secretName := range radixSecretNames {
+			secretEnvVar := createEnvVarWithSecretRef(componentSecretName, secretName)
+			envVars = append(envVars, secretEnvVar)
+		}
+	} else {
+		log.Debugf("No secret is set for this RadixDeployment")
+	}
+	return envVars
+}
+
+func getEnvVarsFromRadixConfig(envVarsMap v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
+	if envVarsMap == nil {
+		log.Debugf("No environment variable is set for this RadixDeployment")
+		return []corev1.EnvVar{}
+	}
+
+	envVarConfigMapName := envVarConfigMap.GetName()
+	// map is not sorted, which lead to random order of env variable in deployment
+	// during stop/start/restart of a single component this lead to restart of several other components
+	envVarNames := getEnvVarNamesSorted(envVarsMap)
+	var envVars []corev1.EnvVar
+	for _, envVarName := range envVarNames {
+		envVars = append(envVars, createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName))
+		envVarValue := envVarsMap[envVarName]
+		envVarConfigMap.Data[envVarName] = envVarValue
+	}
+	return envVars
+}
+
+func removeFromConfigMapEnvVarsNotExistingInRadixconfig(envVarsMap v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap) {
+	envVarCmRefs := radixmaps.GetKeysFromStringMap(envVarConfigMap.Data)
+	for _, envVarName := range envVarCmRefs {
+		if _, ok := envVarsMap[envVarName]; !ok {
+			delete(envVarConfigMap.Data, envVarName)
+		}
+	}
+}
+
+func getEnvVarNamesSorted(envVarsMap v1.EnvVarsMap) []string {
+	var envVarNames []string
+	for k := range envVarsMap {
+		envVarNames = append(envVarNames, k)
+	}
+	sort.Strings(envVarNames)
+	return envVarNames
+}
+
+func createEnvVarWithSecretRef(componentSecretName string, secretName string) corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: secretName,
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: componentSecretName,
 				},
-				Key: v,
-			}
-			envVarSource := corev1.EnvVarSource{
-				SecretKeyRef: &secretKeySelector,
-			}
-			secretEnvVar := corev1.EnvVar{
-				Name:      v,
-				ValueFrom: &envVarSource,
-			}
-			environmentVariables = append(environmentVariables, secretEnvVar)
-		}
-	} else {
-		log.Debugf("No secret is set for this RadixDeployment %s", radixDeployName)
+				Key: secretName,
+			},
+		},
 	}
-	return environmentVariables
 }
 
-func appendAppEnvVariables(radixDeployName string, radixEnvVarsMap v1.EnvVarsMap) []corev1.EnvVar {
-	var environmentVariables []corev1.EnvVar
-	if radixEnvVarsMap != nil {
-		// map is not sorted, which lead to random order of env variable in deployment
-		// during stop/start/restart of a single component this lead to restart of several other components
-		keys := []string{}
-		for k := range radixEnvVarsMap {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		// environmentVariables
-		for _, key := range keys {
-			value := radixEnvVarsMap[key]
-			envVar := corev1.EnvVar{
-				Name:  key,
-				Value: value,
-			}
-			environmentVariables = append(environmentVariables, envVar)
-		}
-	} else {
-		log.Debugf("No environment variable is set for this RadixDeployment %s", radixDeployName)
+func createEnvVarWithConfigMapRef(envVarConfigMapName string, envVarName string) corev1.EnvVar {
+	return corev1.EnvVar{
+		Name: envVarName,
+		ValueFrom: &corev1.EnvVarSource{
+			ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: envVarConfigMapName,
+				},
+				Key: envVarName,
+			},
+		},
 	}
-	return environmentVariables
 }
 
-func appendDefaultVariables(envVarsSource environmentVariablesSourceDecorator, currentEnvironment string, environmentVariables []corev1.EnvVar, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
-	envVarSet := utils.NewEnvironmentVariablesSet().Init(environmentVariables)
+func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment string, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
+	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 	dnsZone, err := envVarsSource.getDnsZone()
 	if err != nil {
 		log.Error(err)

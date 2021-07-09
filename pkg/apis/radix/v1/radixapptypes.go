@@ -281,6 +281,14 @@ const (
 	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
 
+//RadixConfigMapType Purpose of ConfigMap
+type RadixConfigMapType string
+
+const (
+	//EnvVarsConfigMap ConfigMap contains environment variables
+	EnvVarsConfigMap RadixConfigMapType = "environment-variables"
+)
+
 //RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
 	GetName() string
