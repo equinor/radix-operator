@@ -9,6 +9,7 @@ import (
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -98,4 +99,52 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 			assert.Equal(t, namespace, savedConfigMap.ObjectMeta.Namespace)
 		}
 	})
+}
+
+func Test_GetConfigMap(t *testing.T) {
+	t.Run("Get config-map from client", func(t *testing.T) {
+		t.Parallel()
+
+		testEnv := getTestEnv()
+		namespace := "some-namespace"
+		name := "some-name"
+		testConfigMap := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Data:       map[string]string{"key1": "value1", "key2": "value2"},
+		}
+		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &testConfigMap, metav1.CreateOptions{})
+
+		configMap, err := testEnv.kubeUtil.GetConfigMap(namespace, name)
+
+		assert.Nil(t, err)
+		assert.Equal(t, name, configMap.ObjectMeta.Name)
+		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
+		assert.True(t, radixutils.EqualStringMaps(testConfigMap.Data, configMap.Data))
+	})
+
+	/*TODO: to fix
+		t.Run("Get config-map from lister", func(t *testing.T) {
+		t.Parallel()
+
+		testEnv := getTestEnv()
+		namespace := "some-namespace"
+		name := "some-name"
+		testConfigMap := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Data: map[string]string{"key1": "value1", "key2": "value2"},
+		}
+
+		kubeInformerFactory := kubeinformers.NewSharedInformerFactory(testEnv.kubeclient, 0)
+		testEnv.kubeUtil.ConfigMapLister =  kubeInformerFactory.Core().V1().ConfigMaps().Lister()
+
+		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &testConfigMap, metav1.CreateOptions{})
+
+		configMap, err := testEnv.kubeUtil.GetConfigMap(namespace, name)
+
+		assert.Nil(t, err)
+		assert.Equal(t, name, configMap.ObjectMeta.Name)
+		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
+		assert.True(t, radixutils.EqualStringMaps(testConfigMap.Data, configMap.Data))
+	})
+	*/
 }
