@@ -23,10 +23,14 @@ const (
 	ALLOW_PRIVILEGE_ESCALATION = false
 )
 
-func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent, currentEnvVarsConfigMap *corev1.ConfigMap, currentEnvVarsMetadataMap map[string]v1.EnvVarsMetadata) error {
+func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent, currentEnvVarsConfigMap, currentEnvVarsMetadataConfigMap *corev1.ConfigMap) error {
 	desiredEnvVarsConfigMap := currentEnvVarsConfigMap.DeepCopy()
-	desiredEnvVarsMetadataMap := deepCopyEnvVarsMetadataMap(currentEnvVarsMetadataMap)
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent, desiredEnvVarsConfigMap, desiredEnvVarsMetadataMap)
+	envVarsMetadataMap, err := deploy.kubeutil.GetEnvVarsMetadataFromConfigMap(currentEnvVarsMetadataConfigMap)
+	if err != nil {
+		return err
+	}
+
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent, desiredEnvVarsConfigMap, envVarsMetadataMap)
 	if err != nil {
 		return err
 	}
@@ -46,17 +50,9 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 	}
 
 	deploy.kubeutil.ApplyConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
-	deploy.kubeutil.ApplyEnvVarsMetadata(deploy.radixDeployment.Namespace, currentEnvVarsMetadataMap, desiredEnvVarsMetadataMap)
+	deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsMetadataConfigMap, envVarsMetadataMap)
 
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
-}
-
-func deepCopyEnvVarsMetadataMap(currentEnvVarsMetadataMap map[string]v1.EnvVarsMetadata) map[string]v1.EnvVarsMetadata {
-	mapCopy := make(map[string]v1.EnvVarsMetadata, len(currentEnvVarsMetadataMap))
-	for key, value := range currentEnvVarsMetadataMap {
-		mapCopy[key] = v1.DeepCopyEnvVarsMetadata(value)
-	}
-	return mapCopy
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarsMetadata) (*appsv1.Deployment, *appsv1.Deployment, error) {

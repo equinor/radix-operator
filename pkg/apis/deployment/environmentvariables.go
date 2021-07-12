@@ -78,7 +78,7 @@ func GetEnvironmentVariablesFrom(appName string, radixDeployment *v1.RadixDeploy
 	return getEnvironmentVariablesFrom(appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent, envVarConfigMap, envVarMetadataMap)
 }
 
-func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, radixConfigEnvVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarsMetadata) []corev1.EnvVar {
+func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarsMetadata) []corev1.EnvVar {
 	var vars = getEnvironmentVariables(
 		appName,
 		envVarsSource,
@@ -88,19 +88,19 @@ func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariab
 		deployComponent.GetSecrets(),
 		deployComponent.GetPublicPort() != "" || deployComponent.IsPublic(), // For backwards compatibility
 		deployComponent.GetPorts(),
-		radixConfigEnvVarConfigMap,
+		envVarConfigMap,
 		envVarMetadataMap,
 	)
 	return vars
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixEnvVars v1.EnvVarsMap, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarsMetadata) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixConfigEnvVars v1.EnvVarsMap, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarsMetadata) []corev1.EnvVar {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
-	var envVars = getEnvVarsFromRadixConfig(radixEnvVars, envVarConfigMap, envVarMetadataMap)
+	var envVars = getEnvVarsFromRadixConfig(radixConfigEnvVars, envVarConfigMap, envVarMetadataMap)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
 	return envVars
@@ -118,45 +118,48 @@ func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string
 	return envVars
 }
 
-func getEnvVarsFromRadixConfig(envVarsMap v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarsMetadata) []corev1.EnvVar {
-	if envVarsMap == nil {
-		log.Debugf("No environment variable is set for this RadixDeployment")
-		return []corev1.EnvVar{}
+func getEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarsMetadata) []corev1.EnvVar {
+	if radixConfigEnvVars == nil {
+		log.Debugf("No environment variables are set for this RadixDeployment in radixconfig")
+		radixConfigEnvVars = v1.EnvVarsMap{}
 	}
 
 	envVarConfigMapName := envVarConfigMap.GetName()
 	// map is not sorted, which lead to random order of env variable in deployment
 	// during stop/start/restart of a single component this lead to restart of several other components
-	envVarNames := getEnvVarNamesSorted(envVarsMap)
-	var envVars []corev1.EnvVar
+	envVarNames := getEnvVarNamesSorted(radixConfigEnvVars)
+	var resultEnvVars []corev1.EnvVar
 	for _, envVarName := range envVarNames {
-		envVars = append(envVars, createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName))
-		envVarValue := envVarsMap[envVarName]
+		resultEnvVars = append(resultEnvVars, createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName))
 
-		existingValue, foundExistingValue := envVarConfigMap.Data[envVarName]
-		metadata, foundMetadata := envVarMetadataMap[envVarName]
+		radixConfigEnvVarValue := radixConfigEnvVars[envVarName]
+		envVarConfigMapValue, foundValueInEnvVarConfigMap := envVarConfigMap.Data[envVarName]
+		envVarMetadata, foundEnvVarMetadata := envVarMetadataMap[envVarName]
 
-		if !foundExistingValue || !foundMetadata {
-			envVarConfigMap.Data[envVarName] = envVarValue
-			if foundMetadata {
-				delete(envVarMetadataMap, envVarName)
+		if !foundValueInEnvVarConfigMap || !foundEnvVarMetadata { //no such env-var, created or changed in Radix console
+			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
+			if foundEnvVarMetadata {                                  //exists metadata without config-map env-var
+				delete(envVarMetadataMap, envVarName) //remove this orphaned metadata
 			}
 			continue
 		}
 
-		if !foundMetadata {
+		if !foundEnvVarMetadata { //no metadata to update
 			continue
 		}
 
-		if strings.EqualFold(metadata.RadixConfigValue, existingValue) {
-			envVarConfigMap.Data[envVarName] = envVarValue
-			delete(envVarMetadataMap, envVarName)
-		} else {
-			metadata.RadixConfigValue = envVarValue
-			envVarMetadataMap[envVarName] = metadata
+		if strings.EqualFold(envVarConfigMapValue, envVarMetadata.RadixConfigValue) { //config-map env-var is the same as in metadata
+			delete(envVarMetadataMap, envVarName)                     //remove metadata (it is not necessary anymore)
+			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
+			continue
 		}
+
+		//save radixconfig env-var value to metadata
+		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
+		envVarMetadataMap[envVarName] = envVarMetadata
+		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
 	}
-	return envVars
+	return resultEnvVars
 }
 
 func removeFromConfigMapEnvVarsNotExistingInRadixconfig(envVarsMap v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap) {
