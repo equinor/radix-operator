@@ -322,13 +322,13 @@ func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []
 	return nil
 }
 
-//EnvVarsMetadata Metadata for environment variables
-type EnvVarsMetadata struct {
+//EnvVarMetadata Metadata for environment variables
+type EnvVarMetadata struct {
 	RadixConfigValue string
 }
 
-func DeepCopyEnvVarsMetadata(envVarsMetadata EnvVarsMetadata) EnvVarsMetadata {
-	return EnvVarsMetadata{
+func DeepCopyEnvVarsMetadata(envVarsMetadata EnvVarMetadata) EnvVarMetadata {
+	return EnvVarMetadata{
 		RadixConfigValue: envVarsMetadata.RadixConfigValue,
 	}
 }

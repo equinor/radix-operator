@@ -119,12 +119,12 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 }
 
 //GetEnvVarsMetadataFromConfigMap Get environment-variables metadata from config-map
-func (kubeutil *Kube) GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap) (map[string]v1.EnvVarsMetadata, error) {
+func GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap) (map[string]v1.EnvVarMetadata, error) {
 	envVarsMetadata, ok := envVarsMetadataConfigMap.Data[envVarsMetadataPropertyName]
 	if !ok {
-		return map[string]v1.EnvVarsMetadata{}, nil
+		return map[string]v1.EnvVarMetadata{}, nil
 	}
-	envVarsMetadataMap := make(map[string]v1.EnvVarsMetadata, 0)
+	envVarsMetadataMap := make(map[string]v1.EnvVarMetadata, 0)
 	err := json.Unmarshal([]byte(envVarsMetadata), &envVarsMetadataMap)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (kubeutil *Kube) GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *
 }
 
 //ApplyEnvVarsMetadataConfigMap Save changes of environment-variables metadata to config-map
-func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnvVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarsMetadata) error {
+func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnvVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) error {
 	desiredEnvVarsMetadataConfigMap := currentEnvVarsMetadataConfigMap.DeepCopy()
 	envVarsMetadata, err := json.Marshal(envVarsMetadataMap)
 	if err != nil {

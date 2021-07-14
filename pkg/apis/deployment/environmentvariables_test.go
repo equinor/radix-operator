@@ -20,7 +20,7 @@ func Test_order_of_env_variables(t *testing.T) {
 	}
 
 	envVarsConfigMap := &corev1.ConfigMap{Data: map[string]string{}}
-	envVarMetadataMap := map[string]v1.EnvVarsMetadata{}
+	envVarMetadataMap := map[string]v1.EnvVarMetadata{}
 	envVar1 := getEnvVarsFromRadixConfig(radixConfigEnvVariableMap, envVarsConfigMap, envVarMetadataMap)
 	for i := 0; i < 100; i++ {
 		envVar2 := getEnvVarsFromRadixConfig(radixConfigEnvVariableMap, envVarsConfigMap, envVarMetadataMap)

@@ -168,7 +168,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 	origRequests := map[string]string{"cpu": "10mi", "memory": "100M"}
 	origLimits := map[string]string{"cpu": "100mi", "memory": "1000M"}
 	envVarsConfigMap := &corev1.ConfigMap{Data: map[string]string{}}
-	envVarsMetadata := map[string]v1.EnvVarsMetadata{}
+	envVarsMetadata := map[string]v1.EnvVarMetadata{}
 
 	t.Run("set empty requests and limits", func(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(nil, nil)
