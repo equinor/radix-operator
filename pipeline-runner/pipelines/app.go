@@ -62,7 +62,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	containerRegistry, err := cli.kubeUtil.GetContainerRegistry()
+	containerRegistry, err := kube.GetContainerRegistry(cli.kubeUtil)
 	if err != nil {
 		return err
 	}

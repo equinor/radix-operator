@@ -24,7 +24,7 @@ type environmentVariablesSourceDecorator interface {
 
 type radixApplicationEnvironmentVariablesSourceDecorator struct{}
 type radixOperatorEnvironmentVariablesSourceDecorator struct {
-	kubeutil *kube.Kube
+	kubeutil kube.KubeUtil
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
@@ -44,7 +44,7 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClu
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
-	clusterName, err := envVarsSource.kubeutil.GetClusterName()
+	clusterName, err := kube.GetClusterName(envVarsSource.kubeutil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get cluster name from ConfigMap: %v", err)
 	}
@@ -52,7 +52,7 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContainerRegistry() (string, error) {
-	containerRegistry, err := envVarsSource.kubeutil.GetContainerRegistry()
+	containerRegistry, err := kube.GetContainerRegistry(envVarsSource.kubeutil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
 	}

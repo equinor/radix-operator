@@ -49,9 +49,14 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		return err
 	}
 
-	deploy.kubeutil.ApplyConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
-	deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsMetadataConfigMap, envVarsMetadataMap)
-
+	err = kube.ApplyConfigMap(deploy.kubeutil, deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
+	if err != nil {
+		return err
+	}
+	err = kube.ApplyEnvVarsMetadataConfigMap(deploy.kubeutil, deploy.radixDeployment.Namespace, currentEnvVarsMetadataConfigMap, envVarsMetadataMap)
+	if err != nil {
+		return err
+	}
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }
 

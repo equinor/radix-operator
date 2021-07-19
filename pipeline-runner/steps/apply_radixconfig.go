@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -47,7 +48,7 @@ func (cli *ApplyConfigStepImplementation) ErrorMsg(err error) string {
 func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	// Get radix application from config map
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	configMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.RadixConfigMapName)
+	configMap, err := kube.GetConfigMap(cli.GetKubeutil(), namespace, pipelineInfo.RadixConfigMapName)
 	if err != nil {
 		return err
 	}

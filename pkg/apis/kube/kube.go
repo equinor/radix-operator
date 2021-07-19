@@ -75,6 +75,25 @@ type Kube struct {
 	JobLister                batchListers.JobLister
 }
 
+//KubeUtil Contains Kube client and Radix client
+type KubeUtil interface {
+	GetKubeClient() kubernetes.Interface
+	GetRadixClient() radixclient.Interface
+	GetConfigMapLister() coreListers.ConfigMapLister
+}
+
+func (k Kube) GetKubeClient() kubernetes.Interface {
+	return k.kubeClient
+}
+
+func (k Kube) GetRadixClient() radixclient.Interface {
+	return k.radixclient
+}
+
+func (k Kube) GetConfigMapLister() coreListers.ConfigMapLister {
+	return k.ConfigMapLister
+}
+
 var logger *log.Entry
 
 func init() {

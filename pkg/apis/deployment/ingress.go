@@ -40,7 +40,7 @@ const (
 
 func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	clustername, err := deploy.kubeutil.GetClusterName()
+	clustername, err := kube.GetClusterName(deploy.kubeutil)
 	if err != nil {
 		return err
 	}
@@ -425,7 +425,7 @@ func getPublicPortNumber(ports []v1.ComponentPort, publicPort string) int32 {
 
 func loadIngressConfigFromMap(kubeutil *kube.Kube) IngressConfiguration {
 
-	configMap, err := kubeutil.GetConfigMap(corev1.NamespaceDefault, ingressConfigurationMap)
+	configMap, err := kube.GetConfigMap(kubeutil, corev1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
 		return IngressConfiguration{}
 	}

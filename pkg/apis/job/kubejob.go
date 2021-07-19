@@ -124,7 +124,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
 
 	// Operator will never have an issue with getting clustername
-	clusterName, _ := job.kubeutil.GetClusterName()
+	clusterName, _ := kube.GetClusterName(job.kubeutil)
 
 	// Base arguments for all types of pipeline
 	args := []string{

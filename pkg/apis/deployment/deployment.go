@@ -494,7 +494,7 @@ func (deploy *Deployment) maintainHistoryLimit() {
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {
-	envVarConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.GetName(), component.GetName())
+	envVarConfigMap, envVarsMetadataConfigMap, err := kube.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.kubeutil, deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.GetName(), component.GetName())
 	// Deploy to current radixDeploy object's namespace
 	err = deploy.createOrUpdateDeployment(component, envVarConfigMap, envVarsMetadataConfigMap)
 	if err != nil {
