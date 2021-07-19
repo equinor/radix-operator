@@ -120,11 +120,11 @@ type RadixJobStepScanOutput struct {
 	Status ScanStatus `json:"status" yaml:"status"`
 	// Vulnerabilities is a map of severity level and number of vulnerabilities found
 	Vulnerabilities VulnerabilityMap `json:"vulnerabilities" yaml:"vulnerabilities"`
-	// Name of the ConfigMap with detailed information about vulnerabilities found during scan
+	// VulnerabilityListConfigMap defines the name of the ConfigMap with list of information about vulnerabilities found during scan
 	// the ConfigMap must be in the same namespace as the RadixJob
-	VulnerabilityDetailConfigMap string `json:"vulnerabilityDetailConfigMap" yaml:"vulnerabilityDetailConfigMap"`
-	// Name of key in VulnerabilityDetailConfigMap where vulnerability details are stored
-	VulnerabilityDetailKey string `json:"vulnerabilityDetailKey" yaml:"vulnerabilityDetailKey"`
+	VulnerabilityListConfigMap string `json:"vulnerabilityListConfigMap" yaml:"vulnerabilityListConfigMap"`
+	// VulnerabilityListKey defines the key in VulnerabilityListConfigMap where vulnerability details are stored
+	VulnerabilityListKey string `json:"vulnerabilityListKey" yaml:"vulnerabilityListKey"`
 }
 
 type VulnerabilityMap map[string]uint
@@ -134,6 +134,5 @@ type ScanStatus string
 
 const (
 	ScanSuccess ScanStatus = "Success" // Scan completed successfully
-	ScanFailed  ScanStatus = "Failed"  // Scan failed
-	ScanMissing ScanStatus = "Missing" // Scan was not exewcuted
+	ScanMissing ScanStatus = "Missing" // Scan results are missing
 )

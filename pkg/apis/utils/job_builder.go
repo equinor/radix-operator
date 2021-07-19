@@ -302,7 +302,21 @@ func ACompletedJobStatus() JobStatusBuilder {
 			ABuildAppStep().
 				WithCondition(v1.JobRunning).
 				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))))
+				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+			AScanAppStep().
+				WithCondition(v1.JobRunning).
+				WithStarted(time.Now()).
+				WithEnded(time.Now().Add(time.Second*time.Duration(100))).
+				WithOutput(
+					&v1.RadixJobStepOutput{
+						Scan: &v1.RadixJobStepScanOutput{
+							Status:                     v1.ScanSuccess,
+							Vulnerabilities:            v1.VulnerabilityMap{"critical": 1, "high": 2},
+							VulnerabilityListConfigMap: "scan-configmap",
+							VulnerabilityListKey:       "list-of-vulnerabilities",
+						},
+					},
+				))
 
 	return builder
 }
@@ -314,6 +328,7 @@ type JobStepBuilder interface {
 	WithStarted(time.Time) JobStepBuilder
 	WithEnded(time.Time) JobStepBuilder
 	WithComponents(...string) JobStepBuilder
+	WithOutput(*v1.RadixJobStepOutput) JobStepBuilder
 	Build() v1.RadixJobStep
 }
 
@@ -323,6 +338,7 @@ type jobStepBuilder struct {
 	started    time.Time
 	ended      time.Time
 	components []string
+	output     *v1.RadixJobStepOutput
 }
 
 func (sb *jobStepBuilder) WithCondition(condition v1.RadixJobCondition) JobStepBuilder {
@@ -350,6 +366,11 @@ func (sb *jobStepBuilder) WithComponents(components ...string) JobStepBuilder {
 	return sb
 }
 
+func (sb *jobStepBuilder) WithOutput(output *v1.RadixJobStepOutput) JobStepBuilder {
+	sb.output = output
+	return sb
+}
+
 func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
 	started, _ := time.Parse(time.RFC850, sb.started.Format(time.RFC850))
@@ -361,6 +382,7 @@ func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 		Ended:      &metav1.Time{Time: ended},
 		Name:       sb.name,
 		Components: sb.components,
+		Output:     sb.output,
 	}
 }
 
@@ -397,6 +419,14 @@ func ACloneStep() JobStepBuilder {
 func ABuildAppStep() JobStepBuilder {
 	builder := NewJobStepBuilder().
 		WithName("build-app")
+
+	return builder
+}
+
+// ABuildAppStep Constructor build-app
+func AScanAppStep() JobStepBuilder {
+	builder := NewJobStepBuilder().
+		WithName("scan-app")
 
 	return builder
 }

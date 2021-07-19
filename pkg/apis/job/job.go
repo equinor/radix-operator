@@ -442,9 +442,8 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
-			containerOutputConfigMap := containerOutputs[containerStatus.Name]
-			existingJobStepOutput := getJobStepOutputFromRadixJob(job.radixJob.Status, pod.GetName(), containerStatus.Name)
-			jobStepOutput := getJobStepOutputFunc(job.kubeclient, jobType, containerOutputConfigMap, job.radixJob.Namespace, existingJobStepOutput)
+			containerOutputName := containerOutputs[containerStatus.Name]
+			jobStepOutput := getJobStepOutputFunc(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)
 			step := getJobStep(pod.GetName(), &containerStatus, components, jobStepOutput)
 			steps = append(steps, step)
 		}
@@ -453,83 +452,58 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 	return steps, nil
 }
 
-func getJobStepOutputFromRadixJob(status v1.RadixJobStatus, podName, containerName string) *v1.RadixJobStepOutput {
-	for _, step := range status.Steps {
-		if step.Name == containerName && step.PodName == podName {
-			return step.Output
-		}
-	}
-
-	return nil
-}
-
-func getJobStepOutputFunc(kubeClient kubernetes.Interface, jobType, configMapName, namespace string, existingJobStepOutput *v1.RadixJobStepOutput) jobStepOutputFunc {
+func getJobStepOutputFunc(kubeClient kubernetes.Interface, jobType, containerOutputName, namespace string, containerStatus corev1.ContainerStatus) jobStepOutputFunc {
 	switch jobType {
 	case kube.RadixJobTypeScan:
-		return getScanJobStepOutputFunc(kubeClient, configMapName, namespace, existingJobStepOutput)
+		return getScanJobStepOutputFunc(kubeClient, containerOutputName, namespace, containerStatus)
 	default:
 		return nil
 	}
 }
 
-func getScanJobStepOutputFunc(kubeClient kubernetes.Interface, configMapName, namespace string, existingJobStepOutput *v1.RadixJobStepOutput) jobStepOutputFunc {
+func getScanJobStepOutputFunc(kubeClient kubernetes.Interface, outputConfigMapName, namespace string, containerStatus corev1.ContainerStatus) jobStepOutputFunc {
 	return func() *v1.RadixJobStepOutput {
-		var existingScanOutput *v1.RadixJobStepScanOutput
-		if existingJobStepOutput != nil {
-			existingScanOutput = existingJobStepOutput.Scan
+		// Wait for completion of container before processing scan step output
+		if containerStatus.State.Terminated == nil {
+			return nil
 		}
-		scanOutput, err := getScanJobOutput(kubeClient, configMapName, namespace, existingScanOutput)
-		if err != nil {
-			return existingJobStepOutput
+
+		scanOutput := getScanJobOutput(kubeClient, outputConfigMapName, namespace)
+		return &v1.RadixJobStepOutput{
+			Scan: scanOutput,
 		}
-		jobStepOutput := &v1.RadixJobStepOutput{}
-		if existingJobStepOutput != nil {
-			jobStepOutput = existingJobStepOutput.DeepCopy()
-		}
-		jobStepOutput.Scan = scanOutput
-		return jobStepOutput
 	}
 }
 
-func getScanJobOutput(kubeClient kubernetes.Interface, configMapName, namespace string, existingScanOutput *v1.RadixJobStepScanOutput) (*v1.RadixJobStepScanOutput, error) {
+func getScanJobOutput(kubeClient kubernetes.Interface, configMapName, namespace string) *v1.RadixJobStepScanOutput {
+	scanMissing := v1.RadixJobStepScanOutput{Status: v1.ScanMissing}
 	if configMapName == "" {
-		return &v1.RadixJobStepScanOutput{Status: v1.ScanMissing}, nil
+		return &scanMissing
 	}
 
 	cm, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return &scanMissing
 	}
 
 	vulnerabilityCountJson, countFound := cm.Data[defaults.RadixPipelineScanStepVulnerabilityCountKey]
-	_, listFound := cm.Data[defaults.RadixPipelineScanStepVulnerabilityListKey]
-	if !listFound || !countFound {
-		// If the vulnerability keys are not found in ConfigMap it can mean that we are syncing an old RadixJob
-		// and keys probably have changed. We'll return the existing scan status if it exists
-		if existingScanOutput != nil {
-			return existingScanOutput, nil
-		} else {
-			return &v1.RadixJobStepScanOutput{Status: v1.ScanFailed}, nil
-		}
-	}
-
-	if len(vulnerabilityCountJson) == 0 {
-		return &v1.RadixJobStepScanOutput{Status: v1.ScanFailed}, nil
+	if !countFound || len(vulnerabilityCountJson) == 0 {
+		return &scanMissing
 	}
 
 	vulnerabilityCountMap := make(v1.VulnerabilityMap)
 	if err := json.Unmarshal([]byte(vulnerabilityCountJson), &vulnerabilityCountMap); err != nil {
-		return nil, err
+		return &scanMissing
 	}
 
 	scanOutput := v1.RadixJobStepScanOutput{
-		Status:                       v1.ScanSuccess,
-		Vulnerabilities:              vulnerabilityCountMap,
-		VulnerabilityDetailKey:       defaults.RadixPipelineScanStepVulnerabilityListKey,
-		VulnerabilityDetailConfigMap: configMapName,
+		Status:                     v1.ScanSuccess,
+		Vulnerabilities:            vulnerabilityCountMap,
+		VulnerabilityListKey:       defaults.RadixPipelineScanStepVulnerabilityListKey,
+		VulnerabilityListConfigMap: configMapName,
 	}
 
-	return &scanOutput, nil
+	return &scanOutput
 }
 
 func getContainerOutputforJob(job *batchv1.Job) (pipeline.ContainerOutput, error) {
