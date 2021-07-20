@@ -119,12 +119,12 @@ type RadixJobStepOutput struct {
 type RadixJobStepScanOutput struct {
 	Status ScanStatus `json:"status" yaml:"status"`
 	// Vulnerabilities is a map of severity level and number of vulnerabilities found
-	Vulnerabilities VulnerabilityMap `json:"vulnerabilities" yaml:"vulnerabilities"`
+	Vulnerabilities VulnerabilityMap `json:"vulnerabilities,omitempty" yaml:"vulnerabilities,omitempty"`
 	// VulnerabilityListConfigMap defines the name of the ConfigMap with list of information about vulnerabilities found during scan
 	// the ConfigMap must be in the same namespace as the RadixJob
-	VulnerabilityListConfigMap string `json:"vulnerabilityListConfigMap" yaml:"vulnerabilityListConfigMap"`
+	VulnerabilityListConfigMap string `json:"vulnerabilityListConfigMap,omitempty" yaml:"vulnerabilityListConfigMap,omitempty"`
 	// VulnerabilityListKey defines the key in VulnerabilityListConfigMap where vulnerability details are stored
-	VulnerabilityListKey string `json:"vulnerabilityListKey" yaml:"vulnerabilityListKey"`
+	VulnerabilityListKey string `json:"vulnerabilityListKey,omitempty" yaml:"vulnerabilityListKey,omitempty"`
 }
 
 type VulnerabilityMap map[string]uint

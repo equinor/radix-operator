@@ -282,31 +282,33 @@ func AStartedJobStatus() JobStatusBuilder {
 
 // ACompletedJobStatus Constructor for a completed job
 func ACompletedJobStatus() JobStatusBuilder {
+	started := time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)
+	ended := started.Add(5 * time.Minute)
 	builder := NewJobStatusBuilder().
 		WithCondition(v1.JobSucceeded).
-		WithStarted(time.Now()).
-		WithEnded(time.Now().Add(time.Second*time.Duration(100))).
+		WithStarted(started).
+		WithEnded(ended).
 		WithSteps(
 			ACloneConfigStep().
 				WithCondition(v1.JobSucceeded).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+				WithStarted(started).
+				WithEnded(ended),
 			ARadixPipelineStep().
 				WithCondition(v1.JobRunning).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+				WithStarted(started).
+				WithEnded(ended),
 			ACloneStep().
 				WithCondition(v1.JobSucceeded).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+				WithStarted(started).
+				WithEnded(ended),
 			ABuildAppStep().
 				WithCondition(v1.JobRunning).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+				WithStarted(started).
+				WithEnded(ended),
 			AScanAppStep().
 				WithCondition(v1.JobRunning).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))).
+				WithStarted(started).
+				WithEnded(ended).
 				WithOutput(
 					&v1.RadixJobStepOutput{
 						Scan: &v1.RadixJobStepScanOutput{
