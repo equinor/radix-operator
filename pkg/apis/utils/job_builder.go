@@ -238,8 +238,8 @@ func (jsb *jobStatusBuilder) Build() v1.RadixJobStatus {
 	}
 
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
-	started, _ := time.Parse(time.RFC850, jsb.started.Format(time.RFC850))
-	ended, _ := time.Parse(time.RFC850, jsb.ended.Format(time.RFC850))
+	started, _ := time.Parse(time.RFC3339, jsb.started.Format(time.RFC3339))
+	ended, _ := time.Parse(time.RFC3339, jsb.ended.Format(time.RFC3339))
 	targetEnvs := []string{"test"}
 
 	return v1.RadixJobStatus{
@@ -375,8 +375,8 @@ func (sb *jobStepBuilder) WithOutput(output *v1.RadixJobStepOutput) JobStepBuild
 
 func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
-	started, _ := time.Parse(time.RFC850, sb.started.Format(time.RFC850))
-	ended, _ := time.Parse(time.RFC850, sb.ended.Format(time.RFC850))
+	started, _ := time.Parse(time.RFC3339, sb.started.Format(time.RFC3339))
+	ended, _ := time.Parse(time.RFC3339, sb.ended.Format(time.RFC3339))
 
 	return v1.RadixJobStep{
 		Condition:  sb.condition,

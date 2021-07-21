@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	kubeUtils "github.com/equinor/radix-operator/pkg/apis/kube"
@@ -104,7 +105,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 
 	expectedStatus := completedJobStatus.Build()
 	actualStatus := job.Status
-	assert.Equal(s.T(), expectedStatus, actualStatus)
+	assertStatusEqual(s.T(), expectedStatus, actualStatus)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
@@ -193,4 +194,25 @@ func (s *RadixJobTestSuite) getRadixJobByName(name string, jobs *v1.RadixJobList
 	}
 
 	return nil
+}
+
+func assertStatusEqual(t *testing.T, expectedStatus, actualStatus v1.RadixJobStatus) {
+	getTimestamp := func(t time.Time) string {
+		return t.Format("20060102150405") // YYYYMMDDHHMISS in Go
+	}
+
+	assert.Equal(t, getTimestamp(expectedStatus.Started.Time), getTimestamp(actualStatus.Started.Time))
+	assert.Equal(t, getTimestamp(expectedStatus.Ended.Time), getTimestamp(actualStatus.Ended.Time))
+	assert.Equal(t, expectedStatus.Condition, actualStatus.Condition)
+	assert.Equal(t, expectedStatus.TargetEnvs, actualStatus.TargetEnvs)
+
+	for index, expectedStep := range expectedStatus.Steps {
+		assert.Equal(t, expectedStep.Name, actualStatus.Steps[index].Name)
+		assert.Equal(t, expectedStep.Condition, actualStatus.Steps[index].Condition)
+		assert.Equal(t, getTimestamp(expectedStep.Started.Time), getTimestamp(actualStatus.Steps[index].Started.Time))
+		assert.Equal(t, getTimestamp(expectedStep.Ended.Time), getTimestamp(actualStatus.Steps[index].Ended.Time))
+		assert.Equal(t, expectedStep.Components, actualStatus.Steps[index].Components)
+		assert.Equal(t, expectedStep.PodName, actualStatus.Steps[index].PodName)
+		assert.Equal(t, expectedStep.Output, actualStatus.Steps[index].Output)
+	}
 }

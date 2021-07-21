@@ -69,21 +69,17 @@ func (cli *ScanImageImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
 	scannerImage := fmt.Sprintf("%s/%s", pipelineInfo.ContainerRegistry, pipelineInfo.PipelineArguments.ImageScanner)
 
-	var ownerReference []metav1.OwnerReference
 	// When debugging pipeline there will be no RJ
-	if !pipelineInfo.PipelineArguments.Debug {
-		var err error
-		ownerReference, err = jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
-		if err != nil {
-			return err
-		}
+	ownerReference, err := jobUtil.GetOwnerReferenceOfJob(cli.GetRadixclient(), namespace, pipelineInfo.PipelineArguments.JobName)
+	if err != nil && !pipelineInfo.PipelineArguments.Debug {
+		return err
 	}
 
 	job, scanOutputConfigMaps := createScanJob(cli.GetAppName(), scannerImage, pipelineInfo.ComponentImages, pipelineInfo.PipelineArguments)
 	job.OwnerReferences = ownerReference
 
 	log.Infof("Apply job (%s) to scan component images for app %s", job.Name, cli.GetAppName())
-	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
+	job, err = cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

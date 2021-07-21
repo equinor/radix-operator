@@ -113,7 +113,7 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 
 	err = app.applyRbacOnScanImageRunner()
 	if err != nil {
-		logger.Errorf("Failed to set access permissions needed to copy vulnerability scan resultsa to configmap: %v", err)
+		logger.Errorf("Failed to set access permissions needed to copy vulnerability scan results to configmap: %v", err)
 		return err
 	}
 
