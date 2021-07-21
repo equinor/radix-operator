@@ -220,6 +220,45 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_BuildSteps() {
 	s.testSetStatusOfJobTestScenario(&scenario)
 }
 
+func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
+	scenario := setStatusOfJobTestScenario{
+		name:     "steps with init containers",
+		radixjob: s.getBuildDeployJob("job-1", "app-1").BuildRJ(),
+		jobs: []*batchv1.Job{
+			s.getPipelineJob("job-1", "app-1", "a_tag"),
+			s.getCloneConfigJob("clone-job-1", "job-1", "app-1", "a_tag"),
+			s.getBuildJob("build-job-1", "job-1", "app-1", "a_tag", map[string]pipeline.ComponentImage{}),
+		},
+		pods: []*corev1.Pod{
+			s.appendJobPodContainerStatus(
+				s.getJobPod("pipeline-pod-1", "job-1", utils.GetAppNamespace("app-1")),
+				s.getWaitingContainerStatus("radix-pipeline")),
+			s.appendJobPodInitContainerStatus(
+				s.appendJobPodContainerStatus(
+					s.getJobPod("clone-pod-1", "clone-job-1", utils.GetAppNamespace("app-1")),
+					s.getWaitingContainerStatus("apply-config")),
+				s.getWaitingContainerStatus("clone-config")),
+			s.appendJobPodInitContainerStatus(
+				s.getJobPod("build-pod-1", "build-job-1", utils.GetAppNamespace("app-1")),
+				s.getWaitingContainerStatus("build-init1"),
+				s.getWaitingContainerStatus("build-init2"),
+				s.getWaitingContainerStatus("internal-build-init"),
+			),
+		},
+		expected: setStatusOfJobTestScenarioExpected{
+			steps: []v1.RadixJobStep{
+				{Condition: v1.JobWaiting, Name: "clone-config", PodName: "clone-pod-1"},
+				{Condition: v1.JobWaiting, Name: "apply-config", PodName: "clone-pod-1"},
+				{Condition: v1.JobWaiting, Name: "radix-pipeline", PodName: "pipeline-pod-1"},
+				{Condition: v1.JobWaiting, Name: "build-init1", PodName: "build-pod-1"},
+				{Condition: v1.JobWaiting, Name: "build-init2", PodName: "build-pod-1"},
+			},
+		},
+	}
+
+	s.testSetStatusOfJobTestScenario(&scenario)
+}
+
 func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 	startedAt, finishedAt := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local))
 	vulnerabilityMap := v1.VulnerabilityMap{"critical": 2, "medium": 3}
