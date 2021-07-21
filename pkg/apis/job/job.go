@@ -549,7 +549,7 @@ func getComponentsForContainer(name string, componentImages map[string]pipeline.
 			components = append(components, component)
 		}
 	}
-
+	sort.Strings(components)
 	return components
 }
 
