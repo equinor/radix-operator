@@ -279,7 +279,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 						"single": {ContainerName: "single-container"},
 						"multi1": {ContainerName: "multi-container"},
 						"multi2": {ContainerName: "multi-container"},
-					}, pipeline.ContainerOutput{}),
+					}, pipeline.ContainerOutputName{}),
 			},
 			pods: []*corev1.Pod{
 				s.appendJobPodContainerStatus(
@@ -314,7 +314,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 				s.getCloneConfigJob("clone-job-2", "job-2", "app-2", "a_tag"),
 				s.getScanJob("scan-job-2", "job-2", "app-2", "a_tag",
 					map[string]pipeline.ComponentImage{},
-					pipeline.ContainerOutput{
+					pipeline.ContainerOutputName{
 						"scan-waiting":           "cm-2-scan",
 						"scan-running":           "cm-2-scan",
 						"scan-terminated":        "cm-2-scan",
@@ -396,7 +396,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 				s.getCloneConfigJob("clone-job-3", "job-3", "app-3", "a_tag"),
 				s.getScanJob("scan-job-3", "job-3", "app-3", "a_tag",
 					map[string]pipeline.ComponentImage{},
-					pipeline.ContainerOutput{
+					pipeline.ContainerOutputName{
 						"scan-missing-cm":      "cm-3-missing",
 						"scan-missing-cm-key":  "cm-3-missing-key",
 						"scan-cm-invalid-data": "cm-3-invalid-data",
@@ -600,7 +600,7 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 	}
 }
 
-func (s *RadixJobStepTestSuite) getScanJob(name, radixJobName, appName, imageTag string, componentImages map[string]pipeline.ComponentImage, containerOutput pipeline.ContainerOutput) *batchv1.Job {
+func (s *RadixJobStepTestSuite) getScanJob(name, radixJobName, appName, imageTag string, componentImages map[string]pipeline.ComponentImage, containerOutput pipeline.ContainerOutputName) *batchv1.Job {
 	componentImageAnnontation, _ := json.Marshal(&componentImages)
 	containerOutputAnnontation, _ := json.Marshal(&containerOutput)
 	return &batchv1.Job{

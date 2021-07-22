@@ -439,14 +439,14 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			return nil, err
 		}
 
-		containerOutputs := make(pipeline.ContainerOutput)
-		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixContainerOutputAnnotation, &containerOutputs); err != nil {
+		containerOutputNames := make(pipeline.ContainerOutputName)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixContainerOutputAnnotation, &containerOutputNames); err != nil {
 			return nil, err
 		}
 
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
-			containerOutputName := containerOutputs[containerStatus.Name]
+			containerOutputName := containerOutputNames[containerStatus.Name]
 			var jobstepOutput *v1.RadixJobStepOutput
 			jobstepOutput = getJobStepOutputFunc(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)()
 			step := getJobStep(pod.GetName(), &containerStatus, components, jobstepOutput)
