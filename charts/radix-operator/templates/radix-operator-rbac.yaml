@@ -49,6 +49,7 @@ rules:
   - watch 
   - create
   - delete
+  - update # required since radix operator grants this to others
 - apiGroups:
   - '*'
   resources:
