@@ -434,12 +434,13 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			steps = append(steps, getJobStepWithNoComponents(pod.GetName(), &containerStatus))
 		}
 
-		componentImages, err := getComponentImagesForJob(&jobStep)
-		if err != nil {
+		componentImages := make(map[string]pipeline.ComponentImage)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixComponentImagesAnnotation, &componentImages); err != nil {
 			return nil, err
 		}
-		containerOutputs, err := getContainerOutputForJob(&jobStep)
-		if err != nil {
+
+		containerOutputs := make(pipeline.ContainerOutput)
+		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixContainerOutputAnnotation, &containerOutputs); err != nil {
 			return nil, err
 		}
 
@@ -456,34 +457,15 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 	return steps, nil
 }
 
-func getContainerOutputForJob(job *batchv1.Job) (pipeline.ContainerOutput, error) {
-	containerOutputAnnotation := job.GetObjectMeta().GetAnnotations()[kube.RadixContainerOutputAnnotation]
-	componentOutput := make(pipeline.ContainerOutput)
-
-	if !strings.EqualFold(containerOutputAnnotation, "") {
-		err := json.Unmarshal([]byte(containerOutputAnnotation), &componentOutput)
-
+func getObjectFromJobAnnotation(job *batchv1.Job, annotationName string, obj interface{}) error {
+	annotation := job.GetObjectMeta().GetAnnotations()[annotationName]
+	if !strings.EqualFold(annotation, "") {
+		err := json.Unmarshal([]byte(annotation), obj)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-
-	return componentOutput, nil
-}
-
-func getComponentImagesForJob(job *batchv1.Job) (map[string]pipeline.ComponentImage, error) {
-	componentImagesAnnotation := job.GetObjectMeta().GetAnnotations()[kube.RadixComponentImagesAnnotation]
-	componentImages := make(map[string]pipeline.ComponentImage)
-
-	if !strings.EqualFold(componentImagesAnnotation, "") {
-		err := json.Unmarshal([]byte(componentImagesAnnotation), &componentImages)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return componentImages, nil
+	return nil
 }
 
 func getComponentsForContainer(name string, componentImages map[string]pipeline.ComponentImage) []string {
