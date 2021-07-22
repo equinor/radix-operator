@@ -19,7 +19,7 @@ func getJobStepOutputFunc(kubeClient kubernetes.Interface, jobType, containerOut
 	case kube.RadixJobTypeScan:
 		return getScanJobStepOutputFunc(kubeClient, containerOutputName, namespace, containerStatus)
 	default:
-		return nil
+		return func() *v1.RadixJobStepOutput { return nil }
 	}
 }
 
@@ -37,24 +37,35 @@ func getScanJobStepOutputFunc(kubeClient kubernetes.Interface, outputConfigMapNa
 	}
 }
 
+const (
+	ScanStatusReasonNotRequested     = "Pipeline did not request scan job to output results"
+	ScanStatusReasonOutputDeleted    = "Output from scan job deleted"
+	ScanStatusReasonResultMissing    = "Scan results not found in output from scan job"
+	ScanStatusReasonResultParseError = "Unable to parse output from scan job"
+)
+
 func getScanJobOutput(kubeClient kubernetes.Interface, configMapName, namespace string) *v1.RadixJobStepScanOutput {
 	scanMissing := v1.RadixJobStepScanOutput{Status: v1.ScanMissing}
 	if configMapName == "" {
+		scanMissing.Reason = ScanStatusReasonNotRequested
 		return &scanMissing
 	}
 
 	cm, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
 	if err != nil {
+		scanMissing.Reason = ScanStatusReasonOutputDeleted
 		return &scanMissing
 	}
 
 	vulnerabilityCountJson, exists := cm.Data[defaults.RadixPipelineScanStepVulnerabilityCountKey]
-	if !exists {
+	if !exists || len(vulnerabilityCountJson) == 0 {
+		scanMissing.Reason = ScanStatusReasonResultMissing
 		return &scanMissing
 	}
 
 	vulnerabilityCountMap := make(v1.VulnerabilityMap)
 	if err := json.Unmarshal([]byte(vulnerabilityCountJson), &vulnerabilityCountMap); err != nil {
+		scanMissing.Reason = ScanStatusReasonResultParseError
 		return &scanMissing
 	}
 

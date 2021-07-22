@@ -446,8 +446,9 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
 			containerOutputName := containerOutputs[containerStatus.Name]
-			jobStepOutput := getJobStepOutputFunc(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)
-			step := getJobStep(pod.GetName(), &containerStatus, components, jobStepOutput)
+			var jobstepOutput *v1.RadixJobStepOutput
+			jobstepOutput = getJobStepOutputFunc(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)()
+			step := getJobStep(pod.GetName(), &containerStatus, components, jobstepOutput)
 			steps = append(steps, step)
 		}
 	}
@@ -569,11 +570,11 @@ func getJobStepWithNoComponents(podName string, containerStatus *corev1.Containe
 	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, nil, nil)
 }
 
-func getJobStep(podName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutputFunc jobStepOutputFunc) v1.RadixJobStep {
-	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, components, jobStepOutputFunc)
+func getJobStep(podName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutput *v1.RadixJobStepOutput) v1.RadixJobStep {
+	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, components, jobStepOutput)
 }
 
-func getJobStepWithContainerName(podName, containerName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutputFunc jobStepOutputFunc) v1.RadixJobStep {
+func getJobStepWithContainerName(podName, containerName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutput *v1.RadixJobStepOutput) v1.RadixJobStep {
 	var startedAt *metav1.Time
 	var finishedAt *metav1.Time
 
@@ -597,11 +598,6 @@ func getJobStepWithContainerName(podName, containerName string, containerStatus 
 	} else if containerStatus.State.Waiting != nil {
 		status = v1.JobWaiting
 
-	}
-
-	var jobStepOutput *v1.RadixJobStepOutput
-	if jobStepOutputFunc != nil {
-		jobStepOutput = jobStepOutputFunc()
 	}
 
 	return v1.RadixJobStep{

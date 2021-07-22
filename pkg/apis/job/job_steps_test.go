@@ -100,7 +100,11 @@ func (s *RadixJobStepTestSuite) TestIt() {
 	}
 
 	for _, scenario := range scenarios {
-		actual := getJobStepWithContainerName(scenario.podName, scenario.containerName, scenario.containerStatus, scenario.components, scenario.jobStepOutputFunc)
+		var output *v1.RadixJobStepOutput
+		if scenario.jobStepOutputFunc != nil {
+			output = scenario.jobStepOutputFunc()
+		}
+		actual := getJobStepWithContainerName(scenario.podName, scenario.containerName, scenario.containerStatus, scenario.components, output)
 		assert.Equal(s.T(), scenario.expected, actual, scenario.name)
 	}
 }
@@ -393,8 +397,9 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 				s.getScanJob("scan-job-3", "job-3", "app-3", "a_tag",
 					map[string]pipeline.ComponentImage{},
 					pipeline.ContainerOutput{
-						"scan-missing-cm":     "cm-3-missing",
-						"scan-missing-cm-key": "cm-3-missing-key",
+						"scan-missing-cm":      "cm-3-missing",
+						"scan-missing-cm-key":  "cm-3-missing-key",
+						"scan-cm-invalid-data": "cm-3-invalid-data",
 					}),
 			},
 			configMaps: []*corev1.ConfigMap{
@@ -403,6 +408,12 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 					utils.GetAppNamespace("app-3"),
 					"incorrect-key",
 					vulnerabilityMap,
+				),
+				s.getScanConfigMapOutput(
+					"cm-3-invalid-data",
+					utils.GetAppNamespace("app-3"),
+					defaults.RadixPipelineScanStepVulnerabilityCountKey,
+					"invalid-data",
 				),
 			},
 			pods: []*corev1.Pod{
@@ -419,6 +430,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 					s.getTerminatedContainerStatus("scan-missing-annotation", startedAt, finishedAt, 0),
 					s.getTerminatedContainerStatus("scan-missing-cm", startedAt, finishedAt, 0),
 					s.getTerminatedContainerStatus("scan-missing-cm-key", startedAt, finishedAt, 0),
+					s.getTerminatedContainerStatus("scan-cm-invalid-data", startedAt, finishedAt, 0),
 				),
 			},
 			expected: setStatusOfJobTestScenarioExpected{
@@ -436,6 +448,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 						Output: &v1.RadixJobStepOutput{
 							Scan: &v1.RadixJobStepScanOutput{
 								Status: v1.ScanMissing,
+								Reason: ScanStatusReasonNotRequested,
 							},
 						},
 					},
@@ -449,6 +462,7 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 						Output: &v1.RadixJobStepOutput{
 							Scan: &v1.RadixJobStepScanOutput{
 								Status: v1.ScanMissing,
+								Reason: ScanStatusReasonOutputDeleted,
 							},
 						},
 					},
@@ -462,6 +476,21 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
 						Output: &v1.RadixJobStepOutput{
 							Scan: &v1.RadixJobStepScanOutput{
 								Status: v1.ScanMissing,
+								Reason: ScanStatusReasonResultMissing,
+							},
+						},
+					},
+					{
+						Condition:  v1.JobSucceeded,
+						Name:       "scan-cm-invalid-data",
+						PodName:    "scan-pod-3",
+						Components: []string{},
+						Started:    &startedAt,
+						Ended:      &finishedAt,
+						Output: &v1.RadixJobStepOutput{
+							Scan: &v1.RadixJobStepScanOutput{
+								Status: v1.ScanMissing,
+								Reason: ScanStatusReasonResultParseError,
 							},
 						},
 					},
@@ -592,7 +621,7 @@ func (s *RadixJobStepTestSuite) getScanJob(name, radixJobName, appName, imageTag
 	}
 }
 
-func (s *RadixJobStepTestSuite) getScanConfigMapOutput(name, namespace, vulnerabilityKey string, vulnerabilities v1.VulnerabilityMap) *corev1.ConfigMap {
+func (s *RadixJobStepTestSuite) getScanConfigMapOutput(name, namespace, vulnerabilityKey string, vulnerabilities interface{}) *corev1.ConfigMap {
 	vulnerabilityBytes, _ := json.Marshal(&vulnerabilities)
 
 	cm := corev1.ConfigMap{

@@ -117,7 +117,10 @@ type RadixJobStepOutput struct {
 
 // RadixJobStepScanOutput holds information about output from a single scan step
 type RadixJobStepScanOutput struct {
+	// Status of scan results
 	Status ScanStatus `json:"status" yaml:"status"`
+	// Reason for the status
+	Reason string `json:"reason,omitempty" yaml:"reason,omitempty"`
 	// Vulnerabilities is a map of severity level and number of vulnerabilities found
 	Vulnerabilities VulnerabilityMap `json:"vulnerabilities,omitempty" yaml:"vulnerabilities,omitempty"`
 	// VulnerabilityListConfigMap defines the name of the ConfigMap with list of information about vulnerabilities found during scan
