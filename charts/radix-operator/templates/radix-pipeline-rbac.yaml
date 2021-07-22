@@ -35,6 +35,13 @@ rules:
   - radixjobs
   verbs:
   - get
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - update
 ---
 # used to grant pipeline access to create new namespaces and deployments
 apiVersion: rbac.authorization.k8s.io/v1

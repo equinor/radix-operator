@@ -51,11 +51,9 @@ func (job *Job) createJob() error {
 
 func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 	imageTag := fmt.Sprintf("%s/%s:%s", job.radixJob.Spec.DockerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
-
 	log.Infof("Using image: %s", imageTag)
 
 	backOffLimit := int32(0)
-
 	appName := job.radixJob.Spec.AppName
 	jobName := job.radixJob.Name
 
