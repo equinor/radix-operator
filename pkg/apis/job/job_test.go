@@ -198,7 +198,7 @@ func (s *RadixJobTestSuite) getRadixJobByName(name string, jobs *v1.RadixJobList
 
 func assertStatusEqual(t *testing.T, expectedStatus, actualStatus v1.RadixJobStatus) {
 	getTimestamp := func(t time.Time) string {
-		return t.Format("20060102150405") // YYYYMMDDHHMISS in Go
+		return t.Format(time.RFC3339)
 	}
 
 	assert.Equal(t, getTimestamp(expectedStatus.Started.Time), getTimestamp(actualStatus.Started.Time))

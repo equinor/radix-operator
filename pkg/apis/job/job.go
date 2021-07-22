@@ -438,7 +438,7 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 		if err != nil {
 			return nil, err
 		}
-		containerOutputs, err := getContainerOutputforJob(&jobStep)
+		containerOutputs, err := getContainerOutputForJob(&jobStep)
 		if err != nil {
 			return nil, err
 		}
@@ -456,7 +456,7 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 	return steps, nil
 }
 
-func getContainerOutputforJob(job *batchv1.Job) (pipeline.ContainerOutput, error) {
+func getContainerOutputForJob(job *batchv1.Job) (pipeline.ContainerOutput, error) {
 	containerOutputAnnotation := job.GetObjectMeta().GetAnnotations()[kube.RadixContainerOutputAnnotation]
 	componentOutput := make(pipeline.ContainerOutput)
 
