@@ -448,7 +448,7 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
 			containerOutputName := containerOutputNames[containerStatus.Name]
 			var jobstepOutput *v1.RadixJobStepOutput
-			jobstepOutput = getJobStepOutputFunc(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)()
+			jobstepOutput = getJobStepOutput(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)
 			step := getJobStep(pod.GetName(), &containerStatus, components, jobstepOutput)
 			steps = append(steps, step)
 		}

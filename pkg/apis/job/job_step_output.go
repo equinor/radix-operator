@@ -12,37 +12,33 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type jobStepOutputFunc func() *v1.RadixJobStepOutput
-
-func getJobStepOutputFunc(kubeClient kubernetes.Interface, jobType, containerOutputName, namespace string, containerStatus corev1.ContainerStatus) jobStepOutputFunc {
-	switch jobType {
-	case kube.RadixJobTypeScan:
-		return getScanJobStepOutputFunc(kubeClient, containerOutputName, namespace, containerStatus)
-	default:
-		return func() *v1.RadixJobStepOutput { return nil }
-	}
-}
-
-func getScanJobStepOutputFunc(kubeClient kubernetes.Interface, outputConfigMapName, namespace string, containerStatus corev1.ContainerStatus) jobStepOutputFunc {
-	return func() *v1.RadixJobStepOutput {
-		// Wait for completion of container before processing scan step output
-		if containerStatus.State.Terminated == nil {
-			return nil
-		}
-
-		scanOutput := getScanJobOutput(kubeClient, outputConfigMapName, namespace)
-		return &v1.RadixJobStepOutput{
-			Scan: scanOutput,
-		}
-	}
-}
-
 const (
 	ScanStatusReasonNotRequested     = "Pipeline did not request scan job to output results"
 	ScanStatusReasonOutputDeleted    = "Output from scan job deleted"
 	ScanStatusReasonResultMissing    = "Scan results not found in output from scan job"
 	ScanStatusReasonResultParseError = "Unable to parse output from scan job"
 )
+
+func getJobStepOutput(kubeClient kubernetes.Interface, jobType, containerOutputName, namespace string, containerStatus corev1.ContainerStatus) *v1.RadixJobStepOutput {
+	switch jobType {
+	case kube.RadixJobTypeScan:
+		return getScanJobStepOutput(kubeClient, containerOutputName, namespace, containerStatus)
+	}
+
+	return nil
+}
+
+func getScanJobStepOutput(kubeClient kubernetes.Interface, outputConfigMapName, namespace string, containerStatus corev1.ContainerStatus) *v1.RadixJobStepOutput {
+	// Wait for completion of container before processing scan step output
+	if containerStatus.State.Terminated == nil {
+		return nil
+	}
+
+	scanOutput := getScanJobOutput(kubeClient, outputConfigMapName, namespace)
+	return &v1.RadixJobStepOutput{
+		Scan: scanOutput,
+	}
+}
 
 func getScanJobOutput(kubeClient kubernetes.Interface, configMapName, namespace string) *v1.RadixJobStepScanOutput {
 	scanMissing := v1.RadixJobStepScanOutput{Status: v1.ScanMissing}

@@ -39,13 +39,13 @@ type setStatusOfJobTestScenario struct {
 }
 
 type getJobStepWithContainerNameScenario struct {
-	name              string
-	podName           string
-	containerName     string
-	containerStatus   *corev1.ContainerStatus
-	components        []string
-	jobStepOutputFunc jobStepOutputFunc
-	expected          v1.RadixJobStep
+	name            string
+	podName         string
+	containerName   string
+	containerStatus *corev1.ContainerStatus
+	components      []string
+	jobStepOutput   *v1.RadixJobStepOutput
+	expected        v1.RadixJobStep
 }
 
 func TestRadixJobStepTestSuite(t *testing.T) {
@@ -91,18 +91,16 @@ func (s *RadixJobStepTestSuite) TestIt() {
 			expected:      v1.RadixJobStep{Condition: v1.JobWaiting, Name: "a_container", PodName: "a_pod", Components: []string{"comp1", "comp2"}},
 		},
 		{
-			name: "test jobStepOutputFunc called correctly",
-			jobStepOutputFunc: func() *v1.RadixJobStepOutput {
-				return &testStepOutput
-			},
-			expected: v1.RadixJobStep{Condition: v1.JobWaiting, Output: &testStepOutput},
+			name:          "test jobStepOutputFunc called correctly",
+			jobStepOutput: &testStepOutput,
+			expected:      v1.RadixJobStep{Condition: v1.JobWaiting, Output: &testStepOutput},
 		},
 	}
 
 	for _, scenario := range scenarios {
 		var output *v1.RadixJobStepOutput
-		if scenario.jobStepOutputFunc != nil {
-			output = scenario.jobStepOutputFunc()
+		if scenario.jobStepOutput != nil {
+			output = scenario.jobStepOutput
 		}
 		actual := getJobStepWithContainerName(scenario.podName, scenario.containerName, scenario.containerStatus, scenario.components, output)
 		assert.Equal(s.T(), scenario.expected, actual, scenario.name)
