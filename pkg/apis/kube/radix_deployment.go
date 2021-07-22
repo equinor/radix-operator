@@ -51,3 +51,17 @@ func (kubeutil *Kube) ListRadixDeployments(namespace string) ([]*v1.RadixDeploym
 
 	return allRDs, err
 }
+
+//GetActiveDeployment Get active RadixDeployment for the namespace
+func (kubeutil *Kube) GetActiveDeployment(namespace string) (*v1.RadixDeployment, error) {
+	radixDeployments, err := kubeutil.ListRadixDeployments(namespace)
+	if err != nil {
+		return nil, err
+	}
+	for _, rd := range radixDeployments {
+		if rd.Status.ActiveTo.IsZero() {
+			return rd, err
+		}
+	}
+	return nil, nil
+}
