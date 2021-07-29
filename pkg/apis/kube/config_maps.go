@@ -138,15 +138,24 @@ func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(namespace string, compon
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	envVarsMetadataConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsMetadataConfigMapName(componentName))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	envVarsMetadataMap, err := GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+	envVarsMetadataConfigMap, envVarsMetadataMap, err := kubeutil.GetEnvVarsMetadataConfigMapAndMap(namespace, componentName)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	return envVarsConfigMap, envVarsMetadataConfigMap, envVarsMetadataMap, nil
+}
+
+//GetEnvVarsMetadataConfigMapAndMap Get environment-variables metadata config-map and map from it
+func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, componentName string) (*corev1.ConfigMap, map[string]v1.EnvVarMetadata, error) {
+	envVarsMetadataConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsMetadataConfigMapName(componentName))
+	if err != nil {
+		return nil, nil, err
+	}
+	envVarsMetadataMap, err := GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+	if err != nil {
+		return nil, nil, err
+	}
+	return envVarsMetadataConfigMap, envVarsMetadataMap, nil
 }
 
 //ApplyEnvVarsMetadataConfigMap Save changes of environment-variables metadata to config-map
@@ -178,18 +187,54 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 }
 
 func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
-	configMapName := GetEnvVarsConfigMapName(componentName)
-	configMapType := v1.EnvVarsConfigMap
-	return kubeutil.getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType, configMapName, namespace, appName, componentName)
+	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(GetEnvVarsConfigMapName(componentName), namespace)
+	if err != nil {
+		return nil, err
+	}
+	if configMap != nil {
+		return configMap, nil
+	}
+	return kubeutil.CreateRadixConfigEnvVarsConfigMap(namespace, appName, componentName)
 }
 
 func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
-	configMapName := GetEnvVarsMetadataConfigMapName(componentName)
-	configMapType := v1.EnvVarsMetadataConfigMap
-	return kubeutil.getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType, configMapName, namespace, appName, componentName)
+	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(GetEnvVarsMetadataConfigMapName(componentName), namespace)
+	if err != nil {
+		return nil, err
+	}
+	if configMap != nil {
+		return configMap, nil
+	}
+	return kubeutil.CreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName)
 }
 
-func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMapForType(configMapType v1.RadixConfigMapType, configMapName, namespace, appName, componentName string) (*corev1.ConfigMap, error) {
+//CreateRadixConfigEnvVarsConfigMap Create environment-variables config-map
+func (kubeutil *Kube) CreateRadixConfigEnvVarsConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
+	return kubeutil.createRadixConfigEnvVarsConfigMapForType(v1.EnvVarsConfigMap, namespace, appName, componentName, GetEnvVarsConfigMapName(componentName))
+}
+
+//CreateRadixConfigEnvVarsMetadataConfigMap Create environment-variables metadata config-map
+func (kubeutil *Kube) CreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
+	return kubeutil.createRadixConfigEnvVarsConfigMapForType(v1.EnvVarsMetadataConfigMap, namespace, appName, componentName, GetEnvVarsMetadataConfigMapName(componentName))
+}
+
+func (kubeutil *Kube) createRadixConfigEnvVarsConfigMapForType(configMapType v1.RadixConfigMapType, namespace, appName, componentName, cmName string) (*corev1.ConfigMap, error) {
+	labels := map[string]string{
+		RadixAppLabel:       appName,
+		RadixComponentLabel: componentName,
+		RadixConfigMapType:  string(configMapType),
+	}
+	configMap, err := kubeutil.CreateConfigMap(namespace, cmName, labels)
+	if err != nil {
+		return nil, err
+	}
+	if configMap.Data == nil {
+		configMap.Data = make(map[string]string, 0)
+	}
+	return configMap, err
+}
+
+func (kubeutil *Kube) getRadixConfigEnvVarsConfigMap(configMapName, namespace string) (*corev1.ConfigMap, error) {
 	configMap, err := kubeutil.GetConfigMap(namespace, configMapName)
 	if err != nil {
 		statusError := err.(*k8sErrors.StatusError)
@@ -197,19 +242,12 @@ func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMapForType(configMapTyp
 			return nil, err
 		}
 	}
-	if configMap == nil {
-		labels := map[string]string{
-			RadixAppLabel:       appName,
-			RadixComponentLabel: componentName,
-			RadixConfigMapType:  string(configMapType),
-		}
-		configMap, err = kubeutil.CreateConfigMap(namespace, configMapName, labels)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if configMap.Data == nil {
+	if configMap != nil && configMap.Data == nil {
 		configMap.Data = make(map[string]string, 0)
 	}
 	return configMap, err
+}
+
+func (kubeutil *Kube) UpdateConfigMap(namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
 }
