@@ -35,6 +35,18 @@ func (app Application) applyConfigToMapServiceAccount() (*corev1.ServiceAccount,
 	return app.kubeutil.ApplyServiceAccount(serviceAccount)
 }
 
+// applyScanImageServiceAccount create service account needed by scan-image-runner
+func (app Application) applyScanImageServiceAccount() (*corev1.ServiceAccount, error) {
+	serviceAccount := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      defaults.ScanImageRunnerRoleName,
+			Namespace: utils.GetAppNamespace(app.registration.Name),
+		},
+	}
+
+	return app.kubeutil.ApplyServiceAccount(serviceAccount)
+}
+
 func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (*corev1.ServiceAccount, error) {
 	newServiceAccount := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
