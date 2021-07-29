@@ -231,7 +231,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 	}
 
 	radixDeployment := deploy.radixDeployment
-	environmentVariables := getEnvironmentVariablesForRadixOperator(appName, deploy.kubeutil, radixDeployment, deployComponent, envVarConfigMap, envVarMetadataMap)
+	environmentVariables := getEnvironmentVariablesForRadixOperator(deploy.kubeutil, appName, radixDeployment, deployComponent, envVarConfigMap, envVarMetadataMap)
 
 	if environmentVariables != nil {
 		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables

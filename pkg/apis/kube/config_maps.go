@@ -132,6 +132,23 @@ func GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap)
 	return envVarsMetadataMap, nil
 }
 
+//GetEnvVarsConfigMapAndMetadataMap Get environment-variables config-map, environment-variables metadata config-map and metadata map from it
+func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(namespace string, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, map[string]v1.EnvVarMetadata, error) {
+	envVarsConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsConfigMapName(componentName))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	envVarsMetadataConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsMetadataConfigMapName(componentName))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	envVarsMetadataMap, err := GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return envVarsConfigMap, envVarsMetadataConfigMap, envVarsMetadataMap, nil
+}
+
 //ApplyEnvVarsMetadataConfigMap Save changes of environment-variables metadata to config-map
 func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnvVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) error {
 	desiredEnvVarsMetadataConfigMap := currentEnvVarsMetadataConfigMap.DeepCopy()
