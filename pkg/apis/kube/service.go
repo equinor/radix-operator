@@ -16,10 +16,10 @@ import (
 )
 
 // ApplyService Will create or update service in provided namespace
-func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
-	oldService, err := k.getService(namespace, service.GetName())
+func (kubeutil *Kube) ApplyService(namespace string, service *corev1.Service) error {
+	oldService, err := kubeutil.getService(namespace, service.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		_, err := k.kubeClient.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
+		_, err := kubeutil.kubeClient.CoreV1().Services(namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 
 		if err != nil {
 			return fmt.Errorf("Failed to create service object: %v", err)
@@ -53,7 +53,7 @@ func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedService, err := k.kubeClient.CoreV1().Services(namespace).Patch(context.TODO(), service.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedService, err := kubeutil.kubeClient.CoreV1().Services(namespace).Patch(context.TODO(), service.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch Service object: %v", err)
 		}
@@ -66,17 +66,17 @@ func (k *Kube) ApplyService(namespace string, service *corev1.Service) error {
 }
 
 // ListServices Lists services from cache or from cluster
-func (k *Kube) ListServices(namespace string) ([]*corev1.Service, error) {
+func (kubeutil *Kube) ListServices(namespace string) ([]*corev1.Service, error) {
 	var services []*corev1.Service
 	var err error
 
-	if k.ServiceLister != nil {
-		services, err = k.ServiceLister.Services(namespace).List(labels.NewSelector())
+	if kubeutil.ServiceLister != nil {
+		services, err = kubeutil.ServiceLister.Services(namespace).List(labels.NewSelector())
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := k.kubeClient.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.kubeClient.CoreV1().Services(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -88,17 +88,17 @@ func (k *Kube) ListServices(namespace string) ([]*corev1.Service, error) {
 }
 
 // GetService Get service from cache or from cluster
-func (k *Kube) getService(namespace, name string) (*corev1.Service, error) {
+func (kubeutil *Kube) getService(namespace, name string) (*corev1.Service, error) {
 	var service *corev1.Service
 	var err error
 
-	if k.ServiceLister != nil {
-		service, err = k.ServiceLister.Services(namespace).Get(name)
+	if kubeutil.ServiceLister != nil {
+		service, err = kubeutil.ServiceLister.Services(namespace).Get(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		service, err = k.kubeClient.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		service, err = kubeutil.kubeClient.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -22,13 +23,16 @@ const dnsZone = "dev.radix.equinor.com"
 type Utils struct {
 	client      kubernetes.Interface
 	radixclient radixclient.Interface
+	kubeUtil    *kube.Kube
 }
 
 // NewTestUtils Constructor
 func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface) Utils {
+	kubeUtil, _ := kube.New(client, radixclient)
 	return Utils{
 		client:      client,
 		radixclient: radixclient,
+		kubeUtil:    kubeUtil,
 	}
 }
 
@@ -142,6 +146,7 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (
 	log.Debugf("%s", rd.GetObjectMeta().GetCreationTimestamp())
 
 	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
+	tu.ApplyRadixDeploymentEnvVarsConfigMaps(rd)
 	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(context.TODO(), rd, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
@@ -320,4 +325,28 @@ func createNamespace(kubeclient kubernetes.Interface, appName, envName, ns strin
 // IntPtr Helper function to get the pointer of an int
 func IntPtr(i int) *int {
 	return &i
+}
+
+func (tu *Utils) ApplyRadixDeploymentEnvVarsConfigMaps(rd *v1.RadixDeployment) map[string]*corev1.ConfigMap {
+	envVarConfigMapsMap := map[string]*corev1.ConfigMap{}
+	for _, deployComponent := range rd.Spec.Components {
+		envVarConfigMapsMap[deployComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(rd, &deployComponent)
+	}
+	for _, deployJoyComponent := range rd.Spec.Jobs {
+		envVarConfigMapsMap[deployJoyComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(rd, &deployJoyComponent)
+	}
+	return envVarConfigMapsMap
+}
+
+func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) *corev1.ConfigMap {
+	initialEnvVarsConfigMap, _, _ := tu.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(rd.GetNamespace(), rd.GetName(), deployComponent.GetName())
+	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
+	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
+		if strings.HasPrefix(envVarName, "RADIX_") {
+			continue
+		}
+		desiredConfigMap.Data[envVarName] = envVarValue
+	}
+	_ = tu.kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
+	return desiredConfigMap
 }

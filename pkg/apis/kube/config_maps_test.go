@@ -57,7 +57,11 @@ func (suite *ConfigMapSuite) Test_CreateConfigMap() {
 		testEnv := getTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
-		configMap, err := testEnv.kubeUtil.CreateConfigMap(namespace, name, labels)
+		configMap, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: labels,
+			}})
 		assert.Nil(t, err)
 
 		assert.True(t, radixutils.EqualStringMaps(labels, configMap.ObjectMeta.Labels))
@@ -86,7 +90,11 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 		t.Parallel()
 		for _, scenario := range scenarios {
 			testEnv := getTestEnv()
-			_, err := testEnv.kubeUtil.CreateConfigMap(namespace, scenario.cmName, labels)
+			_, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:   scenario.cmName,
+					Labels: labels,
+				}})
 			assert.Nil(t, err)
 
 			configMaps, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
