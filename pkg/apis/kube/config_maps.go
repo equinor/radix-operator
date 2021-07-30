@@ -40,9 +40,15 @@ func (kubeutil *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, e
 	return configMap, nil
 }
 
-//UpdateConfigMap Update config-map
-func (kubeutil *Kube) UpdateConfigMap(namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+//UpdateConfigMap Update config-maps
+func (kubeutil *Kube) UpdateConfigMap(namespace string, configMaps ...*corev1.ConfigMap) error {
+	for _, configMap := range configMaps {
+		_, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 //ApplyConfigMap Patch changes of environment-variables to config-map if any

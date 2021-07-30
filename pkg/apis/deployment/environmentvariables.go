@@ -73,8 +73,17 @@ func getEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string
 	return getEnvironmentVariablesFrom(appName, &radixOperatorEnvironmentVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent, envVarConfigMap, envVarMetadataMap)
 }
 
-//GetEnvironmentVariablesFrom Provides RADIX_* environment variables for Radix applications.
-func GetEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarsConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
+//GetEnvironmentVariables Provides environment variables for Radix application.
+func GetEnvironmentVariables(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+	envVarsConfigMap, _, envVarsMetadataMap, err := kubeutil.GetEnvVarsConfigMapAndMetadataMap(radixDeployment.GetNamespace(), deployComponent.GetName())
+	if err != nil {
+		return nil, err
+	}
+	return GetEnvironmentVariablesFrom(appName, radixDeployment, deployComponent, envVarsConfigMap, envVarsMetadataMap), nil
+}
+
+//GetEnvironmentVariablesFrom Provides environment variables for Radix application by given config-maps.
+func GetEnvironmentVariablesFrom(appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarsConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
 	return getEnvironmentVariablesFrom(appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent, envVarsConfigMap, envVarsMetadataMap)
 }
 

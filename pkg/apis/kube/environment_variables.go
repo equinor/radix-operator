@@ -69,7 +69,7 @@ func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, compon
 //ApplyEnvVarsMetadataConfigMap Save changes of environment-variables metadata to config-map
 func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnvVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) error {
 	desiredEnvVarsMetadataConfigMap := currentEnvVarsMetadataConfigMap.DeepCopy()
-	err := kubeutil.SetEnvVarsMetadataMapToConfigMap(envVarsMetadataMap, desiredEnvVarsMetadataConfigMap)
+	err := SetEnvVarsMetadataMapToConfigMap(desiredEnvVarsMetadataConfigMap, envVarsMetadataMap)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnv
 }
 
 //SetEnvVarsMetadataMapToConfigMap Set environment-variables metadata to config-map
-func (kubeutil *Kube) SetEnvVarsMetadataMapToConfigMap(envVarsMetadataMap map[string]v1.EnvVarMetadata, configMap *corev1.ConfigMap) error {
+func SetEnvVarsMetadataMapToConfigMap(configMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) error {
 	envVarsMetadata, err := json.Marshal(envVarsMetadataMap)
 	if err != nil {
 		return err
