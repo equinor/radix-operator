@@ -188,10 +188,10 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 					Containers: imageScanContainers,
 					Volumes: []corev1.Volume{
 						{
-							Name: azureServicePrincipleSecretName,
+							Name: defaults.AzureACRServicePrincipleSecretName,
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName: azureServicePrincipleSecretName,
+									SecretName: defaults.AzureACRServicePrincipleSecretName,
 								},
 							},
 						},
@@ -260,11 +260,22 @@ func createImageScanContainers(appName, scannerImage, scanJobName string, compon
 				Name:  "VULNERABILITY_COUNT_KEY",
 				Value: defaults.RadixPipelineScanStepVulnerabilityCountKey,
 			},
+			{
+				Name: "SNYK_TOKEN",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						Key: "access-token",
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: defaults.SnykServiceAccountSecretName,
+						},
+					},
+				},
+			},
 		}
 
 		volumeMounts := []corev1.VolumeMount{
 			{
-				Name:      azureServicePrincipleSecretName,
+				Name:      defaults.AzureACRServicePrincipleSecretName,
 				MountPath: azureServicePrincipleContext,
 				ReadOnly:  true,
 			},
