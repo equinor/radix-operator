@@ -1,14 +1,11 @@
 package application
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	spACRSecretName = "radix-sp-acr-azure" //also defined in ../pipeline-runner/build/build.go
 )
 
 // ApplySecretsForPipelines creates secrets needed by pipeline to run
@@ -24,7 +21,7 @@ func (app Application) applySecretsForPipelines() error {
 	}
 	err = app.applyServicePrincipalACRSecretToBuildNamespace(buildNamespace)
 	if err != nil {
-		log.Warnf("Failed to apply service principle acr secret (%s) to namespace %s", spACRSecretName, buildNamespace)
+		log.Warnf("Failed to apply service principle acr secret (%s) to namespace %s", defaults.AzureACRServicePrincipleSecretName, buildNamespace)
 	}
 	return nil
 }
@@ -72,15 +69,15 @@ func (app Application) createNewGitDeployKey(namespace, deployKey string) (*core
 }
 
 func (app Application) createNewServicePrincipalACRSecret(namespace string) (*corev1.Secret, error) {
-	servicePrincipalSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, spACRSecretName)
+	servicePrincipalSecret, err := app.kubeutil.GetSecret(corev1.NamespaceDefault, defaults.AzureACRServicePrincipleSecretName)
 	if err != nil {
-		log.Errorf("Failed to get %s secret from default. %v", spACRSecretName, err)
+		log.Errorf("Failed to get %s secret from default. %v", defaults.AzureACRServicePrincipleSecretName, err)
 		return nil, err
 	}
 	secret := corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spACRSecretName,
+			Name:      defaults.AzureACRServicePrincipleSecretName,
 			Namespace: namespace,
 		},
 		Data: map[string][]byte{

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 
@@ -16,8 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-const azureServicePrincipleSecretName = "radix-sp-acr-azure"
 
 type void struct{}
 
@@ -79,10 +78,10 @@ func createACRBuildJob(rr *v1.RadixRegistration, containerRegistry string, pipel
 							},
 						},
 						{
-							Name: azureServicePrincipleSecretName,
+							Name: defaults.AzureACRServicePrincipleSecretName,
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
-									SecretName: azureServicePrincipleSecretName,
+									SecretName: defaults.AzureACRServicePrincipleSecretName,
 								},
 							},
 						},
@@ -179,7 +178,7 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 					MountPath: git.Workspace,
 				},
 				{
-					Name:      azureServicePrincipleSecretName,
+					Name:      defaults.AzureACRServicePrincipleSecretName,
 					MountPath: azureServicePrincipleContext,
 					ReadOnly:  true,
 				},
