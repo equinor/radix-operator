@@ -54,7 +54,7 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
-		return fmt.Errorf("Skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		return fmt.Errorf("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
 	for env, shouldDeploy := range pipelineInfo.TargetEnvironments {
@@ -82,7 +82,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		env)
 
 	if err != nil {
-		return fmt.Errorf("Failed to create radix deployments objects for app %s. %v", appName, err)
+		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)
 	}
 
 	deployment, err := deployment.NewDeployment(
@@ -98,12 +98,12 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 
 	err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env))
 	if err != nil {
-		return fmt.Errorf("Failed to get environment namespace, %s, for app %s. %v", env, appName, err)
+		return fmt.Errorf("failed to get environment namespace, %s, for app %s. %v", env, appName, err)
 	}
 
 	err = deployment.Apply()
 	if err != nil {
-		return fmt.Errorf("Failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
+		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
 	}
 
 	return nil

@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -16,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, test.Utils) {
+func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()

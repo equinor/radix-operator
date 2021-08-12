@@ -3,7 +3,6 @@ package steps
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -23,22 +22,22 @@ func EmptyArgument(argumentName string) error {
 
 // NonExistingFromEnvironment From environment does not exist
 func NonExistingFromEnvironment(environment string) error {
-	return fmt.Errorf("Non existing from environment %s", environment)
+	return fmt.Errorf("non existing from environment %s", environment)
 }
 
 // NonExistingToEnvironment From environment does not exist
 func NonExistingToEnvironment(environment string) error {
-	return fmt.Errorf("Non existing to environment %s", environment)
+	return fmt.Errorf("non existing to environment %s", environment)
 }
 
 // NonExistingDeployment Deployment wasn't found
 func NonExistingDeployment(deploymentName string) error {
-	return fmt.Errorf("Non existing deployment %s", deploymentName)
+	return fmt.Errorf("non existing deployment %s", deploymentName)
 }
 
 // NonExistingComponentName Component by name was not found
 func NonExistingComponentName(appName, componentName string) error {
-	return fmt.Errorf("Unable to get application component %s for app %s", componentName, appName)
+	return fmt.Errorf("unable to get application component %s for app %s", componentName, appName)
 }
 
 // PromoteStepImplementation Step to promote deployment to another environment,
@@ -128,8 +127,7 @@ func (cli *PromoteStepImplementation) Run(pipelineInfo *model.PipelineInfo) erro
 		return err
 	}
 
-	radixDeployment, err = cli.GetRadixclient().RadixV1().RadixDeployments(toNs).Create(context.TODO(), radixDeployment, metav1.CreateOptions{})
-	if err != nil {
+	if _, err := cli.GetRadixclient().RadixV1().RadixDeployments(toNs).Create(context.TODO(), radixDeployment, metav1.CreateOptions{}); err != nil {
 		return err
 	}
 
@@ -213,26 +211,6 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 		newEnvComponent.Secrets = component.Secrets
 		newEnvComponent.Image = component.Image
 		radixDeployment.Spec.Components[idx] = newEnvComponent
-	}
-
-	return nil
-}
-
-func getComponentConfig(radixConfig *v1.RadixApplication, componentName string) *v1.RadixComponent {
-	for _, comp := range radixConfig.Spec.Components {
-		if strings.EqualFold(comp.Name, componentName) {
-			return &comp
-		}
-	}
-
-	return nil
-}
-
-func getEnvironmentConfig(componentConfig *v1.RadixComponent, environment string) *v1.RadixEnvironmentConfig {
-	for _, environmentConfig := range componentConfig.EnvironmentConfig {
-		if strings.EqualFold(environmentConfig.Environment, environment) {
-			return &environmentConfig
-		}
 	}
 
 	return nil
