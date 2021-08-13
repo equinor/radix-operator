@@ -48,7 +48,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
-		return fmt.Errorf("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		return fmt.Errorf("skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
 	}
 
 	if noBuildComponents(pipelineInfo.RadixApplication) {

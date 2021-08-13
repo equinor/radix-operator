@@ -68,7 +68,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, containerRegistry string, pipel
 						{
 							Name: git.BuildContextVolumeName,
 						},
-						corev1.Volume{
+						{
 							Name: git.GitSSHKeyVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
