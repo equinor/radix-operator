@@ -3,7 +3,6 @@ package kube
 import (
 	"encoding/json"
 	"fmt"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +15,21 @@ const (
 	envVarsMetadataPropertyName = "metadata"          //Metadata property for environment variables in config-map
 )
 
+//RadixConfigMapType Purpose of ConfigMap
+type RadixConfigMapType string
+
+const (
+	//EnvVarsConfigMap ConfigMap contains environment variables
+	EnvVarsConfigMap RadixConfigMapType = "env-vars"
+	//EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
+	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
+)
+
+//EnvVarMetadata Metadata for environment variables
+type EnvVarMetadata struct {
+	RadixConfigValue string
+}
+
 //GetEnvVarsConfigMapName Get config-map name for environment variables
 func GetEnvVarsConfigMapName(componentName string) string {
 	return fmt.Sprintf("%s-%s", envVarsPrefix, componentName)
@@ -27,12 +41,12 @@ func GetEnvVarsMetadataConfigMapName(componentName string) string {
 }
 
 //GetEnvVarsMetadataFromConfigMap Get environment-variables metadata from config-map
-func GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap) (map[string]v1.EnvVarMetadata, error) {
+func GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap) (map[string]EnvVarMetadata, error) {
 	envVarsMetadata, ok := envVarsMetadataConfigMap.Data[envVarsMetadataPropertyName]
 	if !ok {
-		return map[string]v1.EnvVarMetadata{}, nil
+		return map[string]EnvVarMetadata{}, nil
 	}
-	envVarsMetadataMap := make(map[string]v1.EnvVarMetadata, 0)
+	envVarsMetadataMap := make(map[string]EnvVarMetadata, 0)
 	err := json.Unmarshal([]byte(envVarsMetadata), &envVarsMetadataMap)
 	if err != nil {
 		return nil, err
@@ -41,7 +55,7 @@ func GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap *corev1.ConfigMap)
 }
 
 //GetEnvVarsConfigMapAndMetadataMap Get environment-variables config-map, environment-variables metadata config-map and metadata map from it
-func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(namespace string, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, map[string]v1.EnvVarMetadata, error) {
+func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(namespace string, componentName string) (*corev1.ConfigMap, *corev1.ConfigMap, map[string]EnvVarMetadata, error) {
 	envVarsConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsConfigMapName(componentName))
 	if err != nil {
 		return nil, nil, nil, err
@@ -54,7 +68,7 @@ func (kubeutil *Kube) GetEnvVarsConfigMapAndMetadataMap(namespace string, compon
 }
 
 //GetEnvVarsMetadataConfigMapAndMap Get environment-variables metadata config-map and map from it
-func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, componentName string) (*corev1.ConfigMap, map[string]v1.EnvVarMetadata, error) {
+func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, componentName string) (*corev1.ConfigMap, map[string]EnvVarMetadata, error) {
 	envVarsMetadataConfigMap, err := kubeutil.GetConfigMap(namespace, GetEnvVarsMetadataConfigMapName(componentName))
 	if err != nil {
 		return nil, nil, err
@@ -67,7 +81,7 @@ func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, compon
 }
 
 //ApplyEnvVarsMetadataConfigMap Save changes of environment-variables metadata to config-map
-func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnvVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) error {
+func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnvVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]EnvVarMetadata) error {
 	desiredEnvVarsMetadataConfigMap := currentEnvVarsMetadataConfigMap.DeepCopy()
 	err := SetEnvVarsMetadataMapToConfigMap(desiredEnvVarsMetadataConfigMap, envVarsMetadataMap)
 	if err != nil {
@@ -77,7 +91,7 @@ func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnv
 }
 
 //SetEnvVarsMetadataMapToConfigMap Set environment-variables metadata to config-map
-func SetEnvVarsMetadataMapToConfigMap(configMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) error {
+func SetEnvVarsMetadataMapToConfigMap(configMap *corev1.ConfigMap, envVarsMetadataMap map[string]EnvVarMetadata) error {
 	envVarsMetadata, err := json.Marshal(envVarsMetadataMap)
 	if err != nil {
 		return err
@@ -135,19 +149,19 @@ func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, 
 
 //BuildRadixConfigEnvVarsConfigMap Build environment-variables config-map
 func BuildRadixConfigEnvVarsConfigMap(appName, componentName string) *corev1.ConfigMap {
-	return buildRadixConfigEnvVarsConfigMapForType(v1.EnvVarsConfigMap, appName, componentName, GetEnvVarsConfigMapName(componentName))
+	return buildRadixConfigEnvVarsConfigMapForType(EnvVarsConfigMap, appName, componentName, GetEnvVarsConfigMapName(componentName))
 }
 
 //BuildRadixConfigEnvVarsMetadataConfigMap Build environment-variables metadata config-map
 func BuildRadixConfigEnvVarsMetadataConfigMap(appName, componentName string) *corev1.ConfigMap {
-	return buildRadixConfigEnvVarsConfigMapForType(v1.EnvVarsMetadataConfigMap, appName, componentName, GetEnvVarsMetadataConfigMapName(componentName))
+	return buildRadixConfigEnvVarsConfigMapForType(EnvVarsMetadataConfigMap, appName, componentName, GetEnvVarsMetadataConfigMapName(componentName))
 }
 
-func buildRadixConfigEnvVarsConfigMapForType(configMapType v1.RadixConfigMapType, appName, componentName, name string) *corev1.ConfigMap {
+func buildRadixConfigEnvVarsConfigMapForType(configMapType RadixConfigMapType, appName, componentName, name string) *corev1.ConfigMap {
 	labels := map[string]string{
-		RadixAppLabel:       appName,
-		RadixComponentLabel: componentName,
-		RadixConfigMapType:  string(configMapType),
+		RadixAppLabel:           appName,
+		RadixComponentLabel:     componentName,
+		RadixConfigMapTypeLabel: string(configMapType),
 	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

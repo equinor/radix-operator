@@ -69,7 +69,7 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 
 //getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
 //It requires service account having access to config map in default namespace.
-func getEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
+func getEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
 	return getEnvironmentVariablesFrom(appName, &radixOperatorEnvironmentVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent, envVarConfigMap, envVarMetadataMap)
 }
 
@@ -83,11 +83,11 @@ func GetEnvironmentVariables(kubeutil *kube.Kube, appName string, radixDeploymen
 }
 
 //GetEnvironmentVariablesFrom Provides environment variables for Radix application by given config-maps.
-func GetEnvironmentVariablesFrom(appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarsConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
+func GetEnvironmentVariablesFrom(appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarsConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
 	return getEnvironmentVariablesFrom(appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent, envVarsConfigMap, envVarsMetadataMap)
 }
 
-func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
+func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
 	var vars = getEnvironmentVariables(
 		appName,
 		envVarsSource,
@@ -103,7 +103,7 @@ func getEnvironmentVariablesFrom(appName string, envVarsSource environmentVariab
 	return vars
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixConfigEnvVars v1.EnvVarsMap, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixConfigEnvVars v1.EnvVarsMap, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
@@ -127,7 +127,7 @@ func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string
 	return envVars
 }
 
-func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
+func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
 	if radixConfigEnvVars == nil {
 		log.Debugf("No environment variables are set for this RadixDeployment in radixconfig")
 		radixConfigEnvVars = v1.EnvVarsMap{}
@@ -168,6 +168,7 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		envVarMetadataMap[envVarName] = envVarMetadata
 		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
 	}
+	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	return resultEnvVars
 }
 

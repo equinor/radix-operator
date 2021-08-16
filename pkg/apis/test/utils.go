@@ -146,7 +146,7 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (
 	log.Debugf("%s", rd.GetObjectMeta().GetCreationTimestamp())
 
 	envNamespace := CreateEnvNamespace(tu.client, rd.Spec.AppName, rd.Spec.Environment)
-	tu.ApplyRadixDeploymentEnvVarsConfigMaps(rd)
+	tu.applyRadixDeploymentEnvVarsConfigMaps(rd)
 	newRd, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Create(context.TODO(), rd, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
@@ -327,7 +327,7 @@ func IntPtr(i int) *int {
 	return &i
 }
 
-func (tu *Utils) ApplyRadixDeploymentEnvVarsConfigMaps(rd *v1.RadixDeployment) map[string]*corev1.ConfigMap {
+func (tu *Utils) applyRadixDeploymentEnvVarsConfigMaps(rd *v1.RadixDeployment) map[string]*corev1.ConfigMap {
 	envVarConfigMapsMap := map[string]*corev1.ConfigMap{}
 	for _, deployComponent := range rd.Spec.Components {
 		envVarConfigMapsMap[deployComponent.GetName()] = tu.ensurePopulatedEnvVarsConfigMaps(rd, &deployComponent)

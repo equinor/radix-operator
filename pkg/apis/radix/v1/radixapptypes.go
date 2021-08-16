@@ -281,16 +281,6 @@ const (
 	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
 
-//RadixConfigMapType Purpose of ConfigMap
-type RadixConfigMapType string
-
-const (
-	//EnvVarsConfigMap ConfigMap contains environment variables
-	EnvVarsConfigMap RadixConfigMapType = "env-vars"
-	//EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
-	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
-)
-
 //RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
 	GetName() string
@@ -320,15 +310,4 @@ func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []
 		}
 	}
 	return nil
-}
-
-//EnvVarMetadata Metadata for environment variables
-type EnvVarMetadata struct {
-	RadixConfigValue string
-}
-
-func DeepCopyEnvVarsMetadata(envVarsMetadata EnvVarMetadata) EnvVarMetadata {
-	return EnvVarMetadata{
-		RadixConfigValue: envVarsMetadata.RadixConfigValue,
-	}
 }

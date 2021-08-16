@@ -1,7 +1,7 @@
 package deployment
 
 import (
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 	"testing"
 
@@ -20,7 +20,7 @@ func Test_order_of_env_variables(t *testing.T) {
 	}
 
 	envVarsConfigMap := &corev1.ConfigMap{Data: map[string]string{}}
-	envVarMetadataMap := map[string]v1.EnvVarMetadata{}
+	envVarMetadataMap := map[string]kube.EnvVarMetadata{}
 	envVars := buildEnvVarsFromRadixConfig(radixConfigEnvVariableMap, envVarsConfigMap, envVarMetadataMap)
 	assert.Len(t, envVars, len(radixConfigEnvVariableMap))
 	assert.Equal(t, "a_key", envVars[0].Name)
