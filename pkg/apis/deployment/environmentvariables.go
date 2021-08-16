@@ -109,14 +109,14 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
-	var envVars = getEnvVarsFromRadixConfig(radixConfigEnvVars, envVarConfigMap, envVarMetadataMap)
+	var envVars = buildEnvVarsFromRadixConfig(radixConfigEnvVars, envVarConfigMap, envVarMetadataMap)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
 	return envVars
 }
 
 func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string, componentSecretName string) []corev1.EnvVar {
-	if radixSecretNames != nil && len(radixSecretNames) > 0 {
+	if len(radixSecretNames) > 0 {
 		for _, secretName := range radixSecretNames {
 			secretEnvVar := createEnvVarWithSecretRef(componentSecretName, secretName)
 			envVars = append(envVars, secretEnvVar)
@@ -127,7 +127,7 @@ func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string
 	return envVars
 }
 
-func getEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
+func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]v1.EnvVarMetadata) []corev1.EnvVar {
 	if radixConfigEnvVars == nil {
 		log.Debugf("No environment variables are set for this RadixDeployment in radixconfig")
 		radixConfigEnvVars = v1.EnvVarsMap{}

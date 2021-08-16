@@ -94,11 +94,17 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 		log.Error(err)
 		return nil, nil, err
 	}
+	if envVarConfigMap.Data == nil {
+		envVarConfigMap.Data = make(map[string]string, 0)
+	}
 	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName)
 	if err != nil {
 		err := fmt.Errorf("failed to create config-map for environment variables methadata: %v", err)
 		log.Error(err)
 		return nil, nil, err
+	}
+	if envVarMetadataConfigMap.Data == nil {
+		envVarMetadataConfigMap.Data = make(map[string]string, 0)
 	}
 	return envVarConfigMap, envVarMetadataConfigMap, err
 }
@@ -156,7 +162,7 @@ func (kubeutil *Kube) getRadixConfigEnvVarsConfigMap(namespace, configMapName st
 	configMap, err := kubeutil.GetConfigMap(namespace, configMapName)
 	if err != nil {
 		statusError := err.(*k8sErrors.StatusError)
-		if statusError == nil || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
+		if statusError == nil || !k8sErrors.IsNotFound(statusError) {
 			return nil, err
 		}
 	}
