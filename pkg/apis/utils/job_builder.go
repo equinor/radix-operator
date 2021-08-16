@@ -201,6 +201,7 @@ type JobStatusBuilder interface {
 	WithStarted(time.Time) JobStatusBuilder
 	WithEnded(time.Time) JobStatusBuilder
 	WithSteps(...JobStepBuilder) JobStatusBuilder
+	WithStep(JobStepBuilder) JobStatusBuilder
 	Build() v1.RadixJobStatus
 }
 
@@ -228,6 +229,11 @@ func (jsb *jobStatusBuilder) WithEnded(ended time.Time) JobStatusBuilder {
 
 func (jsb *jobStatusBuilder) WithSteps(steps ...JobStepBuilder) JobStatusBuilder {
 	jsb.steps = steps
+	return jsb
+}
+
+func (jsb *jobStatusBuilder) WithStep(step JobStepBuilder) JobStatusBuilder {
+	jsb.steps = append(jsb.steps, step)
 	return jsb
 }
 
