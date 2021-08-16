@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -57,6 +57,7 @@ func (job *Job) OnSync() error {
 	job.SyncTargetEnvironments()
 
 	if IsRadixJobDone(job.radixJob) {
+
 		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
@@ -72,7 +73,7 @@ func (job *Job) OnSync() error {
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
 
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		err = job.createJob()
 	}
 
@@ -103,6 +104,11 @@ func (job *Job) restoreStatus() {
 				log.Error("Unable to restore status", err)
 				return
 			}
+			// OwnerReference for pipeline step output configmaps are not restored by velero, and must be re-applied
+			if err := job.setJobStepOutputOwnerReference(); err != nil {
+				log.Error("Unable to set ownerReference on step output", err)
+				return
+			}
 		}
 	}
 }
@@ -121,7 +127,7 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 
 	allJobs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		err = fmt.Errorf("Failed to get all RadixJobs. Error was %v", err)
+		err = fmt.Errorf("failed to get all RadixJobs: %v", err)
 		return false, err
 	}
 
@@ -205,7 +211,7 @@ func IsRadixJobDone(rj *v1.RadixJob) bool {
 
 func (job *Job) setStatusOfJob() error {
 	pipelineJob, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
+	if k8serrors.IsNotFound(err) {
 		// No kubernetes job created yet, so nothing to sync
 		return nil
 	}
@@ -260,8 +266,8 @@ func (job *Job) stopJob() error {
 		currStatus.Condition = v1.JobStopped
 		currStatus.Ended = &metav1.Time{Time: time.Now()}
 	})
+	err = job.setNextJobToRunning()
 	if err == nil && isRunning {
-		err = job.setNextJobToRunning()
 	}
 
 	return err
@@ -273,7 +279,7 @@ func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
 	}
 	// Delete pipeline job
 	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), job.radixJob.Name, metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !k8serrors.IsNotFound(err) {
 		return nil, err
 	}
 
@@ -324,10 +330,9 @@ func (job *Job) setNextJobToRunning() error {
 	rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
 	for _, otherRj := range rjs {
 		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued { // previous status for this otherRj was Queued
-			err = job.updateRadixJobStatusWithMetrics(&otherRj, v1.JobQueued, func(currStatus *v1.RadixJobStatus) {
+			return job.updateRadixJobStatusWithMetrics(&otherRj, v1.JobQueued, func(currStatus *v1.RadixJobStatus) {
 				currStatus.Condition = v1.JobRunning
 			})
-			break
 		}
 	}
 	return nil
@@ -447,8 +452,7 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
 			containerOutputName := containerOutputNames[containerStatus.Name]
-			var jobstepOutput *v1.RadixJobStepOutput
-			jobstepOutput = getJobStepOutput(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)
+			jobstepOutput := getJobStepOutput(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)
 			step := getJobStep(pod.GetName(), &containerStatus, components, jobstepOutput)
 			steps = append(steps, step)
 		}
@@ -670,4 +674,48 @@ func (job *Job) maintainHistoryLimit() {
 			}
 		}
 	}
+}
+
+func (job *Job) setJobStepOutputOwnerReference() error {
+	for _, step := range job.radixJob.Status.Steps {
+		if output := step.Output; output != nil {
+			switch {
+			case output.Scan != nil:
+				if err := job.setScanStepOutputOwnerReference(output.Scan); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (job *Job) setScanStepOutputOwnerReference(scanOutput *v1.RadixJobStepScanOutput) error {
+	if scanOutput == nil {
+		return nil
+	}
+
+	configMapName := strings.TrimSpace(scanOutput.VulnerabilityListConfigMap)
+	if configMapName == "" {
+		return nil
+	}
+
+	namespace := job.radixJob.Namespace
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cm, err := job.kubeutil.GetConfigMap(namespace, configMapName)
+		if err != nil && k8serrors.IsNotFound(err) {
+			log.Debugf("ConfigMap %s not found", configMapName)
+			return nil
+		}
+
+		// Skip ownerRefewrence update if already set
+		if len(cm.OwnerReferences) > 0 {
+			return nil
+		}
+
+		cm.OwnerReferences = GetOwnerReference(job.radixJob)
+		_, err = job.kubeclient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
+		return err
+	})
 }

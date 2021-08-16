@@ -16,13 +16,13 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kube "k8s.io/client-go/kubernetes"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
 const clusterName = "AnyClusterName"
-const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 
 type RadixJobTestSuiteBase struct {
@@ -96,16 +96,34 @@ type RadixJobTestSuite struct {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
-	completedJobStatus := utils.ACompletedJobStatus()
+	appName, cmName := "anyapp", "anycm"
+	s.kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(
+		context.Background(),
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: cmName}},
+		metav1.CreateOptions{},
+	)
+	completedJobStatus := utils.ACompletedJobStatus().WithStep(
+		utils.
+			AScanAppStep().
+			WithStarted(time.Now()).
+			WithEnded(time.Now()).
+			WithOutput(
+				&v1.RadixJobStepOutput{Scan: &v1.RadixJobStepScanOutput{VulnerabilityListConfigMap: cmName}},
+			))
 
 	// Test
-	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithStatusOnAnnotation(completedJobStatus))
+	job, err := s.applyJobWithSync(utils.NewJobBuilder().
+		WithStatusOnAnnotation(completedJobStatus).
+		WithAppName(appName).
+		WithJobName("anyjob"))
 
 	assert.NoError(s.T(), err)
 
 	expectedStatus := completedJobStatus.Build()
 	actualStatus := job.Status
 	assertStatusEqual(s.T(), expectedStatus, actualStatus)
+	cm, _ := s.kubeUtils.GetConfigMap(utils.GetAppNamespace(appName), cmName)
+	s.ElementsMatch(GetOwnerReference(job), cm.GetOwnerReferences())
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
