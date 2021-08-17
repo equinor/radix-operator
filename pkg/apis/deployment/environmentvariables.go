@@ -84,30 +84,16 @@ func GetEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, radixDeplo
 }
 
 func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	envVarsConfigMap, envsVarsMetadataConfigMap, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(radixDeployment.GetNamespace(), radixDeployment.GetName(), deployComponent.GetName())
+	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(radixDeployment.GetNamespace(), radixDeployment.GetName(), deployComponent.GetName())
 	if err != nil {
 		return nil, err
 	}
-	envVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(envsVarsMetadataConfigMap)
-	if err != nil {
-		return nil, err
-	}
-	var vars = getEnvironmentVariables(
-		appName,
-		envVarsSource,
-		radixDeployment,
-		deployComponent.GetName(),
-		deployComponent.GetEnvironmentVariables(),
-		deployComponent.GetSecrets(),
-		deployComponent.GetPublicPort() != "" || deployComponent.IsPublic(), // For backwards compatibility
-		deployComponent.GetPorts(),
-		envVarsConfigMap,
-		envVarsMetadataMap,
-	)
-	return vars, nil
+
+	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
+	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap), nil
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixConfigEnvVars v1.EnvVarsMap, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
