@@ -498,9 +498,8 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	if err != nil {
 		return err
 	}
-	envVarConfigMap, envVarsMetadataConfigMap, _ := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.GetName(), component.GetName()) //TODO: remove
 	// Deploy to current radixDeploy object's namespace
-	err = deploy.createOrUpdateDeployment(component, envVarConfigMap, envVarsMetadataConfigMap)
+	err = deploy.createOrUpdateDeployment(component)
 	if err != nil {
 		log.Infof("Failed to create deployment: %v", err)
 		return fmt.Errorf("Failed to create deployment: %v", err)
