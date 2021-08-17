@@ -24,13 +24,12 @@ const (
 )
 
 func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent, currentEnvVarsConfigMap, currentEnvVarsMetadataConfigMap *corev1.ConfigMap) error {
-	desiredEnvVarsConfigMap := currentEnvVarsConfigMap.DeepCopy()
 	envVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(currentEnvVarsMetadataConfigMap)
 	if err != nil {
 		return err
 	}
 
-	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent, desiredEnvVarsConfigMap, envVarsMetadataMap)
+	currentDeployment, desiredDeployment, err := deploy.getCurrentAndDesiredDeployment(deployComponent, currentEnvVarsConfigMap, envVarsMetadataMap)
 	if err != nil {
 		return err
 	}
@@ -48,9 +47,6 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 	if err != nil {
 		return err
 	}
-
-	deploy.kubeutil.ApplyConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
-	deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsMetadataConfigMap, envVarsMetadataMap)
 
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
 }

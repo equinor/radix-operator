@@ -109,7 +109,7 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
-	var envVars = buildEnvVarsFromRadixConfig(radixConfigEnvVars, envVarConfigMap, envVarMetadataMap)
+	var envVars = getEnvVarsFromRadixConfig(radixConfigEnvVars, envVarConfigMap, envVarMetadataMap)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
 	return envVars
@@ -127,48 +127,15 @@ func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string
 	return envVars
 }
 
-func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
-	if radixConfigEnvVars == nil {
-		log.Debugf("No environment variables are set for this RadixDeployment in radixconfig")
-		radixConfigEnvVars = v1.EnvVarsMap{}
-	}
-
+func getEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) []corev1.EnvVar {
 	envVarConfigMapName := envVarConfigMap.GetName()
 	// map is not sorted, which lead to random order of env variable in deployment
 	// during stop/start/restart of a single component this lead to restart of several other components
-	envVarNames := getEnvVarNamesSorted(radixConfigEnvVars)
+	envVarNames := getMapKeysSorted(envVarConfigMap.Data)
 	var resultEnvVars []corev1.EnvVar
 	for _, envVarName := range envVarNames {
 		resultEnvVars = append(resultEnvVars, createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName))
-
-		radixConfigEnvVarValue := radixConfigEnvVars[envVarName]
-		envVarConfigMapValue, foundValueInEnvVarConfigMap := envVarConfigMap.Data[envVarName]
-		envVarMetadata, foundEnvVarMetadata := envVarMetadataMap[envVarName]
-
-		if !foundValueInEnvVarConfigMap || !foundEnvVarMetadata { //no such env-var, created or changed in Radix console
-			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
-			if foundEnvVarMetadata {                                  //exists metadata without config-map env-var
-				delete(envVarMetadataMap, envVarName) //remove this orphaned metadata
-			}
-			continue
-		}
-
-		if !foundEnvVarMetadata { //no metadata to update
-			continue
-		}
-
-		if strings.EqualFold(envVarConfigMapValue, envVarMetadata.RadixConfigValue) { //config-map env-var is the same as in metadata
-			delete(envVarMetadataMap, envVarName)                     //remove metadata (it is not necessary anymore)
-			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
-			continue
-		}
-
-		//save radixconfig env-var value to metadata
-		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
-		envVarMetadataMap[envVarName] = envVarMetadata
-		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
 	}
-	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	return resultEnvVars
 }
 
@@ -293,4 +260,67 @@ func getEnvVar(name string) (string, error) {
 		return envVar, nil
 	}
 	return "", fmt.Errorf("not set environment variable %s", name)
+}
+
+//BuildEnvVarsFromRadixConfig Build environment-variable config-maps, based on radixconfig environment variables
+func BuildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) {
+	if radixConfigEnvVars == nil {
+		log.Debugf("No environment variables are set for this RadixDeployment in radixconfig")
+		return
+	}
+
+	for envVarName, radixConfigEnvVarValue := range radixConfigEnvVars {
+		envVarConfigMapValue, foundValueInEnvVarConfigMap := envVarConfigMap.Data[envVarName]
+		envVarMetadata, foundEnvVarMetadata := envVarMetadataMap[envVarName]
+
+		if !foundValueInEnvVarConfigMap || !foundEnvVarMetadata { //no such env-var, created or changed in Radix console
+			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
+			if foundEnvVarMetadata {                                  //exists metadata without config-map env-var
+				delete(envVarMetadataMap, envVarName) //remove this orphaned metadata
+			}
+			continue
+		}
+
+		if !foundEnvVarMetadata { //no metadata to update
+			continue
+		}
+
+		if strings.EqualFold(envVarConfigMapValue, envVarMetadata.RadixConfigValue) { //config-map env-var is the same as in metadata
+			delete(envVarMetadataMap, envVarName)                     //remove metadata (it is not necessary anymore)
+			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
+			continue
+		}
+
+		//save radixconfig env-var value to metadata
+		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
+		envVarMetadataMap[envVarName] = envVarMetadata
+		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
+	}
+	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
+}
+
+func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(deployComponent v1.RadixCommonDeployComponent) error {
+	currentEnvVarsConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.GetName(), deployComponent.GetName())
+	if err != nil {
+		return err
+	}
+	desiredEnvVarsConfigMap := currentEnvVarsConfigMap.DeepCopy()
+	envVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+	if err != nil {
+		return err
+	}
+
+	BuildEnvVarsFromRadixConfig(deployComponent.GetEnvironmentVariables(), desiredEnvVarsConfigMap, envVarsMetadataMap)
+
+	err = deploy.kubeutil.ApplyConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
+	if err != nil {
+		return err
+	}
+	return deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(deploy.radixDeployment.Namespace, envVarsMetadataConfigMap, envVarsMetadataMap)
+}
+
+func getMapKeysSorted(stringMap map[string]string) []string {
+	keys := radixmaps.GetKeysFromStringMap(stringMap)
+	sort.Strings(keys)
+	return keys
 }
