@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"os"
 	"testing"
 
@@ -168,8 +167,6 @@ func TestGetReadinessProbe_Custom(t *testing.T) {
 func Test_UpdateResourcesInDeployment(t *testing.T) {
 	origRequests := map[string]string{"cpu": "10mi", "memory": "100M"}
 	origLimits := map[string]string{"cpu": "100mi", "memory": "1000M"}
-	envVarsConfigMap := &corev1.ConfigMap{Data: map[string]string{}}
-	envVarsMetadata := map[string]kube.EnvVarMetadata{}
 
 	t.Run("set empty requests and limits", func(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(nil, nil)
@@ -177,7 +174,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
 		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, expectedLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -191,7 +188,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
 		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, expectedLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -205,7 +202,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
 		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, expectedLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -219,7 +216,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
 		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, expectedLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -232,7 +229,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 
 		expectedRequests := map[string]string{"memory": "200M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, origLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.NotContains(t, desiredRes.Requests, "cpu")
@@ -245,7 +242,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 
 		expectedRequests := map[string]string{"cpu": "20mi"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, origLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -258,7 +255,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 
 		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(origRequests, expectedLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(origRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -271,7 +268,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 
 		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, origLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -283,7 +280,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		deployment := applyDeploymentWithSyncWithComponentResources(origRequests, origLimits)
 
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(nil, nil).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, 0, len(desiredRes.Requests))
@@ -294,7 +291,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 
 		expectedRequests := map[string]string{"cpu": "20mi", "memory": "200M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, nil).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, parseQuantity(expectedRequests["cpu"]), desiredRes.Requests["cpu"])
@@ -307,7 +304,7 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		var expectedRequests map[string]string
 		expectedLimits := map[string]string{"cpu": "30mi", "memory": "300M"}
 		component := utils.NewDeployComponentBuilder().WithName("comp1").WithResource(expectedRequests, expectedLimits).BuildComponent()
-		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component, envVarsConfigMap, envVarsMetadata)
+		desiredDeployment, _ := deployment.getDesiredCreatedDeploymentConfig(&component)
 
 		desiredRes := desiredDeployment.Spec.Template.Spec.Containers[0].Resources
 		assert.Equal(t, 0, len(desiredRes.Requests))

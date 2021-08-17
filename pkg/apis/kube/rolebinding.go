@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
@@ -161,7 +162,7 @@ func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding)
 		return fmt.Errorf("Failed to create two way merge patch role binding objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
+	if !utils.IsEmptyPatch(patchBytes) {
 		patchedRoleBinding, err := kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Patch(context.TODO(), role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch role binding object: %v", err)
@@ -214,7 +215,7 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRo
 		return fmt.Errorf("Failed to create two way merge patch cluster role binding objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
+	if !utils.IsEmptyPatch(patchBytes) {
 		patchedClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Patch(context.TODO(), clusterrolebinding.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch cluster role binding object: %v", err)

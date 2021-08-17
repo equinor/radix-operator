@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -68,7 +69,7 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 		return fmt.Errorf("Failed to create two way merge patch config-map objects: %v", err)
 	}
 
-	if IsEmptyPatch(patchBytes) {
+	if utils.IsEmptyPatch(patchBytes) {
 		log.Debugf("No need to patch config-map: %s ", currentConfigMap.GetName())
 		return nil
 	}

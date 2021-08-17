@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
@@ -56,7 +55,7 @@ func EqualPvcs(pvc1 *corev1.PersistentVolumeClaim, pvc2 *corev1.PersistentVolume
 	if !EqualStringMaps(labels1, labels2) {
 		return false, fmt.Errorf("PVC-s labels are not equal")
 	}
-	if !kube.IsEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		return false, fmt.Errorf("PVC-s are not equal: %s", patchBytes)
 	}
 	return true, nil

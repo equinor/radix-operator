@@ -494,9 +494,9 @@ func (deploy *Deployment) maintainHistoryLimit() {
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {
-	envVarConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.GetName(), component.GetName())
+	deploy.createOrUpdateEnvironmentVariableConfigMaps(component)
 	// Deploy to current radixDeploy object's namespace
-	err = deploy.createOrUpdateDeployment(component, envVarConfigMap, envVarsMetadataConfigMap)
+	err := deploy.createOrUpdateDeployment(component)
 	if err != nil {
 		log.Infof("Failed to create deployment: %v", err)
 		return fmt.Errorf("Failed to create deployment: %v", err)
@@ -539,4 +539,24 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		}
 	}
 	return nil
+}
+
+func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(deployComponent v1.RadixCommonDeployComponent) error {
+	currentEnvVarsConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.GetName(), deployComponent.GetName())
+	if err != nil {
+		return err
+	}
+	desiredEnvVarsConfigMap := currentEnvVarsConfigMap.DeepCopy()
+	envVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+	if err != nil {
+		return err
+	}
+
+	kube.BuildEnvVarsFromRadixConfig(deployComponent.GetEnvironmentVariables(), desiredEnvVarsConfigMap, envVarsMetadataMap)
+
+	err = deploy.kubeutil.ApplyConfigMap(deploy.radixDeployment.Namespace, currentEnvVarsConfigMap, desiredEnvVarsConfigMap)
+	if err != nil {
+		return err
+	}
+	return deploy.kubeutil.ApplyEnvVarsMetadataConfigMap(deploy.radixDeployment.Namespace, envVarsMetadataConfigMap, envVarsMetadataMap)
 }

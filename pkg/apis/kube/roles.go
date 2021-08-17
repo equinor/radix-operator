@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
@@ -55,7 +56,7 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *auth.Role) error {
 		return fmt.Errorf("Failed to create two way merge patch role objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
+	if !utils.IsEmptyPatch(patchBytes) {
 		patchedRole, err := kubeutil.kubeClient.RbacV1().Roles(namespace).Patch(context.TODO(), role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch role object: %v", err)
@@ -106,7 +107,7 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 		return fmt.Errorf("Failed to create two way merge patch cluster role objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
+	if !utils.IsEmptyPatch(patchBytes) {
 		patchedClusterRole, err := kubeutil.kubeClient.RbacV1().ClusterRoles().Patch(context.TODO(), clusterrole.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch clusterrole object: %v", err)

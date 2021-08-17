@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
@@ -54,7 +55,7 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.
 		return fmt.Errorf("Failed to create two way merge patch Ingess objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
+	if !utils.IsEmptyPatch(patchBytes) {
 		patchedIngress, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Patch(context.TODO(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch Ingress object: %v", err)

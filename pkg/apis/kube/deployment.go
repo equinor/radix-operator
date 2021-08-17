@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
@@ -40,7 +41,7 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 		return fmt.Errorf("Failed to create two way merge patch deployment objects: %v", err)
 	}
 
-	if IsEmptyPatch(patchBytes) {
+	if utils.IsEmptyPatch(patchBytes) {
 		log.Debugf("No need to patch deployment: %s ", currentDeployment.GetName())
 		return nil
 	}

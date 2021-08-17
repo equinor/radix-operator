@@ -57,7 +57,7 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDe
 	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
 
 	// Only the active cluster should have the DNS alias, not to cause conflicts between clusters
-	if deployComponent.IsDNSAppAlias() && isActiveCluster(clustername) {
+	if deployComponent.IsDNSAppAlias() && utils.IsActiveCluster(clustername) {
 		appAliasIngress := getAppAliasIngressConfig(deploy.radixDeployment.Spec.AppName, ownerReference, config, deployComponent, namespace, publicPortNumber)
 		if appAliasIngress != nil {
 			err = deploy.kubeutil.ApplyIngress(namespace, appAliasIngress)
@@ -74,7 +74,7 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDe
 
 	// Only the active cluster should have the DNS external alias, not to cause conflicts between clusters
 	dnsExternalAlias := deployComponent.GetDNSExternalAlias()
-	if dnsExternalAlias != nil && len(dnsExternalAlias) > 0 && isActiveCluster(clustername) {
+	if dnsExternalAlias != nil && len(dnsExternalAlias) > 0 && utils.IsActiveCluster(clustername) {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponentAndExternalAlias(deployComponent)
 		if err != nil {
 			return err
@@ -99,7 +99,7 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDe
 		}
 	}
 
-	if isActiveCluster(clustername) {
+	if utils.IsActiveCluster(clustername) {
 		// Create fixed active cluster ingress for this component
 		activeClusterAliasIngress := getActiveClusterAliasIngressConfig(deploy.radixDeployment.Spec.AppName,
 			ownerReference, config, deployComponent, namespace, publicPortNumber)
@@ -120,11 +120,6 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent v1.RadixCommonDe
 	ingress := getDefaultIngressConfig(deploy.radixDeployment.Spec.AppName,
 		ownerReference, config, deployComponent, clustername, namespace, publicPortNumber)
 	return deploy.kubeutil.ApplyIngress(namespace, ingress)
-}
-
-func isActiveCluster(clustername string) bool {
-	activeClustername := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
-	return strings.EqualFold(clustername, activeClustername)
 }
 
 func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
@@ -247,7 +242,7 @@ func getActiveClusterAliasIngressConfig(
 	namespace string,
 	publicPortNumber int32,
 ) *networkingv1beta1.Ingress {
-	hostname := getActiveClusterHostName(component.GetName(), namespace)
+	hostname := utils.GetActiveClusterHostName(component.GetName(), namespace)
 	if hostname == "" {
 		return nil
 	}
@@ -273,7 +268,7 @@ func getDefaultIngressConfig(
 	if dnsZone == "" {
 		return nil
 	}
-	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
+	hostname := utils.GetHostName(component.GetName(), namespace, clustername, dnsZone)
 	ingressSpec := getIngressSpec(hostname, component.GetName(), clusterDefaultTLSSecretName, publicPortNumber)
 
 	return getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, config, false, false, false, ingressSpec, namespace)
@@ -294,19 +289,6 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 ) (*networkingv1beta1.Ingress, error) {
 	ingressSpec := getIngressSpec(externalAlias, component.GetName(), externalAlias, publicPortNumber)
 	return getIngressConfig(appName, component, externalAlias, ownerReference, config, false, true, false, ingressSpec, namespace), nil
-}
-
-func getActiveClusterHostName(componentName, namespace string) string {
-	dnsZone := os.Getenv(defaults.OperatorDNSZoneEnvironmentVariable)
-	if dnsZone == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s-%s.%s", componentName, namespace, dnsZone)
-}
-
-func getHostName(componentName, namespace, clustername, dnsZone string) string {
-	hostnameTemplate := "%s-%s.%s.%s"
-	return fmt.Sprintf(hostnameTemplate, componentName, namespace, clustername, dnsZone)
 }
 
 func getAuthenticationAnnotationsFromConfiguration(authentication *v1.Authentication, componentName, namespace string) map[string]string {

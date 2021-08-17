@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -54,7 +55,7 @@ func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.Limit
 		return fmt.Errorf("Failed to create two way merge patch limitRange objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
+	if !utils.IsEmptyPatch(patchBytes) {
 		patchedLimitRange, err := kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Patch(context.TODO(), limitRange.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch limitRange object: %v", err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
@@ -65,7 +66,7 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 		return nil, fmt.Errorf("Failed to create two way merge patch secret objects: %v", err)
 	}
 
-	if !IsEmptyPatch(patchBytes) {
+	if !utils.IsEmptyPatch(patchBytes) {
 		// Will perform update as patching not properly remove secret data entries
 		patchedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
 		if err != nil {

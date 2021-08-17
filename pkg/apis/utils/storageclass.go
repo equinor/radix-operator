@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
@@ -54,7 +53,7 @@ func EqualStorageClasses(sc1, sc2 *storagev1.StorageClass) (bool, error) {
 	if !EqualStringLists(mountOptions1, mountOptions2) {
 		return false, fmt.Errorf("StorageClass-es MountOptions are not equal")
 	}
-	if !kube.IsEmptyPatch(patchBytes) {
+	if !IsEmptyPatch(patchBytes) {
 		return false, fmt.Errorf("StorageClass-es are not equal: %s", patchBytes)
 	}
 	return true, nil

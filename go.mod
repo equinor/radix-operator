@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/equinor/radix-common v1.1.6
+	github.com/kisielk/godepgraph v0.0.0-20190626013829-57a7e4a651a9 // indirect
 	github.com/prometheus-operator/prometheus-operator v0.44.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.0
 	github.com/prometheus/client_golang v1.8.0

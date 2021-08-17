@@ -119,7 +119,3 @@ func NewWithListers(client kubernetes.Interface,
 
 	return kubeutil, nil
 }
-
-func IsEmptyPatch(patchBytes []byte) bool {
-	return string(patchBytes) == "{}"
-}
