@@ -45,11 +45,11 @@ func (js *jobSchedulerComponent) GetPorts() []v1.ComponentPort {
 }
 
 func (js *jobSchedulerComponent) GetEnvironmentVariables() v1.EnvVarsMap {
-	return v1.EnvVarsMap{
-		defaults.RadixDeploymentEnvironmentVariable:               js.radixDeployment.Name,
-		defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable:    os.Getenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable),
-		defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable: os.Getenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable),
-	}
+	envVarsMap := js.EnvironmentVariables.DeepCopy()
+	envVarsMap[defaults.RadixDeploymentEnvironmentVariable] = js.radixDeployment.Name
+	envVarsMap[defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable] = os.Getenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable)
+	envVarsMap[defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable] = os.Getenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
+	return envVarsMap
 }
 
 func (js *jobSchedulerComponent) GetSecrets() []string {
