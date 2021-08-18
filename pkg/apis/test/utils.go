@@ -3,11 +3,11 @@ package test
 import (
 	"context"
 	"os"
-	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -342,7 +342,7 @@ func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *v1.RadixDeployment, deploy
 	initialEnvVarsConfigMap, _, _ := tu.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(rd.GetNamespace(), rd.GetName(), deployComponent.GetName())
 	desiredConfigMap := initialEnvVarsConfigMap.DeepCopy()
 	for envVarName, envVarValue := range deployComponent.GetEnvironmentVariables() {
-		if strings.HasPrefix(envVarName, "RADIX_") {
+		if utils.IsRadixEnvVar(envVarName) {
 			continue
 		}
 		desiredConfigMap.Data[envVarName] = envVarValue
