@@ -125,7 +125,7 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 
 func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
 	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(namespace, GetEnvVarsConfigMapName(componentName))
-	if err != nil {
+	if err != nil && !k8sErrors.IsNotFound(err) {
 		return nil, err
 	}
 	if configMap != nil {
@@ -137,7 +137,7 @@ func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(namespace, appName,
 
 func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName string) (*corev1.ConfigMap, error) {
 	configMap, err := kubeutil.getRadixConfigEnvVarsConfigMap(namespace, GetEnvVarsMetadataConfigMapName(componentName))
-	if err != nil {
+	if err != nil && !k8sErrors.IsNotFound(err) {
 		return nil, err
 	}
 	if configMap != nil {
@@ -174,11 +174,8 @@ func buildRadixConfigEnvVarsConfigMapForType(configMapType RadixConfigMapType, a
 
 func (kubeutil *Kube) getRadixConfigEnvVarsConfigMap(namespace, configMapName string) (*corev1.ConfigMap, error) {
 	configMap, err := kubeutil.GetConfigMap(namespace, configMapName)
-	if err != nil {
-		statusError := err.(*k8sErrors.StatusError)
-		if statusError == nil || !k8sErrors.IsNotFound(statusError) {
-			return nil, err
-		}
+	if err != nil && !k8sErrors.IsNotFound(err) {
+		return nil, err
 	}
 	if configMap != nil && configMap.Data == nil {
 		configMap.Data = make(map[string]string, 0)

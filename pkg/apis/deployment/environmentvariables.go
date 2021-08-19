@@ -99,7 +99,7 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
-	var envVars = getEnvVarsFromRadixConfig(envVarConfigMap, deployComponentEnvVars)
+	var envVars = getEnvVars(envVarConfigMap, deployComponentEnvVars)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
 	return envVars
@@ -117,7 +117,7 @@ func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string
 	return envVars
 }
 
-func getEnvVarsFromRadixConfig(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
+func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
 	envVarConfigMapName := envVarConfigMap.GetName()
 	// map is not sorted, which lead to random order of env variable in deployment
 	// during stop/start/restart of a single component this lead to restart of several other components
