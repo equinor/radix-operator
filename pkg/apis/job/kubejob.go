@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	numberUtils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	log "github.com/sirupsen/logrus"
@@ -100,22 +97,6 @@ func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
 	}
 
 	return &jobCfg, nil
-}
-
-func getUniqueJobName(image string) (string, string) {
-	var jobName []string
-	randomStr := strings.ToLower(utils.RandString(5))
-	jobName = append(jobName, image)
-	jobName = append(jobName, "-")
-	jobName = append(jobName, getCurrentTimestamp())
-	jobName = append(jobName, "-")
-	jobName = append(jobName, randomStr)
-	return strings.Join(jobName, ""), randomStr
-}
-
-func getCurrentTimestamp() string {
-	t := time.Now()
-	return t.Format("20060102150405") // YYYYMMDDHHMISS in Go
 }
 
 func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {

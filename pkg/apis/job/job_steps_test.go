@@ -508,7 +508,9 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 	}
 
 	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixjob)
-	err := job.setStatusOfJob()
+	if err := job.setStatusOfJob(); err != nil {
+		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
+	}
 
 	actualRj, err := s.radixClient.RadixV1().RadixJobs(scenario.radixjob.Namespace).Get(context.Background(), scenario.radixjob.Name, metav1.GetOptions{})
 	if err != nil {
@@ -648,18 +650,12 @@ func (s *RadixJobStepTestSuite) getJobPod(podName, jobName, namespace string) *c
 }
 
 func (s *RadixJobStepTestSuite) appendJobPodContainerStatus(pod *corev1.Pod, containerStatus ...corev1.ContainerStatus) *corev1.Pod {
-	for _, s := range containerStatus {
-		pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, s)
-	}
-
+	pod.Status.ContainerStatuses = append(pod.Status.ContainerStatuses, containerStatus...)
 	return pod
 }
 
 func (s *RadixJobStepTestSuite) appendJobPodInitContainerStatus(pod *corev1.Pod, containerStatus ...corev1.ContainerStatus) *corev1.Pod {
-	for _, s := range containerStatus {
-		pod.Status.InitContainerStatuses = append(pod.Status.InitContainerStatuses, s)
-	}
-
+	pod.Status.InitContainerStatuses = append(pod.Status.InitContainerStatuses, containerStatus...)
 	return pod
 }
 
