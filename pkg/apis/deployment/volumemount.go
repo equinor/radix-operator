@@ -490,7 +490,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureResources(desiredDeployment *app
 		if !existsRadixVolumeMount {
 			return errors.New(fmt.Sprintf("not found Radix volume mount for desired volume %s", volume.Name))
 		}
-		storageClass, storageClassIsCreated, err := deploy.createOrGetCsiAzureStorageClass(appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, scMap)
+		storageClass, storageClassIsCreated, err := deploy.getOrCreateCsiAzureStorageClass(appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, scMap)
 		if err != nil {
 			return err
 		}
@@ -571,8 +571,8 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(storageClass *stor
 	return deploy.createPersistentVolumeClaim(appName, namespace, componentName, persistentVolumeClaimName, storageClass.Name, radixVolumeMount)
 }
 
-//createOrGetCsiAzureStorageClass returns creates or existing StorageClass, storageClassIsCreated=true, if created; error, if any
-func (deploy *Deployment) createOrGetCsiAzureStorageClass(appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, scMap map[string]*storagev1.StorageClass) (*storagev1.StorageClass, bool, error) {
+//getOrCreateCsiAzureStorageClass returns creates or existing StorageClass, storageClassIsCreated=true, if created; error, if any
+func (deploy *Deployment) getOrCreateCsiAzureStorageClass(appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, scMap map[string]*storagev1.StorageClass) (*storagev1.StorageClass, bool, error) {
 	volumeMountProvisioner, foundProvisioner := radixv1.GetStorageClassProvisionerByVolumeMountType(radixVolumeMount.Type)
 	if !foundProvisioner {
 		return nil, false, fmt.Errorf("not found Storage Class provisioner for volume mount type %s", string(radixVolumeMount.Type))

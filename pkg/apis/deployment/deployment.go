@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/util/retry"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -25,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -495,8 +494,12 @@ func (deploy *Deployment) maintainHistoryLimit() {
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {
+	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(component)
+	if err != nil {
+		return err
+	}
 	// Deploy to current radixDeploy object's namespace
-	err := deploy.createOrUpdateDeployment(component)
+	err = deploy.createOrUpdateDeployment(component)
 	if err != nil {
 		log.Infof("Failed to create deployment: %v", err)
 		return fmt.Errorf("Failed to create deployment: %v", err)

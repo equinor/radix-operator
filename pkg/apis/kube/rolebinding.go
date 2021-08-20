@@ -123,11 +123,11 @@ func getRoleBindingForSubjects(roleName, kind string, subjects []auth.Subject, l
 }
 
 // ApplyRoleBinding Creates or updates role
-func (k *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error {
+func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error {
 	logger.Debugf("Apply role binding %s", role.Name)
-	oldRoleBinding, err := k.GetRoleBinding(namespace, role.GetName())
+	oldRoleBinding, err := kubeutil.GetRoleBinding(namespace, role.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
+		createdRoleBinding, err := kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create role binding object: %v", err)
 		}
@@ -162,7 +162,7 @@ func (k *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error 
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedRoleBinding, err := k.kubeClient.RbacV1().RoleBindings(namespace).Patch(context.TODO(), role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedRoleBinding, err := kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Patch(context.TODO(), role.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch role binding object: %v", err)
 		}
@@ -175,12 +175,12 @@ func (k *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error 
 }
 
 // ApplyClusterRoleBinding Creates or updates cluster-role-binding
-func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBinding) error {
+func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBinding) error {
 	logger = logger.WithFields(log.Fields{"clusterRoleBinding": clusterrolebinding.ObjectMeta.Name})
 	logger.Debugf("Apply clusterrolebinding %s", clusterrolebinding.Name)
-	oldClusterRoleBinding, err := k.getClusterRoleBinding(clusterrolebinding.Name)
+	oldClusterRoleBinding, err := kubeutil.getClusterRoleBinding(clusterrolebinding.Name)
 	if err != nil && errors.IsNotFound(err) {
-		createdClusterRoleBinding, err := k.kubeClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterrolebinding, metav1.CreateOptions{})
+		createdClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterrolebinding, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create cluster role binding object: %v", err)
 		}
@@ -215,7 +215,7 @@ func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBindi
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedClusterRoleBinding, err := k.kubeClient.RbacV1().ClusterRoleBindings().Patch(context.TODO(), clusterrolebinding.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedClusterRoleBinding, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Patch(context.TODO(), clusterrolebinding.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch cluster role binding object: %v", err)
 		}
@@ -228,7 +228,7 @@ func (k *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBindi
 }
 
 // ApplyClusterRoleToServiceAccount Creates cluster-role-binding as a link between role and service account
-func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
+func (kubeutil *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
 	rolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -251,21 +251,21 @@ func (k *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount 
 			},
 		},
 	}
-	return k.ApplyClusterRoleBinding(rolebinding)
+	return kubeutil.ApplyClusterRoleBinding(rolebinding)
 }
 
 // GetRoleBinding Gets rolebinding
-func (k *Kube) GetRoleBinding(namespace, name string) (*auth.RoleBinding, error) {
+func (kubeutil *Kube) GetRoleBinding(namespace, name string) (*auth.RoleBinding, error) {
 	var role *auth.RoleBinding
 	var err error
 
-	if k.RoleBindingLister != nil {
-		role, err = k.RoleBindingLister.RoleBindings(namespace).Get(name)
+	if kubeutil.RoleBindingLister != nil {
+		role, err = kubeutil.RoleBindingLister.RoleBindings(namespace).Get(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		role, err = k.kubeClient.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		role, err = kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -275,16 +275,16 @@ func (k *Kube) GetRoleBinding(namespace, name string) (*auth.RoleBinding, error)
 }
 
 // ListRoleBindings Lists role bindings from cache or from cluster
-func (k *Kube) ListRoleBindings(namespace string) ([]*auth.RoleBinding, error) {
-	return k.ListRoleBindingsWithSelector(namespace, nil)
+func (kubeutil *Kube) ListRoleBindings(namespace string) ([]*auth.RoleBinding, error) {
+	return kubeutil.ListRoleBindingsWithSelector(namespace, nil)
 }
 
 // ListRoleBindingsWithSelector Lists role bindings from cache or from cluster using a selector
-func (k *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorString *string) ([]*auth.RoleBinding, error) {
+func (kubeutil *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorString *string) ([]*auth.RoleBinding, error) {
 	var roleBindings []*auth.RoleBinding
 	var err error
 
-	if k.RoleBindingLister != nil {
+	if kubeutil.RoleBindingLister != nil {
 		var selector labels.Selector
 		if labelSelectorString != nil {
 			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
@@ -301,7 +301,7 @@ func (k *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorStrin
 			selector = labels.NewSelector()
 		}
 
-		roleBindings, err = k.RoleBindingLister.RoleBindings(namespace).List(selector)
+		roleBindings, err = kubeutil.RoleBindingLister.RoleBindings(namespace).List(selector)
 		if err != nil {
 			return nil, err
 		}
@@ -311,7 +311,7 @@ func (k *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorStrin
 			listOptions.LabelSelector = *labelSelectorString
 		}
 
-		list, err := k.kubeClient.RbacV1().RoleBindings(namespace).List(context.TODO(), listOptions)
+		list, err := kubeutil.kubeClient.RbacV1().RoleBindings(namespace).List(context.TODO(), listOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -323,17 +323,17 @@ func (k *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorStrin
 }
 
 // ListClusterRoleBindings List cluster roles
-func (k *Kube) ListClusterRoleBindings(namespace string) ([]*auth.ClusterRoleBinding, error) {
+func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*auth.ClusterRoleBinding, error) {
 	var clusterRoleBindings []*auth.ClusterRoleBinding
 	var err error
 
-	if k.ClusterRoleBindingLister != nil {
-		clusterRoleBindings, err = k.ClusterRoleBindingLister.List(labels.NewSelector())
+	if kubeutil.ClusterRoleBindingLister != nil {
+		clusterRoleBindings, err = kubeutil.ClusterRoleBindingLister.List(labels.NewSelector())
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := k.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.kubeClient.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -345,14 +345,14 @@ func (k *Kube) ListClusterRoleBindings(namespace string) ([]*auth.ClusterRoleBin
 }
 
 // DeleteClusterRoleBinding Deletes a clusterrolebinding
-func (k *Kube) DeleteClusterRoleBinding(name string) error {
-	_, err := k.getClusterRoleBinding(name)
+func (kubeutil *Kube) DeleteClusterRoleBinding(name string) error {
+	_, err := kubeutil.getClusterRoleBinding(name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("Failed to get clusterrolebinding object: %v", err)
 	}
-	err = k.kubeClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err = kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to delete clusterrolebinding object: %v", err)
 	}
@@ -360,31 +360,31 @@ func (k *Kube) DeleteClusterRoleBinding(name string) error {
 }
 
 // DeleteRoleBinding Deletes a rolebinding in a namespace
-func (k *Kube) DeleteRoleBinding(namespace, name string) error {
-	_, err := k.GetRoleBinding(namespace, name)
+func (kubeutil *Kube) DeleteRoleBinding(namespace, name string) error {
+	_, err := kubeutil.GetRoleBinding(namespace, name)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("Failed to get rolebinding object: %v", err)
 	}
-	err = k.kubeClient.RbacV1().RoleBindings(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err = kubeutil.kubeClient.RbacV1().RoleBindings(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("Failed to delete rolebinding object: %v", err)
 	}
 	return nil
 }
 
-func (k *Kube) getClusterRoleBinding(name string) (*auth.ClusterRoleBinding, error) {
+func (kubeutil *Kube) getClusterRoleBinding(name string) (*auth.ClusterRoleBinding, error) {
 	var clusterRoleBinding *auth.ClusterRoleBinding
 	var err error
 
-	if k.ClusterRoleBindingLister != nil {
-		clusterRoleBinding, err = k.ClusterRoleBindingLister.Get(name)
+	if kubeutil.ClusterRoleBindingLister != nil {
+		clusterRoleBinding, err = kubeutil.ClusterRoleBindingLister.Get(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		clusterRoleBinding, err = k.kubeClient.RbacV1().ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
+		clusterRoleBinding, err = kubeutil.kubeClient.RbacV1().ClusterRoleBindings().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

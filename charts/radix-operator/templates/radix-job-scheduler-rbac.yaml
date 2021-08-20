@@ -54,4 +54,13 @@ rules:
       - create
       - delete
       - list
+  - apiGroups:
+      - ''
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - create
+      - update
 ---
