@@ -40,6 +40,7 @@ type Deployment struct {
 	prometheusperatorclient monitoring.Interface
 	registration            *v1.RadixRegistration
 	radixDeployment         *v1.RadixDeployment
+	forceRunAsNonRoot       bool
 }
 
 // NewDeployment Constructor
@@ -48,12 +49,17 @@ func NewDeployment(kubeclient kubernetes.Interface,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
 	registration *v1.RadixRegistration,
-	radixDeployment *v1.RadixDeployment) (Deployment, error) {
+	radixDeployment *v1.RadixDeployment,
+	forceRunAsNonRoot bool) DeploymentSyncer {
 
-	return Deployment{
+	return &Deployment{
 		kubeclient,
 		radixclient,
-		kubeutil, prometheusperatorclient, registration, radixDeployment}, nil
+		kubeutil,
+		prometheusperatorclient,
+		registration,
+		radixDeployment,
+		forceRunAsNonRoot}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name
@@ -74,16 +80,6 @@ func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTa
 	return radixDeployment, nil
 }
 
-// Apply Will make deployment effective
-func (deploy *Deployment) Apply() error {
-	log.Infof("Apply radix deployment %s on env %s", deploy.radixDeployment.ObjectMeta.Name, deploy.radixDeployment.ObjectMeta.Namespace)
-	_, err := deploy.radixclient.RadixV1().RadixDeployments(deploy.radixDeployment.ObjectMeta.Namespace).Create(context.TODO(), deploy.radixDeployment, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (deploy *Deployment) OnSync() error {
@@ -97,7 +93,7 @@ func (deploy *Deployment) OnSync() error {
 	if requeue {
 		// If this is an active deployment restored from status, it is important that the other inactive RDs are restored
 		// before this is reprocessed, as the code will now skip OnSync if only a status has changed on the RD
-		return fmt.Errorf("Requeue, status was restored for active deployment, %s, and we need to trigger a new sync", deploy.getName())
+		return fmt.Errorf("requeue, status was restored for active deployment, %s, and we need to trigger a new sync", deploy.getName())
 	}
 
 	stopReconciliation, err := deploy.syncStatuses()
@@ -170,7 +166,7 @@ func (deploy *Deployment) syncStatuses() (stopReconciliation bool, err error) {
 
 	allRDs, err := deploy.kubeutil.ListRadixDeployments(deploy.getNamespace())
 	if err != nil {
-		err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+		err = fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
 	}
 
 	if deploy.isLatestInTheEnvironment(allRDs) {
@@ -199,7 +195,7 @@ func (deploy *Deployment) syncDeployment() error {
 	// can garbageCollectComponentsNoLongerInSpec be moved to syncComponents()?
 	err := deploy.garbageCollectComponentsNoLongerInSpec()
 	if err != nil {
-		return fmt.Errorf("Failed to perform garbage collection of removed components: %v", err)
+		return fmt.Errorf("failed to perform garbage collection of removed components: %v", err)
 	}
 
 	deploy.configureRbac()
@@ -207,7 +203,7 @@ func (deploy *Deployment) syncDeployment() error {
 	err = deploy.createOrUpdateSecrets(deploy.registration, deploy.radixDeployment)
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
-		return fmt.Errorf("Failed to provision secrets: %v", err)
+		return fmt.Errorf("failed to provision secrets: %v", err)
 	}
 
 	err = deploy.denyTrafficFromOtherNamespaces()
@@ -453,7 +449,7 @@ func getRadixJobSchedulerImage() (string, error) {
 	image := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 
 	if image == "" {
-		err := fmt.Errorf("Cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+		err := fmt.Errorf("cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 		log.Error(err)
 	}
 
@@ -502,29 +498,29 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	err = deploy.createOrUpdateDeployment(component)
 	if err != nil {
 		log.Infof("Failed to create deployment: %v", err)
-		return fmt.Errorf("Failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %v", err)
 	}
 	err = deploy.createOrUpdateHPA(component)
 	if err != nil {
 		log.Infof("Failed to create horizontal pod autoscaler: %v", err)
-		return fmt.Errorf("Failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %v", err)
 	}
 	err = deploy.createOrUpdateService(component)
 	if err != nil {
 		log.Infof("Failed to create service: %v", err)
-		return fmt.Errorf("Failed to create service: %v", err)
+		return fmt.Errorf("failed to create service: %v", err)
 	}
 	if component.GetPublicPort() != "" || component.IsPublic() {
 		err = deploy.createOrUpdateIngress(component)
 		if err != nil {
 			log.Infof("Failed to create ingress: %v", err)
-			return fmt.Errorf("Failed to create ingress: %v", err)
+			return fmt.Errorf("failed to create ingress: %v", err)
 		}
 	} else {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(component)
 		if err != nil {
 			log.Infof("Failed to delete ingress: %v", err)
-			return fmt.Errorf("Failed to delete ingress: %v", err)
+			return fmt.Errorf("failed to delete ingress: %v", err)
 		}
 	}
 
@@ -532,13 +528,13 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		err = deploy.createOrUpdateServiceMonitor(component)
 		if err != nil {
 			log.Infof("Failed to create service monitor: %v", err)
-			return fmt.Errorf("Failed to create service monitor: %v", err)
+			return fmt.Errorf("failed to create service monitor: %v", err)
 		}
 	} else {
 		err = deploy.deleteServiceMonitorForComponent(component)
 		if err != nil {
 			log.Infof("Failed to delete servicemonitor: %v", err)
-			return fmt.Errorf("Failed to delete servicemonitor: %v", err)
+			return fmt.Errorf("failed to delete servicemonitor: %v", err)
 		}
 	}
 	return nil

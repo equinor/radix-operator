@@ -3,12 +3,13 @@ package deployment
 import (
 	"context"
 	"fmt"
-	radixutils "github.com/equinor/radix-common/utils"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	radixutils "github.com/equinor/radix-common/utils"
 
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -3201,7 +3202,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 	if err != nil {
 		return nil, err
 	}
-	deployment, err := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd)
+	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false)
 	err = deployment.OnSync()
 	if err != nil {
 		return nil, err
@@ -3223,7 +3224,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment, err := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd)
+	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false)
 	err = deployment.OnSync()
 	if err != nil {
 		return err

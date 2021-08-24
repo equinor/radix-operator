@@ -72,4 +72,9 @@ const (
 
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
+
+	// RadixDeploymentForceNonRootContainers Controls the non-root configuration for component containers
+	// true: all component containers are force to run as non-root
+	// false: non-root for a component container is controlled by runAsNonRoot from radixconfig
+	RadixDeploymentForceNonRootContainers = "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER"
 )

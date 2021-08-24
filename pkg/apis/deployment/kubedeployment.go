@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -170,10 +171,10 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = getSecurityContextForContainer(deployComponent.GetRunAsNonRoot())
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.getContainerSecurityContextForComponent(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-	desiredDeployment.Spec.Template.Spec.SecurityContext = getSecurityContextForPod(deployComponent.GetRunAsNonRoot())
+	desiredDeployment.Spec.Template.Spec.SecurityContext = deploy.getPodSecurityContextForComponent(deployComponent)
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent)
 	if err != nil {
@@ -222,6 +223,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 	}
 
 	radixDeployment := deploy.radixDeployment
+
 	environmentVariables, err := getEnvironmentVariablesForRadixOperator(deploy.kubeutil, appName, radixDeployment, deployComponent)
 	if err != nil {
 		return nil, err
@@ -375,6 +377,11 @@ func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error 
 	return nil
 }
 
+func (deploy *Deployment) getContainerSecurityContextForComponent(component v1.RadixCommonDeployComponent) *corev1.SecurityContext {
+	runAsNonRoot := deploy.forceRunAsNonRoot || component.GetRunAsNonRoot()
+	return getSecurityContextForContainer(runAsNonRoot)
+}
+
 // Returns a security context for container. If root flag is overridden from application config, it's allowed to run as root.
 func getSecurityContextForContainer(runAsNonRoot bool) *corev1.SecurityContext {
 	// runAsNonRoot is false by default
@@ -396,6 +403,11 @@ func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.C
 		ports = append(ports, containerPort)
 	}
 	return ports
+}
+
+func (deploy *Deployment) getPodSecurityContextForComponent(component v1.RadixCommonDeployComponent) *corev1.PodSecurityContext {
+	runAsNonRoot := deploy.forceRunAsNonRoot || component.GetRunAsNonRoot()
+	return getSecurityContextForPod(runAsNonRoot)
 }
 
 func getSecurityContextForPod(runAsNonRoot bool) *corev1.PodSecurityContext {

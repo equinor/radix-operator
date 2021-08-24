@@ -28,8 +28,6 @@ const (
 	containerRegistry = "any.container.registry"
 )
 
-var synced chan bool
-
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
@@ -81,9 +79,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		kubeUtil,
 		radixClient,
 		prometheusclient,
-		func(syncedOk bool) {
-			synced <- syncedOk
-		},
+		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
 	go startDeploymentController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
 
@@ -145,13 +141,13 @@ func startDeploymentController(client kubernetes.Interface,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	handler Handler, stop chan struct{}) {
+	handler *Handler, stop chan struct{}) {
 
 	eventRecorder := &record.FakeRecorder{}
 
 	waitForChildrenToSync := false
 	controller := NewController(
-		client, kubeutil, radixClient, &handler,
+		client, kubeutil, radixClient, handler,
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,

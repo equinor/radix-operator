@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -9,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DeployStepImplementation Step to deploy RD into environment
@@ -85,23 +87,13 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)
 	}
 
-	deployment, err := deployment.NewDeployment(
-		cli.GetKubeclient(),
-		cli.GetKubeutil(),
-		cli.GetRadixclient(),
-		cli.GetPrometheusOperatorClient(),
-		cli.GetRegistration(),
-		&radixDeployment)
-	if err != nil {
-		return err
-	}
-
 	err = cli.namespaceWatcher.WaitFor(utils.GetEnvironmentNamespace(cli.GetAppName(), env))
 	if err != nil {
 		return fmt.Errorf("failed to get environment namespace, %s, for app %s. %v", env, appName, err)
 	}
 
-	err = deployment.Apply()
+	log.Infof("Apply radix deployment %s on env %s", radixDeployment.GetName(), radixDeployment.GetNamespace())
+	_, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.TODO(), &radixDeployment, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
 	}
