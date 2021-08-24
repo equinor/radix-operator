@@ -47,28 +47,39 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	var desiredDeployment *appsv1.Deployment
 	namespace := deploy.radixDeployment.Namespace
 
-	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
+	currentDeployment, desiredDeployment, err := deploy.getDesiredDeployment(namespace, deployComponent)
 	if err != nil {
-		if !k8sErrors.IsNotFound(err) {
-			return nil, nil, err
-		}
-
-		desiredDeployment, err = deploy.getDesiredCreatedDeploymentConfig(deployComponent)
-		if err == nil {
-			log.Debugf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
-		}
-	} else {
-		desiredDeployment, err = deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
-		if err == nil {
-			log.Debugf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
-		}
+		return nil, nil, err
 	}
 
 	deploy.configureDeploymentServiceAccountSettings(desiredDeployment, deployComponent)
 	return currentDeployment, desiredDeployment, err
+}
+
+func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentDeployment, err := deploy.kubeutil.GetDeployment(namespace, deployComponent.GetName())
+
+	if err == nil && currentDeployment != nil {
+		desiredDeployment, err := deploy.getDesiredUpdatedDeploymentConfig(deployComponent, currentDeployment)
+		if err != nil {
+			return nil, nil, err
+		}
+		log.Debugf("Deployment object %s already exists in namespace %s, updating the object now", currentDeployment.GetName(), namespace)
+		return currentDeployment, desiredDeployment, nil
+	}
+
+	if !k8sErrors.IsNotFound(err) {
+		return nil, nil, err
+	}
+
+	desiredDeployment, err := deploy.getDesiredCreatedDeploymentConfig(deployComponent)
+	if err != nil {
+		return nil, nil, err
+	}
+	log.Debugf("Creating Deployment: %s in namespace %s", desiredDeployment.Name, namespace)
+	return currentDeployment, desiredDeployment, nil
 }
 
 func (deploy *Deployment) configureDeploymentServiceAccountSettings(deployment *appsv1.Deployment, deployComponent v1.RadixCommonDeployComponent) {
