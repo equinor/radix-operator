@@ -13,27 +13,14 @@ import (
 
 // CreateConfigMap Create config map
 func (kubeutil *Kube) CreateConfigMap(namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	createdConfigMap, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(),
+	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(),
 		configMap,
 		metav1.CreateOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return createdConfigMap, nil
 }
 
 // GetConfigMap Gets config map by name
 func (kubeutil *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, error) {
-	var configMap *corev1.ConfigMap
-	var err error
-
-	configMap, err = kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	log.Debugf("Created environment variables ConfigMap  '%s'", configMap.GetName())
-
-	return configMap, nil
+	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 //UpdateConfigMap Update config-maps
