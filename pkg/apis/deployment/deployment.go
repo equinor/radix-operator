@@ -32,6 +32,11 @@ const (
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
 
+//DeploymentSyncer defines interface for syncing a RadixDeployment
+type DeploymentSyncer interface {
+	OnSync() error
+}
+
 // Deployment Instance variables
 type Deployment struct {
 	kubeclient              kubernetes.Interface

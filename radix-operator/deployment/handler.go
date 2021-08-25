@@ -6,7 +6,6 @@ import (
 	"os"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -31,11 +30,30 @@ const (
 	MessageResourceSynced = "Radix Deployment synced successfully"
 )
 
-type HandlerConfig func(*Handler)
+var hasSyncedNoop common.HasSynced = func(b bool) {}
 
-func WithHasSyncedCallback(callback common.HasSynced) HandlerConfig {
+// HandlerConfigOption defines a configuration function used for additional configuration of Handler
+type HandlerConfigOption func(*Handler)
+
+// WithHasSyncedCallback configures Handler callback when RD has synced successfully
+func WithHasSyncedCallback(callback common.HasSynced) HandlerConfigOption {
 	return func(h *Handler) {
 		h.hasSynced = callback
+	}
+}
+
+// WithForceRunAsNonRootFromEnvVar configures runAsNonRoot for Handler from an environment variable
+func WithForceRunAsNonRootFromEnvVar(envVarName, trueValue string) HandlerConfigOption {
+	return func(h *Handler) {
+		envValue := os.Getenv(envVarName)
+		h.forceRunAsNonRoot = commonUtils.ContainsString([]string{trueValue}, envValue)
+	}
+}
+
+// WithForceRunAsNonRootFromEnvVar configures the deploymentSyncerFactory for the Handler
+func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
+	return func(h *Handler) {
+		h.deploymentSyncerFactory = factory
 	}
 }
 
@@ -55,7 +73,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
-	configs ...HandlerConfig) *Handler {
+	options ...HandlerConfigOption) *Handler {
 
 	handler := &Handler{
 		kubeclient:              kubeclient,
@@ -64,12 +82,11 @@ func NewHandler(kubeclient kubernetes.Interface,
 		kubeutil:                kubeutil,
 	}
 
-	configureDefaultForceNonRootContainers(handler)
 	configureDefaultDeploymentSyncerFactory(handler)
 	configureDefaultHasSynced(handler)
 
-	for _, config := range configs {
-		config(handler)
+	for _, option := range options {
+		option(handler)
 	}
 
 	return handler
@@ -123,15 +140,10 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	return nil
 }
 
-func configureDefaultForceNonRootContainers(h *Handler) {
-	envValue := os.Getenv(defaults.RadixDeploymentForceNonRootContainers)
-	h.forceRunAsNonRoot = commonUtils.ContainsString([]string{"true"}, envValue)
-}
-
 func configureDefaultDeploymentSyncerFactory(h *Handler) {
 	h.deploymentSyncerFactory = deployment.DeploymentSyncerFactoryFunc(deployment.NewDeployment)
 }
 
 func configureDefaultHasSynced(h *Handler) {
-	h.hasSynced = func(b bool) {}
+	h.hasSynced = hasSyncedNoop
 }

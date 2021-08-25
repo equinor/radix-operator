@@ -8,6 +8,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// DeploymentSyncerFactoryFunc is an adapter that can be used to convert
+// a function into a DeploymentSyncerFactory
 type DeploymentSyncerFactoryFunc func(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
@@ -30,10 +32,7 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, forceRunAsNonRoot)
 }
 
-type DeploymentSyncer interface {
-	OnSync() error
-}
-
+//DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
 type DeploymentSyncerFactory interface {
 	CreateDeploymentSyncer(
 		kubeclient kubernetes.Interface,

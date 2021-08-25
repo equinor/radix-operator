@@ -71,6 +71,10 @@ echo:
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
+mocks:
+	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/mock/deploymentfactory_mock.go -package mock
+	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/mock/deployment_mock.go -package mock
+
 build-pipeline:
 	docker build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) -f pipeline.Dockerfile .
 

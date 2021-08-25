@@ -3186,6 +3186,63 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 	})
 }
 
+func Test_SecurityPolicy(t *testing.T) {
+	type scenarioDef struct {
+		forceRunAsNonRoot     bool
+		componentRunAsNonRoot bool
+		expected              bool
+	}
+
+	testScenarios := []scenarioDef{
+		{forceRunAsNonRoot: false, componentRunAsNonRoot: false, expected: false},
+		{forceRunAsNonRoot: false, componentRunAsNonRoot: true, expected: true},
+		{forceRunAsNonRoot: true, componentRunAsNonRoot: false, expected: true},
+		{forceRunAsNonRoot: true, componentRunAsNonRoot: true, expected: true},
+	}
+
+	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "app"}}
+
+	for _, scenario := range testScenarios {
+		t.Run(
+			fmt.Sprintf("test with forceRunAsNonRoot=%v and componentRunAsNonRoot=%v", scenario.forceRunAsNonRoot, scenario.componentRunAsNonRoot),
+			func(t *testing.T) {
+				t.Parallel()
+				_, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
+				radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+				rd := &v1.RadixDeployment{
+					ObjectMeta: metav1.ObjectMeta{Name: "rd", Namespace: "app-env"},
+					Spec: v1.RadixDeploymentSpec{
+						AppName:     "app",
+						Environment: "env",
+						Components: []v1.RadixDeployComponent{
+							{
+								RunAsNonRoot: scenario.componentRunAsNonRoot,
+								Name:         "comp",
+							},
+						},
+					},
+				}
+				_, err := radixclient.RadixV1().RadixDeployments("app-env").Create(context.Background(), rd, metav1.CreateOptions{})
+				assert.Nil(t, err)
+				deploysync := Deployment{
+					kubeclient:              kubeclient,
+					radixclient:             radixclient,
+					kubeutil:                kubeUtil,
+					prometheusperatorclient: prometheusclient,
+					registration:            rr,
+					radixDeployment:         rd,
+					forceRunAsNonRoot:       scenario.forceRunAsNonRoot,
+				}
+				err = deploysync.OnSync()
+				assert.Nil(t, err)
+				deployment, _ := kubeclient.AppsV1().Deployments("app-env").Get(context.Background(), "comp", metav1.GetOptions{})
+				assert.Equal(t, scenario.expected, *deployment.Spec.Template.Spec.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, scenario.expected, *deployment.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot)
+			},
+		)
+	}
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
