@@ -5,18 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // CreateConfigMap Create config map
 func (kubeutil *Kube) CreateConfigMap(namespace string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
-	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(),
+	createdConfigMap, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(),
 		configMap,
 		metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return createdConfigMap, nil
 }
 
 // GetConfigMap Gets config map by name
@@ -24,18 +27,11 @@ func (kubeutil *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, e
 	var configMap *corev1.ConfigMap
 	var err error
 
-	if kubeutil.ConfigMapLister != nil {
-		configMap, err = kubeutil.ConfigMapLister.ConfigMaps(namespace).Get(name)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		configMap, err = kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		log.Debugf("Created environment variables ConfigMap  '%s'", configMap.GetName())
+	configMap, err = kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
 	}
+	log.Debugf("Created environment variables ConfigMap  '%s'", configMap.GetName())
 
 	return configMap, nil
 }

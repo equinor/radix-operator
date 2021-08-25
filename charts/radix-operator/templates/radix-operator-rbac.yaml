@@ -50,6 +50,7 @@ rules:
   - create
   - delete
   - update # required since radix operator grants this to others
+  - patch
 - apiGroups:
   - '*'
   resources:
