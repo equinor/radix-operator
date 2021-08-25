@@ -141,9 +141,9 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 }
 
 func configureDefaultDeploymentSyncerFactory(h *Handler) {
-	h.deploymentSyncerFactory = deployment.DeploymentSyncerFactoryFunc(deployment.NewDeployment)
+	WithDeploymentSyncerFactory(deployment.DeploymentSyncerFactoryFunc(deployment.NewDeployment))(h)
 }
 
 func configureDefaultHasSynced(h *Handler) {
-	h.hasSynced = hasSyncedNoop
+	WithHasSyncedCallback(hasSyncedNoop)(h)
 }
