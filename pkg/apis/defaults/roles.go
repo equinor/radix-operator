@@ -30,6 +30,9 @@ const (
 	// ConfigToMapRunnerRoleName Role (service account name) of user to apply radixconfig to configmap
 	ConfigToMapRunnerRoleName = "radix-config-to-map-runner"
 
+	// ScanImageRunnerRoleName Role (service account name) of user to store vulnerability scan results to configmap
+	ScanImageRunnerRoleName = "radix-scan-image-runner"
+
 	// MachineUserPostfix Role (service account) of machine user will be <appName--machine-user> in default namespace
 	MachineUserPostfix = "machine-user"
 

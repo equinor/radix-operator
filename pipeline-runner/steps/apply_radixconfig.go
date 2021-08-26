@@ -53,7 +53,9 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	}
 
 	ra := &v1.RadixApplication{}
-	err = yaml.Unmarshal([]byte(configMap.Data["content"]), ra)
+	if err := yaml.Unmarshal([]byte(configMap.Data["content"]), ra); err != nil {
+		return err
+	}
 
 	// Validate RA
 	if validate.RAContainsOldPublic(ra) {

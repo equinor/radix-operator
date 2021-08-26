@@ -15,16 +15,33 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kube "k8s.io/client-go/kubernetes"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 )
 
 const clusterName = "AnyClusterName"
-const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 
-func setupTest() (*test.Utils, kube.Interface, *kubeUtils.Kube, radixclient.Interface) {
+type RadixJobTestSuiteBase struct {
+	suite.Suite
+	testUtils   *test.Utils
+	kubeClient  kube.Interface
+	kubeUtils   *kubeUtils.Kube
+	radixClient radixclient.Interface
+}
+
+func (s *RadixJobTestSuiteBase) SetupTest() {
+	s.setupTest()
+}
+
+func (s *RadixJobTestSuiteBase) TearDownTest() {
+	s.teardownTest()
+}
+
+func (s *RadixJobTestSuiteBase) setupTest() {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
@@ -32,10 +49,10 @@ func setupTest() (*test.Utils, kube.Interface, *kubeUtils.Kube, radixclient.Inte
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)
-	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
+	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }
 
-func teardownTest() {
+func (s *RadixJobTestSuiteBase) teardownTest() {
 	// Cleanup setup
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
@@ -45,134 +62,23 @@ func teardownTest() {
 	os.Unsetenv(defaults.JobsHistoryLimitEnvironmentVariable)
 }
 
-func TestObjectSynced_StatusMissing_StatusFromAnnotation(t *testing.T) {
-	tu, client, kubeutils, radixclient := setupTest()
-
-	completedJobStatus := utils.ACompletedJobStatus()
-
-	// Test
-	job, err := applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithStatusOnAnnotation(completedJobStatus))
-
-	assert.NoError(t, err)
-
-	expectedStatus := completedJobStatus.Build()
-	actualStatus := job.Status
-	assertStatusEqual(t, expectedStatus, actualStatus)
-}
-
-func TestObjectSynced_MultipleJobs_SecondJobQueued(t *testing.T) {
-	tu, client, kubeutils, radixclient := setupTest()
-
-	// Setup
-	firstJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
-
-	// Test
-	secondJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("master"))
-
-	assert.True(t, secondJob.Status.Condition == v1.JobQueued)
-
-	// Stopping first job should set second job to running
-	firstJob.Spec.Stop = true
-	radixclient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
-	runSync(client, kubeutils, radixclient, firstJob)
-
-	secondJob, _ = radixclient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.TODO(), secondJob.Name, metav1.GetOptions{})
-	assert.True(t, secondJob.Status.Condition == v1.JobRunning)
-}
-
-func TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning(t *testing.T) {
-	tu, client, kubeutils, radixclient := setupTest()
-
-	// Setup
-	applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
-
-	// Test
-	secondJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("release"))
-
-	assert.True(t, secondJob.Status.Condition != v1.JobQueued)
-}
-
-func TestHistoryLimit_IsBroken_FixedAmountOfJobs(t *testing.T) {
-	anyLimit := 3
-
-	tu, client, kubeutils, radixclient := setupTest()
-
-	// Current cluster is active cluster
-	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
-
-	firstJob, _ := applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
-
-	applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
-
-	applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
-
-	applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
-
-	jobs, _ := radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, anyLimit, len(jobs.Items), "Number of jobs should match limit")
-
-	assert.False(t, radixJobByNameExists("FirstJob", jobs))
-	assert.True(t, radixJobByNameExists("SecondJob", jobs))
-	assert.True(t, radixJobByNameExists("ThirdJob", jobs))
-	assert.True(t, radixJobByNameExists("FourthJob", jobs))
-
-	applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
-
-	jobs, _ = radixclient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, anyLimit, len(jobs.Items), "Number of jobs should match limit")
-
-	assert.False(t, radixJobByNameExists("FirstJob", jobs))
-	assert.False(t, radixJobByNameExists("SecondJob", jobs))
-	assert.True(t, radixJobByNameExists("ThirdJob", jobs))
-	assert.True(t, radixJobByNameExists("FourthJob", jobs))
-	assert.True(t, radixJobByNameExists("FifthJob", jobs))
-
-	teardownTest()
-}
-
-func TestTargetEnvironmentIsSet(t *testing.T) {
-	tu, client, kubeutils, radixclient := setupTest()
-
-	job, err := applyJobWithSync(tu, client, kubeutils, radixclient,
-		utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"))
-
-	expectedEnvs := []string{"test"}
-
-	assert.NoError(t, err)
-
-	// Master maps to Test env
-	assert.Equal(t, job.Spec.Build.Branch, "master")
-	assert.Equal(t, expectedEnvs, job.Status.TargetEnvs)
-}
-
-func applyJobWithSync(tu *test.Utils, client kube.Interface, kubeutils *kubeUtils.Kube,
-	radixclient radixclient.Interface, jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
-	rj, err := tu.ApplyJob(jobBuilder)
+func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
+	rj, err := s.testUtils.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, err
 	}
 
-	err = runSync(client, kubeutils, radixclient, rj)
+	err = s.runSync(rj)
 	if err != nil {
 		return nil, err
 	}
 
-	updatedJob, err := radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.TODO(), rj.Name, metav1.GetOptions{})
+	updatedJob, err := s.radixClient.RadixV1().RadixJobs(rj.GetNamespace()).Get(context.TODO(), rj.Name, metav1.GetOptions{})
 	return updatedJob, err
 }
 
-func runSync(client kube.Interface, kubeutils *kubeUtils.Kube, radixclient radixclient.Interface, rj *v1.RadixJob) error {
-	job := NewJob(client, kubeutils, radixclient, rj)
+func (s *RadixJobTestSuiteBase) runSync(rj *v1.RadixJob) error {
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj)
 	err := job.OnSync()
 	if err != nil {
 		return err
@@ -181,11 +87,124 @@ func runSync(client kube.Interface, kubeutils *kubeUtils.Kube, radixclient radix
 	return nil
 }
 
-func radixJobByNameExists(name string, jobs *v1.RadixJobList) bool {
-	return getRadixJobByName(name, jobs) != nil
+func TestRadixJobTestSuite(t *testing.T) {
+	suite.Run(t, new(RadixJobTestSuite))
 }
 
-func getRadixJobByName(name string, jobs *v1.RadixJobList) *v1.RadixJob {
+type RadixJobTestSuite struct {
+	RadixJobTestSuiteBase
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
+	appName, cmName := "anyapp", "anycm"
+	s.kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(
+		context.Background(),
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: cmName}},
+		metav1.CreateOptions{},
+	)
+	completedJobStatus := utils.ACompletedJobStatus().WithStep(
+		utils.
+			AScanAppStep().
+			WithStarted(time.Now()).
+			WithEnded(time.Now()).
+			WithOutput(
+				&v1.RadixJobStepOutput{Scan: &v1.RadixJobStepScanOutput{VulnerabilityListConfigMap: cmName}},
+			))
+
+	// Test
+	job, err := s.applyJobWithSync(utils.NewJobBuilder().
+		WithStatusOnAnnotation(completedJobStatus).
+		WithAppName(appName).
+		WithJobName("anyjob"))
+
+	assert.NoError(s.T(), err)
+
+	expectedStatus := completedJobStatus.Build()
+	actualStatus := job.Status
+	assertStatusEqual(s.T(), expectedStatus, actualStatus)
+	cm, _ := s.kubeUtils.GetConfigMap(utils.GetAppNamespace(appName), cmName)
+	s.ElementsMatch(GetOwnerReference(job), cm.GetOwnerReferences())
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
+	// Setup
+	firstJob, _ := s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
+
+	// Test
+	secondJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("master"))
+
+	assert.True(s.T(), secondJob.Status.Condition == v1.JobQueued)
+
+	// Stopping first job should set second job to running
+	firstJob.Spec.Stop = true
+	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
+	s.runSync(firstJob)
+
+	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.TODO(), secondJob.Name, metav1.GetOptions{})
+	assert.True(s.T(), secondJob.Status.Condition == v1.JobRunning)
+}
+
+func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning() {
+	// Setup
+	s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
+
+	// Test
+	secondJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("release"))
+
+	assert.True(s.T(), secondJob.Status.Condition != v1.JobQueued)
+}
+
+func (s *RadixJobTestSuite) TestHistoryLimit_IsBroken_FixedAmountOfJobs() {
+	anyLimit := 3
+
+	// Current cluster is active cluster
+	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
+
+	firstJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
+
+	jobs, _ := s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+
+	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("SecondJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
+
+	jobs, _ = s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+
+	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
+	assert.False(s.T(), s.radixJobByNameExists("SecondJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
+}
+
+func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {
+	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"))
+
+	expectedEnvs := []string{"test"}
+
+	assert.NoError(s.T(), err)
+
+	// Master maps to Test env
+	assert.Equal(s.T(), job.Spec.Build.Branch, "master")
+	assert.Equal(s.T(), expectedEnvs, job.Status.TargetEnvs)
+}
+
+func (s *RadixJobTestSuite) radixJobByNameExists(name string, jobs *v1.RadixJobList) bool {
+	return s.getRadixJobByName(name, jobs) != nil
+}
+
+func (s *RadixJobTestSuite) getRadixJobByName(name string, jobs *v1.RadixJobList) *v1.RadixJob {
 	for _, job := range jobs.Items {
 		if job.Name == name {
 			return &job
@@ -195,8 +214,11 @@ func getRadixJobByName(name string, jobs *v1.RadixJobList) *v1.RadixJob {
 	return nil
 }
 
-// Problems in comparing timestamps
 func assertStatusEqual(t *testing.T, expectedStatus, actualStatus v1.RadixJobStatus) {
+	getTimestamp := func(t time.Time) string {
+		return t.Format(time.RFC3339)
+	}
+
 	assert.Equal(t, getTimestamp(expectedStatus.Started.Time), getTimestamp(actualStatus.Started.Time))
 	assert.Equal(t, getTimestamp(expectedStatus.Ended.Time), getTimestamp(actualStatus.Ended.Time))
 	assert.Equal(t, expectedStatus.Condition, actualStatus.Condition)
@@ -209,9 +231,6 @@ func assertStatusEqual(t *testing.T, expectedStatus, actualStatus v1.RadixJobSta
 		assert.Equal(t, getTimestamp(expectedStep.Ended.Time), getTimestamp(actualStatus.Steps[index].Ended.Time))
 		assert.Equal(t, expectedStep.Components, actualStatus.Steps[index].Components)
 		assert.Equal(t, expectedStep.PodName, actualStatus.Steps[index].PodName)
+		assert.Equal(t, expectedStep.Output, actualStatus.Steps[index].Output)
 	}
-}
-
-func getTimestamp(t time.Time) string {
-	return t.Format("20060102150405") // YYYYMMDDHHMISS in Go
 }

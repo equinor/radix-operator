@@ -18,6 +18,7 @@ import (
 const (
 	RadixBranchAnnotation          = "radix-branch"
 	RadixComponentImagesAnnotation = "radix-component-images"
+	RadixContainerOutputAnnotation = "radix-container-output"
 	RadixDeploymentNameAnnotation  = "radix-deployment-name"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -37,6 +38,7 @@ const (
 	RadixJobTypeLabel            = "radix-job-type"
 	RadixJobTypeJob              = "job" // Outer job
 	RadixJobTypeBuild            = "build"
+	RadixJobTypeScan             = "scan"
 	RadixJobTypeCloneConfig      = "clone-config"
 	RadixJobTypeJobSchedule      = "job-scheduler"
 	RadixAppAliasLabel           = "radix-app-alias"
@@ -47,6 +49,7 @@ const (
 	RadixGpuLabel                = "radix-node-gpu"
 	RadixGpuCountLabel           = "radix-node-gpu-count"
 	RadixNamespace               = "radix-namespace"
+	RadixConfigMapTypeLabel      = "radix-config-map-type"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"

@@ -11,8 +11,9 @@ func (app Application) createAppNamespace() error {
 	name := utils.GetAppNamespace(registration.Name)
 
 	labels := map[string]string{
-		kube.RadixAppLabel: registration.Name,
-		kube.RadixEnvLabel: utils.AppNamespaceEnvName,
+		kube.RadixAppLabel:          registration.Name,
+		kube.RadixEnvLabel:          utils.AppNamespaceEnvName,
+		"snyk-service-account-sync": "radix-snyk-service-account",
 	}
 
 	ownerRef := app.getOwnerReference()

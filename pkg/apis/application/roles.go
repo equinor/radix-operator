@@ -81,6 +81,28 @@ func (app Application) configToMapRunnerRole() *auth.Role {
 	}
 }
 
+func (app Application) scanImageRunnerRole() *auth.Role {
+	return &auth.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: defaults.ScanImageRunnerRoleName,
+			Labels: map[string]string{
+				kube.RadixAppLabel: app.registration.Name,
+			},
+		},
+		Rules: []auth.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"configmaps"},
+				Verbs:     []string{"create"},
+			},
+		},
+	}
+}
+
 func roleAppAdminMachineUserToken(appName string, serviceAccount *corev1.ServiceAccount) *auth.Role {
 	return kube.CreateManageSecretRole(appName, fmt.Sprintf("%s-%s", serviceAccount.Name, "token"), []string{serviceAccount.Secrets[0].Name}, nil)
 }

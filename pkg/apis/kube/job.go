@@ -56,15 +56,15 @@ func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 }
 
 // ListJobs Lists jobs from cache or from cluster
-func (k *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
-	if k.JobLister != nil {
-		jobs, err := k.JobLister.Jobs(namespace).List(labels.NewSelector())
+func (kubeutil *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
+	if kubeutil.JobLister != nil {
+		jobs, err := kubeutil.JobLister.Jobs(namespace).List(labels.NewSelector())
 		if err != nil {
 			return nil, err
 		}
 		return jobs, nil
 	} else {
-		list, err := k.kubeClient.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
+		list, err := kubeutil.kubeClient.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}

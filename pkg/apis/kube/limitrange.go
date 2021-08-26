@@ -15,14 +15,14 @@ import (
 )
 
 // ApplyLimitRange Applies limit range to namespace
-func (k *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) error {
+func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) error {
 	logger = logger.WithFields(log.Fields{"limitRange": limitRange.ObjectMeta.Name})
 
 	logger.Debugf("Apply limit range %s", limitRange.Name)
 
-	oldLimitRange, err := k.getLimitRange(namespace, limitRange.GetName())
+	oldLimitRange, err := kubeutil.getLimitRange(namespace, limitRange.GetName())
 	if err != nil && errors.IsNotFound(err) {
-		createdLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
+		createdLimitRange, err := kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create LimitRange object: %v", err)
 		}
@@ -55,7 +55,7 @@ func (k *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) 
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedLimitRange, err := k.kubeClient.CoreV1().LimitRanges(namespace).Patch(context.TODO(), limitRange.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedLimitRange, err := kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Patch(context.TODO(), limitRange.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch limitRange object: %v", err)
 		}
@@ -68,7 +68,7 @@ func (k *Kube) ApplyLimitRange(namespace string, limitRange *corev1.LimitRange) 
 }
 
 // BuildLimitRange Builds a limit range spec
-func (k *Kube) BuildLimitRange(namespace, name, appName string,
+func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string,
 	defaultResourceCPU, defaultResourceMemory, defaultRequestCPU, defaultRequestMemory resource.Quantity) *corev1.LimitRange {
 
 	defaultResources := make(corev1.ResourceList)
@@ -105,17 +105,17 @@ func (k *Kube) BuildLimitRange(namespace, name, appName string,
 	return limitRange
 }
 
-func (k *Kube) getLimitRange(namespace, name string) (*corev1.LimitRange, error) {
+func (kubeutil *Kube) getLimitRange(namespace, name string) (*corev1.LimitRange, error) {
 	var limitRange *corev1.LimitRange
 	var err error
 
-	if k.LimitRangeLister != nil {
-		limitRange, err = k.LimitRangeLister.LimitRanges(namespace).Get(name)
+	if kubeutil.LimitRangeLister != nil {
+		limitRange, err = kubeutil.LimitRangeLister.LimitRanges(namespace).Get(name)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		limitRange, err = k.kubeClient.CoreV1().LimitRanges(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		limitRange, err = kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}

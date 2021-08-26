@@ -201,6 +201,7 @@ type JobStatusBuilder interface {
 	WithStarted(time.Time) JobStatusBuilder
 	WithEnded(time.Time) JobStatusBuilder
 	WithSteps(...JobStepBuilder) JobStatusBuilder
+	WithStep(JobStepBuilder) JobStatusBuilder
 	Build() v1.RadixJobStatus
 }
 
@@ -231,6 +232,11 @@ func (jsb *jobStatusBuilder) WithSteps(steps ...JobStepBuilder) JobStatusBuilder
 	return jsb
 }
 
+func (jsb *jobStatusBuilder) WithStep(step JobStepBuilder) JobStatusBuilder {
+	jsb.steps = append(jsb.steps, step)
+	return jsb
+}
+
 func (jsb *jobStatusBuilder) Build() v1.RadixJobStatus {
 	jobSteps := make([]v1.RadixJobStep, 0)
 	for _, step := range jsb.steps {
@@ -238,8 +244,8 @@ func (jsb *jobStatusBuilder) Build() v1.RadixJobStatus {
 	}
 
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
-	started, _ := time.Parse(time.RFC850, jsb.started.Format(time.RFC850))
-	ended, _ := time.Parse(time.RFC850, jsb.ended.Format(time.RFC850))
+	started := jsb.started.Truncate(1 * time.Second)
+	ended := jsb.ended.Truncate(1 * time.Second)
 	targetEnvs := []string{"test"}
 
 	return v1.RadixJobStatus{
@@ -282,27 +288,43 @@ func AStartedJobStatus() JobStatusBuilder {
 
 // ACompletedJobStatus Constructor for a completed job
 func ACompletedJobStatus() JobStatusBuilder {
+	started := time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)
+	ended := started.Add(5 * time.Minute)
 	builder := NewJobStatusBuilder().
 		WithCondition(v1.JobSucceeded).
-		WithStarted(time.Now()).
-		WithEnded(time.Now().Add(time.Second*time.Duration(100))).
+		WithStarted(started).
+		WithEnded(ended).
 		WithSteps(
 			ACloneConfigStep().
 				WithCondition(v1.JobSucceeded).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+				WithStarted(started).
+				WithEnded(ended),
 			ARadixPipelineStep().
 				WithCondition(v1.JobRunning).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+				WithStarted(started).
+				WithEnded(ended),
 			ACloneStep().
 				WithCondition(v1.JobSucceeded).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))),
+				WithStarted(started).
+				WithEnded(ended),
 			ABuildAppStep().
 				WithCondition(v1.JobRunning).
-				WithStarted(time.Now()).
-				WithEnded(time.Now().Add(time.Second*time.Duration(100))))
+				WithStarted(started).
+				WithEnded(ended),
+			AScanAppStep().
+				WithCondition(v1.JobRunning).
+				WithStarted(started).
+				WithEnded(ended).
+				WithOutput(
+					&v1.RadixJobStepOutput{
+						Scan: &v1.RadixJobStepScanOutput{
+							Status:                     v1.ScanSuccess,
+							Vulnerabilities:            v1.VulnerabilityMap{"critical": 1, "high": 2},
+							VulnerabilityListConfigMap: "scan-configmap",
+							VulnerabilityListKey:       "list-of-vulnerabilities",
+						},
+					},
+				))
 
 	return builder
 }
@@ -314,6 +336,7 @@ type JobStepBuilder interface {
 	WithStarted(time.Time) JobStepBuilder
 	WithEnded(time.Time) JobStepBuilder
 	WithComponents(...string) JobStepBuilder
+	WithOutput(*v1.RadixJobStepOutput) JobStepBuilder
 	Build() v1.RadixJobStep
 }
 
@@ -323,6 +346,7 @@ type jobStepBuilder struct {
 	started    time.Time
 	ended      time.Time
 	components []string
+	output     *v1.RadixJobStepOutput
 }
 
 func (sb *jobStepBuilder) WithCondition(condition v1.RadixJobCondition) JobStepBuilder {
@@ -350,10 +374,15 @@ func (sb *jobStepBuilder) WithComponents(components ...string) JobStepBuilder {
 	return sb
 }
 
+func (sb *jobStepBuilder) WithOutput(output *v1.RadixJobStepOutput) JobStepBuilder {
+	sb.output = output
+	return sb
+}
+
 func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
-	started, _ := time.Parse(time.RFC850, sb.started.Format(time.RFC850))
-	ended, _ := time.Parse(time.RFC850, sb.ended.Format(time.RFC850))
+	started := sb.started.Truncate(1 * time.Second)
+	ended := sb.ended.Truncate(1 * time.Second)
 
 	return v1.RadixJobStep{
 		Condition:  sb.condition,
@@ -361,6 +390,7 @@ func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 		Ended:      &metav1.Time{Time: ended},
 		Name:       sb.name,
 		Components: sb.components,
+		Output:     sb.output,
 	}
 }
 
@@ -397,6 +427,14 @@ func ACloneStep() JobStepBuilder {
 func ABuildAppStep() JobStepBuilder {
 	builder := NewJobStepBuilder().
 		WithName("build-app")
+
+	return builder
+}
+
+// ABuildAppStep Constructor build-app
+func AScanAppStep() JobStepBuilder {
+	builder := NewJobStepBuilder().
+		WithName("scan-app")
 
 	return builder
 }

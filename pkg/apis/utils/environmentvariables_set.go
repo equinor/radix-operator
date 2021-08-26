@@ -23,9 +23,10 @@ func (set *environmentVariablesSet) Init(environmentVariables []corev1.EnvVar) *
 	return set
 }
 
-//Add Add an environment variable to the set
+//Add Add an environment variable to the set. Remove config-map reference if any (TBD)
 func (set *environmentVariablesSet) Add(name string, value string) *environmentVariablesSet {
 	if _, ok := set.itemsMap[name]; ok {
+		set.itemsMap[name].ValueFrom = nil //remove potentially populated config-map reference
 		set.itemsMap[name].Value = value
 		return set
 	}

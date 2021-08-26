@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -13,7 +14,6 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/sirupsen/logrus"
-
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
@@ -126,7 +126,7 @@ func NewController(client kubernetes.Interface,
 
 			// If neither ad group did change, nor the machine user, this
 			// does not affect the deployment
-			if utils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
+			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
 				newRr.Spec.MachineUser == oldRr.Spec.MachineUser {
 				return
 			}

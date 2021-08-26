@@ -1,13 +1,14 @@
 package deployment
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_order_of_env_variables(t *testing.T) {
-	envVariableMap := map[string]string{
+	data := map[string]string{
 		"d_key": "4",
 		"a_key": "1",
 		"c_key": "3",
@@ -16,13 +17,18 @@ func Test_order_of_env_variables(t *testing.T) {
 		"q_key": "7",
 		"e_key": "5",
 	}
+	envVarsConfigMap := &corev1.ConfigMap{Data: data}
 
-	envVar1 := appendAppEnvVariables("adeployment", envVariableMap)
-	for i := 0; i < 100; i++ {
-		envVar2 := appendAppEnvVariables("adeployment", envVariableMap)
-		for i, val := range envVar1 {
-			assert.Equal(t, val, envVar2[i])
-		}
+	envVars := getEnvVars(envVarsConfigMap, nil)
+	assert.Len(t, envVars, len(data))
+	assert.Equal(t, "a_key", envVars[0].Name)
+	assert.Equal(t, "b_key", envVars[1].Name)
+	assert.Equal(t, "c_key", envVars[2].Name)
+	assert.Equal(t, "d_key", envVars[3].Name)
+	assert.Equal(t, "e_key", envVars[4].Name)
+	assert.Equal(t, "g_key", envVars[5].Name)
+	assert.Equal(t, "q_key", envVars[6].Name)
+	for _, envVar := range envVars {
+		assert.Equal(t, data[envVar.Name], envVarsConfigMap.Data[envVar.Name])
 	}
-
 }
