@@ -174,8 +174,11 @@ func buildRadixConfigEnvVarsConfigMapForType(configMapType RadixConfigMapType, a
 
 func (kubeutil *Kube) getRadixConfigEnvVarsConfigMap(namespace, configMapName string) (*corev1.ConfigMap, error) {
 	configMap, err := kubeutil.GetConfigMap(namespace, configMapName)
-	if err != nil && !k8sErrors.IsNotFound(err) {
-		return nil, err
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			return nil, err
+		}
+		return nil, nil
 	}
 	if configMap != nil && configMap.Data == nil {
 		configMap.Data = make(map[string]string, 0)
