@@ -46,16 +46,16 @@ func EqualStorageClasses(sc1, sc2 *storagev1.StorageClass) (bool, error) {
 		return false, err
 	}
 	if !EqualStringMaps(labels1, labels2) {
-		return false, fmt.Errorf("StorageClass-es labels are not equal")
+		return false, nil //StorageClasses labels are not equal
 	}
 	if !EqualStringMaps(params1, params2) {
-		return false, fmt.Errorf("StorageClass-es parameters are not equal")
+		return false, nil //StorageClasses parameters are not equal
 	}
 	if !EqualStringLists(mountOptions1, mountOptions2) {
-		return false, fmt.Errorf("StorageClass-es MountOptions are not equal")
+		return false, nil //StorageClass-es MountOptions are not equal
 	}
 	if !kube.IsEmptyPatch(patchBytes) {
-		return false, fmt.Errorf("StorageClass-es are not equal: %s", patchBytes)
+		return false, nil //StorageClasses properties are not equal
 	}
 	return true, nil
 }
