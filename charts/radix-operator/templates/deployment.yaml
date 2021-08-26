@@ -100,7 +100,7 @@ spec:
             - name: RADIX_CONTAINER_REGISTRY
               value: {{ .Values.containerRegistry }}
             - name: RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER
-              value: {{ .Values.forceNonRootContainers | quote }}
+              value: {{ .Values.forceNonRootDeploymentContainers | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
