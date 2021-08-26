@@ -103,7 +103,11 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixDeployment, _ := obj.(*v1.RadixDeployment)
+			radixDeployment, converted := obj.(*v1.RadixDeployment)
+			if !converted {
+				logger.Errorf("RadixDeployment object cast failed during deleted event received.")
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixDeployment)
 			if err == nil {
 				logger.Debugf("Deployment object deleted event received for %s. Do nothing", key)
