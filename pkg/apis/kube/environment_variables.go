@@ -175,10 +175,10 @@ func buildRadixConfigEnvVarsConfigMapForType(configMapType RadixConfigMapType, a
 func (kubeutil *Kube) getRadixConfigEnvVarsConfigMap(namespace, configMapName string) (*corev1.ConfigMap, error) {
 	configMap, err := kubeutil.GetConfigMap(namespace, configMapName)
 	if err != nil {
-		if !k8sErrors.IsNotFound(err) {
-			return nil, err
+		if k8sErrors.IsNotFound(err) {
+			return nil, nil //due to k8s api returns pointer to an empty config-map
 		}
-		return nil, nil
+		return nil, err
 	}
 	if configMap != nil && configMap.Data == nil {
 		configMap.Data = make(map[string]string, 0)
