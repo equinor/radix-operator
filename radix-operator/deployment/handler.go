@@ -50,7 +50,7 @@ func WithForceRunAsNonRootFromEnvVar(envVarName string) HandlerConfigOption {
 	}
 }
 
-// WithForceRunAsNonRootFromEnvVar configures the deploymentSyncerFactory for the Handler
+// WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *Handler) {
 		h.deploymentSyncerFactory = factory
