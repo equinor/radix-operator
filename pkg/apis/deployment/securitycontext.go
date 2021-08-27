@@ -1,8 +1,8 @@
 package deployment
 
 import (
+	commonUtils "github.com/equinor/radix-common/utils"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -22,16 +22,17 @@ func NewSecurityContextBuilder(forceRunAsNonRoot bool) *securityContextBuilder {
 func (s *securityContextBuilder) BuildPodSecurityContext(component v1.RadixCommonDeployComponent) *corev1.PodSecurityContext {
 	runAsNonRoot := s.runAsNonRoot(component)
 	return &corev1.PodSecurityContext{
-		RunAsNonRoot: conditionUtils.BoolPtr(runAsNonRoot),
+		RunAsNonRoot: commonUtils.BoolPtr(runAsNonRoot),
 	}
 }
 
 func (s *securityContextBuilder) BuildContainerSecurityContext(component v1.RadixCommonDeployComponent) *corev1.SecurityContext {
+
 	runAsNonRoot := s.runAsNonRoot(component)
 	return &corev1.SecurityContext{
-		AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
-		Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
-		RunAsNonRoot:             conditionUtils.BoolPtr(runAsNonRoot),
+		AllowPrivilegeEscalation: commonUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
+		Privileged:               commonUtils.BoolPtr(PRIVILEGED_CONTAINER),
+		RunAsNonRoot:             commonUtils.BoolPtr(runAsNonRoot),
 	}
 }
 
