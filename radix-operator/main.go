@@ -223,7 +223,7 @@ func startDeploymentController(
 		kubeUtil,
 		radixClient,
 		prometheusOperatorClient,
-		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers, "true"),
+		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
 	)
 
 	waitForChildrenToSync := true

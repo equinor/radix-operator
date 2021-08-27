@@ -159,15 +159,15 @@ func Test_WithForceRunAsNonRootFromEnvVar(t *testing.T) {
 	os.Setenv("NONROOT2", "false")
 
 	h := &Handler{}
-	WithForceRunAsNonRootFromEnvVar("NONROOT1", "true")(h)
+	WithForceRunAsNonRootFromEnvVar("NONROOT1")(h)
 	assert.True(t, h.forceRunAsNonRoot)
 
 	h = &Handler{}
-	WithForceRunAsNonRootFromEnvVar("NONROOT2", "true")(h)
+	WithForceRunAsNonRootFromEnvVar("NONROOT2")(h)
 	assert.False(t, h.forceRunAsNonRoot)
 
 	h = &Handler{}
-	WithForceRunAsNonRootFromEnvVar("NONROOT3", "true")(h)
+	WithForceRunAsNonRootFromEnvVar("NONROOT3")(h)
 	assert.False(t, h.forceRunAsNonRoot)
 
 	os.Clearenv()

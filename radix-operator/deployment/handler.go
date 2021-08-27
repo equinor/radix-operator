@@ -43,10 +43,10 @@ func WithHasSyncedCallback(callback common.HasSynced) HandlerConfigOption {
 }
 
 // WithForceRunAsNonRootFromEnvVar configures runAsNonRoot for Handler from an environment variable
-func WithForceRunAsNonRootFromEnvVar(envVarName, trueValue string) HandlerConfigOption {
+func WithForceRunAsNonRootFromEnvVar(envVarName string) HandlerConfigOption {
 	return func(h *Handler) {
 		envValue := os.Getenv(envVarName)
-		h.forceRunAsNonRoot = commonUtils.ContainsString([]string{trueValue}, envValue)
+		h.forceRunAsNonRoot = commonUtils.ContainsString([]string{"true"}, envValue)
 	}
 }
 
