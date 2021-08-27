@@ -10,6 +10,7 @@ import (
 	"time"
 
 	radixutils "github.com/equinor/radix-common/utils"
+	"github.com/golang/mock/gomock"
 
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -2299,35 +2300,6 @@ func TestHPAConfig(t *testing.T) {
 
 }
 
-func TestNonRootOverrideFlag(t *testing.T) {
-
-	for _, runAsNonRoot := range []bool{true, false} {
-		componentName := utils.TernaryString(runAsNonRoot, "root-component", "non-root-component")
-		tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-			WithAppName("radix-root-example").
-			WithEnvironment("test").
-			WithComponent(utils.NewDeployComponentBuilder().
-				WithRunAsNonRoot(runAsNonRoot).
-				WithPort("http", 8080).
-				WithName(componentName).
-				WithPublicPort("http").
-				WithReplicas(test.IntPtr(1))))
-
-		assert.NoError(t, err)
-
-		t.Run(fmt.Sprintf("%s has correct security context", componentName), func(t *testing.T) {
-			envNamespace := utils.GetEnvironmentNamespace("radix-root-example", "test")
-			deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-			expectedSecurityContext := getSecurityContextForPod(runAsNonRoot)
-			assert.Equal(t, expectedSecurityContext, getDeploymentByName(componentName, deployments).Spec.Template.Spec.SecurityContext)
-			assert.Equal(t, runAsNonRoot, *getContainerByName(componentName, getDeploymentByName(componentName, deployments).Spec.Template.Spec.Containers).SecurityContext.RunAsNonRoot)
-		})
-
-	}
-
-}
-
 func TestMonitoringConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
 
@@ -3186,6 +3158,18 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 	})
 }
 
+func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
+	deployment := NewDeployment(nil, nil, nil, nil, nil, nil, true).(*Deployment)
+	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
+	actual := deployment.securityContextBuilder.(*securityContextBuilder)
+	assert.True(t, actual.forceRunAsNonRoot)
+
+	deployment = NewDeployment(nil, nil, nil, nil, nil, nil, false).(*Deployment)
+	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
+	actual = deployment.securityContextBuilder.(*securityContextBuilder)
+	assert.False(t, actual.forceRunAsNonRoot)
+}
+
 func Test_SecurityPolicy(t *testing.T) {
 	type scenarioDef struct {
 		forceRunAsNonRoot     bool
@@ -3207,6 +3191,14 @@ func Test_SecurityPolicy(t *testing.T) {
 			fmt.Sprintf("test with forceRunAsNonRoot=%v and componentRunAsNonRoot=%v", scenario.forceRunAsNonRoot, scenario.componentRunAsNonRoot),
 			func(t *testing.T) {
 				t.Parallel()
+				ctrl := gomock.NewController(t)
+				defer ctrl.Finish()
+				securityContextBuilder := NewMockSecurityContextBuilder(ctrl)
+				expectedComponent := v1.RadixDeployComponent{RunAsNonRoot: scenario.componentRunAsNonRoot, Name: "comp"}
+				expectedPodSecurityContext := &corev1.PodSecurityContext{RunAsNonRoot: &scenario.expected}
+				expectedSecurityContext := &corev1.SecurityContext{RunAsNonRoot: &scenario.expected}
+				securityContextBuilder.EXPECT().BuildContainerSecurityContext(&expectedComponent).Return(expectedSecurityContext).Times(1)
+				securityContextBuilder.EXPECT().BuildPodSecurityContext(&expectedComponent).Return(expectedPodSecurityContext).Times(1)
 				_, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
 				radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 				rd := &v1.RadixDeployment{
@@ -3214,16 +3206,10 @@ func Test_SecurityPolicy(t *testing.T) {
 					Spec: v1.RadixDeploymentSpec{
 						AppName:     "app",
 						Environment: "env",
-						Components: []v1.RadixDeployComponent{
-							{
-								RunAsNonRoot: scenario.componentRunAsNonRoot,
-								Name:         "comp",
-							},
-						},
+						Components:  []v1.RadixDeployComponent{expectedComponent},
 					},
 				}
-				_, err := radixclient.RadixV1().RadixDeployments("app-env").Create(context.Background(), rd, metav1.CreateOptions{})
-				assert.Nil(t, err)
+				radixclient.RadixV1().RadixDeployments("app-env").Create(context.Background(), rd, metav1.CreateOptions{})
 				deploysync := Deployment{
 					kubeclient:              kubeclient,
 					radixclient:             radixclient,
@@ -3231,13 +3217,13 @@ func Test_SecurityPolicy(t *testing.T) {
 					prometheusperatorclient: prometheusclient,
 					registration:            rr,
 					radixDeployment:         rd,
-					forceRunAsNonRoot:       scenario.forceRunAsNonRoot,
+					securityContextBuilder:  securityContextBuilder,
 				}
-				err = deploysync.OnSync()
+				err := deploysync.OnSync()
 				assert.Nil(t, err)
 				deployment, _ := kubeclient.AppsV1().Deployments("app-env").Get(context.Background(), "comp", metav1.GetOptions{})
-				assert.Equal(t, scenario.expected, *deployment.Spec.Template.Spec.SecurityContext.RunAsNonRoot)
-				assert.Equal(t, scenario.expected, *deployment.Spec.Template.Spec.Containers[0].SecurityContext.RunAsNonRoot)
+				assert.Equal(t, expectedPodSecurityContext, deployment.Spec.Template.Spec.SecurityContext)
+				assert.Equal(t, expectedSecurityContext, deployment.Spec.Template.Spec.Containers[0].SecurityContext)
 			},
 		)
 	}

@@ -45,7 +45,7 @@ type Deployment struct {
 	prometheusperatorclient monitoring.Interface
 	registration            *v1.RadixRegistration
 	radixDeployment         *v1.RadixDeployment
-	forceRunAsNonRoot       bool
+	securityContextBuilder  SecurityContextBuilder
 }
 
 // NewDeployment Constructor
@@ -64,7 +64,7 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		prometheusperatorclient,
 		registration,
 		radixDeployment,
-		forceRunAsNonRoot}
+		NewSecurityContextBuilder(forceRunAsNonRoot)}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name

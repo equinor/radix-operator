@@ -13,7 +13,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -182,10 +181,10 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.getContainerSecurityContextForComponent(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.securityContextBuilder.BuildContainerSecurityContext(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-	desiredDeployment.Spec.Template.Spec.SecurityContext = deploy.getPodSecurityContextForComponent(deployComponent)
+	desiredDeployment.Spec.Template.Spec.SecurityContext = deploy.securityContextBuilder.BuildPodSecurityContext(deployComponent)
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent)
 	if err != nil {
@@ -388,21 +387,6 @@ func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error 
 	return nil
 }
 
-func (deploy *Deployment) getContainerSecurityContextForComponent(component v1.RadixCommonDeployComponent) *corev1.SecurityContext {
-	runAsNonRoot := deploy.forceRunAsNonRoot || component.GetRunAsNonRoot()
-	return getSecurityContextForContainer(runAsNonRoot)
-}
-
-// Returns a security context for container. If root flag is overridden from application config, it's allowed to run as root.
-func getSecurityContextForContainer(runAsNonRoot bool) *corev1.SecurityContext {
-	// runAsNonRoot is false by default
-	return &corev1.SecurityContext{
-		AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
-		Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
-		RunAsNonRoot:             conditionUtils.BoolPtr(runAsNonRoot),
-	}
-}
-
 func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.ContainerPort {
 	componentPorts := deployComponent.GetPorts()
 	var ports []corev1.ContainerPort
@@ -414,18 +398,6 @@ func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.C
 		ports = append(ports, containerPort)
 	}
 	return ports
-}
-
-func (deploy *Deployment) getPodSecurityContextForComponent(component v1.RadixCommonDeployComponent) *corev1.PodSecurityContext {
-	runAsNonRoot := deploy.forceRunAsNonRoot || component.GetRunAsNonRoot()
-	return getSecurityContextForPod(runAsNonRoot)
-}
-
-func getSecurityContextForPod(runAsNonRoot bool) *corev1.PodSecurityContext {
-	// runAsNonRoot is false by default
-	return &corev1.PodSecurityContext{
-		RunAsNonRoot: conditionUtils.BoolPtr(runAsNonRoot),
-	}
 }
 
 func int32Ptr(i int32) *int32 {

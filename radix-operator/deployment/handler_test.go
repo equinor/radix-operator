@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	deployment "github.com/equinor/radix-operator/pkg/apis/deployment"
-	deploymentMock "github.com/equinor/radix-operator/pkg/apis/deployment/mock"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -83,7 +82,7 @@ func (s *handlerSuite) Test_Sync() {
 	s.Run("non-existing RD should not call factory method", func() {
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
-		factory := deploymentMock.NewMockDeploymentSyncerFactory(ctrl)
+		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -95,7 +94,7 @@ func (s *handlerSuite) Test_Sync() {
 	s.Run("inactive RD should not call factory method", func() {
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
-		factory := deploymentMock.NewMockDeploymentSyncerFactory(ctrl)
+		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -107,7 +106,7 @@ func (s *handlerSuite) Test_Sync() {
 	s.Run("active RD with missing RR should not call factory method", func() {
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
-		factory := deploymentMock.NewMockDeploymentSyncerFactory(ctrl)
+		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -120,9 +119,9 @@ func (s *handlerSuite) Test_Sync() {
 		var callbackExecuted bool
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
-		syncer := deploymentMock.NewMockDeploymentSyncer(ctrl)
+		syncer := deployment.NewMockDeploymentSyncer(ctrl)
 		syncer.EXPECT().OnSync().Times(1)
-		factory := deploymentMock.NewMockDeploymentSyncerFactory(ctrl)
+		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
 			CreateDeploymentSyncer(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, rr, activeRd, true).
@@ -136,9 +135,9 @@ func (s *handlerSuite) Test_Sync() {
 	s.Run("active RD with exiting RR calls factory with non-root false", func() {
 		ctrl := gomock.NewController(s.T())
 		defer ctrl.Finish()
-		syncer := deploymentMock.NewMockDeploymentSyncer(ctrl)
+		syncer := deployment.NewMockDeploymentSyncer(ctrl)
 		syncer.EXPECT().OnSync().Times(1)
-		factory := deploymentMock.NewMockDeploymentSyncerFactory(ctrl)
+		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
 		factory.
 			EXPECT().
 			CreateDeploymentSyncer(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).
