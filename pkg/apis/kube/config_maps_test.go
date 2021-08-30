@@ -130,3 +130,85 @@ func Test_GetConfigMap(t *testing.T) {
 		assert.True(t, radixutils.EqualStringMaps(testConfigMap.Data, configMap.Data))
 	})
 }
+
+func Test_UpdateConfigMap(t *testing.T) {
+	t.Run("Update not existing config-map", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getTestEnv()
+		namespace := "some-namespace"
+		name := "some-name"
+		testConfigMap := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Data:       map[string]string{"key1": "value1", "key2": "value2"},
+		}
+
+		err := testEnv.kubeUtil.UpdateConfigMap(namespace, &testConfigMap)
+
+		assert.NotNil(t, err)
+		assert.Equal(t, "configmaps \"some-name\" not found", err.Error())
+	})
+
+	t.Run("Update existing config-map", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getTestEnv()
+		namespace := "some-namespace"
+		name := "some-name"
+		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Data:       map[string]string{"key1": "value1", "key2": "value2"},
+		}, metav1.CreateOptions{})
+
+		testConfigMap := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name},
+			Data:       map[string]string{"key2": "value2changed", "key3": "value3"},
+		}
+		err := testEnv.kubeUtil.UpdateConfigMap(namespace, &testConfigMap)
+
+		configMap, err := testEnv.kubeUtil.GetConfigMap(namespace, name)
+
+		assert.Nil(t, err)
+		assert.Equal(t, name, configMap.ObjectMeta.Name)
+		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
+		assert.True(t, radixutils.EqualStringMaps(testConfigMap.Data, configMap.Data))
+	})
+}
+
+func Test_ApplyConfigMap(t *testing.T) {
+	namespace := "some-namespace"
+	name := "some-name"
+	currentConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Data:       map[string]string{"key1": "value1", "key2": "value2"},
+	}
+	desiredConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Data:       map[string]string{"key2": "value2changed", "key3": "value3"},
+	}
+
+	t.Run("Patch not existing config-map", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getTestEnv()
+
+		err := testEnv.kubeUtil.ApplyConfigMap(namespace, &currentConfigMap, &desiredConfigMap)
+
+		assert.NotNil(t, err)
+		assert.Equal(t, "failed to patch config-map object: configmaps \"some-name\" not found", err.Error())
+	})
+
+	t.Run("Patch existing config-map", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getTestEnv()
+		namespace := "some-namespace"
+		name := "some-name"
+		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &currentConfigMap, metav1.CreateOptions{})
+
+		err := testEnv.kubeUtil.ApplyConfigMap(namespace, &currentConfigMap, &desiredConfigMap)
+
+		configMap, err := testEnv.kubeUtil.GetConfigMap(namespace, name)
+
+		assert.Nil(t, err)
+		assert.Equal(t, name, configMap.ObjectMeta.Name)
+		assert.Equal(t, namespace, configMap.ObjectMeta.Namespace)
+		assert.True(t, radixutils.EqualStringMaps(desiredConfigMap.Data, configMap.Data))
+	})
+}
