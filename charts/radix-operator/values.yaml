@@ -90,3 +90,4 @@ radixGroups:
 deploymentsPerEnvironmentHistoryLimit: 10
 jobsPerAppHistoryLimit: 20
 logLevel: "INFO"
+forceNonRootDeploymentContainers: false
