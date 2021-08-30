@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	"strings"
 	"testing"
 )
 
@@ -188,6 +189,107 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 		assert.Nil(t, envVarsConfigMap)
 		assert.Nil(t, envVarsMetadataConfigMap)
 		assert.Nil(t, metadataMap)
+	})
+}
+
+func Test_SetEnvVarsMetadataMapToConfigMap(t *testing.T) {
+	namespace := "some-namespace"
+	componentName := "comp1"
+	t.Run("Set map", func(t *testing.T) {
+		t.Parallel()
+		currentMetadataConfigMap := corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "env-vars-metadata-" + componentName,
+				Namespace: namespace,
+			},
+			Data: map[string]string{
+				"metadata": `
+							{
+								"VAR1":{"RadixConfigValue":"val1"},
+								"VAR3":{"RadixConfigValue":""}
+							}
+							`,
+			},
+		}
+
+		SetEnvVarsMetadataMapToConfigMap(&currentMetadataConfigMap, map[string]EnvVarMetadata{
+			"VAR1": {RadixConfigValue: "val1changed"},
+			"VAR2": {RadixConfigValue: "added"},
+			//VAR3: removed
+		})
+
+		assert.NotNil(t, currentMetadataConfigMap.Data)
+		assert.NotNil(t, currentMetadataConfigMap.Data["metadata"])
+		metadataText := currentMetadataConfigMap.Data["metadata"]
+		metadataText = strings.ReplaceAll(metadataText, " ", "")
+		metadataText = strings.ReplaceAll(metadataText, "\n", "")
+		metadataText = strings.ReplaceAll(metadataText, "\t", "")
+		assert.True(t, strings.Contains(metadataText, "VAR1"))
+		assert.True(t, strings.Contains(metadataText, "\"RadixConfigValue\":\"val1changed\""))
+		assert.True(t, strings.Contains(metadataText, "VAR2"))
+		assert.True(t, strings.Contains(metadataText, "\"RadixConfigValue\":\"added\""))
+		assert.False(t, strings.Contains(metadataText, "VAR3"))
+	})
+}
+
+func Test_ApplyEnvVarsMetadataConfigMap(t *testing.T) {
+	namespace := "some-namespace"
+	componentName := "comp1"
+	name := "env-vars-metadata-" + componentName
+	currentMetadataConfigMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string]string{
+			"metadata": `
+							{
+								"VAR1":{"RadixConfigValue":"val1"},
+								"VAR3":{"RadixConfigValue":""}
+							}
+							`,
+		},
+	}
+	metadata := map[string]EnvVarMetadata{
+		"VAR1": {RadixConfigValue: "val1changed"},
+		"VAR2": {RadixConfigValue: "added"},
+		//VAR3: removed
+	}
+
+	t.Run("Save changes", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getEnvironmentVariablesTestEnv()
+		testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.Background(), &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			}}, metav1.CreateOptions{})
+
+		err := testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(namespace, &currentMetadataConfigMap, metadata)
+
+		assert.Nil(t, err)
+		configMap, err := testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		assert.Nil(t, err)
+		assert.NotNil(t, configMap)
+		assert.NotNil(t, configMap.Data)
+		assert.NotNil(t, configMap.Data["metadata"])
+		metadataText := configMap.Data["metadata"]
+		metadataText = strings.ReplaceAll(metadataText, " ", "")
+		metadataText = strings.ReplaceAll(metadataText, "\n", "")
+		metadataText = strings.ReplaceAll(metadataText, "\t", "")
+		assert.True(t, strings.Contains(metadataText, "VAR1"))
+		assert.True(t, strings.Contains(metadataText, "\"RadixConfigValue\":\"val1changed\""))
+		assert.True(t, strings.Contains(metadataText, "VAR2"))
+		assert.True(t, strings.Contains(metadataText, "\"RadixConfigValue\":\"added\""))
+		assert.False(t, strings.Contains(metadataText, "VAR3"))
+	})
+
+	t.Run("Fail to save to non-existing config-map", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getEnvironmentVariablesTestEnv()
+		err := testEnv.kubeUtil.ApplyEnvVarsMetadataConfigMap(namespace, &currentMetadataConfigMap, metadata)
+		assert.NotNil(t, err)
+		assert.Equal(t, "failed to patch config-map object: configmaps \"env-vars-metadata-comp1\" not found", err.Error())
 	})
 }
 
