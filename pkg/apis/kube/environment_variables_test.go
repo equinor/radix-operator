@@ -351,6 +351,112 @@ func Test_GetEnvVarsConfigMapAndMetadataMap(t *testing.T) {
 	})
 }
 
+func Test_GetOrCreateEnvVarsConfigMapAndMetadataMap(t *testing.T) {
+	appName := "some-app"
+	namespace := "some-add-dev"
+	componentName := "comp1"
+
+	t.Run("Create new, when does not exists", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getEnvironmentVariablesTestEnv()
+
+		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appName, componentName)
+
+		assert.Nil(t, err)
+		assert.NotNil(t, envVarsConfigMap)
+		assert.NotNil(t, envVarsConfigMap.Data)
+		assert.NotNil(t, envVarsMetadataConfigMap)
+		assert.NotNil(t, envVarsMetadataConfigMap.Data)
+		assert.Equal(t, "", envVarsMetadataConfigMap.Data["metadata"])
+	})
+
+	t.Run("Get existing", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getEnvironmentVariablesTestEnv()
+		createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "env-vars-" + componentName,
+				Namespace: namespace,
+			},
+			Data: map[string]string{
+				"VAR1": "val1changed",
+				"VAR2": "val2",
+				"VAR3": "setVal3",
+			},
+		})
+		createConfigMap(
+			testEnv.kubeUtil,
+			namespace,
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "env-vars-metadata-" + componentName,
+					Namespace: namespace,
+				},
+				Data: map[string]string{
+					"metadata": `
+							{
+								"VAR1":{"RadixConfigValue":"val1"},
+								"VAR3":{"RadixConfigValue":""}
+							}
+							`,
+				},
+			},
+		)
+
+		envVarsConfigMap, envVarsMetadataConfigMap, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appName, componentName)
+
+		assert.Nil(t, err)
+		assert.NotNil(t, envVarsConfigMap)
+		assert.NotNil(t, envVarsConfigMap.Data)
+		assert.Len(t, envVarsConfigMap.Data, 3)
+		assert.NotNil(t, envVarsConfigMap.Data["VAR1"])
+		assert.Equal(t, "val1changed", envVarsConfigMap.Data["VAR1"])
+		assert.NotNil(t, envVarsConfigMap.Data["VAR2"])
+		assert.Equal(t, "val2", envVarsConfigMap.Data["VAR2"])
+		assert.NotNil(t, envVarsConfigMap.Data["VAR1"])
+		assert.Equal(t, "setVal3", envVarsConfigMap.Data["VAR3"])
+		assert.NotNil(t, envVarsMetadataConfigMap)
+		assert.NotNil(t, envVarsMetadataConfigMap.Data)
+		assert.NotNil(t, envVarsMetadataConfigMap.Data["metadata"])
+	})
+}
+
+func Test_BuildRadixConfigEnvVarsConfigMap(t *testing.T) {
+	appName := "some-app"
+	componentName := "comp1"
+	name := "env-vars-" + componentName
+	t.Run("Build", func(t *testing.T) {
+		t.Parallel()
+
+		envVarsConfigMap := BuildRadixConfigEnvVarsConfigMap(appName, componentName)
+
+		assert.NotNil(t, envVarsConfigMap)
+		assert.NotNil(t, envVarsConfigMap.Data)
+		assert.Equal(t, name, envVarsConfigMap.ObjectMeta.Name)
+		assert.Equal(t, appName, envVarsConfigMap.ObjectMeta.Labels[RadixAppLabel])
+		assert.Equal(t, componentName, envVarsConfigMap.ObjectMeta.Labels[RadixComponentLabel])
+		assert.Equal(t, string(EnvVarsConfigMap), envVarsConfigMap.ObjectMeta.Labels[RadixConfigMapTypeLabel])
+	})
+}
+
+func Test_BuildRadixConfigEnvVarsMetadataConfigMap(t *testing.T) {
+	appName := "some-app"
+	componentName := "comp1"
+	name := "env-vars-metadata-" + componentName
+	t.Run("Build", func(t *testing.T) {
+		t.Parallel()
+
+		envVarsConfigMap := BuildRadixConfigEnvVarsMetadataConfigMap(appName, componentName)
+
+		assert.NotNil(t, envVarsConfigMap)
+		assert.NotNil(t, envVarsConfigMap.Data)
+		assert.Equal(t, name, envVarsConfigMap.ObjectMeta.Name)
+		assert.Equal(t, appName, envVarsConfigMap.ObjectMeta.Labels[RadixAppLabel])
+		assert.Equal(t, componentName, envVarsConfigMap.ObjectMeta.Labels[RadixComponentLabel])
+		assert.Equal(t, string(EnvVarsMetadataConfigMap), envVarsConfigMap.ObjectMeta.Labels[RadixConfigMapTypeLabel])
+	})
+}
+
 func createConfigMap(kubeUtil *Kube, namespace string, configMap *corev1.ConfigMap) {
 	kubeUtil.kubeClient.CoreV1().ConfigMaps(namespace).Create(context.Background(), configMap, metav1.CreateOptions{})
 }

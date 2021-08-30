@@ -109,7 +109,7 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 		return nil, nil, err
 	}
 	if envVarConfigMap.Data == nil {
-		envVarConfigMap.Data = make(map[string]string, 0)
+		envVarConfigMap.Data = make(map[string]string)
 	}
 	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName)
 	if err != nil {
@@ -118,7 +118,7 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 		return nil, nil, err
 	}
 	if envVarMetadataConfigMap.Data == nil {
-		envVarMetadataConfigMap.Data = make(map[string]string, 0)
+		envVarMetadataConfigMap.Data = make(map[string]string)
 	}
 	return envVarConfigMap, envVarMetadataConfigMap, err
 }
