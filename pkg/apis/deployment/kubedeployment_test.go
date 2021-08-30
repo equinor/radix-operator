@@ -348,6 +348,15 @@ func createDeploymentStrategy() *appsv1.DeploymentStrategy {
 	return &deploymentStrategy
 }
 
+type noopSecurityContextBuilder struct{}
+
+func (s *noopSecurityContextBuilder) BuildContainerSecurityContext(component v1.RadixCommonDeployComponent) *corev1.SecurityContext {
+	return nil
+}
+func (s *noopSecurityContextBuilder) BuildPodSecurityContext(component v1.RadixCommonDeployComponent) *corev1.PodSecurityContext {
+	return nil
+}
+
 func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[string]string) Deployment {
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
 	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
@@ -357,5 +366,5 @@ func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, securityContextBuilder: &noopSecurityContextBuilder{}}
 }

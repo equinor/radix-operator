@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -37,12 +39,6 @@ const (
 )
 
 var logger *log.Entry
-
-var (
-	operatorDate     string
-	operatorCommitid string
-	operatorBranch   string
-)
 
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
@@ -225,8 +221,9 @@ func startDeploymentController(
 
 	handler := deployment.NewHandler(client,
 		kubeUtil,
-		radixClient, prometheusOperatorClient,
-		func(syncedOk bool) {}, // Not interested in getting notifications of synced)
+		radixClient,
+		prometheusOperatorClient,
+		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
 	)
 
 	waitForChildrenToSync := true
@@ -234,7 +231,7 @@ func startDeploymentController(
 		client,
 		kubeUtil,
 		radixClient,
-		&handler,
+		handler,
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,
@@ -298,8 +295,10 @@ func startMetricsServer(stop <-chan struct{}) {
 		}
 	}()
 	<-stop
-	if err := srv.Shutdown(nil); err != nil {
-		panic(err)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Errorf("shutdown metrics server failed: %v", err)
 	}
 }
 

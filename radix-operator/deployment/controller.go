@@ -23,15 +23,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-// Controller Instance variables
-type Controller struct {
-	clientset   kubernetes.Interface
-	radixclient radixclient.Interface
-	queue       workqueue.RateLimitingInterface
-	informer    cache.SharedIndexInformer
-	handler     common.Handler
-}
-
 var logger *log.Entry
 
 const (
@@ -162,8 +153,7 @@ func NewController(client kubernetes.Interface,
 				// Will sync the active RD (there can only be one within each namespace)
 				for _, rd := range rds.Items {
 					if !deployment.IsRadixDeploymentInactive(&rd) {
-						var obj metav1.Object
-						obj = &rd
+						obj := &rd
 						controller.Enqueue(obj)
 					}
 				}

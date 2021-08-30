@@ -3,7 +3,9 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"os"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -28,6 +30,33 @@ const (
 	MessageResourceSynced = "Radix Deployment synced successfully"
 )
 
+var hasSyncedNoop common.HasSynced = func(b bool) {}
+
+// HandlerConfigOption defines a configuration function used for additional configuration of Handler
+type HandlerConfigOption func(*Handler)
+
+// WithHasSyncedCallback configures Handler callback when RD has synced successfully
+func WithHasSyncedCallback(callback common.HasSynced) HandlerConfigOption {
+	return func(h *Handler) {
+		h.hasSynced = callback
+	}
+}
+
+// WithForceRunAsNonRootFromEnvVar configures runAsNonRoot for Handler from an environment variable
+func WithForceRunAsNonRootFromEnvVar(envVarName string) HandlerConfigOption {
+	return func(h *Handler) {
+		envValue := os.Getenv(envVarName)
+		h.forceRunAsNonRoot = commonUtils.ContainsString([]string{"true"}, envValue)
+	}
+}
+
+// WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
+func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
+	return func(h *Handler) {
+		h.deploymentSyncerFactory = factory
+	}
+}
+
 // Handler Instance variables
 type Handler struct {
 	kubeclient              kubernetes.Interface
@@ -35,6 +64,8 @@ type Handler struct {
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
+	forceRunAsNonRoot       bool
+	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
 
 // NewHandler Constructor
@@ -42,14 +73,20 @@ func NewHandler(kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
 	prometheusperatorclient monitoring.Interface,
-	hasSynced common.HasSynced) Handler {
+	options ...HandlerConfigOption) *Handler {
 
-	handler := Handler{
+	handler := &Handler{
 		kubeclient:              kubeclient,
 		radixclient:             radixclient,
 		prometheusperatorclient: prometheusperatorclient,
 		kubeutil:                kubeutil,
-		hasSynced:               hasSynced,
+	}
+
+	configureDefaultDeploymentSyncerFactory(handler)
+	configureDefaultHasSynced(handler)
+
+	for _, option := range options {
+		option(handler)
 	}
 
 	return handler
@@ -62,7 +99,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("Radix deployment '%s' in work queue no longer exists", name))
+			utilruntime.HandleError(fmt.Errorf("radix deployment '%s' in work queue no longer exists", name))
 			return nil
 		}
 
@@ -81,25 +118,32 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("Failed to get RadixRegistartion object: %v", err))
+			utilruntime.HandleError(fmt.Errorf("failed to get RadixRegistartion object: %v", err))
 			return nil
 		}
 
 		return err
 	}
 
-	deployment, err := deployment.NewDeployment(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD)
-	if err != nil {
-		return err
-	}
-
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue
 		return err
 	}
 
-	t.hasSynced(true)
+	if t.hasSynced != nil {
+		t.hasSynced(true)
+	}
+
 	eventRecorder.Event(syncRD, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
+}
+
+func configureDefaultDeploymentSyncerFactory(h *Handler) {
+	WithDeploymentSyncerFactory(deployment.DeploymentSyncerFactoryFunc(deployment.NewDeployment))(h)
+}
+
+func configureDefaultHasSynced(h *Handler) {
+	WithHasSyncedCallback(hasSyncedNoop)(h)
 }
