@@ -20,19 +20,19 @@ type ConfigMapSuite struct {
 	suite.Suite
 }
 
-func TestVolumeMountTestSuite(t *testing.T) {
+func TestConfigMapSuite(t *testing.T) {
 	suite.Run(t, new(ConfigMapSuite))
 }
 
-type TestEnv struct {
+type ConfigMapTestEnv struct {
 	kubeclient       kubernetes.Interface
 	radixclient      radixclient.Interface
 	prometheusclient prometheusclient.Interface
 	kubeUtil         *Kube
 }
 
-func getTestEnv() TestEnv {
-	testEnv := TestEnv{
+func getConfigMapTestEnv() ConfigMapTestEnv {
+	testEnv := ConfigMapTestEnv{
 		kubeclient:       kubefake.NewSimpleClientset(),
 		radixclient:      radix.NewSimpleClientset(),
 		prometheusclient: prometheusfake.NewSimpleClientset(),
@@ -54,7 +54,7 @@ func (suite *ConfigMapSuite) Test_CreateConfigMap() {
 	}
 	suite.T().Run("Create CM", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
+		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
 		configMap, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{
@@ -89,7 +89,7 @@ func (suite *ConfigMapSuite) Test_ConfigMapInCluster() {
 	suite.T().Run("Create CM", func(t *testing.T) {
 		t.Parallel()
 		for _, scenario := range scenarios {
-			testEnv := getTestEnv()
+			testEnv := getConfigMapTestEnv()
 			_, err := testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   scenario.cmName,
@@ -113,7 +113,7 @@ func Test_GetConfigMap(t *testing.T) {
 	t.Run("Get config-map from client", func(t *testing.T) {
 		t.Parallel()
 
-		testEnv := getTestEnv()
+		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
 		testConfigMap := corev1.ConfigMap{
@@ -134,7 +134,7 @@ func Test_GetConfigMap(t *testing.T) {
 func Test_UpdateConfigMap(t *testing.T) {
 	t.Run("Update not existing config-map", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
+		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
 		testConfigMap := corev1.ConfigMap{
@@ -150,7 +150,7 @@ func Test_UpdateConfigMap(t *testing.T) {
 
 	t.Run("Update existing config-map", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
+		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
 		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &corev1.ConfigMap{
@@ -187,7 +187,7 @@ func Test_ApplyConfigMap(t *testing.T) {
 
 	t.Run("Patch not existing config-map", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
+		testEnv := getConfigMapTestEnv()
 
 		err := testEnv.kubeUtil.ApplyConfigMap(namespace, &currentConfigMap, &desiredConfigMap)
 
@@ -197,7 +197,7 @@ func Test_ApplyConfigMap(t *testing.T) {
 
 	t.Run("Patch existing config-map", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
+		testEnv := getConfigMapTestEnv()
 		namespace := "some-namespace"
 		name := "some-name"
 		_, _ = testEnv.kubeclient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), &currentConfigMap, metav1.CreateOptions{})
