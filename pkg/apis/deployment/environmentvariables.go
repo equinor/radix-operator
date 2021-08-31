@@ -75,11 +75,6 @@ func getEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string
 
 //GetEnvironmentVariables Provides environment variables for Radix application.
 func GetEnvironmentVariables(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	return GetEnvironmentVariablesFrom(kubeutil, appName, radixDeployment, deployComponent)
-}
-
-//GetEnvironmentVariablesFrom Provides environment variables for Radix application by given config-maps.
-func GetEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	return getEnvironmentVariablesFrom(kubeutil, appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent)
 }
 
