@@ -96,6 +96,9 @@ func SetEnvVarsMetadataMapToConfigMap(configMap *corev1.ConfigMap, envVarsMetada
 	if err != nil {
 		return err
 	}
+	if configMap.Data == nil {
+		configMap.Data = make(map[string]string)
+	}
 	configMap.Data[envVarsMetadataPropertyName] = string(envVarsMetadata)
 	return nil
 }

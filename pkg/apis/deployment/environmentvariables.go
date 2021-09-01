@@ -147,6 +147,14 @@ func removeFromConfigMapEnvVarsNotExistingInRadixconfig(envVarsMap v1.EnvVarsMap
 	}
 }
 
+func removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) {
+	for envVarName := range envVarMetadataMap {
+		if _, ok := envVarConfigMap.Data[envVarName]; !ok {
+			delete(envVarMetadataMap, envVarName)
+		}
+	}
+}
+
 func getEnvVarNamesSorted(envVarsMap v1.EnvVarsMap) []string {
 	var envVarNames []string
 	for k := range envVarsMap {
@@ -318,6 +326,7 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
+	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)
 }
 
 func getMapKeysSorted(stringMap map[string]string) []string {

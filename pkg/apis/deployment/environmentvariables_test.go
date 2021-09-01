@@ -113,6 +113,61 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 	})
 }
 
+func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
+	appName := "any-app"
+	envName := "dev"
+	namespace := utils.GetEnvironmentNamespace(appName, env)
+	componentName := "any-component"
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
+		t.Parallel()
+
+		kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
+			"VAR1":          "val1",
+			"OUTDATED_VAR1": "val1z",
+		}})
+		existingEnvVarsMetadataConfigMap := corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsMetadataConfigMapName(componentName)}}
+		kube.SetEnvVarsMetadataMapToConfigMap(&existingEnvVarsMetadataConfigMap,
+			map[string]kube.EnvVarMetadata{
+				"VAR1":          {RadixConfigValue: "orig-val1"},
+				"OUTDATED_VAR1": {RadixConfigValue: "orig-val1a"},
+				"OUTDATED_VAR2": {RadixConfigValue: "orig-val2a"},
+			})
+		kubeUtil.CreateConfigMap(namespace, &existingEnvVarsMetadataConfigMap)
+
+		radixConfigEnvVars := map[string]string{
+			"VAR1": "new-val1",
+			"VAR2": "val2",
+			"VAR3": "val3",
+		}
+
+		rd := applyRd(t, appName, envName, componentName, radixConfigEnvVars, tu, client, kubeUtil, radixclient, prometheusclient)
+		envVars, err := GetEnvironmentVariables(kubeUtil, appName, rd, &rd.Spec.Components[0])
+
+		assert.NoError(t, err)
+		assert.Len(t, envVars, 3)
+		envVarsConfigMap, envVarsMetadataConfigMap, err := kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(utils.GetEnvironmentNamespace(appName, env), appName, componentName)
+		assert.NoError(t, err)
+		assert.NotNil(t, envVarsConfigMap)
+		assert.NotNil(t, envVarsConfigMap.Data)
+		assert.Len(t, envVarsConfigMap.Data, 3)
+		assert.Equal(t, "new-val1", envVarsConfigMap.Data["VAR1"])
+		assert.Equal(t, "val2", envVarsConfigMap.Data["VAR2"])
+		assert.Equal(t, "val3", envVarsConfigMap.Data["VAR3"])
+		assert.Equal(t, "", envVarsConfigMap.Data["OUTDATED_VAR1"])
+		assert.NotNil(t, envVarsMetadataConfigMap)
+		assert.NotNil(t, envVarsMetadataConfigMap.Data)
+		resultEnvVarsMetadataMap, err := kube.GetEnvVarsMetadataFromConfigMap(envVarsMetadataConfigMap)
+		assert.NoError(t, err)
+		assert.NotNil(t, resultEnvVarsMetadataMap)
+		assert.Len(t, resultEnvVarsMetadataMap, 1)
+		assert.NotEmpty(t, resultEnvVarsMetadataMap["VAR1"])
+		assert.Equal(t, "new-val1", resultEnvVarsMetadataMap["VAR1"].RadixConfigValue)
+		assert.Empty(t, resultEnvVarsMetadataMap["OUTDATED_VAR1"])
+		assert.Empty(t, resultEnvVarsMetadataMap["OUTDATED_VAR2"])
+	})
+}
+
 func applyRd(t *testing.T, appName string, envName string, componentName string, envVarsMap map[string]string, tu *test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusclient monitoring.Interface) *v1.RadixDeployment {
 	radixDeployBuilder := utils.ARadixDeployment().
 		WithAppName(appName).
