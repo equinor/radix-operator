@@ -81,13 +81,13 @@ func (kubeutil *Kube) GetEnvVarsMetadataConfigMapAndMap(namespace string, compon
 }
 
 //ApplyEnvVarsMetadataConfigMap Save changes of environment-variables metadata to config-map
-func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, currentEnvVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]EnvVarMetadata) error {
-	desiredEnvVarsMetadataConfigMap := currentEnvVarsMetadataConfigMap.DeepCopy()
+func (kubeutil *Kube) ApplyEnvVarsMetadataConfigMap(namespace string, envVarsMetadataConfigMap *corev1.ConfigMap, envVarsMetadataMap map[string]EnvVarMetadata) error {
+	desiredEnvVarsMetadataConfigMap := envVarsMetadataConfigMap.DeepCopy()
 	err := SetEnvVarsMetadataMapToConfigMap(desiredEnvVarsMetadataConfigMap, envVarsMetadataMap)
 	if err != nil {
 		return err
 	}
-	return kubeutil.ApplyConfigMap(namespace, currentEnvVarsMetadataConfigMap, desiredEnvVarsMetadataConfigMap)
+	return kubeutil.ApplyConfigMap(namespace, envVarsMetadataConfigMap, desiredEnvVarsMetadataConfigMap)
 }
 
 //SetEnvVarsMetadataMapToConfigMap Set environment-variables metadata to config-map
@@ -95,6 +95,9 @@ func SetEnvVarsMetadataMapToConfigMap(configMap *corev1.ConfigMap, envVarsMetada
 	envVarsMetadata, err := json.Marshal(envVarsMetadataMap)
 	if err != nil {
 		return err
+	}
+	if configMap.Data == nil {
+		configMap.Data = make(map[string]string)
 	}
 	configMap.Data[envVarsMetadataPropertyName] = string(envVarsMetadata)
 	return nil
@@ -109,7 +112,7 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 		return nil, nil, err
 	}
 	if envVarConfigMap.Data == nil {
-		envVarConfigMap.Data = make(map[string]string, 0)
+		envVarConfigMap.Data = make(map[string]string)
 	}
 	envVarMetadataConfigMap, err := kubeutil.getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, appName, componentName)
 	if err != nil {
@@ -118,7 +121,7 @@ func (kubeutil *Kube) GetOrCreateEnvVarsConfigMapAndMetadataMap(namespace, appNa
 		return nil, nil, err
 	}
 	if envVarMetadataConfigMap.Data == nil {
-		envVarMetadataConfigMap.Data = make(map[string]string, 0)
+		envVarMetadataConfigMap.Data = make(map[string]string)
 	}
 	return envVarConfigMap, envVarMetadataConfigMap, err
 }
