@@ -36,6 +36,10 @@ func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface
 	}
 }
 
+func (tu *Utils) GetKubeUtil() *kube.Kube {
+	return tu.kubeUtil
+}
+
 // ApplyRegistration Will help persist an application registration
 func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
