@@ -75,11 +75,6 @@ func getEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string
 
 //GetEnvironmentVariables Provides environment variables for Radix application.
 func GetEnvironmentVariables(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	return GetEnvironmentVariablesFrom(kubeutil, appName, radixDeployment, deployComponent)
-}
-
-//GetEnvironmentVariablesFrom Provides environment variables for Radix application by given config-maps.
-func GetEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	return getEnvironmentVariablesFrom(kubeutil, appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent)
 }
 
@@ -148,6 +143,14 @@ func removeFromConfigMapEnvVarsNotExistingInRadixconfig(envVarsMap v1.EnvVarsMap
 	for _, envVarName := range envVarCmRefs {
 		if _, ok := envVarsMap[envVarName]; !ok {
 			delete(envVarConfigMap.Data, envVarName)
+		}
+	}
+}
+
+func removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap *corev1.ConfigMap, envVarMetadataMap map[string]kube.EnvVarMetadata) {
+	for envVarName := range envVarMetadataMap {
+		if _, ok := envVarConfigMap.Data[envVarName]; !ok {
+			delete(envVarMetadataMap, envVarName)
 		}
 	}
 }
@@ -323,6 +326,7 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
+	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)
 }
 
 func getMapKeysSorted(stringMap map[string]string) []string {
