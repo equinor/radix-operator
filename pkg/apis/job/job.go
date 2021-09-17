@@ -57,7 +57,6 @@ func (job *Job) OnSync() error {
 	job.SyncTargetEnvironments()
 
 	if IsRadixJobDone(job.radixJob) {
-
 		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
@@ -266,11 +265,11 @@ func (job *Job) stopJob() error {
 		currStatus.Condition = v1.JobStopped
 		currStatus.Ended = &metav1.Time{Time: time.Now()}
 	})
-	err = job.setNextJobToRunning()
-	if err == nil && isRunning {
+	if err != nil {
+		return err
 	}
 
-	return err
+	return job.setNextJobToRunning()
 }
 
 func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
@@ -617,8 +616,14 @@ func (job *Job) getJobEnvironments() ([]string, error) {
 
 func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, originalRadixJobCondition v1.RadixJobCondition, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
 	err := job.updateRadixJobStatus(savingRadixJob, changeStatusFunc)
-	if err == nil && originalRadixJobCondition != savingRadixJob.Status.Condition {
-		metrics.RadixJobStatusChanged(savingRadixJob)
+	if err == nil {
+		if originalRadixJobCondition != job.radixJob.Status.Condition {
+			metrics.RadixJobStatusChanged(job.radixJob)
+
+			if job.radixJob.Status.Condition == v1.JobSucceeded {
+				metrics.RadixJobVulnerabilityScan(job.radixJob)
+			}
+		}
 	}
 	return err
 }
