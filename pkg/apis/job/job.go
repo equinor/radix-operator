@@ -615,17 +615,19 @@ func (job *Job) getJobEnvironments() ([]string, error) {
 }
 
 func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, originalRadixJobCondition v1.RadixJobCondition, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
-	err := job.updateRadixJobStatus(savingRadixJob, changeStatusFunc)
-	if err == nil {
-		if originalRadixJobCondition != job.radixJob.Status.Condition {
-			metrics.RadixJobStatusChanged(job.radixJob)
+	if err := job.updateRadixJobStatus(savingRadixJob, changeStatusFunc); err != nil {
+		return err
+	}
 
-			if job.radixJob.Status.Condition == v1.JobSucceeded {
-				metrics.RadixJobVulnerabilityScan(job.radixJob)
-			}
+	if originalRadixJobCondition != job.radixJob.Status.Condition {
+		metrics.RadixJobStatusChanged(job.radixJob)
+
+		if job.radixJob.Status.Condition == v1.JobSucceeded {
+			metrics.RadixJobVulnerabilityScan(job.radixJob)
 		}
 	}
-	return err
+
+	return nil
 }
 
 func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(currStatus *v1.RadixJobStatus)) error {
