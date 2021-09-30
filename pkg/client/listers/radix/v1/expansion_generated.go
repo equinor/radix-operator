@@ -18,6 +18,14 @@ limitations under the License.
 
 package v1
 
+// RadixAlertListerExpansion allows custom methods to be added to
+// RadixAlertLister.
+type RadixAlertListerExpansion interface{}
+
+// RadixAlertNamespaceListerExpansion allows custom methods to be added to
+// RadixAlertNamespaceLister.
+type RadixAlertNamespaceListerExpansion interface{}
+
 // RadixApplicationListerExpansion allows custom methods to be added to
 // RadixApplicationLister.
 type RadixApplicationListerExpansion interface{}

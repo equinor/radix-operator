@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/alert"
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
@@ -67,6 +68,7 @@ func main() {
 	go startEnvironmentController(client, radixClient, eventRecorder, stop)
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
 	go startJobController(client, radixClient, eventRecorder, stop)
+	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -281,6 +283,48 @@ func startJobController(
 	radixInformerFactory.Start(stop)
 
 	if err := jobController.Run(threadiness, stop); err != nil {
+		logger.Fatalf("Error running controller: %s", err.Error())
+	}
+}
+
+func startAlertController(
+	client kubernetes.Interface,
+	radixClient radixclient.Interface,
+	prometheusOperatorClient monitoring.Interface,
+	recorder record.EventRecorder,
+	stop <-chan struct{}) {
+
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
+
+	kubeUtil, _ := kube.NewWithListers(
+		client,
+		radixClient,
+		kubeInformerFactory,
+		radixInformerFactory,
+	)
+
+	handler := alert.NewHandler(client,
+		kubeUtil,
+		radixClient,
+		prometheusOperatorClient,
+	)
+
+	waitForChildrenToSync := true
+	alertController := alert.NewController(
+		client,
+		kubeUtil,
+		radixClient,
+		handler,
+		kubeInformerFactory,
+		radixInformerFactory,
+		waitForChildrenToSync,
+		recorder)
+
+	kubeInformerFactory.Start(stop)
+	radixInformerFactory.Start(stop)
+
+	if err := alertController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
