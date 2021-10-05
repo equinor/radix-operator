@@ -88,6 +88,7 @@ func (kubeutil *Kube) GetSecret(namespace, name string) (*corev1.Secret, error) 
 
 	if kubeutil.SecretLister != nil {
 		secret, err = kubeutil.SecretLister.Secrets(namespace).Get(name)
+		secret = secret.DeepCopy() // Need to do a deep copy in case the caller modifies the returned secret
 		if err != nil {
 			return nil, err
 		}

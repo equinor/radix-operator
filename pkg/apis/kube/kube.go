@@ -64,7 +64,6 @@ type Kube struct {
 	RdLister                 v1Lister.RadixDeploymentLister
 	RadixAlertLister         v1Lister.RadixAlertLister
 	NamespaceLister          coreListers.NamespaceLister
-	ConfigMapLister          coreListers.ConfigMapLister
 	SecretLister             coreListers.SecretLister
 	DeploymentLister         appsv1Listers.DeploymentLister
 	IngressLister            networkingListers.IngressLister
@@ -106,7 +105,6 @@ func NewWithListers(client kubernetes.Interface,
 		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
 		RadixAlertLister:         radixInformerFactory.Radix().V1().RadixAlerts().Lister(),
 		NamespaceLister:          kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		ConfigMapLister:          kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
 		SecretLister:             kubeInformerFactory.Core().V1().Secrets().Lister(),
 		DeploymentLister:         kubeInformerFactory.Apps().V1().Deployments().Lister(),
 		ServiceLister:            kubeInformerFactory.Core().V1().Services().Lister(),

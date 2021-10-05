@@ -45,5 +45,10 @@ spec:
                         type: string
                       receiver:
                         type: string
+            status:
+              type: object
+              additionalProperties:
+                x-kubernetes-preserve-unknown-fields: true
+
               
               

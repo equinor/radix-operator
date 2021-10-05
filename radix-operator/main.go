@@ -13,9 +13,11 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/alert"
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -25,13 +27,10 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
-
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	kubeinformers "k8s.io/client-go/informers"
 )
 
 const (
