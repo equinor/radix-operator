@@ -3,6 +3,7 @@ package alert
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +39,12 @@ func (syncer *alertSyncer) createOrUpdateSecret() error {
 
 func (syncer *alertSyncer) setSecretProps(secret *v1.Secret) {
 	secret.OwnerReferences = syncer.getOwnerReference()
+
+	labels := map[string]string{}
+	if appName, found := syncer.radixAlert.Labels[kube.RadixAppLabel]; found {
+		labels[kube.RadixAppLabel] = appName
+	}
+	secret.Labels = labels
 }
 
 func (syncer *alertSyncer) removedOrphanedSecretKeys(secret *v1.Secret) {

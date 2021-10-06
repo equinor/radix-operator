@@ -102,14 +102,13 @@ func (syncer *alertSyncer) OnSync() error {
 }
 
 func (syncer *alertSyncer) syncAlert() error {
-	/*
-		Apply empty secret with ownerReference to RadixAlert
-		Apply role and rolebinding for secrets
-		Apply alertmanagerconfig
-	*/
-
 	if err := syncer.createOrUpdateSecret(); err != nil {
 		syncer.logger.Errorf("Failed to sync secrets: %v", err)
+		return err
+	}
+
+	if err := syncer.configureRbac(); err != nil {
+		syncer.logger.Errorf("Failed to configure RBAC: %v", err)
 		return err
 	}
 
@@ -151,7 +150,6 @@ func (syncer *alertSyncer) updateRadixAlertStatus(changeStatusFunc func(currStat
 	return err
 }
 
-// getOwnerReference Gets owner reference given alert.
 func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
@@ -159,7 +157,6 @@ func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 			Kind:       "RadixAlert",
 			Name:       syncer.radixAlert.Name,
 			UID:        syncer.radixAlert.UID,
-			// Controller: utils.BoolPtr(true),
 		},
 	}
 }

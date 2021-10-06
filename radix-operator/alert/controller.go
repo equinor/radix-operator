@@ -1,15 +1,20 @@
 package alert
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 
+	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -38,6 +43,7 @@ func NewController(client kubernetes.Interface,
 	recorder record.EventRecorder) *common.Controller {
 
 	alertConfigInformer := radixInformerFactory.Radix().V1().RadixAlerts()
+	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -60,8 +66,8 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oldRadixAlert := old.(*v1.RadixAlert)
-			newRadixAlert := cur.(*v1.RadixAlert)
+			oldRadixAlert := old.(*radixv1.RadixAlert)
+			newRadixAlert := cur.(*radixv1.RadixAlert)
 			if deepEqual(oldRadixAlert, newRadixAlert) {
 				logger.Debugf("RadixAlert object is equal to old for %s. Do nothing", newRadixAlert.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
@@ -71,7 +77,7 @@ func NewController(client kubernetes.Interface,
 			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixAlert, _ := obj.(*v1.RadixAlert)
+			radixAlert, _ := obj.(*radixv1.RadixAlert)
 			key, err := cache.MetaNamespaceKeyFunc(radixAlert)
 			if err == nil {
 				logger.Debugf("RadixAlert object deleted event received for %s. Do nothing", key)
@@ -80,10 +86,39 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			newRr := newObj.(*radixv1.RadixRegistration)
+			oldRr := oldObj.(*radixv1.RadixRegistration)
+			if newRr.ResourceVersion == oldRr.ResourceVersion {
+				return
+			}
+
+			// If neither ad group did change, nor the machine user, this
+			// does not affect the alert
+			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
+				newRr.Spec.MachineUser == oldRr.Spec.MachineUser {
+				return
+			}
+
+			// Get all namespaces belonging to this RR and resync all RadixAlert that exists in the namespaces
+			radixalerts, err := radixClient.RadixV1().RadixAlerts(corev1.NamespaceAll).List(context.TODO(), v1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
+			})
+
+			if err == nil {
+				for _, radixalert := range radixalerts.Items {
+					controller.Enqueue(&radixalert)
+				}
+			}
+		},
+	})
+	// TODO: On RR update, get all namespaces with radix-app=rrname=>foreach ns;get radixalerts and queue
+
 	return controller
 }
 
-func deepEqual(old, new *v1.RadixAlert) bool {
+func deepEqual(old, new *radixv1.RadixAlert) bool {
 	if !reflect.DeepEqual(new.Spec, old.Spec) ||
 		!reflect.DeepEqual(new.ObjectMeta.Labels, old.ObjectMeta.Labels) ||
 		!reflect.DeepEqual(new.ObjectMeta.Annotations, old.ObjectMeta.Annotations) {
