@@ -34,21 +34,7 @@ As of 2019-10-28, radix-operator uses go modules. See [Using go modules](https:/
 
 ### Generating mocks
 We use gomock to generate mocks used in unit test.
-You need to regenerate mocks if you make changes to any of the interface types used by the application; **DeploymentSyncerFactory**, **DeploymentSyncer**, **SecurityContextBuilder**
-DeploymentSyncerFactory:
-```
-$ mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package mock
-```
-DeploymentSyncer:
-```
-mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package mock
-```
-SecurityContextBuilder:
-```
-mockgen -source ./pkg/apis/deployment/securitycontext.go -destination ./pkg/apis/deployment/securitycontext_mock.go -package mock
-```
-
-Regenerate all mocks:
+You need to regenerate mocks if you make changes to any of the interface types used by the application.
 ```
 make mocks
 ```

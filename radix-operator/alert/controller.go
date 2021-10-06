@@ -42,7 +42,7 @@ func NewController(client kubernetes.Interface,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 
-	alertConfigInformer := radixInformerFactory.Radix().V1().RadixAlerts()
+	alertInformer := radixInformerFactory.Radix().V1().RadixAlerts()
 	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
 	controller := &common.Controller{
@@ -50,7 +50,7 @@ func NewController(client kubernetes.Interface,
 		HandlerOf:             crType,
 		KubeClient:            client,
 		RadixClient:           radixClient,
-		Informer:              alertConfigInformer.Informer(),
+		Informer:              alertInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
 		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
 		Handler:               handler,
@@ -60,7 +60,7 @@ func NewController(client kubernetes.Interface,
 	}
 
 	logger.Info("Setting up event handlers")
-	alertConfigInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	alertInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			controller.Enqueue(cur)
 			metrics.CustomResourceAdded(crType)
@@ -101,11 +101,10 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			// Get all namespaces belonging to this RR and resync all RadixAlert that exists in the namespaces
+			// Enqueue all RadixAlerts with radix-app label matching name of RR
 			radixalerts, err := radixClient.RadixV1().RadixAlerts(corev1.NamespaceAll).List(context.TODO(), v1.ListOptions{
 				LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, newRr.Name),
 			})
-
 			if err == nil {
 				for _, radixalert := range radixalerts.Items {
 					controller.Enqueue(&radixalert)
@@ -113,7 +112,6 @@ func NewController(client kubernetes.Interface,
 			}
 		},
 	})
-	// TODO: On RR update, get all namespaces with radix-app=rrname=>foreach ns;get radixalerts and queue
 
 	return controller
 }
