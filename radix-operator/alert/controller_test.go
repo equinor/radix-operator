@@ -24,7 +24,7 @@ const (
 	testControllerSyncTimeout = 5 * time.Second
 )
 
-type controllerSuite struct {
+type controllerTestSuite struct {
 	suite.Suite
 	kubeClient           *fake.Clientset
 	radixClient          *fakeradix.Clientset
@@ -36,10 +36,10 @@ type controllerSuite struct {
 }
 
 func TestControllerSuite(t *testing.T) {
-	suite.Run(t, new(controllerSuite))
+	suite.Run(t, new(controllerTestSuite))
 }
 
-func (s *controllerSuite) SetupTest() {
+func (s *controllerTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
@@ -56,7 +56,7 @@ func syncedChannelCallback(synced chan<- bool) func(namespace, name string, even
 	}
 }
 
-func (s *controllerSuite) Test_RadixAlertEvents() {
+func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	ctrl := gomock.NewController(s.T())
 	defer ctrl.Finish()
 	handler := NewMockHandler(ctrl)
@@ -105,7 +105,7 @@ func (s *controllerSuite) Test_RadixAlertEvents() {
 	}
 }
 
-func (s *controllerSuite) Test_RadixRegistrationEvents() {
+func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	ctrl := gomock.NewController(s.T())
 	defer ctrl.Finish()
 	handler := NewMockHandler(ctrl)

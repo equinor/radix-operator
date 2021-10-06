@@ -70,8 +70,7 @@ func NewHandler(kubeclient kubernetes.Interface,
 func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
 	alert, err := t.kubeutil.GetRadixAlert(namespace, name)
 	if err != nil {
-		// The Alert resource may no longer exist, in which case we stop
-		// processing.
+		// The Alert resource may no longer exist, in which case we stop processing.
 		if errors.IsNotFound(err) {
 			utilruntime.HandleError(fmt.Errorf("radix alert '%s' in work queue no longer exists", name))
 			return nil
