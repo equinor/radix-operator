@@ -118,8 +118,6 @@ func (s *controllerSuite) Test_RadixRegistrationEvents() {
 	alert1 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert1Name, Labels: map[string]string{kube.RadixAppLabel: appName}}}
 	alert2 := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alert2Name}}
 	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{Owner: "first-owner", MachineUser: true, AdGroups: []string{"first-group"}}}
-	s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert1, metav1.CreateOptions{})
-	s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert2, metav1.CreateOptions{})
 	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
 
 	sut := NewController(s.kubeClient, s.kubeUtil, s.radixClient, handler, s.kubeInformerFactory, s.radixInformerFactory, false, s.eventRecorder)
@@ -131,13 +129,21 @@ func (s *controllerSuite) Test_RadixRegistrationEvents() {
 	s.True(hasSynced)
 
 	// Initial Sync for the two alerts
-	firstAlertClass := handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
-	handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(syncedChannelCallback(synced)).Times(1).After(firstAlertClass)
+	s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert1, metav1.CreateOptions{})
+	handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(syncedChannelCallback(synced)).Times(1)
 	timeout := time.NewTimer(testControllerSyncTimeout)
 	select {
 	case <-synced:
 	case <-timeout.C:
-		s.FailNow("Timeout waiting for initial sync")
+		s.FailNow("Timeout waiting for initial sync of alert1")
+	}
+	s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert2, metav1.CreateOptions{})
+	handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(syncedChannelCallback(synced)).Times(1)
+	timeout = time.NewTimer(testControllerSyncTimeout)
+	select {
+	case <-synced:
+	case <-timeout.C:
+		s.FailNow("Timeout waiting for initial sync of alert2")
 	}
 
 	// Update machineUser should trigger sync of alert1
