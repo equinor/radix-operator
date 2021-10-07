@@ -28,7 +28,7 @@ func (syncer *alertSyncer) createOrUpdateSecret() error {
 		syncer.removedOrphanedSecretKeys(secret)
 	}
 
-	syncer.setSecretProps(secret)
+	syncer.setSecretCommonProps(secret)
 
 	if _, err := syncer.kubeutil.ApplySecret(ns, secret); err != nil {
 		return err
@@ -37,7 +37,7 @@ func (syncer *alertSyncer) createOrUpdateSecret() error {
 	return nil
 }
 
-func (syncer *alertSyncer) setSecretProps(secret *v1.Secret) {
+func (syncer *alertSyncer) setSecretCommonProps(secret *v1.Secret) {
 	secret.OwnerReferences = syncer.getOwnerReference()
 
 	labels := map[string]string{}
@@ -52,9 +52,9 @@ func (syncer *alertSyncer) removedOrphanedSecretKeys(secret *v1.Secret) {
 
 	// Secret keys related to receiver configuration
 	if syncer.radixAlert.Spec.Receivers != nil {
-		for name, receiver := range syncer.radixAlert.Spec.Receivers {
+		for receiverName, receiver := range syncer.radixAlert.Spec.Receivers {
 			if receiver.SlackConfig.Enabled {
-				expectedKeys[GetSlackConfigSecretKeyName(name)] = nil
+				expectedKeys[GetSlackConfigSecretKeyName(receiverName)] = nil
 			}
 		}
 	}

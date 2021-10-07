@@ -133,10 +133,6 @@ func (syncer *alertSyncer) getAlertManagerConfig() (*v1alpha1.AlertmanagerConfig
 func (syncer *alertSyncer) getAlertmanagerConfigReceivers() []v1alpha1.Receiver {
 	receivers := []v1alpha1.Receiver{{Name: noopRecevierName}}
 
-	if syncer.radixAlert.Spec.Receivers == nil {
-		return receivers
-	}
-
 	for name, receiver := range syncer.radixAlert.Spec.Receivers {
 		receivers = append(receivers, syncer.getAlertmanagerConfigReceiverForRadixAlertReceiver(name, &receiver)...)
 	}

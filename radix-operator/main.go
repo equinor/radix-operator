@@ -62,11 +62,11 @@ func main() {
 
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
-	// go startRegistrationController(client, radixClient, eventRecorder, stop)
-	// go startApplicationController(client, radixClient, eventRecorder, stop)
-	// go startEnvironmentController(client, radixClient, eventRecorder, stop)
-	// go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
-	// go startJobController(client, radixClient, eventRecorder, stop)
+	go startRegistrationController(client, radixClient, eventRecorder, stop)
+	go startApplicationController(client, radixClient, eventRecorder, stop)
+	go startEnvironmentController(client, radixClient, eventRecorder, stop)
+	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
+	go startJobController(client, radixClient, eventRecorder, stop)
 	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
 
 	sigTerm := make(chan os.Signal, 1)
