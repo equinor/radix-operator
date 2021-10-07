@@ -41,10 +41,6 @@ func (s *alertTestSuite) SetupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 }
 
-func (s *alertTestSuite) TearDownTest() {
-
-}
-
 func (s *alertTestSuite) Test_New() {
 	ral := &radixv1.RadixAlert{}
 	syncer := New(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, ral)
@@ -52,7 +48,7 @@ func (s *alertTestSuite) Test_New() {
 	s.NotNil(sut)
 	s.Equal(s.kubeClient, sut.kubeClient)
 	s.Equal(s.radixClient, sut.radixClient)
-	s.Equal(s.kubeClient, sut.kubeUtil)
+	s.Equal(s.kubeUtil, sut.kubeUtil)
 	s.Equal(s.promClient, sut.prometheusClient)
 	s.Equal(ral, sut.radixAlert)
 	s.Equal(defaultSlackMessageTemplate, sut.slackMessageTemplate)
