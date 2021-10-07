@@ -6,17 +6,35 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+type testAlertSyncerConfigOption func(sut *alertSyncer)
+
+func testAlertSyncerWithSlackMessageTemplate(template slackMessageTemplate) testAlertSyncerConfigOption {
+	return func(sut *alertSyncer) {
+		sut.slackMessageTemplate = template
+	}
+}
+
+func testAlertSyncerWithAlertConfigs(configs alertConfigs) testAlertSyncerConfigOption {
+	return func(sut *alertSyncer) {
+		sut.alertConfigs = configs
+	}
+}
 
 type alertTestSuite struct {
 	suite.Suite
@@ -41,6 +59,29 @@ func (s *alertTestSuite) SetupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 }
 
+func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ...testAlertSyncerConfigOption) *alertSyncer {
+	syncer := &alertSyncer{
+		kubeClient:           s.kubeClient,
+		radixClient:          s.radixClient,
+		kubeUtil:             s.kubeUtil,
+		prometheusClient:     s.promClient,
+		radixAlert:           alert,
+		slackMessageTemplate: slackMessageTemplate{},
+		alertConfigs:         alertConfigs{},
+		logger:               log.NewEntry(log.StandardLogger()),
+	}
+
+	for _, f := range options {
+		f(syncer)
+	}
+
+	return syncer
+}
+
+func (s *alertTestSuite) getRadixAlertAsOwnerReference(radixAlert *radixv1.RadixAlert) metav1.OwnerReference {
+	return metav1.OwnerReference{Kind: "RadixAlert", Name: radixAlert.Name, UID: radixAlert.UID, APIVersion: "radix.equinor.com/v1"}
+}
+
 func (s *alertTestSuite) Test_New() {
 	ral := &radixv1.RadixAlert{}
 	syncer := New(s.kubeClient, s.kubeUtil, s.radixClient, s.promClient, ral)
@@ -59,43 +100,27 @@ func (s *alertTestSuite) Test_New() {
 func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	appName, alertName, alertUID, namespace, adGroup := "any-app", "any-alert", types.UID("alert-uid"), "any-ns", "any-group"
 	rr := &radixv1.RadixRegistration{
-		ObjectMeta: v1.ObjectMeta{Name: appName},
+		ObjectMeta: metav1.ObjectMeta{Name: appName},
 		Spec:       radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup}, MachineUser: true},
 	}
-	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, v1.CreateOptions{})
-	ral := &radixv1.RadixAlert{
-		ObjectMeta: v1.ObjectMeta{Name: alertName, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID},
+	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID},
 		Spec:       radixv1.RadixAlertSpec{},
 	}
-	ral, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), ral, v1.CreateOptions{})
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
-	sut := alertSyncer{
-		kubeClient:           s.kubeClient,
-		radixClient:          s.radixClient,
-		kubeUtil:             s.kubeUtil,
-		prometheusClient:     s.promClient,
-		radixAlert:           ral,
-		slackMessageTemplate: slackMessageTemplate{},
-		alertConfigs:         alertConfigs{},
-		logger:               log.NewEntry(log.StandardLogger()),
-	}
+	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
-	expectedAlertOwnerRef := v1.OwnerReference{Kind: "RadixAlert", Name: alertName, UID: alertUID, APIVersion: "radix.equinor.com/v1"}
 	s.Nil(err)
-	actualSecret, err := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), v1.GetOptions{})
+	_, err = s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
 	s.Nil(err, "secret not found")
-	s.Len(actualSecret.OwnerReferences, 1, "secret ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualSecret.OwnerReferences[0], "secret ownerReference not as expected")
-	actualRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), v1.GetOptions{})
-	s.NotNil(actualRole, "role not found")
-	s.Len(actualRole.OwnerReferences, 1, "role ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualRole.OwnerReferences[0], "role ownerReference not as expected")
-	s.ElementsMatch([]string{actualSecret.Name}, actualRole.Rules[0].ResourceNames, "role resourceNames not as expected")
-	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), v1.GetOptions{})
-	s.NotNil(actualRoleBinding, "roleBinding not found")
-	s.Len(actualRoleBinding.OwnerReferences, 1, "rolebinding ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualRoleBinding.OwnerReferences[0], "rolebinding ownerReference not as expected")
-	actualAlertmanagerConfig, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(ral.Name), v1.GetOptions{})
+	_, err = s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Nil(err, "role not found")
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Nil(err, "roleBinding not found")
+	actualAlertmanagerConfig, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(radixalert.Name), metav1.GetOptions{})
 	s.NotNil(actualAlertmanagerConfig, "alertmanagerConfig not found")
 	s.Len(actualAlertmanagerConfig.OwnerReferences, 1, "alertmanagerConfig ownerReference length not as expected")
 	s.Equal(expectedAlertOwnerRef, actualAlertmanagerConfig.OwnerReferences[0], "alertmanagerConfig ownerReference not as expected")
@@ -104,6 +129,353 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	// s.True(found, "missing ad group in rolebinding subject")
 	// _, found = s.getSubjectByName(actualRoleBinding.Subjects, defaults.GetMachineUserRoleName(rr.Name))
 	// s.True(found, "missing machine user in rolebinding subject")
+}
+
+func (s *alertTestSuite) Test_OnSync_Rbac_SkipCreateOnMissingRR() {
+	appName, alertName, alertUID, namespace := "any-app", "any-alert", types.UID("alert-uid"), "any-ns"
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.True(errors.IsNotFound(err), "expected role to not exist")
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.True(errors.IsNotFound(err), "expected rolebinding to not exist")
+}
+
+func (s *alertTestSuite) Test_OnSync_Rbac_DeleteExistingOnMissingRR() {
+	appName, alertName, alertUID, namespace := "any-app", "any-alert", types.UID("alert-uid"), "any-ns"
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, Labels: map[string]string{kube.RadixAppLabel: appName}, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+
+	sut := s.createAlertSyncer(radixalert)
+	err = sut.OnSync()
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.True(errors.IsNotFound(err), "expected role to be deleted")
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.True(errors.IsNotFound(err), "expected rolebinding to be deleted")
+}
+
+func (s *alertTestSuite) Test_OnSync_Rbac_CreateWithOwnerReference() {
+	namespace, appName := "any-ns", "any-app"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}
+	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	actualRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualRole.OwnerReferences, 1, "role ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualRole.OwnerReferences[0], "role ownerReference not as expected")
+	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualRoleBinding.OwnerReferences, 1, "rolebinding ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualRoleBinding.OwnerReferences[0], "rolebinding ownerReference not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_Rbac_UpdateWithOwnerReference() {
+	namespace, appName := "any-ns", "any-app"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}}
+	s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: getAlertConfigSecretRoleName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
+
+	sut := s.createAlertSyncer(radixalert)
+	err = sut.OnSync()
+	s.Nil(err)
+	actualRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualRole.OwnerReferences, 1, "role ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualRole.OwnerReferences[0], "role ownerReference not as expected")
+	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualRoleBinding.OwnerReferences, 1, "rolebinding ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualRoleBinding.OwnerReferences[0], "rolebinding ownerReference not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_Rbac_ConfiguredCorrectly() {
+	namespace, appName := "any-ns", "any-app"
+	adGroup1, adGroup2 := "group1", "group2"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	rr := &radixv1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{AdGroups: []string{adGroup1, adGroup2}, MachineUser: true}}
+	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	actualRole, _ := s.kubeClient.RbacV1().Roles(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualRole.Rules, 1, "role rules not as expected")
+	s.ElementsMatch([]string{GetAlertSecretName(alertName)}, actualRole.Rules[0].ResourceNames, "role rule resource names not as expected")
+	actualRoleBinding, _ := s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Equal(actualRole.Name, actualRoleBinding.RoleRef.Name, "rolebinding role reference not as expected")
+	s.Equal("Role", actualRoleBinding.RoleRef.Kind, "rolebinding role kind not as expected")
+	s.Len(actualRoleBinding.Subjects, 3, "rolebinding subject count not as expected")
+	actualSubject, found := s.getSubjectByName(actualRoleBinding.Subjects, adGroup1)
+	s.True(found, "group1 not found in rolebinding")
+	s.Equal(rbacv1.GroupKind, actualSubject.Kind, "incorrect kind for group1")
+	actualSubject, found = s.getSubjectByName(actualRoleBinding.Subjects, adGroup2)
+	s.True(found, "group2 not found in rolebinding")
+	s.Equal(rbacv1.GroupKind, actualSubject.Kind, "incorrect kind for group2")
+	actualSubject, found = s.getSubjectByName(actualRoleBinding.Subjects, defaults.GetMachineUserRoleName(appName))
+	s.True(found, "machineuser not found in rolebinding")
+	s.Equal(rbacv1.ServiceAccountKind, actualSubject.Kind, "incorrect kind for machineuser")
+
+	// Disable machine user and remove group2 from RR
+	rr.Spec.MachineUser = false
+	rr.Spec.AdGroups = []string{adGroup1}
+	s.radixClient.RadixV1().RadixRegistrations().Update(context.Background(), rr, metav1.UpdateOptions{})
+	err = sut.OnSync()
+	s.Nil(err)
+	actualRoleBinding, _ = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
+	s.Len(actualRoleBinding.Subjects, 1, "rolebinding subject count not as expected")
+	actualSubject, found = s.getSubjectByName(actualRoleBinding.Subjects, adGroup1)
+	s.True(found, "group1 not found in rolebinding after updating RR")
+}
+
+func (s *alertTestSuite) Test_OnSync_Secret_RemoveOrphanedKeys() {
+	alertName, namespace, receiver1, receiver2 := "any-alert", "any-ns", "receiver1", "receiver2"
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName},
+		Spec: radixv1.RadixAlertSpec{
+			Receivers: radixv1.ReceiverMap{
+				receiver1: radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
+				receiver2: radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: false}},
+			},
+		},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName)},
+		Data: map[string][]byte{
+			GetSlackConfigSecretKeyName("orphaned1"): []byte("foo"),
+			GetSlackConfigSecretKeyName(receiver1):   []byte(receiver1),
+			GetSlackConfigSecretKeyName(receiver2):   []byte(receiver2),
+			GetSlackConfigSecretKeyName("orphaned2"): []byte("bar"),
+		},
+	}
+	s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Len(actualSecret.Data, 2)
+	s.Equal(receiver1, string(actualSecret.Data[GetSlackConfigSecretKeyName(receiver1)]))
+	s.Equal(receiver2, string(actualSecret.Data[GetSlackConfigSecretKeyName(receiver2)]))
+}
+
+func (s *alertTestSuite) Test_OnSync_Secret_CreateWithOwnerReference() {
+	namespace := "any-ns"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Len(actualSecret.OwnerReferences, 1, "secret ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualSecret.OwnerReferences[0], "secret ownerReference not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_Secret_UpdateWithOwnerReference() {
+	namespace := "any-ns"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
+
+	sut := s.createAlertSyncer(radixalert)
+	err = sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Len(actualSecret.OwnerReferences, 1, "secret ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualSecret.OwnerReferences[0], "secret ownerReference not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_Secret_CreateWithAppLabel() {
+	namespace, appName := "any-ns", "any-app"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Equal(map[string]string{kube.RadixAppLabel: appName}, actualSecret.Labels, "secret labels not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_Secret_CreateWithoutAppLabel() {
+	namespace := "any-ns"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Empty(actualSecret.Labels, "secret labels not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_Secret_UpdateSetAppLabel() {
+	namespace, appName := "any-ns", "any-app"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID, Labels: map[string]string{kube.RadixAppLabel: appName}},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+
+	sut := s.createAlertSyncer(radixalert)
+	err = sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Equal(map[string]string{kube.RadixAppLabel: appName}, actualSecret.Labels, "secret labels not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference() {
+	namespace := "any-ns"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
+
+	sut := s.createAlertSyncer(radixalert)
+	err := sut.OnSync()
+	s.Nil(err)
+	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference() {
+	namespace := "any-ns"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	_, err := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Create(context.Background(), &v1alpha1.AlertmanagerConfig{ObjectMeta: metav1.ObjectMeta{Name: getAlertmanagerConfigName(alertName)}}, metav1.CreateOptions{})
+	s.Nil(err)
+	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
+
+	sut := s.createAlertSyncer(radixalert)
+	err = sut.OnSync()
+	s.Nil(err)
+	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	s.Len(actualAmr.OwnerReferences, 1, "alertmanagerconfig ownerReference length not as expected")
+	s.Equal(expectedAlertOwnerRef, actualAmr.OwnerReferences[0], "alertmanagerconfig ownerReference not as expected")
+}
+
+func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
+	namespace := "any-ns"
+	alertName := "alert"
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName},
+		Spec: radixv1.RadixAlertSpec{
+			Receivers: radixv1.ReceiverMap{
+				"rec1": radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
+				"rec2": radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: false}},
+				"rec3": radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
+				"rec4": radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
+				"rec5": radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
+			},
+			Alerts: []radixv1.Alert{
+				{Alert: "resolvable", Receiver: "rec1"},
+				{Alert: "unresolvable", Receiver: "rec1"},
+				{Alert: "resolvable", Receiver: "rec2"},
+				{Alert: "resolvable", Receiver: "rec3"},
+				{Alert: "undefined", Receiver: "rec3"},
+				{Alert: "resolvable", Receiver: "rec4"},
+				{Alert: "undefined", Receiver: "rec5"},
+			},
+		},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+
+	alertConfigs := alertConfigs{
+		"resolvable":   alertConfig{groupBy: []string{"g1", "g2"}, resolvable: true},
+		"unresolvable": alertConfig{groupBy: []string{"g3"}, resolvable: false},
+	}
+	slackTemplate := slackMessageTemplate{title: "atitle", titleLink: "alink", text: "atext"}
+
+	sut := s.createAlertSyncer(radixalert, testAlertSyncerWithAlertConfigs(alertConfigs), testAlertSyncerWithSlackMessageTemplate(slackTemplate))
+	err := sut.OnSync()
+	s.Nil(err)
+	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	s.NotNil(actualAmr)
+}
+
+func (s *alertTestSuite) Test_OnSync_Secret_UpdateRemoveAppLabel() {
+	namespace := "any-ns"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName), Labels: map[string]string{kube.RadixAppLabel: "any-app"}}}, metav1.CreateOptions{})
+	s.Nil(err)
+
+	sut := s.createAlertSyncer(radixalert)
+	err = sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Empty(actualSecret.Labels, "secret labels not as expected")
 }
 
 func (s *alertTestSuite) getSubjectByName(subjects []rbacv1.Subject, name string) (subject rbacv1.Subject, found bool) {

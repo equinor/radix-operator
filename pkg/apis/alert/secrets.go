@@ -52,10 +52,8 @@ func (syncer *alertSyncer) removedOrphanedSecretKeys(secret *v1.Secret) {
 
 	// Secret keys related to receiver configuration
 	if syncer.radixAlert.Spec.Receivers != nil {
-		for receiverName, receiver := range syncer.radixAlert.Spec.Receivers {
-			if receiver.SlackConfig.Enabled {
-				expectedKeys[GetSlackConfigSecretKeyName(receiverName)] = nil
-			}
+		for receiverName := range syncer.radixAlert.Spec.Receivers {
+			expectedKeys[GetSlackConfigSecretKeyName(receiverName)] = nil
 		}
 	}
 
