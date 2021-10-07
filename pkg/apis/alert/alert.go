@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	defaultSlackTemplate slackMessageTemplate = slackMessageTemplate{
+	defaultSlackMessageTemplate slackMessageTemplate = slackMessageTemplate{
 		title:     "{{ template \"radix-slack-alert-title\" .}}",
 		titleLink: "{{ template \"radix-slack-alert-titlelink\" .}}",
 		text:      "{{ template \"radix-slack-alert-text\" .}}",
@@ -62,14 +62,14 @@ type AlertSyncer interface {
 }
 
 type alertSyncer struct {
-	kubeclient              kubernetes.Interface
-	radixclient             radixclient.Interface
-	kubeutil                *kube.Kube
-	prometheusperatorclient monitoring.Interface
-	radixAlert              *radixv1.RadixAlert
-	slackMessageTemplate    slackMessageTemplate
-	alertConfigs            alertConfigs
-	logger                  *log.Entry
+	kubeClient           kubernetes.Interface
+	radixClient          radixclient.Interface
+	kubeUtil             *kube.Kube
+	prometheusClient     monitoring.Interface
+	radixAlert           *radixv1.RadixAlert
+	slackMessageTemplate slackMessageTemplate
+	alertConfigs         alertConfigs
+	logger               *log.Entry
 }
 
 // New creates a new alert syncer
@@ -79,14 +79,14 @@ func New(kubeclient kubernetes.Interface,
 	prometheusperatorclient monitoring.Interface,
 	radixAlert *radixv1.RadixAlert) AlertSyncer {
 	return &alertSyncer{
-		kubeclient:              kubeclient,
-		radixclient:             radixclient,
-		kubeutil:                kubeutil,
-		prometheusperatorclient: prometheusperatorclient,
-		radixAlert:              radixAlert,
-		slackMessageTemplate:    defaultSlackTemplate,
-		alertConfigs:            defaultAlertConfigs,
-		logger:                  log.WithFields(log.Fields{"radixAlert": radixAlert.GetName(), "namespace": radixAlert.GetNamespace()}),
+		kubeClient:           kubeclient,
+		radixClient:          radixclient,
+		kubeUtil:             kubeutil,
+		prometheusClient:     prometheusperatorclient,
+		radixAlert:           radixAlert,
+		slackMessageTemplate: defaultSlackMessageTemplate,
+		alertConfigs:         defaultAlertConfigs,
+		logger:               log.WithFields(log.Fields{"radixAlert": radixAlert.GetName(), "namespace": radixAlert.GetNamespace()}),
 	}
 }
 
@@ -133,7 +133,7 @@ func (syncer *alertSyncer) syncStatus() error {
 }
 
 func (syncer *alertSyncer) updateRadixAlertStatus(changeStatusFunc func(currStatus *radixv1.RadixAlertStatus)) error {
-	ralInterface := syncer.radixclient.RadixV1().RadixAlerts(syncer.radixAlert.GetNamespace())
+	ralInterface := syncer.radixClient.RadixV1().RadixAlerts(syncer.radixAlert.GetNamespace())
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentRAL, err := ralInterface.Get(context.TODO(), syncer.radixAlert.GetName(), metav1.GetOptions{})

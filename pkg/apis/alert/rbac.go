@@ -30,7 +30,7 @@ func (syncer *alertSyncer) tryGetRadixRegistration() (*radixv1.RadixRegistration
 		return nil, false
 	}
 
-	rr, err := syncer.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), appName, v1.GetOptions{})
+	rr, err := syncer.radixClient.RadixV1().RadixRegistrations().Get(context.TODO(), appName, v1.GetOptions{})
 	if err != nil {
 		return nil, false
 	}
@@ -41,22 +41,22 @@ func (syncer *alertSyncer) garbageCollectAccessToAlertConfigSecret() error {
 	roleName := getAlertConfigSecretRoleName(syncer.radixAlert.Name)
 	namespace := syncer.radixAlert.Namespace
 
-	_, err := syncer.kubeutil.GetRoleBinding(namespace, roleName)
+	_, err := syncer.kubeUtil.GetRoleBinding(namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if err == nil {
-		if err = syncer.kubeutil.DeleteRoleBinding(namespace, roleName); err != nil {
+		if err = syncer.kubeUtil.DeleteRoleBinding(namespace, roleName); err != nil {
 			return err
 		}
 	}
 
-	_, err = syncer.kubeutil.GetRole(namespace, roleName)
+	_, err = syncer.kubeUtil.GetRole(namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if err == nil {
-		if err = syncer.kubeutil.DeleteRole(namespace, roleName); err != nil {
+		if err = syncer.kubeUtil.DeleteRole(namespace, roleName); err != nil {
 			return err
 		}
 	}
@@ -72,7 +72,7 @@ func (syncer *alertSyncer) grantAccessToAlertConfigSecret(rr *radixv1.RadixRegis
 	// create role
 	role := kube.CreateManageSecretRole(rr.GetName(), roleName, []string{secretName}, nil)
 	role.OwnerReferences = syncer.getOwnerReference()
-	err := syncer.kubeutil.ApplyRole(namespace, role)
+	err := syncer.kubeUtil.ApplyRole(namespace, role)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (syncer *alertSyncer) grantAccessToAlertConfigSecret(rr *radixv1.RadixRegis
 
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
 	rolebinding.OwnerReferences = syncer.getOwnerReference()
-	return syncer.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return syncer.kubeUtil.ApplyRoleBinding(namespace, rolebinding)
 }
 
 func getAlertConfigSecretRoleName(alertName string) string {

@@ -12,7 +12,7 @@ import (
 func (syncer *alertSyncer) createOrUpdateSecret() error {
 	secretName, ns := GetAlertSecretName(syncer.radixAlert.Name), syncer.radixAlert.Namespace
 
-	secret, err := syncer.kubeutil.GetSecret(ns, secretName)
+	secret, err := syncer.kubeUtil.GetSecret(ns, secretName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -30,7 +30,7 @@ func (syncer *alertSyncer) createOrUpdateSecret() error {
 
 	syncer.setSecretCommonProps(secret)
 
-	if _, err := syncer.kubeutil.ApplySecret(ns, secret); err != nil {
+	if _, err := syncer.kubeUtil.ApplySecret(ns, secret); err != nil {
 		return err
 	}
 
