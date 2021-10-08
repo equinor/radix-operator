@@ -133,6 +133,17 @@ rules:
   - list
   - watch
 - apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixalerts
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - patch
+- apiGroups:
   - '*'
   resources:
   - pods
@@ -172,6 +183,17 @@ rules:
   - radix.equinor.com
   resources:
   - radixdeployments
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - patch
+- apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixalerts
   verbs:
   - get
   - list
