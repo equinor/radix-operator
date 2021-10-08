@@ -565,6 +565,21 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	expectedRoute = expectedRouteFactory("job", "rec4")
 	s.Equal(expectedRoute, actualRoute)
 
+	// Update radixAlert
+	radixalert.Spec.Alerts = []radixv1.Alert{
+		{Alert: "deploy", Receiver: "rec1"},
+		{Alert: "deploy", Receiver: "rec2"},
+		{Alert: "deploy", Receiver: "rec3"},
+		{Alert: "undefined", Receiver: "rec3"},
+		{Alert: "undefined", Receiver: "rec5"},
+	}
+	radixalert, err = s.radixClient.RadixV1().RadixAlerts(namespace).Update(context.Background(), radixalert, metav1.UpdateOptions{})
+	s.Nil(err)
+	sut = s.createAlertSyncer(radixalert, testAlertSyncerWithAlertConfigs(alertConfigs), testAlertSyncerWithSlackMessageTemplate(slackTemplate))
+	sut.OnSync()
+	actualAmr, _ = s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
+	s.Len(actualAmr.Spec.Receivers, 3)
+	s.Len(actualAmr.Spec.Route.Routes, 2)
 }
 
 func (s *alertTestSuite) getSubjectByName(subjects []rbacv1.Subject, name string) (subject rbacv1.Subject, found bool) {
