@@ -16,15 +16,23 @@ import (
 )
 
 const (
-	noopRecevierName            = "noop"
+	// For each alertmanmagerconfig we need a receiver that does nothing at the root route.
+	// All real alerts and receivers are configured as childs routes to the root.
+	noopRecevierName = "noop"
+	// Repeat interval for non-resolvable alerts should be equal to
+	// alertmanagers alert retention period.
 	nonResolvableRepeatInterval = "120h"
-	defaultRepeatInterval       = "24h"
-	defaultGroupInterval        = "5m"
-	defaultGroupWait            = "30s"
-	radixApplicationNameLabel   = "label_radix_app"
-	radixEnvironmentNameLabel   = "label_radix_component"
-	radixComponentNameLabel     = "label_radix_env"
-	radixJobNameLabel           = "label_radix_job_name"
+	// How long to wait before sending a notification again if it has already
+	// been sent successfully for an alert.
+	resolvableRepeatInterval = "24h"
+	// How long to wait before sending a notification about new alerts that
+	// are added to a group of alerts for which an initial notification has
+	//# already been sent.
+	defaultGroupInterval = "5m"
+	// How long to initially wait to send a notification for a group
+	// of alerts. Allows to wait for an inhibiting alert to arrive or collect
+	// more initial alerts for the same group.
+	defaultGroupWait = "30s"
 )
 
 type alertConfigList []alertConfig
@@ -134,7 +142,6 @@ func (syncer *alertSyncer) getAlertmanagerConfigReceivers() []v1alpha1.Receiver 
 	receivers := []v1alpha1.Receiver{{Name: noopRecevierName}}
 
 	for name, receiver := range syncer.radixAlert.Spec.Receivers {
-		fmt.Printf("%s: %v\n", name, receiver)
 		receivers = append(receivers, syncer.getAlertmanagerConfigReceiverForRadixAlertReceiver(name, &receiver)...)
 	}
 
@@ -242,7 +249,7 @@ func getRepeatInterval(alertConfig alertConfig) string {
 	if !alertConfig.resolvable {
 		return nonResolvableRepeatInterval
 	}
-	return defaultRepeatInterval
+	return resolvableRepeatInterval
 }
 
 func getAlertmanagerConfigName(alertName string) string {

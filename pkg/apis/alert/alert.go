@@ -13,6 +13,13 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+const (
+	radixApplicationNameLabel = "label_radix_app"
+	radixEnvironmentNameLabel = "label_radix_component"
+	radixComponentNameLabel   = "label_radix_env"
+	radixJobNameLabel         = "label_radix_job_name"
+)
+
 var (
 	defaultSlackMessageTemplate slackMessageTemplate = slackMessageTemplate{
 		title:     "{{ template \"radix-slack-alert-title\" .}}",

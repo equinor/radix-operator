@@ -2,10 +2,12 @@ package alert
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -383,6 +385,24 @@ func (s *alertTestSuite) Test_OnSync_Secret_UpdateSetAppLabel() {
 	s.Equal(map[string]string{kube.RadixAppLabel: appName}, actualSecret.Labels, "secret labels not as expected")
 }
 
+func (s *alertTestSuite) Test_OnSync_Secret_UpdateRemoveAppLabel() {
+	namespace := "any-ns"
+	alertName, alertUID := "alert", types.UID("alertuid")
+	radixalert := &radixv1.RadixAlert{
+		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
+		Spec:       radixv1.RadixAlertSpec{},
+	}
+	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
+	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName), Labels: map[string]string{kube.RadixAppLabel: "any-app"}}}, metav1.CreateOptions{})
+	s.Nil(err)
+
+	sut := s.createAlertSyncer(radixalert)
+	err = sut.OnSync()
+	s.Nil(err)
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
+	s.Empty(actualSecret.Labels, "secret labels not as expected")
+}
+
 func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_CreateWithOwnerReference() {
 	namespace := "any-ns"
 	alertName, alertUID := "alert", types.UID("alertuid")
@@ -422,6 +442,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_UpdateWithOwnerReference
 }
 
 func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
+
 	namespace := "any-ns"
 	alertName := "alert"
 	radixalert := &radixv1.RadixAlert{
@@ -435,12 +456,12 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 				"rec5": radixv1.Receiver{SlackConfig: radixv1.SlackConfig{Enabled: true}},
 			},
 			Alerts: []radixv1.Alert{
-				{Alert: "resolvable", Receiver: "rec1"},
-				{Alert: "unresolvable", Receiver: "rec1"},
-				{Alert: "resolvable", Receiver: "rec2"},
-				{Alert: "resolvable", Receiver: "rec3"},
+				{Alert: "deploy", Receiver: "rec1"},
+				{Alert: "job", Receiver: "rec1"},
+				{Alert: "deploy", Receiver: "rec2"},
+				{Alert: "deploy", Receiver: "rec3"},
 				{Alert: "undefined", Receiver: "rec3"},
-				{Alert: "resolvable", Receiver: "rec4"},
+				{Alert: "job", Receiver: "rec4"},
 				{Alert: "undefined", Receiver: "rec5"},
 			},
 		},
@@ -448,40 +469,120 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
 
 	alertConfigs := alertConfigs{
-		"resolvable":   alertConfig{groupBy: []string{"g1", "g2"}, resolvable: true},
-		"unresolvable": alertConfig{groupBy: []string{"g3"}, resolvable: false},
+		"deploy": alertConfig{groupBy: []string{"g1", "g2"}, resolvable: true},
+		"job":    alertConfig{groupBy: []string{"g3"}, resolvable: false},
 	}
 	slackTemplate := slackMessageTemplate{title: "atitle", titleLink: "alink", text: "atext"}
+	expectedSlackConfigFactory := func(receiverName string, resolvable bool) v1alpha1.SlackConfig {
+		return v1alpha1.SlackConfig{
+			SendResolved: utils.BoolPtr(resolvable),
+			APIURL: &corev1.SecretKeySelector{
+				Key:                  GetSlackConfigSecretKeyName(receiverName),
+				LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(alertName)}},
+			Title:     &slackTemplate.title,
+			TitleLink: &slackTemplate.titleLink,
+			Text:      &slackTemplate.text,
+		}
+	}
+	getRouteByAlertandReceiver := func(routes []v1alpha1.Route, alert, receiver string) (route v1alpha1.Route, found bool) {
+		resolvable := alertConfigs[alert].resolvable
+		receiverName := getRouteReceiverNameForAlert(receiver, resolvable)
+		for _, r := range routes {
+			if r.Receiver == receiverName && len(r.Matchers) == 1 && r.Matchers[0].Name == "alertname" && r.Matchers[0].Value == alert {
+				route = r
+				found = true
+				return
+			}
+		}
+		return
+	}
+	expectedRouteFactory := func(alert, receiver string) v1alpha1.Route {
+		resolvable := alertConfigs[alert].resolvable
+		receiverName := getRouteReceiverNameForAlert(receiver, resolvable)
+		repeateInterval := nonResolvableRepeatInterval
+		if resolvable {
+			repeateInterval = resolvableRepeatInterval
+		}
+
+		return v1alpha1.Route{
+			Receiver:       receiverName,
+			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert}},
+			GroupBy:        alertConfigs[alert].groupBy,
+			GroupWait:      defaultGroupWait,
+			GroupInterval:  defaultGroupInterval,
+			RepeatInterval: repeateInterval,
+		}
+	}
 
 	sut := s.createAlertSyncer(radixalert, testAlertSyncerWithAlertConfigs(alertConfigs), testAlertSyncerWithSlackMessageTemplate(slackTemplate))
 	err := sut.OnSync()
 	s.Nil(err)
+	// Receivers
 	actualAmr, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(alertName), metav1.GetOptions{})
-	s.NotNil(actualAmr)
-}
-
-func (s *alertTestSuite) Test_OnSync_Secret_UpdateRemoveAppLabel() {
-	namespace := "any-ns"
-	alertName, alertUID := "alert", types.UID("alertuid")
-	radixalert := &radixv1.RadixAlert{
-		ObjectMeta: metav1.ObjectMeta{Name: alertName, UID: alertUID},
-		Spec:       radixv1.RadixAlertSpec{},
+	s.Len(actualAmr.Spec.Receivers, 5)
+	_, found := s.getAlertManagerReceiverByName(actualAmr.Spec.Receivers, noopRecevierName)
+	s.True(found)
+	actualReceiver, found := s.getAlertManagerReceiverByName(actualAmr.Spec.Receivers, getRouteReceiverNameForAlert("rec1", true))
+	s.True(found)
+	s.Len(actualReceiver.SlackConfigs, 1)
+	s.Equal(expectedSlackConfigFactory("rec1", true), actualReceiver.SlackConfigs[0])
+	actualReceiver, found = s.getAlertManagerReceiverByName(actualAmr.Spec.Receivers, getRouteReceiverNameForAlert("rec1", false))
+	s.True(found)
+	s.Len(actualReceiver.SlackConfigs, 1)
+	s.Equal(expectedSlackConfigFactory("rec1", false), actualReceiver.SlackConfigs[0])
+	actualReceiver, found = s.getAlertManagerReceiverByName(actualAmr.Spec.Receivers, getRouteReceiverNameForAlert("rec3", true))
+	s.True(found)
+	s.Len(actualReceiver.SlackConfigs, 1)
+	s.Equal(expectedSlackConfigFactory("rec3", true), actualReceiver.SlackConfigs[0])
+	actualReceiver, found = s.getAlertManagerReceiverByName(actualAmr.Spec.Receivers, getRouteReceiverNameForAlert("rec4", false))
+	s.True(found)
+	s.Len(actualReceiver.SlackConfigs, 1)
+	s.Equal(expectedSlackConfigFactory("rec4", false), actualReceiver.SlackConfigs[0])
+	// Routes
+	s.Equal(noopRecevierName, actualAmr.Spec.Route.Receiver)
+	s.Len(actualAmr.Spec.Route.Routes, 4)
+	var childRoutes []v1alpha1.Route
+	for _, routeJson := range actualAmr.Spec.Route.Routes {
+		childRoute := v1alpha1.Route{}
+		err = json.Unmarshal(routeJson.Raw, &childRoute)
+		s.Nil(err)
+		childRoutes = append(childRoutes, childRoute)
 	}
-	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
-	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: GetAlertSecretName(alertName), Labels: map[string]string{kube.RadixAppLabel: "any-app"}}}, metav1.CreateOptions{})
-	s.Nil(err)
+	actualRoute, found := getRouteByAlertandReceiver(childRoutes, "deploy", "rec1")
+	s.True(found)
+	expectedRoute := expectedRouteFactory("deploy", "rec1")
+	s.Equal(expectedRoute, actualRoute)
+	actualRoute, found = getRouteByAlertandReceiver(childRoutes, "job", "rec1")
+	s.True(found)
+	expectedRoute = expectedRouteFactory("job", "rec1")
+	s.Equal(expectedRoute, actualRoute)
+	actualRoute, found = getRouteByAlertandReceiver(childRoutes, "deploy", "rec3")
+	s.True(found)
+	expectedRoute = expectedRouteFactory("deploy", "rec3")
+	s.Equal(expectedRoute, actualRoute)
+	actualRoute, found = getRouteByAlertandReceiver(childRoutes, "job", "rec4")
+	s.True(found)
+	expectedRoute = expectedRouteFactory("job", "rec4")
+	s.Equal(expectedRoute, actualRoute)
 
-	sut := s.createAlertSyncer(radixalert)
-	err = sut.OnSync()
-	s.Nil(err)
-	actualSecret, _ := s.kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), GetAlertSecretName(alertName), metav1.GetOptions{})
-	s.Empty(actualSecret.Labels, "secret labels not as expected")
 }
 
 func (s *alertTestSuite) getSubjectByName(subjects []rbacv1.Subject, name string) (subject rbacv1.Subject, found bool) {
 	for _, s := range subjects {
 		if s.Name == name {
 			subject = s
+			found = true
+			return
+		}
+	}
+
+	return
+}
+
+func (s *alertTestSuite) getAlertManagerReceiverByName(subjects []v1alpha1.Receiver, name string) (receiver v1alpha1.Receiver, found bool) {
+	for _, s := range subjects {
+		if s.Name == name {
+			receiver = s
 			found = true
 			return
 		}
