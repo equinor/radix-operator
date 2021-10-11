@@ -2,6 +2,7 @@ package alert
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -109,18 +110,15 @@ func (syncer *alertSyncer) OnSync() error {
 
 func (syncer *alertSyncer) syncAlert() error {
 	if err := syncer.createOrUpdateSecret(); err != nil {
-		syncer.logger.Errorf("Failed to sync secrets: %v", err)
-		return err
+		return fmt.Errorf("failed to sync secrets: %v", err)
 	}
 
 	if err := syncer.configureRbac(); err != nil {
-		syncer.logger.Errorf("Failed to configure RBAC: %v", err)
-		return err
+		return fmt.Errorf("failed to configure RBAC: %v", err)
 	}
 
 	if err := syncer.createOrUpdateAlertManagerConfig(); err != nil {
-		syncer.logger.Errorf("Failed to sync alertmanagerconfigs: %v", err)
-		return err
+		return fmt.Errorf("failed to sync alertmanagerconfigs: %v", err)
 	}
 
 	return nil
@@ -132,10 +130,10 @@ func (syncer *alertSyncer) syncStatus() error {
 		currStatus.Reconciled = &syncCompleteTime
 	})
 	if err != nil {
-		syncer.logger.Errorf("Failed to sync status: %v", err)
+		return fmt.Errorf("failed to sync status: %v", err)
 	}
 
-	return err
+	return nil
 }
 
 func (syncer *alertSyncer) updateRadixAlertStatus(changeStatusFunc func(currStatus *radixv1.RadixAlertStatus)) error {
