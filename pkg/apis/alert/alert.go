@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -163,6 +164,7 @@ func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 			Kind:       "RadixAlert",
 			Name:       syncer.radixAlert.Name,
 			UID:        syncer.radixAlert.UID,
+			Controller: commonUtils.BoolPtr(true),
 		},
 	}
 }
