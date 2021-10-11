@@ -216,7 +216,7 @@ func (syncer *alertSyncer) getAlertmanagerConfigRoutes() []v1alpha1.Route {
 			syncer.logger.Debugf("skipping unknown alert %s in RadixAlert %s", alert.Alert, syncer.radixAlert.Name)
 			continue
 		}
-		receiver, found := syncer.radixAlert.Spec.GetReceiverByName(alert.Receiver)
+		receiver, found := syncer.radixAlert.Spec.Receivers[alert.Receiver]
 		if !found {
 			syncer.logger.Debugf("skipping alert %s in RadixAlert %s with unknown recevier %s", alert.Alert, syncer.radixAlert.Name, alert.Receiver)
 			continue

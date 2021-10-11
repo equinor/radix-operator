@@ -48,19 +48,16 @@ func (syncer *alertSyncer) removedOrphanedSecretKeys(secret *v1.Secret) {
 	expectedKeys := map[string]interface{}{}
 
 	// Secret keys related to receiver configuration
-	if syncer.radixAlert.Spec.Receivers != nil {
-		for receiverName := range syncer.radixAlert.Spec.Receivers {
-			expectedKeys[GetSlackConfigSecretKeyName(receiverName)] = nil
+	for receiverName := range syncer.radixAlert.Spec.Receivers {
+		expectedKeys[GetSlackConfigSecretKeyName(receiverName)] = nil
+	}
+
+	for key := range secret.Data {
+		if _, found := expectedKeys[key]; !found {
+			delete(secret.Data, key)
 		}
 	}
 
-	if secret.Data != nil {
-		for key := range secret.Data {
-			if _, found := expectedKeys[key]; !found {
-				delete(secret.Data, key)
-			}
-		}
-	}
 }
 
 // GetAlertSecretName returns name of secret used to store configuration for the RadixAlert

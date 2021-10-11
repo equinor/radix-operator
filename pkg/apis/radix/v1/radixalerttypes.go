@@ -30,15 +30,6 @@ type RadixAlertSpec struct {
 	Alerts    []Alert     `json:"alerts" yaml:"alerts"`
 }
 
-// GetReceiverByName returns Receiver by name. The bool return value indicates if a Receiver was found or not.
-func (alertSpec *RadixAlertSpec) GetReceiverByName(name string) (*Receiver, bool) {
-	if alertSpec.Receivers == nil {
-		return nil, false
-	}
-	receiver, found := alertSpec.Receivers[name]
-	return &receiver, found
-}
-
 //RadixAlertStatus is the status for a RadixAlert
 type RadixAlertStatus struct {
 	Reconciled *meta_v1.Time `json:"reconciled" yaml:"reconciled"`
