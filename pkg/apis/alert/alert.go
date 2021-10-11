@@ -15,8 +15,7 @@ import (
 
 const (
 	radixApplicationNameLabel = "label_radix_app"
-	radixEnvironmentNameLabel = "label_radix_component"
-	radixComponentNameLabel   = "label_radix_env"
+	radixEnvironmentNameLabel = "label_radix_env"
 	radixJobNameLabel         = "label_radix_job_name"
 )
 
@@ -28,19 +27,19 @@ var (
 	}
 	defaultAlertConfigs alertConfigs = alertConfigs{
 		"RadixAppComponentCrashLooping": {
-			groupBy:    []string{radixApplicationNameLabel, radixComponentNameLabel},
+			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel},
 			resolvable: true,
 		},
 		"RadixAppComponentNotReady": {
-			groupBy:    []string{radixApplicationNameLabel, radixComponentNameLabel},
+			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel},
 			resolvable: true,
 		},
 		"RadixAppJobNotReady": {
-			groupBy:    []string{radixApplicationNameLabel, radixComponentNameLabel},
+			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel},
 			resolvable: true,
 		},
 		"RadixAppJobFailed": {
-			groupBy:    []string{radixApplicationNameLabel, radixComponentNameLabel},
+			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel},
 			resolvable: false,
 		},
 		"RadixAppPipelineJobFailed": {
