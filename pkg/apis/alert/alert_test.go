@@ -81,7 +81,7 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 }
 
 func (s *alertTestSuite) getRadixAlertAsOwnerReference(radixAlert *radixv1.RadixAlert) metav1.OwnerReference {
-	return metav1.OwnerReference{Kind: "RadixAlert", Name: radixAlert.Name, UID: radixAlert.UID, APIVersion: "radix.equinor.com/v1"}
+	return metav1.OwnerReference{Kind: "RadixAlert", Name: radixAlert.Name, UID: radixAlert.UID, APIVersion: "radix.equinor.com/v1", Controller: utils.BoolPtr(true)}
 }
 
 func (s *alertTestSuite) Test_New() {
@@ -111,7 +111,6 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 		Spec:       radixv1.RadixAlertSpec{},
 	}
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
-	expectedAlertOwnerRef := s.getRadixAlertAsOwnerReference(radixalert)
 
 	sut := s.createAlertSyncer(radixalert)
 	err := sut.OnSync()
@@ -122,15 +121,8 @@ func (s *alertTestSuite) Test_OnSync_ResourcesCreated() {
 	s.Nil(err, "role not found")
 	_, err = s.kubeClient.RbacV1().RoleBindings(namespace).Get(context.Background(), getAlertConfigSecretRoleName(alertName), metav1.GetOptions{})
 	s.Nil(err, "roleBinding not found")
-	actualAlertmanagerConfig, _ := s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(radixalert.Name), metav1.GetOptions{})
-	s.NotNil(actualAlertmanagerConfig, "alertmanagerConfig not found")
-	s.Len(actualAlertmanagerConfig.OwnerReferences, 1, "alertmanagerConfig ownerReference length not as expected")
-	s.Equal(expectedAlertOwnerRef, actualAlertmanagerConfig.OwnerReferences[0], "alertmanagerConfig ownerReference not as expected")
-	// s.Equal(actualRole.Name, actualRoleBinding.RoleRef.Name)
-	// _, found := s.getSubjectByName(actualRoleBinding.Subjects, adGroup)
-	// s.True(found, "missing ad group in rolebinding subject")
-	// _, found = s.getSubjectByName(actualRoleBinding.Subjects, defaults.GetMachineUserRoleName(rr.Name))
-	// s.True(found, "missing machine user in rolebinding subject")
+	_, err = s.promClient.MonitoringV1alpha1().AlertmanagerConfigs(namespace).Get(context.Background(), getAlertmanagerConfigName(radixalert.Name), metav1.GetOptions{})
+	s.Nil(err, "alertmanagerConfig not found")
 }
 
 func (s *alertTestSuite) Test_OnSync_Rbac_SkipCreateOnMissingRR() {
