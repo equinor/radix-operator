@@ -111,8 +111,9 @@ func (syncer *alertSyncer) applyAlertManagerConfig(namespace string, alertManage
 
 func (syncer *alertSyncer) getAlertManagerConfig() (*v1alpha1.AlertmanagerConfig, error) {
 	receivers := syncer.getAlertmanagerConfigReceivers()
-	routeJSON := []apiextensionsv1.JSON{}
 	routes := syncer.getAlertmanagerConfigRoutes()
+
+	routeJSON := []apiextensionsv1.JSON{}
 	for _, route := range routes {
 		routeBytes, err := json.Marshal(route)
 		if err != nil {

@@ -30,11 +30,8 @@ func (syncer *alertSyncer) createOrUpdateSecret() error {
 
 	syncer.setSecretCommonProps(secret)
 
-	if _, err := syncer.kubeUtil.ApplySecret(ns, secret); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = syncer.kubeUtil.ApplySecret(ns, secret)
+	return err
 }
 
 func (syncer *alertSyncer) setSecretCommonProps(secret *v1.Secret) {
