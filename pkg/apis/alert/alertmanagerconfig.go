@@ -28,7 +28,7 @@ const (
 	// How long to wait before sending a notification about new alerts that
 	// are added to a group of alerts for which an initial notification has
 	//# already been sent.
-	defaultGroupInterval = "5m"
+	defaultGroupInterval = "1m"
 	// How long to initially wait to send a notification for a group
 	// of alerts. Allows to wait for an inhibiting alert to arrive or collect
 	// more initial alerts for the same group.
