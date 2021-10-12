@@ -68,9 +68,9 @@ func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
 	}
 }
 
-func (s *ControllerTestSuite) SyncedChannelCallback(synced chan<- bool) func(namespace, name string, eventRecorder record.EventRecorder) error {
+func (s *ControllerTestSuite) SyncedChannelCallback() func(namespace string, name string, eventRecorder record.EventRecorder) error {
 	return func(namespace, name string, eventRecorder record.EventRecorder) error {
-		synced <- true
+		s.Synced <- true
 		return nil
 	}
 }

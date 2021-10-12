@@ -47,7 +47,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()
 	s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
 
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
 }
 
@@ -66,21 +66,21 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_MachineU
 
 	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()
 	s.RadixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("added app")
 
 	rr.Spec.MachineUser = true
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("set machine-user")
 
 	rr.Spec.MachineUser = false
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("unset machine-user")
 
 	rr.Spec.AdGroups = []string{"another-group"}
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
-	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("unset machine-user")
 }

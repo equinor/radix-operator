@@ -38,18 +38,18 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	go sut.Run(1, s.Stop)
 
 	// Adding a RadixAlert should trigger sync
-	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	alert, _ = s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert, metav1.CreateOptions{})
 	s.WaitForSynced("first call")
 
 	// Updating the RadixAlert with changes should trigger a sync
-	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	alert.Labels = map[string]string{"foo": "bar"}
 	s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{})
 	s.WaitForSynced("second call")
 
 	// Updating the RadixAlert with no changes should not trigger a sync
-	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(0)
+	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	s.RadixClient.RadixV1().RadixAlerts(namespace).Update(context.TODO(), alert, metav1.UpdateOptions{})
 	s.WaitForNotSynced("Sync should not be called when updating RadixAlert with no changes")
 }
@@ -71,31 +71,31 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 
 	// Initial Sync for the two alerts
 	s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert1, metav1.CreateOptions{})
-	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync of alert1")
 
 	s.RadixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), alert2, metav1.CreateOptions{})
-	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("initial sync of alert2")
 
 	// Update machineUser should trigger sync of alert1
 	rr.Spec.MachineUser = false
 	rr.ResourceVersion = "1"
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
-	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync on machineUser update")
 
 	// Update adGroups should trigger sync of alert1
 	rr.Spec.AdGroups = []string{"another-group"}
 	rr.ResourceVersion = "2"
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
-	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(1)
+	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("sync on adGroups update")
 
 	// Update other props on RR should not trigger sync of alert1
 	rr.Spec.Owner = "owner"
 	rr.ResourceVersion = "3"
 	s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
-	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback(s.Synced)).Times(0)
+	s.Handler.EXPECT().Sync(namespace, alert1Name, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
 	s.WaitForNotSynced("Sync should not be called when updating other RR props")
 }
