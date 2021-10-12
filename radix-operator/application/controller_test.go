@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"fmt"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
@@ -30,23 +32,20 @@ const (
 	containerRegistry = "any.container.registry"
 )
 
-const (
-	testControllerSyncTimeout = 5 * time.Second
-)
-
 type controllerTestSuite struct {
 	suite.Suite
-	kubeClient           *fake.Clientset
-	radixClient          *fakeradix.Clientset
-	promClient           *prometheusfake.Clientset
-	kubeUtil             *kube.Kube
-	eventRecorder        *record.FakeRecorder
-	radixInformerFactory informers.SharedInformerFactory
-	kubeInformerFactory  kubeinformers.SharedInformerFactory
-	mockCtrl             *gomock.Controller
-	handler              *common.MockHandler
-	synced               chan bool
-	stop                 chan struct{}
+	kubeClient                *fake.Clientset
+	radixClient               *fakeradix.Clientset
+	promClient                *prometheusfake.Clientset
+	kubeUtil                  *kube.Kube
+	eventRecorder             *record.FakeRecorder
+	radixInformerFactory      informers.SharedInformerFactory
+	kubeInformerFactory       kubeinformers.SharedInformerFactory
+	mockCtrl                  *gomock.Controller
+	handler                   *common.MockHandler
+	synced                    chan bool
+	stop                      chan struct{}
+	testControllerSyncTimeout time.Duration
 }
 
 func TestControllerSuite(t *testing.T) {
@@ -65,6 +64,7 @@ func (s *controllerTestSuite) SetupTest() {
 	s.handler = common.NewMockHandler(s.mockCtrl)
 	s.synced = make(chan bool)
 	s.stop = make(chan struct{})
+	s.testControllerSyncTimeout = 5 * time.Second
 }
 
 func (s *controllerTestSuite) TearDownTest() {
@@ -141,6 +141,57 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	op, ok := <-synced
 	assert.True(s.T(), ok)
 	assert.True(s.T(), op)
+}
+
+func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_MachineUser_Change() {
+	appName := "any-app"
+	namespace := utils.GetAppNamespace(appName)
+	appNamespace := test.CreateAppNamespace(s.kubeClient, appName)
+	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{MachineUser: false, AdGroups: []string{"first-group"}}}
+	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
+
+	sut := NewController(s.kubeClient, s.kubeUtil, s.radixClient, s.handler, s.kubeInformerFactory, s.radixInformerFactory, false, s.eventRecorder)
+	s.radixInformerFactory.Start(s.stop)
+	s.kubeInformerFactory.Start(s.stop)
+
+	go sut.Run(1, s.stop)
+
+	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()
+	s.radixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
+	s.handler.EXPECT().Sync(namespace, appName, s.eventRecorder).DoAndReturn(syncedChannelCallback(s.synced)).Times(1)
+	s.WaitForSynced("first call")
+
+	rr.Spec.MachineUser = true
+	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	s.handler.EXPECT().Sync(namespace, appName, s.eventRecorder).DoAndReturn(syncedChannelCallback(s.synced)).Times(1)
+	s.WaitForSynced("set machine-user")
+
+	rr.Spec.MachineUser = false
+	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	s.handler.EXPECT().Sync(namespace, appName, s.eventRecorder).DoAndReturn(syncedChannelCallback(s.synced)).Times(1)
+	s.WaitForSynced("unset machine-user")
+
+	rr.Spec.AdGroups = []string{"another-group"}
+	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	s.handler.EXPECT().Sync(namespace, appName, s.eventRecorder).DoAndReturn(syncedChannelCallback(s.synced)).Times(1)
+	s.WaitForSynced("unset machine-user")
+}
+
+func (s *controllerTestSuite) WaitForSynced(expectedOperation string) {
+	timeout := time.NewTimer(s.testControllerSyncTimeout)
+	select {
+	case <-s.synced:
+	case <-timeout.C:
+		s.FailNow(fmt.Sprintf("Timeout waiting for %s", expectedOperation))
+	}
+}
+func (s *controllerTestSuite) WaitForNotSynced(failMessage string) {
+	timeout := time.NewTimer(1 * time.Second)
+	select {
+	case <-s.synced:
+		s.FailNow(failMessage)
+	case <-timeout.C:
+	}
 }
 
 func startApplicationController(
