@@ -14,6 +14,7 @@ import (
 	"time"
 )
 
+//ControllerTestSuite Test suite
 type ControllerTestSuite struct {
 	suite.Suite
 	KubeClient                *fake.Clientset
@@ -30,6 +31,7 @@ type ControllerTestSuite struct {
 	TestControllerSyncTimeout time.Duration
 }
 
+//SetupSuite Setup the suite
 func (s *ControllerTestSuite) SetupSuite() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
@@ -45,12 +47,14 @@ func (s *ControllerTestSuite) SetupSuite() {
 	s.TestControllerSyncTimeout = 5 * time.Second
 }
 
+//TearDown Tear down the suite
 func (s *ControllerTestSuite) TearDown() {
 	close(s.Synced)
 	close(s.Stop)
 	s.MockCtrl.Finish()
 }
 
+//WaitForSynced Wait while Synced signal received or fail after TestControllerSyncTimeout
 func (s *ControllerTestSuite) WaitForSynced(expectedOperation string) {
 	timeout := time.NewTimer(s.TestControllerSyncTimeout)
 	select {
@@ -59,6 +63,8 @@ func (s *ControllerTestSuite) WaitForSynced(expectedOperation string) {
 		s.FailNow(fmt.Sprintf("Timeout waiting for %s", expectedOperation))
 	}
 }
+
+//WaitForNotSynced Wait for Synced signal is not received during a second
 func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
 	timeout := time.NewTimer(1 * time.Second)
 	select {
@@ -68,6 +74,7 @@ func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
 	}
 }
 
+//SyncedChannelCallback Callback to send a signal to the Synced
 func (s *ControllerTestSuite) SyncedChannelCallback() func(namespace string, name string, eventRecorder record.EventRecorder) error {
 	return func(namespace, name string, eventRecorder record.EventRecorder) error {
 		s.Synced <- true
