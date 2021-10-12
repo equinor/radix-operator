@@ -2,6 +2,7 @@ package alert
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/radix-operator/common"
 	"testing"
 	"time"
 
@@ -34,7 +35,7 @@ type controllerTestSuite struct {
 	radixInformerFactory informers.SharedInformerFactory
 	kubeInformerFactory  kubeinformers.SharedInformerFactory
 	mockCtrl             *gomock.Controller
-	handler              *MockHandler
+	handler              *common.MockHandler
 	synced               chan bool
 	stop                 chan struct{}
 }
@@ -52,7 +53,7 @@ func (s *controllerTestSuite) SetupTest() {
 	s.radixInformerFactory = informers.NewSharedInformerFactory(s.radixClient, 0)
 	s.kubeInformerFactory = kubeinformers.NewSharedInformerFactory(s.kubeClient, 0)
 	s.mockCtrl = gomock.NewController(s.T())
-	s.handler = NewMockHandler(s.mockCtrl)
+	s.handler = common.NewMockHandler(s.mockCtrl)
 	s.synced = make(chan bool)
 	s.stop = make(chan struct{})
 }

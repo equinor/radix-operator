@@ -2,7 +2,12 @@ package application
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/golang/mock/gomock"
+	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
+	"github.com/stretchr/testify/suite"
 	"testing"
+	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -25,6 +30,56 @@ const (
 	containerRegistry = "any.container.registry"
 )
 
+const (
+	testControllerSyncTimeout = 5 * time.Second
+)
+
+type controllerTestSuite struct {
+	suite.Suite
+	kubeClient           *fake.Clientset
+	radixClient          *fakeradix.Clientset
+	promClient           *prometheusfake.Clientset
+	kubeUtil             *kube.Kube
+	eventRecorder        *record.FakeRecorder
+	radixInformerFactory informers.SharedInformerFactory
+	kubeInformerFactory  kubeinformers.SharedInformerFactory
+	mockCtrl             *gomock.Controller
+	handler              *common.MockHandler
+	synced               chan bool
+	stop                 chan struct{}
+}
+
+func TestControllerSuite(t *testing.T) {
+	suite.Run(t, new(controllerTestSuite))
+}
+
+func (s *controllerTestSuite) SetupTest() {
+	s.kubeClient = fake.NewSimpleClientset()
+	s.radixClient = fakeradix.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
+	s.promClient = prometheusfake.NewSimpleClientset()
+	s.eventRecorder = &record.FakeRecorder{}
+	s.radixInformerFactory = informers.NewSharedInformerFactory(s.radixClient, 0)
+	s.kubeInformerFactory = kubeinformers.NewSharedInformerFactory(s.kubeClient, 0)
+	s.mockCtrl = gomock.NewController(s.T())
+	s.handler = common.NewMockHandler(s.mockCtrl)
+	s.synced = make(chan bool)
+	s.stop = make(chan struct{})
+}
+
+func (s *controllerTestSuite) TearDownTest() {
+	close(s.synced)
+	close(s.stop)
+	s.mockCtrl.Finish()
+}
+
+func syncedChannelCallback(synced chan<- bool) func(namespace, name string, eventRecorder record.EventRecorder) error {
+	return func(namespace, name string, eventRecorder record.EventRecorder) error {
+		synced <- true
+		return nil
+	}
+}
+
 var synced chan bool
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
@@ -37,7 +92,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	return &handlerTestUtils, client, kubeUtil, radixClient
 }
 
-func Test_Controller_Calls_Handler(t *testing.T) {
+func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	anyAppName := "test-app"
 
 	// Setup
@@ -84,8 +139,8 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			WithEnvironment("dev", "master"))
 
 	op, ok := <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	assert.True(s.T(), ok)
+	assert.True(s.T(), op)
 }
 
 func startApplicationController(
