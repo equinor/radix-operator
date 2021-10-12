@@ -2,17 +2,25 @@ name: radix-operator-build
 on:
   push:
     branches:
-      - master
-      - release
+      - flux2
 jobs:
   build-operator:
     name: Build-push-operator
+    env:
+      IMAGE: radix-operator
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+      - name: Generate build ID
+        id: prep
+        run: |
+          branch=${GITHUB_REF##*/}
+          sha=${GITHUB_SHA::8}
+          ts=$(date +%s)
+          echo "::set-output name=BUILD_ID::${branch}-${sha}-${ts}"
       - name: build operator
         run: |
-          docker build . -f operator.Dockerfile -t radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }} -t radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker build -f operator.Dockerfile -t radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }} -t radixprod.azurecr.io/${{ env.IMAGE }}:flux2-latest .
       - uses: azure/docker-login@v1
         with:
           login-server: radixdev.azurecr.io
@@ -20,7 +28,7 @@ jobs:
           password: ${{ secrets.DEV_REGISTRY_PASSWORD }}
       - name: push to radixdev
         run: |
-          docker push radixdev.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker push radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
       - uses: azure/docker-login@v1
         with:
           login-server: radixprod.azurecr.io
@@ -28,15 +36,24 @@ jobs:
           password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
       - name: push to radixprod
         run: |
-          docker push radixprod.azurecr.io/radix-operator:${GITHUB_REF##*/}-${{ github.sha }}
+          docker push radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
   build-pipeline:
     name: Build-push-pipeline
+    env:
+      IMAGE: radix-pipeline
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+      - name: Generate build ID
+        id: prep
+        run: |
+          branch=${GITHUB_REF##*/}
+          sha=${GITHUB_SHA::8}
+          ts=$(date +%s)
+          echo "::set-output name=BUILD_ID::${branch}-${sha}-${ts}"
       - name: build pipeline
         run: |
-          docker build . -f pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+          docker build -f pipeline.Dockerfile -t radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }} -t radixprod.azurecr.io/${{ env.IMAGE }}:flux2-latest .
       - uses: azure/docker-login@v1
         with:
           login-server: radixdev.azurecr.io
@@ -44,7 +61,7 @@ jobs:
           password: ${{ secrets.DEV_REGISTRY_PASSWORD }}
       - name: push to radixdev
         run: |
-          docker push radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+          docker push radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
       - uses: azure/docker-login@v1
         with:
           login-server: radixprod.azurecr.io
@@ -52,4 +69,4 @@ jobs:
           password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
       - name: push to radixprod
         run: |
-          docker push radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+          docker push radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
