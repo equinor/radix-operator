@@ -17,8 +17,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -93,54 +91,21 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 }
 
 func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
-	anyAppName := "test-app"
+	appName := "any-app"
+	namespace := utils.GetAppNamespace(appName)
+	appNamespace := test.CreateAppNamespace(s.kubeClient, appName)
 
-	// Setup
-	tu, client, kubeUtil, radixClient := setupTest()
+	sut := NewController(s.kubeClient, s.kubeUtil, s.radixClient, s.handler, s.kubeInformerFactory, s.radixInformerFactory, false, s.eventRecorder)
+	s.radixInformerFactory.Start(s.stop)
+	s.kubeInformerFactory.Start(s.stop)
 
-	client.CoreV1().Namespaces().Create(
-		context.TODO(),
-		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: utils.GetAppNamespace(anyAppName),
-				Labels: map[string]string{
-					kube.RadixAppLabel: anyAppName,
-					kube.RadixEnvLabel: "app",
-				},
-			},
-		},
-		metav1.CreateOptions{})
+	go sut.Run(1, s.stop)
 
-	stop := make(chan struct{})
-	synced := make(chan bool)
+	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()
+	s.radixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
 
-	defer close(stop)
-	defer close(synced)
-
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
-
-	applicationHandler := NewHandler(
-		client,
-		kubeUtil,
-		radixClient,
-		func(syncedOk bool) {
-			synced <- syncedOk
-		},
-	)
-	go startApplicationController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, applicationHandler, stop)
-
-	// Test
-
-	// Create registration should sync
-	tu.ApplyApplication(
-		utils.ARadixApplication().
-			WithAppName(anyAppName).
-			WithEnvironment("dev", "master"))
-
-	op, ok := <-synced
-	assert.True(s.T(), ok)
-	assert.True(s.T(), op)
+	s.handler.EXPECT().Sync(namespace, appName, s.eventRecorder).DoAndReturn(syncedChannelCallback(s.synced)).Times(1)
+	s.WaitForSynced("added app")
 }
 
 func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_MachineUser_Change() {
@@ -159,7 +124,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_MachineU
 	ra := utils.ARadixApplication().WithAppName(appName).WithEnvironment("dev", "master").BuildRA()
 	s.radixClient.RadixV1().RadixApplications(appNamespace).Create(context.TODO(), ra, metav1.CreateOptions{})
 	s.handler.EXPECT().Sync(namespace, appName, s.eventRecorder).DoAndReturn(syncedChannelCallback(s.synced)).Times(1)
-	s.WaitForSynced("first call")
+	s.WaitForSynced("added app")
 
 	rr.Spec.MachineUser = true
 	rr, _ = s.radixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
