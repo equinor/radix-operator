@@ -26,6 +26,7 @@ import (
 
 type RadixV1Interface interface {
 	RESTClient() rest.Interface
+	RadixAlertsGetter
 	RadixApplicationsGetter
 	RadixDeploymentsGetter
 	RadixEnvironmentsGetter
@@ -36,6 +37,10 @@ type RadixV1Interface interface {
 // RadixV1Client is used to interact with features provided by the radix.equinor.com group.
 type RadixV1Client struct {
 	restClient rest.Interface
+}
+
+func (c *RadixV1Client) RadixAlerts(namespace string) RadixAlertInterface {
+	return newRadixAlerts(c, namespace)
 }
 
 func (c *RadixV1Client) RadixApplications(namespace string) RadixApplicationInterface {

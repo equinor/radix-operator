@@ -28,6 +28,10 @@ type FakeRadixV1 struct {
 	*testing.Fake
 }
 
+func (c *FakeRadixV1) RadixAlerts(namespace string) v1.RadixAlertInterface {
+	return &FakeRadixAlerts{c, namespace}
+}
+
 func (c *FakeRadixV1) RadixApplications(namespace string) v1.RadixApplicationInterface {
 	return &FakeRadixApplications{c, namespace}
 }
