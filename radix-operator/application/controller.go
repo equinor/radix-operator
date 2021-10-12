@@ -1,6 +1,10 @@
 package application
 
 import (
+	"context"
+	radixutils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -47,6 +51,7 @@ func NewController(client kubernetes.Interface,
 	recorder record.EventRecorder) *common.Controller {
 
 	applicationInformer := radixInformerFactory.Radix().V1().RadixApplications()
+	registrationInformer := radixInformerFactory.Radix().V1().RadixRegistrations()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -86,6 +91,27 @@ func NewController(client kubernetes.Interface,
 				logger.Debugf("Application object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
+		},
+	})
+	registrationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			newRr := cur.(*v1.RadixRegistration)
+			oldRr := old.(*v1.RadixRegistration)
+
+			// If neither ad group did change, nor the machine user, this
+			// does not affect the deployment
+			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
+				newRr.Spec.MachineUser == oldRr.Spec.MachineUser {
+				return
+			}
+			ra, err := radixClient.RadixV1().RadixApplications(utils.GetAppNamespace(newRr.Name)).Get(context.TODO(), newRr.Name, metav1.GetOptions{})
+			if err != nil {
+				logger.Errorf("cannot get Radix Application object by name %s: %v", newRr.Name, err)
+				return
+			}
+			logger.Debugf("update Radix Application due to changed AAD group or machine user")
+			controller.Enqueue(ra)
+			metrics.CustomResourceUpdated(crType)
 		},
 	})
 
