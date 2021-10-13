@@ -25,14 +25,6 @@ func TestControllerSuite(t *testing.T) {
 	suite.Run(t, new(controllerTestSuite))
 }
 
-func (s *controllerTestSuite) SetupTest() {
-	s.SetupSuite()
-}
-
-func (s *controllerTestSuite) TearDownTest() {
-	s.TearDown()
-}
-
 func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	appName := "any-app"
 	namespace := utils.GetAppNamespace(appName)

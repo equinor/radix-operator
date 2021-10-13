@@ -31,8 +31,8 @@ type ControllerTestSuite struct {
 	TestControllerSyncTimeout time.Duration
 }
 
-//SetupSuite Setup the suite
-func (s *ControllerTestSuite) SetupSuite() {
+//SetupTest Set up the test suite
+func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
 	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient)
@@ -47,8 +47,8 @@ func (s *ControllerTestSuite) SetupSuite() {
 	s.TestControllerSyncTimeout = 5 * time.Second
 }
 
-//TearDown Tear down the suite
-func (s *ControllerTestSuite) TearDown() {
+//TearDownTest Tear down the test suite
+func (s *ControllerTestSuite) TearDownTest() {
 	close(s.Synced)
 	close(s.Stop)
 	s.MockCtrl.Finish()

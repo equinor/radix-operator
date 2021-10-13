@@ -20,14 +20,6 @@ func TestControllerSuite(t *testing.T) {
 	suite.Run(t, new(controllerTestSuite))
 }
 
-func (s *controllerTestSuite) SetupTest() {
-	s.SetupSuite()
-}
-
-func (s *controllerTestSuite) TearDownTest() {
-	s.TearDown()
-}
-
 func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	alertName, namespace := "any-alert", "any-ns"
 	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
