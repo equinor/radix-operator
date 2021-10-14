@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"os/signal"
@@ -252,6 +255,7 @@ func startJobController(
 	recorder record.EventRecorder,
 	stop <-chan struct{}) {
 
+	syncJobStatusMetrics(radixClient)
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
@@ -284,6 +288,30 @@ func startJobController(
 	if err := jobController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
+}
+
+func syncJobStatusMetrics(radixClient radixclient.Interface) error {
+	logger.Info("Restore vulnerability scan metrics from build job.")
+	radixJobs, err := radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
+	radixJobMap := make(map[string]v1.RadixJob)
+	for _, radixJob := range radixJobs.Items {
+		if radixJob.Status.Condition != v1.JobSucceeded {
+			continue
+		}
+		cachedRadixJob, found := radixJobMap[radixJob.Namespace]
+		if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
+			radixJobMap[radixJob.Namespace] = radixJob
+		}
+	}
+	for _, radixJob := range radixJobMap {
+		metrics.RadixJobVulnerabilityScan(&radixJob)
+	}
+	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
+	return nil
 }
 
 func startAlertController(
