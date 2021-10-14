@@ -297,30 +297,21 @@ func syncJobStatusMetrics(radixClient radixclient.Interface) error {
 		return err
 	}
 	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
-	radixJobMap := make(map[string]map[string]v1.RadixJob)
+	radixJobMap := make(map[string]v1.RadixJob)
 	for _, radixJob := range radixJobs.Items {
 		if radixJob.Status.Condition != v1.JobSucceeded {
 			continue
 		}
-		cachedAppMap, foundAppMap := radixJobMap[radixJob.Namespace]
-		if !foundAppMap {
-			radixJobMap[radixJob.Namespace] = make(map[string]v1.RadixJob)
-			for _, env := range radixJob.Status.TargetEnvs {
-				radixJobMap[radixJob.Namespace][env] = radixJob
-			}
-			continue
-		}
 		for _, env := range radixJob.Status.TargetEnvs {
-			cachedRadixJob, foundCachedRadixJob := cachedAppMap[env]
-			if !foundCachedRadixJob || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
-				radixJobMap[radixJob.Namespace][env] = radixJob
+			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
+			cachedRadixJob, found := radixJobMap[appEnvKey]
+			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
+				radixJobMap[appEnvKey] = radixJob
 			}
 		}
 	}
-	for _, radixAppMap := range radixJobMap {
-		for _, radixJob := range radixAppMap {
-			metrics.RadixJobVulnerabilityScan(&radixJob)
-		}
+	for _, radixJob := range radixJobMap {
+		metrics.RadixJobVulnerabilityScan(&radixJob)
 	}
 	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
 	return nil
