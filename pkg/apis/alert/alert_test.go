@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/equinor/radix-common/utils"
@@ -596,4 +597,11 @@ func (s *alertTestSuite) getAlertManagerReceiverByName(subjects []v1alpha1.Recei
 	}
 
 	return
+}
+
+func Test_GetAlertNamesForScope(t *testing.T) {
+	appAlerts := GetAlertNamesForScope(ApplicationScope)
+	assert.ElementsMatch(t, []string{"RadixAppPipelineJobFailed"}, appAlerts)
+	envAlerts := GetAlertNamesForScope(EnvironmentScope)
+	assert.ElementsMatch(t, []string{"RadixAppComponentCrashLooping", "RadixAppComponentNotReady", "RadixAppJobNotReady", "RadixAppJobFailed"}, envAlerts)
 }

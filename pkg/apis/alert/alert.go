@@ -23,6 +23,13 @@ const (
 	radixPipelineJobNameLabel = "label_radix_job_name"
 )
 
+type AlertScope int
+
+const (
+	ApplicationScope AlertScope = iota
+	EnvironmentScope
+)
+
 var (
 	defaultSlackMessageTemplate slackMessageTemplate = slackMessageTemplate{
 		title:     "{{ template \"radix-slack-alert-title\" .}}",
@@ -33,22 +40,27 @@ var (
 		"RadixAppComponentCrashLooping": {
 			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel},
 			resolvable: true,
+			scope:      EnvironmentScope,
 		},
 		"RadixAppComponentNotReady": {
 			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel},
 			resolvable: true,
+			scope:      EnvironmentScope,
 		},
 		"RadixAppJobNotReady": {
 			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixJobNameLabel},
 			resolvable: true,
+			scope:      EnvironmentScope,
 		},
 		"RadixAppJobFailed": {
 			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixJobNameLabel},
 			resolvable: false,
+			scope:      EnvironmentScope,
 		},
 		"RadixAppPipelineJobFailed": {
 			groupBy:    []string{radixApplicationNameLabel, radixPipelineJobNameLabel},
 			resolvable: false,
+			scope:      ApplicationScope,
 		},
 	}
 )
@@ -56,6 +68,7 @@ var (
 type alertConfig struct {
 	groupBy    []string
 	resolvable bool
+	scope      AlertScope
 }
 
 type alertConfigs map[string]alertConfig
@@ -167,4 +180,17 @@ func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 			Controller: commonUtils.BoolPtr(true),
 		},
 	}
+}
+
+// GetAlertNamesForScope returns list of alert names defined for scope
+func GetAlertNamesForScope(scope AlertScope) []string {
+	var alerts []string
+
+	for k, v := range defaultAlertConfigs {
+		if v.scope == scope {
+			alerts = append(alerts, k)
+		}
+	}
+
+	return alerts
 }
