@@ -8,7 +8,7 @@ jobs:
   build-operator:
     name: Build-push-operator
     env:
-      IMAGE: radix-cicd-canary
+      IMAGE: radix-operator
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
