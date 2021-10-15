@@ -302,9 +302,12 @@ func syncJobStatusMetrics(radixClient radixclient.Interface) error {
 		if radixJob.Status.Condition != v1.JobSucceeded {
 			continue
 		}
-		cachedRadixJob, found := radixJobMap[radixJob.Namespace]
-		if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
-			radixJobMap[radixJob.Namespace] = radixJob
+		for _, env := range radixJob.Status.TargetEnvs {
+			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
+			cachedRadixJob, found := radixJobMap[appEnvKey]
+			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
+				radixJobMap[appEnvKey] = radixJob
+			}
 		}
 	}
 	for _, radixJob := range radixJobMap {
