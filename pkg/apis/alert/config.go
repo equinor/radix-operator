@@ -8,8 +8,13 @@ const (
 	radixPipelineJobNameLabel = "label_radix_job_name"
 )
 
+// AlertScope defines scope for an alert
+type AlertScope int
+
 const (
+	// ApplicationScope contains alerts for failed pipeline jobs
 	ApplicationScope AlertScope = iota
+	// EnvironmentScope contains alerts for components and jobs in a specific environment
 	EnvironmentScope
 )
 
@@ -47,8 +52,6 @@ var (
 		},
 	}
 )
-
-type AlertScope int
 
 type AlertConfig struct {
 	GroupBy    []string
