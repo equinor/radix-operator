@@ -15,70 +15,6 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-const (
-	radixApplicationNameLabel = "label_radix_app"
-	radixEnvironmentNameLabel = "label_radix_env"
-	radixComponentNameLabel   = "label_radix_component"
-	radixJobNameLabel         = "label_job_name"
-	radixPipelineJobNameLabel = "label_radix_job_name"
-)
-
-type AlertScope int
-
-const (
-	ApplicationScope AlertScope = iota
-	EnvironmentScope
-)
-
-var (
-	defaultSlackMessageTemplate slackMessageTemplate = slackMessageTemplate{
-		title:     "{{ template \"radix-slack-alert-title\" .}}",
-		titleLink: "{{ template \"radix-slack-alert-titlelink\" .}}",
-		text:      "{{ template \"radix-slack-alert-text\" .}}",
-	}
-	defaultAlertConfigs alertConfigs = alertConfigs{
-		"RadixAppComponentCrashLooping": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel},
-			resolvable: true,
-			scope:      EnvironmentScope,
-		},
-		"RadixAppComponentNotReady": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel},
-			resolvable: true,
-			scope:      EnvironmentScope,
-		},
-		"RadixAppJobNotReady": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixJobNameLabel},
-			resolvable: true,
-			scope:      EnvironmentScope,
-		},
-		"RadixAppJobFailed": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixJobNameLabel},
-			resolvable: false,
-			scope:      EnvironmentScope,
-		},
-		"RadixAppPipelineJobFailed": {
-			groupBy:    []string{radixApplicationNameLabel, radixPipelineJobNameLabel},
-			resolvable: false,
-			scope:      ApplicationScope,
-		},
-	}
-)
-
-type alertConfig struct {
-	groupBy    []string
-	resolvable bool
-	scope      AlertScope
-}
-
-type alertConfigs map[string]alertConfig
-
-type slackMessageTemplate struct {
-	title     string
-	titleLink string
-	text      string
-}
-
 //AlertSyncer defines interface for syncing a RadixAlert
 type AlertSyncer interface {
 	OnSync() error
@@ -91,7 +27,7 @@ type alertSyncer struct {
 	prometheusClient     monitoring.Interface
 	radixAlert           *radixv1.RadixAlert
 	slackMessageTemplate slackMessageTemplate
-	alertConfigs         alertConfigs
+	alertConfigs         AlertConfigs
 	logger               *log.Entry
 }
 
@@ -180,17 +116,4 @@ func (syncer *alertSyncer) getOwnerReference() []metav1.OwnerReference {
 			Controller: commonUtils.BoolPtr(true),
 		},
 	}
-}
-
-// GetAlertNamesForScope returns list of alert names defined for scope
-func GetAlertNamesForScope(scope AlertScope) []string {
-	var alerts []string
-
-	for k, v := range defaultAlertConfigs {
-		if v.scope == scope {
-			alerts = append(alerts, k)
-		}
-	}
-
-	return alerts
 }
