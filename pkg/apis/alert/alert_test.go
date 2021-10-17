@@ -32,7 +32,7 @@ func testAlertSyncerWithSlackMessageTemplate(template slackMessageTemplate) test
 	}
 }
 
-func testAlertSyncerWithAlertConfigs(configs alertConfigs) testAlertSyncerConfigOption {
+func testAlertSyncerWithAlertConfigs(configs AlertConfigs) testAlertSyncerConfigOption {
 	return func(sut *alertSyncer) {
 		sut.alertConfigs = configs
 	}
@@ -69,7 +69,7 @@ func (s *alertTestSuite) createAlertSyncer(alert *radixv1.RadixAlert, options ..
 		prometheusClient:     s.promClient,
 		radixAlert:           alert,
 		slackMessageTemplate: slackMessageTemplate{},
-		alertConfigs:         alertConfigs{},
+		alertConfigs:         AlertConfigs{},
 		logger:               log.NewEntry(log.StandardLogger()),
 	}
 
@@ -460,9 +460,9 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 	}
 	radixalert, _ = s.radixClient.RadixV1().RadixAlerts(namespace).Create(context.Background(), radixalert, metav1.CreateOptions{})
 
-	alertConfigs := alertConfigs{
-		"deploy": alertConfig{groupBy: []string{"g1", "g2"}, resolvable: true},
-		"job":    alertConfig{groupBy: []string{"g3"}, resolvable: false},
+	alertConfigs := AlertConfigs{
+		"deploy": AlertConfig{GroupBy: []string{"g1", "g2"}, Resolvable: true},
+		"job":    AlertConfig{GroupBy: []string{"g3"}, Resolvable: false},
 	}
 	slackTemplate := slackMessageTemplate{title: "atitle", titleLink: "alink", text: "atext"}
 	expectedSlackConfigFactory := func(receiverName string, resolvable bool) v1alpha1.SlackConfig {
@@ -477,7 +477,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 		}
 	}
 	getRouteByAlertandReceiver := func(routes []v1alpha1.Route, alert, receiver string) (route v1alpha1.Route, found bool) {
-		resolvable := alertConfigs[alert].resolvable
+		resolvable := alertConfigs[alert].Resolvable
 		receiverName := getRouteReceiverNameForAlert(receiver, resolvable)
 		for _, r := range routes {
 			if r.Receiver == receiverName && len(r.Matchers) == 1 && r.Matchers[0].Name == "alertname" && r.Matchers[0].Value == alert {
@@ -489,7 +489,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 		return
 	}
 	expectedRouteFactory := func(alert, receiver string) v1alpha1.Route {
-		resolvable := alertConfigs[alert].resolvable
+		resolvable := alertConfigs[alert].Resolvable
 		receiverName := getRouteReceiverNameForAlert(receiver, resolvable)
 		repeateInterval := nonResolvableRepeatInterval
 		if resolvable {
@@ -499,7 +499,7 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 		return v1alpha1.Route{
 			Receiver:       receiverName,
 			Matchers:       []v1alpha1.Matcher{{Name: "alertname", Value: alert}},
-			GroupBy:        alertConfigs[alert].groupBy,
+			GroupBy:        alertConfigs[alert].GroupBy,
 			GroupWait:      defaultGroupWait,
 			GroupInterval:  defaultGroupInterval,
 			RepeatInterval: repeateInterval,

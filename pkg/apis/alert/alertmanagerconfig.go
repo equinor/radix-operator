@@ -35,9 +35,9 @@ const (
 	defaultGroupWait = "30s"
 )
 
-type alertConfigList []alertConfig
+type alertConfigList []AlertConfig
 
-func (list alertConfigList) Any(anyFunc func(c alertConfig) bool) bool {
+func (list alertConfigList) Any(anyFunc func(c AlertConfig) bool) bool {
 	for _, alertConfig := range list {
 		if anyFunc(alertConfig) {
 			return true
@@ -158,11 +158,11 @@ func (syncer *alertSyncer) getAlertmanagerConfigReceiverForRadixAlertReceiver(na
 
 	alertConfigs := syncer.getMappedAlertConfigsForReceiverName(name)
 
-	if alertConfigs.Any(func(c alertConfig) bool { return c.resolvable }) {
+	if alertConfigs.Any(func(c AlertConfig) bool { return c.Resolvable }) {
 		alertmanagerConfigReceivers = append(alertmanagerConfigReceivers, syncer.buildAlertmanagerConfigReceiver(receiver, name, true))
 	}
 
-	if alertConfigs.Any(func(c alertConfig) bool { return !c.resolvable }) {
+	if alertConfigs.Any(func(c AlertConfig) bool { return !c.Resolvable }) {
 		alertmanagerConfigReceivers = append(alertmanagerConfigReceivers, syncer.buildAlertmanagerConfigReceiver(receiver, name, false))
 	}
 
@@ -226,8 +226,8 @@ func (syncer *alertSyncer) getAlertmanagerConfigRoutes() []v1alpha1.Route {
 			continue
 		}
 		routes = append(routes, v1alpha1.Route{
-			Receiver:       getRouteReceiverNameForAlert(alert.Receiver, alertConfig.resolvable),
-			GroupBy:        alertConfig.groupBy,
+			Receiver:       getRouteReceiverNameForAlert(alert.Receiver, alertConfig.Resolvable),
+			GroupBy:        alertConfig.GroupBy,
 			GroupWait:      defaultGroupWait,
 			GroupInterval:  defaultGroupInterval,
 			RepeatInterval: getRepeatInterval(alertConfig),
@@ -246,8 +246,8 @@ func getRouteReceiverNameForAlert(receiverName string, resolvable bool) string {
 	return receiverName
 }
 
-func getRepeatInterval(alertConfig alertConfig) string {
-	if !alertConfig.resolvable {
+func getRepeatInterval(alertConfig AlertConfig) string {
+	if !alertConfig.Resolvable {
 		return nonResolvableRepeatInterval
 	}
 	return resolvableRepeatInterval

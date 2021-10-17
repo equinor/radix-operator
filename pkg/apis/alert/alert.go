@@ -15,57 +15,6 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-const (
-	radixApplicationNameLabel = "label_radix_app"
-	radixEnvironmentNameLabel = "label_radix_env"
-	radixComponentNameLabel   = "label_radix_component"
-	radixJobNameLabel         = "label_job_name"
-	radixPipelineJobNameLabel = "label_radix_job_name"
-)
-
-var (
-	defaultSlackMessageTemplate slackMessageTemplate = slackMessageTemplate{
-		title:     "{{ template \"radix-slack-alert-title\" .}}",
-		titleLink: "{{ template \"radix-slack-alert-titlelink\" .}}",
-		text:      "{{ template \"radix-slack-alert-text\" .}}",
-	}
-	defaultAlertConfigs alertConfigs = alertConfigs{
-		"RadixAppComponentCrashLooping": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel},
-			resolvable: true,
-		},
-		"RadixAppComponentNotReady": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel},
-			resolvable: true,
-		},
-		"RadixAppJobNotReady": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixJobNameLabel},
-			resolvable: true,
-		},
-		"RadixAppJobFailed": {
-			groupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixJobNameLabel},
-			resolvable: false,
-		},
-		"RadixAppPipelineJobFailed": {
-			groupBy:    []string{radixApplicationNameLabel, radixPipelineJobNameLabel},
-			resolvable: false,
-		},
-	}
-)
-
-type alertConfig struct {
-	groupBy    []string
-	resolvable bool
-}
-
-type alertConfigs map[string]alertConfig
-
-type slackMessageTemplate struct {
-	title     string
-	titleLink string
-	text      string
-}
-
 //AlertSyncer defines interface for syncing a RadixAlert
 type AlertSyncer interface {
 	OnSync() error
@@ -78,7 +27,7 @@ type alertSyncer struct {
 	prometheusClient     monitoring.Interface
 	radixAlert           *radixv1.RadixAlert
 	slackMessageTemplate slackMessageTemplate
-	alertConfigs         alertConfigs
+	alertConfigs         AlertConfigs
 	logger               *log.Entry
 }
 
