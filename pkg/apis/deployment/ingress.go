@@ -17,7 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // IngressConfiguration Holds all ingress annotation configurations
@@ -400,9 +399,11 @@ func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int
 							{
 								Path: "/",
 								Backend: networkingv1.IngressBackend{
-									ServiceName: serviceName,
-									ServicePort: intstr.IntOrString{
-										IntVal: servicePort,
+									Service: &networkingv1.IngressServiceBackend{
+										Name: serviceName,
+										Port: networkingv1.ServiceBackendPort{
+											Number: servicePort,
+										},
 									},
 								},
 							},
