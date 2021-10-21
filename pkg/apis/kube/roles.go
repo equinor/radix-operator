@@ -8,7 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	auth "k8s.io/api/rbac/v1"
-	"k8s.io/api/rbac/v1beta1"
+	"k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,7 +50,7 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *auth.Role) error {
 		return fmt.Errorf("Failed to marshal new role object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleJSON, newRoleJSON, v1beta1.Role{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleJSON, newRoleJSON, v1.Role{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch role objects: %v", err)
 	}
@@ -101,7 +101,7 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 		return fmt.Errorf("Failed to marshal new cluster role object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleJSON, newClusterRoleJSON, v1beta1.ClusterRole{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleJSON, newClusterRoleJSON, v1.ClusterRole{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch cluster role objects: %v", err)
 	}

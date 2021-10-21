@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
-	"k8s.io/api/rbac/v1beta1"
+	"k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -156,7 +156,7 @@ func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding)
 		return fmt.Errorf("Failed to marshal new role binding object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, v1beta1.RoleBinding{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, v1.RoleBinding{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch role binding objects: %v", err)
 	}
@@ -209,7 +209,7 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRo
 		return fmt.Errorf("Failed to marshal new cluster role binding object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleBindingJSON, newClusterRoleBindingJSON, v1beta1.ClusterRoleBinding{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleBindingJSON, newClusterRoleBindingJSON, v1.ClusterRoleBinding{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch cluster role binding objects: %v", err)
 	}
