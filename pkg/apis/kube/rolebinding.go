@@ -8,8 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	auth "k8s.io/api/rbac/v1"
-	"k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,10 +18,10 @@ import (
 )
 
 // GetRoleBindingGroups Get subjects for list of ad groups
-func GetRoleBindingGroups(groups []string) []auth.Subject {
-	subjects := []auth.Subject{}
+func GetRoleBindingGroups(groups []string) []rbacv1.Subject {
+	subjects := []rbacv1.Subject{}
 	for _, group := range groups {
-		subjects = append(subjects, auth.Subject{
+		subjects = append(subjects, rbacv1.Subject{
 			Kind:     "Group",
 			Name:     group,
 			APIGroup: "rbac.authorization.k8s.io",
@@ -32,56 +31,56 @@ func GetRoleBindingGroups(groups []string) []auth.Subject {
 }
 
 // GetRolebindingToRole Get role binding object
-func GetRolebindingToRole(appName, roleName string, groups []string) *auth.RoleBinding {
+func GetRolebindingToRole(appName, roleName string, groups []string) *rbacv1.RoleBinding {
 	return GetRolebindingToRoleWithLabels(roleName, groups, map[string]string{
 		RadixAppLabel: appName,
 	})
 }
 
 // GetRolebindingToRoleWithLabels Get role binding object
-func GetRolebindingToRoleWithLabels(roleName string, groups []string, labels map[string]string) *auth.RoleBinding {
+func GetRolebindingToRoleWithLabels(roleName string, groups []string, labels map[string]string) *rbacv1.RoleBinding {
 	subjects := GetRoleBindingGroups(groups)
 	return getRoleBindingForSubjects(roleName, "Role", subjects, labels)
 }
 
 // GetRolebindingToRoleWithLabelsForSubjects Get rolebinding object with subjects as input
-func GetRolebindingToRoleWithLabelsForSubjects(roleName string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
+func GetRolebindingToRoleWithLabelsForSubjects(roleName string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return getRoleBindingForSubjects(roleName, "Role", subjects, labels)
 }
 
 // GetRolebindingToClusterRole Get role binding object
-func GetRolebindingToClusterRole(appName, roleName string, groups []string) *auth.RoleBinding {
+func GetRolebindingToClusterRole(appName, roleName string, groups []string) *rbacv1.RoleBinding {
 	return GetRolebindingToClusterRoleWithLabels(roleName, groups, map[string]string{
 		RadixAppLabel: appName,
 	})
 }
 
 // GetRolebindingToClusterRoleForSubjects Get role binding object for list of subjects
-func GetRolebindingToClusterRoleForSubjects(appName, roleName string, subjects []auth.Subject) *auth.RoleBinding {
+func GetRolebindingToClusterRoleForSubjects(appName, roleName string, subjects []rbacv1.Subject) *rbacv1.RoleBinding {
 	return GetRolebindingToClusterRoleForSubjectsWithLabels(roleName, subjects, map[string]string{
 		RadixAppLabel: appName,
 	})
 }
 
 // GetRolebindingToClusterRoleForSubjectsWithLabels Get role binding object for list of subjects with labels set
-func GetRolebindingToClusterRoleForSubjectsWithLabels(roleName string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
+func GetRolebindingToClusterRoleForSubjectsWithLabels(roleName string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return getRoleBindingForSubjects(roleName, "ClusterRole", subjects, labels)
 }
 
 // GetRolebindingToClusterRoleWithLabels Get role binding object
-func GetRolebindingToClusterRoleWithLabels(roleName string, groups []string, labels map[string]string) *auth.RoleBinding {
+func GetRolebindingToClusterRoleWithLabels(roleName string, groups []string, labels map[string]string) *rbacv1.RoleBinding {
 	subjects := GetRoleBindingGroups(groups)
 	return getRoleBindingForSubjects(roleName, "ClusterRole", subjects, labels)
 }
 
 // GetRolebindingToRoleForSubjectsWithLabels Get role binding object for list of subjects with labels set
-func GetRolebindingToRoleForSubjectsWithLabels(appName, roleName string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
+func GetRolebindingToRoleForSubjectsWithLabels(appName, roleName string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
 	return getRoleBindingForSubjects(roleName, "Role", subjects, labels)
 }
 
 // GetRolebindingToRoleForServiceAccountWithLabels Get role binding object
-func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
-	subjects := []auth.Subject{
+func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *rbacv1.RoleBinding {
+	subjects := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
 			Name:      serviceAccountName,
@@ -92,8 +91,8 @@ func GetRolebindingToRoleForServiceAccountWithLabels(roleName, serviceAccountNam
 }
 
 // GetRolebindingToClusterRoleForServiceAccountWithLabels Get role binding object
-func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *auth.RoleBinding {
-	subjects := []auth.Subject{
+func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAccountName, serviceAccountNamespace string, labels map[string]string) *rbacv1.RoleBinding {
+	subjects := []rbacv1.Subject{
 		{
 			Kind:      "ServiceAccount",
 			Name:      serviceAccountName,
@@ -103,8 +102,8 @@ func GetRolebindingToClusterRoleForServiceAccountWithLabels(roleName, serviceAcc
 	return getRoleBindingForSubjects(roleName, "ClusterRole", subjects, labels)
 }
 
-func getRoleBindingForSubjects(roleName, kind string, subjects []auth.Subject, labels map[string]string) *auth.RoleBinding {
-	return &auth.RoleBinding{
+func getRoleBindingForSubjects(roleName, kind string, subjects []rbacv1.Subject, labels map[string]string) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "RoleBinding",
@@ -113,7 +112,7 @@ func getRoleBindingForSubjects(roleName, kind string, subjects []auth.Subject, l
 			Name:   roleName,
 			Labels: labels,
 		},
-		RoleRef: auth.RoleRef{
+		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     kind,
 			Name:     roleName,
@@ -123,7 +122,7 @@ func getRoleBindingForSubjects(roleName, kind string, subjects []auth.Subject, l
 }
 
 // ApplyRoleBinding Creates or updates role
-func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding) error {
+func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *rbacv1.RoleBinding) error {
 	logger.Debugf("Apply role binding %s", role.Name)
 	oldRoleBinding, err := kubeutil.GetRoleBinding(namespace, role.GetName())
 	if err != nil && errors.IsNotFound(err) {
@@ -156,7 +155,7 @@ func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding)
 		return fmt.Errorf("Failed to marshal new role binding object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, v1.RoleBinding{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleBindingJSON, newRoleBindingJSON, rbacv1.RoleBinding{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch role binding objects: %v", err)
 	}
@@ -175,7 +174,7 @@ func (kubeutil *Kube) ApplyRoleBinding(namespace string, role *auth.RoleBinding)
 }
 
 // ApplyClusterRoleBinding Creates or updates cluster-role-binding
-func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRoleBinding) error {
+func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *rbacv1.ClusterRoleBinding) error {
 	logger = logger.WithFields(log.Fields{"clusterRoleBinding": clusterrolebinding.ObjectMeta.Name})
 	logger.Debugf("Apply clusterrolebinding %s", clusterrolebinding.Name)
 	oldClusterRoleBinding, err := kubeutil.getClusterRoleBinding(clusterrolebinding.Name)
@@ -209,7 +208,7 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRo
 		return fmt.Errorf("Failed to marshal new cluster role binding object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleBindingJSON, newClusterRoleBindingJSON, v1.ClusterRoleBinding{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleBindingJSON, newClusterRoleBindingJSON, rbacv1.ClusterRoleBinding{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch cluster role binding objects: %v", err)
 	}
@@ -229,7 +228,7 @@ func (kubeutil *Kube) ApplyClusterRoleBinding(clusterrolebinding *auth.ClusterRo
 
 // ApplyClusterRoleToServiceAccount Creates cluster-role-binding as a link between role and service account
 func (kubeutil *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceAccount *corev1.ServiceAccount, ownerReference []metav1.OwnerReference) error {
-	rolebinding := &auth.ClusterRoleBinding{
+	rolebinding := &rbacv1.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "ClusterRoleBinding",
@@ -238,13 +237,13 @@ func (kubeutil *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceA
 			Name:            fmt.Sprintf("%s-%s", serviceAccount.Namespace, serviceAccount.Name),
 			OwnerReferences: ownerReference,
 		},
-		RoleRef: auth.RoleRef{
+		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
 			Name:     roleName,
 		},
-		Subjects: []auth.Subject{
-			auth.Subject{
+		Subjects: []rbacv1.Subject{
+			rbacv1.Subject{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -255,8 +254,8 @@ func (kubeutil *Kube) ApplyClusterRoleToServiceAccount(roleName string, serviceA
 }
 
 // GetRoleBinding Gets rolebinding
-func (kubeutil *Kube) GetRoleBinding(namespace, name string) (*auth.RoleBinding, error) {
-	var role *auth.RoleBinding
+func (kubeutil *Kube) GetRoleBinding(namespace, name string) (*rbacv1.RoleBinding, error) {
+	var role *rbacv1.RoleBinding
 	var err error
 
 	if kubeutil.RoleBindingLister != nil {
@@ -275,13 +274,13 @@ func (kubeutil *Kube) GetRoleBinding(namespace, name string) (*auth.RoleBinding,
 }
 
 // ListRoleBindings Lists role bindings from cache or from cluster
-func (kubeutil *Kube) ListRoleBindings(namespace string) ([]*auth.RoleBinding, error) {
+func (kubeutil *Kube) ListRoleBindings(namespace string) ([]*rbacv1.RoleBinding, error) {
 	return kubeutil.ListRoleBindingsWithSelector(namespace, nil)
 }
 
 // ListRoleBindingsWithSelector Lists role bindings from cache or from cluster using a selector
-func (kubeutil *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorString *string) ([]*auth.RoleBinding, error) {
-	var roleBindings []*auth.RoleBinding
+func (kubeutil *Kube) ListRoleBindingsWithSelector(namespace string, labelSelectorString *string) ([]*rbacv1.RoleBinding, error) {
+	var roleBindings []*rbacv1.RoleBinding
 	var err error
 
 	if kubeutil.RoleBindingLister != nil {
@@ -316,15 +315,15 @@ func (kubeutil *Kube) ListRoleBindingsWithSelector(namespace string, labelSelect
 			return nil, err
 		}
 
-		roleBindings = slice.PointersOf(list.Items).([]*auth.RoleBinding)
+		roleBindings = slice.PointersOf(list.Items).([]*rbacv1.RoleBinding)
 	}
 
 	return roleBindings, nil
 }
 
 // ListClusterRoleBindings List cluster roles
-func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*auth.ClusterRoleBinding, error) {
-	var clusterRoleBindings []*auth.ClusterRoleBinding
+func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*rbacv1.ClusterRoleBinding, error) {
+	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
 	var err error
 
 	if kubeutil.ClusterRoleBindingLister != nil {
@@ -338,7 +337,7 @@ func (kubeutil *Kube) ListClusterRoleBindings(namespace string) ([]*auth.Cluster
 			return nil, err
 		}
 
-		clusterRoleBindings = slice.PointersOf(list.Items).([]*auth.ClusterRoleBinding)
+		clusterRoleBindings = slice.PointersOf(list.Items).([]*rbacv1.ClusterRoleBinding)
 	}
 
 	return clusterRoleBindings, nil
@@ -374,8 +373,8 @@ func (kubeutil *Kube) DeleteRoleBinding(namespace, name string) error {
 	return nil
 }
 
-func (kubeutil *Kube) getClusterRoleBinding(name string) (*auth.ClusterRoleBinding, error) {
-	var clusterRoleBinding *auth.ClusterRoleBinding
+func (kubeutil *Kube) getClusterRoleBinding(name string) (*rbacv1.ClusterRoleBinding, error) {
+	var clusterRoleBinding *rbacv1.ClusterRoleBinding
 	var err error
 
 	if kubeutil.ClusterRoleBindingLister != nil {
