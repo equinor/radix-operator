@@ -7,8 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
-	auth "k8s.io/api/rbac/v1"
-	"k8s.io/api/rbac/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +17,7 @@ import (
 )
 
 // ApplyRole Creates or updates role
-func (kubeutil *Kube) ApplyRole(namespace string, role *auth.Role) error {
+func (kubeutil *Kube) ApplyRole(namespace string, role *rbacv1.Role) error {
 	logger.Debugf("Apply role %s", role.Name)
 	oldRole, err := kubeutil.GetRole(namespace, role.GetName())
 	if err != nil && errors.IsNotFound(err) {
@@ -50,7 +49,7 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *auth.Role) error {
 		return fmt.Errorf("Failed to marshal new role object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleJSON, newRoleJSON, v1beta1.Role{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldRoleJSON, newRoleJSON, rbacv1.Role{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch role objects: %v", err)
 	}
@@ -69,7 +68,7 @@ func (kubeutil *Kube) ApplyRole(namespace string, role *auth.Role) error {
 }
 
 // ApplyClusterRole Creates or updates cluster-role
-func (kubeutil *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
+func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 	logger.Debugf("Apply clusterrole %s", clusterrole.Name)
 	oldClusterRole, err := kubeutil.GetClusterRole(clusterrole.GetName())
 	if err != nil && errors.IsNotFound(err) {
@@ -101,7 +100,7 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 		return fmt.Errorf("Failed to marshal new cluster role object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleJSON, newClusterRoleJSON, v1beta1.ClusterRole{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClusterRoleJSON, newClusterRoleJSON, rbacv1.ClusterRole{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch cluster role objects: %v", err)
 	}
@@ -120,8 +119,8 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *auth.ClusterRole) error {
 }
 
 // CreateManageSecretRole creates a role that can manage a secret with predefined set of verbs
-func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels *map[string]string) *auth.Role {
-	role := &auth.Role{
+func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels *map[string]string) *rbacv1.Role {
+	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "Role",
@@ -133,7 +132,7 @@ func CreateManageSecretRole(appName, roleName string, secretNames []string, cust
 				RadixAppLabel: appName,
 			},
 		},
-		Rules: []auth.PolicyRule{
+		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups:     []string{""},
 				Resources:     []string{"secrets"},
@@ -152,13 +151,13 @@ func CreateManageSecretRole(appName, roleName string, secretNames []string, cust
 }
 
 // ListRoles List roles
-func (kubeutil *Kube) ListRoles(namespace string) ([]*auth.Role, error) {
+func (kubeutil *Kube) ListRoles(namespace string) ([]*rbacv1.Role, error) {
 	return kubeutil.ListRolesWithSelector(namespace, nil)
 }
 
 // ListRolesWithSelector List roles
-func (kubeutil *Kube) ListRolesWithSelector(namespace string, labelSelectorString *string) ([]*auth.Role, error) {
-	var roles []*auth.Role
+func (kubeutil *Kube) ListRolesWithSelector(namespace string, labelSelectorString *string) ([]*rbacv1.Role, error) {
+	var roles []*rbacv1.Role
 	var err error
 
 	if kubeutil.RoleLister != nil {
@@ -192,15 +191,15 @@ func (kubeutil *Kube) ListRolesWithSelector(namespace string, labelSelectorStrin
 			return nil, err
 		}
 
-		roles = slice.PointersOf(list.Items).([]*auth.Role)
+		roles = slice.PointersOf(list.Items).([]*rbacv1.Role)
 	}
 
 	return roles, nil
 }
 
 // GetRole Gets role
-func (kubeutil *Kube) GetRole(namespace, name string) (*auth.Role, error) {
-	var role *auth.Role
+func (kubeutil *Kube) GetRole(namespace, name string) (*rbacv1.Role, error) {
+	var role *rbacv1.Role
 	var err error
 
 	if kubeutil.RoleLister != nil {
@@ -219,8 +218,8 @@ func (kubeutil *Kube) GetRole(namespace, name string) (*auth.Role, error) {
 }
 
 // ListClusterRoles List cluster roles
-func (kubeutil *Kube) ListClusterRoles(namespace string) ([]*auth.ClusterRole, error) {
-	var clusterRoles []*auth.ClusterRole
+func (kubeutil *Kube) ListClusterRoles(namespace string) ([]*rbacv1.ClusterRole, error) {
+	var clusterRoles []*rbacv1.ClusterRole
 	var err error
 
 	if kubeutil.ClusterRoleLister != nil {
@@ -234,7 +233,7 @@ func (kubeutil *Kube) ListClusterRoles(namespace string) ([]*auth.ClusterRole, e
 			return nil, err
 		}
 
-		clusterRoles = slice.PointersOf(list.Items).([]*auth.ClusterRole)
+		clusterRoles = slice.PointersOf(list.Items).([]*rbacv1.ClusterRole)
 	}
 
 	return clusterRoles, nil
@@ -256,8 +255,8 @@ func (kubeutil *Kube) DeleteRole(namespace, name string) error {
 }
 
 // GetClusterRole Gets cluster role
-func (kubeutil *Kube) GetClusterRole(name string) (*auth.ClusterRole, error) {
-	var clusterRole *auth.ClusterRole
+func (kubeutil *Kube) GetClusterRole(name string) (*rbacv1.ClusterRole, error) {
+	var clusterRole *rbacv1.ClusterRole
 	var err error
 
 	if kubeutil.ClusterRoleLister != nil {
