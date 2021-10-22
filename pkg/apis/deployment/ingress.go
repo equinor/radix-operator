@@ -352,9 +352,7 @@ func getIngressConfig(
 
 	authentication := getAuthenticationAnnotationsFromConfiguration(component.GetAuthentication(), component.GetName(), namespace)
 	annotations = radixmaps.MergeStringMaps(annotations, authentication)
-
-	annotations["kubernetes.io/ingress.class"] = "nginx"
-	annotations["ingress.kubernetes.io/force-ssl-redirect"] = "true"
+	annotations["nginx.ingress.kubernetes.io/force-ssl-redirect"] = "true"
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -376,9 +374,11 @@ func getIngressConfig(
 }
 
 func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32) networkingv1.IngressSpec {
-	pathType := networkingv1.PathTypePrefix
+	pathType := networkingv1.PathTypeImplementationSpecific
+	ingressClass := "nginx"
 
 	return networkingv1.IngressSpec{
+		IngressClassName: &ingressClass,
 		TLS: []networkingv1.IngressTLS{
 			{
 				Hosts: []string{

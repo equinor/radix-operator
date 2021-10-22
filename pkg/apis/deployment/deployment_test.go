@@ -2203,17 +2203,17 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 	appAliasIngress := getIngressByName("any-app-url-alias", ingresses)
 	clusterSpecificIngress := getIngressByName("frontend", ingresses)
 	activeClusterIngress := getIngressByName("frontend-active-cluster-url-alias", ingresses)
-	assert.Equal(t, 2, len(appAliasIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 2, len(clusterSpecificIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 2, len(activeClusterIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 1, len(appAliasIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 1, len(clusterSpecificIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 1, len(activeClusterIngress.ObjectMeta.Annotations))
 
 	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(context.TODO(), metav1.ListOptions{})
 	appAliasIngress = getIngressByName("any-app-2-url-alias", ingresses)
 	clusterSpecificIngress = getIngressByName("frontend", ingresses)
 	activeClusterIngress = getIngressByName("frontend-active-cluster-url-alias", ingresses)
-	assert.Equal(t, 5, len(appAliasIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 5, len(clusterSpecificIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 5, len(activeClusterIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 4, len(appAliasIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 4, len(clusterSpecificIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 4, len(activeClusterIngress.ObjectMeta.Annotations))
 
 }
 
