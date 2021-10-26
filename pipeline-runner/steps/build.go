@@ -65,7 +65,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return err
 	}
 
-	job, err := createACRBuildJob(cli.GetRegistration(), pipelineInfo.ContainerRegistry, pipelineInfo, buildSecrets)
+	job, err := createACRBuildJob(cli.GetRegistration(), pipelineInfo, buildSecrets)
 	if err != nil {
 		return err
 	}

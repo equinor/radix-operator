@@ -10,3 +10,4 @@ metadata:
 data:
   clustername: {{ .Values.clusterName }}
   containerRegistry: {{ .Values.imageRegistry }}
+  subscriptionId: {{ .Values.subscriptionId }}
