@@ -31,7 +31,7 @@ import (
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -656,20 +656,20 @@ func TestObjectSynced_MultiComponent_NonActiveCluster_ContainsOnlyClusterSpecifi
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Only cluster specific ingresses for the two public components should appear")
 	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
 
 	appIngress := getIngressByName("app", ingresses)
-	assert.Equal(t, int32(8080), appIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	assert.Equal(t, int32(8080), appIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Equal(t, "false", appIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Equal(t, "false", appIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "false", appIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", appIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	quoteIngress := getIngressByName("radixquote", ingresses)
-	assert.Equal(t, int32(3000), quoteIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	assert.Equal(t, int32(3000), quoteIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Equal(t, "false", quoteIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Equal(t, "false", quoteIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "false", quoteIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
@@ -707,7 +707,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace("edcradix", "test")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 7, len(ingresses.Items), "Number of ingresses was not according to public components, app alias and number of external aliases")
 	assert.Truef(t, ingressByNameExists("app", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("radixquote", ingresses), "Cluster specific ingress for public component should exist")
@@ -718,7 +718,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Truef(t, ingressByNameExists("radixquote-active-cluster-url-alias", ingresses), "Radixquote should have had an ingress")
 
 	appAlias := getIngressByName("edcradix-url-alias", ingresses)
-	assert.Equal(t, int32(8080), appAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	assert.Equal(t, int32(8080), appAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Equal(t, "true", appAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Equal(t, "false", appAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "false", appAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
@@ -726,7 +726,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "edcradix.app.dev.radix.equinor.com", appAlias.Spec.Rules[0].Host, "App should have an external alias")
 
 	externalAlias := getIngressByName("some.alias.com", ingresses)
-	assert.Equal(t, int32(8080), externalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	assert.Equal(t, int32(8080), externalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Equal(t, "false", externalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Equal(t, "true", externalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "false", externalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
@@ -734,7 +734,7 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "some.alias.com", externalAlias.Spec.Rules[0].Host, "App should have an external alias")
 
 	anotherExternalAlias := getIngressByName("another.alias.com", ingresses)
-	assert.Equal(t, int32(8080), anotherExternalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	assert.Equal(t, int32(8080), anotherExternalAlias.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Equal(t, "false", anotherExternalAlias.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Equal(t, "true", anotherExternalAlias.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "false", anotherExternalAlias.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
@@ -742,14 +742,14 @@ func TestObjectSynced_MultiComponent_ActiveCluster_ContainsAllAliasesAndSupporti
 	assert.Equal(t, "another.alias.com", anotherExternalAlias.Spec.Rules[0].Host, "App should have an external alias")
 
 	appActiveClusterIngress := getIngressByName("app-active-cluster-url-alias", ingresses)
-	assert.Equal(t, int32(8080), appActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	assert.Equal(t, int32(8080), appActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Equal(t, "false", appActiveClusterIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Equal(t, "false", appActiveClusterIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "true", appActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
 	assert.Equal(t, "app", appActiveClusterIngress.Labels[kube.RadixComponentLabel], "Ingress should have the corresponding component")
 
 	quoteActiveClusterIngress := getIngressByName("radixquote-active-cluster-url-alias", ingresses)
-	assert.Equal(t, int32(3000), quoteActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	assert.Equal(t, int32(3000), quoteActiveClusterIngress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 	assert.Equal(t, "false", quoteActiveClusterIngress.Labels[kube.RadixAppAliasLabel], "Ingress should not be an app alias")
 	assert.Equal(t, "false", quoteActiveClusterIngress.Labels[kube.RadixExternalAliasLabel], "Ingress should not be an external app alias")
 	assert.Equal(t, "true", quoteActiveClusterIngress.Labels[kube.RadixActiveClusterAliasLabel], "Ingress should not be an active cluster alias")
@@ -925,7 +925,7 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 	expectedServices := getServicesForRadixComponents(&services.Items)
 	assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Number of ingresses was not according to public components")
 
 	teardownTest()
@@ -1035,7 +1035,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	services, _ := client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, firstUID, services.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, firstUID, ingresses.Items[0].OwnerReferences[0].UID, "First RD didn't take effect")
 
 	time.Sleep(1 * time.Millisecond)
@@ -1058,7 +1058,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	services, _ = client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Second RD didn't take effect")
 
 	// Re-apply the first  This should be ignored and cause an error as it is not the latest
@@ -1083,7 +1083,7 @@ func TestObjectSynced_NotLatest_DeploymentIsIgnored(t *testing.T) {
 	services, _ = client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, services.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, secondUID, ingresses.Items[0].OwnerReferences[0].UID, "Should still be second RD which is the effective in the namespace")
 
 	teardownTest()
@@ -1160,8 +1160,8 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 				WithPublicPort("http")))
 
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, int32(8080), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 
 	time.Sleep(1 * time.Second)
 
@@ -1176,8 +1176,8 @@ func TestObjectUpdated_UpdatePort_IngressIsCorrectlyReconciled(t *testing.T) {
 				WithAlwaysPullImageOnDeploy(true).
 				WithPublicPort("http")))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.ServicePort.IntVal, "Port was unexpected")
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, int32(8081), ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend.Service.Port.Number, "Port was unexpected")
 
 	teardownTest()
 }
@@ -1264,7 +1264,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 				WithDNSAppAlias(true)))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Truef(t, ingressByNameExists("any-app-url-alias", ingresses), "App should have had an app alias ingress")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "Cluster specific ingress for public component should exist")
@@ -1281,7 +1281,7 @@ func TestObjectUpdated_WithAppAliasRemoved_AliasIngressIsCorrectlyReconciled(t *
 				WithPublicPort("http").
 				WithDNSAppAlias(false)))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Alias ingress should have been removed")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "Cluster specific ingress for public component should exist")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have another external alias")
@@ -1354,7 +1354,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 
 	t.Run("validate ingress", func(t *testing.T) {
 		t.Parallel()
-		ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(ingresses.Items), "Number of ingresses was not according to public components")
 	})
 
@@ -1404,7 +1404,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Both components should be public")
 
 	// Remove public on component 2
@@ -1422,7 +1422,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 				WithPublicPort("")))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Only component 1 should be public")
 
 	// Remove public on component 1
@@ -1441,7 +1441,7 @@ func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(ingresses.Items), "No component should be public")
 
 	teardownTest()
@@ -1612,9 +1612,9 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
-	assert.Equal(t, 80, ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue())
+	assert.Equal(t, int32(80), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 
 	// New publicPort exists, old public exists (ignored)
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1629,9 +1629,9 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Component should be public")
-	assert.Equal(t, 80, ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue())
+	assert.Equal(t, int32(80), ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number)
 
 	// New publicPort does not exist, old public does not exist
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1646,7 +1646,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(false)))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(ingresses.Items), "Component should not be public")
 
 	// New publicPort does not exist, old public exists (used)
@@ -1662,17 +1662,17 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 				WithPublic(true)))
 
 	assert.NoError(t, err)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	expectedIngresses := getIngressesForRadixComponents(&ingresses.Items)
 	assert.Equal(t, 1, len(expectedIngresses), "Component should be public")
-	actualPortValue := ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntValue()
-	assert.Equal(t, 443, actualPortValue)
+	actualPortValue := ingresses.Items[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number
+	assert.Equal(t, int32(443), actualPortValue)
 
 	teardownTest()
 }
 
-func getIngressesForRadixComponents(ingresses *[]networkingv1beta1.Ingress) []networkingv1beta1.Ingress {
-	var result []networkingv1beta1.Ingress
+func getIngressesForRadixComponents(ingresses *[]networkingv1.Ingress) []networkingv1.Ingress {
+	var result []networkingv1.Ingress
 	for _, ing := range *ingresses {
 		if val, ok := ing.Labels["radix-component"]; ok && val != "job" {
 			result = append(result, ing)
@@ -1703,7 +1703,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithDNSExternalAlias("some.alias.com")))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1733,7 +1733,7 @@ func TestObjectUpdated_WithAllExternalAliasRemoved_ExternalAliasIngressIsCorrect
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	secrets, _ = client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	rolebindings, _ = client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
@@ -1771,7 +1771,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithSecrets([]string{"a_secret"})))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 4, len(ingresses.Items), "Environment should have four ingresses")
 	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
 	assert.Truef(t, ingressByNameExists("another.alias.com", ingresses), "App should have had another external alias ingress")
@@ -1780,12 +1780,12 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 
 	externalAliasIngress := getIngressByName("some.alias.com", ingresses)
 	assert.Equal(t, "some.alias.com", externalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8080), externalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+	assert.Equal(t, int32(8080), externalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
 	anotherExternalAliasIngress := getIngressByName("another.alias.com", ingresses)
 	assert.Equal(t, "another.alias.com", anotherExternalAliasIngress.GetName(), "App should have had another external alias ingress")
 	assert.Equal(t, "another.alias.com", anotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8080), anotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+	assert.Equal(t, int32(8080), anotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
 	roles, _ := client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
@@ -1804,7 +1804,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithDNSExternalAlias("yet.another.alias.com").
 				WithSecrets([]string{"a_secret"})))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 4, len(ingresses.Items), "Environment should have four ingresses")
 	assert.Truef(t, ingressByNameExists("some.alias.com", ingresses), "App should have had an external alias ingress")
 	assert.Truef(t, ingressByNameExists("yet.another.alias.com", ingresses), "App should have had another external alias ingress")
@@ -1813,11 +1813,11 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 
 	externalAliasIngress = getIngressByName("some.alias.com", ingresses)
 	assert.Equal(t, "some.alias.com", externalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8081), externalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+	assert.Equal(t, int32(8081), externalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
 	yetAnotherExternalAliasIngress := getIngressByName("yet.another.alias.com", ingresses)
 	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
 	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(roles.Items[0].Rules[0].ResourceNames))
@@ -1835,7 +1835,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithDNSExternalAlias("yet.another.alias.com").
 				WithSecrets([]string{"a_secret"})))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(ingresses.Items), "Environment should have three ingresses")
 	assert.Truef(t, ingressByNameExists("yet.another.alias.com", ingresses), "App should have had another external alias ingress")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
@@ -1843,7 +1843,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 
 	yetAnotherExternalAliasIngress = getIngressByName("yet.another.alias.com", ingresses)
 	assert.Equal(t, "yet.another.alias.com", yetAnotherExternalAliasIngress.Spec.Rules[0].Host, "App should have an external alias")
-	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.ServicePort.IntVal, "Correct service port")
+	assert.Equal(t, int32(8081), yetAnotherExternalAliasIngress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number, "Correct service port")
 
 	roles, _ = client.RbacV1().Roles(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(roles.Items[0].Rules[0].ResourceNames))
@@ -1859,7 +1859,7 @@ func TestObjectUpdated_WithOneExternalAliasRemovedOrModified_AllChangesPropelyRe
 				WithPort("http", 8080).
 				WithPublicPort("http")))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "External alias ingress should have been removed")
 	assert.Truef(t, ingressByNameExists("frontend-active-cluster-url-alias", ingresses), "App should have active cluster alias")
 	assert.Truef(t, ingressByNameExists("frontend", ingresses), "App should have cluster specific alias")
@@ -1890,7 +1890,7 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
 
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(ingresses.Items), "Environment should have two ingresses")
 	activeClusterIngress := getIngressByName(getActiveClusterIngressName(anyComponentName), ingresses)
 	assert.False(t, strings.Contains(activeClusterIngress.Spec.Rules[0].Host, clusterName))
@@ -1900,7 +1900,7 @@ func TestFixedAliasIngress_ActiveCluster(t *testing.T) {
 	// Current cluster is not active cluster
 	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, "newClusterName")
 	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, radixDeployBuilder)
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(ingresses.Items), "Environment should have one ingresses")
 	assert.True(t, strings.Contains(ingresses.Items[0].Spec.Rules[0].Host, clusterName))
 
@@ -2199,21 +2199,21 @@ func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T
 				WithIngressConfiguration("socket")))
 
 	// Test
-	ingresses, _ := client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ := client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
 	appAliasIngress := getIngressByName("any-app-url-alias", ingresses)
 	clusterSpecificIngress := getIngressByName("frontend", ingresses)
 	activeClusterIngress := getIngressByName("frontend-active-cluster-url-alias", ingresses)
-	assert.Equal(t, 2, len(appAliasIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 2, len(clusterSpecificIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 2, len(activeClusterIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 1, len(appAliasIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 1, len(clusterSpecificIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 1, len(activeClusterIngress.ObjectMeta.Annotations))
 
-	ingresses, _ = client.NetworkingV1beta1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(context.TODO(), metav1.ListOptions{})
+	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(context.TODO(), metav1.ListOptions{})
 	appAliasIngress = getIngressByName("any-app-2-url-alias", ingresses)
 	clusterSpecificIngress = getIngressByName("frontend", ingresses)
 	activeClusterIngress = getIngressByName("frontend-active-cluster-url-alias", ingresses)
-	assert.Equal(t, 5, len(appAliasIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 5, len(clusterSpecificIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 5, len(activeClusterIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 4, len(appAliasIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 4, len(clusterSpecificIngress.ObjectMeta.Annotations))
+	assert.Equal(t, 4, len(activeClusterIngress.ObjectMeta.Annotations))
 
 }
 
@@ -3401,7 +3401,7 @@ func serviceByNameExists(name string, services *corev1.ServiceList) bool {
 	return false
 }
 
-func getIngressByName(name string, ingresses *networkingv1beta1.IngressList) *networkingv1beta1.Ingress {
+func getIngressByName(name string, ingresses *networkingv1.IngressList) *networkingv1.Ingress {
 	for _, ingress := range ingresses.Items {
 		if ingress.Name == name {
 			return &ingress
@@ -3411,7 +3411,7 @@ func getIngressByName(name string, ingresses *networkingv1beta1.IngressList) *ne
 	return nil
 }
 
-func ingressByNameExists(name string, ingresses *networkingv1beta1.IngressList) bool {
+func ingressByNameExists(name string, ingresses *networkingv1.IngressList) bool {
 	ingress := getIngressByName(name, ingresses)
 	if ingress != nil {
 		return true
