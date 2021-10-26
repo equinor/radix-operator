@@ -224,7 +224,8 @@ func getAppAliasIngressConfig(appName string, ownerReference []metav1.OwnerRefer
 	}
 
 	hostname := fmt.Sprintf("%s.%s", appName, appAlias)
-	ingressSpec := getIngressSpec(hostname, component.GetName(), appAliasTLSSecretName, publicPortNumber)
+	ingressClass := "nginx-app"
+	ingressSpec := getIngressSpec(hostname, component.GetName(), ingressClass, appAliasTLSSecretName, publicPortNumber)
 
 	return getIngressConfig(appName, component, getAppAliasIngressName(appName), ownerReference, config, true, false, false, ingressSpec, namespace)
 }
@@ -245,7 +246,8 @@ func getActiveClusterAliasIngressConfig(
 	if hostname == "" {
 		return nil
 	}
-	ingressSpec := getIngressSpec(hostname, component.GetName(), activeClusterTLSSecretName, publicPortNumber)
+	ingressClass := "nginx-active-cluster"
+	ingressSpec := getIngressSpec(hostname, component.GetName(), ingressClass, activeClusterTLSSecretName, publicPortNumber)
 	ingressName := getActiveClusterIngressName(component.GetName())
 
 	return getIngressConfig(appName, component, ingressName, ownerReference, config, false, false, true, ingressSpec, namespace)
@@ -268,7 +270,8 @@ func getDefaultIngressConfig(
 		return nil
 	}
 	hostname := getHostName(component.GetName(), namespace, clustername, dnsZone)
-	ingressSpec := getIngressSpec(hostname, component.GetName(), clusterDefaultTLSSecretName, publicPortNumber)
+	ingressClass := "nginx"
+	ingressSpec := getIngressSpec(hostname, component.GetName(), ingressClass, clusterDefaultTLSSecretName, publicPortNumber)
 
 	return getIngressConfig(appName, component, getDefaultIngressName(component.GetName()), ownerReference, config, false, false, false, ingressSpec, namespace)
 }
@@ -286,7 +289,8 @@ func (deploy *Deployment) getExternalAliasIngressConfig(
 	namespace string,
 	publicPortNumber int32,
 ) (*networkingv1.Ingress, error) {
-	ingressSpec := getIngressSpec(externalAlias, component.GetName(), externalAlias, publicPortNumber)
+	ingressClass := "nginx"
+	ingressSpec := getIngressSpec(externalAlias, component.GetName(), ingressClass, externalAlias, publicPortNumber)
 	return getIngressConfig(appName, component, externalAlias, ownerReference, config, false, true, false, ingressSpec, namespace), nil
 }
 
@@ -373,9 +377,8 @@ func getIngressConfig(
 	return ingress
 }
 
-func getIngressSpec(hostname, serviceName, tlsSecretName string, servicePort int32) networkingv1.IngressSpec {
+func getIngressSpec(hostname, serviceName, ingressClass, tlsSecretName string, servicePort int32) networkingv1.IngressSpec {
 	pathType := networkingv1.PathTypeImplementationSpecific
-	ingressClass := "nginx"
 
 	return networkingv1.IngressSpec{
 		IngressClassName: &ingressClass,
