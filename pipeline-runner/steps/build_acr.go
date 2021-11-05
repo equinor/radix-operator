@@ -22,14 +22,14 @@ type void struct{}
 
 var member void
 
-func createACRBuildJob(rr *v1.RadixRegistration, containerRegistry string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
+func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
 	appName := rr.Name
 	branch := pipelineInfo.PipelineArguments.Branch
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 
 	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
-	buildContainers := createACRBuildContainers(containerRegistry, appName, pipelineInfo, buildSecrets)
+	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
 
@@ -93,15 +93,17 @@ func createACRBuildJob(rr *v1.RadixRegistration, containerRegistry string, pipel
 	return &job, nil
 }
 
-func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
+func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 
 	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
-	clustertype := pipelineInfo.PipelineArguments.Clustertype
-	clustername := pipelineInfo.PipelineArguments.Clustername
+	clusterType := pipelineInfo.PipelineArguments.Clustertype
+	clusterName := pipelineInfo.PipelineArguments.Clustername
+	containerRegistry := pipelineInfo.ContainerRegistry
+	subscriptionId := pipelineInfo.SubscriptionId
 
-	containers := []corev1.Container{}
+	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 	noPushFlag := "--no-push"
@@ -117,15 +119,15 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 		}
 
 		if _, exists := distinctBuildContainers[componentImage.ContainerName]; exists {
-			// We allready have a container for this multi-component
+			// We already have a container for this multi-component
 			continue
 		}
 
 		distinctBuildContainers[componentImage.ContainerName] = member
 
-		// For extra meta inforamtion about an image
-		clustertypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clustertype, imageTag))
-		clusternameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clustername, imageTag))
+		// For extra meta information about an image
+		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterType, imageTag))
+		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
 
 		envVars := []corev1.EnvVar{
 			{
@@ -152,15 +154,19 @@ func createACRBuildContainers(containerRegistry, appName string, pipelineInfo *m
 				Name:  "AZURE_CREDENTIALS",
 				Value: fmt.Sprintf("%s/sp_credentials.json", azureServicePrincipleContext),
 			},
+			{
+				Name:  "SUBSCRIPTION_ID",
+				Value: subscriptionId,
+			},
 
 			// Extra meta information
 			{
 				Name:  "CLUSTERTYPE_IMAGE",
-				Value: clustertypeImage,
+				Value: clusterTypeImage,
 			},
 			{
 				Name:  "CLUSTERNAME_IMAGE",
-				Value: clusternameImage,
+				Value: clusterNameImage,
 			},
 		}
 

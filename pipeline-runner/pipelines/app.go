@@ -66,12 +66,17 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	if err != nil {
 		return err
 	}
+	subscriptionId, err := cli.kubeUtil.GetSubscriptionId()
+	if err != nil {
+		return err
+	}
 
 	cli.pipelineInfo.ContainerRegistry = containerRegistry
+	cli.pipelineInfo.SubscriptionId = subscriptionId
 	return nil
 }
 
-// Run runs throught the steps in the defined pipeline
+// Run runs through the steps in the defined pipeline
 func (cli *PipelineRunner) Run() error {
 	log.Infof("Start pipeline %s for app %s", cli.pipelineInfo.Definition.Type, cli.appName)
 
@@ -88,7 +93,12 @@ func (cli *PipelineRunner) Run() error {
 
 // TearDown performs any needed cleanup
 func (cli *PipelineRunner) TearDown() {
-	cli.kubeclient.CoreV1().ConfigMaps(utils.GetAppNamespace(cli.appName)).Delete(context.TODO(), cli.pipelineInfo.RadixConfigMapName, metav1.DeleteOptions{})
+	namespace := utils.GetAppNamespace(cli.appName)
+	configMapName := cli.pipelineInfo.RadixConfigMapName
+	err := cli.kubeclient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), configMapName, metav1.DeleteOptions{})
+	if err != nil {
+		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", configMapName, namespace, err)
+	}
 }
 
 func initStepImplementations(

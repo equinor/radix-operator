@@ -31,6 +31,8 @@ rules:
   - radixdeployments/status
   - radixjobs
   - radixjobs/status
+  - radixalerts
+  - radixalerts/status
   verbs:
   - get
   - list
@@ -104,6 +106,18 @@ rules:
   - autoscaling
   resources:
   - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - 'monitoring.coreos.com'
+  resources:
+  - alertmanagerconfigs
   verbs:
   - get
   - list

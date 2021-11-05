@@ -11,6 +11,7 @@ jobScheduler: radix-job-scheduler:main-latest
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 containerRegistry: radixdev.azurecr.io
+subscriptionId:
 
 app:
   # Limit range on app namespace

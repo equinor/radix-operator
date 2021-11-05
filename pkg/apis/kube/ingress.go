@@ -7,7 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
-	networkingv1beta1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,13 +17,13 @@ import (
 )
 
 // ApplyIngress Will create or update ingress in provided namespace
-func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.Ingress) error {
+func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingress) error {
 	ingressName := ingress.GetName()
 	log.Debugf("Creating Ingress object %s in namespace %s", ingressName, namespace)
 
 	oldIngress, err := kubeutil.getIngress(namespace, ingressName)
 	if err != nil && errors.IsNotFound(err) {
-		_, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
+		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to create Ingress object: %v", err)
 		}
@@ -49,13 +49,13 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.
 		return fmt.Errorf("Failed to marshal new Ingress object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldIngressJSON, newIngressJSON, networkingv1beta1.Ingress{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldIngressJSON, newIngressJSON, networkingv1.Ingress{})
 	if err != nil {
 		return fmt.Errorf("Failed to create two way merge patch Ingess objects: %v", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
-		patchedIngress, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Patch(context.TODO(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(context.TODO(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to patch Ingress object: %v", err)
 		}
@@ -67,8 +67,8 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1beta1.
 	return nil
 }
 
-func (kubeutil *Kube) getIngress(namespace, name string) (*networkingv1beta1.Ingress, error) {
-	var ingress *networkingv1beta1.Ingress
+func (kubeutil *Kube) getIngress(namespace, name string) (*networkingv1.Ingress, error) {
+	var ingress *networkingv1.Ingress
 	var err error
 
 	if kubeutil.IngressLister != nil {
@@ -77,7 +77,7 @@ func (kubeutil *Kube) getIngress(namespace, name string) (*networkingv1beta1.Ing
 			return nil, err
 		}
 	} else {
-		ingress, err = kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		ingress, err = kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -87,13 +87,13 @@ func (kubeutil *Kube) getIngress(namespace, name string) (*networkingv1beta1.Ing
 }
 
 // ListIngresses lists ingresses
-func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1beta1.Ingress, error) {
+func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1.Ingress, error) {
 	return kubeutil.ListIngressesWithSelector(namespace, nil)
 }
 
 // ListIngressesWithSelector lists ingresses
-func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString *string) ([]*networkingv1beta1.Ingress, error) {
-	var ingresses []*networkingv1beta1.Ingress
+func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString *string) ([]*networkingv1.Ingress, error) {
+	var ingresses []*networkingv1.Ingress
 	var err error
 
 	if kubeutil.IngressLister != nil {
@@ -123,12 +123,12 @@ func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorS
 			listOptions.LabelSelector = *labelSelectorString
 		}
 
-		list, err := kubeutil.kubeClient.NetworkingV1beta1().Ingresses(namespace).List(context.TODO(), listOptions)
+		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.TODO(), listOptions)
 		if err != nil {
 			return nil, err
 		}
 
-		ingresses = slice.PointersOf(list.Items).([]*networkingv1beta1.Ingress)
+		ingresses = slice.PointersOf(list.Items).([]*networkingv1.Ingress)
 	}
 
 	return ingresses, nil

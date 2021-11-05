@@ -10,7 +10,7 @@ import (
 	appsv1Listers "k8s.io/client-go/listers/apps/v1"
 	batchListers "k8s.io/client-go/listers/batch/v1"
 	coreListers "k8s.io/client-go/listers/core/v1"
-	networkingListers "k8s.io/client-go/listers/networking/v1beta1"
+	networkingListers "k8s.io/client-go/listers/networking/v1"
 	rbacListers "k8s.io/client-go/listers/rbac/v1"
 )
 
@@ -62,8 +62,8 @@ type Kube struct {
 	RrLister                 v1Lister.RadixRegistrationLister
 	ReLister                 v1Lister.RadixEnvironmentLister
 	RdLister                 v1Lister.RadixDeploymentLister
+	RadixAlertLister         v1Lister.RadixAlertLister
 	NamespaceLister          coreListers.NamespaceLister
-	ConfigMapLister          coreListers.ConfigMapLister
 	SecretLister             coreListers.SecretLister
 	DeploymentLister         appsv1Listers.DeploymentLister
 	IngressLister            networkingListers.IngressLister
@@ -103,12 +103,12 @@ func NewWithListers(client kubernetes.Interface,
 		RrLister:                 radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
 		ReLister:                 radixInformerFactory.Radix().V1().RadixEnvironments().Lister(),
 		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),
+		RadixAlertLister:         radixInformerFactory.Radix().V1().RadixAlerts().Lister(),
 		NamespaceLister:          kubeInformerFactory.Core().V1().Namespaces().Lister(),
-		ConfigMapLister:          kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
 		SecretLister:             kubeInformerFactory.Core().V1().Secrets().Lister(),
 		DeploymentLister:         kubeInformerFactory.Apps().V1().Deployments().Lister(),
 		ServiceLister:            kubeInformerFactory.Core().V1().Services().Lister(),
-		IngressLister:            kubeInformerFactory.Networking().V1beta1().Ingresses().Lister(),
+		IngressLister:            kubeInformerFactory.Networking().V1().Ingresses().Lister(),
 		RoleBindingLister:        kubeInformerFactory.Rbac().V1().RoleBindings().Lister(),
 		ClusterRoleBindingLister: kubeInformerFactory.Rbac().V1().ClusterRoleBindings().Lister(),
 		RoleLister:               kubeInformerFactory.Rbac().V1().Roles().Lister(),

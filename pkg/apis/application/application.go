@@ -197,8 +197,7 @@ func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
 	if registration.Spec.AdGroups == nil || len(registration.Spec.AdGroups) <= 0 {
 		defaultGroup := os.Getenv(OperatorDefaultUserGroupEnvironmentVariable)
 		if defaultGroup == "" {
-			err := fmt.Errorf("Cannot obtain ad-group as %s has not been set for the operator", OperatorDefaultUserGroupEnvironmentVariable)
-			logger.Error(err)
+			err := fmt.Errorf("cannot obtain ad-group as %s has not been set for the operator", OperatorDefaultUserGroupEnvironmentVariable)
 			return []string{}, err
 		}
 

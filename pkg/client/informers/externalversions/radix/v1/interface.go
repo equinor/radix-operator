@@ -24,6 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
+	// RadixAlerts returns a RadixAlertInformer.
+	RadixAlerts() RadixAlertInformer
 	// RadixApplications returns a RadixApplicationInformer.
 	RadixApplications() RadixApplicationInformer
 	// RadixDeployments returns a RadixDeploymentInformer.
@@ -45,6 +47,11 @@ type version struct {
 // New returns a new Interface.
 func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakListOptions internalinterfaces.TweakListOptionsFunc) Interface {
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
+}
+
+// RadixAlerts returns a RadixAlertInformer.
+func (v *version) RadixAlerts() RadixAlertInformer {
+	return &radixAlertInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // RadixApplications returns a RadixApplicationInformer.

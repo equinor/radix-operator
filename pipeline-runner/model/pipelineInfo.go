@@ -33,6 +33,8 @@ type PipelineInfo struct {
 
 	// Container registry to build with
 	ContainerRegistry string
+	//Subscription ID to build with
+	SubscriptionId string
 
 	// Temporary data
 	RadixConfigMapName string

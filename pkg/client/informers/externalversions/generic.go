@@ -53,6 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=radix.equinor.com, Version=v1
+	case v1.SchemeGroupVersion.WithResource("radixalerts"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixAlerts().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("radixapplications"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixApplications().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("radixdeployments"):
