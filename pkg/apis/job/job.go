@@ -390,6 +390,10 @@ func (job *Job) getJobSteps(pipelineJob *batchv1.Job) ([]v1.RadixJobStep, error)
 func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *batchv1.Job) ([]v1.RadixJobStep, error) {
 	var steps []v1.RadixJobStep
 
+	// pipeline coordinator
+	pipelineJobStep := getPipelineJobStep(pipelinePod)
+	steps = append(steps, pipelineJobStep)
+
 	// Clone of radix config should be represented
 	cloneConfigStep, applyConfigStep := job.getCloneConfigStep()
 	if cloneConfigStep != nil {
@@ -398,10 +402,6 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 	if applyConfigStep != nil {
 		steps = append(steps, *applyConfigStep)
 	}
-
-	// pipeline coordinator
-	pipelineJobStep := getPipelineJobStep(pipelinePod)
-	steps = append(steps, pipelineJobStep)
 
 	jobStepsLabelSelector := fmt.Sprintf("%s=%s, %s!=%s", kube.RadixImageTagLabel, pipelineJob.Labels[kube.RadixImageTagLabel], kube.RadixJobTypeLabel, kube.RadixJobTypeJob)
 	jobStepList, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{
