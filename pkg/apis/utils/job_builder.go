@@ -399,18 +399,18 @@ func NewJobStepBuilder() JobStepBuilder {
 	return &jobStepBuilder{}
 }
 
-// ACloneConfigStep Constructor clone-config
-func ACloneConfigStep() JobStepBuilder {
-	builder := NewJobStepBuilder().
-		WithName("clone-config")
-
-	return builder
-}
-
 // ARadixPipelineStep Constructor radix-pipeline
 func ARadixPipelineStep() JobStepBuilder {
 	builder := NewJobStepBuilder().
 		WithName("radix-pipeline")
+
+	return builder
+}
+
+// ACloneConfigStep Constructor clone-config
+func ACloneConfigStep() JobStepBuilder {
+	builder := NewJobStepBuilder().
+		WithName("clone-config")
 
 	return builder
 }
