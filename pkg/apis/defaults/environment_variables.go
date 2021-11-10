@@ -67,8 +67,8 @@ const (
 	// RadixImageScannerEnvironmentVariable Points to the image scanner
 	RadixImageScannerEnvironmentVariable = "RADIX_IMAGE_SCANNER"
 
-	// OperatorRadixJobSchedulerEnvironmentVariable Points to the image used to deploy job scheduler REST API for RD jobs
-	OperatorRadixJobSchedulerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER"
+	// OperatorRadixJobSchedulerServerEnvironmentVariable Points to the image used to deploy job scheduler REST API for RD jobs
+	OperatorRadixJobSchedulerServerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER_SERVER"
 
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"

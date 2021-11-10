@@ -40,7 +40,7 @@ func teardownSecretsTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 	os.Unsetenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
-	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorRadixJobSchedulerServerEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 

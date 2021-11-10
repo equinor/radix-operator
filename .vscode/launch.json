@@ -1,7 +1,4 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
@@ -74,9 +71,9 @@
         "RADIX_CONFIG_TO_MAP": "radix-config-2-map:master-latest",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
         "RADIX_IMAGE_SCANNER": "radix-image-scanner:master-latest",
-        "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler:main-latest",
+        "RADIXOPERATOR_JOB_SCHEDULER_SERVER": "radix-job-scheduler-server:main-latest",
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
-        "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER": "true",
+        "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER": "true"
       },
       "args": ["--useOutClusterClient=false"]
     },

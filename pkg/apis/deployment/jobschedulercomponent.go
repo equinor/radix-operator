@@ -26,7 +26,7 @@ func (js *jobSchedulerComponent) GetType() string {
 
 func (js *jobSchedulerComponent) GetImage() string {
 	containerRegistry := os.Getenv(defaults.ContainerRegistryEnvironmentVariable)
-	radixJobScheduler := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	radixJobScheduler := os.Getenv(defaults.OperatorRadixJobSchedulerServerEnvironmentVariable)
 	radixJobSchedulerImageUrl := fmt.Sprintf("%s/%s", containerRegistry, radixJobScheduler)
 	return radixJobSchedulerImageUrl
 }

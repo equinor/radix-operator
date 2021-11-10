@@ -451,10 +451,10 @@ func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeploy
 }
 
 func getRadixJobSchedulerImage() (string, error) {
-	image := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	image := os.Getenv(defaults.OperatorRadixJobSchedulerServerEnvironmentVariable)
 
 	if image == "" {
-		err := fmt.Errorf("cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+		err := fmt.Errorf("cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerServerEnvironmentVariable)
 		log.Error(err)
 	}
 

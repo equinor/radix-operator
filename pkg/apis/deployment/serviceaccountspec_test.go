@@ -26,7 +26,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
+		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
 	})
 
 	t.Run("radix api", func(t *testing.T) {
@@ -45,7 +45,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
+		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
 	})
 
 	t.Run("radix webhook", func(t *testing.T) {
@@ -64,6 +64,6 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
+		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
 	})
 }
