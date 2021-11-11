@@ -80,7 +80,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 	return func() {
 		newServiceAccount := corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.RadixJobSchedulerServiceName,
+				Name:      defaults.RadixJobSchedulerServerServiceName,
 				Namespace: namespace,
 			},
 		}
@@ -96,7 +96,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 					Namespace: serviceAccount.Namespace,
 				}}
 
-			roleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerRoleName, subjects)
+			roleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerServerRoleName, subjects)
 			deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 		}
 	}
