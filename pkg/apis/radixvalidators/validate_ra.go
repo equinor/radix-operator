@@ -805,6 +805,17 @@ func validateEnvNames(app *radixv1.RadixApplication) error {
 		if err != nil {
 			return err
 		}
+		err = validateMaxNameLengthForAppAndEnv(app.Name, env.Name)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
+	if len(appName)+len(envName) > 62 {
+		return fmt.Errorf("summary length of app name and environment together should not exceed 62 characters")
 	}
 	return nil
 }
