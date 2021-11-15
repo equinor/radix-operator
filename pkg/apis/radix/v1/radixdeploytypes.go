@@ -87,6 +87,7 @@ type RadixDeployComponent struct {
 	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	EnvironmentVariables    EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets                 []string                `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	KeyVaults               []RadixKeyVault         `json:"secretVaults,omitempty" yaml:"secretVaults,omitempty"`
 	IngressConfiguration    []string                `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	DNSAppAlias             bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
 	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
@@ -121,6 +122,10 @@ func (deployComponent *RadixDeployComponent) GetEnvironmentVariables() EnvVarsMa
 
 func (deployComponent *RadixDeployComponent) GetSecrets() []string {
 	return deployComponent.Secrets
+}
+
+func (deployComponent *RadixDeployComponent) GetKeyVaults() []RadixKeyVault {
+	return deployComponent.KeyVaults
 }
 
 func (deployComponent *RadixDeployComponent) GetMonitoring() bool {
@@ -211,6 +216,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetSecrets() []string {
 	return deployJobComponent.Secrets
 }
 
+func (deployComponent *RadixDeployJobComponent) GetKeyVaults() []RadixKeyVault {
+	return deployComponent.KeyVaults
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetMonitoring() bool {
 	return deployJobComponent.Monitoring
 }
@@ -294,6 +303,7 @@ type RadixDeployJobComponent struct {
 	Ports                   []ComponentPort           `json:"ports" yaml:"ports"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets                 []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	KeyVaults               []RadixKeyVault           `json:"secretVaults,omitempty" yaml:"secretVaults,omitempty"`
 	Monitoring              bool                      `json:"monitoring" yaml:"monitoring"`
 	Resources               ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
@@ -312,6 +322,7 @@ type RadixCommonDeployComponent interface {
 	GetPorts() []ComponentPort
 	GetEnvironmentVariables() EnvVarsMap
 	GetSecrets() []string
+	GetKeyVaults() []RadixKeyVault
 	GetMonitoring() bool
 	GetResources() *ResourceRequirements
 	GetVolumeMounts() []RadixVolumeMount

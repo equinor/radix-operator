@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
@@ -155,6 +157,22 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 	err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// DeleteChangedSecretProviderClass Deletes a role in a namespace
+func (kubeutil *Kube) DeleteChangedSecretProviderClass(namespace string, componentName string, radixKeyVault radixv1.RadixKeyVault) error {
+	scName := utils.GetComponentKeyVaultSecretProviderClassName(componentName, radixKeyVault.Name)
+	//_, err := kubeutil.kubeClient.CoreV1().Namespaces(namespace).Delete( GetKV)
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("Failed to get role object: %v", err)
+	}
+	err = kubeutil.kubeClient.RbacV1().Roles(namespace).Delete(context.TODO(), sc, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("Failed to delete role object: %v", err)
 	}
 	return nil
 }

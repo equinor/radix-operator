@@ -59,6 +59,10 @@ func (js *jobSchedulerComponent) GetSecrets() []string {
 	return nil
 }
 
+func (js *jobSchedulerComponent) GetKeyVaults() []v1.RadixKeyVault {
+	return nil
+}
+
 func (js *jobSchedulerComponent) GetMonitoring() bool {
 	return false
 }

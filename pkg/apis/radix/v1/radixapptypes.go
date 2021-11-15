@@ -263,6 +263,18 @@ type RadixNode struct {
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
 
+// RadixKeyVault defines secret vault
+type RadixKeyVault struct {
+	// Name. Name of the RadixKeyVault configuration
+	Name string `json:"keyVaultName" yaml:"keyVaultName"`
+	// KeyVaultName. Name of the Azure KeyVault
+	KeyVaultName string `json:"keyVaultName" yaml:"keyVaultName"`
+	// SecretName. Name of the Azure KeyVault secret, if KeyName not specified
+	SecretName string `json:"secretName" yaml:"secretName"`
+	// KeyName. Name of the Azure KeyVault key, if SecretName not specified
+	KeyName string `json:"keyName" yaml:"keyName"`
+}
+
 type Authentication struct {
 	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
 }
