@@ -1,6 +1,7 @@
 package radixvalidators_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -88,6 +89,7 @@ func Test_invalid_ra(t *testing.T) {
 	invalidResourceValue := "asdfasd"
 	conflictingVariableName := "some-variable"
 	invalidCertificateVerification := v1.VerificationType("obviously_an_invalid_value")
+	name50charsLong := "a123456789a123456789a123456789a123456789a123456789"
 
 	var testScenarios = []struct {
 		name          string
@@ -450,6 +452,10 @@ func Test_invalid_ra(t *testing.T) {
 		{"job inconcistent dynamic tag config for environment", radixvalidators.ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(validRAFirstJobName, "dev"), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].Image = "radixcanary.azurecr.io/my-private-image:some-tag"
 			ra.Spec.Jobs[0].EnvironmentConfig[0].ImageTagName = "any-tag"
+		}},
+		{"too long app name together with env name", fmt.Errorf("summary length of app name and environment together should not exceed 62 characters"), func(ra *v1.RadixApplication) {
+			ra.Name = name50charsLong
+			ra.Spec.Environments = append(ra.Spec.Environments, v1.Environment{Name: "extra-14-chars"})
 		}},
 	}
 
