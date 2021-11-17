@@ -3,6 +3,7 @@ module github.com/equinor/radix-operator
 go 1.16
 
 require (
+	github.com/Azure/secrets-store-csi-driver-provider-azure v1.0.0 // indirect
 	github.com/equinor/radix-common v1.1.6
 	github.com/golang/mock v1.4.4
 	github.com/prometheus-operator/prometheus-operator v0.44.0

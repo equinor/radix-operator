@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // SecretExists Checks if secret already exists
@@ -164,6 +165,7 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 // DeleteChangedSecretProviderClass Deletes a role in a namespace
 func (kubeutil *Kube) DeleteChangedSecretProviderClass(namespace string, componentName string, radixKeyVault radixv1.RadixKeyVault) error {
 	scName := utils.GetComponentKeyVaultSecretProviderClassName(componentName, radixKeyVault.Name)
+	class := secretsstorev1.SecretProviderClass{}
 	//_, err := kubeutil.kubeClient.CoreV1().Namespaces(namespace).Delete( GetKV)
 	if err != nil && errors.IsNotFound(err) {
 		return nil
