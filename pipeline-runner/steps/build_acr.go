@@ -102,7 +102,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	clusterName := pipelineInfo.PipelineArguments.Clustername
 	containerRegistry := pipelineInfo.ContainerRegistry
 	subscriptionId := pipelineInfo.SubscriptionId
-
+	branch := pipelineInfo.PipelineArguments.Branch
+	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
 	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
@@ -168,6 +169,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "CLUSTERNAME_IMAGE",
 				Value: clusterNameImage,
 			},
+			{
+				Name:  "BRANCH",
+				Value: branch,
+			},
+			{
+				Name:  "TARGET_ENVIRONMENTS",
+				Value: targetEnvs,
+			},
 		}
 
 		envVars = append(envVars, buildSecrets...)
@@ -195,4 +204,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	}
 
 	return containers
+}
+
+func getTargetEnvsToBuild(pipelineInfo *model.PipelineInfo) []string {
+	var envs []string
+	for env, toBuild := range pipelineInfo.TargetEnvironments {
+		if toBuild {
+			envs = append(envs, env)
+		}
+	}
+	return envs
 }
