@@ -201,6 +201,7 @@ rules:
   - create
   - delete
   - patch
+  - update
 - apiGroups:
   - '*'
   resources:
