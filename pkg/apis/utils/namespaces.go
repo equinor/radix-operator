@@ -33,19 +33,19 @@ func GetComponentSecretName(componentName string) string {
 }
 
 // GetComponentKeyVaultSecretName Gets unique name of the component key-vault secret
-func GetComponentKeyVaultSecretName(componentName string, radixKeyVaultName string) string {
+func GetComponentKeyVaultSecretName(componentName, secretRefType, secretRefName string) string {
 	// include a hash so that users cannot get access to a key-vault secret they should not ,
 	// by naming component the same as key-vault secret object
 	hash := strings.ToLower(RandStringStrSeed(8, componentName))
-	return fmt.Sprintf("%s-keyvault-%s-%s", componentName, radixKeyVaultName, hash)
+	return fmt.Sprintf("%s-%s-%s-%s", componentName, secretRefType, secretRefName, hash)
 }
 
-// GetComponentKeyVaultSecretProviderClassName Gets unique name of the component key-vault secret storage class
-func GetComponentKeyVaultSecretProviderClassName(componentName string, radixKeyVaultName string) string {
-	// include a hash so that users cannot get access to a key-vault secret they should not ,
-	// by naming component the same as key-vault secret object
+// GetComponentSecretProviderClassName Gets unique name of the component secret storage class
+func GetComponentSecretProviderClassName(componentName, secretRefType, secretRefName string) string {
+	// include a hash so that users cannot get access to a secret-ref they should not ,
+	// by naming component the same as secret-ref object
 	hash := strings.ToLower(RandStringStrSeed(8, componentName))
-	return fmt.Sprintf("sc-%s-keyvault-%s-%s", componentName, radixKeyVaultName, hash)
+	return fmt.Sprintf("%s-%s-%s-%s", componentName, secretRefType, secretRefName, hash)
 }
 
 // GetComponentClientCertificateSecretName Gets name of the component secret that holds the ca.crt public key for clientcertificate authentication

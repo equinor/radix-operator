@@ -47,7 +47,7 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 	appName := args[defaults.RadixAppEnvironmentVariable]
 
 	pipelineArgs := model.GetPipelineArgsFromArguments(args)
-	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient, _ := utils.GetKubernetesClient()
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {

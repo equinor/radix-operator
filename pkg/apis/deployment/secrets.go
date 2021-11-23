@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 	"strconv"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -13,7 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	secrets "sigs.k8s.io/secrets-store-csi-driver"
 	//secrets "sigs.k8s.io/secrets-store-csi-driver"
 )
 
@@ -131,36 +131,30 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
 	}
 
-	for _, radixKeyVault := range component.GetKeyVaults() {
-		deploy.kubeutil.DeleteChangedSecretProviderClass(namespace, component.GetName(), radixKeyVault)
-	}
-	for _, radixKeyVault := range component.GetKeyVaults() {
-		secretName := utils.GetComponentKeyVaultSecretName(component.GetName(), radixKeyVault.Name)
-		if !deploy.kubeutil.SecretExists(namespace, secretName) {
-			err := deploy.createOrUpdateKeyVault(namespace, registration.Name, component.GetName(), secretName, radixKeyVault)
-			if err != nil {
-				return err
+	//TODO
+	//for _, radixKeyVault := range component.GetSecretRefs() {
+	//	deploy.kubeutil.DeleteChangedSecretProviderClass(namespace, component.GetName(), radixKeyVault)
+	//}
+	azKeyVaultSecretRefType := string(radixv1.RadixSecretRefAzureKeyVault)
+	for _, secretRef := range component.GetSecretRefs() {
+		for _, radixAzureKeyVault := range secretRef.AzureKeyVaults {
+			azKeyVaultSecretRefName := radixAzureKeyVault.Name
+			secretName := utils.GetComponentKeyVaultSecretName(component.GetName(), azKeyVaultSecretRefType, azKeyVaultSecretRefName)
+			if !deploy.kubeutil.SecretProviderClassExists(namespace, component.GetName(), azKeyVaultSecretRefType, azKeyVaultSecretRefName) {
+				err := deploy.createOrUpdateSecretProviderClassForAzureKeyVault(namespace, registration.Name, component.GetName(), azKeyVaultSecretRefType, azKeyVaultSecretRefName)
+				if err != nil {
+					return err
+				}
 			}
-		} else {
-			err := deploy.removeOrphanedSecrets(namespace, secretName, component.GetSecrets())
-			if err != nil {
-				return err
+			labelSelector := kube.GetLabelSelectorForSecretRefObject(component.GetName(), azKeyVaultSecretRefType, azKeyVaultSecretRefName)
+			if !deploy.kubeutil.SecretExistsForLabels(namespace, labelSelector) {
+				err := deploy.createOrUpdateSecretForAzureKeyVaultSecretProviderClass(namespace, registration.Name, component.GetName(), secretName, azKeyVaultSecretRefName)
+				if err != nil {
+					return err
+				}
 			}
+			secretsToManage = append(secretsToManage, secretName)
 		}
-
-		if !deploy.kubeutil.SecretProviderClassExists(namespace, radixKeyVault) {
-			err := deploy.createOrUpdateKeyVault(namespace, registration.Name, component.GetName(), secretName, radixKeyVault)
-			if err != nil {
-				return err
-			}
-		} else {
-			err := deploy.removeOrphanedSecrets(namespace, secretName, component.GetSecrets())
-			if err != nil {
-				return err
-			}
-		}
-
-		secretsToManage = append(secretsToManage, secretName)
 	}
 
 	if len(secretsToManage) == 0 {
@@ -369,33 +363,52 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateKeyVault(ns, app, component, secretName string, keyVault radixv1.RadixKeyVault) error {
+func (deploy *Deployment) createOrUpdateSecretForAzureKeyVaultSecretProviderClass(ns, app, componentName, secretName, azKeyVaultName string) error {
 	secretType := v1.SecretType("Opaque")
-
 	secret := v1.Secret{
 		Type: secretType,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:       app,
-				kube.RadixComponentLabel: component,
+				kube.RadixAppLabel:           app,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixSecretRefTypeLabel: string(radixv1.RadixSecretRefAzureKeyVault),
+				kube.RadixSecretRefNameLabel: azKeyVaultName,
 			},
 		},
 	}
 
-	//TODO
-	//if isExternalAlias {
-	//	defaultValue := []byte(secretDefaultData)
-	//
-	//	// Will need to set fake data in order to apply the secret. The user then need to set data to real values
-	//	data := make(map[string][]byte)
-	//	data["tls.crt"] = defaultValue
-	//	data["tls.key"] = defaultValue
-	//
-	//	secret.Data = data
-	//}
-	//
+	data := make(map[string][]byte)
+	defaultValue := []byte(secretDefaultData)
+	data["clientid"] = defaultValue
+	data["clientsecret"] = defaultValue
+	data["tenantId"] = defaultValue
+
+	secret.Data = data
+
 	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) createOrUpdateSecretProviderClassForAzureKeyVault(ns, app, componentName, secretRefType, secretRefName string) error {
+	className := utils.GetComponentSecretProviderClassName(componentName, secretRefType, secretRefName)
+	secretProviderClass := secretsstorev1.SecretProviderClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: className,
+			Labels: map[string]string{
+				kube.RadixAppLabel:           app,
+				kube.RadixComponentLabel:     componentName,
+				kube.RadixSecretRefTypeLabel: secretRefType,
+				kube.RadixSecretRefNameLabel: secretRefName,
+			},
+		},
+	}
+
+	_, err := deploy.kubeutil.ApplySecretProviderClass(ns, &secretProviderClass)
 	if err != nil {
 		return err
 	}

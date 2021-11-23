@@ -59,7 +59,7 @@ func (js *jobSchedulerComponent) GetSecrets() []string {
 	return nil
 }
 
-func (js *jobSchedulerComponent) GetKeyVaults() []v1.RadixKeyVault {
+func (js *jobSchedulerComponent) GetSecretRefs() []v1.RadixSecretRef {
 	return nil
 }
 

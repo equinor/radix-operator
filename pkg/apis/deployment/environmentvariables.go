@@ -85,10 +85,10 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 	}
 
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
-	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
+	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.GetSecretRefs(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, radixSecretRefs []v1.RadixSecretRef, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
@@ -97,6 +97,20 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 	var envVars = getEnvVars(envVarConfigMap, deployComponentEnvVars)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
+	envVars = appendEnvVarsFromSecretRefs(envVars, radixSecretRefs)
+	return envVars
+}
+
+func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, secretRefs []v1.RadixSecretRef) []corev1.EnvVar {
+	if len(secretRefs) > 0 {
+		for _, secretRef := range secretRefs {
+			fmt.Println(secretRef)
+			//secretEnvVar := createEnvVarWithSecretRef(componentSecretName, secretRef)
+			//envVars = append(envVars, secretEnvVar)
+		}
+	} else {
+		log.Debugf("No secret-refs is set for this RadixDeployment")
+	}
 	return envVars
 }
 

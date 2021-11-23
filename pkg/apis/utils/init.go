@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 var (
@@ -24,7 +25,7 @@ var (
 )
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface) {
+func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface, *secretProviderClient.Clientset) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 
@@ -53,6 +54,11 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitor
 		log.Fatalf("getClusterConfig prometheus-operator client: %v", err)
 	}
 
+	secretProvider, err := secretProviderClient.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("secretProvider secret provider client client: %v", err)
+	}
+
 	log.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, prometheusOperatorClient
+	return client, radixClient, prometheusOperatorClient, secretProvider
 }

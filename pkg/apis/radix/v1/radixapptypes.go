@@ -263,16 +263,50 @@ type RadixNode struct {
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
 
-// RadixKeyVault defines secret vault
-type RadixKeyVault struct {
-	// Name. Name of the RadixKeyVault configuration
-	Name string `json:"keyVaultName" yaml:"keyVaultName"`
-	// KeyVaultName. Name of the Azure KeyVault
-	KeyVaultName string `json:"keyVaultName" yaml:"keyVaultName"`
-	// SecretName. Name of the Azure KeyVault secret, if KeyName not specified
-	SecretName string `json:"secretName" yaml:"secretName"`
-	// KeyName. Name of the Azure KeyVault key, if SecretName not specified
-	KeyName string `json:"keyName" yaml:"keyName"`
+type RadixSecretRefType string
+
+const (
+	RadixSecretRefAzureKeyVault RadixSecretRefType = "az-keyvault"
+)
+
+// RadixSecretRef defines secret vault
+type RadixSecretRef struct {
+	// AzureKeyVaults. List of RadixSecretRef-s, containing Azure Key Vault configurations
+	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty" yaml:"azureKeyVaults,omitempty"`
+}
+
+// RadixAzureKeyVault defines Azure Key Vault
+type RadixAzureKeyVault struct {
+	// Name. Name of the Azure Key Vault
+	Name string `json:"name" yaml:"name"`
+	// Items. Azure Key Vault items
+	Items []RadixAzureKeyVaultObject `json:"items" yaml:"items"`
+}
+
+type RadixAzureKeyVaultObjectType string
+
+const (
+	RadixAzureKeyVaultObjectTypeSecret RadixAzureKeyVaultObjectType = "secret"
+	RadixAzureKeyVaultObjectTypeKey    RadixAzureKeyVaultObjectType = "key"
+	RadixAzureKeyVaultObjectTypeCert   RadixAzureKeyVaultObjectType = "cert"
+)
+
+// RadixAzureKeyVaultObject defines Azure Key Vault objects: secrets, keys, certificates
+type RadixAzureKeyVaultObject struct {
+	// Name. Name of the Azure Key Vault object
+	Name string `json:"name" yaml:"name"`
+	// EnvVar. Name of the environment variable within replicas, containing Azure Key Vault object value
+	EnvVar string `json:"envVar" yaml:"envVar"`
+	// Type. Optional. Type of the Azure KeyVault object: secret (default), key, cert
+	Type RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
+	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
+	Alias string `json:"alias,omitempty" yaml:"type,omitempty"`
+	// Version. Optional. object versions, default to latest if empty
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
+	Format string `json:"format,omitempty" yaml:"format,omitempty"`
+	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
+	Encoding string `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 }
 
 type Authentication struct {

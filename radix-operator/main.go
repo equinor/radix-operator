@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"syscall"
 	"time"
 
@@ -53,7 +54,7 @@ func main() {
 	default:
 		logger.Logger.SetLevel(log.InfoLevel)
 	}
-	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient()
 
 	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	logger.Printf("Active cluster name: %v", activeclusternameEnvVar)
@@ -65,12 +66,12 @@ func main() {
 
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
-	go startRegistrationController(client, radixClient, eventRecorder, stop)
-	go startApplicationController(client, radixClient, eventRecorder, stop)
-	go startEnvironmentController(client, radixClient, eventRecorder, stop)
-	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
-	go startJobController(client, radixClient, eventRecorder, stop)
-	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
+	go startRegistrationController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient)
+	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -78,11 +79,7 @@ func main() {
 	<-sigTerm
 }
 
-func startRegistrationController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -90,6 +87,7 @@ func startRegistrationController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -123,11 +121,7 @@ func startRegistrationController(
 	}
 }
 
-func startApplicationController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -135,6 +129,7 @@ func startApplicationController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -164,11 +159,7 @@ func startApplicationController(
 	}
 }
 
-func startEnvironmentController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -176,6 +167,7 @@ func startEnvironmentController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -206,12 +198,7 @@ func startEnvironmentController(
 	}
 }
 
-func startDeploymentController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	prometheusOperatorClient monitoring.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient *secretProviderClient.Clientset) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -219,6 +206,7 @@ func startDeploymentController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -249,11 +237,7 @@ func startDeploymentController(
 	}
 }
 
-func startJobController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	syncJobStatusMetrics(radixClient)
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
@@ -262,6 +246,7 @@ func startJobController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -317,12 +302,7 @@ func syncJobStatusMetrics(radixClient radixclient.Interface) error {
 	return nil
 }
 
-func startAlertController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	prometheusOperatorClient monitoring.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient *secretProviderClient.Clientset) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -330,6 +310,7 @@ func startAlertController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)

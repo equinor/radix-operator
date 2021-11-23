@@ -4,12 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
-
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 // SecretExists Checks if secret already exists
@@ -33,6 +28,19 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 	return true
 }
 
+// SecretExistsForLabels Checks if secret exists for specific labels
+func (kubeutil *Kube) SecretExistsForLabels(namespace, labelSelector string) bool {
+	list, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil && errors.IsNotFound(err) {
+		return false
+	}
+	if err != nil {
+		log.Errorf("failed to get secret in namespace %s. %v", namespace, err)
+		return false
+	}
+	return len(list.Items) > 0
+}
+
 // ApplySecret Creates or updates secret to namespace
 func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
 	secretName := secret.GetName()
@@ -43,15 +51,15 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 		savedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 		return savedSecret, err
 	} else if err != nil {
-		return nil, fmt.Errorf("Failed to get Secret object: %v", err)
+		return nil, fmt.Errorf("failed to get Secret object: %v", err)
 	}
 
-	oldSectetJSON, err := json.Marshal(oldSecret)
+	oldSecretJSON, err := json.Marshal(oldSecret)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal old secret object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old secret object: %v", err)
 	}
 
-	// Avoid uneccessary patching
+	// Avoid unnecessary patching
 	newSecret := oldSecret.DeepCopy()
 	newSecret.ObjectMeta.Labels = secret.ObjectMeta.Labels
 	newSecret.ObjectMeta.Annotations = secret.ObjectMeta.Annotations
@@ -60,19 +68,19 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 
 	newSecretJSON, err := json.Marshal(newSecret)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal new secret object: %v", err)
+		return nil, fmt.Errorf("failed to marshal new secret object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldSectetJSON, newSecretJSON, corev1.Secret{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldSecretJSON, newSecretJSON, corev1.Secret{})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create two way merge patch secret objects: %v", err)
+		return nil, fmt.Errorf("failed to create two way merge patch secret objects: %v", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		// Will perform update as patching not properly remove secret data entries
 		patchedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("Failed to update secret object: %v", err)
+			return nil, fmt.Errorf("failed to update secret object: %v", err)
 		}
 
 		log.Debugf("Updated secret: %s ", patchedSecret.Name)
@@ -158,23 +166,6 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 	err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-// DeleteChangedSecretProviderClass Deletes a role in a namespace
-func (kubeutil *Kube) DeleteChangedSecretProviderClass(namespace string, componentName string, radixKeyVault radixv1.RadixKeyVault) error {
-	scName := utils.GetComponentKeyVaultSecretProviderClassName(componentName, radixKeyVault.Name)
-	class := secretsstorev1.SecretProviderClass{}
-	//_, err := kubeutil.kubeClient.CoreV1().Namespaces(namespace).Delete( GetKV)
-	if err != nil && errors.IsNotFound(err) {
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("Failed to get role object: %v", err)
-	}
-	err = kubeutil.kubeClient.RbacV1().Roles(namespace).Delete(context.TODO(), sc, metav1.DeleteOptions{})
-	if err != nil {
-		return fmt.Errorf("Failed to delete role object: %v", err)
 	}
 	return nil
 }
