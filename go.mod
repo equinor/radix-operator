@@ -18,4 +18,7 @@ require (
 	sigs.k8s.io/secrets-store-csi-driver v1.0.0
 )
 
-replace k8s.io/client-go => k8s.io/client-go v0.22.4
+replace (
+	github.com/equinor/radix-common => /home/user1/go/src/github.com/equinor/radix-common
+	k8s.io/client-go => k8s.io/client-go v0.22.4
+)

@@ -108,6 +108,7 @@ type RadixComponent struct {
 	Public                  bool                     `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	SecretRefs              []RadixSecretRef         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	IngressConfiguration    []string                 `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	EnvironmentConfig       []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
@@ -144,6 +145,7 @@ type RadixJobComponent struct {
 	Payload           *RadixJobComponentPayload            `json:"payload,omitempty" yaml:"payload,omitempty"`
 	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
 	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	SecretRefs        []RadixSecretRef                     `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
@@ -280,7 +282,7 @@ type RadixAzureKeyVault struct {
 	// Name. Name of the Azure Key Vault
 	Name string `json:"name" yaml:"name"`
 	// Items. Azure Key Vault items
-	Items []RadixAzureKeyVaultObject `json:"items" yaml:"items"`
+	Items []RadixAzureKeyVaultItem `json:"items" yaml:"items"`
 }
 
 type RadixAzureKeyVaultObjectType string
@@ -291,22 +293,22 @@ const (
 	RadixAzureKeyVaultObjectTypeCert   RadixAzureKeyVaultObjectType = "cert"
 )
 
-// RadixAzureKeyVaultObject defines Azure Key Vault objects: secrets, keys, certificates
-type RadixAzureKeyVaultObject struct {
+// RadixAzureKeyVaultItem defines Azure Key Vault setting: secrets, keys, certificates
+type RadixAzureKeyVaultItem struct {
 	// Name. Name of the Azure Key Vault object
 	Name string `json:"name" yaml:"name"`
 	// EnvVar. Name of the environment variable within replicas, containing Azure Key Vault object value
 	EnvVar string `json:"envVar" yaml:"envVar"`
 	// Type. Optional. Type of the Azure KeyVault object: secret (default), key, cert
-	Type RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
+	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
 	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
-	Alias string `json:"alias,omitempty" yaml:"type,omitempty"`
+	Alias *string `json:"alias,omitempty" yaml:"alias,omitempty"`
 	// Version. Optional. object versions, default to latest if empty
-	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+	Version *string `json:"version,omitempty" yaml:"version,omitempty"`
 	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
-	Format string `json:"format,omitempty" yaml:"format,omitempty"`
+	Format *string `json:"format,omitempty" yaml:"format,omitempty"`
 	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
-	Encoding string `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	Encoding *string `json:"encoding,omitempty" yaml:"encoding,omitempty"`
 }
 
 type Authentication struct {

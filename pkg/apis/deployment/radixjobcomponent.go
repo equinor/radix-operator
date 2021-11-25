@@ -107,6 +107,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 		Image:                image,
 		Ports:                appJobComponent.Ports,
 		Secrets:              appJobComponent.Secrets,
+		SecretRefs:           appJobComponent.SecretRefs,
 		EnvironmentVariables: variables, // todo: use single EnvVars instead
 		Monitoring:           monitoring,
 		Resources:            resources,

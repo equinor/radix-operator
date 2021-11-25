@@ -94,6 +94,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			PublicPort:              getPublicPortFromAppComponent(appComponent),
 			Ports:                   appComponent.Ports,
 			Secrets:                 appComponent.Secrets,
+			SecretRefs:              appComponent.SecretRefs,
 			IngressConfiguration:    appComponent.IngressConfiguration,
 			EnvironmentVariables:    variables, // todo: use single EnvVars instead
 			DNSAppAlias:             IsDNSAppAlias(env, componentName, dnsAppAlias),

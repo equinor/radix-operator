@@ -159,7 +159,22 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 			WithJobComponent(
 				utils.NewDeployJobComponentBuilder().
 					WithName("job").
-					WithSecrets([]string{"DEPLOYJOBSECRET"}),
+					WithSecrets([]string{"DEPLOYJOBSECRET"}).
+					WithSecretRefs([]v1.RadixSecretRef{{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+						Name: "TestKeyVault",
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:   "Secret1",
+								EnvVar: "SECRET_1",
+								Type:   "secret",
+							},
+							{
+								Name:   "Key1",
+								EnvVar: "KEY_1",
+								Type:   "key",
+							},
+						},
+					}}}}),
 			).
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
@@ -266,8 +281,17 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Equal(t, "/path", rds.Items[0].Spec.Jobs[0].Payload.Path)
 	assert.Len(t, rds.Items[0].Spec.Jobs[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYJOBSECRET", rds.Items[0].Spec.Jobs[0].Secrets[0])
+	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs, 1)
+	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults, 1)
+	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items, 2)
+	assert.Equal(t, "TestKeyVault", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Name)
+	assert.Equal(t, "Secret1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[0].Name)
+	assert.Equal(t, "SECRET_1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[0].Name)
+	assert.Equal(t, "secret", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[0].Name)
+	assert.Equal(t, "Key1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[1].Name)
+	assert.Equal(t, "KEY_1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[1].Name)
+	assert.Equal(t, "key", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[1].Name)
 }
-
 func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	anyApp := "any-app"
 	anyDeploymentName := "deployment-1"

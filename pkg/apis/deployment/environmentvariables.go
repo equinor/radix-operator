@@ -85,10 +85,10 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 	}
 
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
-	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.GetSecretRefs(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
+	return getEnvironmentVariables(kubeutil, appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.GetSecretRefs(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, radixSecretRefs []v1.RadixSecretRef, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
+func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, radixSecretRefs []v1.RadixSecretRef, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
@@ -97,21 +97,34 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 	var envVars = getEnvVars(envVarConfigMap, deployComponentEnvVars)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
-	envVars = appendEnvVarsFromSecretRefs(envVars, radixSecretRefs)
+	envVars, _ = appendEnvVarsFromSecretRefs(kubeutil, namespace, componentName, envVars, radixSecretRefs)
 	return envVars
 }
 
-func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, secretRefs []v1.RadixSecretRef) []corev1.EnvVar {
+func appendEnvVarsFromSecretRefs(kubeutil *kube.Kube, namespace string, componentName string, envVars []corev1.EnvVar, secretRefs []v1.RadixSecretRef) ([]corev1.EnvVar, error) {
 	if len(secretRefs) > 0 {
 		for _, secretRef := range secretRefs {
-			fmt.Println(secretRef)
-			//secretEnvVar := createEnvVarWithSecretRef(componentSecretName, secretRef)
-			//envVars = append(envVars, secretEnvVar)
+			if secretRef.AzureKeyVaults != nil {
+				for _, azureKeyVault := range secretRef.AzureKeyVaults {
+					labelSelector := kube.GetLabelSelectorForSecretRefObject(componentName, string(v1.RadixSecretRefAzureKeyVault), azureKeyVault.Name)
+					secrets, err := kubeutil.ListSecretsWithSelector(namespace, &labelSelector)
+					if err != nil {
+						return nil, err
+					}
+					if len(secrets) > 1 {
+						return nil, fmt.Errorf("expected one secred for component %s, KeyVault %s, but found multiple", componentName, azureKeyVault.Name)
+					}
+					for _, keyVaultItem := range azureKeyVault.Items {
+						secretEnvVar := createEnvVarWithSecretRef(secrets[0].Name, keyVaultItem.EnvVar)
+						envVars = append(envVars, secretEnvVar)
+					}
+				}
+			}
 		}
 	} else {
 		log.Debugf("No secret-refs is set for this RadixDeployment")
 	}
-	return envVars
+	return envVars, nil
 }
 
 func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string, componentSecretName string) []corev1.EnvVar {
@@ -178,15 +191,15 @@ func getEnvVarNamesSorted(envVarsMap v1.EnvVarsMap) []string {
 	return envVarNames
 }
 
-func createEnvVarWithSecretRef(componentSecretName string, secretName string) corev1.EnvVar {
+func createEnvVarWithSecretRef(componentSecretName string, envVarName string) corev1.EnvVar {
 	return corev1.EnvVar{
-		Name: secretName,
+		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: componentSecretName,
 				},
-				Key: secretName,
+				Key: envVarName,
 			},
 		},
 	}

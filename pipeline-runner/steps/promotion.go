@@ -209,6 +209,7 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 		}
 
 		newEnvComponent.Secrets = component.Secrets
+		newEnvComponent.SecretRefs = component.SecretRefs
 		newEnvComponent.Image = component.Image
 		radixDeployment.Spec.Components[idx] = newEnvComponent
 	}

@@ -19,6 +19,7 @@ type DeployJobComponentBuilder interface {
 	WithNodeGpu(gpu string) DeployJobComponentBuilder
 	WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
+	WithSecretRefs([]v1.RadixSecretRef) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
 	WithRunAsNonRoot(bool) DeployJobComponentBuilder
@@ -33,6 +34,7 @@ type deployJobComponentBuilder struct {
 	monitoring              bool
 	alwaysPullImageOnDeploy bool
 	secrets                 []string
+	secretRefs              []v1.RadixSecretRef
 	resources               v1.ResourceRequirements
 	volumeMounts            []v1.RadixVolumeMount
 	schedulerPort           *int32
@@ -119,6 +121,11 @@ func (dcb *deployJobComponentBuilder) WithSecrets(secrets []string) DeployJobCom
 	return dcb
 }
 
+func (dcb *deployJobComponentBuilder) WithSecretRefs(secretRefs []v1.RadixSecretRef) DeployJobComponentBuilder {
+	dcb.secretRefs = secretRefs
+	return dcb
+}
+
 func (dcb *deployJobComponentBuilder) WithSchedulerPort(port *int32) DeployJobComponentBuilder {
 	dcb.schedulerPort = port
 	return dcb
@@ -151,6 +158,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		Ports:                   componentPorts,
 		Monitoring:              dcb.monitoring,
 		Secrets:                 dcb.secrets,
+		SecretRefs:              dcb.secretRefs,
 		EnvironmentVariables:    dcb.environmentVariables,
 		Resources:               dcb.resources,
 		VolumeMounts:            dcb.volumeMounts,

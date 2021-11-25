@@ -13,17 +13,20 @@ import (
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
-// SecretProviderClassExists Checks if secret provider class already exists
-func (kubeutil *Kube) SecretProviderClassExists(namespace, componentName, radixSecretRefType, radixSecretRefName string) bool {
-	_, err := kubeutil.GetSecretProviderClass(namespace, componentName, radixSecretRefType, radixSecretRefName)
-	if err != nil && errors.IsNotFound(err) {
-		return false
-	}
-	if err != nil {
-		log.Errorf("Failed to get secret provider class for component %s, secret-reference %s, name %s in namespace %s. %v", componentName, radixSecretRefType, radixSecretRefName, namespace, err)
-		return false
-	}
-	return true
+// SecretProviderClassObject Object for SecretProviderClass parameters
+type SecretProviderClassObject struct {
+	// Name. Name of the Azure Key Vault object
+	Name string `yaml:"objectName"`
+	// Type. Type of the Azure KeyVault object: secret, key, cert
+	Type string `yaml:"objectType"`
+	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
+	Alias string `yaml:"objectAlias,omitempty"`
+	// Version. Optional. object versions, default to latest if empty
+	Version string `yaml:"objectVersion,omitempty"`
+	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
+	Format string `yaml:"objectFormat,omitempty"`
+	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
+	Encoding string `yaml:"objectEncoding,omitempty"`
 }
 
 // GetSecretProviderClass Gets secret provider class
@@ -31,7 +34,13 @@ func (kubeutil *Kube) GetSecretProviderClass(namespace string, componentName str
 	classList, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
 		List(context.Background(), metav1.ListOptions{LabelSelector: GetLabelSelectorForSecretRefObject(componentName, radixSecretRefType, radixSecretRefName)})
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
 		return nil, err
+	}
+	if len(classList.Items) == 0 {
+		return nil, nil
 	}
 	if len(classList.Items) == 0 {
 		return nil, nil
