@@ -1,6 +1,8 @@
 package utils
 
-import v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
 
 // RadixApplicationComponentBuilder Handles construction of RA component
 type RadixApplicationComponentBuilder interface {
@@ -20,6 +22,7 @@ type RadixApplicationComponentBuilder interface {
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationComponentBuilder
 	WithAuthentication(authentication *v1.Authentication) RadixApplicationComponentBuilder
+	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -39,6 +42,7 @@ type radixApplicationComponentBuilder struct {
 	resources               v1.ResourceRequirements
 	node                    v1.RadixNode
 	authentication          *v1.Authentication
+	volumeMounts            []v1.RadixVolumeMount
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -122,6 +126,11 @@ func (rcb *radixApplicationComponentBuilder) WithNode(node v1.RadixNode) RadixAp
 
 func (rcb *radixApplicationComponentBuilder) WithAuthentication(authentication *v1.Authentication) RadixApplicationComponentBuilder {
 	rcb.authentication = authentication
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithVolumeMounts(volumes []v1.RadixVolumeMount) RadixApplicationComponentBuilder {
+	rcb.volumeMounts = volumes
 	return rcb
 }
 

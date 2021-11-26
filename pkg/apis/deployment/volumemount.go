@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -109,18 +110,81 @@ func getRadixVolumeTypeIdForName(radixVolumeMountType radixv1.MountType) string 
 
 //GetVolumesForComponent Gets volumes for Radix deploy component or job
 func (deploy *Deployment) GetVolumesForComponent(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
-	return GetVolumes(deploy.kubeclient, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent.GetName(), deployComponent.GetVolumeMounts())
+	return GetVolumes(deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent)
 }
 
 //GetVolumes Get volumes of a component by RadixVolumeMounts
-func GetVolumes(kubeclient kubernetes.Interface, namespace string, environment string, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]v1.Volume, error) {
-	volumes := make([]corev1.Volume, 0)
-	for _, volumeMount := range volumeMounts {
+func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
+	componentName := deployComponent.GetName()
+	var volumes []corev1.Volume
+	blobVolumes, err := getBlobVolumes(kubeclient, namespace, environment, deployComponent)
+	if err != nil {
+		return nil, err
+	}
+	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, environment, deployComponent, componentName)
+	if err != nil {
+		return nil, err
+	}
+	volumes = append(volumes, blobVolumes...)
+	volumes = append(volumes, storageRefsVolumes...)
+	return volumes, nil
+}
+
+func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, environment string, component radixv1.RadixCommonDeployComponent, name string) ([]v1.Volume, error) {
+	var volumes []v1.Volume
+	secretProviderClasses, err := kubeutil.ListSecretProviderClass(namespace, component.GetName())
+	if err != nil {
+		return nil, err
+	}
+	for _, secretProviderClass := range secretProviderClasses {
+		for _, secretObject := range secretProviderClass.Spec.SecretObjects {
+			volume := v1.Volume{
+				Name:         secretObject.SecretName,
+				VolumeSource: v1.VolumeSource{},
+			}
+			switch string(secretProviderClass.Spec.Provider) {
+			case "azure":
+				componentName := component.GetName()
+				keyvaultName, keyvaultNameExists := secretProviderClass.Spec.Parameters["keyvaultName"]
+				if !keyvaultNameExists {
+					return nil, fmt.Errorf("missing keyvaultName in the secret provider class %s", secretProviderClass.Name)
+				}
+				labelSelector := kube.GetLabelSelectorForSecretRefObject(componentName, string(radixv1.RadixSecretRefAzureKeyVault), keyvaultName)
+				secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
+				if err != nil {
+					return nil, err
+				}
+				if len(secrets) == 0 {
+					return nil, fmt.Errorf("missed secrets for secret provider class %s", secretProviderClass.Name)
+				}
+				if len(secrets) > 1 {
+					return nil, fmt.Errorf("expected only one secret for secret provider class %s, but found multiple", secretProviderClass.Name)
+				}
+				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
+					Driver:               "secrets-store.csi.k8s.io",
+					ReadOnly:             commonUtils.BoolPtr(true),
+					VolumeAttributes:     map[string]string{"secretProviderClass": secretProviderClass.Name},
+					NodePublishSecretRef: &corev1.LocalObjectReference{Name: secrets[0].Name},
+				}
+				break
+			default:
+				log.Errorf("secret provider class %s Provider %s is not supported", secretProviderClass)
+				continue
+			}
+			volumes = append(volumes, volume)
+		}
+	}
+	return volumes, nil
+}
+
+func getBlobVolumes(kubeclient kubernetes.Interface, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
+	var volumes []v1.Volume
+	for _, volumeMount := range deployComponent.GetVolumeMounts() {
 		switch volumeMount.Type {
 		case radixv1.MountTypeBlob:
-			volumes = append(volumes, getBlobFuseVolume(namespace, environment, componentName, volumeMount))
+			volumes = append(volumes, getBlobFuseVolume(namespace, environment, deployComponent.GetName(), volumeMount))
 		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
-			volume, err := getCsiAzureVolume(kubeclient, namespace, componentName, &volumeMount)
+			volume, err := getCsiAzureVolume(kubeclient, namespace, deployComponent.GetName(), &volumeMount)
 			if err != nil {
 				return nil, err
 			}

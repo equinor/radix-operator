@@ -1,6 +1,8 @@
 package utils
 
-import v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
 
 // RadixApplicationJobComponentBuilder Handles construction of RA job component
 type RadixApplicationJobComponentBuilder interface {
@@ -17,6 +19,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithSchedulerPort(*int32) RadixApplicationJobComponentBuilder
 	WithPayloadPath(*string) RadixApplicationJobComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
+	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -33,6 +36,7 @@ type radixApplicationJobComponentBuilder struct {
 	schedulerPort     *int32
 	payloadPath       *string
 	node              v1.RadixNode
+	volumes           []v1.RadixVolumeMount
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithName(name string) RadixApplicationJobComponentBuilder {
@@ -108,6 +112,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithPayloadPath(path *string) Ra
 
 func (rcb *radixApplicationJobComponentBuilder) WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder {
 	rcb.node = node
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder {
+	rcb.volumes = volumeMounts
 	return rcb
 }
 

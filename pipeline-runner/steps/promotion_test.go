@@ -147,6 +147,8 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	// Setup
 	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
 
+	secretType := v1.RadixAzureKeyVaultObjectTypeSecret
+	keyType := v1.RadixAzureKeyVaultObjectTypeKey
 	commonTestUtils.ApplyDeployment(
 		utils.NewDeploymentBuilder().
 			WithComponent(
@@ -166,12 +168,12 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							{
 								Name:   "Secret1",
 								EnvVar: "SECRET_1",
-								Type:   "secret",
+								Type:   &secretType,
 							},
 							{
 								Name:   "Key1",
 								EnvVar: "KEY_1",
-								Type:   "key",
+								Type:   &keyType,
 							},
 						},
 					}}}}),

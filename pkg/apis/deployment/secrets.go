@@ -128,7 +128,10 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		}
 		secretsToManage = append(secretsToManage, clientCertificateSecretName)
 	} else if deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
-		deploy.kubeutil.DeleteSecret(namespace, clientCertificateSecretName)
+		err := deploy.kubeutil.DeleteSecret(namespace, clientCertificateSecretName)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
@@ -223,7 +226,8 @@ func getSecretProviderClassSecretParameters(radixAzureKeyVault radixv1.RadixAzur
 		}
 		objectArray = append(objectArray, obj)
 	}
-	objectArrayString, err := yaml.Marshal(objectArray)
+	objectArrayMap := map[string][]kube.SecretProviderClassObject{"array": objectArray}
+	objectArrayString, err := yaml.Marshal(objectArrayMap)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +237,7 @@ func getSecretProviderClassSecretParameters(radixAzureKeyVault radixv1.RadixAzur
 
 func getSecretProviderClassSecretObject(componentName string, radixAzureKeyVault radixv1.RadixAzureKeyVault) []*secretsstorev1.SecretObject {
 	return []*secretsstorev1.SecretObject{
-		&secretsstorev1.SecretObject{
+		{
 			SecretName: kube.GetSecretNameForAzureKeyVaultSecretRef(componentName, radixAzureKeyVault.Name),
 			Type:       kube.SecretTypeOpaque,
 			Data:       getSecretObjectData(radixAzureKeyVault),
@@ -252,17 +256,14 @@ func getSecretObjectData(radixAzureKeyVault radixv1.RadixAzureKeyVault) []*secre
 	return secretObjectData
 }
 
-func getSecretNameForAzureKeyVault(azureKeyVaultName string) string {
-	return fmt.Sprintf("")
-}
-
 func (deploy *Deployment) getOrCreateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName string) (string, error) {
 	secretName := utils.GetComponentKeyVaultSecretName(componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName)
 	labelSelector := kube.GetLabelSelectorForSecretRefObject(componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName)
-	if deploy.kubeutil.SecretExistsForLabels(namespace, labelSelector) {
+	secretExistsForLabels, err := deploy.kubeutil.SecretExistsForLabels(namespace, labelSelector)
+	if secretExistsForLabels {
 		return secretName, nil
 	}
-	err := deploy.createOrUpdateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, secretName, azKeyVaultSecretRefName)
+	err = deploy.createOrUpdateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, secretName, azKeyVaultSecretRefName)
 	if err != nil {
 		return "", err
 	}
@@ -275,12 +276,16 @@ func (deploy *Deployment) getOrCreateSecretProviderClass(namespace string, appNa
 		return nil, err
 	}
 	if secretProviderClass == nil || errors.IsNotFound(err) {
-		secretProviderClass = createSecretProviderClass(appName, componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName)
+		secretProviderClass = buildSecretProviderClass(appName, componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName)
+		_, err := deploy.kubeutil.ApplySecretProviderClass(namespace, secretProviderClass)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return secretProviderClass, err
 }
 
-func createSecretProviderClass(app, componentName, secretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
+func buildSecretProviderClass(app, componentName, secretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
 	className := utils.GetComponentSecretProviderClassName(componentName, secretRefType, secretRefName)
 	return &secretsstorev1.SecretProviderClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -349,7 +354,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 		}
 
 		if garbageCollect {
-			deploy.deleteSecret(existingSecret)
+			err := deploy.deleteSecret(existingSecret)
 			if err != nil {
 				return err
 			}

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -51,9 +50,27 @@ func (kubeutil *Kube) GetSecretProviderClass(namespace string, componentName str
 	return &classList.Items[0], err
 }
 
+// ListSecretProviderClass Gets secret provider classes for the component
+func (kubeutil *Kube) ListSecretProviderClass(namespace string, componentName string) ([]secretsstorev1.SecretProviderClass, error) {
+	classList, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
+		List(context.Background(), metav1.ListOptions{LabelSelector: GetLabelSelectorForAllSecretRefObjects(componentName)})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return classList.Items, err
+}
+
 // GetLabelSelectorForSecretRefObject Get label selector for secret-ref object (secret, secret provider class, etc.)
 func GetLabelSelectorForSecretRefObject(componentName string, radixSecretRefType string, radixSecretRefName string) string {
 	return fmt.Sprintf("%s=%s, %s=%s, %s=%s", RadixComponentLabel, componentName, RadixSecretRefTypeLabel, radixSecretRefType, RadixSecretRefNameLabel, radixSecretRefName)
+}
+
+// GetLabelSelectorForAllSecretRefObjects Get label selector for all secret-ref objects (secret, secret provider class, etc.)
+func GetLabelSelectorForAllSecretRefObjects(componentName string) string {
+	return fmt.Sprintf("%s=%s, %s", RadixComponentLabel, componentName, RadixSecretRefTypeLabel)
 }
 
 // ApplySecretProviderClass Creates or updates secret provider class to namespace
@@ -66,7 +83,7 @@ func (kubeutil *Kube) ApplySecretProviderClass(namespace string, secretProviderC
 	radixSecretRefName := secretProviderClass.Labels[RadixSecretRefNameLabel]
 	oldClass, err := kubeutil.GetSecretProviderClass(namespace, componentName, radixSecretRefType, radixSecretRefName)
 	secretProviderClasses := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace)
-	if err != nil && errors.IsNotFound(err) {
+	if oldClass == nil || (err != nil && errors.IsNotFound(err)) {
 		savedClass, err := secretProviderClasses.Create(context.TODO(), secretProviderClass, metav1.CreateOptions{})
 		return savedClass, err
 	} else if err != nil {
@@ -90,7 +107,7 @@ func (kubeutil *Kube) ApplySecretProviderClass(namespace string, secretProviderC
 		return nil, fmt.Errorf("failed to marshal new secret provider class object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClassJSON, newClassJSON, corev1.Secret{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldClassJSON, newClassJSON, secretsstorev1.SecretProviderClass{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create two way merge patch secret provider class objects: %v", err)
 	}

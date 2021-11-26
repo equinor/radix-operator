@@ -106,16 +106,20 @@ func appendEnvVarsFromSecretRefs(kubeutil *kube.Kube, namespace string, componen
 		for _, secretRef := range secretRefs {
 			if secretRef.AzureKeyVaults != nil {
 				for _, azureKeyVault := range secretRef.AzureKeyVaults {
-					labelSelector := kube.GetLabelSelectorForSecretRefObject(componentName, string(v1.RadixSecretRefAzureKeyVault), azureKeyVault.Name)
-					secrets, err := kubeutil.ListSecretsWithSelector(namespace, &labelSelector)
+					secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, componentName, string(v1.RadixSecretRefAzureKeyVault), azureKeyVault.Name)
 					if err != nil {
 						return nil, err
 					}
-					if len(secrets) > 1 {
-						return nil, fmt.Errorf("expected one secred for component %s, KeyVault %s, but found multiple", componentName, azureKeyVault.Name)
+					if secretProviderClass == nil {
+						return nil, fmt.Errorf("missed secret provider class for component %s, KeyVault %s", componentName, azureKeyVault.Name)
 					}
+					if len(secretProviderClass.Spec.SecretObjects) == 0 || secretProviderClass.Spec.SecretObjects[0].SecretName == "" {
+						return nil, fmt.Errorf("missed secret name in the secret provider class %s", secretProviderClass.Name)
+					}
+					//TODO split to multiple secrets by secret types (Opaque, TLS, etc.)
+					secretName := secretProviderClass.Spec.SecretObjects[0].SecretName
 					for _, keyVaultItem := range azureKeyVault.Items {
-						secretEnvVar := createEnvVarWithSecretRef(secrets[0].Name, keyVaultItem.EnvVar)
+						secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)
 						envVars = append(envVars, secretEnvVar)
 					}
 				}
@@ -191,13 +195,13 @@ func getEnvVarNamesSorted(envVarsMap v1.EnvVarsMap) []string {
 	return envVarNames
 }
 
-func createEnvVarWithSecretRef(componentSecretName string, envVarName string) corev1.EnvVar {
+func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: componentSecretName,
+					Name: secretName,
 				},
 				Key: envVarName,
 			},
@@ -205,7 +209,7 @@ func createEnvVarWithSecretRef(componentSecretName string, envVarName string) co
 	}
 }
 
-func createEnvVarWithConfigMapRef(envVarConfigMapName string, envVarName string) corev1.EnvVar {
+func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{

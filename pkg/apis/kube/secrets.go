@@ -33,16 +33,25 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 }
 
 // SecretExistsForLabels Checks if secret exists for specific labels
-func (kubeutil *Kube) SecretExistsForLabels(namespace, labelSelector string) bool {
+func (kubeutil *Kube) SecretExistsForLabels(namespace, labelSelector string) (bool, error) {
+	secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
+	if err != nil {
+		return false, err
+	}
+	return len(secrets) > 0, nil
+}
+
+// ListSecretExistsForLabels Gets list of secrets for specific labels
+func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector string) ([]v1.Secret, error) {
 	list, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil && errors.IsNotFound(err) {
-		return false
+		return nil, nil
 	}
 	if err != nil {
 		log.Errorf("failed to get secret in namespace %s. %v", namespace, err)
-		return false
+		return nil, err
 	}
-	return len(list.Items) > 0
+	return list.Items, nil
 }
 
 // ApplySecret Creates or updates secret to namespace
@@ -176,5 +185,5 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 
 // GetSecretNameForAzureKeyVaultSecretRef Gets a secret name for Azure KeyVault RadixSecretRef
 func GetSecretNameForAzureKeyVaultSecretRef(componentName, azKeyVaultName string) string {
-	return fmt.Sprintf("az-keyvault-secret-ref-%s-%s-%s", componentName, azKeyVaultName, strings.ToLower(utils.RandString(5)))
+	return fmt.Sprintf("azkv-sr-%s-%s-%s", componentName, azKeyVaultName, strings.ToLower(utils.RandString(5)))
 }
