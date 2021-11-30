@@ -24,6 +24,7 @@ import (
 
 const clusterName = "AnyClusterName"
 const anyContainerRegistry = "any.container.registry"
+const egressIps = "0.0.0.0"
 
 type RadixJobTestSuiteBase struct {
 	suite.Suite
@@ -48,7 +49,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient)
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }
 
