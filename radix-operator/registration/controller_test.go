@@ -2,6 +2,7 @@ package registration
 
 import (
 	"context"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -33,6 +34,7 @@ func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient)
+	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)

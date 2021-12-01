@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"strings"
 	"testing"
 )
@@ -78,6 +79,7 @@ func getTestEnv() TestEnv {
 		prometheusclient: prometheusfake.NewSimpleClientset(),
 	}
 	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient)
+	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

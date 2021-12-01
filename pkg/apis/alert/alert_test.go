@@ -3,6 +3,7 @@ package alert
 import (
 	"context"
 	"encoding/json"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -58,6 +59,7 @@ func (s *alertTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
+	s.kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 	s.promClient = prometheusfake.NewSimpleClientset()
 }
 

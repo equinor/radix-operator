@@ -23,6 +23,7 @@ type DeployComponentBuilder interface {
 	WithNodeGpuCount(gpuCount string) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
 	WithSecrets([]string) DeployComponentBuilder
+	WithSecretRefs([]v1.RadixSecretRef) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
 	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
@@ -44,6 +45,7 @@ type deployComponentBuilder struct {
 	alwaysPullImageOnDeploy bool
 	ingressConfiguration    []string
 	secrets                 []string
+	secretRefs              []v1.RadixSecretRef
 	dnsappalias             bool
 	externalAppAlias        []string
 	resources               v1.ResourceRequirements
@@ -161,6 +163,11 @@ func (dcb *deployComponentBuilder) WithSecrets(secrets []string) DeployComponent
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithSecretRefs(secretRefs []v1.RadixSecretRef) DeployComponentBuilder {
+	dcb.secretRefs = secretRefs
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration ...string) DeployComponentBuilder {
 	dcb.ingressConfiguration = ingressConfiguration
 	return dcb
@@ -200,6 +207,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		Monitoring:              dcb.monitoring,
 		Replicas:                dcb.replicas,
 		Secrets:                 dcb.secrets,
+		SecretRefs:              dcb.secretRefs,
 		IngressConfiguration:    dcb.ingressConfiguration,
 		EnvironmentVariables:    dcb.environmentVariables,
 		DNSAppAlias:             dcb.dnsappalias,

@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"os"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"strconv"
 	"testing"
 	"time"
@@ -46,6 +47,7 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient)
+	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)

@@ -142,7 +142,8 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, environment st
 				Name:         secretObject.SecretName,
 				VolumeSource: v1.VolumeSource{},
 			}
-			switch string(secretProviderClass.Spec.Provider) {
+			provider := string(secretProviderClass.Spec.Provider)
+			switch provider {
 			case "azure":
 				componentName := component.GetName()
 				keyvaultName, keyvaultNameExists := secretProviderClass.Spec.Parameters["keyvaultName"]
@@ -168,7 +169,7 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, environment st
 				}
 				break
 			default:
-				log.Errorf("secret provider class %s Provider %s is not supported", secretProviderClass)
+				log.Errorf("not supported provider '%s' in the secret provider class %s", provider, secretProviderClass.Name)
 				continue
 			}
 			volumes = append(volumes, volume)

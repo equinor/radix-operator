@@ -11,6 +11,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"time"
 )
 
@@ -36,6 +37,7 @@ func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
 	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient)
+	s.KubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 	s.PromClient = prometheusfake.NewSimpleClientset()
 	s.EventRecorder = &record.FakeRecorder{}
 	s.RadixInformerFactory = informers.NewSharedInformerFactory(s.RadixClient, 0)

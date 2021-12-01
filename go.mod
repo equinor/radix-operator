@@ -3,7 +3,7 @@ module github.com/equinor/radix-operator
 go 1.16
 
 require (
-	github.com/equinor/radix-common v1.1.6
+	github.com/equinor/radix-common v1.1.7
 	github.com/golang/mock v1.4.4
 	github.com/prometheus-operator/prometheus-operator v0.44.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.0
@@ -18,7 +18,4 @@ require (
 	sigs.k8s.io/secrets-store-csi-driver v1.0.0
 )
 
-replace (
-	github.com/equinor/radix-common => /home/user1/go/src/github.com/equinor/radix-common
-	k8s.io/client-go => k8s.io/client-go v0.22.4
-)
+replace k8s.io/client-go => k8s.io/client-go v0.22.4

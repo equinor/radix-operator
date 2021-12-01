@@ -54,11 +54,11 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitor
 		log.Fatalf("getClusterConfig prometheus-operator client: %v", err)
 	}
 
-	secretProvider, err := secretProviderClient.NewForConfig(config)
+	secretProviderClient, err := secretProviderClient.NewForConfig(config)
 	if err != nil {
 		log.Fatalf("secretProvider secret provider client client: %v", err)
 	}
 
 	log.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, prometheusOperatorClient, secretProvider
+	return client, radixClient, prometheusOperatorClient, secretProviderClient
 }

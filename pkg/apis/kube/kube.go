@@ -96,6 +96,12 @@ func New(client kubernetes.Interface, radixClient radixclient.Interface) (*Kube,
 	return kubeutil, nil
 }
 
+// WithSecretsProvider Add Secrets Provider client
+func (kubeutil *Kube) WithSecretsProvider(secretproviderclient secretProviderClient.Interface) *Kube {
+	kubeutil.secretProviderClient = secretproviderclient
+	return kubeutil
+}
+
 // NewWithListers Constructor
 func NewWithListers(client kubernetes.Interface,
 	radixclient radixclient.Interface,

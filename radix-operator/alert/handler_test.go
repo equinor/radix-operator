@@ -3,6 +3,7 @@ package alert
 import (
 	"context"
 	"fmt"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -38,6 +39,7 @@ func (s *handlerTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
+	s.kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
 	s.mockCtrl = gomock.NewController(s.T())
