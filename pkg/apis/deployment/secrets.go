@@ -206,6 +206,7 @@ func getSecretProviderClassSecretParameters(radixAzureKeyVault radixv1.RadixAzur
 	parameterMap["usePodIdentity"] = "false"
 	parameterMap["keyvaultName"] = radixAzureKeyVault.Name
 	parameterMap["tenantId"] = "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
+	parameterMap["cloudName"] = ""
 	if len(radixAzureKeyVault.Items) == 0 {
 		parameterMap["objects"] = ""
 		return parameterMap, nil

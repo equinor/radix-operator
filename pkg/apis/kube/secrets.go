@@ -185,5 +185,5 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 
 // GetSecretNameForAzureKeyVaultSecretRef Gets a secret name for Azure KeyVault RadixSecretRef
 func GetSecretNameForAzureKeyVaultSecretRef(componentName, azKeyVaultName string) string {
-	return fmt.Sprintf("azkv-sr-%s-%s-%s", componentName, azKeyVaultName, strings.ToLower(utils.RandString(5)))
+	return fmt.Sprintf("%s-azkv-sr-%s-%s", componentName, azKeyVaultName, strings.ToLower(utils.RandString(5)))
 }
