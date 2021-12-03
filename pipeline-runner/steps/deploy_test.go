@@ -23,6 +23,7 @@ const (
 	anyJobName           = "any-job-name"
 	anyImageTag          = "anytag"
 	anyCommitID          = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
+	egressIps            = "0.0.0.0"
 )
 
 // FakeNamespaceWatcher Unit tests doesn't handle muliti-threading well

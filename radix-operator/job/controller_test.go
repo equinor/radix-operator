@@ -25,6 +25,7 @@ import (
 const (
 	clusterName       = "AnyClusterName"
 	containerRegistry = "any.container.registry"
+	egressIps         = "0.0.0.0"
 )
 
 var synced chan bool
@@ -35,7 +36,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	kubeUtil, _ := kube.New(client, radixClient)
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return &handlerTestUtils, client, kubeUtil, radixClient
 }
 
