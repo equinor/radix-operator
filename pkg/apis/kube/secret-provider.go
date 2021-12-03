@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,30 +31,22 @@ type SecretProviderClassObject struct {
 
 // GetSecretProviderClass Gets secret provider class
 func (kubeutil *Kube) GetSecretProviderClass(namespace string, componentName string, radixSecretRefType string, radixSecretRefName string) (*secretsstorev1.SecretProviderClass, error) {
-	classList, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
-		List(context.Background(), metav1.ListOptions{LabelSelector: GetLabelSelectorForSecretRefObject(componentName, radixSecretRefType, radixSecretRefName)})
+	className := utils.GetComponentSecretProviderClassName(componentName, radixSecretRefType, radixSecretRefName)
+	secretProviderClass, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
+		Get(context.Background(), className, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	if len(classList.Items) == 0 {
-		return nil, nil
-	}
-	if len(classList.Items) == 0 {
-		return nil, nil
-	}
-	if len(classList.Items) > 1 {
-		return nil, fmt.Errorf("found multiple SecretProviderClass for the same RadixSecretRef")
-	}
-	return &classList.Items[0], err
+	return secretProviderClass, nil
 }
 
 // ListSecretProviderClass Gets secret provider classes for the component
 func (kubeutil *Kube) ListSecretProviderClass(namespace string, componentName string) ([]secretsstorev1.SecretProviderClass, error) {
 	classList, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
-		List(context.Background(), metav1.ListOptions{LabelSelector: GetLabelSelectorForAllSecretRefObjects(componentName)})
+		List(context.Background(), metav1.ListOptions{LabelSelector: getLabelSelectorForAllSecretRefObjects(componentName)})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -63,13 +56,7 @@ func (kubeutil *Kube) ListSecretProviderClass(namespace string, componentName st
 	return classList.Items, err
 }
 
-// GetLabelSelectorForSecretRefObject Get label selector for secret-ref object (secret, secret provider class, etc.)
-func GetLabelSelectorForSecretRefObject(componentName string, radixSecretRefType string, radixSecretRefName string) string {
-	return fmt.Sprintf("%s=%s, %s=%s, %s=%s", RadixComponentLabel, componentName, RadixSecretRefTypeLabel, radixSecretRefType, RadixSecretRefNameLabel, radixSecretRefName)
-}
-
-// GetLabelSelectorForAllSecretRefObjects Get label selector for all secret-ref objects (secret, secret provider class, etc.)
-func GetLabelSelectorForAllSecretRefObjects(componentName string) string {
+func getLabelSelectorForAllSecretRefObjects(componentName string) string {
 	return fmt.Sprintf("%s=%s, %s", RadixComponentLabel, componentName, RadixSecretRefTypeLabel)
 }
 

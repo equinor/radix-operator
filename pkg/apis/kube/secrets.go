@@ -35,15 +35,6 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 	return true
 }
 
-// SecretExistsForLabels Checks if secret exists for specific labels
-func (kubeutil *Kube) SecretExistsForLabels(namespace, labelSelector string) (bool, error) {
-	secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
-	if err != nil {
-		return false, err
-	}
-	return len(secrets) > 0, nil
-}
-
 // ListSecretExistsForLabels Gets list of secrets for specific labels
 func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector string) ([]v1.Secret, error) {
 	list, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})

@@ -145,27 +145,19 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, environment st
 			provider := string(secretProviderClass.Spec.Provider)
 			switch provider {
 			case "azure":
-				componentName := component.GetName()
 				keyvaultName, keyvaultNameExists := secretProviderClass.Spec.Parameters["keyvaultName"]
 				if !keyvaultNameExists {
 					return nil, fmt.Errorf("missing keyvaultName in the secret provider class %s", secretProviderClass.Name)
 				}
-				labelSelector := kube.GetLabelSelectorForSecretRefObject(componentName, string(radixv1.RadixSecretRefAzureKeyVault), keyvaultName)
-				secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
-				if err != nil {
-					return nil, err
-				}
-				if len(secrets) == 0 {
+				credSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(component.GetName(), keyvaultName)
+				if !kubeutil.SecretExists(namespace, credSecretName) {
 					return nil, fmt.Errorf("missed secrets for secret provider class %s", secretProviderClass.Name)
-				}
-				if len(secrets) > 1 {
-					return nil, fmt.Errorf("expected only one secret for secret provider class %s, but found multiple", secretProviderClass.Name)
 				}
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
 					Driver:               "secrets-store.csi.k8s.io",
 					ReadOnly:             commonUtils.BoolPtr(true),
 					VolumeAttributes:     map[string]string{"secretProviderClass": secretProviderClass.Name},
-					NodePublishSecretRef: &corev1.LocalObjectReference{Name: secrets[0].Name},
+					NodePublishSecretRef: &corev1.LocalObjectReference{Name: credSecretName},
 				}
 				break
 			default:

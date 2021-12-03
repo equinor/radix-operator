@@ -259,13 +259,11 @@ func getSecretProviderClassSecretObject(componentName string, radixAzureKeyVault
 }
 
 func (deploy *Deployment) getOrCreateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName string) (string, error) {
-	secretName := utils.GetComponentAzureKeyVaultCredentialsSecretName(componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName)
-	labelSelector := kube.GetLabelSelectorForSecretRefObject(componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName)
-	secretExistsForLabels, err := deploy.kubeutil.SecretExistsForLabels(namespace, labelSelector)
-	if secretExistsForLabels {
+	secretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azKeyVaultSecretRefName)
+	if deploy.kubeutil.SecretExists(namespace, secretName) {
 		return secretName, nil
 	}
-	err = deploy.createOrUpdateCredentialsSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, secretName, azKeyVaultSecretRefName)
+	err := deploy.createOrUpdateCredentialsSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, secretName, azKeyVaultSecretRefName)
 	if err != nil {
 		return "", err
 	}

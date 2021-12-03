@@ -63,3 +63,8 @@ func GetBlobFuseCredsSecretName(componentName string, volumeMountName string) st
 func GetCsiAzureCredsSecretName(componentName, radixVolumeMountName string) string {
 	return fmt.Sprintf(csiAzureCreds, componentName, radixVolumeMountName)
 }
+
+// GetCsiAzureKeyVaultCredsSecretName Helper method
+func GetCsiAzureKeyVaultCredsSecretName(componentName, azureKeyVaultName string) string {
+	return fmt.Sprintf(csiAzureKeyVaultCreds, componentName, azureKeyVaultName)
+}
