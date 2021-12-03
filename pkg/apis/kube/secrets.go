@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -14,10 +13,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"strings"
 )
 
-const SecretTypeOpaque = "Opaque"
+type SecretType string
+
+const (
+	SecretTypeOpaque SecretType = "Opaque"
+	SecretTypeTls    SecretType = "kubernetes.io/tls"
+)
 
 // SecretExists Checks if secret already exists
 func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
@@ -181,9 +184,4 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 		return err
 	}
 	return nil
-}
-
-// GetSecretNameForAzureKeyVaultSecretRef Gets a secret name for Azure KeyVault RadixSecretRef
-func GetSecretNameForAzureKeyVaultSecretRef(componentName, azKeyVaultName string) string {
-	return fmt.Sprintf("%s-azkv-sr-%s-%s", componentName, azKeyVaultName, strings.ToLower(utils.RandString(5)))
 }

@@ -293,6 +293,13 @@ const (
 	RadixAzureKeyVaultObjectTypeCert   RadixAzureKeyVaultObjectType = "cert"
 )
 
+type RadixAzureKeyVaultK8sSecretType string
+
+const (
+	RadixAzureKeyVaultK8sSecretTypeOpaque RadixAzureKeyVaultK8sSecretType = "opaque"
+	RadixAzureKeyVaultK8sSecretTypeTls    RadixAzureKeyVaultK8sSecretType = "tls"
+)
+
 // RadixAzureKeyVaultItem defines Azure Key Vault setting: secrets, keys, certificates
 type RadixAzureKeyVaultItem struct {
 	// Name. Name of the Azure Key Vault object
@@ -303,12 +310,15 @@ type RadixAzureKeyVaultItem struct {
 	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
 	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
 	Alias *string `json:"alias,omitempty" yaml:"alias,omitempty"`
-	// Version. Optional. object versions, default to latest if empty
+	// Version. Optional. object versions, default to the latest, if empty
 	Version *string `json:"version,omitempty" yaml:"version,omitempty"`
 	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
 	Format *string `json:"format,omitempty" yaml:"format,omitempty"`
 	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
 	Encoding *string `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	// K8SSecretType. Optional. Setting object k8s secret type.
+	// Allowed types: opaque (default), tls. It corresponds to "Opaque" and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
+	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty" yaml:"k8sSecretType,omitempty"`
 }
 
 type Authentication struct {
