@@ -91,29 +91,13 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		}
 	}
 
-	for _, radixVolumeMount := range component.GetVolumeMounts() {
-		switch radixVolumeMount.Type {
-		case radixv1.MountTypeBlob:
-			{
-				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
-				secretsToManage = append(secretsToManage, secretName)
-				err := deploy.createOrUpdateVolumeMountsSecrets(namespace, component.GetName(), secretName, accountName, accountKey)
-				if err != nil {
-					return err
-				}
-			}
-		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
-			{
-				secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, component.GetName(), radixVolumeMount.Name)
-				secretsToManage = append(secretsToManage, secretName)
-				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, component.GetName(), radixVolumeMount.Name, radixVolumeMount.Type, secretName, accountName, accountKey)
-				if err != nil {
-					return err
-				}
-			}
-		}
+	volumeMountSecretsToManage, err := deploy.createOrUpdateVolumeMountSecrets(namespace, component.GetName(), component.GetVolumeMounts())
+	if err != nil {
+		return err
 	}
-	err := deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component, secretsToManage)
+	secretsToManage = append(secretsToManage, volumeMountSecretsToManage...)
+
+	err = deploy.garbageCollectVolumeMountsSecretsNoLongerInSpecForComponent(component, secretsToManage)
 	if err != nil {
 		return err
 	}
@@ -134,16 +118,16 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		}
 	}
 
-	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
-	if err != nil {
-		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
-	}
-
 	secretRefsSecretNames, err := deploy.createOrUpdateSecretRefs(namespace, registration.Name, component)
 	if err != nil {
 		return err
 	}
 	secretsToManage = append(secretsToManage, secretRefsSecretNames...)
+
+	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
+	if err != nil {
+		return fmt.Errorf("failed to grant app admin access to own secrets. %v", err)
+	}
 
 	if len(secretsToManage) == 0 {
 		err := deploy.garbageCollectSecretsNoLongerInSpecForComponent(component)
@@ -152,6 +136,33 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 		}
 	}
 	return nil
+}
+
+func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
+	var volumeMountSecretsToManage []string
+	for _, volumeMount := range volumeMounts {
+		switch volumeMount.Type {
+		case radixv1.MountTypeBlob:
+			{
+				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, componentName, volumeMount.Name)
+				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
+				err := deploy.createOrUpdateVolumeMountsSecrets(namespace, componentName, secretName, accountName, accountKey)
+				if err != nil {
+					return nil, err
+				}
+			}
+		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
+			{
+				secretName, accountKey, accountName := deploy.getCsiAzureCredsSecrets(namespace, componentName, volumeMount.Name)
+				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
+				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, componentName, volumeMount.Name, volumeMount.Type, secretName, accountName, accountKey)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return volumeMountSecretsToManage, nil
 }
 
 func (deploy *Deployment) createOrUpdateSecretRefs(namespace, appName string, component radixv1.RadixCommonDeployComponent) ([]string, error) {
@@ -180,7 +191,7 @@ func (deploy *Deployment) createOrUpdateAzureKeyVaultSecretRefs(namespace, appNa
 		if err != nil {
 			return secretNames, err
 		}
-		secretName, err := deploy.getOrCreateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName)
+		secretName, err := deploy.getOrCreateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, azKeyVaultSecretRefName)
 		if err != nil {
 			return secretNames, err
 		}
@@ -240,11 +251,11 @@ func getSecretProviderClassSecretObject(componentName string, radixAzureKeyVault
 	var secretObjects []*secretsstorev1.SecretObject
 	secretObjectMap := make(map[kube.SecretType]*secretsstorev1.SecretObject)
 	for _, keyVaultItem := range radixAzureKeyVault.Items {
-		kubeSecretType := utils.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
+		kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
 		secretObject, ok := secretObjectMap[kubeSecretType]
 		if !ok {
 			secretObject = &secretsstorev1.SecretObject{
-				SecretName: utils.GetAzureKeyVaultSecretRefSecretName(componentName, radixAzureKeyVault.Name, kubeSecretType),
+				SecretName: kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixAzureKeyVault.Name, kubeSecretType),
 				Type:       string(kubeSecretType),
 			}
 			secretObjectMap[kubeSecretType] = secretObject
@@ -258,7 +269,7 @@ func getSecretProviderClassSecretObject(componentName string, radixAzureKeyVault
 	return secretObjects
 }
 
-func (deploy *Deployment) getOrCreateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, azKeyVaultSecretRefType, azKeyVaultSecretRefName string) (string, error) {
+func (deploy *Deployment) getOrCreateSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, azKeyVaultSecretRefName string) (string, error) {
 	secretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azKeyVaultSecretRefName)
 	if deploy.kubeutil.SecretExists(namespace, secretName) {
 		return secretName, nil
@@ -286,7 +297,7 @@ func (deploy *Deployment) getOrCreateSecretProviderClass(namespace string, appNa
 }
 
 func buildSecretProviderClass(app, componentName, secretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
-	className := utils.GetComponentSecretProviderClassName(componentName, secretRefType, secretRefName)
+	className := kube.GetComponentSecretProviderClassName(componentName, secretRefType, secretRefName)
 	return &secretsstorev1.SecretProviderClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: className,

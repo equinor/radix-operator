@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils/slice"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -175,4 +176,29 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 		return err
 	}
 	return nil
+}
+
+// GetSecretTypeForRadixAzureKeyVault Gets SecretType by RadixAzureKeyVaultK8sSecretType
+func GetSecretTypeForRadixAzureKeyVault(k8sSecretType *radixv1.RadixAzureKeyVaultK8sSecretType) SecretType {
+	if k8sSecretType != nil && *k8sSecretType == radixv1.RadixAzureKeyVaultK8sSecretTypeTls {
+		return SecretTypeTls
+	}
+	return SecretTypeOpaque
+}
+
+// GetAzureKeyVaultSecretRefSecretName Gets a secret name for Azure KeyVault RadixSecretRef
+func GetAzureKeyVaultSecretRefSecretName(componentName, azKeyVaultName string, secretType SecretType) string {
+	radixSecretRefSecretType := string(getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(secretType))
+	return getSecretRefSecretName(componentName, string(radixv1.RadixSecretRefAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)
+}
+
+func getSecretRefSecretName(componentName, secretRefType, secretType, secretResourceName string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", componentName, secretRefType, secretType, secretResourceName)
+}
+
+func getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(k8sSecretType SecretType) radixv1.RadixAzureKeyVaultK8sSecretType {
+	if k8sSecretType == SecretTypeTls {
+		return radixv1.RadixAzureKeyVaultK8sSecretTypeTls
+	}
+	return radixv1.RadixAzureKeyVaultK8sSecretTypeOpaque
 }

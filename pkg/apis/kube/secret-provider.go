@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +30,7 @@ type SecretProviderClassObject struct {
 
 // GetSecretProviderClass Gets secret provider class
 func (kubeutil *Kube) GetSecretProviderClass(namespace string, componentName string, radixSecretRefType string, radixSecretRefName string) (*secretsstorev1.SecretProviderClass, error) {
-	className := utils.GetComponentSecretProviderClassName(componentName, radixSecretRefType, radixSecretRefName)
+	className := GetComponentSecretProviderClassName(componentName, radixSecretRefType, radixSecretRefName)
 	secretProviderClass, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
 		Get(context.Background(), className, metav1.GetOptions{})
 	if err != nil {
@@ -130,4 +129,11 @@ func (kubeutil *Kube) DeleteChangedSecretProviderClass(namespace string, compone
 	//	return fmt.Errorf("Failed to delete role object: %v", err)
 	//}
 	return nil
+}
+
+// GetComponentSecretProviderClassName Gets unique name of the component secret storage class
+func GetComponentSecretProviderClassName(componentName, secretRefType, secretRefName string) string {
+	// include a hash so that users cannot get access to a secret-ref they should not ,
+	// by naming component the same as secret-ref object
+	return fmt.Sprintf("%s-%s-%s", componentName, secretRefType, secretRefName)
 }

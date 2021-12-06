@@ -114,8 +114,8 @@ func appendEnvVarsFromSecretRefs(kubeutil *kube.Kube, namespace string, componen
 						return nil, fmt.Errorf("missed secret provider class for component %s, KeyVault %s", componentName, azureKeyVault.Name)
 					}
 					for _, keyVaultItem := range azureKeyVault.Items {
-						kubeSecretType := utils.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
-						secretName := utils.GetAzureKeyVaultSecretRefSecretName(componentName, azureKeyVault.Name, kubeSecretType)
+						kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
+						secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, azureKeyVault.Name, kubeSecretType)
 						secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)
 						envVars = append(envVars, secretEnvVar)
 					}
