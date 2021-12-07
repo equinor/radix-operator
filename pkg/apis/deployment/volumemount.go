@@ -47,18 +47,33 @@ const (
 	csiStorageClassTmpPathMountOption                  = "tmp-path"                                        //Path within the node, where the volume mount has been mounted to
 	csiStorageClassGidMountOption                      = "gid"                                             //Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
 	csiStorageClassUidMountOption                      = "uid"                                             //Volume mount owner UserID. Used instead of GroupID
+
+	csiAzureKeyVaultSecretMountPathTemplate = "/mnt/azure-key-vault/%s/%s"
 )
 
 //GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
 func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]v1.VolumeMount, error) {
 	componentName := deployComponent.GetName()
-	radixVolumeMounts := deployComponent.GetVolumeMounts()
 	volumeMounts := make([]corev1.VolumeMount, 0)
-
-	if len(radixVolumeMounts) <= 0 {
-		return volumeMounts, nil
+	externalVolumeMounts, err := getRadixComponentExternalVolumeMounts(deployComponent, componentName)
+	if err != nil {
+		return nil, err
 	}
+	secretRefsVolumeMounts, err := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName)
+	if err != nil {
+		return nil, err
+	}
+	volumeMounts = append(volumeMounts, externalVolumeMounts...)
+	volumeMounts = append(volumeMounts, secretRefsVolumeMounts...)
+	return volumeMounts, nil
+}
 
+func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName string) ([]v1.VolumeMount, error) {
+	radixVolumeMounts := deployComponent.GetVolumeMounts()
+	if len(radixVolumeMounts) <= 0 {
+		return nil, nil
+	}
+	var volumeMounts []v1.VolumeMount
 	for _, radixVolumeMount := range radixVolumeMounts {
 		switch radixVolumeMount.Type {
 		case radixv1.MountTypeBlob:
@@ -78,6 +93,43 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 		}
 	}
 	return volumeMounts, nil
+}
+
+func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName string) ([]v1.VolumeMount, error) {
+	radixSecretRefs := deployComponent.GetSecretRefs()
+	if len(radixSecretRefs) <= 0 {
+		return nil, nil
+	}
+	var volumeMounts []v1.VolumeMount
+	for _, secretRef := range radixSecretRefs {
+		switch {
+		case secretRef.AzureKeyVaults != nil && len(secretRef.AzureKeyVaults) > 0:
+			for _, azureKeyVault := range secretRef.AzureKeyVaults {
+				k8sSecretTypeMap := make(map[kube.SecretType]bool)
+				for _, keyVaultItem := range azureKeyVault.Items {
+					kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
+					if _, ok := k8sSecretTypeMap[kubeSecretType]; !ok {
+						k8sSecretTypeMap[kubeSecretType] = true
+					}
+				}
+				for kubeSecretType := range k8sSecretTypeMap {
+					secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, azureKeyVault.Name, kubeSecretType)
+					volumeMounts = append(volumeMounts, corev1.VolumeMount{
+						Name:      secretName,
+						MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
+					})
+				}
+			}
+		}
+	}
+	return volumeMounts, nil
+}
+
+func getCsiAzureKeyVaultSecretMountPath(componentName string, azureKeyVault radixv1.RadixAzureKeyVault) string {
+	secretFolderPath := utils.TernaryString(azureKeyVault.Path == nil || *(azureKeyVault.Path) == "",
+		fmt.Sprintf(csiAzureKeyVaultSecretMountPathTemplate, azureKeyVault.Name, componentName),
+		*azureKeyVault.Path)
+	return secretFolderPath
 }
 
 func getBlobFuseVolumeMountName(volumeMount radixv1.RadixVolumeMount, componentName string) string {
@@ -115,13 +167,12 @@ func (deploy *Deployment) GetVolumesForComponent(deployComponent radixv1.RadixCo
 
 //GetVolumes Get volumes of a component by RadixVolumeMounts
 func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
-	componentName := deployComponent.GetName()
 	var volumes []corev1.Volume
-	blobVolumes, err := getBlobVolumes(kubeclient, namespace, environment, deployComponent)
+	blobVolumes, err := getExternalVolumes(kubeclient, namespace, environment, deployComponent)
 	if err != nil {
 		return nil, err
 	}
-	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, environment, deployComponent, componentName)
+	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +181,7 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 	return volumes, nil
 }
 
-func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, environment string, component radixv1.RadixCommonDeployComponent, name string) ([]v1.Volume, error) {
+func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
 	var volumes []v1.Volume
 	secretProviderClasses, err := kubeutil.ListSecretProviderClass(namespace, component.GetName())
 	if err != nil {
@@ -170,7 +221,7 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, environment st
 	return volumes, nil
 }
 
-func getBlobVolumes(kubeclient kubernetes.Interface, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
+func getExternalVolumes(kubeclient kubernetes.Interface, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
 	var volumes []v1.Volume
 	for _, volumeMount := range deployComponent.GetVolumeMounts() {
 		switch volumeMount.Type {

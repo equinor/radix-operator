@@ -281,6 +281,8 @@ type RadixSecretRef struct {
 type RadixAzureKeyVault struct {
 	// Name. Name of the Azure Key Vault
 	Name string `json:"name" yaml:"name"`
+	// Path. Optional. Path within replicas, where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>
+	Path *string `json:"path,omitempty" yaml:"path,omitempty"`
 	// Items. Azure Key Vault items
 	Items []RadixAzureKeyVaultItem `json:"items" yaml:"items"`
 }

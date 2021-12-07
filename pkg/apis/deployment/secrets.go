@@ -222,9 +222,9 @@ func getSecretProviderClassSecretParameters(radixAzureKeyVault radixv1.RadixAzur
 		parameterMap["objects"] = ""
 		return parameterMap, nil
 	}
-	var objectArray []kube.SecretProviderClassObject
+	var parameterObject []kube.SecretProviderClassParameterObject
 	for _, item := range radixAzureKeyVault.Items {
-		obj := kube.SecretProviderClassObject{
+		obj := kube.SecretProviderClassParameterObject{
 			Name:     item.Name,
 			Alias:    commonUtils.StringUnPtr(item.Alias),
 			Version:  commonUtils.StringUnPtr(item.Version),
@@ -236,14 +236,21 @@ func getSecretProviderClassSecretParameters(radixAzureKeyVault radixv1.RadixAzur
 		} else {
 			obj.Type = string(radixv1.RadixAzureKeyVaultObjectTypeSecret)
 		}
-		objectArray = append(objectArray, obj)
+		parameterObject = append(parameterObject, obj)
 	}
-	objectArrayMap := map[string][]kube.SecretProviderClassObject{"array": objectArray}
-	objectArrayString, err := yaml.Marshal(objectArrayMap)
+	parameterObjectArray := kube.StringArray{Array: []string{}}
+	for _, keyVaultObject := range parameterObject {
+		obj, err := yaml.Marshal(keyVaultObject)
+		if err != nil {
+			return nil, err
+		}
+		parameterObjectArray.Array = append(parameterObjectArray.Array, string(obj))
+	}
+	parameterObjectArrayString, err := yaml.Marshal(parameterObjectArray)
 	if err != nil {
 		return nil, err
 	}
-	parameterMap["objects"] = string(objectArrayString)
+	parameterMap["objects"] = string(parameterObjectArrayString)
 	return parameterMap, nil
 }
 
@@ -262,8 +269,8 @@ func getSecretProviderClassSecretObject(componentName string, radixAzureKeyVault
 			secretObjects = append(secretObjects, secretObject)
 		}
 		secretObject.Data = append(secretObject.Data, &secretsstorev1.SecretObjectData{
-			ObjectName: keyVaultItem.EnvVar,
-			Key:        keyVaultItem.Name,
+			ObjectName: keyVaultItem.Name,
+			Key:        keyVaultItem.EnvVar,
 		})
 	}
 	return secretObjects

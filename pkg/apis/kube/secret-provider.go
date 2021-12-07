@@ -12,8 +12,13 @@ import (
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
-// SecretProviderClassObject Object for SecretProviderClass parameters
-type SecretProviderClassObject struct {
+// StringArray ...
+type StringArray struct {
+	Array []string `json:"array" yaml:"array"`
+}
+
+// SecretProviderClassParameterObject Object for SecretProviderClass parameters
+type SecretProviderClassParameterObject struct {
 	// Name. Name of the Azure Key Vault object
 	Name string `yaml:"objectName"`
 	// Type. Type of the Azure KeyVault object: secret, key, cert
