@@ -126,10 +126,10 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 }
 
 func getCsiAzureKeyVaultSecretMountPath(componentName string, azureKeyVault radixv1.RadixAzureKeyVault) string {
-	secretFolderPath := utils.TernaryString(azureKeyVault.Path == nil || *(azureKeyVault.Path) == "",
-		fmt.Sprintf(csiAzureKeyVaultSecretMountPathTemplate, azureKeyVault.Name, componentName),
-		*azureKeyVault.Path)
-	return secretFolderPath
+	if azureKeyVault.Path == nil || *(azureKeyVault.Path) == "" {
+		return fmt.Sprintf(csiAzureKeyVaultSecretMountPathTemplate, azureKeyVault.Name, componentName)
+	}
+	return *azureKeyVault.Path
 }
 
 func getBlobFuseVolumeMountName(volumeMount radixv1.RadixVolumeMount, componentName string) string {
