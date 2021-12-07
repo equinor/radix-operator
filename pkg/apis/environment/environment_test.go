@@ -30,6 +30,7 @@ const (
 	envConfigFileName = "./testdata/re.yaml"
 	regConfigFileName = "./testdata/rr.yaml"
 	namespaceName     = "testapp-testenv"
+	egressIps         = "0.0.0.0"
 
 	limitDefaultCPU          = "432m" // 0.432
 	limitDefaultReqestCPU    = "234m" // 0.234
@@ -43,7 +44,7 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	kubeUtil, _ := kube.New(fakekube, fakeradix)
 
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, limitDefaultCPU)
 	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, limitDefaultReqestCPU)

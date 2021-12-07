@@ -2,6 +2,7 @@
 
 clusterName: xx
 activeClusterName: xx
+clusterActiveEgressIps: xx
 
 configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
