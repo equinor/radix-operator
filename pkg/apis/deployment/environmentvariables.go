@@ -85,10 +85,10 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 	}
 
 	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
-	return getEnvironmentVariables(kubeutil, appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.GetSecretRefs(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
+	return getEnvironmentVariables(kubeutil, appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.GetSecretRefs(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables())
 }
 
-func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, radixSecretRefs []v1.RadixSecretRef, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
+func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, radixSecretRefs []v1.RadixSecretRef, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) ([]corev1.EnvVar, error) {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
@@ -97,33 +97,47 @@ func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource 
 	var envVars = getEnvVars(envVarConfigMap, deployComponentEnvVars)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
-	envVars, _ = appendEnvVarsFromSecretRefs(kubeutil, namespace, componentName, envVars, radixSecretRefs)
-	return envVars
+	envVars, err := appendEnvVarsFromSecretRefs(kubeutil, namespace, componentName, envVars, radixSecretRefs)
+	if err != nil {
+		return nil, err
+	}
+	return envVars, nil
 }
 
 func appendEnvVarsFromSecretRefs(kubeutil *kube.Kube, namespace string, componentName string, envVars []corev1.EnvVar, secretRefs []v1.RadixSecretRef) ([]corev1.EnvVar, error) {
-	if len(secretRefs) > 0 {
-		for _, secretRef := range secretRefs {
-			if secretRef.AzureKeyVaults != nil {
-				for _, azureKeyVault := range secretRef.AzureKeyVaults {
-					secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, componentName, string(v1.RadixSecretRefAzureKeyVault), azureKeyVault.Name)
-					if err != nil {
-						return nil, err
-					}
-					if secretProviderClass == nil {
-						return nil, fmt.Errorf("missed secret provider class for component %s, KeyVault %s", componentName, azureKeyVault.Name)
-					}
-					for _, keyVaultItem := range azureKeyVault.Items {
-						kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
-						secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, azureKeyVault.Name, kubeSecretType)
-						secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)
-						envVars = append(envVars, secretEnvVar)
-					}
-				}
-			}
-		}
-	} else {
+	if len(secretRefs) == 0 {
 		log.Debugf("No secret-refs is set for this RadixDeployment")
+		return nil, nil
+	}
+	for _, secretRef := range secretRefs {
+		azureKeyVaultEnvVars, err := getAzureKeyVaultSecretRefsAsEnvVars(kubeutil, namespace, componentName, &secretRef)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, azureKeyVaultEnvVars...)
+	}
+	return envVars, nil
+}
+
+func getAzureKeyVaultSecretRefsAsEnvVars(kubeutil *kube.Kube, namespace string, componentName string, secretRefs *v1.RadixSecretRef) ([]corev1.EnvVar, error) {
+	var envVars []corev1.EnvVar
+	if secretRefs.AzureKeyVaults == nil {
+		return nil, nil
+	}
+	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
+		secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, componentName, string(v1.RadixSecretRefAzureKeyVault), azureKeyVault.Name)
+		if err != nil {
+			return nil, err
+		}
+		if secretProviderClass == nil {
+			return nil, fmt.Errorf("missed secret provider class for component %s, KeyVault %s", componentName, azureKeyVault.Name)
+		}
+		for _, keyVaultItem := range azureKeyVault.Items {
+			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
+			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, azureKeyVault.Name, kubeSecretType)
+			secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)
+			envVars = append(envVars, secretEnvVar)
+		}
 	}
 	return envVars, nil
 }
