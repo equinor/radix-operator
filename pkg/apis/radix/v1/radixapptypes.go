@@ -1,8 +1,9 @@
 package v1
 
 import (
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
+
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -263,15 +264,6 @@ type RadixNode struct {
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
 
-type Authentication struct {
-	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
-}
-
-type ClientCertificate struct {
-	Verification              *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
-	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
-}
-
 type VerificationType string
 
 const (
@@ -280,6 +272,83 @@ const (
 	VerificationTypeOptional     VerificationType = "optional"
 	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
+
+type Authentication struct {
+	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
+	OAuth2            *OAuth2            `json:"oauth2,omitempty" yaml:"oauth2,omitempty"`
+}
+
+type ClientCertificate struct {
+	Verification              *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
+	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
+}
+
+type SessionStoreType string
+
+const (
+	// Cookie session store
+	SessionStoreCookie SessionStoreType = "cookie"
+	// Redis session store
+	SessionStoreRedis SessionStoreType = "redis"
+)
+
+type OAuth2 struct {
+	// The OAUTH client ID
+	ClientID string `json:"clientId,omitempty" yaml:"clientId,omitempty"`
+	// The OAUTH scope specification
+	Scope string `json:"scope,omitempty" yaml:"scope,omitempty"`
+	// SetXAuthRequestHeaders adds X-Auth-Request-User, X-Auth-Request-Groups, X-Auth-Request-Email,
+	// X-Auth-Request-Preferred-Username and X-Auth-Request-Access-Token to the response headers.
+	// Values in the headers are extracted from the OAUTH access token
+	SetXAuthRequestHeaders *bool `json:"setXAuthRequestHeaders,omitempty" yaml:"setXAuthRequestHeaders,omitempty"`
+	// SetAuthorizationHeader sets the OAUTH IDToken in the Authorization Bearer headers
+	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty" yaml:"setAuthorizationHeader,omitempty"`
+	// Authenticate emails with the specified domain. A comma separated list of domain may be specified
+	EmailDomain string `json:"emailDomain,omitempty" yaml:"emailDomain,omitempty"`
+	// The URL root path that the oauth proxy should be nested under
+	ProxyPrefix string `json:"proxyPrefix,omitempty" yaml:"proxyPrefix,omitempty"`
+	// Authentication endpoint
+	LoginURL string `json:"loginUrl,omitempty" yaml:"loginUrl,omitempty"`
+	// Endpoint to redeem the authorization code
+	RedeemURL string `json:"redeemURL,omitempty" yaml:"redeemURL,omitempty"`
+	// OIDC settings
+	OIDC *OAuth2OIDC `json:"oidc,omitempty" yaml:"oidc,omitempty"`
+	// Cookie settings
+	Cookie *OAuth2Cookie `json:"cookie,omitempty" yaml:"cookie,omitempty"`
+	// Session store type for backend
+	SessionStore SessionStoreType `json:"sessionStore,omitempty" yaml:"sessionStore,omitempty"`
+	// Cookie session storage settings
+	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty" yaml:"cookieStore,omitempty"`
+	// Redis session storage settings
+	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty" yaml:"redisStore,omitempty"`
+}
+
+type OAuth2Cookie struct {
+	// Name of the cookie used to store information about the authenticated session
+	Name     string `json:"name,omitempty" yaml:"name,omitempty"`
+	Path     string `json:"path,omitempty" yaml:"path,omitempty"`
+	Domain   string `json:"domain,omitempty" yaml:"domain,omitempty"`
+	Expire   string `json:"expire,omitempty" yaml:"expire,omitempty"`
+	Refresh  string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
+	SameSite string `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
+}
+
+type OAuth2OIDC struct {
+	IssuerURL               string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
+	JWKSURL                 string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
+	EmailClaim              string `json:"emailClaim,omitempty" yaml:"emailClaim,omitempty"`
+	GroupsClaim             string `json:"groupsClaim,omitempty" yaml:"groupsClaim,omitempty"`
+	SkipDiscovery           *bool  `json:"skipDiscovery,omitempty" yaml:"skipDiscovery,omitempty"`
+	InsecureSkipVerifyNonce *bool  `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
+}
+
+type OAuth2RedisStore struct {
+	ConnectionURL string `json:"connectionUrl,omitempty" yaml:"connectionUrl,omitempty"`
+}
+
+type OAuth2CookieStore struct {
+	Minimal *bool `json:"minimal,omitempty" yaml:"minimal,omitempty"`
+}
 
 //RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {

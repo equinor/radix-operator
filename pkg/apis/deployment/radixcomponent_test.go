@@ -23,7 +23,6 @@ const (
 
 func TestGetAuthenticationForComponent(t *testing.T) {
 	var x0 *v1.Authentication
-	x0 = nil
 
 	verificationOpt := v1.VerificationTypeOptionalNoCa
 	x1 := &v1.Authentication{
@@ -62,7 +61,6 @@ func TestGetAuthenticationForComponent(t *testing.T) {
 
 func TestGetClientCertificateForComponent(t *testing.T) {
 	var x0 *v1.ClientCertificate
-	x0 = nil
 
 	verificationOpt := v1.VerificationTypeOptionalNoCa
 	x1 := &v1.ClientCertificate{
@@ -91,6 +89,23 @@ func TestGetClientCertificateForComponent(t *testing.T) {
 
 	cert5 := GetClientCertificateForComponent(nil, nil)
 	assert.Equal(t, x0, cert5)
+}
+
+func TestGetOAuth2ForComponent(t *testing.T) {
+	type scenarioDef struct {
+		name        string
+		component   *v1.OAuth2
+		environment *v1.OAuth2
+		expected    *v1.OAuth2
+	}
+	scenarios := []scenarioDef{
+		{name: "both args nil should return nil", component: nil, environment: nil, expected: nil},
+	}
+
+	for i, scenario := range scenarios {
+		actual := GetOAuth2ForComponent(scenario.component, scenario.environment)
+		assert.Equal(t, scenario.expected, actual, "scenario %v: %s", i, scenario.name)
+	}
 }
 
 func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {

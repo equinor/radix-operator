@@ -6,6 +6,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/imdario/mergo"
 )
 
 func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
@@ -125,13 +126,31 @@ func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, e
 	} else {
 		authentication = &v1.Authentication{
 			ClientCertificate: GetClientCertificateForComponent(componentAuthentication.ClientCertificate, environmentAuthentication.ClientCertificate),
+			OAuth2:            GetOAuth2ForComponent(componentAuthentication.OAuth2, environmentAuthentication.OAuth2),
 		}
 	}
 
 	return authentication
 }
 
-func GetClientCertificateForComponent(componentCertificate *v1.ClientCertificate, environmentCertificate *v1.ClientCertificate) *v1.ClientCertificate {
+func GetOAuth2ForComponent(componentOAuth, environmentOAuth *v1.OAuth2) *v1.OAuth2 {
+
+	switch {
+	case componentOAuth == nil && environmentOAuth == nil:
+		return nil
+	case componentOAuth == nil:
+		return environmentOAuth.DeepCopy()
+	case environmentOAuth == nil:
+		return componentOAuth.DeepCopy()
+	}
+
+	dstOAuth := componentOAuth.DeepCopy()
+	srcOAuth := environmentOAuth.DeepCopy()
+	mergo.Merge(dstOAuth, srcOAuth)
+	return dstOAuth
+}
+
+func GetClientCertificateForComponent(componentCertificate, environmentCertificate *v1.ClientCertificate) *v1.ClientCertificate {
 	var certificate *v1.ClientCertificate
 	if componentCertificate == nil && environmentCertificate == nil {
 		certificate = nil
@@ -142,6 +161,7 @@ func GetClientCertificateForComponent(componentCertificate *v1.ClientCertificate
 	} else {
 		certificate = componentCertificate.DeepCopy()
 		envCert := environmentCertificate.DeepCopy()
+		// mergo.Merge(certificate, envCert)
 		if envCert.PassCertificateToUpstream != nil {
 			certificate.PassCertificateToUpstream = envCert.PassCertificateToUpstream
 		}
