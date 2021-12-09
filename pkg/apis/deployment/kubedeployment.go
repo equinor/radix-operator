@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -178,7 +180,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.securityContextBuilder.BuildContainerSecurityContext(deployComponent)
@@ -245,7 +247,20 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
 
+	if hasRadixSecretRefs(deployComponent) {
+		desiredDeployment.Spec.RevisionHistoryLimit = numbers.Int32Ptr(0)
+	}
+
 	return desiredDeployment, nil
+}
+
+func hasRadixSecretRefs(deployComponent v1.RadixCommonDeployComponent) bool {
+	for _, secretRef := range deployComponent.GetSecretRefs() {
+		if len(secretRef.AzureKeyVaults) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {

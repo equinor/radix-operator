@@ -268,7 +268,7 @@ type RadixNode struct {
 type RadixSecretRefType string
 
 const (
-	RadixSecretRefAzureKeyVault RadixSecretRefType = "az-keyvault"
+	RadixSecretRefTypeAzureKeyVault RadixSecretRefType = "az-keyvault"
 )
 
 // RadixSecretRef defines secret vault

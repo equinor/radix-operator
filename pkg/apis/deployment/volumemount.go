@@ -162,17 +162,17 @@ func getRadixVolumeTypeIdForName(radixVolumeMountType radixv1.MountType) string 
 
 //GetVolumesForComponent Gets volumes for Radix deploy component or job
 func (deploy *Deployment) GetVolumesForComponent(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
-	return GetVolumes(deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent)
+	return GetVolumes(deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent, deploy.radixDeployment.GetName())
 }
 
 //GetVolumes Get volumes of a component by RadixVolumeMounts
-func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
+func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
 	var volumes []corev1.Volume
 	blobVolumes, err := getExternalVolumes(kubeclient, namespace, environment, deployComponent)
 	if err != nil {
 		return nil, err
 	}
-	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent)
+	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 	return volumes, nil
 }
 
-func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent) ([]v1.Volume, error) {
+func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
 	var volumes []v1.Volume
 	secretProviderClasses, err := kubeutil.ListSecretProviderClass(namespace, component.GetName())
 	if err != nil {
@@ -200,15 +200,23 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, component radi
 				if !keyvaultNameExists {
 					return nil, fmt.Errorf("missing keyvaultName in the secret provider class %s", secretProviderClass.Name)
 				}
-				credSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(component.GetName(), keyvaultName)
-				if !kubeutil.SecretExists(namespace, credSecretName) {
+				componentName := component.GetName()
+				labelSelector := kube.GetSecretRefObjectLabelSelector(componentName, radixDeploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, keyvaultName)
+				secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
+				if err != nil {
+					return nil, err
+				}
+				if len(secrets) == 0 {
 					return nil, fmt.Errorf("missed secrets for secret provider class %s", secretProviderClass.Name)
+				}
+				if len(secrets) > 1 {
+					return nil, fmt.Errorf("expected only one secret for secret provider class %s, but found multiple", secretProviderClass.Name)
 				}
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
 					Driver:               "secrets-store.csi.k8s.io",
 					ReadOnly:             commonUtils.BoolPtr(true),
 					VolumeAttributes:     map[string]string{"secretProviderClass": secretProviderClass.Name},
-					NodePublishSecretRef: &corev1.LocalObjectReference{Name: credSecretName},
+					NodePublishSecretRef: &corev1.LocalObjectReference{Name: secrets[0].Name},
 				}
 				break
 			default:

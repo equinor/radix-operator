@@ -36,6 +36,15 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 	return true
 }
 
+// SecretExistsForLabels Checks if secret exists for specific labels
+func (kubeutil *Kube) SecretExistsForLabels(namespace, labelSelector string) (bool, error) {
+	secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
+	if err != nil {
+		return false, err
+	}
+	return len(secrets) > 0, nil
+}
+
 // ListSecretExistsForLabels Gets list of secrets for specific labels
 func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector string) ([]v1.Secret, error) {
 	list, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
@@ -189,7 +198,7 @@ func GetSecretTypeForRadixAzureKeyVault(k8sSecretType *radixv1.RadixAzureKeyVaul
 // GetAzureKeyVaultSecretRefSecretName Gets a secret name for Azure KeyVault RadixSecretRef
 func GetAzureKeyVaultSecretRefSecretName(componentName, azKeyVaultName string, secretType SecretType) string {
 	radixSecretRefSecretType := string(getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(secretType))
-	return getSecretRefSecretName(componentName, string(radixv1.RadixSecretRefAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)
+	return getSecretRefSecretName(componentName, string(radixv1.RadixSecretRefTypeAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)
 }
 
 func getSecretRefSecretName(componentName, secretRefType, secretType, secretResourceName string) string {
