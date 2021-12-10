@@ -14,55 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// InvalidAppNameLengthError Invalid app length
-func InvalidAppNameLengthError(value string) error {
-	return InvalidStringValueMaxLengthError("app name", value, 253)
-}
-
-// AppNameCannotBeEmptyError App name cannot be empty
-func AppNameCannotBeEmptyError() error {
-	return ResourceNameCannotBeEmptyError("app name")
-}
-
-// InvalidStringValueMinLengthError Invalid string value min length
-func InvalidStringValueMinLengthError(resourceName, value string, minValue int) error {
-	return fmt.Errorf("%s (\"%s\") min length is %d", resourceName, value, minValue)
-}
-
-// InvalidStringValueMaxLengthError Invalid string value max length
-func InvalidStringValueMaxLengthError(resourceName, value string, maxValue int) error {
-	return fmt.Errorf("%s (\"%s\") max length is %d", resourceName, value, maxValue)
-}
-
-// ResourceNameCannotBeEmptyError Resource name cannot be left empty
-func ResourceNameCannotBeEmptyError(resourceName string) error {
-	return fmt.Errorf("%s cannot be empty", resourceName)
-}
-
-// InvalidEmailError Invalid email
-func InvalidEmailError(resourceName, email string) error {
-	return fmt.Errorf("field %s does not contain a valid email (value: %s)", resourceName, email)
-}
-
-// InvalidResourceNameError Invalid resource name
-func InvalidResourceNameError(resourceName, value string) error {
-	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
-}
-
-//InvalidLowerCaseAlphaNumericDotDashResourceNameError Invalid lower case alpha-numeric, dot, dash resource name error
-func InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value string) error {
-	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
-}
-
-// NoRegistrationExistsForApplicationError No registration exists
-func NoRegistrationExistsForApplicationError(appName string) error {
-	return fmt.Errorf("No application found with name %s. Name of the application in radixconfig.yaml needs to be exactly the same as used when defining the app in the console", appName)
-}
-
-func InvalidConfigBranchName(configBranch string) error {
-	return fmt.Errorf("Config branch name is not valid (value: %s)", configBranch)
-}
-
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
@@ -126,7 +77,7 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
 	rr, _ := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
 	if rr != nil && rr.Name != "" {
-		return fmt.Errorf("App name must be unique in cluster - %s already exist", appName)
+		return fmt.Errorf("app name must be unique in cluster - %s already exist", appName)
 	}
 	return nil
 }
@@ -158,7 +109,7 @@ func validateWbs(wbs string) error {
 		return InvalidStringValueMaxLengthError("WBS", value, 100)
 	}
 
-	re := regexp.MustCompile("^(([\\w\\d][\\w\\d\\.]*)?[\\w\\d])?$")
+	re := regexp.MustCompile(`^(([\w\d][\w\d\.]*)?[\w\d])?$`)
 
 	isValid := re.MatchString(wbs)
 	if isValid {
@@ -177,7 +128,7 @@ func validateRequiredResourceName(resourceName, value string) error {
 		return ResourceNameCannotBeEmptyError(resourceName)
 	}
 
-	re := regexp.MustCompile("^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$")
+	re := regexp.MustCompile(`^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$`)
 
 	isValid := re.MatchString(value)
 	if isValid {
@@ -206,7 +157,7 @@ func validateAdGroups(groups []string) error {
 }
 
 func validateGitSSHUrl(sshURL string) error {
-	re := regexp.MustCompile("^(git@github.com:)([\\w-]+)/([\\w-]+)(.git)$")
+	re := regexp.MustCompile(`^(git@github.com:)([\w-]+)/([\w-]+)(.git)$`)
 
 	if sshURL == "" {
 		return fmt.Errorf("ssh url is required")
@@ -232,7 +183,7 @@ func validateNoDuplicateGitRepo(client radixclient.Interface, appName, sshURL st
 
 	for _, reg := range registrations.Items {
 		if reg.Spec.CloneURL == sshURL && !strings.EqualFold(reg.Name, appName) {
-			return fmt.Errorf("Repository is in use by %s", reg.Name)
+			return fmt.Errorf("repository is in use by %s", reg.Name)
 		}
 	}
 	return nil
