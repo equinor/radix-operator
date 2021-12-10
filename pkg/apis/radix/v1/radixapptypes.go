@@ -312,7 +312,7 @@ type OAuth2 struct {
 	// Authentication endpoint
 	LoginURL string `json:"loginUrl,omitempty" yaml:"loginUrl,omitempty"`
 	// Endpoint to redeem the authorization code
-	RedeemURL string `json:"redeemURL,omitempty" yaml:"redeemURL,omitempty"`
+	RedeemURL string `json:"redeemUrl,omitempty" yaml:"redeemUrl,omitempty"`
 	// OIDC settings
 	OIDC *OAuth2OIDC `json:"oidc,omitempty" yaml:"oidc,omitempty"`
 	// Cookie settings
