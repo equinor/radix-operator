@@ -99,6 +99,12 @@ func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
 			expected: &v1.ClientCertificate{Verification: &verificationOptional},
 		},
 		{
+			name:     "should use Verification from environment",
+			comp:     &v1.ClientCertificate{},
+			env:      &v1.ClientCertificate{Verification: &verificationOptional},
+			expected: &v1.ClientCertificate{Verification: &verificationOptional},
+		},
+		{
 			name:     "should use Verification from component",
 			comp:     &v1.ClientCertificate{Verification: &verificationOff},
 			env:      &v1.ClientCertificate{},
@@ -138,7 +144,30 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		{name: "should return nil when component and environment is nil"},
 		{name: "should return component when environment is nil", comp: &v1.OAuth2{}, expected: &v1.OAuth2{}},
 		{name: "should return environment when component is nil", env: &v1.OAuth2{}, expected: &v1.OAuth2{}},
-		{name: "", comp: &v1.OAuth2{}, env: &v1.OAuth2{}, expected: &v1.OAuth2{}},
+		{
+			name:     "should override OAuth2 from environment",
+			comp:     &v1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: utils.BoolPtr(true), SessionStoreType: v1.SessionStoreCookie},
+			env:      &v1.OAuth2{Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: v1.SessionStoreRedis},
+			expected: &v1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: v1.SessionStoreRedis},
+		},
+		{
+			name:     "should override OAuth2.RedisStore from environment",
+			comp:     &v1.OAuth2{RedisStore: &v1.OAuth2RedisStore{ConnectionURL: "foo"}},
+			env:      &v1.OAuth2{RedisStore: &v1.OAuth2RedisStore{ConnectionURL: "bar"}},
+			expected: &v1.OAuth2{RedisStore: &v1.OAuth2RedisStore{ConnectionURL: "bar"}},
+		},
+		{
+			name:     "should override OAuth2.RedisStore from environment",
+			comp:     &v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: utils.BoolPtr(true)}},
+			env:      &v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: utils.BoolPtr(false)}},
+			expected: &v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: utils.BoolPtr(false)}},
+		},
+		{
+			name:     "should override OAuth2.RedisStore from environment",
+			comp:     &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "oauth", Path: "path"}},
+			env:      &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Domain: "domain"}},
+			expected: &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Domain: "domain", Path: "path"}},
+		},
 	}
 
 	for i, scenario := range scenarios {

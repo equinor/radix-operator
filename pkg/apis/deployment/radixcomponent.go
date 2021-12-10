@@ -4,41 +4,15 @@ import (
 	"reflect"
 	"strings"
 
+	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/imdario/mergo"
 )
 
 var (
-	transformer combineTransformers = combineTransformers{transformers: []mergo.Transformers{boolPtrTransformer{}}}
+	transformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
-
-type combineTransformers struct {
-	transformers []mergo.Transformers
-}
-
-func (ct combineTransformers) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
-	for _, t := range ct.transformers {
-		if f := t.Transformer(typ); f != nil {
-			return f
-		}
-	}
-	return nil
-}
-
-type boolPtrTransformer struct{}
-
-func (t boolPtrTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
-	if typ == reflect.TypeOf(new(bool)) {
-		return func(dst, src reflect.Value) error {
-			if !src.IsNil() && dst.CanSet() {
-				dst.Set(src)
-			}
-			return nil
-		}
-	}
-	return nil
-}
 
 func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) ([]v1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
@@ -161,22 +135,20 @@ func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, e
 		}
 	}()
 
-	switch {
-	case componentAuthentication == nil && environmentAuthentication == nil:
+	if componentAuthentication == nil && environmentAuthentication == nil {
 		return nil, nil
-	case componentAuthentication == nil:
+	} else if componentAuthentication == nil {
 		return environmentAuthentication.DeepCopy(), nil
-	case environmentAuthentication == nil:
+	} else if environmentAuthentication == nil {
 		return componentAuthentication.DeepCopy(), nil
 	}
 
-	authComp := componentAuthentication.DeepCopy()
+	authBase := componentAuthentication.DeepCopy()
 	authEnv := environmentAuthentication.DeepCopy()
-
-	if err := mergo.Merge(authComp, authEnv, mergo.WithOverride, mergo.WithTransformers(&transformer)); err != nil {
+	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(transformer)); err != nil {
 		return nil, err
 	}
-	return authComp, nil
+	return authBase, nil
 }
 
 // IsDNSAppAlias Checks if environment and component represents the DNS app alias

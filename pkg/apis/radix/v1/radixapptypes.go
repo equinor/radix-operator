@@ -283,15 +283,17 @@ type ClientCertificate struct {
 	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
 }
 
+// SessionStoreType defines type of session storage
 type SessionStoreType string
 
 const (
-	// Cookie session store
+	// Cookie session storage
 	SessionStoreCookie SessionStoreType = "cookie"
-	// Redis session store
+	// Redis session storage
 	SessionStoreRedis SessionStoreType = "redis"
 )
 
+// OAuth2 defines oauth proxy settings for the component
 type OAuth2 struct {
 	// The OAUTH client ID
 	ClientID string `json:"clientId,omitempty" yaml:"clientId,omitempty"`
@@ -316,13 +318,14 @@ type OAuth2 struct {
 	// Cookie settings
 	Cookie *OAuth2Cookie `json:"cookie,omitempty" yaml:"cookie,omitempty"`
 	// Session store type for backend
-	SessionStore SessionStoreType `json:"sessionStore,omitempty" yaml:"sessionStore,omitempty"`
+	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty" yaml:"sessionStoreType,omitempty"`
 	// Cookie session storage settings
 	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty" yaml:"cookieStore,omitempty"`
 	// Redis session storage settings
 	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty" yaml:"redisStore,omitempty"`
 }
 
+// OAuth2Cookie defines properties for the oauth cookie
 type OAuth2Cookie struct {
 	// Name of the cookie used to store information about the authenticated session
 	Name     string `json:"name,omitempty" yaml:"name,omitempty"`
@@ -333,6 +336,7 @@ type OAuth2Cookie struct {
 	SameSite string `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
 }
 
+// OAuth2OIDC defines OIDC properties for oauth proxy
 type OAuth2OIDC struct {
 	IssuerURL               string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
 	JWKSURL                 string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
@@ -342,10 +346,12 @@ type OAuth2OIDC struct {
 	InsecureSkipVerifyNonce *bool  `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
 }
 
+// OAuth2RedisStore properties for redis session storage
 type OAuth2RedisStore struct {
 	ConnectionURL string `json:"connectionUrl,omitempty" yaml:"connectionUrl,omitempty"`
 }
 
+// OAuth2CookieStore properties for cookie session storage
 type OAuth2CookieStore struct {
 	Minimal *bool `json:"minimal,omitempty" yaml:"minimal,omitempty"`
 }
