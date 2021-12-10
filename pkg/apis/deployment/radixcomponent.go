@@ -9,7 +9,38 @@ import (
 	"github.com/imdario/mergo"
 )
 
-func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
+var (
+	transformer combineTransformers = combineTransformers{transformers: []mergo.Transformers{boolPtrTransformer{}}}
+)
+
+type combineTransformers struct {
+	transformers []mergo.Transformers
+}
+
+func (ct combineTransformers) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	for _, t := range ct.transformers {
+		if f := t.Transformer(typ); f != nil {
+			return f
+		}
+	}
+	return nil
+}
+
+type boolPtrTransformer struct{}
+
+func (t boolPtrTransformer) Transformer(typ reflect.Type) func(dst, src reflect.Value) error {
+	if typ == reflect.TypeOf(new(bool)) {
+		return func(dst, src reflect.Value) error {
+			if !src.IsNil() && dst.CanSet() {
+				dst.Set(src)
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) ([]v1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	components := []v1.RadixDeployComponent{}
 
@@ -84,7 +115,10 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
-		authentication := GetAuthenticationForComponent(appComponent.Authentication, environmentAuthentication)
+		authentication, err := GetAuthenticationForComponent(appComponent.Authentication, environmentAuthentication)
+		if err != nil {
+			return nil, err
+		}
 
 		deployComponent := v1.RadixDeployComponent{
 			Name:                    componentName,
@@ -111,67 +145,38 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		components = append(components, deployComponent)
 	}
 
-	return components
+	return components, nil
 }
 
-func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) *v1.Authentication {
-	var authentication *v1.Authentication
-
-	if componentAuthentication == nil && environmentAuthentication == nil {
-		authentication = nil
-	} else if componentAuthentication == nil {
-		authentication = environmentAuthentication.DeepCopy()
-	} else if environmentAuthentication == nil {
-		authentication = componentAuthentication.DeepCopy()
-	} else {
-		authentication = &v1.Authentication{
-			ClientCertificate: GetClientCertificateForComponent(componentAuthentication.ClientCertificate, environmentAuthentication.ClientCertificate),
-			OAuth2:            GetOAuth2ForComponent(componentAuthentication.OAuth2, environmentAuthentication.OAuth2),
+func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) (auth *v1.Authentication, err error) {
+	// mergo uses the reflect package, and reflect use panic() when errors are detected
+	// We handle panics to prevent process termination
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				panic(r)
+			}
 		}
-	}
-
-	return authentication
-}
-
-func GetOAuth2ForComponent(componentOAuth, environmentOAuth *v1.OAuth2) *v1.OAuth2 {
+	}()
 
 	switch {
-	case componentOAuth == nil && environmentOAuth == nil:
-		return nil
-	case componentOAuth == nil:
-		return environmentOAuth.DeepCopy()
-	case environmentOAuth == nil:
-		return componentOAuth.DeepCopy()
+	case componentAuthentication == nil && environmentAuthentication == nil:
+		return nil, nil
+	case componentAuthentication == nil:
+		return environmentAuthentication.DeepCopy(), nil
+	case environmentAuthentication == nil:
+		return componentAuthentication.DeepCopy(), nil
 	}
 
-	dstOAuth := componentOAuth.DeepCopy()
-	srcOAuth := environmentOAuth.DeepCopy()
-	mergo.Merge(dstOAuth, srcOAuth)
-	return dstOAuth
-}
+	authComp := componentAuthentication.DeepCopy()
+	authEnv := environmentAuthentication.DeepCopy()
 
-func GetClientCertificateForComponent(componentCertificate, environmentCertificate *v1.ClientCertificate) *v1.ClientCertificate {
-	var certificate *v1.ClientCertificate
-	if componentCertificate == nil && environmentCertificate == nil {
-		certificate = nil
-	} else if componentCertificate == nil {
-		certificate = environmentCertificate.DeepCopy()
-	} else if environmentCertificate == nil {
-		certificate = componentCertificate.DeepCopy()
-	} else {
-		certificate = componentCertificate.DeepCopy()
-		envCert := environmentCertificate.DeepCopy()
-		// mergo.Merge(certificate, envCert)
-		if envCert.PassCertificateToUpstream != nil {
-			certificate.PassCertificateToUpstream = envCert.PassCertificateToUpstream
-		}
-
-		if envCert.Verification != nil {
-			certificate.Verification = envCert.Verification
-		}
+	if err := mergo.Merge(authComp, authEnv, mergo.WithOverride, mergo.WithTransformers(&transformer)); err != nil {
+		return nil, err
 	}
-
-	return certificate
+	return authComp, nil
 }
 
 // IsDNSAppAlias Checks if environment and component represents the DNS app alias

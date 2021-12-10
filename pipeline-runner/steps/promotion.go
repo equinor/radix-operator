@@ -195,7 +195,10 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 }
 
 func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
-	newEnvComponents := deployment.GetRadixComponentsForEnv(radixConfig, environment, make(map[string]pipeline.ComponentImage))
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, make(map[string]pipeline.ComponentImage))
+	if err != nil {
+		return nil
+	}
 
 	newEnvComponentsMap := make(map[string]v1.RadixDeployComponent)
 	for _, component := range newEnvComponents {

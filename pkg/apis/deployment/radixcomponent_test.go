@@ -22,89 +22,130 @@ const (
 )
 
 func TestGetAuthenticationForComponent(t *testing.T) {
-	var x0 *v1.Authentication
-
-	verificationOpt := v1.VerificationTypeOptionalNoCa
-	x1 := &v1.Authentication{
-		ClientCertificate: &v1.ClientCertificate{
-			PassCertificateToUpstream: utils.BoolPtr(true),
-		},
-	}
-	x2 := &v1.Authentication{
-		ClientCertificate: &v1.ClientCertificate{
-			Verification:              &verificationOpt,
-			PassCertificateToUpstream: utils.BoolPtr(false),
-		},
-	}
-	expected := &v1.Authentication{
-		ClientCertificate: &v1.ClientCertificate{
-			Verification:              &verificationOpt,
-			PassCertificateToUpstream: utils.BoolPtr(false),
-		},
-	}
-
-	auth1 := GetAuthenticationForComponent(x1, x2)
-	assert.Equal(t, expected, auth1)
-
-	auth2 := GetAuthenticationForComponent(x2, x1)
-	assert.NotEqual(t, expected, auth2)
-
-	auth3 := GetAuthenticationForComponent(x1, nil)
-	assert.Equal(t, x1, auth3)
-
-	auth4 := GetAuthenticationForComponent(nil, x2)
-	assert.Equal(t, x2, auth4)
-
-	auth5 := GetAuthenticationForComponent(nil, nil)
-	assert.Equal(t, x0, auth5)
-}
-
-func TestGetClientCertificateForComponent(t *testing.T) {
-	var x0 *v1.ClientCertificate
-
-	verificationOpt := v1.VerificationTypeOptionalNoCa
-	x1 := &v1.ClientCertificate{
-		Verification:              &verificationOpt,
-		PassCertificateToUpstream: utils.BoolPtr(false),
-	}
-	x2 := &v1.ClientCertificate{
-		PassCertificateToUpstream: utils.BoolPtr(true),
-	}
-	expected := &v1.ClientCertificate{
-		Verification:              &verificationOpt,
-		PassCertificateToUpstream: utils.BoolPtr(true),
-	}
-
-	cert1 := GetClientCertificateForComponent(x1, x2)
-	assert.Equal(t, expected, cert1)
-
-	cert2 := GetClientCertificateForComponent(x2, x1)
-	assert.NotEqual(t, expected, cert2)
-
-	cert3 := GetClientCertificateForComponent(x1, nil)
-	assert.Equal(t, x1, cert3)
-
-	cert4 := GetClientCertificateForComponent(nil, x2)
-	assert.Equal(t, x2, cert4)
-
-	cert5 := GetClientCertificateForComponent(nil, nil)
-	assert.Equal(t, x0, cert5)
-}
-
-func TestGetOAuth2ForComponent(t *testing.T) {
 	type scenarioDef struct {
-		name        string
-		component   *v1.OAuth2
-		environment *v1.OAuth2
-		expected    *v1.OAuth2
+		name     string
+		comp     *v1.Authentication
+		env      *v1.Authentication
+		expected *v1.Authentication
 	}
+
 	scenarios := []scenarioDef{
-		{name: "both args nil should return nil", component: nil, environment: nil, expected: nil},
+		{name: "should return nil when component and environment is nil"},
+		{name: "should return component when environment is nil", comp: &v1.Authentication{}, expected: &v1.Authentication{}},
+		{name: "should return environment when component is nil", env: &v1.Authentication{}, expected: &v1.Authentication{}},
 	}
 
 	for i, scenario := range scenarios {
-		actual := GetOAuth2ForComponent(scenario.component, scenario.environment)
-		assert.Equal(t, scenario.expected, actual, "scenario %v: %s", i, scenario.name)
+		actual, _ := GetAuthenticationForComponent(scenario.comp, scenario.env)
+		assert.Equal(t, scenario.expected, actual, "%v: %v", i+1, scenario.name)
+	}
+}
+
+func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
+	verificationOptional := v1.VerificationTypeOptional
+	verificationOff := v1.VerificationTypeOff
+
+	type scenarioDef struct {
+		name     string
+		comp     *v1.ClientCertificate
+		env      *v1.ClientCertificate
+		expected *v1.ClientCertificate
+	}
+
+	scenarios := []scenarioDef{
+		{name: "should return nil when component and environment is nil"},
+		{name: "should return component when environment is nil", comp: &v1.ClientCertificate{}, expected: &v1.ClientCertificate{}},
+		{name: "should return environment when component is nil", env: &v1.ClientCertificate{}, expected: &v1.ClientCertificate{}},
+		{
+			name:     "should use PassCertificateToUpstream from environment",
+			comp:     &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+			env:      &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			expected: &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+		},
+		{
+			name:     "should use PassCertificateToUpstream from environment",
+			comp:     &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			env:      &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+			expected: &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+		},
+		{
+			name:     "should use PassCertificateToUpstream from environment",
+			comp:     &v1.ClientCertificate{},
+			env:      &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			expected: &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+		},
+		{
+			name:     "should use PassCertificateToUpstream from environment",
+			comp:     &v1.ClientCertificate{},
+			env:      &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+			expected: &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+		},
+		{
+			name:     "should use PassCertificateToUpstream from component when not set in environment",
+			comp:     &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			env:      &v1.ClientCertificate{},
+			expected: &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+		},
+		{
+			name:     "should use PassCertificateToUpstream from component when not set in environment",
+			comp:     &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+			env:      &v1.ClientCertificate{},
+			expected: &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(true)},
+		},
+		{
+			name:     "should use Verification from environment",
+			comp:     &v1.ClientCertificate{Verification: &verificationOff},
+			env:      &v1.ClientCertificate{Verification: &verificationOptional},
+			expected: &v1.ClientCertificate{Verification: &verificationOptional},
+		},
+		{
+			name:     "should use Verification from component",
+			comp:     &v1.ClientCertificate{Verification: &verificationOff},
+			env:      &v1.ClientCertificate{},
+			expected: &v1.ClientCertificate{Verification: &verificationOff},
+		},
+		{
+			name:     "should use Verification from component and PassCertificateToUpstream from environment",
+			comp:     &v1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: utils.BoolPtr(true)},
+			env:      &v1.ClientCertificate{PassCertificateToUpstream: utils.BoolPtr(false)},
+			expected: &v1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: utils.BoolPtr(false)},
+		},
+		{
+			name:     "should use Verification from environment and PassCertificateToUpstream from component",
+			comp:     &v1.ClientCertificate{Verification: &verificationOff, PassCertificateToUpstream: utils.BoolPtr(true)},
+			env:      &v1.ClientCertificate{Verification: &verificationOptional},
+			expected: &v1.ClientCertificate{Verification: &verificationOptional, PassCertificateToUpstream: utils.BoolPtr(true)},
+		},
+	}
+
+	for i, scenario := range scenarios {
+		comp := scenario.comp
+		env := scenario.env
+		actual, _ := GetAuthenticationForComponent(&v1.Authentication{ClientCertificate: comp}, &v1.Authentication{ClientCertificate: env})
+		assert.Equal(t, scenario.expected, actual.ClientCertificate, "%v: %v", i+1, scenario.name)
+	}
+}
+
+func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
+	type scenarioDef struct {
+		name     string
+		comp     *v1.OAuth2
+		env      *v1.OAuth2
+		expected *v1.OAuth2
+	}
+
+	scenarios := []scenarioDef{
+		{name: "should return nil when component and environment is nil"},
+		{name: "should return component when environment is nil", comp: &v1.OAuth2{}, expected: &v1.OAuth2{}},
+		{name: "should return environment when component is nil", env: &v1.OAuth2{}, expected: &v1.OAuth2{}},
+		{name: "", comp: &v1.OAuth2{}, env: &v1.OAuth2{}, expected: &v1.OAuth2{}},
+	}
+
+	for i, scenario := range scenarios {
+		comp := scenario.comp
+		env := scenario.env
+		actual, _ := GetAuthenticationForComponent(&v1.Authentication{OAuth2: comp}, &v1.Authentication{OAuth2: env})
+		assert.Equal(t, scenario.expected, actual.OAuth2, "%v: %v", i+1, scenario.name)
 	}
 }
 
@@ -120,7 +161,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 	componentImages := make(map[string]pipeline.ComponentImage)
 	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
 
-	deployComponent := GetRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent, _ := GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "", deployComponent[0].PublicPort)
@@ -134,7 +175,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443).
 				WithPublicPort("http")).BuildRA()
-	deployComponent = GetRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.Equal(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
@@ -149,7 +190,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("https", 443).
 				WithPublicPort("http").
 				WithPublic(true)).BuildRA()
-	deployComponent = GetRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].PublicPort, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, "http", deployComponent[0].PublicPort)
@@ -163,7 +204,7 @@ func TestGetRadixComponentsForEnv_PublicPort_OldPublic(t *testing.T) {
 				WithPort("http", 80).
 				WithPort("https", 443).
 				WithPublic(true)).BuildRA()
-	deployComponent = GetRadixComponentsForEnv(ra, env, componentImages)
+	deployComponent, _ = GetRadixComponentsForEnv(ra, env, componentImages)
 	assert.Equal(t, ra.Spec.Components[0].Ports[0].Name, deployComponent[0].PublicPort)
 	assert.NotEqual(t, ra.Spec.Components[0].Public, deployComponent[0].Public)
 	assert.Equal(t, false, deployComponent[0].Public)
@@ -185,7 +226,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 		WithDNSExternalAlias("another.alias.com", "prod", "componentA").
 		WithDNSExternalAlias("athird.alias.com", "prod", "componentB").BuildRA()
 
-	deployComponent := GetRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponent, _ := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponent))
 	assert.Equal(t, 2, len(deployComponent[0].DNSExternalAlias))
 	assert.Equal(t, "some.alias.com", deployComponent[0].DNSExternalAlias[0])
@@ -194,7 +235,7 @@ func TestGetRadixComponentsForEnv_ListOfExternalAliasesForComponent_GetListOfAli
 	assert.Equal(t, 1, len(deployComponent[1].DNSExternalAlias))
 	assert.Equal(t, "athird.alias.com", deployComponent[1].DNSExternalAlias[0])
 
-	deployComponent = GetRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponent, _ = GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponent))
 	assert.Equal(t, 0, len(deployComponent[0].DNSExternalAlias))
 }
@@ -228,7 +269,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 						WithEnvironment("dev").
 						WithEnvironmentVariable("ENV_4", "environment_4"))).BuildRA()
 
-	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponentProd))
 
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
@@ -241,7 +282,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 	assert.Equal(t, "environment_3", deployComponentProd[1].EnvironmentVariables["ENV_3"])
 	assert.Equal(t, "environment_common_2", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
 
-	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev, _ := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponentDev))
 
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
@@ -289,7 +330,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 						WithEnvironmentVariable("ENV_4", "environment_4").
 						WithEnvironmentVariable("ENV_COMMON_2", "environment_common_2_dev_override"))).BuildRA()
 
-	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponentProd))
 
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
@@ -302,7 +343,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 	assert.Equal(t, "environment_3", deployComponentProd[1].EnvironmentVariables["ENV_3"])
 	assert.Equal(t, "environment_common_2_prod_override", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
 
-	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev, _ := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponentDev))
 
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
@@ -341,7 +382,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev"))).BuildRA()
 
-	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 2, len(deployComponentProd))
 
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
@@ -352,7 +393,7 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 	assert.Equal(t, 1, len(deployComponentProd[1].EnvironmentVariables))
 	assert.Equal(t, "environment_common_2", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
 
-	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev, _ := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 2, len(deployComponentDev))
 
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
@@ -391,7 +432,7 @@ func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 						"cpu":    "750m",
 					}))).BuildRA()
 
-	deployComponentProd := GetRadixComponentsForEnv(ra, "prod", componentImages)
+	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages)
 	assert.Equal(t, 1, len(deployComponentProd))
 	assert.Equal(t, "comp_1", deployComponentProd[0].Name)
 	assert.Equal(t, "500m", deployComponentProd[0].Resources.Requests["cpu"])
@@ -399,7 +440,7 @@ func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 	assert.Equal(t, "750m", deployComponentProd[0].Resources.Limits["cpu"])
 	assert.Equal(t, "256Mi", deployComponentProd[0].Resources.Limits["memory"])
 
-	deployComponentDev := GetRadixComponentsForEnv(ra, "dev", componentImages)
+	deployComponentDev, _ := GetRadixComponentsForEnv(ra, "dev", componentImages)
 	assert.Equal(t, 1, len(deployComponentDev))
 	assert.Equal(t, "comp_1", deployComponentDev[0].Name)
 	assert.Equal(t, "250m", deployComponentDev[0].Resources.Requests["cpu"])
@@ -439,25 +480,25 @@ func Test_GetRadixComponents_NodeName(t *testing.T) {
 
 	t.Run("override job gpu and gpu-count with environment gpu and gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := GetRadixComponentsForEnv(ra, "env1", componentImages)
+		deployComponent, _ := GetRadixComponentsForEnv(ra, "env1", componentImages)
 		assert.Equal(t, envGpu1, deployComponent[0].Node.Gpu)
 		assert.Equal(t, envGpuCount1, deployComponent[0].Node.GpuCount)
 	})
 	t.Run("override job gpu-count with environment gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := GetRadixComponentsForEnv(ra, "env2", componentImages)
+		deployComponent, _ := GetRadixComponentsForEnv(ra, "env2", componentImages)
 		assert.Equal(t, compGpu, deployComponent[0].Node.Gpu)
 		assert.Equal(t, envGpuCount2, deployComponent[0].Node.GpuCount)
 	})
 	t.Run("override job gpu with environment gpu", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := GetRadixComponentsForEnv(ra, "env3", componentImages)
+		deployComponent, _ := GetRadixComponentsForEnv(ra, "env3", componentImages)
 		assert.Equal(t, envGpu3, deployComponent[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
 	})
 	t.Run("do not override job gpu or gpu-count with environment gpu or gpu-count", func(t *testing.T) {
 		t.Parallel()
-		deployComponent := GetRadixComponentsForEnv(ra, "env4", componentImages)
+		deployComponent, _ := GetRadixComponentsForEnv(ra, "env4", componentImages)
 		assert.Equal(t, compGpu, deployComponent[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
 	})
