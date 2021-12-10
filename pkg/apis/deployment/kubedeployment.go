@@ -163,7 +163,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	desiredDeployment.ObjectMeta.Name = componentName
-	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = deployComponent.GetType()

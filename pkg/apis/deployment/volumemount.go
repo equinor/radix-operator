@@ -48,7 +48,14 @@ const (
 	csiStorageClassGidMountOption                      = "gid"                                             //Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
 	csiStorageClassUidMountOption                      = "uid"                                             //Volume mount owner UserID. Used instead of GroupID
 
-	csiAzureKeyVaultSecretMountPathTemplate = "/mnt/azure-key-vault/%s/%s"
+	secretProviderClassParameterKeyVaultName         = "keyvaultName"
+	secretProviderClassParameterUsePodIdentity       = "usePodIdentity"
+	secretProviderClassParameterTenantId             = "tenantId"
+	secretProviderClassParameterCloudName            = "cloudName"
+	secretProviderClassParameterObjects              = "objects"
+	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
+	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
+	csiAzureKeyVaultSecretMountPathTemplate          = "/mnt/azure-key-vault/%s/%s"
 )
 
 //GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
@@ -196,27 +203,17 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, component radi
 			provider := string(secretProviderClass.Spec.Provider)
 			switch provider {
 			case "azure":
-				keyvaultName, keyvaultNameExists := secretProviderClass.Spec.Parameters["keyvaultName"]
-				if !keyvaultNameExists {
-					return nil, fmt.Errorf("missing keyvaultName in the secret provider class %s", secretProviderClass.Name)
+				azKeyVaultName, azKeyVaultNameExists := secretProviderClass.Spec.Parameters[secretProviderClassParameterKeyVaultName]
+				if !azKeyVaultNameExists {
+					return nil, fmt.Errorf("missing Azure Key vault name in the secret provider class %s", secretProviderClass.Name)
 				}
 				componentName := component.GetName()
-				labelSelector := kube.GetSecretRefObjectLabelSelector(componentName, radixDeploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, keyvaultName)
-				secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
-				if err != nil {
-					return nil, err
-				}
-				if len(secrets) == 0 {
-					return nil, fmt.Errorf("missed secrets for secret provider class %s", secretProviderClass.Name)
-				}
-				if len(secrets) > 1 {
-					return nil, fmt.Errorf("expected only one secret for secret provider class %s, but found multiple", secretProviderClass.Name)
-				}
+				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azKeyVaultName)
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
-					Driver:               "secrets-store.csi.k8s.io",
+					Driver:               csiSecretStoreDriver,
 					ReadOnly:             commonUtils.BoolPtr(true),
-					VolumeAttributes:     map[string]string{"secretProviderClass": secretProviderClass.Name},
-					NodePublishSecretRef: &corev1.LocalObjectReference{Name: secrets[0].Name},
+					VolumeAttributes:     map[string]string{csiVolumeSourceVolumeAttrSecretProviderClassName: secretProviderClass.Name},
+					NodePublishSecretRef: &corev1.LocalObjectReference{Name: credsSecretName},
 				}
 				break
 			default:

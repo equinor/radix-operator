@@ -3,11 +3,13 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-common/utils"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+	"strings"
 )
 
 // StringArray ...
@@ -32,25 +34,15 @@ type SecretProviderClassParameterObject struct {
 }
 
 // GetSecretProviderClass Gets secret provider class
-func (kubeutil *Kube) GetSecretProviderClass(namespace string, componentName string, radixDeploymentName string, radixSecretRefType radixv1.RadixSecretRefType, radixSecretRefName string) (*secretsstorev1.SecretProviderClass, error) {
-	classList, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
-		List(context.Background(), metav1.ListOptions{LabelSelector: GetSecretRefObjectLabelSelector(componentName, radixDeploymentName, radixSecretRefType, radixSecretRefName)})
+func (kubeutil *Kube) GetSecretProviderClass(namespace string, className string) (*secretsstorev1.SecretProviderClass, error) {
+	class, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Get(context.Background(), className, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	if len(classList.Items) == 0 {
-		return nil, nil
-	}
-	if len(classList.Items) == 0 {
-		return nil, nil
-	}
-	if len(classList.Items) > 1 {
-		return nil, fmt.Errorf("found multiple SecretProviderClass for the same RadixSecretRef, for RadixDeployment %s", radixDeploymentName)
-	}
-	return &classList.Items[0], err
+	return class, err
 }
 
 // ListSecretProviderClass Gets secret provider classes for the component
@@ -78,15 +70,14 @@ func GetAllSecretRefObjectsLabelSelector(componentName string) string {
 
 // CreateSecretProviderClass Creates secret provider class to namespace
 func (kubeutil *Kube) CreateSecretProviderClass(namespace string, secretProviderClass *secretsstorev1.SecretProviderClass) (savedSecret *secretsstorev1.SecretProviderClass, err error) {
-	className := secretProviderClass.GetName()
-	log.Debugf("Create secret provider class %s in namespace %s", className, namespace)
-	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
-		Create(context.TODO(), secretProviderClass, metav1.CreateOptions{})
+	log.Debugf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
+	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Create(context.TODO(), secretProviderClass, metav1.CreateOptions{})
 }
 
 // GetComponentSecretProviderClassName Gets unique name of the component secret storage class
-func GetComponentSecretProviderClassName(componentName string, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) string {
-	// include a hash so that users cannot get access to a secret-ref they should not ,
+func GetComponentSecretProviderClassName(componentName, radixDeploymentName string, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) string {
+	// include a hash so that users cannot get access to a secret-ref they should not get
 	// by naming component the same as secret-ref object
-	return fmt.Sprintf("%s-%s-%s", componentName, radixSecretRefType, secretRefName)
+	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s-%s", componentName, radixDeploymentName, radixSecretRefType, secretRefName)))
+	return fmt.Sprintf("%s-%s-%s-%s", componentName, radixSecretRefType, secretRefName, hash)
 }

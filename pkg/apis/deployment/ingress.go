@@ -52,7 +52,9 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 	}
 
 	config := loadIngressConfigFromMap(deploy.kubeutil)
-	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	ownerReference := []metav1.OwnerReference{
+		getOwnerReferenceOfDeployment(deploy.radixDeployment),
+	}
 
 	// Only the active cluster should have the DNS alias, not to cause conflicts between clusters
 	if deployComponent.IsDNSAppAlias() && isActiveCluster(clustername) {

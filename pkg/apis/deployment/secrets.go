@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -179,36 +180,48 @@ func (deploy *Deployment) createSecretRefs(namespace, appName string, component 
 func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, componentName string, radixSecretRef radixv1.RadixSecretRef) ([]string, error) {
 	var secretNames []string
 	for _, radixAzureKeyVault := range radixSecretRef.AzureKeyVaults {
-		secretProviderClass := buildSecretProviderClass(appName, componentName, deploy.radixDeployment, radixv1.RadixSecretRefTypeAzureKeyVault, radixAzureKeyVault.Name)
-		secretName, err := deploy.getOrCreateAzureKeyVaultSecretProviderClassCredentialsSecret(namespace, appName, componentName, radixAzureKeyVault.Name)
+		className := kube.GetComponentSecretProviderClassName(componentName, deploy.radixDeployment.GetName(), radixv1.RadixSecretRefTypeAzureKeyVault, radixAzureKeyVault.Name)
+		secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(namespace, className)
 		if err != nil {
 			return secretNames, err
 		}
-		secretNames = append(secretNames, secretName)
+		credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, componentName, radixAzureKeyVault.Name)
+		if err != nil {
+			return secretNames, err
+		}
+		secretNames = append(secretNames, credsSecret.Name)
+		if secretProviderClass != nil {
+			return secretNames, nil
+		}
 
-		parameters, err := getSecretProviderClassSecretParameters(radixAzureKeyVault)
+		parameters, err := getSecretProviderClassParameters(radixAzureKeyVault)
 		if err != nil {
 			return nil, err
 		}
+		secretProviderClass = buildSecretProviderClass(appName, componentName, className, deploy.radixDeployment, radixv1.RadixSecretRefTypeAzureKeyVault, radixAzureKeyVault.Name)
 		secretProviderClass.Spec.Parameters = parameters
 		secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(componentName, radixAzureKeyVault)
 
-		_, err = deploy.kubeutil.CreateSecretProviderClass(namespace, secretProviderClass)
+		secretProviderClass, err = deploy.kubeutil.CreateSecretProviderClass(namespace, secretProviderClass)
 		if err != nil {
 			return secretNames, err
+		}
+		if !isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
+			credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
+			deploy.kubeutil.ApplySecret(namespace, credsSecret)
 		}
 	}
 	return secretNames, nil
 }
 
-func getSecretProviderClassSecretParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault) (map[string]string, error) {
+func getSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault) (map[string]string, error) {
 	parameterMap := make(map[string]string)
-	parameterMap["usePodIdentity"] = "false"
-	parameterMap["keyvaultName"] = radixAzureKeyVault.Name
-	parameterMap["tenantId"] = "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
-	parameterMap["cloudName"] = ""
+	parameterMap[secretProviderClassParameterUsePodIdentity] = "false"
+	parameterMap[secretProviderClassParameterKeyVaultName] = radixAzureKeyVault.Name
+	parameterMap[secretProviderClassParameterTenantId] = "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
+	parameterMap[secretProviderClassParameterCloudName] = ""
 	if len(radixAzureKeyVault.Items) == 0 {
-		parameterMap["objects"] = ""
+		parameterMap[secretProviderClassParameterObjects] = ""
 		return parameterMap, nil
 	}
 	var parameterObject []kube.SecretProviderClassParameterObject
@@ -239,7 +252,7 @@ func getSecretProviderClassSecretParameters(radixAzureKeyVault radixv1.RadixAzur
 	if err != nil {
 		return nil, err
 	}
-	parameterMap["objects"] = string(parameterObjectArrayString)
+	parameterMap[secretProviderClassParameterObjects] = string(parameterObjectArrayString)
 	return parameterMap, nil
 }
 
@@ -265,23 +278,21 @@ func getSecretProviderClassSecretObjects(componentName string, radixAzureKeyVaul
 	return secretObjects
 }
 
-func (deploy *Deployment) getOrCreateAzureKeyVaultSecretProviderClassCredentialsSecret(namespace, appName, componentName, azKeyVaultSecretRefName string) (string, error) {
-	secretName := utils.CreateComponentAzureKeyVaultCredentialsSecretName(componentName, radixv1.RadixSecretRefTypeAzureKeyVault, azKeyVaultSecretRefName)
-	labelSelector := kube.GetSecretRefObjectLabelSelector(componentName, deploy.radixDeployment.GetName(), radixv1.RadixSecretRefTypeAzureKeyVault, azKeyVaultSecretRefName)
-	secretExistsForLabels, err := deploy.kubeutil.SecretExistsForLabels(namespace, labelSelector)
-	if secretExistsForLabels {
-		return secretName, nil
+func (deploy *Deployment) getOrCreateAzureKeyVaultCredsSecret(namespace, appName, componentName, azKeyVaultName string) (*v1.Secret, error) {
+	secretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azKeyVaultName)
+	secret, err := deploy.kubeutil.GetSecret(namespace, secretName)
+	if err != nil && !errors.IsNotFound(err) {
+		return nil, err
 	}
-	err = deploy.createOrUpdateCredentialsSecretForAzureKeyVaultSecretProviderClass(namespace, appName, componentName, secretName, azKeyVaultSecretRefName)
-	TODO
-	if err != nil {
-		return "", err
+	if secret != nil && !errors.IsNotFound(err) {
+		return secret, nil
 	}
-	return secretName, nil
+	secret = buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName)
+	return deploy.kubeutil.ApplySecret(namespace, secret)
 }
 
-func buildSecretProviderClass(appName string, componentName string, radixDeployment *radixv1.RadixDeployment, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
-	className := kube.GetComponentSecretProviderClassName(componentName, radixSecretRefType, secretRefName)
+func buildSecretProviderClass(appName, componentName, name string, radixDeployment *radixv1.RadixDeployment, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
+	className := kube.GetComponentSecretProviderClassName(componentName, radixDeployment.GetName(), radixSecretRefType, secretRefName)
 	return &secretsstorev1.SecretProviderClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: className,
@@ -292,29 +303,12 @@ func buildSecretProviderClass(appName string, componentName string, radixDeploym
 				kube.RadixSecretRefTypeLabel: string(radixSecretRefType),
 				kube.RadixSecretRefNameLabel: secretRefName,
 			},
-			OwnerReferences: getOwnerReferenceOfDeployment(radixDeployment),
-		},
-		Spec: secretsstorev1.SecretProviderClassSpec{
-			Provider: azureSecureStorageProvider,
-		},
-	}
-}
-
-func getSecretProviderClass(app, componentName, radixDeploymentName string, provider secretsstorev1.Provider, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
-	className := kube.GetComponentSecretProviderClassName(componentName, radixSecretRefType, secretRefName)
-	return &secretsstorev1.SecretProviderClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: className,
-			Labels: map[string]string{
-				kube.RadixAppLabel:           app,
-				kube.RadixComponentLabel:     componentName,
-				kube.RadixDeploymentLabel:    radixDeploymentName,
-				kube.RadixSecretRefTypeLabel: string(radixSecretRefType),
-				kube.RadixSecretRefNameLabel: secretRefName,
+			OwnerReferences: []metav1.OwnerReference{
+				getOwnerReferenceOfDeployment(radixDeployment),
 			},
 		},
 		Spec: secretsstorev1.SecretProviderClassSpec{
-			Provider: provider,
+			Provider: azureSecureStorageProvider,
 		},
 	}
 }
@@ -516,7 +510,7 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateCredentialsSecretForAzureKeyVaultSecretProviderClass(ns, app, componentName, secretName, azKeyVaultName string) error {
+func buildAzureKeyVaultCredentialsSecret(app, componentName, secretName, azKeyVaultName string) *v1.Secret {
 	secretType := v1.SecretType(kube.SecretTypeOpaque)
 	secret := v1.Secret{
 		Type: secretType,
@@ -535,16 +529,9 @@ func (deploy *Deployment) createOrUpdateCredentialsSecretForAzureKeyVaultSecretP
 	defaultValue := []byte(secretDefaultData)
 	data["clientid"] = defaultValue
 	data["clientsecret"] = defaultValue
-	data["tenantId"] = defaultValue
 
 	secret.Data = data
-
-	_, err := deploy.kubeutil.ApplySecret(ns, &secret)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return &secret
 }
 
 func (deploy *Deployment) createClientCertificateSecret(ns, app, component, secretName string) error {

@@ -46,7 +46,9 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 }
 
 func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
-	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
+	ownerReference := []metav1.OwnerReference{
+		getOwnerReferenceOfDeployment(radixDeployment),
+	}
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
