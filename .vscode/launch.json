@@ -12,7 +12,7 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "RADIX_APP=radix-app-satr",
+        "RADIX_APP=radix-job-demo",
         "BRANCH=main",
         "COMMIT_ID=1234",
         "IMAGE_TAG=abcdef",
