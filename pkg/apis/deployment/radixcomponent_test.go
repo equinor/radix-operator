@@ -157,13 +157,13 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 			expected: &v1.OAuth2{RedisStore: &v1.OAuth2RedisStore{ConnectionURL: "bar"}},
 		},
 		{
-			name:     "should override OAuth2.RedisStore from environment",
+			name:     "should override OAuth2.CookieStore from environment",
 			comp:     &v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: utils.BoolPtr(true)}},
 			env:      &v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: utils.BoolPtr(false)}},
 			expected: &v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: utils.BoolPtr(false)}},
 		},
 		{
-			name:     "should override OAuth2.RedisStore from environment",
+			name:     "should override OAuth2.Cookie from environment",
 			comp:     &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "oauth", Path: "path"}},
 			env:      &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Domain: "domain"}},
 			expected: &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Domain: "domain", Path: "path"}},
