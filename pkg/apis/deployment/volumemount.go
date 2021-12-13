@@ -175,26 +175,42 @@ func (deploy *Deployment) GetVolumesForComponent(deployComponent radixv1.RadixCo
 //GetVolumes Get volumes of a component by RadixVolumeMounts
 func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
 	var volumes []corev1.Volume
+
 	blobVolumes, err := getExternalVolumes(kubeclient, namespace, environment, deployComponent)
 	if err != nil {
 		return nil, err
 	}
+	volumes = append(volumes, blobVolumes...)
+
 	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
-	volumes = append(volumes, blobVolumes...)
 	volumes = append(volumes, storageRefsVolumes...)
+
 	return volumes, nil
 }
 
-func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, component radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
+func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
 	var volumes []v1.Volume
-	secretProviderClasses, err := kubeutil.ListSecretProviderClass(namespace, component.GetName())
-	if err != nil {
-		return nil, err
+	for _, secretRef := range deployComponent.GetSecretRefs() {
+		azureKeyVaultVolumes, err := getStorageRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent.GetName(), radixDeploymentName, secretRef)
+		if err != nil {
+			return nil, err
+		}
+		volumes = append(volumes, azureKeyVaultVolumes...)
 	}
-	for _, secretProviderClass := range secretProviderClasses {
+	return volumes, nil
+}
+
+func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace, componentName string, radixDeploymentName string, secretRef radixv1.RadixSecretRef) ([]v1.Volume, error) {
+	var volumes []v1.Volume
+	for _, azureKeyVault := range secretRef.AzureKeyVaults {
+		secretProviderClassName := kube.GetComponentSecretProviderClassName(componentName, radixDeploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
+		secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, secretProviderClassName)
+		if err != nil {
+			return nil, err
+		}
 		for _, secretObject := range secretProviderClass.Spec.SecretObjects {
 			volume := v1.Volume{
 				Name:         secretObject.SecretName,
@@ -207,7 +223,6 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, component radi
 				if !azKeyVaultNameExists {
 					return nil, fmt.Errorf("missing Azure Key vault name in the secret provider class %s", secretProviderClass.Name)
 				}
-				componentName := component.GetName()
 				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azKeyVaultName)
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
 					Driver:               csiSecretStoreDriver,
@@ -299,7 +314,7 @@ func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMo
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(utils.RandString(5))), nil //volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
+	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(5))), nil //volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
 //GetCsiAzureStorageClassName hold a name of CSI volume storage class
