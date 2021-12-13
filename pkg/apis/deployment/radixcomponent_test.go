@@ -146,9 +146,9 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		{name: "should return environment when component is nil", env: &v1.OAuth2{}, expected: &v1.OAuth2{}},
 		{
 			name:     "should override OAuth2 from environment",
-			comp:     &v1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: utils.BoolPtr(true), SessionStoreType: v1.SessionStoreCookie},
-			env:      &v1.OAuth2{Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: v1.SessionStoreRedis},
-			expected: &v1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: v1.SessionStoreRedis},
+			comp:     &v1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: utils.BoolPtr(true), SessionStoreType: "cookie"},
+			env:      &v1.OAuth2{Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: "redis"},
+			expected: &v1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: "redis"},
 		},
 		{
 			name:     "should override OAuth2.RedisStore from environment",

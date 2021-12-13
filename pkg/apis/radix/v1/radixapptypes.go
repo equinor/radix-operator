@@ -283,16 +283,6 @@ type ClientCertificate struct {
 	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
 }
 
-// SessionStoreType defines type of session storage
-type SessionStoreType string
-
-const (
-	// Cookie session storage
-	SessionStoreCookie SessionStoreType = "cookie"
-	// Redis session storage
-	SessionStoreRedis SessionStoreType = "redis"
-)
-
 // OAuth2 defines oauth proxy settings for the component
 type OAuth2 struct {
 	// The OAUTH client ID
@@ -318,7 +308,7 @@ type OAuth2 struct {
 	// Cookie settings
 	Cookie *OAuth2Cookie `json:"cookie,omitempty" yaml:"cookie,omitempty"`
 	// Session store type for backend
-	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty" yaml:"sessionStoreType,omitempty"`
+	SessionStoreType string `json:"sessionStoreType,omitempty" yaml:"sessionStoreType,omitempty"`
 	// Cookie session storage settings
 	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty" yaml:"cookieStore,omitempty"`
 	// Redis session storage settings

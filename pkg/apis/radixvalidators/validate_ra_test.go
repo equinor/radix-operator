@@ -457,6 +457,18 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Name = name50charsLong
 			ra.Spec.Environments = append(ra.Spec.Environments, v1.Environment{Name: "extra-14-chars"})
 		}},
+		{"invalid OAuth session store type", radixvalidators.InvalidOAuthSessionStoreType("invalid-store"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].Authentication.OAuth2.SessionStoreType = "invalid-store"
+		}},
+		{"invalid OAuth cookie same site", radixvalidators.InvalidOAuthCookieSameSite("invalid-samesite"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].Authentication.OAuth2.Cookie.SameSite = "invalid-samesite"
+		}},
+		{"invalid OAuth cookie expire timeframe", radixvalidators.InvalidOAuthCookieExpire("invalid-expire"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].Authentication.OAuth2.Cookie.Expire = "invalid-expire"
+		}},
+		{"invalid OAuth cookie refresh time frame", radixvalidators.InvalidOAuthCookieRefresh("invalid-refresh"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].Authentication.OAuth2.Cookie.Refresh = "invalid-refresh"
+		}},
 	}
 
 	_, client := validRASetup()

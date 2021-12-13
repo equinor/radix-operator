@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -20,6 +21,11 @@ import (
 const (
 	maxPortNameLength = 15
 	cpuRegex          = "^[0-9]+m$"
+)
+
+var (
+	validOAuthSessionStoreTypes []string = []string{"", "redis", "cookie"}
+	validOAuthCookieSameSites   []string = []string{"", "strict", "lax", "none"}
 )
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -232,10 +238,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
-		err = validateAuthentication(component.Authentication)
-		if err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateAuthentication(component.Authentication)...)
 
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
@@ -258,10 +261,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
 			}
 
-			err = validateAuthentication(environment.Authentication)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			errs = append(errs, validateAuthentication(environment.Authentication)...)
 		}
 	}
 
@@ -335,12 +335,19 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
-func validateAuthentication(authentication *radixv1.Authentication) error {
+func validateAuthentication(authentication *radixv1.Authentication) []error {
+	var errors []error
 	if authentication == nil {
 		return nil
 	}
 
-	return validateClientCertificate(authentication.ClientCertificate)
+	if err := validateClientCertificate(authentication.ClientCertificate); err != nil {
+		errors = append(errors, err)
+	}
+
+	errors = append(errors, validateOAuth(authentication.OAuth2)...)
+
+	return errors
 }
 
 func validateClientCertificate(clientCertificate *radixv1.ClientCertificate) error {
@@ -369,6 +376,36 @@ func validateVerificationType(verificationType *radixv1.VerificationType) error 
 	} else {
 		return nil
 	}
+}
+
+func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
+	if oauth == nil {
+		return
+	}
+
+	if !slice.ContainsString(validOAuthSessionStoreTypes, oauth.SessionStoreType) {
+		errors = append(errors, InvalidOAuthSessionStoreType(oauth.SessionStoreType))
+	}
+
+	if oauth.Cookie != nil {
+		if !slice.ContainsString(validOAuthCookieSameSites, oauth.Cookie.SameSite) {
+			errors = append(errors, InvalidOAuthCookieSameSite(oauth.Cookie.SameSite))
+		}
+
+		if oauth.Cookie.Expire != "" {
+			if _, err := time.ParseDuration(oauth.Cookie.Expire); err != nil {
+				errors = append(errors, InvalidOAuthCookieExpire(oauth.Cookie.Expire))
+			}
+		}
+
+		if oauth.Cookie.Refresh != "" {
+			if _, err := time.ParseDuration(oauth.Cookie.Refresh); err != nil {
+				errors = append(errors, InvalidOAuthCookieRefresh(oauth.Cookie.Refresh))
+			}
+		}
+	}
+
+	return
 }
 
 func usesDynamicTaggingForDeployOnly(componentImage string) bool {

@@ -230,3 +230,19 @@ func NoRegistrationExistsForApplicationError(appName string) error {
 func InvalidConfigBranchName(configBranch string) error {
 	return fmt.Errorf("config branch name is not valid (value: %s)", configBranch)
 }
+
+func InvalidOAuthSessionStoreType(actualSessionStoreType string) error {
+	return fmt.Errorf("invalid session store type '%s'", actualSessionStoreType)
+}
+
+func InvalidOAuthCookieSameSite(actualSameSite string) error {
+	return fmt.Errorf("invalid cookie samesite '%s'", actualSameSite)
+}
+
+func InvalidOAuthCookieExpire(actualExpire string) error {
+	return fmt.Errorf("invalid cookie expire timeframe '%s'", actualExpire)
+}
+
+func InvalidOAuthCookieRefresh(actualRefresh string) error {
+	return fmt.Errorf("invalid cookie refresh duration '%s'", actualRefresh)
+}
