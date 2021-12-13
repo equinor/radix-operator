@@ -200,7 +200,7 @@ func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, comp
 		}
 		secretProviderClass = buildSecretProviderClass(appName, componentName, className, deploy.radixDeployment, radixv1.RadixSecretRefTypeAzureKeyVault, radixAzureKeyVault.Name)
 		secretProviderClass.Spec.Parameters = parameters
-		secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(componentName, radixAzureKeyVault)
+		secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(componentName, deploy.radixDeployment.GetName(), radixAzureKeyVault)
 
 		secretProviderClass, err = deploy.kubeutil.CreateSecretProviderClass(namespace, secretProviderClass)
 		if err != nil {
@@ -208,7 +208,10 @@ func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, comp
 		}
 		if !isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
 			credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
-			deploy.kubeutil.ApplySecret(namespace, credsSecret)
+			_, err := deploy.kubeutil.ApplySecret(namespace, credsSecret)
+			if err != nil {
+				return secretNames, err
+			}
 		}
 	}
 	return secretNames, nil
@@ -256,7 +259,7 @@ func getSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVa
 	return parameterMap, nil
 }
 
-func getSecretProviderClassSecretObjects(componentName string, radixAzureKeyVault radixv1.RadixAzureKeyVault) []*secretsstorev1.SecretObject {
+func getSecretProviderClassSecretObjects(componentName, radixDeploymentName string, radixAzureKeyVault radixv1.RadixAzureKeyVault) []*secretsstorev1.SecretObject {
 	var secretObjects []*secretsstorev1.SecretObject
 	secretObjectMap := make(map[kube.SecretType]*secretsstorev1.SecretObject)
 	for _, keyVaultItem := range radixAzureKeyVault.Items {
@@ -264,7 +267,7 @@ func getSecretProviderClassSecretObjects(componentName string, radixAzureKeyVaul
 		secretObject, ok := secretObjectMap[kubeSecretType]
 		if !ok {
 			secretObject = &secretsstorev1.SecretObject{
-				SecretName: kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixAzureKeyVault.Name, kubeSecretType),
+				SecretName: kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, radixAzureKeyVault.Name, kubeSecretType),
 				Type:       string(kubeSecretType),
 			}
 			secretObjectMap[kubeSecretType] = secretObject

@@ -116,7 +116,7 @@ func getAzureKeyVaultSecretRefsAsEnvVars(kubeutil *kube.Kube, namespace string, 
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
 		for _, keyVaultItem := range azureKeyVault.Items {
 			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
-			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, azureKeyVault.Name, kubeSecretType)
+			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
 			secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)
 			envVars = append(envVars, secretEnvVar)
 		}

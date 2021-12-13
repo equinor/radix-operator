@@ -102,7 +102,7 @@ func (suite *VolumeMountTestSuite) Test_NoVolumeMounts() {
 				WithName("app").
 				BuildComponent()
 
-			volumeMounts, _ := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, _ := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Equal(t, 0, len(volumeMounts))
 		}
 	})
@@ -128,7 +128,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			assert.Equal(t, 1, len(volumeMounts))
 			mount := volumeMounts[0]
@@ -144,7 +144,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
 				assert.Equal(t, 2, len(volumeMounts))
@@ -174,7 +174,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			assert.Equal(t, 1, len(volumeMounts))
 			mount := volumeMounts[0]
@@ -191,7 +191,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
 				assert.Equal(t, 2, len(volumeMounts))
@@ -231,7 +231,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 						testCase.radixVolumeMount}).
 					BuildComponent()
 
-				_, err := GetRadixDeployComponentVolumeMounts(component)
+				_, err := GetRadixDeployComponentVolumeMounts(component, "")
 				assert.NotNil(t, err)
 				assert.Equal(t, testCase.expectedError, err.Error())
 			}
@@ -257,7 +257,7 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 			WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
 			BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
+		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component, "")
 		assert.Nil(t, err)
 		assert.Equal(t, 1, len(volumeMounts))
 		mount := volumeMounts[0]
@@ -270,7 +270,7 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 			WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
 			BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
+		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component, "")
 		assert.Nil(t, err)
 		for idx, testCase := range scenarios {
 			assert.Equal(t, 2, len(volumeMounts))
@@ -608,7 +608,7 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{})
 			deployComponent := deployment.radixDeployment.Spec.Components[0]
 
-			volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent)
+			volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 0)
@@ -625,7 +625,7 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 				deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{scenario.radixVolumeMount})
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
 
-				volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent)
+				volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 				assert.Nil(t, err)
 				assert.Len(t, volumes, 1)

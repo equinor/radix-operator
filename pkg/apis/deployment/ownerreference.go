@@ -29,7 +29,7 @@ func getOwnerReferenceOfSecretProviderClass(secretProviderClass *secretsstorev1.
 		Kind:       "SecretProviderClass",
 		Name:       secretProviderClass.Name,
 		UID:        secretProviderClass.UID,
-		Controller: utils.BoolPtr(true),
+		//Controller is not set due too only one OwnerReference's controller can be set as `true`
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
@@ -14,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"strings"
 )
 
 type SecretType string
@@ -196,13 +198,14 @@ func GetSecretTypeForRadixAzureKeyVault(k8sSecretType *radixv1.RadixAzureKeyVaul
 }
 
 // GetAzureKeyVaultSecretRefSecretName Gets a secret name for Azure KeyVault RadixSecretRef
-func GetAzureKeyVaultSecretRefSecretName(componentName, azKeyVaultName string, secretType SecretType) string {
+func GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azKeyVaultName string, secretType SecretType) string {
 	radixSecretRefSecretType := string(getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(secretType))
-	return getSecretRefSecretName(componentName, string(radixv1.RadixSecretRefTypeAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)
+	return getSecretRefSecretName(componentName, radixDeploymentName, string(radixv1.RadixSecretRefTypeAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)
 }
 
-func getSecretRefSecretName(componentName, secretRefType, secretType, secretResourceName string) string {
-	return fmt.Sprintf("%s-%s-%s-%s", componentName, secretRefType, secretType, secretResourceName)
+func getSecretRefSecretName(componentName, radixDeploymentName, secretRefType, secretType, secretResourceName string) string {
+	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s-%s", componentName, radixDeploymentName, secretRefType, secretResourceName)))
+	return fmt.Sprintf("%s-%s-%s-%s-%s", componentName, secretRefType, secretType, secretResourceName, hash)
 }
 
 func getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(k8sSecretType SecretType) radixv1.RadixAzureKeyVaultK8sSecretType {

@@ -59,14 +59,14 @@ const (
 )
 
 //GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
-func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent) ([]v1.VolumeMount, error) {
+func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.VolumeMount, error) {
 	componentName := deployComponent.GetName()
 	volumeMounts := make([]corev1.VolumeMount, 0)
 	externalVolumeMounts, err := getRadixComponentExternalVolumeMounts(deployComponent, componentName)
 	if err != nil {
 		return nil, err
 	}
-	secretRefsVolumeMounts, err := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName)
+	secretRefsVolumeMounts, err := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDe
 	return volumeMounts, nil
 }
 
-func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName string) ([]v1.VolumeMount, error) {
+func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName, radixDeploymentName string) ([]v1.VolumeMount, error) {
 	radixSecretRefs := deployComponent.GetSecretRefs()
 	if len(radixSecretRefs) <= 0 {
 		return nil, nil
@@ -120,7 +120,7 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 					}
 				}
 				for kubeSecretType := range k8sSecretTypeMap {
-					secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, azureKeyVault.Name, kubeSecretType)
+					secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
 					volumeMounts = append(volumeMounts, corev1.VolumeMount{
 						Name:      secretName,
 						MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
