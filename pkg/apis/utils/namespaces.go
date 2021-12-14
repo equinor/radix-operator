@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"strings"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 )
 
 // AppNamespaceEnvName Name of environment for app namespace
@@ -24,12 +26,21 @@ func GetDeploymentName(appName, env, tag string) string {
 	return fmt.Sprintf("%s-%s-%s", env, tag, random)
 }
 
+// GetAuxiliaryComponentDeploymentName returns deployment name for auxiliary component, e.g. the oauth proxy
+func GetAuxiliaryComponentDeploymentName(componentName string, auxiliary defaults.AuxiliaryComponentType) string {
+	return fmt.Sprintf("%s-%s", componentName, auxiliary)
+}
+
+func GetAuxiliaryComponentSecretName(componentName string, auxiliary defaults.AuxiliaryComponentType) string {
+	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, auxiliary))
+}
+
 // GetComponentSecretName Gets unique name of the component secret
-func GetComponentSecretName(componentame string) string {
+func GetComponentSecretName(componentName string) string {
 	// include a hash so that users cannot get access to a secret they should not ,
 	// by naming component the same as secret object
-	hash := strings.ToLower(RandStringStrSeed(8, componentame))
-	return fmt.Sprintf("%s-%s", componentame, hash)
+	hash := strings.ToLower(RandStringStrSeed(8, componentName))
+	return fmt.Sprintf("%s-%s", componentName, hash)
 }
 
 // GetComponentClientCertificateSecretName Gets name of the component secret that holds the ca.crt public key for clientcertificate authentication

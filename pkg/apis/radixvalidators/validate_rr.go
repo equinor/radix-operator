@@ -131,11 +131,11 @@ func validateRequiredResourceName(resourceName, value string) error {
 	re := regexp.MustCompile(`^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$`)
 
 	isValid := re.MatchString(value)
-	if isValid {
-		return nil
+	if !isValid {
+		return InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value)
 	}
 
-	return InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value)
+	return nil
 }
 
 func validateAdGroups(groups []string) error {

@@ -45,6 +45,15 @@ const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 const egressIps = "0.0.0.0"
 
+type noopOAuthProxyResourceManager struct{}
+
+func (o *noopOAuthProxyResourceManager) Install(component v1.RadixCommonDeployComponent) error {
+	return nil
+}
+func (o *noopOAuthProxyResourceManager) Uninstall(componentName string) error {
+	return nil
+}
+
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
@@ -3214,13 +3223,14 @@ func Test_SecurityPolicy(t *testing.T) {
 				}
 				radixclient.RadixV1().RadixDeployments("app-env").Create(context.Background(), rd, metav1.CreateOptions{})
 				deploysync := Deployment{
-					kubeclient:              kubeclient,
-					radixclient:             radixclient,
-					kubeutil:                kubeUtil,
-					prometheusperatorclient: prometheusclient,
-					registration:            rr,
-					radixDeployment:         rd,
-					securityContextBuilder:  securityContextBuilder,
+					kubeclient:                kubeclient,
+					radixclient:               radixclient,
+					kubeutil:                  kubeUtil,
+					prometheusperatorclient:   prometheusclient,
+					registration:              rr,
+					radixDeployment:           rd,
+					securityContextBuilder:    securityContextBuilder,
+					oauthProxyResourceManager: &noopOAuthProxyResourceManager{},
 				}
 				err := deploysync.OnSync()
 				assert.Nil(t, err)

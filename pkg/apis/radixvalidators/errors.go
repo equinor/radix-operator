@@ -175,6 +175,11 @@ func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(compone
 		componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
+// ComponentWithDynamicTagRequiresTagInEnvironmentConfig Error if image is set with dynamic tag and tag is missing
+func ComponentNameReservedSuffixError(componentName, componentType, suffix string) error {
+	return fmt.Errorf("%s %s using reserved suffix %s", componentType, componentName, suffix)
+}
+
 // SecretNameConflictsWithEnvironmentVariable If secret name is the same as environment variable fail validation
 func SecretNameConflictsWithEnvironmentVariable(componentName, secretName string) error {
 	return fmt.Errorf(
@@ -245,4 +250,8 @@ func InvalidOAuthCookieExpire(actualExpire string) error {
 
 func InvalidOAuthCookieRefresh(actualRefresh string) error {
 	return fmt.Errorf("invalid cookie refresh duration '%s'", actualRefresh)
+}
+
+func DuplicateComponentOrJobNameError(duplicates []string) error {
+	return fmt.Errorf("duplicate component/job names %s not allowed", duplicates)
 }

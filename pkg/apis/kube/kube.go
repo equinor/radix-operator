@@ -31,6 +31,7 @@ const (
 	RadixEnvLabel                = "radix-env"
 	RadixComponentLabel          = "radix-component"
 	RadixComponentTypeLabel      = "radix-component-type"
+	RadixComponentAuxiliaryType  = "radix-component-aux-type"
 	RadixJobNameLabel            = "radix-job-name"
 	RadixBuildLabel              = "radix-build"
 	RadixCommitLabel             = "radix-commit"

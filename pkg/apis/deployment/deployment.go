@@ -39,13 +39,14 @@ type DeploymentSyncer interface {
 
 // Deployment Instance variables
 type Deployment struct {
-	kubeclient              kubernetes.Interface
-	radixclient             radixclient.Interface
-	kubeutil                *kube.Kube
-	prometheusperatorclient monitoring.Interface
-	registration            *v1.RadixRegistration
-	radixDeployment         *v1.RadixDeployment
-	securityContextBuilder  SecurityContextBuilder
+	kubeclient                kubernetes.Interface
+	radixclient               radixclient.Interface
+	kubeutil                  *kube.Kube
+	prometheusperatorclient   monitoring.Interface
+	registration              *v1.RadixRegistration
+	radixDeployment           *v1.RadixDeployment
+	securityContextBuilder    SecurityContextBuilder
+	oauthProxyResourceManager OAuthProxyResourceManager
 }
 
 // NewDeployment Constructor
@@ -64,7 +65,8 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		prometheusperatorclient,
 		registration,
 		radixDeployment,
-		NewSecurityContextBuilder(forceRunAsNonRoot)}
+		NewSecurityContextBuilder(forceRunAsNonRoot),
+		NewOAuthProxyResourceManager(radixDeployment, kubeutil)}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name
@@ -453,17 +455,6 @@ func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeploy
 	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure), string(v1.MountTypeFileCsiAzure))
 }
 
-func getRadixJobSchedulerImage() (string, error) {
-	image := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-
-	if image == "" {
-		err := fmt.Errorf("cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-		log.Error(err)
-	}
-
-	return image, nil
-}
-
 func (deploy *Deployment) maintainHistoryLimit() {
 	historyLimit := strings.TrimSpace(os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable))
 	if historyLimit == "" {
@@ -530,6 +521,11 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 			log.Infof("Failed to delete ingress: %v", err)
 			return fmt.Errorf("failed to delete ingress: %v", err)
 		}
+	}
+	err = deploy.createOrUpdateOAuthProxy(component)
+	if err != nil {
+		log.Infof("Failed to sync oauth2 proxy: %v", err)
+		return fmt.Errorf("failed to sync oauth2 proxy: %v", err)
 	}
 
 	if component.GetMonitoring() {

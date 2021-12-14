@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -64,6 +65,10 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	jobErrs := validateJobComponents(app)
 	if len(jobErrs) > 0 {
 		errs = append(errs, jobErrs...)
+	}
+
+	if err = validateNoDuplicateComponentAndJobNames(app); err != nil {
+		errs = append(errs, err)
 	}
 
 	err = validateEnvNames(app)
@@ -196,6 +201,27 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
+func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
+	names := make(map[string]int)
+	for _, comp := range app.Spec.Components {
+		names[comp.Name]++
+	}
+	for _, job := range app.Spec.Jobs {
+		names[job.Name]++
+	}
+
+	var duplicates []string
+	for k, v := range names {
+		if v > 1 {
+			duplicates = append(duplicates, k)
+		}
+	}
+	if len(duplicates) > 0 {
+		return DuplicateComponentOrJobNameError(duplicates)
+	}
+	return nil
+}
+
 func validateComponents(app *radixv1.RadixApplication) []error {
 	errs := []error{}
 	for _, component := range app.Spec.Components {
@@ -217,7 +243,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			}
 		}
 
-		err := validateRequiredResourceName("component name", component.Name)
+		err := validateComponentName(component.Name, "component")
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -288,7 +314,7 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 			}
 		}
 
-		err := validateRequiredResourceName("job name", job.Name)
+		err := validateComponentName(job.Name, "job")
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -821,4 +847,17 @@ func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bo
 		}
 	}
 	return false
+}
+
+func validateComponentName(componentName, componentType string) error {
+	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName); err != nil {
+		return err
+	}
+
+	for _, aux := range []defaults.AuxiliaryComponentType{defaults.OAuthProxyAuxiliaryComponent} {
+		if strings.HasSuffix(componentName, fmt.Sprintf("-%s", aux)) {
+			return ComponentNameReservedSuffixError(componentName, componentType, string(aux))
+		}
+	}
+	return nil
 }
