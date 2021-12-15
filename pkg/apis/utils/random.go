@@ -1,7 +1,9 @@
 package utils
 
 import (
+	cryptorand "crypto/rand"
 	"hash/fnv"
+	"io"
 	"math/rand"
 	"time"
 )
@@ -20,6 +22,15 @@ func hash(s string) int64 {
 	h.Write([]byte(s))
 	nr := h.Sum64()
 	return int64(nr)
+}
+
+// GenerateRandomKey generates a cryptographically secure random key
+func GenerateRandomKey(length int) []byte {
+	k := make([]byte, length)
+	if _, err := io.ReadFull(cryptorand.Reader, k); err != nil {
+		return nil
+	}
+	return k
 }
 
 // RandString Returns a random string of given length

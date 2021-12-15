@@ -283,6 +283,13 @@ type ClientCertificate struct {
 	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
 }
 
+type SessionStoreType string
+
+const (
+	SessionStoreCookie SessionStoreType = "cookie"
+	SessionStoreRedis  SessionStoreType = "redis"
+)
+
 // OAuth2 defines oauth proxy settings for the component
 type OAuth2 struct {
 	// The OAUTH client ID
@@ -296,7 +303,7 @@ type OAuth2 struct {
 	// SetAuthorizationHeader sets the OAUTH IDToken in the Authorization Bearer headers
 	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty" yaml:"setAuthorizationHeader,omitempty"`
 	// Authenticate emails with the specified domain. A comma separated list of domain may be specified
-	EmailDomain string `json:"emailDomain,omitempty" yaml:"emailDomain,omitempty"`
+	// EmailDomain string `json:"emailDomain,omitempty" yaml:"emailDomain,omitempty"`
 	// The URL root path that the oauth proxy should be nested under
 	ProxyPrefix string `json:"proxyPrefix,omitempty" yaml:"proxyPrefix,omitempty"`
 	// Authentication endpoint
@@ -308,7 +315,7 @@ type OAuth2 struct {
 	// Cookie settings
 	Cookie *OAuth2Cookie `json:"cookie,omitempty" yaml:"cookie,omitempty"`
 	// Session store type for backend
-	SessionStoreType string `json:"sessionStoreType,omitempty" yaml:"sessionStoreType,omitempty"`
+	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty" yaml:"sessionStoreType,omitempty"`
 	// Cookie session storage settings
 	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty" yaml:"cookieStore,omitempty"`
 	// Redis session storage settings
@@ -318,9 +325,9 @@ type OAuth2 struct {
 // OAuth2Cookie defines properties for the oauth cookie
 type OAuth2Cookie struct {
 	// Name of the cookie used to store information about the authenticated session
-	Name     string `json:"name,omitempty" yaml:"name,omitempty"`
-	Path     string `json:"path,omitempty" yaml:"path,omitempty"`
-	Domain   string `json:"domain,omitempty" yaml:"domain,omitempty"`
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// Path     string `json:"path,omitempty" yaml:"path,omitempty"`
+	// Domain   string `json:"domain,omitempty" yaml:"domain,omitempty"`
 	Expire   string `json:"expire,omitempty" yaml:"expire,omitempty"`
 	Refresh  string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
 	SameSite string `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
@@ -328,12 +335,12 @@ type OAuth2Cookie struct {
 
 // OAuth2OIDC defines OIDC properties for oauth proxy
 type OAuth2OIDC struct {
-	IssuerURL               string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
-	JWKSURL                 string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
-	EmailClaim              string `json:"emailClaim,omitempty" yaml:"emailClaim,omitempty"`
-	GroupsClaim             string `json:"groupsClaim,omitempty" yaml:"groupsClaim,omitempty"`
-	SkipDiscovery           *bool  `json:"skipDiscovery,omitempty" yaml:"skipDiscovery,omitempty"`
-	InsecureSkipVerifyNonce *bool  `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
+	IssuerURL string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
+	JWKSURL   string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
+	// EmailClaim              string `json:"emailClaim,omitempty" yaml:"emailClaim,omitempty"`
+	// GroupsClaim             string `json:"groupsClaim,omitempty" yaml:"groupsClaim,omitempty"`
+	SkipDiscovery           *bool `json:"skipDiscovery,omitempty" yaml:"skipDiscovery,omitempty"`
+	InsecureSkipVerifyNonce *bool `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
 }
 
 // OAuth2RedisStore properties for redis session storage

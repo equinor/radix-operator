@@ -58,7 +58,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 	}
 
 	dnsExternalAlias := component.GetDNSExternalAlias()
-	if dnsExternalAlias != nil && len(dnsExternalAlias) > 0 {
+	if len(dnsExternalAlias) > 0 {
 		err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 		if err != nil {
 			return err
@@ -112,6 +112,10 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 	}
 
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deployment.Namespace, registration, component, secretsToManage)
+	if err != nil {
+		return err
+	}
+
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
 	if auth := component.GetAuthentication(); auth != nil && component.GetPublicPort() != "" && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
 		if !deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
@@ -208,6 +212,11 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 	for _, secret := range secrets {
 		// External alias not handled here
 		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
+			continue
+		}
+
+		// Secrets for auxiliary components not handled here
+		if _, found := secret.ObjectMeta.Labels[kube.RadixComponentAuxiliaryType]; found {
 			continue
 		}
 

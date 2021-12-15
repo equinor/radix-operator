@@ -147,8 +147,8 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		{
 			name:     "should override OAuth2 from environment",
 			comp:     &v1.OAuth2{ClientID: "123", Scope: "openid", SetXAuthRequestHeaders: utils.BoolPtr(true), SessionStoreType: "cookie"},
-			env:      &v1.OAuth2{Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: "redis"},
-			expected: &v1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), EmailDomain: "equinor.com", SessionStoreType: "redis"},
+			env:      &v1.OAuth2{Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), SessionStoreType: "redis"},
+			expected: &v1.OAuth2{ClientID: "123", Scope: "email", SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true), SessionStoreType: "redis"},
 		},
 		{
 			name:     "should override OAuth2.RedisStore from environment",
@@ -164,9 +164,9 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		},
 		{
 			name:     "should override OAuth2.Cookie from environment",
-			comp:     &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "oauth", Path: "path"}},
-			env:      &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Domain: "domain"}},
-			expected: &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Domain: "domain", Path: "path"}},
+			comp:     &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "oauth", Expire: "1h"}},
+			env:      &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Refresh: "2h"}},
+			expected: &v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "_oauth", Expire: "1h", Refresh: "2h"}},
 		},
 	}
 

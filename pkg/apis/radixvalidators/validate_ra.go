@@ -11,6 +11,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+
 	// v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
@@ -25,7 +27,7 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes []string = []string{"", "redis", "cookie"}
+	validOAuthSessionStoreTypes []string = []string{"", string(v1.SessionStoreCookie), string(v1.SessionStoreRedis)}
 	validOAuthCookieSameSites   []string = []string{"", "strict", "lax", "none"}
 )
 
@@ -409,8 +411,8 @@ func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
 		return
 	}
 
-	if !slice.ContainsString(validOAuthSessionStoreTypes, oauth.SessionStoreType) {
-		errors = append(errors, InvalidOAuthSessionStoreType(oauth.SessionStoreType))
+	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauth.SessionStoreType)) {
+		errors = append(errors, InvalidOAuthSessionStoreType(string(oauth.SessionStoreType)))
 	}
 
 	if oauth.Cookie != nil {

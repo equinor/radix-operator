@@ -39,6 +39,15 @@ const (
 	CsiAzureCredsAccountNamePart = "accountname"
 
 	csiAzureCreds = "%s-%s-csiazurecreds" // <componentname>-<radixvolumemountname>-csiazurecreds
+
+	// OAuthCookieSecretKeyName defines the name of the key which holds the secret used by OAuth to encrypt the session cookie
+	OAuthCookieSecretKeyName = "CookieSecret"
+
+	// OAuthClientSecretKeyName defines the name of the key which holds the OAuth clientid secret
+	OAuthClientSecretKeyName = "ClientSecret"
+
+	// OAuthRedisPasswordKeyName defines the name of the key which holds the Redis password used by OAuth to store session data
+	OAuthRedisPasswordKeyName = "RedisPassword"
 )
 
 // GetBlobFuseCredsSecretName Helper method

@@ -47,10 +47,7 @@ const egressIps = "0.0.0.0"
 
 type noopOAuthProxyResourceManager struct{}
 
-func (o *noopOAuthProxyResourceManager) Install(component v1.RadixCommonDeployComponent) error {
-	return nil
-}
-func (o *noopOAuthProxyResourceManager) Uninstall(componentName string) error {
+func (o *noopOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
 	return nil
 }
 
