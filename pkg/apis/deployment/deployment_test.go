@@ -1323,7 +1323,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)),
+				WithReplicas(test.IntPtr(0)).
+				WithSecrets([]string{"a_secret"}),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
@@ -1342,7 +1343,8 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0))))
+				WithReplicas(test.IntPtr(0)).
+				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -1371,7 +1373,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		t.Parallel()
 		secrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(secrets.Items), "Number of secrets was not according to spec")
-		assert.Equal(t, utils.GetComponentSecretName(componentThreeName), secrets.Items[0].GetName(), "Component secret is not as expected")
+		assert.Equal(t, utils.GetComponentSecretName(componentTwoName), secrets.Items[0].GetName(), "Component secret is not as expected")
 	})
 
 	t.Run("validate service accounts", func(t *testing.T) {
@@ -1383,7 +1385,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate rolebindings", func(t *testing.T) {
 		t.Parallel()
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 0, len(rolebindings.Items), "Number of rolebindings was not expected")
+		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
 	})
 
 	teardownTest()

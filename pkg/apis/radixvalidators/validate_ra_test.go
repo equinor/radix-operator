@@ -81,8 +81,8 @@ func Test_invalid_ra(t *testing.T) {
 	tooLongPortName := "abcdefghijklmnop"
 	invalidBranchName := "/master"
 	invalidResourceName := "invalid,char.resourcename"
-	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", defaults.OAuthProxyAuxiliaryComponent)
-	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", defaults.OAuthProxyAuxiliaryComponent)
+	oauthAuxSuffixComponentName := fmt.Sprintf("app-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
+	oauthAuxSuffixJobName := fmt.Sprintf("job-%s", defaults.OAuthProxyAuxiliaryComponentSuffix)
 	invalidVariableName := "invalid:variable"
 	noReleatedRRAppName := "no related rr"
 	noExistingEnvironment := "nonexistingenv"
@@ -128,7 +128,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"duplicate component name", radixvalidators.DuplicateComponentOrJobNameError([]string{validRAFirstComponentName}), func(ra *v1.RadixApplication) {
 			ra.Spec.Components = append(ra.Spec.Components, *ra.Spec.Components[0].DeepCopy())
 		}},
-		{"component name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixError(oauthAuxSuffixComponentName, "component", string(defaults.OAuthProxyAuxiliaryComponent)), func(ra *v1.RadixApplication) {
+		{"component name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixError(oauthAuxSuffixComponentName, "component", defaults.OAuthProxyAuxiliaryComponentSuffix), func(ra *v1.RadixApplication) {
 			ra.Spec.Components[0].Name = oauthAuxSuffixComponentName
 		}},
 		{"invalid port specification. Nil value", radixvalidators.PortSpecificationCannotBeEmptyForComponentError(validRAFirstComponentName), func(ra *v1.RadixApplication) {
@@ -347,7 +347,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"duplicate job name", radixvalidators.DuplicateComponentOrJobNameError([]string{validRAFirstJobName}), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs = append(ra.Spec.Jobs, *ra.Spec.Jobs[0].DeepCopy())
 		}},
-		{"job name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixError(oauthAuxSuffixJobName, "job", string(defaults.OAuthProxyAuxiliaryComponent)), func(ra *v1.RadixApplication) {
+		{"job name with oauth auxiliary name suffix", radixvalidators.ComponentNameReservedSuffixError(oauthAuxSuffixJobName, "job", defaults.OAuthProxyAuxiliaryComponentSuffix), func(ra *v1.RadixApplication) {
 			ra.Spec.Jobs[0].Name = oauthAuxSuffixJobName
 		}},
 		{"invalid job secret name", radixvalidators.InvalidResourceNameError("secret name", invalidVariableName), func(ra *v1.RadixApplication) {

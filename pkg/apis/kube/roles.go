@@ -119,7 +119,7 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 }
 
 // CreateManageSecretRole creates a role that can manage a secret with predefined set of verbs
-func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels *map[string]string) *rbacv1.Role {
+func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels map[string]string) *rbacv1.Role {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -142,7 +142,7 @@ func CreateManageSecretRole(appName, roleName string, secretNames []string, cust
 		},
 	}
 	if customLabels != nil {
-		for key, value := range *customLabels {
+		for key, value := range customLabels {
 			role.ObjectMeta.Labels[key] = value
 		}
 	}

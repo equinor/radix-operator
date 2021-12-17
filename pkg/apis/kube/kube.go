@@ -27,30 +27,31 @@ const (
 
 // Radix Labels
 const (
-	RadixAppLabel                = "radix-app"
-	RadixEnvLabel                = "radix-env"
-	RadixComponentLabel          = "radix-component"
-	RadixComponentTypeLabel      = "radix-component-type"
-	RadixComponentAuxiliaryType  = "radix-component-aux-type"
-	RadixJobNameLabel            = "radix-job-name"
-	RadixBuildLabel              = "radix-build"
-	RadixCommitLabel             = "radix-commit"
-	RadixImageTagLabel           = "radix-image-tag"
-	RadixJobTypeLabel            = "radix-job-type"
-	RadixJobTypeJob              = "job" // Outer job
-	RadixJobTypeBuild            = "build"
-	RadixJobTypeScan             = "scan"
-	RadixJobTypeCloneConfig      = "clone-config"
-	RadixJobTypeJobSchedule      = "job-scheduler"
-	RadixAppAliasLabel           = "radix-app-alias"
-	RadixExternalAliasLabel      = "radix-app-external-alias"
-	RadixActiveClusterAliasLabel = "radix-app-active-cluster-alias"
-	RadixMountTypeLabel          = "mount-type"
-	RadixVolumeMountNameLabel    = "radix-volume-mount-name"
-	RadixGpuLabel                = "radix-node-gpu"
-	RadixGpuCountLabel           = "radix-node-gpu-count"
-	RadixNamespace               = "radix-namespace"
-	RadixConfigMapTypeLabel      = "radix-config-map-type"
+	RadixAppLabel                    = "radix-app"
+	RadixEnvLabel                    = "radix-env"
+	RadixComponentLabel              = "radix-component"
+	RadixComponentTypeLabel          = "radix-component-type"
+	RadixAuxiliaryComponentLabel     = "radix-aux-component"
+	RadixAuxiliaryComponentTypeLabel = "radix-aux-component-type"
+	RadixJobNameLabel                = "radix-job-name"
+	RadixBuildLabel                  = "radix-build"
+	RadixCommitLabel                 = "radix-commit"
+	RadixImageTagLabel               = "radix-image-tag"
+	RadixJobTypeLabel                = "radix-job-type"
+	RadixJobTypeJob                  = "job" // Outer job
+	RadixJobTypeBuild                = "build"
+	RadixJobTypeScan                 = "scan"
+	RadixJobTypeCloneConfig          = "clone-config"
+	RadixJobTypeJobSchedule          = "job-scheduler"
+	RadixAppAliasLabel               = "radix-app-alias"
+	RadixExternalAliasLabel          = "radix-app-external-alias"
+	RadixActiveClusterAliasLabel     = "radix-app-active-cluster-alias"
+	RadixMountTypeLabel              = "mount-type"
+	RadixVolumeMountNameLabel        = "radix-volume-mount-name"
+	RadixGpuLabel                    = "radix-node-gpu"
+	RadixGpuCountLabel               = "radix-node-gpu-count"
+	RadixNamespace                   = "radix-namespace"
+	RadixConfigMapTypeLabel          = "radix-config-map-type"
 
 	// Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
@@ -123,4 +124,8 @@ func NewWithListers(client kubernetes.Interface,
 
 func IsEmptyPatch(patchBytes []byte) bool {
 	return string(patchBytes) == "{}"
+}
+
+func (kubeutil *Kube) KubeClient() kubernetes.Interface {
+	return kubeutil.kubeClient
 }

@@ -173,7 +173,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 	}
 
 	for _, existingSecret := range secrets {
-		if existingSecret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
+		if existingSecret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] == strconv.FormatBool(true) {
 			// Not handled here
 			continue
 		}
@@ -211,12 +211,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(compon
 
 	for _, secret := range secrets {
 		// External alias not handled here
-		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] != "" {
-			continue
-		}
-
-		// Secrets for auxiliary components not handled here
-		if _, found := secret.ObjectMeta.Labels[kube.RadixComponentAuxiliaryType]; found {
+		if secret.ObjectMeta.Labels[kube.RadixExternalAliasLabel] == strconv.FormatBool(true) {
 			continue
 		}
 

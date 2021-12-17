@@ -856,7 +856,7 @@ func validateComponentName(componentName, componentType string) error {
 		return err
 	}
 
-	for _, aux := range []defaults.AuxiliaryComponentType{defaults.OAuthProxyAuxiliaryComponent} {
+	for _, aux := range []string{defaults.OAuthProxyAuxiliaryComponentSuffix} {
 		if strings.HasSuffix(componentName, fmt.Sprintf("-%s", aux)) {
 			return ComponentNameReservedSuffixError(componentName, componentType, string(aux))
 		}

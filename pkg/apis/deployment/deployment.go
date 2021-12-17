@@ -66,7 +66,7 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		registration,
 		radixDeployment,
 		NewSecurityContextBuilder(forceRunAsNonRoot),
-		NewOAuthProxyResourceManager(radixDeployment, kubeutil)}
+		NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name
@@ -115,15 +115,13 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	err = deploy.syncDeployment()
-
-	if err == nil {
-		// Only remove old RDs if deployment is successful
-		deploy.maintainHistoryLimit()
-		metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
+	if err := deploy.syncDeployment(); err != nil {
+		return err
 	}
 
-	return err
+	deploy.maintainHistoryLimit()
+	metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
+	return nil
 }
 
 // IsRadixDeploymentInactive checks if deployment is inactive

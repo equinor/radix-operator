@@ -1,20 +1,24 @@
 package deployment
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"reflect"
 
+	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/imdario/mergo"
-	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -27,12 +31,13 @@ type OAuthProxyResourceManager interface {
 	Sync(component v1.RadixCommonDeployComponent) error
 }
 
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, kubeutil *kube.Kube) OAuthProxyResourceManager {
-	return &oauthProxyResourceManager{rd: rd, kubeutil: kubeutil}
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) OAuthProxyResourceManager {
+	return &oauthProxyResourceManager{rd: rd, rr: rr, kubeutil: kubeutil}
 }
 
 type oauthProxyResourceManager struct {
 	rd       *v1.RadixDeployment
+	rr       *v1.RadixRegistration
 	kubeutil *kube.Kube
 }
 
@@ -44,18 +49,25 @@ func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent
 	} else {
 		return o.uninstall(component)
 	}
+}
 
+func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
 	// build secret+role+binding
 	// build deployment
 	// build service
 	// build ingress
-
-}
-
-func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
 	if err := o.createOrUpdateSecret(component); err != nil {
 		return err
 	}
+
+	if err := o.createOrUpdateService(component); err != nil {
+		return err
+	}
+
+	if err := o.createOrUpdateIngresses(component); err != nil {
+		return err
+	}
+
 	return o.createOrUpdateDeployment(component)
 }
 
@@ -63,8 +75,40 @@ func (o *oauthProxyResourceManager) uninstall(component v1.RadixCommonDeployComp
 	return nil
 }
 
+func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCommonDeployComponent) error {
+	listOptions := metav1.ListOptions{LabelSelector: getLabelSelectorForComponent(component)}
+	ingresses, err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(o.rd.Namespace).List(context.TODO(), listOptions)
+	if err != nil {
+		return err
+	}
+
+	for _, ingress := range ingresses.Items {
+		auxIngress := o.buildOAuthProxyIngressForComponentIngress(ingress)
+		// if err := o.kubeutil.ApplyIngress(o.rd.Namespace, auxIngress); err != nil {
+		// 	return err
+		// }
+		fmt.Println(auxIngress.Name)
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(componentIngress networkingv1.Ingress) *networkingv1.Ingress {
+	ingress := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", componentIngress.Name, defaults.OAuthProxyAuxiliaryComponentSuffix),
+		},
+	}
+	return &ingress
+}
+
+func (o *oauthProxyResourceManager) createOrUpdateService(component v1.RadixCommonDeployComponent) error {
+	service := o.buildServiceSpec(component)
+	return o.kubeutil.ApplyService(o.rd.Namespace, service)
+}
+
 func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommonDeployComponent) error {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponent)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	secret, err := o.kubeutil.GetSecret(o.rd.Namespace, secretName)
 
 	if err != nil {
@@ -76,28 +120,72 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommo
 			return err
 		}
 	} else {
-		logrus.Debug("")
+		if component.GetAuthentication().OAuth2.SessionStoreType != v1.SessionStoreRedis {
+			if secret.Data != nil && len(secret.Data[defaults.OAuthCookieSecretKeyName]) > 0 {
+				delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
+			}
+		}
 	}
 
 	if _, err := o.kubeutil.ApplySecret(o.rd.Namespace, secret); err != nil {
 		return err
 	}
 
-	return nil
+	return o.grantAccessToSecret(component)
+}
+
+func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommonDeployComponent) error {
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	roleName := o.getRoleAndRoleBindingName(component)
+	namespace := o.rd.Namespace
+
+	// create role
+	role := kube.CreateManageSecretRole(
+		o.rd.Spec.AppName,
+		roleName,
+		[]string{secretName},
+		o.getLabelsForAuxComponent(component),
+	)
+
+	err := o.kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	// create rolebinding
+	adGroups, err := application.GetAdGroups(o.rr)
+	if err != nil {
+		return err
+	}
+
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	if o.rr.Spec.MachineUser {
+		subjects = append(subjects, rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(o.rr.Name),
+			Namespace: utils.GetAppNamespace(o.rr.Name),
+		})
+	}
+
+	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
+	return o.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
+func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(component v1.RadixCommonDeployComponent) string {
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	return fmt.Sprintf("radix-app-adm-%s", deploymentName)
 }
 
 func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDeployComponent) (*corev1.Secret, error) {
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponent)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	secret := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
-			Name: secretName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:               o.rd.Spec.AppName,
-				kube.RadixComponentLabel:         component.GetName(),
-				kube.RadixComponentAuxiliaryType: string(defaults.OAuthProxyAuxiliaryComponent),
-			},
+			Name:   secretName,
+			Labels: o.getLabelsForAuxComponent(component),
 		},
 		Data: make(map[string][]byte),
 	}
@@ -108,6 +196,36 @@ func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDepl
 	}
 	secret.Data[defaults.OAuthCookieSecretKeyName] = cookieSecret
 	return secret, nil
+}
+
+func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
+	serviceName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   serviceName,
+			Labels: o.getLabelsForAuxComponent(component),
+		},
+		Spec: corev1.ServiceSpec{
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: o.getLabelsForAuxComponent(component),
+			Ports: []corev1.ServicePort{
+				{
+					Port:       oauthProxyPortNumber,
+					TargetPort: intstr.FromString(oauthProxyPortName),
+					Protocol:   corev1.ProtocolTCP,
+				},
+			},
+		},
+	}
+}
+
+func (o *oauthProxyResourceManager) getLabelsForAuxComponent(component v1.RadixCommonDeployComponent) map[string]string {
+	return map[string]string{
+		kube.RadixAppLabel:                    o.rd.Spec.AppName,
+		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
+		kube.RadixAuxiliaryComponentTypeLabel: string(defaults.OAuthProxyAuxiliaryComponent),
+	}
 }
 
 func (o *oauthProxyResourceManager) generateRandomCookieSecret() ([]byte, error) {
@@ -123,7 +241,6 @@ func (o *oauthProxyResourceManager) generateRandomCookieSecret() ([]byte, error)
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateDeployment(component v1.RadixCommonDeployComponent) error {
-	//Auxiliary
 	current, desired, err := o.getCurrentAndDesiredDeployment(component)
 	if err != nil {
 		return err
@@ -136,7 +253,7 @@ func (o *oauthProxyResourceManager) createOrUpdateDeployment(component v1.RadixC
 }
 
 func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponent)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	currentDeployment, err := o.kubeutil.GetDeployment(o.rd.Namespace, deploymentName)
 	if err != nil && !errors.IsNotFound(err) {
@@ -151,7 +268,7 @@ func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(component v1.
 }
 
 func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponent)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	readinessProbe, err := getReadinessProbe(oauthProxyPortNumber)
 	if err != nil {
 		return nil, err
@@ -159,30 +276,19 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: deploymentName,
-			Labels: map[string]string{
-				kube.RadixAppLabel:               o.rd.Spec.AppName,
-				kube.RadixComponentLabel:         component.GetName(),
-				kube.RadixComponentAuxiliaryType: string(defaults.OAuthProxyAuxiliaryComponent),
-			},
+			Name:            deploymentName,
+			Labels:          o.getLabelsForAuxComponent(component),
 			Annotations:     make(map[string]string),
 			OwnerReferences: getOwnerReferenceOfDeployment(o.rd),
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(DefaultReplicas),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kube.RadixComponentLabel:         component.GetName(),
-					kube.RadixComponentAuxiliaryType: string(defaults.OAuthProxyAuxiliaryComponent),
-				},
+				MatchLabels: o.getLabelsForAuxComponent(component),
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						kube.RadixAppLabel:               o.rd.Spec.AppName,
-						kube.RadixComponentLabel:         component.GetName(),
-						kube.RadixComponentAuxiliaryType: string(defaults.OAuthProxyAuxiliaryComponent),
-					},
+					Labels: o.getLabelsForAuxComponent(component),
 					Annotations: map[string]string{
 						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
 						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
@@ -227,7 +333,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	}
 
 	// Add fixed envvars
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponent)
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: "oidc"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
@@ -263,6 +369,14 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_EXPIRE", cookie.Expire)
 		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_REFRESH", cookie.Refresh)
 		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_SAMESITE", cookie.SameSite)
+	}
+
+	if cookieStore := oauth.CookieStore; cookieStore != nil {
+		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_MINIMAL", cookieStore.Minimal)
+	}
+
+	if redisStore := oauth.RedisStore; redisStore != nil {
+		addEnvVarIfSet("OAUTH2_PROXY_REDIS_CONNECTION_URL", redisStore.ConnectionURL)
 	}
 
 	return envVars

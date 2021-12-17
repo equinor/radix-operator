@@ -47,8 +47,8 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(c
 	}
 
 	if len(roleBindings) > 0 {
-		for n := range roleBindings {
-			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), roleBindings[n].Name, metav1.DeleteOptions{})
+		for _, rb := range roleBindings {
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), rb.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}

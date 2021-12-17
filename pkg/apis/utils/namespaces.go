@@ -3,8 +3,6 @@ package utils
 import (
 	"fmt"
 	"strings"
-
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 )
 
 // AppNamespaceEnvName Name of environment for app namespace
@@ -27,12 +25,12 @@ func GetDeploymentName(appName, env, tag string) string {
 }
 
 // GetAuxiliaryComponentDeploymentName returns deployment name for auxiliary component, e.g. the oauth proxy
-func GetAuxiliaryComponentDeploymentName(componentName string, auxiliary defaults.AuxiliaryComponentType) string {
-	return fmt.Sprintf("%s-%s", componentName, auxiliary)
+func GetAuxiliaryComponentDeploymentName(componentName string, auxSuffix string) string {
+	return fmt.Sprintf("%s-%s", componentName, auxSuffix)
 }
 
-func GetAuxiliaryComponentSecretName(componentName string, auxiliary defaults.AuxiliaryComponentType) string {
-	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, auxiliary))
+func GetAuxiliaryComponentSecretName(componentName string, suffix string) string {
+	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, suffix))
 }
 
 // GetComponentSecretName Gets unique name of the component secret
