@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
@@ -398,8 +399,6 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	}
 
 	// Add fixed envvars
-	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_PROVIDER", Value: "oidc"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_HTTPONLY", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_COOKIE_SECURE", Value: "true"})
@@ -407,6 +406,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", Value: "true"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"})
 	envVars = append(envVars, corev1.EnvVar{Name: "OAUTH2_PROXY_HTTP_ADDRESS", Value: fmt.Sprintf("http://:%v", oauthProxyPortNumber)})
+	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	envVars = append(envVars, o.createEnvVarWithSecretRef("OAUTH2_PROXY_COOKIE_SECRET", secretName, defaults.OAuthCookieSecretKeyName))
 	envVars = append(envVars, o.createEnvVarWithSecretRef("OAUTH2_PROXY_CLIENT_SECRET", secretName, defaults.OAuthClientSecretKeyName))
 	if oauth.SessionStoreType == v1.SessionStoreRedis {
@@ -468,7 +468,7 @@ func oauth2DefaultsWithSource(source *v1.OAuth2) *v1.OAuth2 {
 		ProxyPrefix:            "/oauth2",
 		SessionStoreType:       "cookie",
 		OIDC: &v1.OAuth2OIDC{
-			IssuerURL:               "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0",
+			IssuerURL:               os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURL),
 			InsecureSkipVerifyNonce: utils.BoolPtr(false),
 		},
 		Cookie: &v1.OAuth2Cookie{

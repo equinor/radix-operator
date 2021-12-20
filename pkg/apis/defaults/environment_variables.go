@@ -80,4 +80,7 @@ const (
 
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
+
+	// RadixOAuthProxyDefaultOIDCIssuerURL Default OIDC issuer URL for OAuth Proxy
+	RadixOAuthProxyDefaultOIDCIssuerURL = "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL"
 )

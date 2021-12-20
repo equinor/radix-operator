@@ -101,6 +101,8 @@ spec:
               value: {{ .Values.containerRegistry }}
             - name: RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER
               value: {{ .Values.forceNonRootDeploymentContainers | quote }}
+            - name: RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL
+              value: {{ .Values.oauthProxyDefaultIssuerUrl }}
           livenessProbe:
             httpGet:
               path: /healthz
