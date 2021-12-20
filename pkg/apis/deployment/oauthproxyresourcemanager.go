@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -22,15 +23,24 @@ import (
 )
 
 const (
-	oauthProxyImage      = "quay.io/oauth2-proxy/oauth2-proxy:v7.2.0"
-	oauthProxyPortName   = "http"
-	oauthProxyPortNumber = 4180
+	oauthProxyImage               = "quay.io/oauth2-proxy/oauth2-proxy:v7.2.0"
+	oauthProxyPortName            = "http"
+	oauthProxyPortNumber          = 4180
+	authUrlAnnotation             = "nginx.ingress.kubernetes.io/auth-url"
+	authSigninAnnotation          = "nginx.ingress.kubernetes.io/auth-signin"
+	authResponseHeadersAnnotation = "nginx.ingress.kubernetes.io/auth-response-headers"
 )
 
+// OAuthProxyResourceManager contains methods to configure oauth authentication for a component
 type OAuthProxyResourceManager interface {
+	// Sync creates, updates or removes resources to handle the oauth code flow
 	Sync(component v1.RadixCommonDeployComponent) error
+	// ConfigureRootIngress sets annotations required by nginx to handle authentication on the ingress resource
+	// This method should be called with the ingress containing the root path ("/") as argument
+	ConfigureRootIngress(ingress *networkingv1.Ingress, component v1.RadixCommonDeployComponent)
 }
 
+// NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
 func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) OAuthProxyResourceManager {
 	return &oauthProxyResourceManager{rd: rd, rr: rr, kubeutil: kubeutil}
 }
@@ -51,11 +61,34 @@ func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent
 	}
 }
 
+func (o *oauthProxyResourceManager) ConfigureRootIngress(ingress *networkingv1.Ingress, component v1.RadixCommonDeployComponent) {
+	if auth := component.GetAuthentication(); auth != nil && auth.OAuth2 != nil {
+		oauth := oauth2DefaultsWithSource(auth.OAuth2)
+		o.setRootIngressAnnotations(ingress, oauth)
+	}
+}
+
+func (o *oauthProxyResourceManager) setRootIngressAnnotations(ingress *networkingv1.Ingress, oauth *v1.OAuth2) {
+	if ingress.Annotations == nil {
+		ingress.Annotations = make(map[string]string)
+	}
+
+	ingress.Annotations[authUrlAnnotation] = fmt.Sprintf("https://$host%s/auth", oauth.ProxyPrefix)
+	ingress.Annotations[authSigninAnnotation] = fmt.Sprintf("https://$host%s/start?rd=$escaped_request_uri", oauth.ProxyPrefix)
+
+	var authResponseHeaders []string
+	if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {
+		authResponseHeaders = append(authResponseHeaders, "X-Auth-Request-Access-Token", "X-Auth-Request-User", "X-Auth-Request-Groups", "X-Auth-Request-Email", "X-Auth-Request-Preferred-Username")
+	}
+	if oauth.SetAuthorizationHeader != nil && *oauth.SetAuthorizationHeader {
+		authResponseHeaders = append(authResponseHeaders, "Authorization")
+	}
+	if len(authResponseHeaders) > 0 {
+		ingress.Annotations[authResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
+	}
+}
+
 func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
-	// build secret+role+binding
-	// build deployment
-	// build service
-	// build ingress
 	if err := o.createOrUpdateSecret(component); err != nil {
 		return err
 	}
@@ -83,20 +116,52 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 	}
 
 	for _, ingress := range ingresses.Items {
-		auxIngress := o.buildOAuthProxyIngressForComponentIngress(ingress)
-		// if err := o.kubeutil.ApplyIngress(o.rd.Namespace, auxIngress); err != nil {
-		// 	return err
-		// }
-		fmt.Println(auxIngress.Name)
+		auxIngress := o.buildOAuthProxyIngressForComponentIngress(component, ingress)
+		if err := o.kubeutil.ApplyIngress(o.rd.Namespace, auxIngress); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(componentIngress networkingv1.Ingress) *networkingv1.Ingress {
+func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress) *networkingv1.Ingress {
+	oauth := oauth2DefaultsWithSource(component.GetAuthentication().OAuth2)
+	sourceHost := componentIngress.Spec.Rules[0]
+	pathType := networkingv1.PathTypeImplementationSpecific
+
 	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", componentIngress.Name, defaults.OAuthProxyAuxiliaryComponentSuffix),
+		},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: componentIngress.Spec.IngressClassName,
+			TLS: []networkingv1.IngressTLS{
+				*componentIngress.Spec.TLS[0].DeepCopy(),
+			},
+			Rules: []networkingv1.IngressRule{
+				{
+					Host: sourceHost.Host,
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     oauth.ProxyPrefix,
+									PathType: &pathType,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix),
+											Port: networkingv1.ServiceBackendPort{
+												Number: oauthProxyPortNumber,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 	return &ingress
@@ -199,7 +264,7 @@ func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDepl
 }
 
 func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
-	serviceName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	serviceName := utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -351,6 +416,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	addEnvVarIfSet("OAUTH2_PROXY_CLIENT_ID", oauth.ClientID)
 	addEnvVarIfSet("OAUTH2_PROXY_SCOPE", oauth.Scope)
 	addEnvVarIfSet("OAUTH2_PROXY_SET_XAUTHREQUEST", oauth.SetXAuthRequestHeaders)
+	addEnvVarIfSet("OAUTH2_PROXY_PASS_ACCESS_TOKEN", oauth.SetXAuthRequestHeaders)
 	addEnvVarIfSet("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", oauth.SetAuthorizationHeader)
 	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauth.ProxyPrefix)
 	addEnvVarIfSet("OAUTH2_PROXY_LOGIN_URL", oauth.LoginURL)
@@ -396,7 +462,7 @@ func (o *oauthProxyResourceManager) createEnvVarWithSecretRef(envVarName, secret
 
 func oauth2DefaultsWithSource(source *v1.OAuth2) *v1.OAuth2 {
 	target := &v1.OAuth2{
-		Scope:                  "openid profile email offline_acccess",
+		Scope:                  "openid profile email",
 		SetXAuthRequestHeaders: utils.BoolPtr(false),
 		SetAuthorizationHeader: utils.BoolPtr(false),
 		ProxyPrefix:            "/oauth2",

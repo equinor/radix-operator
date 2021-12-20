@@ -9,6 +9,7 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
+	v10 "k8s.io/api/networking/v1"
 )
 
 // MockOAuthProxyResourceManager is a mock of OAuthProxyResourceManager interface.
@@ -34,30 +35,28 @@ func (m *MockOAuthProxyResourceManager) EXPECT() *MockOAuthProxyResourceManagerM
 	return m.recorder
 }
 
-// Install mocks base method.
-func (m *MockOAuthProxyResourceManager) Install(component v1.RadixCommonDeployComponent) error {
+// ConfigureRootIngress mocks base method.
+func (m *MockOAuthProxyResourceManager) ConfigureRootIngress(ingress *v10.Ingress, component v1.RadixCommonDeployComponent) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Install", component)
+	m.ctrl.Call(m, "ConfigureRootIngress", ingress, component)
+}
+
+// ConfigureRootIngress indicates an expected call of ConfigureRootIngress.
+func (mr *MockOAuthProxyResourceManagerMockRecorder) ConfigureRootIngress(ingress, component interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfigureRootIngress", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).ConfigureRootIngress), ingress, component)
+}
+
+// Sync mocks base method.
+func (m *MockOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Sync", component)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Install indicates an expected call of Install.
-func (mr *MockOAuthProxyResourceManagerMockRecorder) Install(component interface{}) *gomock.Call {
+// Sync indicates an expected call of Sync.
+func (mr *MockOAuthProxyResourceManagerMockRecorder) Sync(component interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Install", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).Install), component)
-}
-
-// Uninstall mocks base method.
-func (m *MockOAuthProxyResourceManager) Uninstall(componentName string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Uninstall", componentName)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Uninstall indicates an expected call of Uninstall.
-func (mr *MockOAuthProxyResourceManagerMockRecorder) Uninstall(componentName interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Uninstall", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).Uninstall), componentName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).Sync), component)
 }

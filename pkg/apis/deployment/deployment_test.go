@@ -51,6 +51,9 @@ func (o *noopOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployCompo
 	return nil
 }
 
+func (o *noopOAuthProxyResourceManager) ConfigureRootIngress(ingress *networkingv1.Ingress, component v1.RadixCommonDeployComponent) {
+}
+
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()

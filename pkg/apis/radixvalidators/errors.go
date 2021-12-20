@@ -236,19 +236,23 @@ func InvalidConfigBranchName(configBranch string) error {
 	return fmt.Errorf("config branch name is not valid (value: %s)", configBranch)
 }
 
-func InvalidOAuthSessionStoreType(actualSessionStoreType string) error {
+func OAuthProxyPrefixIsRootError() error {
+	return fmt.Errorf("oauth2 proxy prefix cannot be root path")
+}
+
+func InvalidOAuthSessionStoreTypeError(actualSessionStoreType string) error {
 	return fmt.Errorf("invalid session store type '%s'", actualSessionStoreType)
 }
 
-func InvalidOAuthCookieSameSite(actualSameSite string) error {
+func InvalidOAuthCookieSameSiteError(actualSameSite string) error {
 	return fmt.Errorf("invalid cookie samesite '%s'", actualSameSite)
 }
 
-func InvalidOAuthCookieExpire(actualExpire string) error {
+func InvalidOAuthCookieExpireError(actualExpire string) error {
 	return fmt.Errorf("invalid cookie expire timeframe '%s'", actualExpire)
 }
 
-func InvalidOAuthCookieRefresh(actualRefresh string) error {
+func InvalidOAuthCookieRefreshError(actualRefresh string) error {
 	return fmt.Errorf("invalid cookie refresh duration '%s'", actualRefresh)
 }
 

@@ -11,11 +11,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-
-	// v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
+	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -27,7 +25,7 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes []string = []string{"", string(v1.SessionStoreCookie), string(v1.SessionStoreRedis)}
+	validOAuthSessionStoreTypes []string = []string{"", string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
 	validOAuthCookieSameSites   []string = []string{"", "strict", "lax", "none"}
 )
 
@@ -411,24 +409,30 @@ func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
 		return
 	}
 
+	if len(oauth.ProxyPrefix) > 0 {
+		if oauthutil.SanitizePathPrefix(oauth.ProxyPrefix) == "/" {
+			errors = append(errors, OAuthProxyPrefixIsRootError())
+		}
+	}
+
 	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauth.SessionStoreType)) {
-		errors = append(errors, InvalidOAuthSessionStoreType(string(oauth.SessionStoreType)))
+		errors = append(errors, InvalidOAuthSessionStoreTypeError(string(oauth.SessionStoreType)))
 	}
 
 	if oauth.Cookie != nil {
 		if !slice.ContainsString(validOAuthCookieSameSites, oauth.Cookie.SameSite) {
-			errors = append(errors, InvalidOAuthCookieSameSite(oauth.Cookie.SameSite))
+			errors = append(errors, InvalidOAuthCookieSameSiteError(oauth.Cookie.SameSite))
 		}
 
 		if oauth.Cookie.Expire != "" {
 			if _, err := time.ParseDuration(oauth.Cookie.Expire); err != nil {
-				errors = append(errors, InvalidOAuthCookieExpire(oauth.Cookie.Expire))
+				errors = append(errors, InvalidOAuthCookieExpireError(oauth.Cookie.Expire))
 			}
 		}
 
 		if oauth.Cookie.Refresh != "" {
 			if _, err := time.ParseDuration(oauth.Cookie.Refresh); err != nil {
-				errors = append(errors, InvalidOAuthCookieRefresh(oauth.Cookie.Refresh))
+				errors = append(errors, InvalidOAuthCookieRefreshError(oauth.Cookie.Refresh))
 			}
 		}
 	}

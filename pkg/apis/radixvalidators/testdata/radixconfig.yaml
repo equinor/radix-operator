@@ -22,6 +22,7 @@ spec:
         oauth2:
           clientId: 12cf
           sessionStoreType: cookie
+          proxyPrefix: /oauth2/path
           cookie:
             refresh: 30m
             expire: 168h
@@ -43,6 +44,7 @@ spec:
             oauth2:
               clientId: 12cf
               sessionStoreType: cookie
+              proxyPrefix: /oauth2
               cookie:
                 refresh: 30m
                 expire: 168h

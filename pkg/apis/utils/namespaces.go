@@ -29,6 +29,11 @@ func GetAuxiliaryComponentDeploymentName(componentName string, auxSuffix string)
 	return fmt.Sprintf("%s-%s", componentName, auxSuffix)
 }
 
+// GetAuxiliaryComponentServiceName returns service name for auxiliary component, e.g. the oauth proxy
+func GetAuxiliaryComponentServiceName(componentName string, auxSuffix string) string {
+	return fmt.Sprintf("%s-%s", componentName, auxSuffix)
+}
+
 func GetAuxiliaryComponentSecretName(componentName string, suffix string) string {
 	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, suffix))
 }
