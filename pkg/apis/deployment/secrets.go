@@ -293,7 +293,7 @@ func (deploy *Deployment) listSecretsForVolumeMounts(component radixv1.RadixComm
 }
 
 func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error) {
-	secrets, err := deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
+	secrets, err := deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 
 	if err != nil {
 		return nil, err

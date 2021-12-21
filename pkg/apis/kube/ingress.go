@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,11 +24,11 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 	if err != nil && errors.IsNotFound(err) {
 		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to create Ingress object: %v", err)
+			return fmt.Errorf("failed to create Ingress object: %v", err)
 		}
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to get Ingress object: %v", err)
+		return fmt.Errorf("failed to get Ingress object: %v", err)
 	}
 
 	log.Debugf("Ingress object %s already exists in namespace %s, updating the object now", ingressName, namespace)
@@ -41,23 +40,23 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 
 	oldIngressJSON, err := json.Marshal(oldIngress)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal old Ingress object: %v", err)
+		return fmt.Errorf("failed to marshal old Ingress object: %v", err)
 	}
 
 	newIngressJSON, err := json.Marshal(newIngress)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal new Ingress object: %v", err)
+		return fmt.Errorf("failed to marshal new Ingress object: %v", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldIngressJSON, newIngressJSON, networkingv1.Ingress{})
 	if err != nil {
-		return fmt.Errorf("Failed to create two way merge patch Ingess objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch Ingess objects: %v", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Patch(context.TODO(), ingressName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to patch Ingress object: %v", err)
+			return fmt.Errorf("failed to patch Ingress object: %v", err)
 		}
 		log.Debugf("Patched Ingress: %s in namespace %s", patchedIngress.Name, namespace)
 	} else {
@@ -88,29 +87,17 @@ func (kubeutil *Kube) getIngress(namespace, name string) (*networkingv1.Ingress,
 
 // ListIngresses lists ingresses
 func (kubeutil *Kube) ListIngresses(namespace string) ([]*networkingv1.Ingress, error) {
-	return kubeutil.ListIngressesWithSelector(namespace, nil)
+	return kubeutil.ListIngressesWithSelector(namespace, "")
 }
 
 // ListIngressesWithSelector lists ingresses
-func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString *string) ([]*networkingv1.Ingress, error) {
+func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorString string) ([]*networkingv1.Ingress, error) {
 	var ingresses []*networkingv1.Ingress
-	var err error
 
 	if kubeutil.IngressLister != nil {
-		var selector labels.Selector
-		if labelSelectorString != nil {
-			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
-			if err != nil {
-				return nil, err
-			}
-
-			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
-			if err != nil {
-				return nil, err
-			}
-
-		} else {
-			selector = labels.NewSelector()
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
 		}
 
 		ingresses, err = kubeutil.IngressLister.Ingresses(namespace).List(selector)
@@ -118,9 +105,8 @@ func (kubeutil *Kube) ListIngressesWithSelector(namespace string, labelSelectorS
 			return nil, err
 		}
 	} else {
-		listOptions := metav1.ListOptions{}
-		if labelSelectorString != nil {
-			listOptions.LabelSelector = *labelSelectorString
+		listOptions := metav1.ListOptions{
+			LabelSelector: labelSelectorString,
 		}
 
 		list, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).List(context.TODO(), listOptions)

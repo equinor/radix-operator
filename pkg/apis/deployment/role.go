@@ -18,7 +18,7 @@ func roleAppAdminSecrets(registration *radixv1.RadixRegistration, component radi
 
 func (deploy *Deployment) garbageCollectRolesNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
 	labelSelector := getLabelSelectorForComponent(component)
-	roles, err := deploy.kubeutil.ListRolesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
+	roles, err := deploy.kubeutil.ListRolesWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 	if err != nil {
 		return err
 	}

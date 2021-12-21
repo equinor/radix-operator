@@ -20,11 +20,11 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
-	oauthProxyImage               = "quay.io/oauth2-proxy/oauth2-proxy:v7.2.0"
 	oauthProxyPortName            = "http"
 	oauthProxyPortNumber          = 4180
 	authUrlAnnotation             = "nginx.ingress.kubernetes.io/auth-url"
@@ -36,9 +36,9 @@ const (
 type OAuthProxyResourceManager interface {
 	// Sync creates, updates or removes resources to handle the oauth code flow
 	Sync(component v1.RadixCommonDeployComponent) error
-	// ConfigureRootIngress sets annotations required by nginx to handle authentication on the ingress resource
-	// This method should be called with the ingress containing the root path ("/") as argument
-	ConfigureRootIngress(ingress *networkingv1.Ingress, component v1.RadixCommonDeployComponent)
+	// GetAnnotationsForRootIngress returns annotations for the root annotation (path=/) required by
+	// the nginx ingress controller to handle oauth authentication
+	GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string
 }
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
@@ -62,31 +62,28 @@ func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent
 	}
 }
 
-func (o *oauthProxyResourceManager) ConfigureRootIngress(ingress *networkingv1.Ingress, component v1.RadixCommonDeployComponent) {
+func (o *oauthProxyResourceManager) GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string {
+	annotations := make(map[string]string)
+
 	if auth := component.GetAuthentication(); auth != nil && auth.OAuth2 != nil {
 		oauth := oauth2DefaultsWithSource(auth.OAuth2)
-		o.setRootIngressAnnotations(ingress, oauth)
-	}
-}
+		rootPath := fmt.Sprintf("https://$host%s", oauth.ProxyPrefix)
+		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", rootPath)
+		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", rootPath)
 
-func (o *oauthProxyResourceManager) setRootIngressAnnotations(ingress *networkingv1.Ingress, oauth *v1.OAuth2) {
-	if ingress.Annotations == nil {
-		ingress.Annotations = make(map[string]string)
+		var authResponseHeaders []string
+		if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {
+			authResponseHeaders = append(authResponseHeaders, "X-Auth-Request-Access-Token", "X-Auth-Request-User", "X-Auth-Request-Groups", "X-Auth-Request-Email", "X-Auth-Request-Preferred-Username")
+		}
+		if oauth.SetAuthorizationHeader != nil && *oauth.SetAuthorizationHeader {
+			authResponseHeaders = append(authResponseHeaders, "Authorization")
+		}
+		if len(authResponseHeaders) > 0 {
+			annotations[authResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
+		}
 	}
 
-	ingress.Annotations[authUrlAnnotation] = fmt.Sprintf("https://$host%s/auth", oauth.ProxyPrefix)
-	ingress.Annotations[authSigninAnnotation] = fmt.Sprintf("https://$host%s/start?rd=$escaped_request_uri", oauth.ProxyPrefix)
-
-	var authResponseHeaders []string
-	if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {
-		authResponseHeaders = append(authResponseHeaders, "X-Auth-Request-Access-Token", "X-Auth-Request-User", "X-Auth-Request-Groups", "X-Auth-Request-Email", "X-Auth-Request-Preferred-Username")
-	}
-	if oauth.SetAuthorizationHeader != nil && *oauth.SetAuthorizationHeader {
-		authResponseHeaders = append(authResponseHeaders, "Authorization")
-	}
-	if len(authResponseHeaders) > 0 {
-		ingress.Annotations[authResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
-	}
+	return annotations
 }
 
 func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
@@ -106,6 +103,122 @@ func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployCompon
 }
 
 func (o *oauthProxyResourceManager) uninstall(component v1.RadixCommonDeployComponent) error {
+	if err := o.deleteDeployment(component); err != nil {
+		return err
+	}
+
+	if err := o.deleteIngresses(component); err != nil {
+		return err
+	}
+
+	if err := o.deleteServices(component); err != nil {
+		return err
+	}
+
+	if err := o.deleteSecrets(component); err != nil {
+		return err
+	}
+
+	if err := o.deleteRoleBindings(component); err != nil {
+		return err
+	}
+
+	return o.deleteRoles(component)
+}
+
+func (o *oauthProxyResourceManager) deleteDeployment(component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(o.getLabelsForAuxComponent(component)).String()
+	deployments, err := o.kubeutil.ListDeploymentsWithSelector(o.rd.Namespace, selector)
+	if err != nil {
+		return err
+	}
+
+	for _, deployment := range deployments {
+		if err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) deleteIngresses(component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(o.getLabelsForAuxComponent(component)).String()
+	ingresses, err := o.kubeutil.ListIngressesWithSelector(o.rd.Namespace, selector)
+	if err != nil {
+		return err
+	}
+
+	for _, ingress := range ingresses {
+		if err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ingress.Namespace).Delete(context.TODO(), ingress.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) deleteServices(component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(o.getLabelsForAuxComponent(component)).String()
+	services, err := o.kubeutil.ListServicesWithSelector(o.rd.Namespace, selector)
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services {
+		if err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(context.TODO(), service.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) deleteSecrets(component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(o.getLabelsForAuxComponent(component)).String()
+	secrets, err := o.kubeutil.ListSecretsWithSelector(o.rd.Namespace, selector)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range secrets {
+		if err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) deleteRoleBindings(component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(o.getLabelsForAuxComponent(component)).String()
+	rolebindings, err := o.kubeutil.ListRoleBindingsWithSelector(o.rd.Namespace, selector)
+	if err != nil {
+		return err
+	}
+
+	for _, rolebinding := range rolebindings {
+		if err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(context.TODO(), rolebinding.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) deleteRoles(component v1.RadixCommonDeployComponent) error {
+	selector := labels.SelectorFromValidatedSet(o.getLabelsForAuxComponent(component)).String()
+	roles, err := o.kubeutil.ListRolesWithSelector(o.rd.Namespace, selector)
+	if err != nil {
+		return err
+	}
+
+	for _, role := range roles {
+		if err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(context.TODO(), role.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -131,9 +244,18 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 	sourceHost := componentIngress.Spec.Rules[0]
 	pathType := networkingv1.PathTypeImplementationSpecific
 
-	ingress := networkingv1.Ingress{
+	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", componentIngress.Name, defaults.OAuthProxyAuxiliaryComponentSuffix),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "networking.k8s.io/v1",
+					Kind:       "Ingress",
+					Name:       componentIngress.Name,
+					UID:        componentIngress.UID,
+					Controller: utils.BoolPtr(true),
+				},
+			},
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: componentIngress.Spec.IngressClassName,
@@ -165,7 +287,9 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 			},
 		},
 	}
-	return &ingress
+
+	o.mergeAuxComponentResourceLabels(ingress, component)
+	return ingress
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateService(component v1.RadixCommonDeployComponent) error {
@@ -186,6 +310,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommo
 			return err
 		}
 	} else {
+		o.mergeAuxComponentResourceLabels(secret, component)
 		if component.GetAuthentication().OAuth2.SessionStoreType != v1.SessionStoreRedis {
 			if secret.Data != nil && len(secret.Data[defaults.OAuthCookieSecretKeyName]) > 0 {
 				delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
@@ -198,6 +323,10 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommo
 	}
 
 	return o.grantAccessToSecret(component)
+}
+
+func (o *oauthProxyResourceManager) mergeAuxComponentResourceLabels(object metav1.Object, component v1.RadixCommonDeployComponent) {
+	object.SetLabels(labels.Merge(object.GetLabels(), o.getLabelsForAuxComponent(component)))
 }
 
 func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommonDeployComponent) error {
@@ -250,12 +379,11 @@ func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDepl
 	secret := &corev1.Secret{
 		Type: corev1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   secretName,
-			Labels: o.getLabelsForAuxComponent(component),
+			Name: secretName,
 		},
 		Data: make(map[string][]byte),
 	}
-
+	o.mergeAuxComponentResourceLabels(secret, component)
 	cookieSecret, err := o.generateRandomCookieSecret()
 	if err != nil {
 		return nil, err
@@ -267,10 +395,9 @@ func (o *oauthProxyResourceManager) buildSecretSpec(component v1.RadixCommonDepl
 func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDeployComponent) *corev1.Service {
 	serviceName := utils.GetAuxiliaryComponentServiceName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 
-	return &corev1.Service{
+	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   serviceName,
-			Labels: o.getLabelsForAuxComponent(component),
+			Name: serviceName,
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
@@ -284,6 +411,8 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDep
 			},
 		},
 	}
+	o.mergeAuxComponentResourceLabels(service, component)
+	return service
 }
 
 func (o *oauthProxyResourceManager) getLabelsForAuxComponent(component v1.RadixCommonDeployComponent) map[string]string {
@@ -343,7 +472,6 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
-			Labels:          o.getLabelsForAuxComponent(component),
 			Annotations:     make(map[string]string),
 			OwnerReferences: getOwnerReferenceOfDeployment(o.rd),
 		},
@@ -363,7 +491,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:            component.GetName(),
-						Image:           oauthProxyImage,
+						Image:           os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable),
 						ImagePullPolicy: corev1.PullAlways,
 						Env:             o.getEnvVars(component),
 						Ports: []corev1.ContainerPort{
@@ -379,6 +507,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 		},
 	}
 
+	o.mergeAuxComponentResourceLabels(desiredDeployment, component)
 	return desiredDeployment, nil
 }
 
@@ -468,7 +597,7 @@ func oauth2DefaultsWithSource(source *v1.OAuth2) *v1.OAuth2 {
 		ProxyPrefix:            "/oauth2",
 		SessionStoreType:       "cookie",
 		OIDC: &v1.OAuth2OIDC{
-			IssuerURL:               os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURL),
+			IssuerURL:               os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable),
 			InsecureSkipVerifyNonce: utils.BoolPtr(false),
 		},
 		Cookie: &v1.OAuth2Cookie{

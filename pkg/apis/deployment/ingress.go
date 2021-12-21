@@ -162,7 +162,7 @@ func (deploy *Deployment) garbageCollectNonActiveClusterIngress(component radixv
 }
 
 func (deploy *Deployment) garbageCollectIngressByLabelSelectorForComponent(labelSelector string) error {
-	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
+	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (deploy *Deployment) garbageCollectIngressNoLongerInSpecForComponentAndExte
 
 func (deploy *Deployment) garbageCollectIngressForComponentAndExternalAlias(component radixv1.RadixCommonDeployComponent, all bool) error {
 	labelSelector := getLabelSelectorForExternalAlias(component)
-	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
+	ingresses, err := deploy.kubeutil.ListIngressesWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 	if err != nil {
 		return err
 	}
@@ -349,9 +349,10 @@ func (deploy *Deployment) getIngressConfig(
 	namespace string,
 ) *networkingv1.Ingress {
 	annotations := getAnnotationsFromConfigurations(config, component.GetIngressConfiguration()...)
-
 	authentication := getAuthenticationAnnotationsFromConfiguration(component.GetAuthentication(), component.GetName(), namespace)
 	annotations = radixmaps.MergeStringMaps(annotations, authentication)
+	oauthAnnotations := deploy.oauthProxyResourceManager.GetAnnotationsForRootIngress(component)
+	annotations = radixmaps.MergeStringMaps(annotations, oauthAnnotations)
 	annotations["nginx.ingress.kubernetes.io/force-ssl-redirect"] = "true"
 
 	ingress := &networkingv1.Ingress{
@@ -370,7 +371,6 @@ func (deploy *Deployment) getIngressConfig(
 		Spec: ingressSpec,
 	}
 
-	deploy.oauthProxyResourceManager.ConfigureRootIngress(ingress, component)
 	return ingress
 }
 

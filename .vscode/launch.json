@@ -78,6 +78,7 @@
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
         "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER": "true",
         "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL": "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0",
+        "RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.2.0",
       },
       "args": ["--useOutClusterClient=false"]
     },

@@ -51,7 +51,8 @@ func (o *noopOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployCompo
 	return nil
 }
 
-func (o *noopOAuthProxyResourceManager) ConfigureRootIngress(ingress *networkingv1.Ingress, component v1.RadixCommonDeployComponent) {
+func (o *noopOAuthProxyResourceManager) GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string {
+	return make(map[string]string)
 }
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {

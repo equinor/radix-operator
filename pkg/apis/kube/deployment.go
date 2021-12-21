@@ -56,36 +56,15 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 
 // ListDeployments List deployments
 func (kubeutil *Kube) ListDeployments(namespace string) ([]*appsv1.Deployment, error) {
-	var deployments []*appsv1.Deployment
-	var err error
-
-	if kubeutil.DeploymentLister != nil {
-		deployments, err = kubeutil.DeploymentLister.Deployments(namespace).List(labels.NewSelector())
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		list, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			return nil, err
-		}
-
-		deployments = slice.PointersOf(list.Items).([]*appsv1.Deployment)
-	}
-
-	return deployments, nil
+	return kubeutil.ListDeploymentsWithSelector(namespace, "")
 }
 
-// ListDeployments List deployments
+// ListDeploymentsWithSelector List deployments with selector
 func (kubeutil *Kube) ListDeploymentsWithSelector(namespace, labelSelectorString string) ([]*appsv1.Deployment, error) {
 	var deployments []*appsv1.Deployment
 
 	if kubeutil.DeploymentLister != nil {
-		labelSelector, err := metav1.ParseToLabelSelector(labelSelectorString)
-		if err != nil {
-			return nil, err
-		}
-		selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+		selector, err := labels.Parse(labelSelectorString)
 		if err != nil {
 			return nil, err
 		}

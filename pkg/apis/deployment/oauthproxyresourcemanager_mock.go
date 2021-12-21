@@ -9,7 +9,6 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
-	v10 "k8s.io/api/networking/v1"
 )
 
 // MockOAuthProxyResourceManager is a mock of OAuthProxyResourceManager interface.
@@ -35,16 +34,18 @@ func (m *MockOAuthProxyResourceManager) EXPECT() *MockOAuthProxyResourceManagerM
 	return m.recorder
 }
 
-// ConfigureRootIngress mocks base method.
-func (m *MockOAuthProxyResourceManager) ConfigureRootIngress(ingress *v10.Ingress, component v1.RadixCommonDeployComponent) {
+// GetAnnotationsForRootIngress mocks base method.
+func (m *MockOAuthProxyResourceManager) GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ConfigureRootIngress", ingress, component)
+	ret := m.ctrl.Call(m, "GetAnnotationsForRootIngress", component)
+	ret0, _ := ret[0].(map[string]string)
+	return ret0
 }
 
-// ConfigureRootIngress indicates an expected call of ConfigureRootIngress.
-func (mr *MockOAuthProxyResourceManagerMockRecorder) ConfigureRootIngress(ingress, component interface{}) *gomock.Call {
+// GetAnnotationsForRootIngress indicates an expected call of GetAnnotationsForRootIngress.
+func (mr *MockOAuthProxyResourceManagerMockRecorder) GetAnnotationsForRootIngress(component interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfigureRootIngress", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).ConfigureRootIngress), ingress, component)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAnnotationsForRootIngress", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).GetAnnotationsForRootIngress), component)
 }
 
 // Sync mocks base method.
