@@ -97,8 +97,7 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 		return nil, err
 	}
 
-	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
-	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
+	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.IsPublic(), deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
 }
 
 func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {

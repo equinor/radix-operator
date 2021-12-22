@@ -507,7 +507,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		log.Infof("Failed to create service: %v", err)
 		return fmt.Errorf("failed to create service: %v", err)
 	}
-	if component.GetPublicPort() != "" || component.IsPublic() {
+	if component.IsPublic() {
 		err = deploy.createOrUpdateIngress(component)
 		if err != nil {
 			log.Infof("Failed to create ingress: %v", err)

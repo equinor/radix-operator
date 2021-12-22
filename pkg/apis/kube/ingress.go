@@ -20,7 +20,7 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 	ingressName := ingress.GetName()
 	log.Debugf("Creating Ingress object %s in namespace %s", ingressName, namespace)
 
-	oldIngress, err := kubeutil.getIngress(namespace, ingressName)
+	oldIngress, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), ingressName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		_, err := kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.TODO(), ingress, metav1.CreateOptions{})
 		if err != nil {
@@ -64,25 +64,6 @@ func (kubeutil *Kube) ApplyIngress(namespace string, ingress *networkingv1.Ingre
 	}
 
 	return nil
-}
-
-func (kubeutil *Kube) getIngress(namespace, name string) (*networkingv1.Ingress, error) {
-	var ingress *networkingv1.Ingress
-	var err error
-
-	if kubeutil.IngressLister != nil {
-		ingress, err = kubeutil.IngressLister.Ingresses(namespace).Get(name)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		ingress, err = kubeutil.kubeClient.NetworkingV1().Ingresses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return ingress, nil
 }
 
 // ListIngresses lists ingresses

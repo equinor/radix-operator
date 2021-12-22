@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/imdario/mergo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -53,9 +54,7 @@ type oauthProxyResourceManager struct {
 }
 
 func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
-	isPublic := component.GetPublicPort() != "" || component.IsPublic()
-
-	if auth := component.GetAuthentication(); auth != nil && auth.OAuth2 != nil && isPublic {
+	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		return o.install(component)
 	} else {
 		return o.uninstall(component)
@@ -65,9 +64,9 @@ func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent
 func (o *oauthProxyResourceManager) GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string {
 	annotations := make(map[string]string)
 
-	if auth := component.GetAuthentication(); auth != nil && auth.OAuth2 != nil {
+	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		oauth := oauth2DefaultsWithSource(auth.OAuth2)
-		rootPath := fmt.Sprintf("https://$host%s", oauth.ProxyPrefix)
+		rootPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
 		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", rootPath)
 		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", rootPath)
 
@@ -269,7 +268,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 						HTTP: &networkingv1.HTTPIngressRuleValue{
 							Paths: []networkingv1.HTTPIngressPath{
 								{
-									Path:     oauth.ProxyPrefix,
+									Path:     oauthutil.SanitizePathPrefix(oauth.ProxyPrefix),
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
@@ -547,7 +546,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	addEnvVarIfSet("OAUTH2_PROXY_SET_XAUTHREQUEST", oauth.SetXAuthRequestHeaders)
 	addEnvVarIfSet("OAUTH2_PROXY_PASS_ACCESS_TOKEN", oauth.SetXAuthRequestHeaders)
 	addEnvVarIfSet("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", oauth.SetAuthorizationHeader)
-	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauth.ProxyPrefix)
+	addEnvVarIfSet("OAUTH2_PROXY_PROXY_PREFIX", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
 	addEnvVarIfSet("OAUTH2_PROXY_LOGIN_URL", oauth.LoginURL)
 	addEnvVarIfSet("OAUTH2_PROXY_REDEEM_URL", oauth.RedeemURL)
 	addEnvVarIfSet("OAUTH2_PROXY_SESSION_STORE_TYPE", oauth.SessionStoreType)

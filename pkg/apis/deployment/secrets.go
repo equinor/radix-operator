@@ -117,7 +117,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(registration *radixv
 	}
 
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
-	if auth := component.GetAuthentication(); auth != nil && component.GetPublicPort() != "" && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
+	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
 		if !deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
 			if err := deploy.createClientCertificateSecret(namespace, registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
 				return err
