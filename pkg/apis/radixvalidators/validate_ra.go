@@ -19,6 +19,7 @@ import (
 
 const (
 	maxPortNameLength = 15
+	minimumPortNumber = 1024
 	cpuRegex          = "^[0-9]+m$"
 )
 
@@ -70,6 +71,11 @@ func EnvironmentReferencedByComponentDoesNotExistError(environment, component st
 // InvalidPortNameLengthError Invalid resource length
 func InvalidPortNameLengthError(value string) error {
 	return fmt.Errorf("%s (%s) max length is %d", "port name", value, maxPortNameLength)
+}
+
+// InvalidPortNumberError Invalid port number
+func InvalidPortNumberError(value int32) error {
+	return fmt.Errorf("Port number is %d, which is a privileged port. Minimum port number is %d.", value, minimumPortNumber)
 }
 
 // PortSpecificationCannotBeEmptyForComponentError Port cannot be empty for component
@@ -601,6 +607,13 @@ func validatePorts(componentName string, ports []v1.ComponentPort) []error {
 		err := validateRequiredResourceName("port name", port.Name)
 		if err != nil {
 			errs = append(errs, err)
+		}
+
+		if port.Port < 1024 {
+			err := InvalidPortNumberError(port.Port)
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 
