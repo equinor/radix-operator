@@ -610,8 +610,7 @@ func validatePorts(componentName string, ports []v1.ComponentPort) []error {
 		}
 
 		if port.Port < 1024 {
-			err := InvalidPortNumberError(port.Port)
-			if err != nil {
+			if err := InvalidPortNumberError(port.Port); err != nil {
 				errs = append(errs, err)
 			}
 		}
