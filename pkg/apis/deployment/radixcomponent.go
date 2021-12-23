@@ -124,7 +124,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 
 func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) (auth *v1.Authentication, err error) {
 	// mergo uses the reflect package, and reflect use panic() when errors are detected
-	// We handle panics to prevent process termination
+	// We handle panics to prevent process termination even if the RD will be re-queued forever (until a new RD is built)
 	defer func() {
 		if r := recover(); r != nil {
 			if e, ok := r.(error); ok {

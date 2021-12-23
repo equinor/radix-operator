@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 
+	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	"github.com/imdario/mergo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -33,24 +32,29 @@ const (
 	authResponseHeadersAnnotation = "nginx.ingress.kubernetes.io/auth-response-headers"
 )
 
-// OAuthProxyResourceManager contains methods to configure oauth authentication for a component
-type OAuthProxyResourceManager interface {
+// AuxComponentResourceManager contains methods to configure auxiliary resources for a component
+type AuxComponentResourceManager interface {
 	// Sync creates, updates or removes resources to handle the oauth code flow
 	Sync(component v1.RadixCommonDeployComponent) error
-	// GetAnnotationsForRootIngress returns annotations for the root annotation (path=/) required by
-	// the nginx ingress controller to handle oauth authentication
-	GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string
+	GarbageCollect() error
 }
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) OAuthProxyResourceManager {
-	return &oauthProxyResourceManager{rd: rd, rr: rr, kubeutil: kubeutil}
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) AuxComponentResourceManager {
+	return &oauthProxyResourceManager{
+		rd:                 rd,
+		rr:                 rr,
+		kubeutil:           kubeutil,
+		ingressAnnotations: []IngressAnnotations{&forceSslRedirectAnnotations{}},
+	}
 }
 
 type oauthProxyResourceManager struct {
-	rd       *v1.RadixDeployment
-	rr       *v1.RadixRegistration
-	kubeutil *kube.Kube
+	_                  interface{}
+	rd                 *v1.RadixDeployment
+	rr                 *v1.RadixRegistration
+	kubeutil           *kube.Kube
+	ingressAnnotations []IngressAnnotations
 }
 
 func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
@@ -61,28 +65,148 @@ func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent
 	}
 }
 
-func (o *oauthProxyResourceManager) GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string {
-	annotations := make(map[string]string)
+func (o *oauthProxyResourceManager) GarbageCollect() error {
+	if err := o.garbageCollectDeployment(); err != nil {
+		return err
+	}
 
-	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
-		oauth := oauth2DefaultsWithSource(auth.OAuth2)
-		rootPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
-		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", rootPath)
-		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", rootPath)
+	if err := o.garbageCollectSecrets(); err != nil {
+		return err
+	}
 
-		var authResponseHeaders []string
-		if oauth.SetXAuthRequestHeaders != nil && *oauth.SetXAuthRequestHeaders {
-			authResponseHeaders = append(authResponseHeaders, "X-Auth-Request-Access-Token", "X-Auth-Request-User", "X-Auth-Request-Groups", "X-Auth-Request-Email", "X-Auth-Request-Preferred-Username")
-		}
-		if oauth.SetAuthorizationHeader != nil && *oauth.SetAuthorizationHeader {
-			authResponseHeaders = append(authResponseHeaders, "Authorization")
-		}
-		if len(authResponseHeaders) > 0 {
-			annotations[authResponseHeadersAnnotation] = strings.Join(authResponseHeaders, ",")
+	if err := o.garbageCollectRoles(); err != nil {
+		return err
+	}
+
+	if err := o.garbageCollectRoleBinding(); err != nil {
+		return err
+	}
+
+	if err := o.garbageCollectServices(); err != nil {
+		return err
+	}
+
+	return o.garbageCollectIngresses()
+}
+
+func (o *oauthProxyResourceManager) garbageCollectDeployment() error {
+	deployments, err := o.kubeutil.ListDeployments(o.rd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, deployment := range deployments {
+		if o.isEligibleForGarbageCollection(deployment) {
+			err := o.kubeutil.KubeClient().AppsV1().Deployments(deployment.Namespace).Delete(context.TODO(), deployment.Name, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
-	return annotations
+	return nil
+}
+
+func (o *oauthProxyResourceManager) garbageCollectSecrets() error {
+	secrets, err := o.kubeutil.ListSecrets(o.rd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range secrets {
+		if o.isEligibleForGarbageCollection(secret) {
+			err := o.kubeutil.KubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) garbageCollectServices() error {
+	services, err := o.kubeutil.ListServices(o.rd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services {
+		if o.isEligibleForGarbageCollection(service) {
+			err := o.kubeutil.KubeClient().CoreV1().Services(service.Namespace).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) garbageCollectIngresses() error {
+	ingresses, err := o.kubeutil.ListIngresses(o.rd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, ingress := range ingresses {
+		if o.isEligibleForGarbageCollection(ingress) {
+			err := o.kubeutil.KubeClient().NetworkingV1().Ingresses(ingress.Namespace).Delete(context.TODO(), ingress.Name, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) garbageCollectRoles() error {
+	roles, err := o.kubeutil.ListRoles(o.rd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, role := range roles {
+		if o.isEligibleForGarbageCollection(role) {
+			err := o.kubeutil.KubeClient().RbacV1().Roles(role.Namespace).Delete(context.TODO(), role.Name, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) garbageCollectRoleBinding() error {
+	rolebindings, err := o.kubeutil.ListRoleBindings(o.rd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	for _, rolebinding := range rolebindings {
+		if o.isEligibleForGarbageCollection(rolebinding) {
+			err := o.kubeutil.KubeClient().RbacV1().RoleBindings(rolebinding.Namespace).Delete(context.TODO(), rolebinding.Name, metav1.DeleteOptions{})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1.Object) bool {
+	auxName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
+	if !nameExist {
+		return false
+	}
+	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != string(defaults.OAuthProxyAuxiliaryComponent) {
+		return false
+	}
+
+	return !auxName.ExistInDeploymentSpec(o.rd)
 }
 
 func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
@@ -239,13 +363,19 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 }
 
 func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress) *networkingv1.Ingress {
-	oauth := oauth2DefaultsWithSource(component.GetAuthentication().OAuth2)
+	oauth := oauthConfigWithDefaults(component.GetAuthentication().OAuth2)
 	sourceHost := componentIngress.Spec.Rules[0]
 	pathType := networkingv1.PathTypeImplementationSpecific
+	annotations := map[string]string{}
+
+	for _, ia := range o.ingressAnnotations {
+		annotations = radixmaps.MergeStringMaps(annotations, ia.GetAnnotations(component))
+	}
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", componentIngress.Name, defaults.OAuthProxyAuxiliaryComponentSuffix),
+			Name:        fmt.Sprintf("%s-%s", componentIngress.Name, defaults.OAuthProxyAuxiliaryComponentSuffix),
+			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: "networking.k8s.io/v1",
@@ -311,7 +441,7 @@ func (o *oauthProxyResourceManager) createOrUpdateSecret(component v1.RadixCommo
 	} else {
 		o.mergeAuxComponentResourceLabels(secret, component)
 		if component.GetAuthentication().OAuth2.SessionStoreType != v1.SessionStoreRedis {
-			if secret.Data != nil && len(secret.Data[defaults.OAuthCookieSecretKeyName]) > 0 {
+			if secret.Data != nil && len(secret.Data[defaults.OAuthRedisPasswordKeyName]) > 0 {
 				delete(secret.Data, defaults.OAuthRedisPasswordKeyName)
 			}
 		}
@@ -512,7 +642,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 
 func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
-	oauth := oauth2DefaultsWithSource(component.GetAuthentication().OAuth2)
+	oauth := oauthConfigWithDefaults(component.GetAuthentication().OAuth2)
 
 	addEnvVarIfSet := func(envVar string, value interface{}) {
 		rval := reflect.ValueOf(value)
@@ -586,26 +716,4 @@ func (o *oauthProxyResourceManager) createEnvVarWithSecretRef(envVarName, secret
 			},
 		},
 	}
-}
-
-func oauth2DefaultsWithSource(source *v1.OAuth2) *v1.OAuth2 {
-	target := &v1.OAuth2{
-		Scope:                  "openid profile email",
-		SetXAuthRequestHeaders: utils.BoolPtr(false),
-		SetAuthorizationHeader: utils.BoolPtr(false),
-		ProxyPrefix:            "/oauth2",
-		SessionStoreType:       "cookie",
-		OIDC: &v1.OAuth2OIDC{
-			IssuerURL:               os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable),
-			InsecureSkipVerifyNonce: utils.BoolPtr(false),
-		},
-		Cookie: &v1.OAuth2Cookie{
-			Name:    "_oauth2_proxy",
-			Expire:  "168h0m0s",
-			Refresh: "60m0s",
-		},
-	}
-
-	mergo.Merge(target, source, mergo.WithOverride, mergo.WithTransformers(transformer))
-	return target
 }

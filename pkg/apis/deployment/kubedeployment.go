@@ -308,7 +308,7 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	}
 
 	for _, deployment := range deployments {
-		componentName, ok := NewRadixComponentNameFromLabels(deployment)
+		componentName, ok := RadixComponentNameFromComponentLabel(deployment)
 		if !ok {
 			continue
 		}

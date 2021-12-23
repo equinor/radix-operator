@@ -178,7 +178,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 			continue
 		}
 
-		componentName, ok := NewRadixComponentNameFromLabels(existingSecret)
+		componentName, ok := RadixComponentNameFromComponentLabel(existingSecret)
 		if !ok {
 			continue
 		}

@@ -47,12 +47,12 @@ const egressIps = "0.0.0.0"
 
 type noopOAuthProxyResourceManager struct{}
 
-func (o *noopOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
+func (*noopOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
 	return nil
 }
 
-func (o *noopOAuthProxyResourceManager) GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string {
-	return make(map[string]string)
+func (*noopOAuthProxyResourceManager) GarbageCollect() error {
+	return nil
 }
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
@@ -78,6 +78,21 @@ func teardownTest() {
 	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
 }
+
+var testIngressConfiguration = `
+configuration:
+  - name: ewma
+    annotations:
+      nginx.ingress.kubernetes.io/load-balance: ewma
+  - name: round-robin
+    annotations:
+      nginx.ingress.kubernetes.io/load-balance: round_robin
+  - name: socket
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-connect-timeout: 3600
+      nginx.ingress.kubernetes.io/proxy-read-timeout: 3600
+      nginx.ingress.kubernetes.io/proxy-send-timeout: 3600
+`
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	for _, componentsExist := range []bool{true, false} {
@@ -3174,12 +3189,16 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 }
 
 func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
-	deployment := NewDeployment(nil, nil, nil, nil, nil, nil, true).(*Deployment)
+	kubeclient := kubefake.NewSimpleClientset()
+	radixclient := radix.NewSimpleClientset()
+	kubeutil, _ := kube.New(kubeclient, radixclient)
+	rd := v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Namespace: ""}}
+	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual := deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.True(t, actual.forceRunAsNonRoot)
 
-	deployment = NewDeployment(nil, nil, nil, nil, nil, nil, false).(*Deployment)
+	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual = deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.False(t, actual.forceRunAsNonRoot)
@@ -3486,11 +3505,7 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
 	role := getRoleBindingByName(name, roleBindings)
-	if role != nil {
-		return true
-	}
-
-	return false
+	return role != nil
 }
 
 func getPortByName(name string, ports []corev1.ContainerPort) *corev1.ContainerPort {

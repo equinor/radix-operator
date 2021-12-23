@@ -23,7 +23,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	}
 
 	for _, service := range services {
-		componentName, ok := NewRadixComponentNameFromLabels(service)
+		componentName, ok := RadixComponentNameFromComponentLabel(service)
 		if !ok {
 			continue
 		}

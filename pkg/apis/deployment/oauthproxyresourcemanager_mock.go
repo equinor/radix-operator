@@ -11,45 +11,45 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockOAuthProxyResourceManager is a mock of OAuthProxyResourceManager interface.
-type MockOAuthProxyResourceManager struct {
+// MockAuxComponentResourceManager is a mock of AuxComponentResourceManager interface.
+type MockAuxComponentResourceManager struct {
 	ctrl     *gomock.Controller
-	recorder *MockOAuthProxyResourceManagerMockRecorder
+	recorder *MockAuxComponentResourceManagerMockRecorder
 }
 
-// MockOAuthProxyResourceManagerMockRecorder is the mock recorder for MockOAuthProxyResourceManager.
-type MockOAuthProxyResourceManagerMockRecorder struct {
-	mock *MockOAuthProxyResourceManager
+// MockAuxComponentResourceManagerMockRecorder is the mock recorder for MockAuxComponentResourceManager.
+type MockAuxComponentResourceManagerMockRecorder struct {
+	mock *MockAuxComponentResourceManager
 }
 
-// NewMockOAuthProxyResourceManager creates a new mock instance.
-func NewMockOAuthProxyResourceManager(ctrl *gomock.Controller) *MockOAuthProxyResourceManager {
-	mock := &MockOAuthProxyResourceManager{ctrl: ctrl}
-	mock.recorder = &MockOAuthProxyResourceManagerMockRecorder{mock}
+// NewMockAuxComponentResourceManager creates a new mock instance.
+func NewMockAuxComponentResourceManager(ctrl *gomock.Controller) *MockAuxComponentResourceManager {
+	mock := &MockAuxComponentResourceManager{ctrl: ctrl}
+	mock.recorder = &MockAuxComponentResourceManagerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockOAuthProxyResourceManager) EXPECT() *MockOAuthProxyResourceManagerMockRecorder {
+func (m *MockAuxComponentResourceManager) EXPECT() *MockAuxComponentResourceManagerMockRecorder {
 	return m.recorder
 }
 
-// GetAnnotationsForRootIngress mocks base method.
-func (m *MockOAuthProxyResourceManager) GetAnnotationsForRootIngress(component v1.RadixCommonDeployComponent) map[string]string {
+// GarbageCollect mocks base method.
+func (m *MockAuxComponentResourceManager) GarbageCollect() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAnnotationsForRootIngress", component)
-	ret0, _ := ret[0].(map[string]string)
+	ret := m.ctrl.Call(m, "GarbageCollect")
+	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// GetAnnotationsForRootIngress indicates an expected call of GetAnnotationsForRootIngress.
-func (mr *MockOAuthProxyResourceManagerMockRecorder) GetAnnotationsForRootIngress(component interface{}) *gomock.Call {
+// GarbageCollect indicates an expected call of GarbageCollect.
+func (mr *MockAuxComponentResourceManagerMockRecorder) GarbageCollect() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAnnotationsForRootIngress", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).GetAnnotationsForRootIngress), component)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GarbageCollect", reflect.TypeOf((*MockAuxComponentResourceManager)(nil).GarbageCollect))
 }
 
 // Sync mocks base method.
-func (m *MockOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
+func (m *MockAuxComponentResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Sync", component)
 	ret0, _ := ret[0].(error)
@@ -57,7 +57,7 @@ func (m *MockOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployCompo
 }
 
 // Sync indicates an expected call of Sync.
-func (mr *MockOAuthProxyResourceManagerMockRecorder) Sync(component interface{}) *gomock.Call {
+func (mr *MockAuxComponentResourceManagerMockRecorder) Sync(component interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockOAuthProxyResourceManager)(nil).Sync), component)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sync", reflect.TypeOf((*MockAuxComponentResourceManager)(nil).Sync), component)
 }

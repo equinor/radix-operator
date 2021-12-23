@@ -39,6 +39,7 @@ type DeploymentSyncer interface {
 
 // Deployment Instance variables
 type Deployment struct {
+	_                         interface{}
 	kubeclient                kubernetes.Interface
 	radixclient               radixclient.Interface
 	kubeutil                  *kube.Kube
@@ -46,7 +47,8 @@ type Deployment struct {
 	registration              *v1.RadixRegistration
 	radixDeployment           *v1.RadixDeployment
 	securityContextBuilder    SecurityContextBuilder
-	oauthProxyResourceManager OAuthProxyResourceManager
+	oauthProxyResourceManager AuxComponentResourceManager
+	ingressAnnotations        []IngressAnnotations
 }
 
 // NewDeployment Constructor
@@ -58,15 +60,27 @@ func NewDeployment(kubeclient kubernetes.Interface,
 	radixDeployment *v1.RadixDeployment,
 	forceRunAsNonRoot bool) DeploymentSyncer {
 
+	ingressConfig, err := loadIngressConfigFromMap(kubeutil)
+	if err != nil {
+		panic(err)
+	}
+	ingressAnnotations := []IngressAnnotations{
+		forceSslRedirectAnnotations{},
+		&componentIngressConfigurationAnnotations{config: ingressConfig},
+		&clientCertificateAnnotations{namespace: radixDeployment.Namespace},
+		&oauth2Annotations{},
+	}
+
 	return &Deployment{
-		kubeclient,
-		radixclient,
-		kubeutil,
-		prometheusperatorclient,
-		registration,
-		radixDeployment,
-		NewSecurityContextBuilder(forceRunAsNonRoot),
-		NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)}
+		kubeclient:                kubeclient,
+		radixclient:               radixclient,
+		kubeutil:                  kubeutil,
+		prometheusperatorclient:   prometheusperatorclient,
+		registration:              registration,
+		radixDeployment:           radixDeployment,
+		securityContextBuilder:    NewSecurityContextBuilder(forceRunAsNonRoot),
+		oauthProxyResourceManager: NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil),
+		ingressAnnotations:        ingressAnnotations}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name
@@ -204,6 +218,10 @@ func (deploy *Deployment) syncDeployment() error {
 	err := deploy.garbageCollectComponentsNoLongerInSpec()
 	if err != nil {
 		return fmt.Errorf("failed to perform garbage collection of removed components: %v", err)
+	}
+
+	if err := deploy.oauthProxyResourceManager.GarbageCollect(); err != nil {
+		return fmt.Errorf("failed to perform oauth2 proxy garbage collection: %v", err)
 	}
 
 	deploy.configureRbac()
@@ -497,16 +515,19 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		log.Infof("Failed to create deployment: %v", err)
 		return fmt.Errorf("failed to create deployment: %v", err)
 	}
+
 	err = deploy.createOrUpdateHPA(component)
 	if err != nil {
 		log.Infof("Failed to create horizontal pod autoscaler: %v", err)
 		return fmt.Errorf("failed to create deployment: %v", err)
 	}
+
 	err = deploy.createOrUpdateService(component)
 	if err != nil {
 		log.Infof("Failed to create service: %v", err)
 		return fmt.Errorf("failed to create service: %v", err)
 	}
+
 	if component.IsPublic() {
 		err = deploy.createOrUpdateIngress(component)
 		if err != nil {
@@ -519,11 +540,6 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 			log.Infof("Failed to delete ingress: %v", err)
 			return fmt.Errorf("failed to delete ingress: %v", err)
 		}
-	}
-	err = deploy.createOrUpdateOAuthProxy(component)
-	if err != nil {
-		log.Infof("Failed to sync oauth2 proxy: %v", err)
-		return fmt.Errorf("failed to sync oauth2 proxy: %v", err)
 	}
 
 	if component.GetMonitoring() {
@@ -539,5 +555,12 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 			return fmt.Errorf("failed to delete servicemonitor: %v", err)
 		}
 	}
+
+	err = deploy.oauthProxyResourceManager.Sync(component)
+	if err != nil {
+		log.Infof("Failed to sync oauth2 proxy: %v", err)
+		return fmt.Errorf("failed to sync oauth2 proxy: %v", err)
+	}
+
 	return nil
 }

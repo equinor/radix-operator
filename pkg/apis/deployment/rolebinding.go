@@ -61,7 +61,7 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 	roleBindings, err := deploy.kubeutil.ListRoleBindings(deploy.radixDeployment.GetNamespace())
 
 	for _, roleBinding := range roleBindings {
-		componentName, ok := NewRadixComponentNameFromLabels(roleBinding)
+		componentName, ok := RadixComponentNameFromComponentLabel(roleBinding)
 		if !ok {
 			continue
 		}

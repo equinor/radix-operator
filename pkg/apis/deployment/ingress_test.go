@@ -3,35 +3,56 @@ package deployment
 import (
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
-var testIngressConfiguration = `
+func TestLoadIngressConfigFromMap(t *testing.T) {
+	ingressConfig := `
 configuration:
-  - name: ewma
+  - name: foo
     annotations:
-      nginx.ingress.kubernetes.io/load-balance: ewma
-  - name: round-robin
+      foo1: x
+  - name: bar
     annotations:
-      nginx.ingress.kubernetes.io/load-balance: round_robin
-  - name: socket
-    annotations:
-      nginx.ingress.kubernetes.io/proxy-connect-timeout: 3600
-      nginx.ingress.kubernetes.io/proxy-read-timeout: 3600
-      nginx.ingress.kubernetes.io/proxy-send-timeout: 3600
+      bar1: x
+      bar2: y
 `
+	ingressCm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: ingressConfigurationMap, Namespace: corev1.NamespaceDefault},
+		Data:       map[string]string{"ingressConfiguration": ingressConfig},
+	}
+	kubeutil, _ := kube.New(kubefake.NewSimpleClientset(&ingressCm), nil)
+	expected := []AnnotationConfiguration{
+		{Name: "foo", Annotations: map[string]string{"foo1": "x"}},
+		{Name: "bar", Annotations: map[string]string{"bar1": "x", "bar2": "y"}},
+	}
+	actual, _ := loadIngressConfigFromMap(kubeutil)
+	assert.ElementsMatch(t, expected, actual.AnnotationConfigurations)
 
+}
 func TestGetAnnotationsFromConfigurations_ReturnsCorrectConfig(t *testing.T) {
-	config := getConfigFromStringData(testIngressConfiguration)
-	annotations := getAnnotationsFromConfigurations(config, "socket")
+	config := IngressConfiguration{
+		AnnotationConfigurations: []AnnotationConfiguration{
+			{Name: "ewma", Annotations: map[string]string{"ewma1": "x", "ewma2": "y"}},
+			{Name: "socket", Annotations: map[string]string{"socket1": "x", "socket2": "y", "socket3": "z"}},
+			{Name: "round-robin", Annotations: map[string]string{"round-robin1": "1"}},
+		},
+	}
+	componentIngress := componentIngressConfigurationAnnotations{config: config}
+
+	annotations := componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"socket"}})
 	assert.Equal(t, 3, len(annotations))
 
-	annotations = getAnnotationsFromConfigurations(config, "socket", "round-robin")
+	annotations = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"socket", "round-robin"}})
 	assert.Equal(t, 4, len(annotations))
 
-	annotations = getAnnotationsFromConfigurations(config, "non-existing")
+	annotations = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"non-existing"}})
 	assert.Equal(t, 0, len(annotations))
 }
 
@@ -70,15 +91,16 @@ func TestGetAuthenticationAnnotationsFromConfiguration(t *testing.T) {
 		},
 	}
 
-	result := getAuthenticationAnnotationsFromConfiguration(config1, "name", "ns")
+	ingressAnnotations := clientCertificateAnnotations{namespace: "ns"}
+	result := ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config1})
 	assert.Equal(t, expect1, result)
 
-	result = getAuthenticationAnnotationsFromConfiguration(config2, "name", "ns")
+	result = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config2})
 	assert.Equal(t, expect2, result)
 
-	result = getAuthenticationAnnotationsFromConfiguration(config3, "name", "ns")
+	result = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config3})
 	assert.Equal(t, expect3, result)
 
-	result = getAuthenticationAnnotationsFromConfiguration(nil, "name", "ns")
+	result = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name"})
 	assert.Empty(t, result, "Expected Annotations to be empty")
 }
