@@ -75,7 +75,7 @@ func InvalidPortNameLengthError(value string) error {
 
 // InvalidPortNumberError Invalid port number
 func InvalidPortNumberError(value int32) error {
-	return fmt.Errorf("Port number is %d, which is a privileged port. Minimum port number is %d.", value, minimumPortNumber)
+	return fmt.Errorf("port number is %d, which is a privileged port. Minimum port number is %d", value, minimumPortNumber)
 }
 
 // PortSpecificationCannotBeEmptyForComponentError Port cannot be empty for component
