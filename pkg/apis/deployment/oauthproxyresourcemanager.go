@@ -526,7 +526,8 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDep
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceName,
+			Name:            serviceName,
+			OwnerReferences: getOwnerReferenceOfDeployment(o.rd),
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
