@@ -66,7 +66,7 @@ func NewDeployment(kubeclient kubernetes.Interface,
 	}
 	ingressAnnotations := []IngressAnnotations{
 		forceSslRedirectAnnotations{},
-		&componentIngressConfigurationAnnotations{config: ingressConfig},
+		&ingressConfigurationAnnotations{config: ingressConfig},
 		&clientCertificateAnnotations{namespace: radixDeployment.Namespace},
 		&oauth2Annotations{},
 	}

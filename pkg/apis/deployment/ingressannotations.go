@@ -19,11 +19,11 @@ func (forceSslRedirectAnnotations) GetAnnotations(component v1.RadixCommonDeploy
 	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}
 }
 
-type componentIngressConfigurationAnnotations struct {
+type ingressConfigurationAnnotations struct {
 	config IngressConfiguration
 }
 
-func (o *componentIngressConfigurationAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
+func (o *ingressConfigurationAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
 	allAnnotations := make(map[string]string)
 
 	for _, configuration := range component.GetIngressConfiguration() {
@@ -36,7 +36,7 @@ func (o *componentIngressConfigurationAnnotations) GetAnnotations(component v1.R
 	return allAnnotations
 }
 
-func (o *componentIngressConfigurationAnnotations) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
+func (o *ingressConfigurationAnnotations) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
 	for _, ingressConfig := range config.AnnotationConfigurations {
 		if strings.EqualFold(ingressConfig.Name, name) {
 			return ingressConfig.Annotations
