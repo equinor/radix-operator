@@ -75,7 +75,7 @@ mocks:
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/securitycontext.go -destination ./pkg/apis/deployment/securitycontext_mock.go -package deployment
-	mockgen -source ./pkg/apis/deployment/oauthproxyresourcemanager.go -destination ./pkg/apis/deployment/oauthproxyresourcemanager_mock.go -package deployment
+	mockgen -source ./pkg/apis/deployment/auxiliaryresourcemanager.go -destination ./pkg/apis/deployment/auxiliaryresourcemanager_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/ingressannotations.go -destination ./pkg/apis/deployment/ingressannotations_mock.go -package deployment
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
 	mockgen -source ./pkg/apis/alert/alertfactory.go -destination ./pkg/apis/alert/alertfactory_mock.go -package alert

@@ -32,15 +32,8 @@ const (
 	authResponseHeadersAnnotation = "nginx.ingress.kubernetes.io/auth-response-headers"
 )
 
-// AuxComponentResourceManager contains methods to configure auxiliary resources for a component
-type AuxComponentResourceManager interface {
-	// Sync creates, updates or removes resources to handle the oauth code flow
-	Sync(component v1.RadixCommonDeployComponent) error
-	GarbageCollect() error
-}
-
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) AuxComponentResourceManager {
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                 rd,
 		rr:                 rr,
@@ -57,7 +50,16 @@ type oauthProxyResourceManager struct {
 	ingressAnnotations []IngressAnnotations
 }
 
-func (o *oauthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) Sync() error {
+	for _, component := range o.rd.Spec.Components {
+		if err := o.syncComponent(&component); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *oauthProxyResourceManager) syncComponent(component v1.RadixCommonDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		return o.install(component)
 	} else {

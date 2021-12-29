@@ -39,16 +39,16 @@ type DeploymentSyncer interface {
 
 // Deployment Instance variables
 type Deployment struct {
-	_                         interface{}
-	kubeclient                kubernetes.Interface
-	radixclient               radixclient.Interface
-	kubeutil                  *kube.Kube
-	prometheusperatorclient   monitoring.Interface
-	registration              *v1.RadixRegistration
-	radixDeployment           *v1.RadixDeployment
-	securityContextBuilder    SecurityContextBuilder
-	oauthProxyResourceManager AuxComponentResourceManager
-	ingressAnnotations        []IngressAnnotations
+	_                       interface{}
+	kubeclient              kubernetes.Interface
+	radixclient             radixclient.Interface
+	kubeutil                *kube.Kube
+	prometheusperatorclient monitoring.Interface
+	registration            *v1.RadixRegistration
+	radixDeployment         *v1.RadixDeployment
+	securityContextBuilder  SecurityContextBuilder
+	auxResourceManagers     []AuxiliaryResourceManager
+	ingressAnnotations      []IngressAnnotations
 }
 
 // NewDeployment Constructor
@@ -72,15 +72,15 @@ func NewDeployment(kubeclient kubernetes.Interface,
 	}
 
 	return &Deployment{
-		kubeclient:                kubeclient,
-		radixclient:               radixclient,
-		kubeutil:                  kubeutil,
-		prometheusperatorclient:   prometheusperatorclient,
-		registration:              registration,
-		radixDeployment:           radixDeployment,
-		securityContextBuilder:    NewSecurityContextBuilder(forceRunAsNonRoot),
-		oauthProxyResourceManager: NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil),
-		ingressAnnotations:        ingressAnnotations}
+		kubeclient:              kubeclient,
+		radixclient:             radixclient,
+		kubeutil:                kubeutil,
+		prometheusperatorclient: prometheusperatorclient,
+		registration:            registration,
+		radixDeployment:         radixDeployment,
+		securityContextBuilder:  NewSecurityContextBuilder(forceRunAsNonRoot),
+		auxResourceManagers:     []AuxiliaryResourceManager{NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)},
+		ingressAnnotations:      ingressAnnotations}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name
@@ -220,8 +220,8 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("failed to perform garbage collection of removed components: %v", err)
 	}
 
-	if err := deploy.oauthProxyResourceManager.GarbageCollect(); err != nil {
-		return fmt.Errorf("failed to perform oauth2 proxy garbage collection: %v", err)
+	if err := deploy.garbageCollectAuxiliaryResources(); err != nil {
+		return fmt.Errorf("failed to perform auxiliary resource garbage collection: %v", err)
 	}
 
 	deploy.configureRbac()
@@ -259,6 +259,19 @@ func (deploy *Deployment) syncDeployment() error {
 		return errorUtils.Concat(errs)
 	}
 
+	if err := deploy.syncAuxiliaryResources(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) syncAuxiliaryResources() error {
+	for _, aux := range deploy.auxResourceManagers {
+		if err := aux.Sync(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -422,6 +435,15 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 	return nil
 }
 
+func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
+	for _, aux := range deploy.auxResourceManagers {
+		if err := aux.GarbageCollect(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
@@ -556,11 +578,11 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		}
 	}
 
-	err = deploy.oauthProxyResourceManager.Sync(component)
-	if err != nil {
-		log.Infof("Failed to sync oauth2 proxy: %v", err)
-		return fmt.Errorf("failed to sync oauth2 proxy: %v", err)
-	}
+	// err = deploy.oauthProxyResourceManager.Sync(component)
+	// if err != nil {
+	// 	log.Infof("Failed to sync oauth2 proxy: %v", err)
+	// 	return fmt.Errorf("failed to sync oauth2 proxy: %v", err)
+	// }
 
 	return nil
 }

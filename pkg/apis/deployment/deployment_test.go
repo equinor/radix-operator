@@ -45,16 +45,6 @@ const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 const egressIps = "0.0.0.0"
 
-type noopOAuthProxyResourceManager struct{}
-
-func (*noopOAuthProxyResourceManager) Sync(component v1.RadixCommonDeployComponent) error {
-	return nil
-}
-
-func (*noopOAuthProxyResourceManager) GarbageCollect() error {
-	return nil
-}
-
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
@@ -3216,14 +3206,13 @@ func Test_SecurityPolicy(t *testing.T) {
 				}
 				radixclient.RadixV1().RadixDeployments("app-env").Create(context.Background(), rd, metav1.CreateOptions{})
 				deploysync := Deployment{
-					kubeclient:                kubeclient,
-					radixclient:               radixclient,
-					kubeutil:                  kubeUtil,
-					prometheusperatorclient:   prometheusclient,
-					registration:              rr,
-					radixDeployment:           rd,
-					securityContextBuilder:    securityContextBuilder,
-					oauthProxyResourceManager: &noopOAuthProxyResourceManager{},
+					kubeclient:              kubeclient,
+					radixclient:             radixclient,
+					kubeutil:                kubeUtil,
+					prometheusperatorclient: prometheusclient,
+					registration:            rr,
+					radixDeployment:         rd,
+					securityContextBuilder:  securityContextBuilder,
 				}
 				err := deploysync.OnSync()
 				assert.Nil(t, err)
@@ -3250,15 +3239,15 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(map[string]string{"bar": "y", "baz": "z"})
 
 	syncer := Deployment{
-		kubeclient:                kubeclient,
-		radixclient:               radixclient,
-		prometheusperatorclient:   prometheusclient,
-		kubeutil:                  kubeUtil,
-		registration:              rr,
-		radixDeployment:           rd,
-		securityContextBuilder:    NewSecurityContextBuilder(true),
-		oauthProxyResourceManager: NewOAuthProxyResourceManager(rd, rr, kubeUtil),
-		ingressAnnotations:        []IngressAnnotations{annotations1, annotations2},
+		kubeclient:              kubeclient,
+		radixclient:             radixclient,
+		prometheusperatorclient: prometheusclient,
+		kubeutil:                kubeUtil,
+		registration:            rr,
+		radixDeployment:         rd,
+		securityContextBuilder:  NewSecurityContextBuilder(true),
+		auxResourceManagers:     []AuxiliaryResourceManager{NewOAuthProxyResourceManager(rd, rr, kubeUtil)},
+		ingressAnnotations:      []IngressAnnotations{annotations1, annotations2},
 	}
 
 	err := syncer.OnSync()
