@@ -260,7 +260,7 @@ func (deploy *Deployment) syncDeployment() error {
 	}
 
 	if err := deploy.syncAuxiliaryResources(); err != nil {
-		return err
+		return fmt.Errorf("failed to sync auxiliary resource : %v", err)
 	}
 
 	return nil

@@ -1,11 +1,6 @@
 package defaults
 
-type RadixComponentAuxiliaryType string
-
 const (
-	OAuthProxyAuxiliaryComponent RadixComponentAuxiliaryType = "oauth"
-)
-
-const (
+	OAuthProxyAuxiliaryComponentType   = "oauth"
 	OAuthProxyAuxiliaryComponentSuffix = "aux-oauth"
 )

@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -3246,7 +3247,6 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 		registration:            rr,
 		radixDeployment:         rd,
 		securityContextBuilder:  NewSecurityContextBuilder(true),
-		auxResourceManagers:     []AuxiliaryResourceManager{NewOAuthProxyResourceManager(rd, rr, kubeUtil)},
 		ingressAnnotations:      []IngressAnnotations{annotations1, annotations2},
 	}
 
@@ -3256,6 +3256,92 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	assert.Len(t, ingresses.Items, 1)
 	expected := map[string]string{"bar": "y", "baz": "z", "foo": "x"}
 	assert.Equal(t, expected, ingresses.Items[0].GetAnnotations())
+}
+
+func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
+	_, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
+	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	auxResource := NewMockAuxiliaryResourceManager(ctrl)
+	auxResource.EXPECT().GarbageCollect().Times(1).Return(nil)
+	auxResource.EXPECT().Sync().Times(1).Return(nil)
+
+	syncer := Deployment{
+		kubeclient:              kubeclient,
+		radixclient:             radixclient,
+		prometheusperatorclient: prometheusclient,
+		kubeutil:                kubeUtil,
+		registration:            rr,
+		radixDeployment:         rd,
+		securityContextBuilder:  NewSecurityContextBuilder(true),
+		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
+	}
+
+	err := syncer.OnSync()
+	assert.Nil(t, err)
+}
+
+func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
+	_, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
+	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	auxErr := errors.New("an error")
+	auxResource := NewMockAuxiliaryResourceManager(ctrl)
+	auxResource.EXPECT().GarbageCollect().Times(1).Return(nil)
+	auxResource.EXPECT().Sync().Times(1).Return(auxErr)
+
+	syncer := Deployment{
+		kubeclient:              kubeclient,
+		radixclient:             radixclient,
+		prometheusperatorclient: prometheusclient,
+		kubeutil:                kubeUtil,
+		registration:            rr,
+		radixDeployment:         rd,
+		securityContextBuilder:  NewSecurityContextBuilder(true),
+		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
+	}
+
+	err := syncer.OnSync()
+	assert.Contains(t, err.Error(), auxErr.Error())
+}
+
+func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
+	_, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
+	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	auxErr := errors.New("an error")
+	auxResource := NewMockAuxiliaryResourceManager(ctrl)
+	auxResource.EXPECT().GarbageCollect().Times(1).Return(auxErr)
+	auxResource.EXPECT().Sync().Times(0)
+
+	syncer := Deployment{
+		kubeclient:              kubeclient,
+		radixclient:             radixclient,
+		prometheusperatorclient: prometheusclient,
+		kubeutil:                kubeUtil,
+		registration:            rr,
+		radixDeployment:         rd,
+		securityContextBuilder:  NewSecurityContextBuilder(true),
+		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
+	}
+
+	err := syncer.OnSync()
+	assert.Contains(t, err.Error(), auxErr.Error())
 }
 
 func parseQuantity(value string) resource.Quantity {

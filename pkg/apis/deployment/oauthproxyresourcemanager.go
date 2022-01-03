@@ -53,7 +53,7 @@ type oauthProxyResourceManager struct {
 func (o *oauthProxyResourceManager) Sync() error {
 	for _, component := range o.rd.Spec.Components {
 		if err := o.syncComponent(&component); err != nil {
-			return err
+			return fmt.Errorf("failed to sync oauth proxy: %v", err)
 		}
 	}
 	return nil
@@ -68,6 +68,13 @@ func (o *oauthProxyResourceManager) syncComponent(component v1.RadixCommonDeploy
 }
 
 func (o *oauthProxyResourceManager) GarbageCollect() error {
+	if err := o.garbageCollect(); err != nil {
+		return fmt.Errorf("failed to garbage collect oauth proxy: %v", err)
+	}
+	return nil
+}
+
+func (o *oauthProxyResourceManager) garbageCollect() error {
 	if err := o.garbageCollectDeployment(); err != nil {
 		return err
 	}
@@ -200,14 +207,16 @@ func (o *oauthProxyResourceManager) garbageCollectRoleBinding() error {
 }
 
 func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1.Object) bool {
+	if appName := object.GetLabels()[kube.RadixAppLabel]; appName != o.rd.Spec.AppName {
+		return false
+	}
+	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != defaults.OAuthProxyAuxiliaryComponentType {
+		return false
+	}
 	auxName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
 	if !nameExist {
 		return false
 	}
-	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != string(defaults.OAuthProxyAuxiliaryComponent) {
-		return false
-	}
-
 	return !auxName.ExistInDeploymentSpec(o.rd)
 }
 
@@ -551,7 +560,7 @@ func (o *oauthProxyResourceManager) getLabelsForAuxComponent(component v1.RadixC
 	return map[string]string{
 		kube.RadixAppLabel:                    o.rd.Spec.AppName,
 		kube.RadixAuxiliaryComponentLabel:     component.GetName(),
-		kube.RadixAuxiliaryComponentTypeLabel: string(defaults.OAuthProxyAuxiliaryComponent),
+		kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType,
 	}
 }
 
