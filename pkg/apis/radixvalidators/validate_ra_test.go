@@ -830,6 +830,22 @@ func Test_PublicPort(t *testing.T) {
 			isValid:    false,
 			isErrorNil: false,
 		},
+		{
+			name: "privileged port used in radixConfig",
+			updateRA: func(ra *v1.RadixApplication) {
+				newPorts := []v1.ComponentPort{
+					{
+						Name: "http",
+						Port: 1000,
+					},
+				}
+				ra.Spec.Components[0].Ports = newPorts
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Public = true
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
 	}
 
 	_, client := validRASetup()
