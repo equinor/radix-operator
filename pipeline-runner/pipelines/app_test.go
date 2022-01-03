@@ -1,7 +1,6 @@
 package onpush
 
 import (
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -18,6 +17,7 @@ const (
 	deployTestFilePath = "./testdata/radixconfig.variable.yaml"
 	clusterName        = "AnyClusterName"
 	containerRegistry  = "any.container.registry"
+	egressIps          = "0.0.0.0"
 )
 
 func setupTest() (*kubernetes.Clientset, *radix.Clientset, *secretproviderfake.Clientset, commonTest.Utils) {
@@ -27,7 +27,7 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, *secretproviderfake.C
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
-	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return kubeclient, radixclient, secretproviderclient, testUtils
 }
 

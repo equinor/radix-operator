@@ -20,6 +20,7 @@ type environmentVariablesSourceDecorator interface {
 	getContainerRegistry() (string, error)
 	getDnsZone() (string, error)
 	getClusterType() (string, error)
+	getClusterActiveEgressIps() (string, error)
 }
 
 type radixApplicationEnvironmentVariablesSourceDecorator struct{}
@@ -41,6 +42,10 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getDns
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
 	return getEnvVar(defaults.RadixClusterTypeEnvironmentVariable)
+}
+
+func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps() (string, error) {
+	return getEnvVar(defaults.RadixActiveClusterEgressIpsEnvironmentVariable)
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
@@ -65,6 +70,14 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getDnsZon
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
 	return getEnvVar(defaults.OperatorClusterTypeEnvironmentVariable)
+}
+
+func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps() (string, error) {
+	egressIps, err := envVarsSource.kubeutil.GetClusterActiveEgressIps()
+	if err != nil {
+		return "", fmt.Errorf("failed to get cluster egress IPs from ConfigMap: %v", err)
+	}
+	return egressIps, nil
 }
 
 //getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
@@ -265,6 +278,13 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		log.Debugf("No ports defined for the component")
 	}
 	envVarSet.Add(defaults.RadixCommitHashEnvironmentVariable, radixDeploymentLabels[kube.RadixCommitLabel])
+
+	activeClusterEgressIps, err := envVarsSource.getClusterActiveEgressIps()
+	if err != nil {
+		log.Error(err)
+		return envVarSet.Items()
+	}
+	envVarSet.Add(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, activeClusterEgressIps)
 
 	return envVarSet.Items()
 }

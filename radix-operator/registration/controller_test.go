@@ -26,6 +26,7 @@ const (
 	clusterName       = "AnyClusterName"
 	dnsZone           = "dev.radix.equinor.com"
 	containerRegistry = "any.container.registry"
+	egressIps         = "0.0.0.0"
 )
 
 var synced chan bool
@@ -37,7 +38,7 @@ func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 
 	handlerTestUtils := test.NewTestUtils(client, radixClient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return client, kubeUtil, radixClient
 }
 

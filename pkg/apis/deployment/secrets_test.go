@@ -30,7 +30,7 @@ func setupSecretsTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixcli
 	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
 
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixclient, prometheusclient
 }
 
