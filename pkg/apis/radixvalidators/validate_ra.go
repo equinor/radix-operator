@@ -24,6 +24,8 @@ const (
 	cpuRegex          = "^[0-9]+m$"
 )
 
+var illegalVariableNamePrefixes = [...]string{"RADIX_", "RADIXOPERATOR_"}
+
 // MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
 func MissingPrivateImageHubUsernameError(server string) error {
 	return fmt.Errorf("username is required for private image hub %s", server)
@@ -834,7 +836,25 @@ func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
 }
 
 func validateVariableName(resourceName, value string) error {
+	if err := validateIllegalPrefixInVariableName(resourceName, value); err != nil {
+		return err
+	}
 	return validateResourceWithRegexp(resourceName, value, "^(([A-Za-z0-9][-._A-Za-z0-9.]*)?[A-Za-z0-9])?$")
+}
+
+func validateIllegalPrefixInVariableName(resourceName string, value string) error {
+	for _, illegalPrefix := range illegalVariableNamePrefixes {
+		var comparisonIndex = 0
+		if len(value) < len(illegalPrefix) {
+			comparisonIndex = len(value)
+		} else {
+			comparisonIndex = len(illegalPrefix)
+		}
+		if value[:comparisonIndex] == illegalPrefix {
+			return fmt.Errorf("%s %s can not start with reserved prefix %s", resourceName, value, illegalPrefix)
+		}
+	}
+	return nil
 }
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
