@@ -26,47 +26,47 @@ const (
 
 // MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
 func MissingPrivateImageHubUsernameError(server string) error {
-	return fmt.Errorf("Username is required for private image hub %s", server)
+	return fmt.Errorf("username is required for private image hub %s", server)
 }
 
 // MissingPrivateImageHubEmailError Error when email for private image hubs is not defined
 func MissingPrivateImageHubEmailError(server string) error {
-	return fmt.Errorf("Email is required for private image hub %s", server)
+	return fmt.Errorf("email is required for private image hub %s", server)
 }
 
 // EnvForDNSAppAliasNotDefinedError Error when env not defined
 func EnvForDNSAppAliasNotDefinedError(env string) error {
-	return fmt.Errorf("Env %s refered to by dnsAppAlias is not defined", env)
+	return fmt.Errorf("env %s refered to by dnsAppAlias is not defined", env)
 }
 
 // ComponentForDNSAppAliasNotDefinedError Error when env not defined
 func ComponentForDNSAppAliasNotDefinedError(component string) error {
-	return fmt.Errorf("Component %s refered to by dnsAppAlias is not defined", component)
+	return fmt.Errorf("component %s refered to by dnsAppAlias is not defined", component)
 }
 
 // ExternalAliasCannotBeEmptyError Structure cannot be left empty
 func ExternalAliasCannotBeEmptyError() error {
-	return errors.New("External alias cannot be empty")
+	return errors.New("external alias cannot be empty")
 }
 
 // EnvForDNSExternalAliasNotDefinedError Error when env not defined
 func EnvForDNSExternalAliasNotDefinedError(env string) error {
-	return fmt.Errorf("Env %s refered to by dnsExternalAlias is not defined", env)
+	return fmt.Errorf("env %s refered to by dnsExternalAlias is not defined", env)
 }
 
 // ComponentForDNSExternalAliasNotDefinedError Error when env not defined
 func ComponentForDNSExternalAliasNotDefinedError(component string) error {
-	return fmt.Errorf("Component %s refered to by dnsExternalAlias is not defined", component)
+	return fmt.Errorf("component %s refered to by dnsExternalAlias is not defined", component)
 }
 
 // ComponentForDNSExternalAliasIsNotMarkedAsPublicError Component is not marked as public
 func ComponentForDNSExternalAliasIsNotMarkedAsPublicError(component string) error {
-	return fmt.Errorf("Component %s refered to by dnsExternalAlias is not marked as public", component)
+	return fmt.Errorf("component %s refered to by dnsExternalAlias is not marked as public", component)
 }
 
 // EnvironmentReferencedByComponentDoesNotExistError Environment does not exists
 func EnvironmentReferencedByComponentDoesNotExistError(environment, component string) error {
-	return fmt.Errorf("Env %s refered to by component %s is not defined", environment, component)
+	return fmt.Errorf("env %s refered to by component %s is not defined", environment, component)
 }
 
 // InvalidPortNameLengthError Invalid resource length
@@ -76,12 +76,12 @@ func InvalidPortNameLengthError(value string) error {
 
 // InvalidPortNumberError Invalid port number
 func InvalidPortNumberError(value int32) error {
-	return fmt.Errorf("Submitted configuration contains port number %d. Port numbers must be greater than or equal to %d and lower than or equal to %d", value, minimumPortNumber, maximumPortNumber)
+	return fmt.Errorf("submitted configuration contains port number %d. Port numbers must be greater than or equal to %d and lower than or equal to %d", value, minimumPortNumber, maximumPortNumber)
 }
 
 // PortSpecificationCannotBeEmptyForComponentError Port cannot be empty for component
 func PortSpecificationCannotBeEmptyForComponentError(component string) error {
-	return fmt.Errorf("Port specification cannot be empty for %s", component)
+	return fmt.Errorf("port specification cannot be empty for %s", component)
 }
 
 // PortNameIsRequiredForPublicComponentError Port name cannot be empty
@@ -91,31 +91,31 @@ func PortNameIsRequiredForPublicComponentError(publicPortName, component string)
 
 // MultipleMatchingPortNamesError Multiple matching port names
 func MultipleMatchingPortNamesError(matchingPortName int, publicPortName, component string) error {
-	return fmt.Errorf("There are %d ports with name %s for component %s. Only 1 is allowed", matchingPortName, publicPortName, component)
+	return fmt.Errorf("there are %d ports with name %s for component %s. Only 1 is allowed", matchingPortName, publicPortName, component)
 }
 
 // SchedulerPortCannotBeEmptyForJobError Scheduler port cannot be empty for job
 func SchedulerPortCannotBeEmptyForJobError(jobName string) error {
-	return fmt.Errorf("Scheduler port cannot be empty for %s", jobName)
+	return fmt.Errorf("scheduler port cannot be empty for %s", jobName)
 }
 
 // PayloadPathCannotBeEmptyForJobError Payload path cannot be empty for job
 func PayloadPathCannotBeEmptyForJobError(jobName string) error {
-	return fmt.Errorf("Payload path cannot be empty for %s", jobName)
+	return fmt.Errorf("payload path cannot be empty for %s", jobName)
 }
 
 // MemoryResourceRequirementFormatError Invalid memory resource requirement error
 func MemoryResourceRequirementFormatError(value string) error {
-	return fmt.Errorf("Format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", "memory", value)
+	return fmt.Errorf("format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", "memory", value)
 }
 
 // CPUResourceRequirementFormatError Invalid CPU resource requirement
 func CPUResourceRequirementFormatError(value string) error {
-	return fmt.Errorf("Format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
+	return fmt.Errorf("format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
 }
 
 func InvalidVerificationType(verification string) error {
-	return fmt.Errorf("Invalid VerificationType (value %s)", verification)
+	return fmt.Errorf("invalid VerificationType (value %s)", verification)
 }
 
 // ResourceRequestOverLimitError Invalid resource requirement error
@@ -125,17 +125,17 @@ func ResourceRequestOverLimitError(resource string, require string, limit string
 
 // InvalidResourceError Invalid resource type
 func InvalidResourceError(name string) error {
-	return fmt.Errorf("Only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
+	return fmt.Errorf("only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
 }
 
 // DuplicateExternalAliasError Cannot have duplicate external alias
 func DuplicateExternalAliasError() error {
-	return errors.New("Cannot have duplicate aliases for dnsExternalAlias")
+	return errors.New("cannot have duplicate aliases for dnsExternalAlias")
 }
 
 // InvalidBranchNameError Indicates that branch name is invalid
 func InvalidBranchNameError(branch string) error {
-	return fmt.Errorf("Invalid branch name %s. See documentation for more info", branch)
+	return fmt.Errorf("invalid branch name %s. See documentation for more info", branch)
 }
 
 // MaxReplicasForHPANotSetOrZeroError Indicates that minReplicas of horizontalScaling is not set or set to 0
@@ -198,38 +198,38 @@ func IsApplicationNameLowercase(appName string) (bool, error) {
 
 //ApplicationNameNotLowercaseError Indicates that application name contains upper case letters
 func ApplicationNameNotLowercaseError(appName string) error {
-	return fmt.Errorf("Application with name %s contains uppercase letters", appName)
+	return fmt.Errorf("application with name %s contains uppercase letters", appName)
 }
 
 // PublicImageComponentCannotHaveSourceOrDockerfileSet Error if image is set and radix config contains src or dockerfile
 func PublicImageComponentCannotHaveSourceOrDockerfileSet(componentName string) error {
-	return fmt.Errorf("Component %s cannot have neither 'src' nor 'Dockerfile' set", componentName)
+	return fmt.Errorf("component %s cannot have neither 'src' nor 'Dockerfile' set", componentName)
 }
 
 // ComponentWithDynamicTagRequiresTagInEnvironmentConfig Error if image is set with dynamic tag and tag is missing
 func ComponentWithDynamicTagRequiresTagInEnvironmentConfig(componentName string) error {
-	return fmt.Errorf("Component %s with %s on image requires an image tag set on environment config",
+	return fmt.Errorf("component %s with %s on image requires an image tag set on environment config",
 		componentName, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
 // ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment Error if image is set with dynamic tag and tag is missing
 func ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(componentName, environment string) error {
 	return fmt.Errorf(
-		"Component %s with %s on image requires an image tag set on environment config for environment %s",
+		"component %s with %s on image requires an image tag set on environment config for environment %s",
 		componentName, radixv1.DynamicTagNameInEnvironmentConfig, environment)
 }
 
 // ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag If tag is set then the dynamic tag needs to be set on the image
 func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(componentName, environment string) error {
 	return fmt.Errorf(
-		"Component %s with image tag set on environment config for environment %s requires %s on image setting",
+		"component %s with image tag set on environment config for environment %s requires %s on image setting",
 		componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
 }
 
 // SecretNameConflictsWithEnvironmentVariable If secret name is the same as environment variable fail validation
 func SecretNameConflictsWithEnvironmentVariable(componentName, secretName string) error {
 	return fmt.Errorf(
-		"Component %s has a secret with name %s which exists as an environment variable",
+		"component %s has a secret with name %s which exists as an environment variable",
 		componentName, secretName)
 }
 
