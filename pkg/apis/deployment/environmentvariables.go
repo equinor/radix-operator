@@ -110,18 +110,18 @@ func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource 
 	var envVars = getEnvVars(envVarConfigMap, deployComponentEnvVars)
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
 	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
-	envVars = appendEnvVarsFromSecretRefs(kubeutil, namespace, componentName, radixDeployment.GetName(), envVars, radixSecretRefs)
+	envVars = appendEnvVarsFromSecretRefs(envVars, componentName, radixDeployment.GetName(), radixSecretRefs)
 	return envVars, nil
 }
 
-func appendEnvVarsFromSecretRefs(kubeutil *kube.Kube, namespace, componentName, radixDeploymentName string, envVars []corev1.EnvVar, secretRefs []v1.RadixSecretRef) []corev1.EnvVar {
+func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, componentName, radixDeploymentName string, secretRefs []v1.RadixSecretRef) []corev1.EnvVar {
 	for _, secretRef := range secretRefs {
-		envVars = append(envVars, getAzureKeyVaultSecretRefsAsEnvVars(kubeutil, namespace, componentName, radixDeploymentName, &secretRef)...)
+		envVars = append(envVars, getAzureKeyVaultSecretRefsAsEnvVars(componentName, radixDeploymentName, &secretRef)...)
 	}
 	return envVars
 }
 
-func getAzureKeyVaultSecretRefsAsEnvVars(kubeutil *kube.Kube, namespace string, componentName string, radixDeploymentName string, secretRefs *v1.RadixSecretRef) []corev1.EnvVar {
+func getAzureKeyVaultSecretRefsAsEnvVars(componentName string, radixDeploymentName string, secretRefs *v1.RadixSecretRef) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	if secretRefs.AzureKeyVaults == nil {
 		return nil
