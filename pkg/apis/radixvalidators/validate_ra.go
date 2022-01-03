@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"regexp"
 	"strings"
 	"unicode"
@@ -843,18 +844,11 @@ func validateVariableName(resourceName, value string) error {
 }
 
 func validateIllegalPrefixInVariableName(resourceName string, value string) error {
-	for _, illegalPrefix := range illegalVariableNamePrefixes {
-		var comparisonIndex = 0
-		if len(value) < len(illegalPrefix) {
-			comparisonIndex = len(value)
-		} else {
-			comparisonIndex = len(illegalPrefix)
-		}
-		if value[:comparisonIndex] == illegalPrefix {
-			return fmt.Errorf("%s %s can not start with reserved prefix %s", resourceName, value, illegalPrefix)
-		}
+	if utils.IsRadixEnvVar(value) {
+		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)
+	} else {
+		return nil
 	}
-	return nil
 }
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
