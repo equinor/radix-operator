@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"regexp"
 	"strings"
 	"unicode"
@@ -23,6 +24,8 @@ const (
 	maximumPortNumber = 65535
 	cpuRegex          = "^[0-9]+m$"
 )
+
+var illegalVariableNamePrefixes = [...]string{"RADIX_", "RADIXOPERATOR_"}
 
 // MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
 func MissingPrivateImageHubUsernameError(server string) error {
@@ -834,7 +837,18 @@ func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
 }
 
 func validateVariableName(resourceName, value string) error {
+	if err := validateIllegalPrefixInVariableName(resourceName, value); err != nil {
+		return err
+	}
 	return validateResourceWithRegexp(resourceName, value, "^(([A-Za-z0-9][-._A-Za-z0-9.]*)?[A-Za-z0-9])?$")
+}
+
+func validateIllegalPrefixInVariableName(resourceName string, value string) error {
+	if utils.IsRadixEnvVar(value) {
+		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)
+	} else {
+		return nil
+	}
 }
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {

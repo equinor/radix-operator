@@ -865,6 +865,88 @@ func Test_PublicPort(t *testing.T) {
 	}
 }
 
+func Test_Variables(t *testing.T) {
+	var testScenarios = []struct {
+		name       string
+		updateRA   updateRAFunc
+		isValid    bool
+		isErrorNil bool
+	}{
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIX"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIXX_SOMETHING"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["SOMETHING_RADIX_SOMETHING"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["S_RADIXOPERATOR"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with illegal prefix fails",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIX_SOMETHING"] = "any value"
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			name: "check that user defined variable with illegal prefix fails",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIXOPERATOR_SOMETHING"] = "any value"
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			name: "check that user defined variable with illegal prefix fails",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIXOPERATOR_"] = "any value"
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			isErrorNil := false
+			if err == nil {
+				isErrorNil = true
+			}
+
+			assert.Equal(t, testcase.isValid, isValid)
+			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+		})
+	}
+}
+
 func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 	type volumeMountsFunc func() []v1.RadixVolumeMount
 	type setVolumeMountsFunc func(*v1.RadixApplication, []v1.RadixVolumeMount)
