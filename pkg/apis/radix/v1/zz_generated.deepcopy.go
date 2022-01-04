@@ -570,10 +570,10 @@ func (in *RadixDeployComponent) DeepCopyInto(out *RadixDeployComponent) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.SecretRefs != nil {
-		in, out := &in.SecretRefs, &out.SecretRefs
-		*out = make([]RadixSecretRef, len(*in))
-		copy(*out, *in)
+	if len(in.SecretRefs.AzureKeyVaults) > 0 {
+		in, out := &in.SecretRefs.AzureKeyVaults, &out.SecretRefs.AzureKeyVaults
+		*out = make([]RadixAzureKeyVault, len(*in))
+		copy(*in, *out)
 	}
 	if in.IngressConfiguration != nil {
 		in, out := &in.IngressConfiguration, &out.IngressConfiguration
@@ -649,11 +649,6 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 	if in.Secrets != nil {
 		in, out := &in.Secrets, &out.Secrets
 		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.SecretRefs != nil {
-		in, out := &in.SecretRefs, &out.SecretRefs
-		*out = make([]RadixSecretRef, len(*in))
 		copy(*out, *in)
 	}
 	in.Resources.DeepCopyInto(&out.Resources)

@@ -108,7 +108,7 @@ type RadixComponent struct {
 	Public                  bool                     `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs              []RadixSecretRef         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	SecretRefs              RadixSecretRefs          `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	IngressConfiguration    []string                 `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	EnvironmentConfig       []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
@@ -132,6 +132,7 @@ type RadixEnvironmentConfig struct {
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -145,7 +146,7 @@ type RadixJobComponent struct {
 	Payload           *RadixJobComponentPayload            `json:"payload,omitempty" yaml:"payload,omitempty"`
 	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
 	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs        []RadixSecretRef                     `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	SecretRefs        RadixSecretRefs                      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
@@ -271,9 +272,9 @@ const (
 	RadixSecretRefTypeAzureKeyVault RadixSecretRefType = "az-keyvault"
 )
 
-// RadixSecretRef defines secret vault
-type RadixSecretRef struct {
-	// AzureKeyVaults. List of RadixSecretRef-s, containing Azure Key Vault configurations
+// RadixSecretRefs defines secret vault
+type RadixSecretRefs struct {
+	// AzureKeyVaults. List of RadixSecretRefs-s, containing Azure Key Vault configurations
 	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty" yaml:"azureKeyVaults,omitempty"`
 }
 

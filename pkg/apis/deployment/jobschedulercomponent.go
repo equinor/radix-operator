@@ -59,7 +59,7 @@ func (js *jobSchedulerComponent) GetSecrets() []string {
 	return nil
 }
 
-func (js *jobSchedulerComponent) GetSecretRefs() []v1.RadixSecretRef {
+func (js *jobSchedulerComponent) GetSecretRefs() v1.RadixSecretRefs {
 	return nil
 }
 

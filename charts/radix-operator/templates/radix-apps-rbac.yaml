@@ -1,4 +1,4 @@
-# used to define rbac rules for radix api and webhook - that require special permissions
+az role assignment list --all --assignee "http://radix-cr-reader-dev"# used to define rbac rules for radix api and webhook - that require special permissions
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

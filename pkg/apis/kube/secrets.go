@@ -197,7 +197,7 @@ func GetSecretTypeForRadixAzureKeyVault(k8sSecretType *radixv1.RadixAzureKeyVaul
 	return SecretTypeOpaque
 }
 
-// GetAzureKeyVaultSecretRefSecretName Gets a secret name for Azure KeyVault RadixSecretRef
+// GetAzureKeyVaultSecretRefSecretName Gets a secret name for Azure KeyVault RadixSecretRefs
 func GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azKeyVaultName string, secretType SecretType) string {
 	radixSecretRefSecretType := string(getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(secretType))
 	return getSecretRefSecretName(componentName, radixDeploymentName, string(radixv1.RadixSecretRefTypeAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)

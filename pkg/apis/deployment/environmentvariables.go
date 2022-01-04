@@ -101,7 +101,7 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 	return getEnvironmentVariables(kubeutil, appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.GetSecretRefs(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables())
 }
 
-func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, radixSecretRefs []v1.RadixSecretRef, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) ([]corev1.EnvVar, error) {
+func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, radixSecretRefs v1.RadixSecretRefs, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) ([]corev1.EnvVar, error) {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
@@ -114,14 +114,14 @@ func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource 
 	return envVars, nil
 }
 
-func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, componentName, radixDeploymentName string, secretRefs []v1.RadixSecretRef) []corev1.EnvVar {
+func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, componentName, radixDeploymentName string, secretRefs v1.RadixSecretRefs) []corev1.EnvVar {
 	for _, secretRef := range secretRefs {
 		envVars = append(envVars, getAzureKeyVaultSecretRefsAsEnvVars(componentName, radixDeploymentName, &secretRef)...)
 	}
 	return envVars
 }
 
-func getAzureKeyVaultSecretRefsAsEnvVars(componentName string, radixDeploymentName string, secretRefs *v1.RadixSecretRef) []corev1.EnvVar {
+func getAzureKeyVaultSecretRefsAsEnvVars(componentName string, radixDeploymentName string, secretRefs *v1.RadixSecretRefs) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
 	if secretRefs.AzureKeyVaults == nil {
 		return nil

@@ -87,7 +87,7 @@ type RadixDeployComponent struct {
 	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	EnvironmentVariables    EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets                 []string                `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs              []RadixSecretRef        `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	IngressConfiguration    []string                `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	DNSAppAlias             bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
 	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
@@ -124,7 +124,7 @@ func (deployComponent *RadixDeployComponent) GetSecrets() []string {
 	return deployComponent.Secrets
 }
 
-func (deployComponent *RadixDeployComponent) GetSecretRefs() []RadixSecretRef {
+func (deployComponent *RadixDeployComponent) GetSecretRefs() RadixSecretRefs {
 	return deployComponent.SecretRefs
 }
 
@@ -216,7 +216,7 @@ func (deployJobComponent *RadixDeployJobComponent) GetSecrets() []string {
 	return deployJobComponent.Secrets
 }
 
-func (deployComponent *RadixDeployJobComponent) GetSecretRefs() []RadixSecretRef {
+func (deployComponent *RadixDeployJobComponent) GetSecretRefs() RadixSecretRefs {
 	return deployComponent.SecretRefs
 }
 
@@ -303,7 +303,7 @@ type RadixDeployJobComponent struct {
 	Ports                   []ComponentPort           `json:"ports" yaml:"ports"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets                 []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs              []RadixSecretRef          `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	Monitoring              bool                      `json:"monitoring" yaml:"monitoring"`
 	Resources               ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
@@ -322,7 +322,7 @@ type RadixCommonDeployComponent interface {
 	GetPorts() []ComponentPort
 	GetEnvironmentVariables() EnvVarsMap
 	GetSecrets() []string
-	GetSecretRefs() []RadixSecretRef
+	GetSecretRefs() RadixSecretRefs
 	GetMonitoring() bool
 	GetResources() *ResourceRequirements
 	GetVolumeMounts() []RadixVolumeMount

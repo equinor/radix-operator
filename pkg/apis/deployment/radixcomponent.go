@@ -29,6 +29,8 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		var imageTagName string
 		var alwaysPullImageOnDeploy bool
 		var environmentAuthentication *v1.Authentication
+		var azureKeyVaultSecretRefs []v1.RadixAzureKeyVault
+		azureKeyVaultSecretRefsMap := make(map[string]v1.RadixAzureKeyVault)
 
 		// Containers run as root unless overridden in config
 		runAsNonRoot := false
@@ -47,6 +49,10 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
 			environmentAuthentication = environmentSpecificConfig.Authentication
+			azureKeyVaultSecretRefs = environmentSpecificConfig.SecretRefs.AzureKeyVaults
+			for _, azureKeyVaultSecretRef := range azureKeyVaultSecretRefs {
+				azureKeyVaultSecretRefsMap[azureKeyVaultSecretRef.Name] = azureKeyVaultSecretRef
+			}
 		} else {
 			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
 		}
@@ -67,6 +73,15 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			resources = appComponent.Resources
 		}
 
+		// Append common secret-refs from appComponent.SecretRefs to secretRefs if not available yet
+		for _, commonAzureKeyVault := range appComponent.SecretRefs.AzureKeyVaults {
+			if _, found := azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]; !found {
+				azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = commonAzureKeyVault
+				continue
+			}
+			azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
+		}
+
 		// For deploy-only images, we will replace the dynamic tag with the tag from the environment
 		// config
 		if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
@@ -74,13 +89,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		}
 
 		updateComponentNode(&appComponent, &node)
-
-		// Append common environment variables from appComponent.Variables to variables if not available yet
-		for variableKey, variableValue := range appComponent.Variables {
-			if _, found := variables[variableKey]; !found {
-				variables[variableKey] = variableValue
-			}
-		}
 
 		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		authentication := GetAuthenticationForComponent(appComponent.Authentication, environmentAuthentication)
@@ -94,7 +102,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			PublicPort:              getPublicPortFromAppComponent(appComponent),
 			Ports:                   appComponent.Ports,
 			Secrets:                 appComponent.Secrets,
-			SecretRefs:              appComponent.SecretRefs,
+			SecretRefs:              secretRefs,
 			IngressConfiguration:    appComponent.IngressConfiguration,
 			EnvironmentVariables:    variables, // todo: use single EnvVars instead
 			DNSAppAlias:             IsDNSAppAlias(env, componentName, dnsAppAlias),

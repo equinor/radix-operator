@@ -155,7 +155,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName("app").
 					WithSecrets([]string{"DEPLOYAPPSECRET"}).
-					WithSecretRefs([]v1.RadixSecretRef{{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
 						Name: "TestKeyVault2",
 						Items: []v1.RadixAzureKeyVaultItem{
 							{
@@ -169,7 +169,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 								Type:   &keyType,
 							},
 						},
-					}}}}).
+					}}}).
 					WithNodeGpu("dev-gpu").
 					WithNodeGpuCount("1"),
 			).
@@ -177,7 +177,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 				utils.NewDeployJobComponentBuilder().
 					WithName("job").
 					WithSecrets([]string{"DEPLOYJOBSECRET"}).
-					WithSecretRefs([]v1.RadixSecretRef{{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
 						Name: "TestKeyVault",
 						Items: []v1.RadixAzureKeyVaultItem{
 							{
@@ -191,7 +191,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 								Type:   &keyType,
 							},
 						},
-					}}}}),
+					}}}),
 			).
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
@@ -288,15 +288,15 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Len(t, rds.Items[0].Spec.Components[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYAPPSECRET", rds.Items[0].Spec.Components[0].Secrets[0])
 	assert.Len(t, rds.Items[0].Spec.Components[0].SecretRefs, 1)
-	assert.Len(t, rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults, 1)
-	assert.Len(t, rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Items, 2)
-	assert.Equal(t, "TestKeyVault2", rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Name)
-	assert.Equal(t, "Secret2", rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Items[0].Name)
-	assert.Equal(t, "SECRET_2", rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Items[0].EnvVar)
-	assert.Equal(t, "secret", string(*rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Items[0].Type))
-	assert.Equal(t, "Key2", rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Items[1].Name)
-	assert.Equal(t, "KEY_2", rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Items[1].EnvVar)
-	assert.Equal(t, "key", string(*rds.Items[0].Spec.Components[0].SecretRefs[0].AzureKeyVaults[0].Items[1].Type))
+	assert.Len(t, rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults, 1)
+	assert.Len(t, rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Items, 2)
+	assert.Equal(t, "TestKeyVault2", rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Name)
+	assert.Equal(t, "Secret2", rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Items[0].Name)
+	assert.Equal(t, "SECRET_2", rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Items[0].EnvVar)
+	assert.Equal(t, "secret", string(*rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Items[0].Type))
+	assert.Equal(t, "Key2", rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Items[1].Name)
+	assert.Equal(t, "KEY_2", rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Items[1].EnvVar)
+	assert.Equal(t, "key", string(*rds.Items[0].Spec.Components[0].SecretRefs.AzureKeyVaults[0].Items[1].Type))
 	assert.Equal(t, prodNode, rds.Items[0].Spec.Components[0].Node)
 
 	assert.Equal(t, 1, len(rds.Items[0].Spec.Jobs))
@@ -309,15 +309,15 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	assert.Len(t, rds.Items[0].Spec.Jobs[0].Secrets, 1)
 	assert.Equal(t, "DEPLOYJOBSECRET", rds.Items[0].Spec.Jobs[0].Secrets[0])
 	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs, 1)
-	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults, 1)
-	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items, 2)
-	assert.Equal(t, "TestKeyVault", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Name)
-	assert.Equal(t, "Secret1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[0].Name)
-	assert.Equal(t, "SECRET_1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[0].EnvVar)
-	assert.Equal(t, "secret", string(*rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[0].Type))
-	assert.Equal(t, "Key1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[1].Name)
-	assert.Equal(t, "KEY_1", rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[1].EnvVar)
-	assert.Equal(t, "key", string(*rds.Items[0].Spec.Jobs[0].SecretRefs[0].AzureKeyVaults[0].Items[1].Type))
+	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults, 1)
+	assert.Len(t, rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Items, 2)
+	assert.Equal(t, "TestKeyVault", rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Name)
+	assert.Equal(t, "Secret1", rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Items[0].Name)
+	assert.Equal(t, "SECRET_1", rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Items[0].EnvVar)
+	assert.Equal(t, "secret", string(*rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Items[0].Type))
+	assert.Equal(t, "Key1", rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Items[1].Name)
+	assert.Equal(t, "KEY_1", rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Items[1].EnvVar)
+	assert.Equal(t, "key", string(*rds.Items[0].Spec.Jobs[0].SecretRefs.AzureKeyVaults[0].Items[1].Type))
 }
 
 func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {

@@ -177,7 +177,7 @@ func (deploy *Deployment) createSecretRefs(namespace, appName string, component 
 	return secretsToManage, nil
 }
 
-func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, componentName string, radixSecretRef radixv1.RadixSecretRef) ([]string, error) {
+func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, componentName string, radixSecretRef radixv1.RadixSecretRefs) ([]string, error) {
 	var secretNames []string
 	for _, radixAzureKeyVault := range radixSecretRef.AzureKeyVaults {
 		className := kube.GetComponentSecretProviderClassName(componentName, deploy.radixDeployment.GetName(), radixv1.RadixSecretRefTypeAzureKeyVault, radixAzureKeyVault.Name)
