@@ -106,7 +106,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
-	os.Setenv(OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
+	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
 
 	// Test
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().

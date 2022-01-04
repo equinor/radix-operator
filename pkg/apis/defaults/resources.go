@@ -9,6 +9,7 @@ import (
 // Environment variables that define default resources (limits and requests) for containers and environments
 // See https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/
 const (
+	OperatorDefaultUserGroupEnvironmentVariable             = "RADIXOPERATOR_DEFAULT_USER_GROUP"
 	OperatorEnvLimitDefaultMemoryEnvironmentVariable        = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY"
 	OperatorEnvLimitDefaultCPUEnvironmentVariable           = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU"
 	OperatorEnvLimitDefaultRequestMemoryEnvironmentVariable = "RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_REQUEST_MEMORY"

@@ -25,11 +25,11 @@ import (
 )
 
 const (
-	oauthProxyPortName            = "http"
-	oauthProxyPortNumber          = 4180
-	authUrlAnnotation             = "nginx.ingress.kubernetes.io/auth-url"
-	authSigninAnnotation          = "nginx.ingress.kubernetes.io/auth-signin"
-	authResponseHeadersAnnotation = "nginx.ingress.kubernetes.io/auth-response-headers"
+	oauthProxyPortName                  = "http"
+	oauthProxyPortNumber          int32 = 4180
+	authUrlAnnotation                   = "nginx.ingress.kubernetes.io/auth-url"
+	authSigninAnnotation                = "nginx.ingress.kubernetes.io/auth-signin"
+	authResponseHeadersAnnotation       = "nginx.ingress.kubernetes.io/auth-response-headers"
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager

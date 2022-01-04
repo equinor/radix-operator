@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"os"
 	"reflect"
 	"testing"
 
@@ -33,6 +34,38 @@ func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
 	suite.Run(t, new(OAuthProxyResourceManagerTestSuite))
 }
 
+func (suite *OAuthProxyResourceManagerTestSuite) SetupSuite() {
+	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
+	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
+	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
+	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")
+	os.Setenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable, "300M")
+	os.Setenv(defaults.OperatorRollingUpdateMaxUnavailable, "25%")
+	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
+	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
+	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
+	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler-server:main-latest")
+	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
+	os.Setenv(defaults.RadixOAuthProxyImageEnvironmentVariable, "oauth:latest")
+	os.Setenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable, "oidc_issuer_url")
+}
+
+func (suite *OAuthProxyResourceManagerTestSuite) TearDownSuite() {
+	os.Unsetenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorDNSZoneEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorEnvLimitDefaultMemoryEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
+	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
+	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
+	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
+	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
+	os.Unsetenv(defaults.RadixOAuthProxyImageEnvironmentVariable)
+	os.Unsetenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)
+}
+
 func (suite *OAuthProxyResourceManagerTestSuite) SetupTest() {
 	suite.kubeClient = kubefake.NewSimpleClientset()
 	suite.radixClient = radixfake.NewSimpleClientset()
@@ -44,18 +77,35 @@ func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesCreated() {
 	rd := utils.NewDeploymentBuilder().
 		WithAppName("anyapp").
 		WithEnvironment("qa").
-		WithComponent(utils.NewDeployComponentBuilder().WithName("nooauth")).
-		WithComponent(utils.NewDeployComponentBuilder().WithName("notpublic")).
-		WithComponent(utils.NewDeployComponentBuilder().WithName("cookie").WithAuthentication(&v1.Authentication{
+		WithComponent(utils.NewDeployComponentBuilder().WithName("nooauth").WithPublicPort("http")).
+		WithComponent(utils.NewDeployComponentBuilder().WithName("notpublic").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "anyclientid"}})).
+		WithComponent(utils.NewDeployComponentBuilder().WithName("default").WithPublicPort("http").WithAuthentication(&v1.Authentication{
 			OAuth2: &v1.OAuth2{
 				ClientID: "1234",
-			},
-		})).
-		WithComponent(utils.NewDeployComponentBuilder().WithName("redis")).
+			}})).
+		WithComponent(utils.NewDeployComponentBuilder().WithName("overrides").WithPublicPort("http").WithAuthentication(&v1.Authentication{
+			OAuth2: &v1.OAuth2{
+				ClientID: "1234",
+			}})).
 		BuildRD()
 	sut := NewOAuthProxyResourceManager(rd, rr, suite.kubeUtil)
 	err := sut.Sync()
+
 	suite.Nil(err)
+	actualDeploys, _ := suite.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	suite.Len(actualDeploys.Items, 2)
+
+	defaultDeploy := getDeploymentByName(utils.GetAuxiliaryComponentDeploymentName("default", defaults.OAuthProxyAuxiliaryComponentSuffix), actualDeploys)
+	suite.NotNil(defaultDeploy)
+	expectedDefaultDeployLabels := map[string]string{kube.RadixAppLabel: "anyapp", kube.RadixAuxiliaryComponentLabel: "default", kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
+	suite.Equal(expectedDefaultDeployLabels, defaultDeploy.Labels)
+	suite.Len(defaultDeploy.Spec.Template.Spec.Containers, 1)
+	suite.Equal(expectedDefaultDeployLabels, defaultDeploy.Spec.Template.Labels)
+	defaultContainer := defaultDeploy.Spec.Template.Spec.Containers[0]
+	suite.Len(defaultContainer.Ports, 1)
+	suite.Equal(oauthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
+	suite.Equal(oauthProxyPortName, defaultContainer.Ports[0].Name)
+	suite.Len(defaultContainer.Env, 21)
 }
 
 func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesGarbageCollectedForExistingComponent() {

@@ -101,6 +101,14 @@ func Test_OAuth2Annotations(t *testing.T) {
 			},
 		},
 		{
+			name:      "with override prefix",
+			component: v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{ProxyPrefix: "/oauth3"}}},
+			expected: map[string]string{
+				"nginx.ingress.kubernetes.io/auth-signin": "https://$host/oauth3/start?rd=$escaped_request_uri",
+				"nginx.ingress.kubernetes.io/auth-url":    "https://$host/oauth3/auth",
+			},
+		},
+		{
 			name:      "with SetXAuthRequestHeaders",
 			component: v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true)}}},
 			expected: map[string]string{
