@@ -259,3 +259,8 @@ func InvalidOAuthCookieRefreshError(actualRefresh string) error {
 func DuplicateComponentOrJobNameError(duplicates []string) error {
 	return fmt.Errorf("duplicate component/job names %s not allowed", duplicates)
 }
+
+// InvalidPortNumberError Invalid port number
+func InvalidPortNumberError(value int32) error {
+	return fmt.Errorf("submitted configuration contains port number %d. Port numbers must be greater than or equal to %d and lower than or equal to %d", value, minimumPortNumber, maximumPortNumber)
+}

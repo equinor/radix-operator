@@ -2,13 +2,16 @@ package radixvalidators
 
 import (
 	"fmt"
+
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
@@ -21,12 +24,15 @@ import (
 
 const (
 	maxPortNameLength = 15
+	minimumPortNumber = 1024
+	maximumPortNumber = 65535
 	cpuRegex          = "^[0-9]+m$"
 )
 
 var (
 	validOAuthSessionStoreTypes []string = []string{"", string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
 	validOAuthCookieSameSites   []string = []string{"", "strict", "lax", "none"}
+	illegalVariableNamePrefixes          = [...]string{"RADIX_", "RADIXOPERATOR_"}
 )
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -487,6 +493,12 @@ func validatePorts(componentName string, ports []radixv1.ComponentPort) []error 
 		if err != nil {
 			errs = append(errs, err)
 		}
+
+		if port.Port < minimumPortNumber || port.Port > maximumPortNumber {
+			if err := InvalidPortNumberError(port.Port); err != nil {
+				errs = append(errs, err)
+			}
+		}
 	}
 
 	return errs
@@ -706,7 +718,18 @@ func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
 }
 
 func validateVariableName(resourceName, value string) error {
+	if err := validateIllegalPrefixInVariableName(resourceName, value); err != nil {
+		return err
+	}
 	return validateResourceWithRegexp(resourceName, value, "^(([A-Za-z0-9][-._A-Za-z0-9.]*)?[A-Za-z0-9])?$")
+}
+
+func validateIllegalPrefixInVariableName(resourceName string, value string) error {
+	if utils.IsRadixEnvVar(value) {
+		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)
+	} else {
+		return nil
+	}
 }
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
