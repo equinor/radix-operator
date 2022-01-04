@@ -44,7 +44,6 @@ func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 }
 
 type oauthProxyResourceManager struct {
-	_                  interface{}
 	rd                 *v1.RadixDeployment
 	rr                 *v1.RadixRegistration
 	kubeutil           *kube.Kube

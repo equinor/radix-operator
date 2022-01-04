@@ -39,7 +39,6 @@ type DeploymentSyncer interface {
 
 // Deployment Instance variables
 type Deployment struct {
-	_                       interface{}
 	kubeclient              kubernetes.Interface
 	radixclient             radixclient.Interface
 	kubeutil                *kube.Kube
