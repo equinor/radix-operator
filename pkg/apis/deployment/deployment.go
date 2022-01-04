@@ -68,7 +68,7 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		forceSslRedirectAnnotations{},
 		&ingressConfigurationAnnotations{config: ingressConfig},
 		&clientCertificateAnnotations{namespace: radixDeployment.Namespace},
-		&oauth2Annotations{},
+		&oauth2Annotations{oauth2Config: OAuth2ConfigFunc(oauth2ConfigFuncImpl)},
 	}
 
 	return &Deployment{
@@ -80,7 +80,8 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		radixDeployment:         radixDeployment,
 		securityContextBuilder:  NewSecurityContextBuilder(forceRunAsNonRoot),
 		auxResourceManagers:     []AuxiliaryResourceManager{NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)},
-		ingressAnnotations:      ingressAnnotations}
+		ingressAnnotations:      ingressAnnotations,
+	}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name

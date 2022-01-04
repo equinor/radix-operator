@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	transformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
+	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 )
 
 func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) ([]v1.RadixDeployComponent, error) {
@@ -145,7 +145,7 @@ func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, e
 
 	authBase := componentAuthentication.DeepCopy()
 	authEnv := environmentAuthentication.DeepCopy()
-	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(transformer)); err != nil {
+	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {
 		return nil, err
 	}
 	return authBase, nil

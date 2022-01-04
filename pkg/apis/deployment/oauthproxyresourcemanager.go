@@ -39,6 +39,7 @@ func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistrati
 		rr:                 rr,
 		kubeutil:           kubeutil,
 		ingressAnnotations: []IngressAnnotations{&forceSslRedirectAnnotations{}},
+		oauth2Config:       OAuth2ConfigFunc(oauth2ConfigFuncImpl),
 	}
 }
 
@@ -48,6 +49,7 @@ type oauthProxyResourceManager struct {
 	rr                 *v1.RadixRegistration
 	kubeutil           *kube.Kube
 	ingressAnnotations []IngressAnnotations
+	oauth2Config       OAuth2Config
 }
 
 func (o *oauthProxyResourceManager) Sync() error {
@@ -374,7 +376,7 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 }
 
 func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress) *networkingv1.Ingress {
-	oauth := oauthConfigWithDefaults(component.GetAuthentication().OAuth2)
+	oauth := o.oauth2Config.MergeWithDefaults(component.GetAuthentication().OAuth2)
 	sourceHost := componentIngress.Spec.Rules[0]
 	pathType := networkingv1.PathTypeImplementationSpecific
 	annotations := map[string]string{}
@@ -654,7 +656,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 
 func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
-	oauth := oauthConfigWithDefaults(component.GetAuthentication().OAuth2)
+	oauth := o.oauth2Config.MergeWithDefaults(component.GetAuthentication().OAuth2)
 
 	addEnvVarIfSet := func(envVar string, value interface{}) {
 		rval := reflect.ValueOf(value)

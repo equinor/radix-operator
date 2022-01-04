@@ -67,13 +67,15 @@ func (o *clientCertificateAnnotations) GetAnnotations(component v1.RadixCommonDe
 	return result
 }
 
-type oauth2Annotations struct{}
+type oauth2Annotations struct {
+	oauth2Config OAuth2Config
+}
 
-func (oauth2Annotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
+func (a *oauth2Annotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
-		oauth := oauthConfigWithDefaults(auth.OAuth2)
+		oauth := a.oauth2Config.MergeWithDefaults(auth.OAuth2)
 		rootPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
 		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", rootPath)
 		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", rootPath)

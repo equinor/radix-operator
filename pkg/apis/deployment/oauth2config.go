@@ -9,8 +9,19 @@ import (
 	"github.com/imdario/mergo"
 )
 
-func oauthConfigWithDefaults(config *v1.OAuth2) *v1.OAuth2 {
-	target := &v1.OAuth2{
+type OAuth2ConfigFunc func(*v1.OAuth2) *v1.OAuth2
+
+func (f OAuth2ConfigFunc) MergeWithDefaults(source *v1.OAuth2) *v1.OAuth2 {
+	return f(source)
+}
+
+// OAuth2Config defines a method for providing default values for undefined properties in an OAuth2 config
+type OAuth2Config interface {
+	MergeWithDefaults(source *v1.OAuth2) *v1.OAuth2
+}
+
+func oauth2ConfigDefaults() *v1.OAuth2 {
+	return &v1.OAuth2{
 		Scope:                  "openid profile email",
 		SetXAuthRequestHeaders: utils.BoolPtr(false),
 		SetAuthorizationHeader: utils.BoolPtr(false),
@@ -26,7 +37,10 @@ func oauthConfigWithDefaults(config *v1.OAuth2) *v1.OAuth2 {
 			Refresh: "60m0s",
 		},
 	}
+}
 
-	mergo.Merge(target, config, mergo.WithOverride, mergo.WithTransformers(transformer))
+func oauth2ConfigFuncImpl(source *v1.OAuth2) *v1.OAuth2 {
+	target := oauth2ConfigDefaults()
+	mergo.Merge(target, source, mergo.WithOverride, mergo.WithTransformers(authTransformer))
 	return target
 }

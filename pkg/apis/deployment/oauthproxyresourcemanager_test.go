@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -72,6 +73,19 @@ func (suite *OAuthProxyResourceManagerTestSuite) SetupTest() {
 	suite.kubeUtil, _ = kube.New(suite.kubeClient, suite.radixClient)
 }
 
+func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() {
+	rd := utils.NewDeploymentBuilder().BuildRD()
+	rr := utils.NewRegistrationBuilder().BuildRR()
+	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil)
+	sut, ok := oauthManager.(*oauthProxyResourceManager)
+	s.True(ok)
+	s.Equal(rd, sut.rd)
+	s.Equal(rr, sut.rr)
+	s.Equal(s.kubeUtil, sut.kubeutil)
+	s.NotNil(sut.oauth2Config)
+	s.Len(sut.ingressAnnotations, 1)
+}
+
 func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesCreated() {
 	rr := utils.NewRegistrationBuilder().WithName("anyapp").BuildRR()
 	rd := utils.NewDeploymentBuilder().
@@ -83,9 +97,9 @@ func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesCreated() {
 			OAuth2: &v1.OAuth2{
 				ClientID: "1234",
 			}})).
-		WithComponent(utils.NewDeployComponentBuilder().WithName("overrides").WithPublicPort("http").WithAuthentication(&v1.Authentication{
+		WithComponent(utils.NewDeployComponentBuilder().WithName("override").WithPublicPort("http").WithAuthentication(&v1.Authentication{
 			OAuth2: &v1.OAuth2{
-				ClientID: "1234",
+				ClientID: "9876",
 			}})).
 		BuildRD()
 	sut := NewOAuthProxyResourceManager(rd, rr, suite.kubeUtil)
@@ -102,10 +116,33 @@ func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesCreated() {
 	suite.Len(defaultDeploy.Spec.Template.Spec.Containers, 1)
 	suite.Equal(expectedDefaultDeployLabels, defaultDeploy.Spec.Template.Labels)
 	defaultContainer := defaultDeploy.Spec.Template.Spec.Containers[0]
+	suite.Equal(os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable), defaultContainer.Image)
 	suite.Len(defaultContainer.Ports, 1)
 	suite.Equal(oauthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
 	suite.Equal(oauthProxyPortName, defaultContainer.Ports[0].Name)
 	suite.Len(defaultContainer.Env, 21)
+	suite.Equal("oidc", suite.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
+	suite.Equal("true", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_HTTPONLY", defaultContainer.Env))
+	suite.Equal("true", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SECURE", defaultContainer.Env))
+	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_PASS_BASIC_AUTH", defaultContainer.Env))
+	suite.Equal("true", suite.getEnvVarValueByName("OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", defaultContainer.Env))
+	suite.Equal("*", suite.getEnvVarValueByName("OAUTH2_PROXY_EMAIL_DOMAINS", defaultContainer.Env))
+	suite.Equal(fmt.Sprintf("http://:%v", oauthProxyPortNumber), suite.getEnvVarValueByName("OAUTH2_PROXY_HTTP_ADDRESS", defaultContainer.Env))
+	suite.Equal("1234", suite.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", defaultContainer.Env))
+	suite.Equal("openid profile email", suite.getEnvVarValueByName("OAUTH2_PROXY_SCOPE", defaultContainer.Env))
+	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_SET_XAUTHREQUEST", defaultContainer.Env))
+	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_PASS_ACCESS_TOKEN", defaultContainer.Env))
+	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", defaultContainer.Env))
+	suite.Equal("/oauth2", suite.getEnvVarValueByName("OAUTH2_PROXY_PROXY_PREFIX", defaultContainer.Env))
+	suite.Equal("cookie", suite.getEnvVarValueByName("OAUTH2_PROXY_SESSION_STORE_TYPE", defaultContainer.Env))
+	suite.Equal(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable), suite.getEnvVarValueByName("OAUTH2_PROXY_OIDC_ISSUER_URL", defaultContainer.Env))
+	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_INSECURE_OIDC_SKIP_NONCE", defaultContainer.Env))
+	suite.Equal("_oauth2_proxy", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_NAME", defaultContainer.Env))
+	suite.Equal("168h0m0s", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_EXPIRE", defaultContainer.Env))
+	suite.Equal("60m0s", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_REFRESH", defaultContainer.Env))
+	secretName := utils.GetAuxiliaryComponentSecretName("default", defaults.OAuthProxyAuxiliaryComponentSuffix)
+	suite.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, suite.getEnvVarValueFromByName("OAUTH2_PROXY_COOKIE_SECRET", defaultContainer.Env))
+	suite.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, suite.getEnvVarValueFromByName("OAUTH2_PROXY_CLIENT_SECRET", defaultContainer.Env))
 }
 
 func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesGarbageCollectedForExistingComponent() {
@@ -201,6 +238,24 @@ func (suite *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {
 	suite.Len(actualRoleBindingss.Items, 5)
 	suite.ElementsMatch([]string{"rb1", "rb2", "rb5", "rb6", "rb7"}, suite.getObjectNames(actualRoleBindingss.Items))
 
+}
+
+func (*OAuthProxyResourceManagerTestSuite) getEnvVarValueByName(name string, envvars []corev1.EnvVar) string {
+	for _, envvar := range envvars {
+		if envvar.Name == name {
+			return envvar.Value
+		}
+	}
+	return ""
+}
+
+func (*OAuthProxyResourceManagerTestSuite) getEnvVarValueFromByName(name string, envvars []corev1.EnvVar) corev1.EnvVarSource {
+	for _, envvar := range envvars {
+		if envvar.Name == name && envvar.ValueFrom != nil {
+			return *envvar.ValueFrom
+		}
+	}
+	return corev1.EnvVarSource{}
 }
 
 func (suite *OAuthProxyResourceManagerTestSuite) getObjectNames(items interface{}) []string {
