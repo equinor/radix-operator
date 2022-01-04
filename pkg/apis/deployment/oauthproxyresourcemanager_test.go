@@ -10,9 +10,11 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,22 +22,26 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
 
 type OAuthProxyResourceManagerTestSuite struct {
 	suite.Suite
-	kubeClient  kubernetes.Interface
-	radixClient radixclient.Interface
-	kubeUtil    *kube.Kube
+	kubeClient         kubernetes.Interface
+	radixClient        radixclient.Interface
+	kubeUtil           *kube.Kube
+	ctrl               *gomock.Controller
+	ingressAnnotations *MockIngressAnnotations
+	oauth2Config       *MockOAuth2Config
 }
 
 func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
 	suite.Run(t, new(OAuthProxyResourceManagerTestSuite))
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) SetupSuite() {
+func (*OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
@@ -51,7 +57,7 @@ func (suite *OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	os.Setenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable, "oidc_issuer_url")
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) TearDownSuite() {
+func (*OAuthProxyResourceManagerTestSuite) TearDownSuite() {
 	os.Unsetenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorDNSZoneEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable)
@@ -67,10 +73,17 @@ func (suite *OAuthProxyResourceManagerTestSuite) TearDownSuite() {
 	os.Unsetenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) SetupTest() {
-	suite.kubeClient = kubefake.NewSimpleClientset()
-	suite.radixClient = radixfake.NewSimpleClientset()
-	suite.kubeUtil, _ = kube.New(suite.kubeClient, suite.radixClient)
+func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
+	s.kubeClient = kubefake.NewSimpleClientset()
+	s.radixClient = radixfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
+	s.ctrl = gomock.NewController(s.T())
+	s.ingressAnnotations = NewMockIngressAnnotations(s.ctrl)
+	s.oauth2Config = NewMockOAuth2Config(s.ctrl)
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) TearDownTest() {
+	s.ctrl.Finish()
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() {
@@ -86,74 +99,143 @@ func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() 
 	s.Len(sut.ingressAnnotations, 1)
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesCreated() {
-	rr := utils.NewRegistrationBuilder().WithName("anyapp").BuildRR()
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
+	type scenarioDef struct{ rd *v1.RadixDeployment }
+	scenarios := []scenarioDef{
+		{rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName("nooauth").WithPublicPort("http")).BuildRD()},
+		{rd: utils.NewDeploymentBuilder().WithAppName(appName).WithEnvironment("qa").WithComponent(utils.NewDeployComponentBuilder().WithName("nooauth").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}})).BuildRD()},
+	}
+	appName := "anyapp"
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+
+	for _, scenario := range scenarios {
+		sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []IngressAnnotations{s.ingressAnnotations}, s.oauth2Config}
+		err := sut.Sync()
+		s.Nil(err)
+		deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(deploys.Items, 0)
+		services, _ := s.kubeClient.CoreV1().Services(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(services.Items, 0)
+		ingresses, _ := s.kubeClient.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(ingresses.Items, 0)
+		secrets, _ := s.kubeClient.CoreV1().Secrets(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(secrets.Items, 0)
+		roles, _ := s.kubeClient.RbacV1().Roles(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(roles.Items, 0)
+		rolebindings, _ := s.kubeClient.RbacV1().RoleBindings(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
+		s.Len(rolebindings.Items, 0)
+	}
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreated() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	inputOAuth := &v1.OAuth2{ClientID: "1234"}
+	returnOAuth := &v1.OAuth2{
+		ClientID:               test.RandomString(20),
+		Scope:                  test.RandomString(20),
+		SetXAuthRequestHeaders: utils.BoolPtr(true),
+		SetAuthorizationHeader: utils.BoolPtr(false),
+		ProxyPrefix:            test.RandomString(20),
+		LoginURL:               test.RandomString(20),
+		RedeemURL:              test.RandomString(20),
+		SessionStoreType:       "redis",
+		Cookie: &v1.OAuth2Cookie{
+			Name:     test.RandomString(20),
+			Expire:   test.RandomString(20),
+			Refresh:  test.RandomString(20),
+			SameSite: test.RandomString(20),
+		},
+		CookieStore: &v1.OAuth2CookieStore{
+			Minimal: utils.BoolPtr(true),
+		},
+		RedisStore: &v1.OAuth2RedisStore{
+			ConnectionURL: test.RandomString(20),
+		},
+		OIDC: &v1.OAuth2OIDC{
+			IssuerURL:               test.RandomString(20),
+			JWKSURL:                 test.RandomString(20),
+			SkipDiscovery:           utils.BoolPtr(true),
+			InsecureSkipVerifyNonce: utils.BoolPtr(false),
+		},
+	}
+	s.oauth2Config.EXPECT().MergeWithDefaults(inputOAuth).Times(1).Return(returnOAuth)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
-		WithAppName("anyapp").
-		WithEnvironment("qa").
-		WithComponent(utils.NewDeployComponentBuilder().WithName("nooauth").WithPublicPort("http")).
-		WithComponent(utils.NewDeployComponentBuilder().WithName("notpublic").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "anyclientid"}})).
-		WithComponent(utils.NewDeployComponentBuilder().WithName("default").WithPublicPort("http").WithAuthentication(&v1.Authentication{
-			OAuth2: &v1.OAuth2{
-				ClientID: "1234",
-			}})).
-		WithComponent(utils.NewDeployComponentBuilder().WithName("override").WithPublicPort("http").WithAuthentication(&v1.Authentication{
-			OAuth2: &v1.OAuth2{
-				ClientID: "9876",
-			}})).
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: inputOAuth})).
 		BuildRD()
-	sut := NewOAuthProxyResourceManager(rd, rr, suite.kubeUtil)
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotations{s.ingressAnnotations}, s.oauth2Config}
 	err := sut.Sync()
+	s.Nil(err)
 
-	suite.Nil(err)
-	actualDeploys, _ := suite.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	suite.Len(actualDeploys.Items, 2)
+	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualDeploys.Items, 1)
 
-	defaultDeploy := getDeploymentByName(utils.GetAuxiliaryComponentDeploymentName("default", defaults.OAuthProxyAuxiliaryComponentSuffix), actualDeploys)
-	suite.NotNil(defaultDeploy)
-	expectedDefaultDeployLabels := map[string]string{kube.RadixAppLabel: "anyapp", kube.RadixAuxiliaryComponentLabel: "default", kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
-	suite.Equal(expectedDefaultDeployLabels, defaultDeploy.Labels)
-	suite.Len(defaultDeploy.Spec.Template.Spec.Containers, 1)
-	suite.Equal(expectedDefaultDeployLabels, defaultDeploy.Spec.Template.Labels)
-	defaultContainer := defaultDeploy.Spec.Template.Spec.Containers[0]
-	suite.Equal(os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable), defaultContainer.Image)
-	suite.Len(defaultContainer.Ports, 1)
-	suite.Equal(oauthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
-	suite.Equal(oauthProxyPortName, defaultContainer.Ports[0].Name)
-	suite.Len(defaultContainer.Env, 21)
-	suite.Equal("oidc", suite.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
-	suite.Equal("true", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_HTTPONLY", defaultContainer.Env))
-	suite.Equal("true", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SECURE", defaultContainer.Env))
-	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_PASS_BASIC_AUTH", defaultContainer.Env))
-	suite.Equal("true", suite.getEnvVarValueByName("OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", defaultContainer.Env))
-	suite.Equal("*", suite.getEnvVarValueByName("OAUTH2_PROXY_EMAIL_DOMAINS", defaultContainer.Env))
-	suite.Equal(fmt.Sprintf("http://:%v", oauthProxyPortNumber), suite.getEnvVarValueByName("OAUTH2_PROXY_HTTP_ADDRESS", defaultContainer.Env))
-	suite.Equal("1234", suite.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", defaultContainer.Env))
-	suite.Equal("openid profile email", suite.getEnvVarValueByName("OAUTH2_PROXY_SCOPE", defaultContainer.Env))
-	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_SET_XAUTHREQUEST", defaultContainer.Env))
-	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_PASS_ACCESS_TOKEN", defaultContainer.Env))
-	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", defaultContainer.Env))
-	suite.Equal("/oauth2", suite.getEnvVarValueByName("OAUTH2_PROXY_PROXY_PREFIX", defaultContainer.Env))
-	suite.Equal("cookie", suite.getEnvVarValueByName("OAUTH2_PROXY_SESSION_STORE_TYPE", defaultContainer.Env))
-	suite.Equal(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable), suite.getEnvVarValueByName("OAUTH2_PROXY_OIDC_ISSUER_URL", defaultContainer.Env))
-	suite.Equal("false", suite.getEnvVarValueByName("OAUTH2_PROXY_INSECURE_OIDC_SKIP_NONCE", defaultContainer.Env))
-	suite.Equal("_oauth2_proxy", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_NAME", defaultContainer.Env))
-	suite.Equal("168h0m0s", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_EXPIRE", defaultContainer.Env))
-	suite.Equal("60m0s", suite.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_REFRESH", defaultContainer.Env))
-	secretName := utils.GetAuxiliaryComponentSecretName("default", defaults.OAuthProxyAuxiliaryComponentSuffix)
-	suite.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, suite.getEnvVarValueFromByName("OAUTH2_PROXY_COOKIE_SECRET", defaultContainer.Env))
-	suite.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, suite.getEnvVarValueFromByName("OAUTH2_PROXY_CLIENT_SECRET", defaultContainer.Env))
+	actualDeploy := actualDeploys.Items[0]
+	s.Equal(utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix), actualDeploy.Name)
+	s.Equal(utils.GetEnvironmentNamespace(appName, envName), actualDeploy.Namespace)
+	s.ElementsMatch(getOwnerReferenceOfDeployment(rd), actualDeploy.OwnerReferences)
+
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
+	s.Equal(expectedLabels, actualDeploy.Labels)
+	s.Len(actualDeploy.Spec.Template.Spec.Containers, 1)
+	s.Equal(expectedLabels, actualDeploy.Spec.Template.Labels)
+
+	defaultContainer := actualDeploy.Spec.Template.Spec.Containers[0]
+	s.Equal(os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable), defaultContainer.Image)
+
+	s.Len(defaultContainer.Ports, 1)
+	s.Equal(oauthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
+	s.Equal(oauthProxyPortName, defaultContainer.Ports[0].Name)
+	readyProbe, err := getReadinessProbe(oauthProxyPortNumber)
+	s.Nil(err)
+	s.Equal(readyProbe, defaultContainer.ReadinessProbe)
+
+	s.Len(defaultContainer.Env, 29)
+	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_HTTPONLY", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SECURE", defaultContainer.Env))
+	s.Equal("false", s.getEnvVarValueByName("OAUTH2_PROXY_PASS_BASIC_AUTH", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SKIP_PROVIDER_BUTTON", defaultContainer.Env))
+	s.Equal("*", s.getEnvVarValueByName("OAUTH2_PROXY_EMAIL_DOMAINS", defaultContainer.Env))
+	s.Equal(fmt.Sprintf("http://:%v", oauthProxyPortNumber), s.getEnvVarValueByName("OAUTH2_PROXY_HTTP_ADDRESS", defaultContainer.Env))
+	s.Equal(returnOAuth.ClientID, s.getEnvVarValueByName("OAUTH2_PROXY_CLIENT_ID", defaultContainer.Env))
+	s.Equal(returnOAuth.Scope, s.getEnvVarValueByName("OAUTH2_PROXY_SCOPE", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SET_XAUTHREQUEST", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_PASS_ACCESS_TOKEN", defaultContainer.Env))
+	s.Equal("false", s.getEnvVarValueByName("OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", defaultContainer.Env))
+	s.Equal("/"+returnOAuth.ProxyPrefix, s.getEnvVarValueByName("OAUTH2_PROXY_PROXY_PREFIX", defaultContainer.Env))
+	s.Equal(returnOAuth.LoginURL, s.getEnvVarValueByName("OAUTH2_PROXY_LOGIN_URL", defaultContainer.Env))
+	s.Equal(returnOAuth.RedeemURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDEEM_URL", defaultContainer.Env))
+	s.Equal("redis", s.getEnvVarValueByName("OAUTH2_PROXY_SESSION_STORE_TYPE", defaultContainer.Env))
+	s.Equal(returnOAuth.OIDC.IssuerURL, s.getEnvVarValueByName("OAUTH2_PROXY_OIDC_ISSUER_URL", defaultContainer.Env))
+	s.Equal(returnOAuth.OIDC.JWKSURL, s.getEnvVarValueByName("OAUTH2_PROXY_OIDC_JWKS_URL", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SKIP_OIDC_DISCOVERY", defaultContainer.Env))
+	s.Equal("false", s.getEnvVarValueByName("OAUTH2_PROXY_INSECURE_OIDC_SKIP_NONCE", defaultContainer.Env))
+	s.Equal(returnOAuth.Cookie.Name, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_NAME", defaultContainer.Env))
+	s.Equal(returnOAuth.Cookie.Expire, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_EXPIRE", defaultContainer.Env))
+	s.Equal(returnOAuth.Cookie.Refresh, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_REFRESH", defaultContainer.Env))
+	s.Equal(returnOAuth.Cookie.SameSite, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SAMESITE", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_MINIMAL", defaultContainer.Env))
+	s.Equal(returnOAuth.RedisStore.ConnectionURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDIS_CONNECTION_URL", defaultContainer.Env))
+	secretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_COOKIE_SECRET", defaultContainer.Env))
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthClientSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_CLIENT_SECRET", defaultContainer.Env))
+	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthRedisPasswordKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_REDIS_PASSWORD", defaultContainer.Env))
+
+	// Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie
+	returnOAuth.SessionStoreType = "cookie"
+	s.oauth2Config.EXPECT().MergeWithDefaults(inputOAuth).Times(1).Return(returnOAuth)
+	err = sut.Sync()
+	s.Nil(err)
+	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 28)
+	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_PASSWORD", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_ResourcesGarbageCollectedForExistingComponent() {
-
-}
-
-func (suite *OAuthProxyResourceManagerTestSuite) Test_Sync_SecretKeysDeleted() {
-
-}
-
-func (suite *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {
+func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {
 
 	rd := utils.NewDeploymentBuilder().
 		WithAppName("myapp").
@@ -162,82 +244,91 @@ func (suite *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName("c2")).
 		BuildRD()
 
-	suite.addDeployment("d1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addDeployment("d2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addDeployment("d3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addDeployment("d4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addDeployment("d5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	suite.addDeployment("d6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addDeployment("d7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d5", "myapp-dev", "myapp", "c5", "anyauxtype")
+	s.addDeployment("d6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addDeployment("d7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
 
-	suite.addSecret("sec1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addSecret("sec2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addSecret("sec3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addSecret("sec4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addSecret("sec5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	suite.addSecret("sec6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addSecret("sec7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec5", "myapp-dev", "myapp", "c5", "anyauxtype")
+	s.addSecret("sec6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addSecret("sec7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
 
-	suite.addService("svc1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addService("svc2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addService("svc3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addService("svc4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addService("svc5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	suite.addService("svc6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addService("svc7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc5", "myapp-dev", "myapp", "c5", "anyauxtype")
+	s.addService("svc6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addService("svc7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
 
-	suite.addIngress("ing1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addIngress("ing2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addIngress("ing3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addIngress("ing4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addIngress("ing5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	suite.addIngress("ing6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addIngress("ing7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing5", "myapp-dev", "myapp", "c5", "anyauxtype")
+	s.addIngress("ing6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addIngress("ing7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
 
-	suite.addRole("r1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRole("r2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRole("r3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRole("r4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRole("r5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	suite.addRole("r6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRole("r7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r5", "myapp-dev", "myapp", "c5", "anyauxtype")
+	s.addRole("r6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRole("r7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
 
-	suite.addRoleBinding("rb1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRoleBinding("rb2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRoleBinding("rb3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRoleBinding("rb4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRoleBinding("rb5", "myapp-dev", "myapp", "c5", "anyauxtype")
-	suite.addRoleBinding("rb6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
-	suite.addRoleBinding("rb7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb1", "myapp-dev", "myapp", "c1", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb2", "myapp-dev", "myapp", "c2", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb3", "myapp-dev", "myapp", "c3", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb4", "myapp-dev", "myapp", "c4", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb5", "myapp-dev", "myapp", "c5", "anyauxtype")
+	s.addRoleBinding("rb6", "myapp-dev", "myapp2", "c6", defaults.OAuthProxyAuxiliaryComponentType)
+	s.addRoleBinding("rb7", "myapp-qa", "myapp", "c7", defaults.OAuthProxyAuxiliaryComponentType)
 
-	sut := oauthProxyResourceManager{rd: rd, kubeutil: suite.kubeUtil}
+	sut := oauthProxyResourceManager{rd: rd, kubeutil: s.kubeUtil}
 	err := sut.GarbageCollect()
-	suite.Nil(err)
+	s.Nil(err)
 
-	actualDeployments, _ := suite.kubeClient.AppsV1().Deployments(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	suite.Len(actualDeployments.Items, 5)
-	suite.ElementsMatch([]string{"d1", "d2", "d5", "d6", "d7"}, suite.getObjectNames(actualDeployments.Items))
+	actualDeployments, _ := s.kubeClient.AppsV1().Deployments(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualDeployments.Items, 5)
+	s.ElementsMatch([]string{"d1", "d2", "d5", "d6", "d7"}, s.getObjectNames(actualDeployments.Items))
 
-	actualSecrets, _ := suite.kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	suite.Len(actualSecrets.Items, 5)
-	suite.ElementsMatch([]string{"sec1", "sec2", "sec5", "sec6", "sec7"}, suite.getObjectNames(actualSecrets.Items))
+	actualSecrets, _ := s.kubeClient.CoreV1().Secrets(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualSecrets.Items, 5)
+	s.ElementsMatch([]string{"sec1", "sec2", "sec5", "sec6", "sec7"}, s.getObjectNames(actualSecrets.Items))
 
-	actualServices, _ := suite.kubeClient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	suite.Len(actualServices.Items, 5)
-	suite.ElementsMatch([]string{"svc1", "svc2", "svc5", "svc6", "svc7"}, suite.getObjectNames(actualServices.Items))
+	actualServices, _ := s.kubeClient.CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualServices.Items, 5)
+	s.ElementsMatch([]string{"svc1", "svc2", "svc5", "svc6", "svc7"}, s.getObjectNames(actualServices.Items))
 
-	actualIngresses, _ := suite.kubeClient.NetworkingV1().Ingresses(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	suite.Len(actualIngresses.Items, 5)
-	suite.ElementsMatch([]string{"ing1", "ing2", "ing5", "ing6", "ing7"}, suite.getObjectNames(actualIngresses.Items))
+	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualIngresses.Items, 5)
+	s.ElementsMatch([]string{"ing1", "ing2", "ing5", "ing6", "ing7"}, s.getObjectNames(actualIngresses.Items))
 
-	actualRoles, _ := suite.kubeClient.RbacV1().Roles(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	suite.Len(actualRoles.Items, 5)
-	suite.ElementsMatch([]string{"r1", "r2", "r5", "r6", "r7"}, suite.getObjectNames(actualRoles.Items))
+	actualRoles, _ := s.kubeClient.RbacV1().Roles(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoles.Items, 5)
+	s.ElementsMatch([]string{"r1", "r2", "r5", "r6", "r7"}, s.getObjectNames(actualRoles.Items))
 
-	actualRoleBindingss, _ := suite.kubeClient.RbacV1().RoleBindings(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-	suite.Len(actualRoleBindingss.Items, 5)
-	suite.ElementsMatch([]string{"rb1", "rb2", "rb5", "rb6", "rb7"}, suite.getObjectNames(actualRoleBindingss.Items))
+	actualRoleBindingss, _ := s.kubeClient.RbacV1().RoleBindings(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoleBindingss.Items, 5)
+	s.ElementsMatch([]string{"rb1", "rb2", "rb5", "rb6", "rb7"}, s.getObjectNames(actualRoleBindingss.Items))
 
+}
+
+func (*OAuthProxyResourceManagerTestSuite) getEnvVarExist(name string, envvars []corev1.EnvVar) bool {
+	for _, envvar := range envvars {
+		if envvar.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (*OAuthProxyResourceManagerTestSuite) getEnvVarValueByName(name string, envvars []corev1.EnvVar) string {
@@ -258,7 +349,7 @@ func (*OAuthProxyResourceManagerTestSuite) getEnvVarValueFromByName(name string,
 	return corev1.EnvVarSource{}
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) getObjectNames(items interface{}) []string {
+func (s *OAuthProxyResourceManagerTestSuite) getObjectNames(items interface{}) []string {
 	tItems := reflect.TypeOf(items)
 	if tItems.Kind() != reflect.Slice {
 		return nil
@@ -277,91 +368,96 @@ func (suite *OAuthProxyResourceManagerTestSuite) getObjectNames(items interface{
 	return names
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) addDeployment(name, namespace, appName, auxComponentName, auxComponentType string) {
+func (*OAuthProxyResourceManagerTestSuite) getAppNameSelector(appName string) string {
+	r, _ := labels.NewRequirement(kube.RadixAppLabel, selection.Equals, []string{appName})
+	return r.String()
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) addDeployment(name, namespace, appName, auxComponentName, auxComponentType string) {
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    suite.buildResourceLabels(appName, auxComponentName, auxComponentType),
+			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := suite.kubeClient.AppsV1().Deployments(namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
+	_, err := s.kubeClient.AppsV1().Deployments(namespace).Create(context.Background(), deploy, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) addSecret(name, namespace, appName, auxComponentName, auxComponentType string) {
+func (s *OAuthProxyResourceManagerTestSuite) addSecret(name, namespace, appName, auxComponentName, auxComponentType string) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    suite.buildResourceLabels(appName, auxComponentName, auxComponentType),
+			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := suite.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
+	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) addService(name, namespace, appName, auxComponentName, auxComponentType string) {
+func (s *OAuthProxyResourceManagerTestSuite) addService(name, namespace, appName, auxComponentName, auxComponentType string) {
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    suite.buildResourceLabels(appName, auxComponentName, auxComponentType),
+			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := suite.kubeClient.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
+	_, err := s.kubeClient.CoreV1().Services(namespace).Create(context.Background(), service, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) addIngress(name, namespace, appName, auxComponentName, auxComponentType string) {
+func (s *OAuthProxyResourceManagerTestSuite) addIngress(name, namespace, appName, auxComponentName, auxComponentType string) {
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    suite.buildResourceLabels(appName, auxComponentName, auxComponentType),
+			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := suite.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
+	_, err := s.kubeClient.NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) addRole(name, namespace, appName, auxComponentName, auxComponentType string) {
+func (s *OAuthProxyResourceManagerTestSuite) addRole(name, namespace, appName, auxComponentName, auxComponentType string) {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    suite.buildResourceLabels(appName, auxComponentName, auxComponentType),
+			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := suite.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) addRoleBinding(name, namespace, appName, auxComponentName, auxComponentType string) {
+func (s *OAuthProxyResourceManagerTestSuite) addRoleBinding(name, namespace, appName, auxComponentName, auxComponentType string) {
 	rolebinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
-			Labels:    suite.buildResourceLabels(appName, auxComponentName, auxComponentType),
+			Labels:    s.buildResourceLabels(appName, auxComponentName, auxComponentType),
 		},
 	}
-	_, err := suite.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	_, err := s.kubeClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rolebinding, metav1.CreateOptions{})
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (suite *OAuthProxyResourceManagerTestSuite) buildResourceLabels(appName, auxComponentName, auxComponentType string) labels.Set {
+func (s *OAuthProxyResourceManagerTestSuite) buildResourceLabels(appName, auxComponentName, auxComponentType string) labels.Set {
 	return map[string]string{
 		kube.RadixAppLabel:                    appName,
 		kube.RadixAuxiliaryComponentLabel:     auxComponentName,
