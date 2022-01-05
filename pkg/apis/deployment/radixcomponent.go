@@ -74,12 +74,26 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 
 		// Append common secret-refs from appComponent.SecretRefs to secretRefs if not available yet
 		for _, commonAzureKeyVault := range appComponent.SecretRefs.AzureKeyVaults {
-			if _, found := azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]; !found {
+			radixAzureKeyVault, found := azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
+			if !found {
 				azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = commonAzureKeyVault
 				continue
 			}
-			//TODO resolve refs
-			//azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
+			if len(commonAzureKeyVault.Items) == 0 {
+				continue
+			}
+			itemEnvVarsMap := make(map[string]v1.RadixAzureKeyVaultItem)
+			azureKeyVaultItems := radixAzureKeyVault.Items
+			for _, item := range azureKeyVaultItems {
+				itemEnvVarsMap[item.EnvVar] = item
+			}
+			for _, keyVaultItem := range commonAzureKeyVault.Items {
+				if _, ok := itemEnvVarsMap[keyVaultItem.EnvVar]; !ok {
+					azureKeyVaultItems = append(azureKeyVaultItems, keyVaultItem)
+				}
+			}
+			radixAzureKeyVault.Items = azureKeyVaultItems
+
 		}
 		for _, azureKeyVault := range azureKeyVaultSecretRefsMap {
 			secretRefs.AzureKeyVaults = append(secretRefs.AzureKeyVaults, azureKeyVault)
