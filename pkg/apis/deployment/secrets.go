@@ -167,14 +167,12 @@ func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentN
 
 func (deploy *Deployment) createSecretRefs(namespace, appName string, component radixv1.RadixCommonDeployComponent) ([]string, error) {
 	var secretsToManage []string
-	for _, secretRef := range component.GetSecretRefs() {
-		azureKeyVaultSecretNames, err := deploy.createAzureKeyVaultSecretRefs(namespace, appName, component.GetName(), secretRef)
-		if err != nil {
-			return secretsToManage, err
-		}
-		secretsToManage = append(secretsToManage, azureKeyVaultSecretNames...)
+	secretRef := component.GetSecretRefs()
+	azureKeyVaultSecretNames, err := deploy.createAzureKeyVaultSecretRefs(namespace, appName, component.GetName(), secretRef)
+	if err != nil {
+		return secretsToManage, err
 	}
-	return secretsToManage, nil
+	return append(secretsToManage, azureKeyVaultSecretNames...), nil
 }
 
 func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, componentName string, radixSecretRef radixv1.RadixSecretRefs) ([]string, error) {

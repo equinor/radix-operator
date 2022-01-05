@@ -103,29 +103,24 @@ func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDe
 }
 
 func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName, radixDeploymentName string) ([]v1.VolumeMount, error) {
-	radixSecretRefs := deployComponent.GetSecretRefs()
-	if len(radixSecretRefs) <= 0 {
-		return nil, nil
-	}
+	secretRefs := deployComponent.GetSecretRefs()
 	var volumeMounts []v1.VolumeMount
-	for _, secretRef := range radixSecretRefs {
-		switch {
-		case secretRef.AzureKeyVaults != nil && len(secretRef.AzureKeyVaults) > 0:
-			for _, azureKeyVault := range secretRef.AzureKeyVaults {
-				k8sSecretTypeMap := make(map[kube.SecretType]bool)
-				for _, keyVaultItem := range azureKeyVault.Items {
-					kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
-					if _, ok := k8sSecretTypeMap[kubeSecretType]; !ok {
-						k8sSecretTypeMap[kubeSecretType] = true
-					}
+	switch {
+	case secretRefs.AzureKeyVaults != nil && len(secretRefs.AzureKeyVaults) > 0:
+		for _, azureKeyVault := range secretRefs.AzureKeyVaults {
+			k8sSecretTypeMap := make(map[kube.SecretType]bool)
+			for _, keyVaultItem := range azureKeyVault.Items {
+				kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
+				if _, ok := k8sSecretTypeMap[kubeSecretType]; !ok {
+					k8sSecretTypeMap[kubeSecretType] = true
 				}
-				for kubeSecretType := range k8sSecretTypeMap {
-					secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
-					volumeMounts = append(volumeMounts, corev1.VolumeMount{
-						Name:      secretName,
-						MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
-					})
-				}
+			}
+			for kubeSecretType := range k8sSecretTypeMap {
+				secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
+				volumeMounts = append(volumeMounts, corev1.VolumeMount{
+					Name:      secretName,
+					MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
+				})
 			}
 		}
 	}
@@ -193,20 +188,19 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 
 func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
 	var volumes []v1.Volume
-	for _, secretRef := range deployComponent.GetSecretRefs() {
-		azureKeyVaultVolumes, err := getStorageRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent.GetName(), radixDeploymentName, secretRef)
-		if err != nil {
-			return nil, err
-		}
-		volumes = append(volumes, azureKeyVaultVolumes...)
+	azureKeyVaultVolumes, err := getStorageRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
+	if err != nil {
+		return nil, err
 	}
+	volumes = append(volumes, azureKeyVaultVolumes...)
 	return volumes, nil
 }
 
-func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace, componentName string, radixDeploymentName string, secretRef radixv1.RadixSecretRefs) ([]v1.Volume, error) {
+func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
+	secretRef := deployComponent.GetSecretRefs()
 	var volumes []v1.Volume
 	for _, azureKeyVault := range secretRef.AzureKeyVaults {
-		secretProviderClassName := kube.GetComponentSecretProviderClassName(componentName, radixDeploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
+		secretProviderClassName := kube.GetComponentSecretProviderClassName(deployComponent.GetName(), radixDeploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
 		secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, secretProviderClassName)
 		if err != nil {
 			return nil, err
@@ -223,7 +217,7 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace, componen
 				if !azKeyVaultNameExists {
 					return nil, fmt.Errorf("missing Azure Key vault name in the secret provider class %s", secretProviderClass.Name)
 				}
-				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azKeyVaultName)
+				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(deployComponent.GetName(), azKeyVaultName)
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
 					Driver:               csiSecretStoreDriver,
 					ReadOnly:             commonUtils.BoolPtr(true),

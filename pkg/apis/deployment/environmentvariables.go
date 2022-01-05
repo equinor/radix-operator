@@ -115,10 +115,7 @@ func getEnvironmentVariables(kubeutil *kube.Kube, appName string, envVarsSource 
 }
 
 func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, componentName, radixDeploymentName string, secretRefs v1.RadixSecretRefs) []corev1.EnvVar {
-	for _, secretRef := range secretRefs {
-		envVars = append(envVars, getAzureKeyVaultSecretRefsAsEnvVars(componentName, radixDeploymentName, &secretRef)...)
-	}
-	return envVars
+	return append(envVars, getAzureKeyVaultSecretRefsAsEnvVars(componentName, radixDeploymentName, &secretRefs)...)
 }
 
 func getAzureKeyVaultSecretRefsAsEnvVars(componentName string, radixDeploymentName string, secretRefs *v1.RadixSecretRefs) []corev1.EnvVar {

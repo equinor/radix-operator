@@ -29,7 +29,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		var imageTagName string
 		var alwaysPullImageOnDeploy bool
 		var environmentAuthentication *v1.Authentication
-		var azureKeyVaultSecretRefs []v1.RadixAzureKeyVault
+		secretRefs := v1.RadixSecretRefs{}
 		azureKeyVaultSecretRefsMap := make(map[string]v1.RadixAzureKeyVault)
 
 		// Containers run as root unless overridden in config
@@ -49,8 +49,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
 			environmentAuthentication = environmentSpecificConfig.Authentication
-			azureKeyVaultSecretRefs = environmentSpecificConfig.SecretRefs.AzureKeyVaults
-			for _, azureKeyVaultSecretRef := range azureKeyVaultSecretRefs {
+			for _, azureKeyVaultSecretRef := range environmentSpecificConfig.SecretRefs.AzureKeyVaults {
 				azureKeyVaultSecretRefsMap[azureKeyVaultSecretRef.Name] = azureKeyVaultSecretRef
 			}
 		} else {
@@ -79,7 +78,11 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 				azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = commonAzureKeyVault
 				continue
 			}
-			azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
+			//TODO resolve refs
+			//azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
+		}
+		for _, azureKeyVault := range azureKeyVaultSecretRefsMap {
+			secretRefs.AzureKeyVaults = append(secretRefs.AzureKeyVaults, azureKeyVault)
 		}
 
 		// For deploy-only images, we will replace the dynamic tag with the tag from the environment

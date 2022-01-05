@@ -255,12 +255,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 }
 
 func hasRadixSecretRefs(deployComponent v1.RadixCommonDeployComponent) bool {
-	for _, secretRef := range deployComponent.GetSecretRefs() {
-		if len(secretRef.AzureKeyVaults) > 0 {
-			return true
-		}
-	}
-	return false
+	return len(deployComponent.GetSecretRefs().AzureKeyVaults) > 0
 }
 
 func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {
