@@ -222,8 +222,15 @@ func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(compone
 // SecretNameConflictsWithEnvironmentVariable If secret name is the same as environment variable fail validation
 func SecretNameConflictsWithEnvironmentVariable(componentName, secretName string) error {
 	return fmt.Errorf(
-		"Component %s has a secret with name %s which exists as an environment variable",
+		"component %s has a secret with name %s which exists as an environment variable",
 		componentName, secretName)
+}
+
+// SecretRefEnvVarNameConflictsWithEnvironmentVariable If secret reference environment variable name is the same as environment variable fail validation
+func SecretRefEnvVarNameConflictsWithEnvironmentVariable(componentName, secretRefEnvVarName string) error {
+	return fmt.Errorf(
+		"component %s has a secret reference with environment variable name %s which exists as a regular environment variable or a secret",
+		componentName, secretRefEnvVarName)
 }
 
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
@@ -690,12 +697,22 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 			return err
 		}
 
-		envVars := []radixv1.EnvVarsMap{component.Variables}
+		envsEnvVarsMap := make(map[string]map[string]bool)
 		for _, env := range component.EnvironmentConfig {
-			envVars = append(envVars, env.Variables)
+			envsEnvVarsMap[env.Environment] = getEnvVarNameMap(component.Variables, env.Variables)
 		}
 
-		if err := validateConflictingEnvironmentAndSecretNames(component.Name, component.Secrets, envVars); err != nil {
+		if err := validateConflictingEnvironmentAndSecretNames(component.Name, component.Secrets, envsEnvVarsMap); err != nil {
+			return err
+		}
+		for _, env := range component.EnvironmentConfig {
+			envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.Environment]
+			for _, secret := range component.Secrets {
+				envsEnvVarsWithSecretsMap[secret] = true
+			}
+			envsEnvVarsMap[env.Environment] = envsEnvVarsWithSecretsMap
+		}
+		if err := validateConflictingEnvironmentAndSecretRefsNames(&component, envsEnvVarsMap); err != nil {
 			return err
 		}
 	}
@@ -705,17 +722,37 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 			return err
 		}
 
-		envVars := []radixv1.EnvVarsMap{job.Variables}
+		envsEnvVarsMap := make(map[string]map[string]bool)
 		for _, env := range job.EnvironmentConfig {
-			envVars = append(envVars, env.Variables)
+			envsEnvVarsMap[env.Environment] = getEnvVarNameMap(job.Variables, env.Variables)
 		}
 
-		if err := validateConflictingEnvironmentAndSecretNames(job.Name, job.Secrets, envVars); err != nil {
+		if err := validateConflictingEnvironmentAndSecretNames(job.Name, job.Secrets, envsEnvVarsMap); err != nil {
+			return err
+		}
+		for _, env := range job.EnvironmentConfig {
+			envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.Environment]
+			for _, secret := range job.Secrets {
+				envsEnvVarsWithSecretsMap[secret] = true
+			}
+			envsEnvVarsMap[env.Environment] = envsEnvVarsWithSecretsMap
+		}
+		if err := validateConflictingEnvironmentAndSecretRefsNames(&job, envsEnvVarsMap); err != nil {
 			return err
 		}
 	}
-
 	return nil
+}
+
+func getEnvVarNameMap(variables v1.EnvVarsMap, envVars v1.EnvVarsMap) map[string]bool {
+	envVarsMap := make(map[string]bool)
+	for name, _ := range variables {
+		envVarsMap[name] = true
+	}
+	for name, _ := range envVars {
+		envVarsMap[name] = true
+	}
+	return envVarsMap
 }
 
 func validateSecretNames(resourceName string, secrets []string) error {
@@ -764,20 +801,38 @@ func validateVariableNames(resourceName string, variables radixv1.EnvVarsMap) er
 	return nil
 }
 
-func validateConflictingEnvironmentAndSecretNames(componentName string, secrets []string, variables []radixv1.EnvVarsMap) error {
-	secretNames := make(map[string]struct{})
+func validateConflictingEnvironmentAndSecretNames(componentName string, secrets []string, envsEnvVarMap map[string]map[string]bool) error {
 	for _, secret := range secrets {
-		secretNames[secret] = struct{}{}
-	}
-
-	for _, envVars := range variables {
-		for envVarKey := range envVars {
-			if _, contains := secretNames[envVarKey]; contains {
-				return SecretNameConflictsWithEnvironmentVariable(componentName, envVarKey)
+		for _, envVarMap := range envsEnvVarMap {
+			if _, contains := envVarMap[secret]; contains {
+				return SecretNameConflictsWithEnvironmentVariable(componentName, secret)
 			}
 		}
 	}
+	return nil
+}
 
+func validateConflictingEnvironmentAndSecretRefsNames(component v1.RadixCommonComponent, envsEnvVarMap map[string]map[string]bool) error {
+	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+		for _, item := range azureKeyVault.Items {
+			for _, envVarMap := range envsEnvVarMap {
+				if _, contains := envVarMap[item.EnvVar]; contains {
+					return SecretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+				}
+			}
+		}
+	}
+	for _, environmentConfig := range component.GetEnvironmentConfig() {
+		for _, azureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
+			for _, item := range azureKeyVault.Items {
+				if envVarMap, ok := envsEnvVarMap[environmentConfig.GetEnvironment()]; ok {
+					if _, contains := envVarMap[item.EnvVar]; contains {
+						return SecretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 

@@ -1164,6 +1164,7 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 		copy(*out, *in)
 	}
 	out.Node = in.Node
+	in.SecretRefs.DeepCopyInto(&out.SecretRefs)
 	return
 }
 

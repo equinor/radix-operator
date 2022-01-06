@@ -164,6 +164,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	ImageTagName string               `json:"imageTagName" yaml:"imageTagName"`
 	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node         RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
+	SecretRefs   RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
@@ -346,6 +347,8 @@ const (
 type RadixCommonComponent interface {
 	GetName() string
 	GetNode() *RadixNode
+	GetSecretRefs() RadixSecretRefs
+	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 }
 
 func (component *RadixComponent) GetName() string {
@@ -356,12 +359,36 @@ func (component *RadixComponent) GetNode() *RadixNode {
 	return &component.Node
 }
 
+func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
+	return component.SecretRefs
+}
+
+func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
+	var environmentConfigs []RadixCommonEnvironmentConfig
+	for _, environmentConfig := range component.EnvironmentConfig {
+		environmentConfigs = append(environmentConfigs, environmentConfig)
+	}
+	return environmentConfigs
+}
+
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
 }
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
 	return &component.Node
+}
+
+func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
+	return component.SecretRefs
+}
+
+func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
+	var environmentConfigs []RadixCommonEnvironmentConfig
+	for _, environmentConfig := range component.EnvironmentConfig {
+		environmentConfigs = append(environmentConfigs, environmentConfig)
+	}
+	return environmentConfigs
 }
 
 func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
