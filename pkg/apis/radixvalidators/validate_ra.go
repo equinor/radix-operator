@@ -705,12 +705,16 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 		if err := validateConflictingEnvironmentAndSecretNames(component.Name, component.Secrets, envsEnvVarsMap); err != nil {
 			return err
 		}
+
 		for _, env := range component.EnvironmentConfig {
 			envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.Environment]
 			for _, secret := range component.Secrets {
 				envsEnvVarsWithSecretsMap[secret] = true
 			}
 			envsEnvVarsMap[env.Environment] = envsEnvVarsWithSecretsMap
+		}
+		if err := validateRadixComponentSecretRefs(&component); err != nil {
+			return err
 		}
 		if err := validateConflictingEnvironmentAndSecretRefsNames(&component, envsEnvVarsMap); err != nil {
 			return err
@@ -737,6 +741,9 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 			}
 			envsEnvVarsMap[env.Environment] = envsEnvVarsWithSecretsMap
 		}
+		if err := validateRadixComponentSecretRefs(&job); err != nil {
+			return err
+		}
 		if err := validateConflictingEnvironmentAndSecretRefsNames(&job, envsEnvVarsMap); err != nil {
 			return err
 		}
@@ -759,6 +766,34 @@ func validateSecretNames(resourceName string, secrets []string) error {
 	for _, secret := range secrets {
 		if err := validateVariableName(resourceName, secret); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func validateRadixComponentSecretRefs(radixComponent v1.RadixCommonComponent) error {
+	err := validateSecretRefs(radixComponent.GetSecretRefs())
+	if err != nil {
+		return err
+	}
+	for _, envConfig := range radixComponent.GetEnvironmentConfig() {
+		err := validateSecretRefs(envConfig.GetSecretRefs())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateSecretRefs(secretRefs v1.RadixSecretRefs) error {
+	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
+		for _, keyVaultItem := range azureKeyVault.Items {
+			if err := validateVariableName("Azure Key vault secret references environment variable name", keyVaultItem.EnvVar); err != nil {
+				return err
+			}
+			if err := validateVariableName("Azure Key vault secret references name", keyVaultItem.Name); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
