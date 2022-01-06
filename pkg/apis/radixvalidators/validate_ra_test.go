@@ -830,6 +830,104 @@ func Test_PublicPort(t *testing.T) {
 			isValid:    false,
 			isErrorNil: false,
 		},
+		{
+			name: "privileged port used in radixConfig",
+			updateRA: func(ra *v1.RadixApplication) {
+				newPorts := []v1.ComponentPort{
+					{
+						Name: "http",
+						Port: 1000,
+					},
+				}
+				ra.Spec.Components[0].Ports = newPorts
+				ra.Spec.Components[0].PublicPort = "http"
+				ra.Spec.Components[0].Public = true
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			isErrorNil := false
+			if err == nil {
+				isErrorNil = true
+			}
+
+			assert.Equal(t, testcase.isValid, isValid)
+			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+		})
+	}
+}
+
+func Test_Variables(t *testing.T) {
+	var testScenarios = []struct {
+		name       string
+		updateRA   updateRAFunc
+		isValid    bool
+		isErrorNil bool
+	}{
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIX"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIXX_SOMETHING"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["SOMETHING_RADIX_SOMETHING"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with legal prefix succeeds",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["S_RADIXOPERATOR"] = "any value"
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "check that user defined variable with illegal prefix fails",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIX_SOMETHING"] = "any value"
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			name: "check that user defined variable with illegal prefix fails",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIXOPERATOR_SOMETHING"] = "any value"
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+		{
+			name: "check that user defined variable with illegal prefix fails",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Components[1].Variables["RADIXOPERATOR_"] = "any value"
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
 	}
 
 	_, client := validRASetup()
