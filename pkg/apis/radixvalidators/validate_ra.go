@@ -3,17 +3,17 @@ package radixvalidators
 import (
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"regexp"
 	"strings"
 	"unicode"
 
+	commonUtils "github.com/equinor/radix-common/utils"
+	errorUtils "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -24,8 +24,6 @@ const (
 	maximumPortNumber = 65535
 	cpuRegex          = "^[0-9]+m$"
 )
-
-var illegalVariableNamePrefixes = [...]string{"RADIX_", "RADIXOPERATOR_"}
 
 // MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
 func MissingPrivateImageHubUsernameError(server string) error {
@@ -565,7 +563,7 @@ func validateVerificationType(verificationType *v1.VerificationType) error {
 	}
 
 	actualValue := string(*verificationType)
-	if !slice.ContainsString(validValues, actualValue) {
+	if !commonUtils.ContainsString(validValues, actualValue) {
 		return InvalidVerificationType(actualValue)
 	} else {
 		return nil
@@ -707,78 +705,61 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 			return err
 		}
 	}
-
 	for _, component := range app.Spec.Components {
-		if err := validateSecretNames("secret name", component.Secrets); err != nil {
-			return err
-		}
-
-		envsEnvVarsMap := make(map[string]map[string]bool)
-		for _, env := range component.EnvironmentConfig {
-			envsEnvVarsMap[env.Environment] = getEnvVarNameMap(component.Variables, env.Variables)
-		}
-
-		if err := validateConflictingEnvironmentAndSecretNames(component.Name, component.Secrets, envsEnvVarsMap); err != nil {
-			return err
-		}
-
-		for _, env := range component.EnvironmentConfig {
-			envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.Environment]
-			for _, secret := range component.Secrets {
-				envsEnvVarsWithSecretsMap[secret] = true
-			}
-			envsEnvVarsMap[env.Environment] = envsEnvVarsWithSecretsMap
-		}
-		if err := validateRadixComponentSecretRefs(&component); err != nil {
-			return err
-		}
-		if err := validateConflictingEnvironmentAndSecretRefsNames(&component, envsEnvVarsMap); err != nil {
+		if err := validateRadixComponentSecrets(&component); err != nil {
 			return err
 		}
 	}
-
 	for _, job := range app.Spec.Jobs {
-		if err := validateSecretNames("secret name", job.Secrets); err != nil {
-			return err
-		}
-
-		envsEnvVarsMap := make(map[string]map[string]bool)
-		for _, env := range job.EnvironmentConfig {
-			envsEnvVarsMap[env.Environment] = getEnvVarNameMap(job.Variables, env.Variables)
-		}
-
-		if err := validateConflictingEnvironmentAndSecretNames(job.Name, job.Secrets, envsEnvVarsMap); err != nil {
-			return err
-		}
-		for _, env := range job.EnvironmentConfig {
-			envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.Environment]
-			for _, secret := range job.Secrets {
-				envsEnvVarsWithSecretsMap[secret] = true
-			}
-			envsEnvVarsMap[env.Environment] = envsEnvVarsWithSecretsMap
-		}
-		if err := validateRadixComponentSecretRefs(&job); err != nil {
-			return err
-		}
-		if err := validateConflictingEnvironmentAndSecretRefsNames(&job, envsEnvVarsMap); err != nil {
+		if err := validateRadixComponentSecrets(&job); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func validateRadixComponentSecrets(component v1.RadixCommonComponent) error {
+	if err := validateSecretNames("secret name", component.GetSecrets()); err != nil {
+		return err
+	}
+
+	envsEnvVarsMap := make(map[string]map[string]bool)
+	for _, env := range component.GetEnvironmentConfig() {
+		envsEnvVarsMap[env.GetEnvironment()] = getEnvVarNameMap(component.GetVariables(), env.GetVariables())
+	}
+
+	if err := validateConflictingEnvironmentAndSecretNames(component.GetName(), component.GetSecrets(), envsEnvVarsMap); err != nil {
+		return err
+	}
+	for _, env := range component.GetEnvironmentConfig() {
+		envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.GetEnvironment()]
+		for _, secret := range component.GetSecrets() {
+			envsEnvVarsWithSecretsMap[secret] = true
+		}
+		envsEnvVarsMap[env.GetEnvironment()] = envsEnvVarsWithSecretsMap
+	}
+	if err := validateRadixComponentSecretRefs(component); err != nil {
+		return err
+	}
+	if err := validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap); err != nil {
+		return err
+	}
+	return nil
+}
+
 func getEnvVarNameMap(variables v1.EnvVarsMap, envVars v1.EnvVarsMap) map[string]bool {
 	envVarsMap := make(map[string]bool)
-	for name, _ := range variables {
+	for name := range variables {
 		envVarsMap[name] = true
 	}
-	for name, _ := range envVars {
+	for name := range envVars {
 		envVarsMap[name] = true
 	}
 	return envVarsMap
 }
 
 func validateSecretNames(resourceName string, secrets []string) error {
+
 	for _, secret := range secrets {
 		if err := validateVariableName(resourceName, secret); err != nil {
 			return err
@@ -1082,11 +1063,7 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
 		if component.Name == name {
-			if component.Public || component.PublicPort != "" {
-				return true
-			}
-
-			return false
+			return component.Public || component.PublicPort != ""
 		}
 	}
 	return false

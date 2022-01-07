@@ -347,6 +347,8 @@ const (
 type RadixCommonComponent interface {
 	GetName() string
 	GetNode() *RadixNode
+	GetVariables() EnvVarsMap
+	GetSecrets() []string
 	GetSecretRefs() RadixSecretRefs
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 }
@@ -357,6 +359,14 @@ func (component *RadixComponent) GetName() string {
 
 func (component *RadixComponent) GetNode() *RadixNode {
 	return &component.Node
+}
+
+func (component *RadixComponent) GetVariables() EnvVarsMap {
+	return component.Variables
+}
+
+func (component *RadixComponent) GetSecrets() []string {
+	return component.Secrets
 }
 
 func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
@@ -381,6 +391,14 @@ func (component *RadixJobComponent) GetNode() *RadixNode {
 
 func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
 	return component.SecretRefs
+}
+
+func (component *RadixJobComponent) GetSecrets() []string {
+	return component.Secrets
+}
+
+func (component *RadixJobComponent) GetVariables() EnvVarsMap {
+	return component.Variables
 }
 
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
