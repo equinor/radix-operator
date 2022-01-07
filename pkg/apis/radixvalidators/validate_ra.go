@@ -167,6 +167,11 @@ func duplicatePathForVolumeMountType(path, volumeMountType, component, environme
 		path, volumeMountType, component, environment)
 }
 
+func duplicatePathForAzureKeyVault(path, azureKeyVaultName, component string) error {
+	return fmt.Errorf("duplicate path %s for Azure Key vault %s, for component %s. See documentation for more info",
+		path, azureKeyVaultName, component)
+}
+
 func duplicateNameForVolumeMountType(name, volumeMountType, component, environment string) error {
 	return fmt.Errorf("duplicate names %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
 		name, volumeMountType, component, environment)
@@ -785,12 +790,12 @@ func validateSecretNames(resourceName string, secrets []string) error {
 }
 
 func validateRadixComponentSecretRefs(radixComponent v1.RadixCommonComponent) error {
-	err := validateSecretRefs(radixComponent.GetSecretRefs())
+	err := validateSecretRefs(radixComponent.GetName(), radixComponent.GetSecretRefs())
 	if err != nil {
 		return err
 	}
 	for _, envConfig := range radixComponent.GetEnvironmentConfig() {
-		err := validateSecretRefs(envConfig.GetSecretRefs())
+		err := validateSecretRefs(radixComponent.GetName(), envConfig.GetSecretRefs())
 		if err != nil {
 			return err
 		}
@@ -798,14 +803,22 @@ func validateRadixComponentSecretRefs(radixComponent v1.RadixCommonComponent) er
 	return nil
 }
 
-func validateSecretRefs(secretRefs v1.RadixSecretRefs) error {
+func validateSecretRefs(componentName string, secretRefs v1.RadixSecretRefs) error {
 	existingVariableName := make(map[string]bool)
 	existingAzureKeyVaultName := make(map[string]bool)
+	existingAzureKeyVaultPath := make(map[string]bool)
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
 		if _, exists := existingAzureKeyVaultName[azureKeyVault.Name]; exists {
 			return duplicateAzureKeyVaultName(azureKeyVault.Name)
 		}
 		existingAzureKeyVaultName[azureKeyVault.Name] = true
+		path := azureKeyVault.Path
+		if path != nil && len(*path) > 0 {
+			if _, exists := existingAzureKeyVaultPath[*path]; exists {
+				return duplicatePathForAzureKeyVault(*path, azureKeyVault.Name, componentName)
+			}
+			existingAzureKeyVaultPath[azureKeyVault.Name] = true
+		}
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
 				return duplicateEnvVarName(keyVaultItem.EnvVar)
