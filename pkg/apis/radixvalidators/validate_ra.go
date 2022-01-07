@@ -234,6 +234,18 @@ func SecretNameConflictsWithEnvironmentVariable(componentName, secretName string
 		componentName, secretName)
 }
 
+func duplicateSecretName(name string) error {
+	return fmt.Errorf("secret has a duplicate name %s", name)
+}
+
+func duplicateEnvVarName(name string) error {
+	return fmt.Errorf("environment variable has a duplicate name %s", name)
+}
+
+func duplicateAzureKeyVaultName(name string) error {
+	return fmt.Errorf("Azure Key vault has a duplicate name %s", name)
+}
+
 // SecretRefEnvVarNameConflictsWithEnvironmentVariable If secret reference environment variable name is the same as environment variable fail validation
 func SecretRefEnvVarNameConflictsWithEnvironmentVariable(componentName, secretRefEnvVarName string) error {
 	return fmt.Errorf(
@@ -264,12 +276,12 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	err = validateSecrets(app)
+	err = validateVariables(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	err = validateVariables(app)
+	err = validateSecrets(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -747,20 +759,24 @@ func validateRadixComponentSecrets(component v1.RadixCommonComponent) error {
 	return nil
 }
 
-func getEnvVarNameMap(variables v1.EnvVarsMap, envVars v1.EnvVarsMap) map[string]bool {
+func getEnvVarNameMap(componentEnvVarsMap v1.EnvVarsMap, envsEnvVarsMap v1.EnvVarsMap) map[string]bool {
 	envVarsMap := make(map[string]bool)
-	for name := range variables {
+	for name := range componentEnvVarsMap {
 		envVarsMap[name] = true
 	}
-	for name := range envVars {
+	for name := range envsEnvVarsMap {
 		envVarsMap[name] = true
 	}
 	return envVarsMap
 }
 
 func validateSecretNames(resourceName string, secrets []string) error {
-
+	existingSecret := make(map[string]bool)
 	for _, secret := range secrets {
+		if _, exists := existingSecret[secret]; exists {
+			return duplicateSecretName(secret)
+		}
+		existingSecret[secret] = true
 		if err := validateVariableName(resourceName, secret); err != nil {
 			return err
 		}
@@ -783,8 +799,18 @@ func validateRadixComponentSecretRefs(radixComponent v1.RadixCommonComponent) er
 }
 
 func validateSecretRefs(secretRefs v1.RadixSecretRefs) error {
+	existingVariableName := make(map[string]bool)
+	existingAzureKeyVaultName := make(map[string]bool)
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
+		if _, exists := existingAzureKeyVaultName[azureKeyVault.Name]; exists {
+			return duplicateAzureKeyVaultName(azureKeyVault.Name)
+		}
+		existingAzureKeyVaultName[azureKeyVault.Name] = true
 		for _, keyVaultItem := range azureKeyVault.Items {
+			if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
+				return duplicateEnvVarName(keyVaultItem.EnvVar)
+			}
+			existingVariableName[keyVaultItem.EnvVar] = true
 			if err := validateVariableName("Azure Key vault secret references environment variable name", keyVaultItem.EnvVar); err != nil {
 				return err
 			}
@@ -798,35 +824,41 @@ func validateSecretRefs(secretRefs v1.RadixSecretRefs) error {
 
 func validateVariables(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
-		if err := validateVariableNames("environment variable name", component.Variables); err != nil {
+		err := validateRadixComponentVariables(&component)
+		if err != nil {
 			return err
 		}
-
-		for _, envConfig := range component.EnvironmentConfig {
-			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
-				return err
-			}
-		}
 	}
-
 	for _, job := range app.Spec.Jobs {
-		if err := validateVariableNames("environment variable name", job.Variables); err != nil {
+		err := validateRadixComponentVariables(&job)
+		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		for _, envConfig := range job.EnvironmentConfig {
-			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
-				return err
-			}
-		}
+func validateRadixComponentVariables(component v1.RadixCommonComponent) error {
+	if err := validateVariableNames("environment variable name", component.GetVariables()); err != nil {
+		return err
 	}
 
+	for _, envConfig := range component.GetEnvironmentConfig() {
+		if err := validateVariableNames("environment variable name", envConfig.GetVariables()); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func validateVariableNames(resourceName string, variables radixv1.EnvVarsMap) error {
-	for v := range variables {
-		if err := validateVariableName(resourceName, v); err != nil {
+	existingVariableName := make(map[string]bool)
+	for envVarName := range variables {
+		if _, exists := existingVariableName[envVarName]; exists {
+			return duplicateEnvVarName(envVarName)
+		}
+		existingVariableName[envVarName] = true
+		if err := validateVariableName(resourceName, envVarName); err != nil {
 			return err
 		}
 	}
