@@ -430,7 +430,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 
 	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualIngresses.Items, 8)
-	ingressGetter := func(name string, ingresses []networkingv1.Ingress) *networkingv1.Ingress {
+	getIngress := func(name string, ingresses []networkingv1.Ingress) *networkingv1.Ingress {
 		for _, ingress := range ingresses {
 			if ingress.Name == name {
 				return &ingress
@@ -456,7 +456,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		}
 	}
 	// Ingresses for server component
-	actualIngress := ingressGetter(fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
+	actualIngress := getIngress(fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
 	s.NotNil(actualIngress)
 	s.Equal(expectedIngServerAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingServer), actualIngress.OwnerReferences)
@@ -466,7 +466,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(getExpectedIngressRule(component1Name, "auth1"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
 	// Ingresses for web component
-	actualIngress = ingressGetter(fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
+	actualIngress = getIngress(fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
 	s.NotNil(actualIngress)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingWeb1), actualIngress.OwnerReferences)
@@ -475,7 +475,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 	s.Equal(ingWeb1.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
 	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
 
-	actualIngress = ingressGetter(fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
+	actualIngress = getIngress(fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
 	s.NotNil(actualIngress)
 	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
 	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingWeb2), actualIngress.OwnerReferences)
