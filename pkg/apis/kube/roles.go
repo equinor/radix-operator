@@ -127,7 +127,6 @@ func CreateManageSecretRole(appName, roleName string, secretNames []string, cust
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 			Labels: map[string]string{
-				"radixReg":    appName, // For backwards compatibility. Remove when cluster is migrated
 				RadixAppLabel: appName,
 			},
 		},

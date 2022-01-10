@@ -12,6 +12,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
@@ -23,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 )
@@ -109,7 +111,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 
 	for _, scenario := range scenarios {
-		sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []IngressAnnotations{s.ingressAnnotations}, s.oauth2Config}
+		sut := &oauthProxyResourceManager{scenario.rd, rr, s.kubeUtil, []IngressAnnotations{}, s.oauth2Config}
 		err := sut.Sync()
 		s.Nil(err)
 		deploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{LabelSelector: s.getAppNameSelector(appName)})
@@ -129,6 +131,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreated() {
 	appName, envName, componentName := "anyapp", "qa", "server"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	inputOAuth := &v1.OAuth2{ClientID: "1234"}
 	returnOAuth := &v1.OAuth2{
 		ClientID:               test.RandomString(20),
@@ -166,16 +169,15 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 		WithEnvironment(envName).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: inputOAuth})).
 		BuildRD()
-	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotations{s.ingressAnnotations}, s.oauth2Config}
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotations{}, s.oauth2Config}
 	err := sut.Sync()
 	s.Nil(err)
 
-	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	actualDeploys, _ := s.kubeClient.AppsV1().Deployments(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualDeploys.Items, 1)
 
 	actualDeploy := actualDeploys.Items[0]
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix), actualDeploy.Name)
-	s.Equal(utils.GetEnvironmentNamespace(appName, envName), actualDeploy.Namespace)
 	s.ElementsMatch(getOwnerReferenceOfDeployment(rd), actualDeploy.OwnerReferences)
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
@@ -233,6 +235,260 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env, 28)
 	s.False(s.getEnvVarExist("OAUTH2_PROXY_REDIS_PASSWORD", actualDeploys.Items[0].Spec.Template.Spec.Containers[0].Env))
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCreated() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
+	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{})
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).WithMachineUser(true).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
+		BuildRD()
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotations{}, s.oauth2Config}
+	err := sut.Sync()
+	s.Nil(err)
+
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
+	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualSecrets, _ := s.kubeClient.CoreV1().Secrets(envNs).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualSecrets.Items, 1)
+	s.Equal(expectedSecretName, actualSecrets.Items[0].Name)
+	s.Equal(expectedLabels, actualSecrets.Items[0].Labels)
+	s.NotEmpty(actualSecrets.Items[0].Data[defaults.OAuthCookieSecretKeyName])
+
+	actualRoles, _ := s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoles.Items, 1)
+	s.Equal(sut.getRoleAndRoleBindingName(componentName), actualRoles.Items[0].Name)
+	s.Equal(expectedLabels, actualRoles.Items[0].Labels)
+	s.Len(actualRoles.Items[0].Rules, 1)
+	s.ElementsMatch([]string{expectedSecretName}, actualRoles.Items[0].Rules[0].ResourceNames)
+
+	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(envNs).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualRoleBindings.Items, 1)
+	s.Equal(sut.getRoleAndRoleBindingName(componentName), actualRoleBindings.Items[0].Name)
+	s.Equal(expectedLabels, actualRoleBindings.Items[0].Labels)
+	s.Equal(actualRoles.Items[0].Name, actualRoleBindings.Items[0].RoleRef.Name)
+	s.Len(actualRoleBindings.Items[0].Subjects, 3)
+	expectedSubjects := []rbacv1.Subject{
+		{Kind: "ServiceAccount", Name: fmt.Sprintf("%s-machine-user", appName), Namespace: utils.GetAppNamespace(appName)},
+		{Kind: "Group", APIGroup: "rbac.authorization.k8s.io", Name: "ad1"},
+		{Kind: "Group", APIGroup: "rbac.authorization.k8s.io", Name: "ad2"},
+	}
+	s.ElementsMatch(expectedSubjects, actualRoleBindings.Items[0].Subjects)
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarbageCollected() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
+	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreRedis})
+
+	secretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	_, err := s.kubeClient.CoreV1().Secrets(envNs).Create(
+		context.Background(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: secretName},
+			Data: map[string][]byte{
+				defaults.OAuthRedisPasswordKeyName: []byte("redispassword"),
+				defaults.OAuthCookieSecretKeyName:  []byte("cookiesecret"),
+				defaults.OAuthClientSecretKeyName:  []byte("clientsecret"),
+			},
+		},
+		metav1.CreateOptions{})
+	s.Nil(err)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
+		BuildRD()
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotations{}, s.oauth2Config}
+	err = sut.Sync()
+	s.Nil(err)
+
+	// Keep redispassword if sessionstoretype is redis
+	actualSecret, _ := s.kubeClient.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
+	s.Equal(
+		map[string][]byte{
+			defaults.OAuthRedisPasswordKeyName: []byte("redispassword"),
+			defaults.OAuthCookieSecretKeyName:  []byte("cookiesecret"),
+			defaults.OAuthClientSecretKeyName:  []byte("clientsecret")},
+		actualSecret.Data)
+
+	// Remove redispassword if sessionstoretype is cookie
+	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreCookie})
+	sut.Sync()
+	actualSecret, _ = s.kubeClient.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
+	s.Equal(
+		map[string][]byte{
+			defaults.OAuthCookieSecretKeyName: []byte("cookiesecret"),
+			defaults.OAuthClientSecretKeyName: []byte("clientsecret")},
+		actualSecret.Data)
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
+	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{})
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
+		BuildRD()
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotations{}, s.oauth2Config}
+	err := sut.Sync()
+	s.Nil(err)
+
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
+	expectedServiceName := utils.GetAuxiliaryComponentServiceName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	actualServices, _ := s.kubeClient.CoreV1().Services(envNs).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualServices.Items, 1)
+	s.Equal(expectedServiceName, actualServices.Items[0].Name)
+	s.Equal(expectedLabels, actualServices.Items[0].Labels)
+	s.ElementsMatch(getOwnerReferenceOfDeployment(rd), actualServices.Items[0].OwnerReferences)
+	s.Equal(corev1.ServiceTypeClusterIP, actualServices.Items[0].Spec.Type)
+	s.Len(actualServices.Items[0].Spec.Ports, 1)
+	s.Equal(corev1.ServicePort{Port: oauthProxyPortNumber, TargetPort: intstr.FromString(oauthProxyPortName), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreated() {
+	appName, envName, component1Name, component2Name := "anyapp", "qa", "server", "web"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
+	ingServer := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ing1", Labels: map[string]string{kube.RadixComponentLabel: component1Name}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing1.local"}},
+		},
+	}
+	ingOtherComponent := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ing2", Labels: map[string]string{kube.RadixComponentLabel: "othercomponent"}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing1.local"}},
+		},
+	}
+	ingServerOtherNs := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ing3", Labels: map[string]string{kube.RadixComponentLabel: component1Name}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing1-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing1.local"}},
+		},
+	}
+	ingWeb1 := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ing4", Labels: map[string]string{kube.RadixComponentLabel: component2Name}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass1"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing2-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing2.local"}},
+		},
+	}
+	ingWeb2 := networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: "ing5", Labels: map[string]string{kube.RadixComponentLabel: component2Name}},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: utils.StringPtr("anyclass2"),
+			TLS:              []networkingv1.IngressTLS{{SecretName: "ing2-tls"}},
+			Rules:            []networkingv1.IngressRule{{Host: "ing2.public"}},
+		},
+	}
+	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingServer, metav1.CreateOptions{})
+	s.kubeClient.NetworkingV1().Ingresses("otherns").Create(context.Background(), &ingServerOtherNs, metav1.CreateOptions{})
+	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingOtherComponent, metav1.CreateOptions{})
+	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb1, metav1.CreateOptions{})
+	s.kubeClient.NetworkingV1().Ingresses(envNs).Create(context.Background(), &ingWeb2, metav1.CreateOptions{})
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
+		BuildRD()
+	s.oauth2Config.EXPECT().MergeWithDefaults(rd.Spec.Components[0].Authentication.OAuth2).Times(1).Return(&v1.OAuth2{ProxyPrefix: "auth1"})
+	s.oauth2Config.EXPECT().MergeWithDefaults(rd.Spec.Components[1].Authentication.OAuth2).Times(1).Return(&v1.OAuth2{ProxyPrefix: "auth2"})
+
+	expectedIngServerCall := rd.Spec.Components[0].DeepCopy()
+	expectedIngServerCall.Authentication.OAuth2.ProxyPrefix = "auth1"
+	expectedIngServerAnnotations := map[string]string{"annotation1-1": "val1-1", "annotation1-2": "val1-2"}
+	s.ingressAnnotations.EXPECT().GetAnnotations(expectedIngServerCall).Times(1).Return(expectedIngServerAnnotations)
+	expectedIngWebCall := rd.Spec.Components[1].DeepCopy()
+	expectedIngWebCall.Authentication.OAuth2.ProxyPrefix = "auth2"
+	expectedIngWebAnnotations := map[string]string{"annotation2-1": "val2-1", "annotation2-2": "val2-2"}
+	s.ingressAnnotations.EXPECT().GetAnnotations(expectedIngWebCall).Times(2).Return(expectedIngWebAnnotations)
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotations{s.ingressAnnotations}, s.oauth2Config}
+	err := sut.Sync()
+	s.Nil(err)
+
+	actualIngresses, _ := s.kubeClient.NetworkingV1().Ingresses(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
+	s.Len(actualIngresses.Items, 8)
+	ingressGetter := func(name string, ingresses []networkingv1.Ingress) *networkingv1.Ingress {
+		for _, ingress := range ingresses {
+			if ingress.Name == name {
+				return &ingress
+			}
+		}
+		return nil
+	}
+	getExpectedIngressRule := func(componentName, proxyPrefix string) networkingv1.IngressRuleValue {
+		pathType := networkingv1.PathTypeImplementationSpecific
+		return networkingv1.IngressRuleValue{
+			HTTP: &networkingv1.HTTPIngressRuleValue{
+				Paths: []networkingv1.HTTPIngressPath{{
+					Path:     oauthutil.SanitizePathPrefix(proxyPrefix),
+					PathType: &pathType,
+					Backend: networkingv1.IngressBackend{
+						Service: &networkingv1.IngressServiceBackend{
+							Name: utils.GetAuxiliaryComponentServiceName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix),
+							Port: networkingv1.ServiceBackendPort{Number: oauthProxyPortNumber},
+						},
+					},
+				}},
+			},
+		}
+	}
+	// Ingresses for server component
+	actualIngress := ingressGetter(fmt.Sprintf("%s-%s", ingServer.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
+	s.NotNil(actualIngress)
+	s.Equal(expectedIngServerAnnotations, actualIngress.Annotations)
+	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingServer), actualIngress.OwnerReferences)
+	s.Equal(ingServer.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
+	s.Equal(ingServer.Spec.TLS, actualIngress.Spec.TLS)
+	s.Equal(ingServer.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
+	s.Equal(getExpectedIngressRule(component1Name, "auth1"), actualIngress.Spec.Rules[0].IngressRuleValue)
+
+	// Ingresses for web component
+	actualIngress = ingressGetter(fmt.Sprintf("%s-%s", ingWeb1.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
+	s.NotNil(actualIngress)
+	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
+	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingWeb1), actualIngress.OwnerReferences)
+	s.Equal(ingWeb1.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
+	s.Equal(ingWeb1.Spec.TLS, actualIngress.Spec.TLS)
+	s.Equal(ingWeb1.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
+	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
+
+	actualIngress = ingressGetter(fmt.Sprintf("%s-%s", ingWeb2.Name, defaults.OAuthProxyAuxiliaryComponentSuffix), actualIngresses.Items)
+	s.NotNil(actualIngress)
+	s.Equal(expectedIngWebAnnotations, actualIngress.Annotations)
+	s.ElementsMatch(sut.getOwnerReferenceOfIngress(&ingWeb2), actualIngress.OwnerReferences)
+	s.Equal(ingWeb2.Spec.IngressClassName, actualIngress.Spec.IngressClassName)
+	s.Equal(ingWeb2.Spec.TLS, actualIngress.Spec.TLS)
+	s.Equal(ingWeb2.Spec.Rules[0].Host, actualIngress.Spec.Rules[0].Host)
+	s.Equal(getExpectedIngressRule(component2Name, "auth2"), actualIngress.Spec.Rules[0].IngressRuleValue)
+}
+
+func (s *OAuth2AnnotationsTestSuite) Test_getOwnerReferenceOfIngress() {
+	sut := &oauthProxyResourceManager{}
+	actualOwnerReferences := sut.getOwnerReferenceOfIngress(&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: "anyingress", UID: "anyuid"}})
+	s.ElementsMatch([]metav1.OwnerReference{{APIVersion: "networking.k8s.io/v1", Kind: "Ingress", Name: "anyingress", UID: "anyuid", Controller: utils.BoolPtr(true)}}, actualOwnerReferences)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_GarbageCollect() {

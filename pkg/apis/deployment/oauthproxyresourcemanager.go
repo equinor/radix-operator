@@ -60,9 +60,11 @@ func (o *oauthProxyResourceManager) Sync() error {
 	return nil
 }
 
-func (o *oauthProxyResourceManager) syncComponent(component v1.RadixCommonDeployComponent) error {
+func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
-		return o.install(component)
+		componentWithOAuthDefaults := component.DeepCopy()
+		componentWithOAuthDefaults.Authentication.OAuth2 = o.oauth2Config.MergeWithDefaults(componentWithOAuthDefaults.Authentication.OAuth2)
+		return o.install(componentWithOAuthDefaults)
 	} else {
 		return o.uninstall(component)
 	}
@@ -375,7 +377,6 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 }
 
 func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress) *networkingv1.Ingress {
-	oauth := o.oauth2Config.MergeWithDefaults(component.GetAuthentication().OAuth2)
 	sourceHost := componentIngress.Spec.Rules[0]
 	pathType := networkingv1.PathTypeImplementationSpecific
 	annotations := map[string]string{}
@@ -386,17 +387,9 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        fmt.Sprintf("%s-%s", componentIngress.Name, defaults.OAuthProxyAuxiliaryComponentSuffix),
-			Annotations: annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "networking.k8s.io/v1",
-					Kind:       "Ingress",
-					Name:       componentIngress.Name,
-					UID:        componentIngress.UID,
-					Controller: utils.BoolPtr(true),
-				},
-			},
+			Name:            fmt.Sprintf("%s-%s", componentIngress.Name, defaults.OAuthProxyAuxiliaryComponentSuffix),
+			Annotations:     annotations,
+			OwnerReferences: o.getOwnerReferenceOfIngress(&componentIngress),
 		},
 		Spec: networkingv1.IngressSpec{
 			IngressClassName: componentIngress.Spec.IngressClassName,
@@ -410,7 +403,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 						HTTP: &networkingv1.HTTPIngressRuleValue{
 							Paths: []networkingv1.HTTPIngressPath{
 								{
-									Path:     oauthutil.SanitizePathPrefix(oauth.ProxyPrefix),
+									Path:     oauthutil.SanitizePathPrefix(component.GetAuthentication().OAuth2.ProxyPrefix),
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
@@ -431,6 +424,18 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 
 	o.mergeAuxComponentResourceLabels(ingress, component)
 	return ingress
+}
+
+func (o *oauthProxyResourceManager) getOwnerReferenceOfIngress(ingress *networkingv1.Ingress) []metav1.OwnerReference {
+	return []metav1.OwnerReference{
+		{
+			APIVersion: "networking.k8s.io/v1",
+			Kind:       "Ingress",
+			Name:       ingress.Name,
+			UID:        ingress.UID,
+			Controller: utils.BoolPtr(true),
+		},
+	}
 }
 
 func (o *oauthProxyResourceManager) createOrUpdateService(component v1.RadixCommonDeployComponent) error {
@@ -472,7 +477,7 @@ func (o *oauthProxyResourceManager) mergeAuxComponentResourceLabels(object metav
 
 func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	roleName := o.getRoleAndRoleBindingName(component)
+	roleName := o.getRoleAndRoleBindingName(component.GetName())
 	namespace := o.rd.Namespace
 
 	// create role
@@ -509,8 +514,8 @@ func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommon
 	return o.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(component v1.RadixCommonDeployComponent) string {
-	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+func (o *oauthProxyResourceManager) getRoleAndRoleBindingName(componentName string) string {
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 	return fmt.Sprintf("radix-app-adm-%s", deploymentName)
 }
 
@@ -655,7 +660,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 
 func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployComponent) []corev1.EnvVar {
 	var envVars []corev1.EnvVar
-	oauth := o.oauth2Config.MergeWithDefaults(component.GetAuthentication().OAuth2)
+	oauth := component.GetAuthentication().OAuth2
 
 	addEnvVarIfSet := func(envVar string, value interface{}) {
 		rval := reflect.ValueOf(value)

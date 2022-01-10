@@ -41,7 +41,7 @@ func (app Application) rrClusterrole(clusterroleName string, verbs []string) *au
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleName,
 			Labels: map[string]string{
-				"radixReg": appName,
+				kube.RadixAppLabel: appName,
 			},
 			OwnerReferences: ownerRef,
 		},
