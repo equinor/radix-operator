@@ -1,9 +1,6 @@
 package deployment
 
 import (
-	"reflect"
-	"strings"
-
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -52,71 +49,31 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 	return nil
 }
 
-func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComponent) v1.RadixDeployJobComponent {
-	componentName := appJobComponent.Name
-	componentImage := c.componentImages[componentName]
-	var variables v1.EnvVarsMap
-	monitoring := false
-	var resources v1.ResourceRequirements
-	var node v1.RadixNode
-	var volumeMounts []v1.RadixVolumeMount
-	var imageTagName string
-	image := componentImage.ImagePath
-	schedulerPort := appJobComponent.SchedulerPort
-	payload := appJobComponent.Payload
-	// Runs as root by default unless overridden
-	runAsNonRoot := false
-
-	environmentSpecificConfig := c.getEnvironmentConfig(appJobComponent)
-	if environmentSpecificConfig != nil {
-		variables = environmentSpecificConfig.Variables
-		monitoring = environmentSpecificConfig.Monitoring
-		resources = environmentSpecificConfig.Resources
-		volumeMounts = environmentSpecificConfig.VolumeMounts
-		imageTagName = environmentSpecificConfig.ImageTagName
-		runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
-		node = environmentSpecificConfig.Node
-	}
-
-	if variables == nil {
-		variables = make(v1.EnvVarsMap)
-	}
-
-	updateComponentNode(&appJobComponent, &node)
-
-	// Append common environment variables from appComponent.Variables to variables if not available yet
-	for variableKey, variableValue := range appJobComponent.Variables {
-		if _, found := variables[variableKey]; !found {
-			variables[variableKey] = variableValue
-		}
-	}
-
-	// Append common resources settings if currently empty
-	if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
-		resources = appJobComponent.Resources
-	}
-
-	// For deploy-only images, we will replace the dynamic tag with the tag from the environment
-	// config
-	if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
-		image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
-	}
-
+func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent) v1.RadixDeployJobComponent {
+	componentName := radixJobComponent.Name
 	deployJob := v1.RadixDeployJobComponent{
-		Name:                 componentName,
-		Image:                image,
-		Ports:                appJobComponent.Ports,
-		Secrets:              appJobComponent.Secrets,
-		SecretRefs:           appJobComponent.SecretRefs,
-		EnvironmentVariables: variables, // todo: use single EnvVars instead
-		Monitoring:           monitoring,
-		Resources:            resources,
-		VolumeMounts:         volumeMounts,
-		SchedulerPort:        schedulerPort,
-		Payload:              payload,
-		RunAsNonRoot:         runAsNonRoot,
-		Node:                 node,
+		Name:          componentName,
+		Ports:         radixJobComponent.Ports,
+		Secrets:       radixJobComponent.Secrets,
+		Monitoring:    false,
+		RunAsNonRoot:  false,
+		Payload:       radixJobComponent.Payload,
+		SchedulerPort: radixJobComponent.SchedulerPort,
 	}
 
+	environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
+	if environmentSpecificConfig != nil {
+		deployJob.Environment = environmentSpecificConfig.Environment
+		deployJob.Monitoring = environmentSpecificConfig.Monitoring
+		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
+		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
+	}
+
+	componentImage := c.componentImages[componentName]
+	deployJob.Image = getImagePath(&componentImage, environmentSpecificConfig)
+	deployJob.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig)
+	deployJob.Resources = getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig)
+	deployJob.Node = getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig)
+	deployJob.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig)
 	return deployJob
 }

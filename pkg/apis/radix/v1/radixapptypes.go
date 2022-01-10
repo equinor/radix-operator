@@ -350,6 +350,7 @@ type RadixCommonComponent interface {
 	GetVariables() EnvVarsMap
 	GetSecrets() []string
 	GetSecretRefs() RadixSecretRefs
+	GetResources() ResourceRequirements
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 }
 
@@ -373,6 +374,10 @@ func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
 	return component.SecretRefs
 }
 
+func (component *RadixComponent) GetResources() ResourceRequirements {
+	return component.Resources
+}
+
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
@@ -391,6 +396,10 @@ func (component *RadixJobComponent) GetNode() *RadixNode {
 
 func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
 	return component.SecretRefs
+}
+
+func (component *RadixJobComponent) GetResources() ResourceRequirements {
+	return component.Resources
 }
 
 func (component *RadixJobComponent) GetSecrets() []string {

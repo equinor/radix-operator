@@ -40,7 +40,7 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
-	err = deploy.createOrUpdateCsiAzureResources(desiredDeployment)
+	err = deploy.createOrUpdateCsiAzureVolumeResources(desiredDeployment)
 	if err != nil {
 		return err
 	}

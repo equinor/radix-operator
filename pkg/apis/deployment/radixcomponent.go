@@ -1,9 +1,6 @@
 package deployment
 
 import (
-	"reflect"
-	"strings"
-
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -16,6 +13,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		componentName := radixComponent.Name
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
+			Environment:          env,
 			Public:               false,
 			IngressConfiguration: radixComponent.IngressConfiguration,
 			Ports:                radixComponent.Ports,
@@ -31,18 +29,19 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			deployComponent.Monitoring = environmentSpecificConfig.Monitoring
 			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
 			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
+			deployComponent.Environment = environmentSpecificConfig.Environment
 			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		}
 
 		componentImage := componentImages[componentName]
 		deployComponent.Image = getImagePath(&componentImage, environmentSpecificConfig)
-		deployComponent.Node = getRadixComponentNode(&radixComponent, environmentSpecificConfig)
-		deployComponent.Resources = getRadixComponentResources(&radixComponent, environmentSpecificConfig)
-		deployComponent.EnvironmentVariables = getRadixComponentEnvVars(&radixComponent, environmentSpecificConfig)
+		deployComponent.Node = getRadixCommonComponentNode(&radixComponent, environmentSpecificConfig)
+		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
+		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
 		deployComponent.Authentication = getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
 		deployComponent.DNSExternalAlias = GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
-		deployComponent.SecretRefs = getRadixComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
+		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 
 		components = append(components, deployComponent)
@@ -60,124 +59,11 @@ func getRadixComponentAuthentication(radixComponent *v1.RadixComponent, environm
 	return authentication
 }
 
-func getRadixComponentNode(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) v1.RadixNode {
-	var node v1.RadixNode
-	if environmentSpecificConfig != nil {
-		node = environmentSpecificConfig.Node
-	}
-	updateComponentNode(radixComponent, &node)
-	return node
-}
-
-func getImagePath(componentImage *pipeline.ComponentImage, environmentSpecificConfig *v1.RadixEnvironmentConfig) string {
-	var imageTagName string
-	if environmentSpecificConfig != nil {
-		imageTagName = environmentSpecificConfig.ImageTagName
-	}
-
-	image := componentImage.ImagePath
-	// For deploy-only images, we will replace the dynamic tag with the tag from the environment
-	// config
-	if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
-		image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
-	}
-	return image
-}
-
-func getRadixComponentResources(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) v1.ResourceRequirements {
-	var resources v1.ResourceRequirements
-	if environmentSpecificConfig != nil {
-		resources = environmentSpecificConfig.Resources
-	}
-	if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
-		resources = radixComponent.Resources
-	}
-	return resources
-}
-
-func getRadixComponentEnvVars(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) v1.EnvVarsMap {
-	var variables v1.EnvVarsMap
-	if environmentSpecificConfig != nil {
-		variables = environmentSpecificConfig.Variables
-	}
-	if variables == nil {
-		variables = make(v1.EnvVarsMap)
-	}
-
-	// Append common environment variables from radixComponent.Variables to variables if not available yet
-	for variableKey, variableValue := range radixComponent.Variables {
-		if _, found := variables[variableKey]; !found {
-			variables[variableKey] = variableValue
-		}
-	}
-	return variables
-}
-
 func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) bool {
 	if environmentSpecificConfig != nil {
 		return GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, radixComponent.AlwaysPullImageOnDeploy, false)
 	}
 	return GetCascadeBoolean(nil, radixComponent.AlwaysPullImageOnDeploy, false)
-}
-
-func getRadixComponentRadixSecretRefs(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) v1.RadixSecretRefs {
-	return v1.RadixSecretRefs{
-		AzureKeyVaults: getRadixComponentAzureKeyVaultSecretRefs(radixComponent, environmentSpecificConfig),
-	}
-}
-
-func getRadixComponentAzureKeyVaultSecretRefs(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) []v1.RadixAzureKeyVault {
-	azureKeyVaultSecretRefsMap := make(map[string]v1.RadixAzureKeyVault)
-	envAzureKeyVaultSecretRefsExistingEnvVarsMap := make(map[string]bool)
-
-	if environmentSpecificConfig != nil {
-		for _, envAzureKeyVaultSecretRef := range environmentSpecificConfig.SecretRefs.AzureKeyVaults {
-			azureKeyVaultSecretRefsMap[envAzureKeyVaultSecretRef.Name] = envAzureKeyVaultSecretRef
-			for _, item := range envAzureKeyVaultSecretRef.Items {
-				envAzureKeyVaultSecretRefsExistingEnvVarsMap[item.EnvVar] = true
-			}
-		}
-	}
-
-	for _, commonAzureKeyVault := range radixComponent.SecretRefs.AzureKeyVaults {
-		envAzureKeyVault, found := azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
-		if !found {
-			azureKeyVault := v1.RadixAzureKeyVault{
-				Name: commonAzureKeyVault.Name,
-			}
-			for _, keyVaultItem := range commonAzureKeyVault.Items {
-				if _, existsInEnvSecretRefs := envAzureKeyVaultSecretRefsExistingEnvVarsMap[keyVaultItem.EnvVar]; !existsInEnvSecretRefs {
-					azureKeyVault.Items = append(azureKeyVault.Items, keyVaultItem)
-				}
-			}
-			azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = azureKeyVault
-			continue
-		}
-		if len(commonAzureKeyVault.Items) == 0 {
-			continue
-		}
-		envItemEnvVarsMap := make(map[string]v1.RadixAzureKeyVaultItem)
-		envAzureKeyVaultItems := envAzureKeyVault.Items
-		for _, item := range envAzureKeyVaultItems {
-			envItemEnvVarsMap[item.EnvVar] = item
-		}
-		for _, keyVaultItem := range commonAzureKeyVault.Items {
-			if _, existsInEnvSecretRefs := envItemEnvVarsMap[keyVaultItem.EnvVar]; !existsInEnvSecretRefs {
-				if _, existsInEnvOtherSecretRefs := envAzureKeyVaultSecretRefsExistingEnvVarsMap[keyVaultItem.EnvVar]; !existsInEnvOtherSecretRefs {
-					envAzureKeyVaultItems = append(envAzureKeyVaultItems, keyVaultItem)
-				}
-			}
-		}
-		azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = v1.RadixAzureKeyVault{
-			Name:  commonAzureKeyVault.Name,
-			Items: envAzureKeyVaultItems,
-		}
-	}
-	var azureKeyVaults []v1.RadixAzureKeyVault
-	for _, azureKeyVault := range azureKeyVaultSecretRefsMap {
-		azureKeyVaults = append(azureKeyVaults, azureKeyVault)
-	}
-	return azureKeyVaults
 }
 
 func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) *v1.Authentication {

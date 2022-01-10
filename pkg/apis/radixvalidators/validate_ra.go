@@ -817,7 +817,7 @@ func validateSecretRefs(componentName string, secretRefs v1.RadixSecretRefs) err
 			if _, exists := existingAzureKeyVaultPath[*path]; exists {
 				return duplicatePathForAzureKeyVault(*path, azureKeyVault.Name, componentName)
 			}
-			existingAzureKeyVaultPath[azureKeyVault.Name] = true
+			existingAzureKeyVaultPath[*path] = true
 		}
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
@@ -830,6 +830,37 @@ func validateSecretRefs(componentName string, secretRefs v1.RadixSecretRefs) err
 			if err := validateVariableName("Azure Key vault secret references name", keyVaultItem.Name); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func validateSecretRefsPath(component v1.RadixCommonComponent) error {
+	azureKeyVaultPathForName := make(map[string]*string)
+	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+		path := azureKeyVault.Path
+		if path != nil && len(*path) > 0 { //set only non-empty common path
+			azureKeyVaultPathForName[azureKeyVault.Name] = azureKeyVault.Path
+		}
+	}
+	for _, environmentConfig := range component.GetEnvironmentConfig() {
+		envsAzureKeyVaultPathForName := make(map[string]*string)
+		for _, azureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
+			if _, exists := azureKeyVaultPathForName[azureKeyVault.Name]; exists { //set non-empty common path by default
+				envsAzureKeyVaultPathForName[azureKeyVault.Name] = azureKeyVaultPathForName[azureKeyVault.Name]
+			}
+			path := azureKeyVault.Path
+			if path != nil && len(*path) > 0 { //override common path by non-empty env-path, or set non-empty env path
+				envsAzureKeyVaultPathForName[azureKeyVault.Name] = path
+			}
+		}
+		envsAzureKeyVaultNameForPath := make(map[string]string)
+		pathMap := make(map[string]bool)
+		for keyVaultName, path := range envsAzureKeyVaultNameForPath {
+			if _, exists := pathMap[path]; exists {
+				return duplicatePathForAzureKeyVault(path, keyVaultName, component.GetName())
+			}
+			pathMap[path] = true
 		}
 	}
 	return nil
@@ -1080,20 +1111,12 @@ func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
 	env := getEnv(app, name)
-	if env != nil {
-		return true
-	}
-
-	return false
+	return env != nil
 }
 
 func doesEnvExistAndIsMappedToBranch(app *radixv1.RadixApplication, name string) bool {
 	env := getEnv(app, name)
-	if env != nil && env.Build.From != "" {
-		return true
-	}
-
-	return false
+	return env != nil && env.Build.From != ""
 }
 
 func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {

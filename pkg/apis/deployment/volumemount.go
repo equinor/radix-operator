@@ -48,11 +48,11 @@ const (
 	csiStorageClassGidMountOption                      = "gid"                                             //Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
 	csiStorageClassUidMountOption                      = "uid"                                             //Volume mount owner UserID. Used instead of GroupID
 
-	secretProviderClassParameterKeyVaultName         = "keyvaultName"
-	secretProviderClassParameterUsePodIdentity       = "usePodIdentity"
-	secretProviderClassParameterTenantId             = "tenantId"
-	secretProviderClassParameterCloudName            = "cloudName"
-	secretProviderClassParameterObjects              = "objects"
+	csiSecretProviderClassParameterKeyVaultName      = "keyvaultName"
+	csiSecretProviderClassParameterUsePodIdentity    = "usePodIdentity"
+	csiSecretProviderClassParameterTenantId          = "tenantId"
+	csiSecretProviderClassParameterCloudName         = "cloudName"
+	csiSecretProviderClassParameterObjects           = "objects"
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
 	csiAzureKeyVaultSecretMountPathTemplate          = "/mnt/azure-key-vault/%s/%s"
@@ -177,7 +177,7 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 	}
 	volumes = append(volumes, blobVolumes...)
 
-	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
+	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName, environment)
 	if err != nil {
 		return nil, err
 	}
@@ -186,9 +186,9 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 	return volumes, nil
 }
 
-func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
+func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName, environment string) ([]v1.Volume, error) {
 	var volumes []v1.Volume
-	azureKeyVaultVolumes, err := getStorageRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
+	azureKeyVaultVolumes, err := getStorageRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent, radixDeploymentName, environment)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponen
 	return volumes, nil
 }
 
-func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
+func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName, environment string) ([]v1.Volume, error) {
 	secretRef := deployComponent.GetSecretRefs()
 	var volumes []v1.Volume
 	for _, azureKeyVault := range secretRef.AzureKeyVaults {
@@ -213,7 +213,7 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 			provider := string(secretProviderClass.Spec.Provider)
 			switch provider {
 			case "azure":
-				azKeyVaultName, azKeyVaultNameExists := secretProviderClass.Spec.Parameters[secretProviderClassParameterKeyVaultName]
+				azKeyVaultName, azKeyVaultNameExists := secretProviderClass.Spec.Parameters[csiSecretProviderClassParameterKeyVaultName]
 				if !azKeyVaultNameExists {
 					return nil, fmt.Errorf("missing Azure Key vault name in the secret provider class %s", secretProviderClass.Name)
 				}
@@ -585,8 +585,8 @@ func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(exclud
 	return nil
 }
 
-//CreateOrUpdateCsiAzureResources Create or update CSI Azure volume resources - StorageClasses, PersistentVolumeClaims, PersistentVolume
-func (deploy *Deployment) createOrUpdateCsiAzureResources(desiredDeployment *appsv1.Deployment) error {
+//createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - StorageClasses, PersistentVolumeClaims, PersistentVolume
+func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeployment *appsv1.Deployment) error {
 	namespace := deploy.radixDeployment.GetNamespace()
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := desiredDeployment.ObjectMeta.Name

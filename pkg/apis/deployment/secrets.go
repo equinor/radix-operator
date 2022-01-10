@@ -217,12 +217,12 @@ func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, comp
 
 func getSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault) (map[string]string, error) {
 	parameterMap := make(map[string]string)
-	parameterMap[secretProviderClassParameterUsePodIdentity] = "false"
-	parameterMap[secretProviderClassParameterKeyVaultName] = radixAzureKeyVault.Name
-	parameterMap[secretProviderClassParameterTenantId] = "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
-	parameterMap[secretProviderClassParameterCloudName] = ""
+	parameterMap[csiSecretProviderClassParameterUsePodIdentity] = "false"
+	parameterMap[csiSecretProviderClassParameterKeyVaultName] = radixAzureKeyVault.Name
+	parameterMap[csiSecretProviderClassParameterTenantId] = "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
+	parameterMap[csiSecretProviderClassParameterCloudName] = ""
 	if len(radixAzureKeyVault.Items) == 0 {
-		parameterMap[secretProviderClassParameterObjects] = ""
+		parameterMap[csiSecretProviderClassParameterObjects] = ""
 		return parameterMap, nil
 	}
 	var parameterObject []kube.SecretProviderClassParameterObject
@@ -253,7 +253,7 @@ func getSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVa
 	if err != nil {
 		return nil, err
 	}
-	parameterMap[secretProviderClassParameterObjects] = string(parameterObjectArrayString)
+	parameterMap[csiSecretProviderClassParameterObjects] = string(parameterObjectArrayString)
 	return parameterMap, nil
 }
 

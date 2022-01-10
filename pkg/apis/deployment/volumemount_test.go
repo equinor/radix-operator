@@ -795,7 +795,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
 
 				//action
-				err := deployment.createOrUpdateCsiAzureResources(desiredDeployment)
+				err := deployment.createOrUpdateCsiAzureVolumeResources(desiredDeployment)
 				assert.Nil(t, err)
 
 				existingPvcs, existingScs, err := getExistingPvcsAndStorageClassesFromFakeCluster(deployment)

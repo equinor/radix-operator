@@ -2,9 +2,12 @@ package deployment
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
+	"reflect"
 	"strconv"
+	"strings"
 )
 
 func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) {
@@ -21,4 +24,132 @@ func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) 
 		log.Error(fmt.Sprintf("invalid environment node GPU count: %s in component %s", nodeGpuCount, component.GetName()))
 		node.GpuCount = component.GetNode().GpuCount
 	}
+}
+
+func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.EnvVarsMap {
+	var variables v1.EnvVarsMap
+	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+		variables = environmentSpecificConfig.GetVariables()
+	}
+	if variables == nil {
+		variables = make(v1.EnvVarsMap)
+	}
+
+	// Append common environment variables from radixComponent.Variables to variables if not available yet
+	for variableKey, variableValue := range component.GetVariables() {
+		if _, found := variables[variableKey]; !found {
+			variables[variableKey] = variableValue
+		}
+	}
+	return variables
+}
+
+func getRadixCommonComponentResources(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.ResourceRequirements {
+	var resources v1.ResourceRequirements
+	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+		resources = environmentSpecificConfig.GetResources()
+	}
+	if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
+		resources = component.GetResources()
+	}
+	return resources
+}
+
+func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixNode {
+	var node v1.RadixNode
+	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+		node = environmentSpecificConfig.GetNode()
+	}
+	updateComponentNode(radixComponent, &node)
+	return node
+}
+
+func getImagePath(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
+	var imageTagName string
+	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+		//if !isNilFixed(environmentSpecificConfig) {
+		imageTagName = environmentSpecificConfig.GetImageTagName()
+	}
+
+	image := componentImage.ImagePath
+	// For deploy-only images, we will replace the dynamic tag with the tag from the environment
+	// config
+	if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
+		image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
+	}
+	return image
+}
+
+func getRadixCommonComponentRadixSecretRefs(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixSecretRefs {
+	return v1.RadixSecretRefs{
+		AzureKeyVaults: getRadixCommonComponentAzureKeyVaultSecretRefs(component, environmentSpecificConfig),
+	}
+}
+
+func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) []v1.RadixAzureKeyVault {
+	if len(radixComponent.GetSecretRefs().AzureKeyVaults) == 0 {
+		if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+			return environmentSpecificConfig.GetSecretRefs().AzureKeyVaults
+		}
+		return nil
+	}
+
+	azureKeyVaultSecretRefsMap := make(map[string]v1.RadixAzureKeyVault)
+	envAzureKeyVaultSecretRefsExistingEnvVarsMap := make(map[string]bool)
+
+	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+		for _, envAzureKeyVaultSecretRef := range environmentSpecificConfig.GetSecretRefs().AzureKeyVaults {
+			azureKeyVaultSecretRefsMap[envAzureKeyVaultSecretRef.Name] = envAzureKeyVaultSecretRef
+			for _, item := range envAzureKeyVaultSecretRef.Items {
+				envAzureKeyVaultSecretRefsExistingEnvVarsMap[item.EnvVar] = true
+			}
+		}
+	}
+
+	for _, commonAzureKeyVault := range radixComponent.GetSecretRefs().AzureKeyVaults {
+		envAzureKeyVault, found := azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
+		if !found {
+			azureKeyVault := v1.RadixAzureKeyVault{
+				Name: commonAzureKeyVault.Name,
+				Path: commonAzureKeyVault.Path,
+			}
+			for _, keyVaultItem := range commonAzureKeyVault.Items {
+				if _, existsInEnvSecretRefs := envAzureKeyVaultSecretRefsExistingEnvVarsMap[keyVaultItem.EnvVar]; !existsInEnvSecretRefs {
+					azureKeyVault.Items = append(azureKeyVault.Items, keyVaultItem)
+				}
+			}
+			azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = azureKeyVault
+			continue
+		}
+		if len(commonAzureKeyVault.Items) == 0 {
+			continue
+		}
+		envItemEnvVarsMap := make(map[string]v1.RadixAzureKeyVaultItem)
+		envAzureKeyVaultItems := envAzureKeyVault.Items
+		for _, item := range envAzureKeyVaultItems {
+			envItemEnvVarsMap[item.EnvVar] = item
+		}
+		for _, keyVaultItem := range commonAzureKeyVault.Items {
+			if _, existsInEnvSecretRefs := envItemEnvVarsMap[keyVaultItem.EnvVar]; !existsInEnvSecretRefs {
+				if _, existsInEnvOtherSecretRefs := envAzureKeyVaultSecretRefsExistingEnvVarsMap[keyVaultItem.EnvVar]; !existsInEnvOtherSecretRefs {
+					envAzureKeyVaultItems = append(envAzureKeyVaultItems, keyVaultItem)
+				}
+			}
+		}
+		azureKeyVault := v1.RadixAzureKeyVault{
+			Name:  commonAzureKeyVault.Name,
+			Path:  commonAzureKeyVault.Path,
+			Items: envAzureKeyVaultItems,
+		}
+		path := envAzureKeyVault.Path
+		if path != nil && len(*path) > 0 { //override common path by env-path, if specified in env, or set non-empty env path
+			azureKeyVault.Path = path
+		}
+		azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = azureKeyVault
+	}
+	var azureKeyVaults []v1.RadixAzureKeyVault
+	for _, azureKeyVault := range azureKeyVaultSecretRefsMap {
+		azureKeyVaults = append(azureKeyVaults, azureKeyVault)
+	}
+	return azureKeyVaults
 }

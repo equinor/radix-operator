@@ -79,6 +79,7 @@ type RadixDeploymentList struct {
 //RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
 	Name                    string                  `json:"name" yaml:"name"`
+	Environment             string                  `json:"environment" yaml:"environment"`
 	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Image                   string                  `json:"image" yaml:"image"`
 	Ports                   []ComponentPort         `json:"ports" yaml:"ports"`
@@ -140,6 +141,10 @@ func (deployComponent *RadixDeployComponent) GetVolumeMounts() []RadixVolumeMoun
 	return deployComponent.VolumeMounts
 }
 
+func (deployComponent *RadixDeployComponent) GetEnvironment() string {
+	return deployComponent.Environment
+}
+
 func (deployComponent *RadixDeployComponent) IsAlwaysPullImageOnDeploy() bool {
 	return deployComponent.AlwaysPullImageOnDeploy
 }
@@ -192,6 +197,10 @@ func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolum
 	deployComponent.VolumeMounts = mounts
 }
 
+func (deployComponent *RadixDeployComponent) SetEnvironment(environment string) {
+	deployComponent.Environment = environment
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -230,6 +239,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetResources() *ResourceRequi
 
 func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() []RadixVolumeMount {
 	return deployJobComponent.VolumeMounts
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetEnvironment() string {
+	return deployJobComponent.Environment
 }
 
 func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() bool {
@@ -284,6 +297,10 @@ func (deployJobComponent *RadixDeployJobComponent) SetVolumeMounts(mounts []Radi
 	deployJobComponent.VolumeMounts = mounts
 }
 
+func (deployJobComponent *RadixDeployJobComponent) SetEnvironment(environment string) {
+	deployJobComponent.Environment = environment
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -299,6 +316,7 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 // The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name" yaml:"name"`
+	Environment             string                    `json:"environment" yaml:"environment"`
 	Image                   string                    `json:"image" yaml:"image"`
 	Ports                   []ComponentPort           `json:"ports" yaml:"ports"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
@@ -326,6 +344,7 @@ type RadixCommonDeployComponent interface {
 	GetMonitoring() bool
 	GetResources() *ResourceRequirements
 	GetVolumeMounts() []RadixVolumeMount
+	GetEnvironment() string
 	IsAlwaysPullImageOnDeploy() bool
 	GetReplicas() *int
 	GetHorizontalScaling() *RadixHorizontalScaling
@@ -339,6 +358,7 @@ type RadixCommonDeployComponent interface {
 	GetAuthentication() *Authentication
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
+	SetEnvironment(environment string)
 }
 
 //RadixCommonDeployComponentFactory defines a common component factory
