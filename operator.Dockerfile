@@ -1,4 +1,4 @@
-FROM golang:1.16.9-alpine3.14 as builder
+FROM golang:alpine3.15 as builder
 
 ENV GO111MODULE=on
 
