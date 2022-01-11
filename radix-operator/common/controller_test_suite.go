@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -12,7 +14,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
-	"time"
 )
 
 //ControllerTestSuite Test suite

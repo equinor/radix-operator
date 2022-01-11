@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -15,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"strings"
 )
 
 type SecretType string
@@ -36,15 +37,6 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 		return false
 	}
 	return true
-}
-
-// SecretExistsForLabels Checks if secret exists for specific labels
-func (kubeutil *Kube) SecretExistsForLabels(namespace, labelSelector string) (bool, error) {
-	secrets, err := kubeutil.ListSecretExistsForLabels(namespace, labelSelector)
-	if err != nil {
-		return false, err
-	}
-	return len(secrets) > 0, nil
 }
 
 // ListSecretExistsForLabels Gets list of secrets for specific labels

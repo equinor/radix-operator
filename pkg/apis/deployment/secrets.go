@@ -3,8 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-	"gopkg.in/yaml.v2"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"strconv"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -14,7 +12,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
@@ -262,8 +262,8 @@ func getSecretProviderClassSecretObjects(componentName, radixDeploymentName stri
 	secretObjectMap := make(map[kube.SecretType]*secretsstorev1.SecretObject)
 	for _, keyVaultItem := range radixAzureKeyVault.Items {
 		kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
-		secretObject, ok := secretObjectMap[kubeSecretType]
-		if !ok {
+		secretObject, existsSecretObject := secretObjectMap[kubeSecretType]
+		if !existsSecretObject {
 			secretObject = &secretsstorev1.SecretObject{
 				SecretName: kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, radixAzureKeyVault.Name, kubeSecretType),
 				Type:       string(kubeSecretType),
@@ -511,14 +511,14 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 	return nil
 }
 
-func buildAzureKeyVaultCredentialsSecret(app, componentName, secretName, azKeyVaultName string) *v1.Secret {
+func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName string) *v1.Secret {
 	secretType := v1.SecretType(kube.SecretTypeOpaque)
 	secret := v1.Secret{
 		Type: secretType,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:           app,
+				kube.RadixAppLabel:           appName,
 				kube.RadixComponentLabel:     componentName,
 				kube.RadixSecretRefTypeLabel: string(radixv1.RadixSecretRefTypeAzureKeyVault),
 				kube.RadixSecretRefNameLabel: azKeyVaultName,

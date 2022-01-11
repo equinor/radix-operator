@@ -2,12 +2,13 @@ package deployment
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	log "github.com/sirupsen/logrus"
 )
 
 func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) {
@@ -67,7 +68,6 @@ func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environ
 func getImagePath(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
 	var imageTagName string
 	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
-		//if !isNilFixed(environmentSpecificConfig) {
 		imageTagName = environmentSpecificConfig.GetImageTagName()
 	}
 
@@ -94,12 +94,12 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 		return nil
 	}
 
-	azureKeyVaultSecretRefsMap := make(map[string]v1.RadixAzureKeyVault)
+	composedAzureKeyVaultSecretRefsMap := make(map[string]v1.RadixAzureKeyVault)
 	envAzureKeyVaultSecretRefsExistingEnvVarsMap := make(map[string]bool)
 
 	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
 		for _, envAzureKeyVaultSecretRef := range environmentSpecificConfig.GetSecretRefs().AzureKeyVaults {
-			azureKeyVaultSecretRefsMap[envAzureKeyVaultSecretRef.Name] = envAzureKeyVaultSecretRef
+			composedAzureKeyVaultSecretRefsMap[envAzureKeyVaultSecretRef.Name] = envAzureKeyVaultSecretRef
 			for _, item := range envAzureKeyVaultSecretRef.Items {
 				envAzureKeyVaultSecretRefsExistingEnvVarsMap[item.EnvVar] = true
 			}
@@ -107,8 +107,8 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 	}
 
 	for _, commonAzureKeyVault := range radixComponent.GetSecretRefs().AzureKeyVaults {
-		envAzureKeyVault, found := azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
-		if !found {
+		envAzureKeyVault, existsEnvAzureKeyVault := composedAzureKeyVaultSecretRefsMap[commonAzureKeyVault.Name]
+		if !existsEnvAzureKeyVault {
 			azureKeyVault := v1.RadixAzureKeyVault{
 				Name: commonAzureKeyVault.Name,
 				Path: commonAzureKeyVault.Path,
@@ -118,10 +118,10 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 					azureKeyVault.Items = append(azureKeyVault.Items, keyVaultItem)
 				}
 			}
-			azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = azureKeyVault
+			composedAzureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = azureKeyVault
 			continue
 		}
-		if len(commonAzureKeyVault.Items) == 0 {
+		if len(commonAzureKeyVault.Items) == 0 { //use all from environments for this Azure Key Vault
 			continue
 		}
 		envItemEnvVarsMap := make(map[string]v1.RadixAzureKeyVaultItem)
@@ -136,19 +136,19 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 				}
 			}
 		}
-		azureKeyVault := v1.RadixAzureKeyVault{
+		composedAzureKeyVault := v1.RadixAzureKeyVault{
 			Name:  commonAzureKeyVault.Name,
 			Path:  commonAzureKeyVault.Path,
 			Items: envAzureKeyVaultItems,
 		}
 		path := envAzureKeyVault.Path
 		if path != nil && len(*path) > 0 { //override common path by env-path, if specified in env, or set non-empty env path
-			azureKeyVault.Path = path
+			composedAzureKeyVault.Path = path
 		}
-		azureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = azureKeyVault
+		composedAzureKeyVaultSecretRefsMap[commonAzureKeyVault.Name] = composedAzureKeyVault
 	}
 	var azureKeyVaults []v1.RadixAzureKeyVault
-	for _, azureKeyVault := range azureKeyVaultSecretRefsMap {
+	for _, azureKeyVault := range composedAzureKeyVaultSecretRefsMap {
 		azureKeyVaults = append(azureKeyVaults, azureKeyVault)
 	}
 	return azureKeyVaults

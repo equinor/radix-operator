@@ -7,12 +7,6 @@ import (
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
-func getOwnerReferencesOfDeployment(radixDeployment *v1.RadixDeployment) []metav1.OwnerReference {
-	return []metav1.OwnerReference{
-		getOwnerReferenceOfDeployment(radixDeployment),
-	}
-}
-
 func getOwnerReferenceOfDeployment(radixDeployment *v1.RadixDeployment) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: "radix.equinor.com/v1", //need to hardcode these values for now - seems they are missing from the CRD in k8s 1.8

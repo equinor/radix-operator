@@ -105,23 +105,20 @@ func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDe
 func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName, radixDeploymentName string) ([]v1.VolumeMount, error) {
 	secretRefs := deployComponent.GetSecretRefs()
 	var volumeMounts []v1.VolumeMount
-	switch {
-	case secretRefs.AzureKeyVaults != nil && len(secretRefs.AzureKeyVaults) > 0:
-		for _, azureKeyVault := range secretRefs.AzureKeyVaults {
-			k8sSecretTypeMap := make(map[kube.SecretType]bool)
-			for _, keyVaultItem := range azureKeyVault.Items {
-				kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
-				if _, ok := k8sSecretTypeMap[kubeSecretType]; !ok {
-					k8sSecretTypeMap[kubeSecretType] = true
-				}
+	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
+		k8sSecretTypeMap := make(map[kube.SecretType]bool)
+		for _, keyVaultItem := range azureKeyVault.Items {
+			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
+			if _, ok := k8sSecretTypeMap[kubeSecretType]; !ok {
+				k8sSecretTypeMap[kubeSecretType] = true
 			}
-			for kubeSecretType := range k8sSecretTypeMap {
-				secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
-				volumeMounts = append(volumeMounts, corev1.VolumeMount{
-					Name:      secretName,
-					MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
-				})
-			}
+		}
+		for kubeSecretType := range k8sSecretTypeMap {
+			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      secretName,
+				MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
+			})
 		}
 	}
 	return volumeMounts, nil

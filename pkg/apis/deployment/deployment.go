@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	errorUtils "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -235,7 +235,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when syncing of components
 	if len(errs) > 0 {
-		return errorUtils.Concat(errs)
+		return errors.Concat(errs)
 	}
 
 	return nil

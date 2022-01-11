@@ -993,9 +993,8 @@ func validateVariableName(resourceName, value string) error {
 func validateIllegalPrefixInVariableName(resourceName string, value string) error {
 	if utils.IsRadixEnvVar(value) {
 		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {

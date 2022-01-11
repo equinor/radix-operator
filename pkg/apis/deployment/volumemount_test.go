@@ -3,6 +3,9 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -20,8 +23,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
-	"strings"
-	"testing"
 )
 
 type VolumeMountTestSuite struct {
