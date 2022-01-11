@@ -725,7 +725,7 @@ func (o *oauthProxyResourceManager) getEnvVars(component v1.RadixCommonDeployCom
 	}
 
 	if cookieStore := oauth.CookieStore; cookieStore != nil {
-		addEnvVarIfSet("OAUTH2_PROXY_COOKIE_MINIMAL", cookieStore.Minimal)
+		addEnvVarIfSet("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", cookieStore.Minimal)
 	}
 
 	if redisStore := oauth.RedisStore; redisStore != nil {

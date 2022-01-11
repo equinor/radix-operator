@@ -220,7 +220,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Equal(returnOAuth.Cookie.Expire, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_EXPIRE", defaultContainer.Env))
 	s.Equal(returnOAuth.Cookie.Refresh, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_REFRESH", defaultContainer.Env))
 	s.Equal(returnOAuth.Cookie.SameSite, s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_SAMESITE", defaultContainer.Env))
-	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_COOKIE_MINIMAL", defaultContainer.Env))
+	s.Equal("true", s.getEnvVarValueByName("OAUTH2_PROXY_SESSION_COOKIE_MINIMAL", defaultContainer.Env))
 	s.Equal(returnOAuth.RedisStore.ConnectionURL, s.getEnvVarValueByName("OAUTH2_PROXY_REDIS_CONNECTION_URL", defaultContainer.Env))
 	secretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 	s.Equal(corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{Key: defaults.OAuthCookieSecretKeyName, LocalObjectReference: corev1.LocalObjectReference{Name: secretName}}}, s.getEnvVarValueFromByName("OAUTH2_PROXY_COOKIE_SECRET", defaultContainer.Env))
