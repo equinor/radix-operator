@@ -339,26 +339,42 @@ type OAuth2Cookie struct {
 	// Expire. Optional. The expire timeframe for the session cookie
 	// Default: 168h0m0s
 	Expire string `json:"expire,omitempty" yaml:"expire,omitempty"`
-	// Refresh. Optional.
-	Refresh  string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
+	// Refresh. Optional. The interval between cookie refreshes
+	// The value must be a shorter timeframe than Expire
+	// Default 60m0s
+	Refresh string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
+	// SameSite. Optional. The samesite cookie attribute
+	// Default: "" (empty)
 	SameSite string `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
 }
 
 // OAuth2OIDC defines OIDC properties for oauth proxy
 type OAuth2OIDC struct {
-	IssuerURL               string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
-	JWKSURL                 string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
-	SkipDiscovery           *bool  `json:"skipDiscovery,omitempty" yaml:"skipDiscovery,omitempty"`
-	InsecureSkipVerifyNonce *bool  `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
+	// IssuerURL. Optional. The OIDC issuer URL
+	// Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
+	IssuerURL string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
+	// JWKSURL. Optional. OIDC JWKS URL for token verification; required if OIDC discovery is disabled
+	JWKSURL string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
+	// SkipDiscovery. Optional. Defines if OIDC endpoint discovery should be bypassed
+	// LoginURL, RedeemURL, JWKSURL must be configured if discovery is disabled
+	// Default: false
+	SkipDiscovery *bool `json:"skipDiscovery,omitempty" yaml:"skipDiscovery,omitempty"`
+	// InsecureSkipVerifyNonce. Optional. Skip verifying the OIDC ID Token's nonce claim
+	// Default: false
+	InsecureSkipVerifyNonce *bool `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
 }
 
 // OAuth2RedisStore properties for redis session storage
 type OAuth2RedisStore struct {
+	// ConnectionURL. The URL for the Redis server when SessionStoreType is redis
 	ConnectionURL string `json:"connectionUrl,omitempty" yaml:"connectionUrl,omitempty"`
 }
 
 // OAuth2CookieStore properties for cookie session storage
 type OAuth2CookieStore struct {
+	// Minimal. Optional. Strips OAuth tokens from cookies if they are not needed (only when SessionStoreType is cookie)
+	// Cookie.Refresh must be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader must be false if this setting is true
+	// Default: false
 	Minimal *bool `json:"minimal,omitempty" yaml:"minimal,omitempty"`
 }
 
