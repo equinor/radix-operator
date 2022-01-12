@@ -80,4 +80,7 @@ const (
 
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
+
+	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
+	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
 )

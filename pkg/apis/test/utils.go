@@ -264,6 +264,7 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler-server:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
+	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot

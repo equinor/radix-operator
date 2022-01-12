@@ -215,6 +215,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		radixClient,
 		prometheusOperatorClient,
 		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
+		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
 	)
 
 	waitForChildrenToSync := true

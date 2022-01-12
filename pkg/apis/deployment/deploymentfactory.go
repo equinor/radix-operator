@@ -1,7 +1,7 @@
 package deployment
 
 import (
-	kube "github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
@@ -18,6 +18,7 @@ type DeploymentSyncerFactoryFunc func(
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
 	forceRunAsNonRoot bool,
+	tenantId string,
 ) DeploymentSyncer
 
 func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
@@ -28,8 +29,9 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
 	forceRunAsNonRoot bool,
+	tenantId string,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, forceRunAsNonRoot)
+	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, forceRunAsNonRoot, tenantId)
 }
 
 //DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -41,5 +43,6 @@ type DeploymentSyncerFactory interface {
 		prometheusperatorclient monitoring.Interface,
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,
-		forceRunAsNonRoot bool) DeploymentSyncer
+		forceRunAsNonRoot bool,
+		tenantId string) DeploymentSyncer
 }

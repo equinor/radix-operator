@@ -62,6 +62,7 @@ func (s *RadixJobTestSuiteBase) teardownTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
 	os.Unsetenv(defaults.JobsHistoryLimitEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
 func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {

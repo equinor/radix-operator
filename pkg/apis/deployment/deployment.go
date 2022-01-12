@@ -46,16 +46,11 @@ type Deployment struct {
 	registration            *v1.RadixRegistration
 	radixDeployment         *v1.RadixDeployment
 	securityContextBuilder  SecurityContextBuilder
+	tenantId                string
 }
 
 // NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
-	registration *v1.RadixRegistration,
-	radixDeployment *v1.RadixDeployment,
-	forceRunAsNonRoot bool) DeploymentSyncer {
+func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, forceRunAsNonRoot bool, tenantId string) DeploymentSyncer {
 
 	return &Deployment{
 		kubeclient,
@@ -64,7 +59,9 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		prometheusperatorclient,
 		registration,
 		radixDeployment,
-		NewSecurityContextBuilder(forceRunAsNonRoot)}
+		NewSecurityContextBuilder(forceRunAsNonRoot),
+		tenantId,
+	}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name

@@ -45,6 +45,7 @@ const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 const egressIps = "0.0.0.0"
+const tenantId = "123456789"
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
@@ -68,6 +69,7 @@ func teardownTest() {
 	os.Unsetenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
@@ -3163,12 +3165,12 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 }
 
 func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
-	deployment := NewDeployment(nil, nil, nil, nil, nil, nil, true).(*Deployment)
+	deployment := NewDeployment(nil, nil, nil, nil, nil, nil, true, tenantId).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual := deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.True(t, actual.forceRunAsNonRoot)
 
-	deployment = NewDeployment(nil, nil, nil, nil, nil, nil, false).(*Deployment)
+	deployment = NewDeployment(nil, nil, nil, nil, nil, nil, false, tenantId).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual = deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.False(t, actual.forceRunAsNonRoot)
@@ -3249,7 +3251,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 	if err != nil {
 		return nil, err
 	}
-	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false)
+	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId)
 	err = deployment.OnSync()
 	if err != nil {
 		return nil, err
@@ -3271,7 +3273,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false)
+	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId)
 	err = deployment.OnSync()
 	if err != nil {
 		return err
