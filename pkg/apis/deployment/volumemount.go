@@ -55,7 +55,7 @@ const (
 	csiSecretProviderClassParameterObjects           = "objects"
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
-	csiAzureKeyVaultSecretMountPathTemplate          = "/mnt/azure-key-vault/%s/%s"
+	csiAzureKeyVaultSecretMountPathTemplate          = "/mnt/azure-key-vault/%s"
 )
 
 //GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
@@ -126,7 +126,7 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 
 func getCsiAzureKeyVaultSecretMountPath(componentName string, azureKeyVault radixv1.RadixAzureKeyVault) string {
 	if azureKeyVault.Path == nil || *(azureKeyVault.Path) == "" {
-		return fmt.Sprintf(csiAzureKeyVaultSecretMountPathTemplate, azureKeyVault.Name, componentName)
+		return fmt.Sprintf(csiAzureKeyVaultSecretMountPathTemplate, azureKeyVault.Name)
 	}
 	return *azureKeyVault.Path
 }
