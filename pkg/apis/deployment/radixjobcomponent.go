@@ -1,11 +1,11 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"reflect"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
