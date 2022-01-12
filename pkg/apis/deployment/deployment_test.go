@@ -3234,20 +3234,20 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	annotations1 := NewMockIngressAnnotations(ctrl)
+	annotations1 := NewMockIngressAnnotationProvider(ctrl)
 	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(map[string]string{"foo": "x"})
-	annotations2 := NewMockIngressAnnotations(ctrl)
+	annotations2 := NewMockIngressAnnotationProvider(ctrl)
 	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(map[string]string{"bar": "y", "baz": "z"})
 
 	syncer := Deployment{
-		kubeclient:              kubeclient,
-		radixclient:             radixclient,
-		prometheusperatorclient: prometheusclient,
-		kubeutil:                kubeUtil,
-		registration:            rr,
-		radixDeployment:         rd,
-		securityContextBuilder:  NewSecurityContextBuilder(true),
-		ingressAnnotations:      []IngressAnnotations{annotations1, annotations2},
+		kubeclient:                 kubeclient,
+		radixclient:                radixclient,
+		prometheusperatorclient:    prometheusclient,
+		kubeutil:                   kubeUtil,
+		registration:               rr,
+		radixDeployment:            rd,
+		securityContextBuilder:     NewSecurityContextBuilder(true),
+		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1, annotations2},
 	}
 
 	err := syncer.OnSync()

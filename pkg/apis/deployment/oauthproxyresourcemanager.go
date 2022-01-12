@@ -35,20 +35,20 @@ const (
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
 func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
-		rd:                 rd,
-		rr:                 rr,
-		kubeutil:           kubeutil,
-		ingressAnnotations: []IngressAnnotations{&forceSslRedirectAnnotations{}},
-		oauth2Config:       OAuth2ConfigFunc(oauth2ConfigFuncImpl),
+		rd:                         rd,
+		rr:                         rr,
+		kubeutil:                   kubeutil,
+		ingressAnnotationProviders: []IngressAnnotationProvider{&forceSslRedirectAnnotations{}},
+		oauth2Config:               OAuth2ConfigFunc(oauth2ConfigFuncImpl),
 	}
 }
 
 type oauthProxyResourceManager struct {
-	rd                 *v1.RadixDeployment
-	rr                 *v1.RadixRegistration
-	kubeutil           *kube.Kube
-	ingressAnnotations []IngressAnnotations
-	oauth2Config       OAuth2Config
+	rd                         *v1.RadixDeployment
+	rr                         *v1.RadixRegistration
+	kubeutil                   *kube.Kube
+	ingressAnnotationProviders []IngressAnnotationProvider
+	oauth2Config               OAuth2Config
 }
 
 func (o *oauthProxyResourceManager) Sync() error {
@@ -385,7 +385,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 	pathType := networkingv1.PathTypeImplementationSpecific
 	annotations := map[string]string{}
 
-	for _, ia := range o.ingressAnnotations {
+	for _, ia := range o.ingressAnnotationProviders {
 		annotations = radixmaps.MergeStringMaps(annotations, ia.GetAnnotations(component))
 	}
 

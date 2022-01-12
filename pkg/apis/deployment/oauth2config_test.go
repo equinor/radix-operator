@@ -166,7 +166,7 @@ func (*oauth2ConfigFuncImplSuite) expectedDefaultConfig() *v1.OAuth2 {
 		SetXAuthRequestHeaders: utils.BoolPtr(false),
 		SetAuthorizationHeader: utils.BoolPtr(false),
 		ProxyPrefix:            "/oauth2",
-		SessionStoreType:       "cookie",
+		SessionStoreType:       v1.SessionStoreCookie,
 		OIDC: &v1.OAuth2OIDC{
 			IssuerURL:               os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable),
 			InsecureSkipVerifyNonce: utils.BoolPtr(false),

@@ -328,7 +328,7 @@ func (deploy *Deployment) getIngressConfig(
 ) *networkingv1.Ingress {
 	annotations := map[string]string{}
 
-	for _, ia := range deploy.ingressAnnotations {
+	for _, ia := range deploy.ingressAnnotationProviders {
 		annotations = radixmaps.MergeStringMaps(annotations, ia.GetAnnotations(component))
 	}
 

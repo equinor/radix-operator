@@ -9,7 +9,7 @@ import (
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
 
-type IngressAnnotations interface {
+type IngressAnnotationProvider interface {
 	GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string
 }
 

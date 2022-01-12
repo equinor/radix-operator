@@ -39,15 +39,15 @@ type DeploymentSyncer interface {
 
 // Deployment Instance variables
 type Deployment struct {
-	kubeclient              kubernetes.Interface
-	radixclient             radixclient.Interface
-	kubeutil                *kube.Kube
-	prometheusperatorclient monitoring.Interface
-	registration            *v1.RadixRegistration
-	radixDeployment         *v1.RadixDeployment
-	securityContextBuilder  SecurityContextBuilder
-	auxResourceManagers     []AuxiliaryResourceManager
-	ingressAnnotations      []IngressAnnotations
+	kubeclient                 kubernetes.Interface
+	radixclient                radixclient.Interface
+	kubeutil                   *kube.Kube
+	prometheusperatorclient    monitoring.Interface
+	registration               *v1.RadixRegistration
+	radixDeployment            *v1.RadixDeployment
+	securityContextBuilder     SecurityContextBuilder
+	auxResourceManagers        []AuxiliaryResourceManager
+	ingressAnnotationProviders []IngressAnnotationProvider
 }
 
 // NewDeployment Constructor
@@ -63,7 +63,7 @@ func NewDeployment(kubeclient kubernetes.Interface,
 	if err != nil {
 		panic(err)
 	}
-	ingressAnnotations := []IngressAnnotations{
+	ingressAnnotations := []IngressAnnotationProvider{
 		forceSslRedirectAnnotations{},
 		&ingressConfigurationAnnotations{config: ingressConfig},
 		&clientCertificateAnnotations{namespace: radixDeployment.Namespace},
@@ -71,15 +71,15 @@ func NewDeployment(kubeclient kubernetes.Interface,
 	}
 
 	return &Deployment{
-		kubeclient:              kubeclient,
-		radixclient:             radixclient,
-		kubeutil:                kubeutil,
-		prometheusperatorclient: prometheusperatorclient,
-		registration:            registration,
-		radixDeployment:         radixDeployment,
-		securityContextBuilder:  NewSecurityContextBuilder(forceRunAsNonRoot),
-		auxResourceManagers:     []AuxiliaryResourceManager{NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)},
-		ingressAnnotations:      ingressAnnotations,
+		kubeclient:                 kubeclient,
+		radixclient:                radixclient,
+		kubeutil:                   kubeutil,
+		prometheusperatorclient:    prometheusperatorclient,
+		registration:               registration,
+		radixDeployment:            radixDeployment,
+		securityContextBuilder:     NewSecurityContextBuilder(forceRunAsNonRoot),
+		auxResourceManagers:        []AuxiliaryResourceManager{NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)},
+		ingressAnnotationProviders: ingressAnnotations,
 	}
 }
 

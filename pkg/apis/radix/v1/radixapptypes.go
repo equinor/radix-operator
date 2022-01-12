@@ -344,7 +344,8 @@ type OAuth2Cookie struct {
 	// Default 60m0s
 	Refresh string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
 	// SameSite. Optional. The samesite cookie attribute
-	// Default: "" (empty)
+	// Allowed values: strict, lax, none
+	// Default: "" (empty; default decided by browser)
 	SameSite string `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
 }
 
