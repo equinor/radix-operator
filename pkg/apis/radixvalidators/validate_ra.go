@@ -251,8 +251,7 @@ func duplicateAzureKeyVaultName(name string) error {
 	return fmt.Errorf("Azure Key vault has a duplicate name %s", name)
 }
 
-// SecretRefEnvVarNameConflictsWithEnvironmentVariable If secret reference environment variable name is the same as environment variable fail validation
-func SecretRefEnvVarNameConflictsWithEnvironmentVariable(componentName, secretRefEnvVarName string) error {
+func secretRefEnvVarNameConflictsWithEnvironmentVariable(componentName, secretRefEnvVarName string) error {
 	return fmt.Errorf(
 		"component %s has a secret reference with environment variable name %s which exists as a regular environment variable or a secret",
 		componentName, secretRefEnvVarName)
@@ -925,7 +924,7 @@ func validateConflictingEnvironmentAndSecretRefsNames(component v1.RadixCommonCo
 		for _, item := range azureKeyVault.Items {
 			for _, envVarMap := range envsEnvVarMap {
 				if _, contains := envVarMap[item.EnvVar]; contains {
-					return SecretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+					return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
 				}
 			}
 		}
@@ -935,7 +934,7 @@ func validateConflictingEnvironmentAndSecretRefsNames(component v1.RadixCommonCo
 			for _, item := range azureKeyVault.Items {
 				if envVarMap, ok := envsEnvVarMap[environmentConfig.GetEnvironment()]; ok {
 					if _, contains := envVarMap[item.EnvVar]; contains {
-						return SecretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+						return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
 					}
 				}
 			}

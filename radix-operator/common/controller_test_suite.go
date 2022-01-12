@@ -37,8 +37,7 @@ type ControllerTestSuite struct {
 func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
-	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient)
-	s.KubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
+	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient, secretproviderfake.NewSimpleClientset())
 	s.PromClient = prometheusfake.NewSimpleClientset()
 	s.EventRecorder = &record.FakeRecorder{}
 	s.RadixInformerFactory = informers.NewSharedInformerFactory(s.RadixClient, 0)

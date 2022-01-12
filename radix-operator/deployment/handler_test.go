@@ -30,8 +30,7 @@ type handlerSuite struct {
 func (s *handlerSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
-	s.kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
 }

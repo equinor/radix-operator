@@ -79,8 +79,7 @@ func getTestEnv() TestEnv {
 		radixclient:      radix.NewSimpleClientset(),
 		prometheusclient: prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient)
-	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
+	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, secretproviderfake.NewSimpleClientset())
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

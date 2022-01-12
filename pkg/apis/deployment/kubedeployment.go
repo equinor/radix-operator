@@ -249,6 +249,8 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 
 	if hasRadixSecretRefs(deployComponent) {
 		desiredDeployment.Spec.RevisionHistoryLimit = numbers.Int32Ptr(0)
+	} else {
+		desiredDeployment.Spec.RevisionHistoryLimit = nil
 	}
 
 	return desiredDeployment, nil

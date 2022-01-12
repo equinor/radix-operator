@@ -38,8 +38,7 @@ func TestHandlerSuite(t *testing.T) {
 func (s *handlerTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
-	s.kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
 	s.mockCtrl = gomock.NewController(s.T())

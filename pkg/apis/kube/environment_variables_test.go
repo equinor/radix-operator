@@ -38,8 +38,7 @@ func getEnvironmentVariablesTestEnv() ConfigMapTestEnv {
 		radixclient:      radix.NewSimpleClientset(),
 		prometheusclient: prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient)
-	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
+	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient, secretproviderfake.NewSimpleClientset())
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

@@ -23,8 +23,7 @@ func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTes
 
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
 	testUtils.CreateClusterPrerequisites(anyClusterName, anyContainerRegistry, egressIps)
-	kubeUtil, _ := kube.New(kubeclient, radixclient)
-	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
+	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderfake.NewSimpleClientset())
 
 	return kubeclient, kubeUtil, radixclient, testUtils
 }

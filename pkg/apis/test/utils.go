@@ -29,8 +29,7 @@ type Utils struct {
 
 // NewTestUtils Constructor
 func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface) Utils {
-	kubeUtil, _ := kube.New(client, radixclient)
-	kubeUtil.WithSecretsProvider(secretproviderfake.NewSimpleClientset())
+	kubeUtil, _ := kube.New(client, radixclient, secretproviderfake.NewSimpleClientset())
 	return Utils{
 		client:      client,
 		radixclient: radixclient,

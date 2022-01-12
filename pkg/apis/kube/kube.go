@@ -89,18 +89,13 @@ func init() {
 }
 
 // New Constructor
-func New(client kubernetes.Interface, radixClient radixclient.Interface) (*Kube, error) {
+func New(client kubernetes.Interface, radixClient radixclient.Interface, secretProviderClient secretProviderClient.Interface) (*Kube, error) {
 	kubeutil := &Kube{
-		kubeClient:  client,
-		radixclient: radixClient,
+		kubeClient:           client,
+		radixclient:          radixClient,
+		secretProviderClient: secretProviderClient,
 	}
 	return kubeutil, nil
-}
-
-// WithSecretsProvider Add Secrets Provider client
-func (kubeutil *Kube) WithSecretsProvider(secretproviderclient secretProviderClient.Interface) *Kube {
-	kubeutil.secretProviderClient = secretproviderclient
-	return kubeutil
 }
 
 // NewWithListers Constructor
