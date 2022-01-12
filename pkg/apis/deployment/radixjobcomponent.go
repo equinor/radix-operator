@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"reflect"
 	"strings"
 
@@ -66,6 +68,12 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 	payload := appJobComponent.Payload
 	// Runs as root by default unless overridden
 	runAsNonRoot := false
+	var timeLimitSeconds *int64
+	if appJobComponent.TimeLimitSeconds == nil {
+		timeLimitSeconds = numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
+	} else {
+		timeLimitSeconds = appJobComponent.TimeLimitSeconds
+	}
 
 	environmentSpecificConfig := c.getEnvironmentConfig(appJobComponent)
 	if environmentSpecificConfig != nil {
@@ -76,6 +84,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 		imageTagName = environmentSpecificConfig.ImageTagName
 		runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		node = environmentSpecificConfig.Node
+		timeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
 	}
 
 	if variables == nil {
@@ -115,6 +124,7 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 		Payload:              payload,
 		RunAsNonRoot:         runAsNonRoot,
 		Node:                 node,
+		TimeLimitSeconds:     timeLimitSeconds,
 	}
 
 	return deployJob

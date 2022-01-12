@@ -182,7 +182,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.securityContextBuilder.BuildContainerSecurityContext(deployComponent)
-	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = deploy.securityContextBuilder.BuildPodSecurityContext(deployComponent)
 
@@ -224,6 +223,11 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 		desiredDeployment.Spec.Replicas = int32Ptr(int32(*replicas))
 	} else {
 		desiredDeployment.Spec.Replicas = int32Ptr(int32(DefaultReplicas))
+	}
+
+	timeLimitSeconds := deployComponent.GetTimeLimitSeconds()
+	if timeLimitSeconds != nil {
+		desiredDeployment.Spec.Template.Spec.ActiveDeadlineSeconds = deployComponent.GetTimeLimitSeconds()
 	}
 
 	// Override Replicas with horizontalScaling.minReplicas if exists

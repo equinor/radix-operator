@@ -148,19 +148,21 @@ type RadixJobComponent struct {
 	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
+	TimeLimitSeconds  *int64                               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
-	Environment  string               `json:"environment" yaml:"environment"`
-	RunAsNonRoot bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
-	Monitoring   bool                 `json:"monitoring" yaml:"monitoring"`
-	Resources    ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables    EnvVarsMap           `json:"variables" yaml:"variables"`
-	ImageTagName string               `json:"imageTagName" yaml:"imageTagName"`
-	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	Node         RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
+	Environment      string               `json:"environment" yaml:"environment"`
+	RunAsNonRoot     bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+	Monitoring       bool                 `json:"monitoring" yaml:"monitoring"`
+	Resources        ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Variables        EnvVarsMap           `json:"variables" yaml:"variables"`
+	ImageTagName     string               `json:"imageTagName" yaml:"imageTagName"`
+	VolumeMounts     []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
+	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server

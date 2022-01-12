@@ -175,6 +175,10 @@ func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
 }
 
+func (deployComponent *RadixDeployComponent) GetTimeLimitSeconds() *int64 {
+	return nil
+}
+
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
 	return deployComponent.Authentication
 }
@@ -263,6 +267,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetTimeLimitSeconds() *int64 {
+	return deployJobComponent.TimeLimitSeconds
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
 	return nil
 }
@@ -302,6 +310,7 @@ type RadixDeployJobComponent struct {
 	RunAsNonRoot            bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
+	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
 //RadixCommonDeployComponent defines a common component interface a RadixDeployment
@@ -328,6 +337,7 @@ type RadixCommonDeployComponent interface {
 	GetAuthentication() *Authentication
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
+	GetTimeLimitSeconds() *int64
 }
 
 //RadixCommonDeployComponentFactory defines a common component factory

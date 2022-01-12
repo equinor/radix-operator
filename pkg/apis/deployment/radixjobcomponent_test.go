@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -306,4 +307,22 @@ func Test_GetRadixJobComponents_Secrets(t *testing.T) {
 	assert.ElementsMatch(t, []string{"SECRET1", "SECRET2"}, jobs[0].Secrets)
 
 	assert.Empty(t, jobs[1].Secrets)
+}
+
+func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
+	ra := utils.ARadixApplication().
+		WithJobComponents(
+			utils.AnApplicationJobComponent().
+				WithName("this job name does get set").
+				WithSchedulerPort(numbers.Int32Ptr(8888)).
+				WithTimeLimitSeconds(numbers.Int64Ptr(200)),
+			utils.AnApplicationJobComponent().
+				WithName("job2").
+				WithTimeLimitSeconds(nil),
+		).BuildRA()
+
+	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	jobs := cfg.JobComponents()
+	assert.Equal(t, numbers.Int64Ptr(200), jobs[0].TimeLimitSeconds)
+	assert.Equal(t, numbers.Int64Ptr(12*3600), jobs[1].TimeLimitSeconds)
 }
