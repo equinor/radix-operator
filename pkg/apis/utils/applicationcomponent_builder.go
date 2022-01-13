@@ -15,6 +15,7 @@ type RadixApplicationComponentBuilder interface {
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
+	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationComponentBuilder
 	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
@@ -36,6 +37,7 @@ type radixApplicationComponentBuilder struct {
 	publicPort              string
 	ports                   map[string]int32
 	secrets                 []string
+	secretRefs              v1.RadixSecretRefs
 	ingressConfiguration    []string
 	environmentConfig       []RadixEnvironmentConfigBuilder
 	variables               v1.EnvVarsMap
@@ -83,6 +85,11 @@ func (rcb *radixApplicationComponentBuilder) WithPublicPort(publicPort string) R
 
 func (rcb *radixApplicationComponentBuilder) WithSecrets(secrets ...string) RadixApplicationComponentBuilder {
 	rcb.secrets = secrets
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixApplicationComponentBuilder {
+	rcb.secretRefs = secretRefs
 	return rcb
 }
 
@@ -160,6 +167,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Image:                   rcb.image,
 		Ports:                   componentPorts,
 		Secrets:                 rcb.secrets,
+		SecretRefs:              rcb.secretRefs,
 		IngressConfiguration:    rcb.ingressConfiguration,
 		Public:                  rcb.public,
 		PublicPort:              rcb.publicPort,

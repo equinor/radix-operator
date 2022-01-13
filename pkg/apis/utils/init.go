@@ -24,7 +24,7 @@ var (
 )
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface, *secretProviderClient.Clientset) {
+func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 

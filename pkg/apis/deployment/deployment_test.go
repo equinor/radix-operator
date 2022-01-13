@@ -52,9 +52,9 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	kubeclient := kubefake.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset()
 	prometheusClient := prometheusfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeclient, radixClient, secretproviderfake.NewSimpleClientset())
-
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(kubeclient, radixClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient
 }

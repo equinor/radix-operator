@@ -42,9 +42,9 @@ const (
 func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	fakekube := fake.NewSimpleClientset()
 	fakeradix := radix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(fakekube, fakeradix, secretproviderfake.NewSimpleClientset())
-
-	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(fakekube, fakeradix, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, limitDefaultCPU)

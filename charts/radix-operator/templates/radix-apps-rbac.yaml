@@ -51,13 +51,6 @@ rules:
   - watch
   - patch
   - create
-- apiGroups:
-    - 'secrets-store.csi.x-k8s.io'
-  resources:
-    - secretproviderclasses
-  verbs:
-    - get
-    - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -132,4 +125,11 @@ rules:
   - list
   - watch
   - create
+- apiGroups:
+    - 'secrets-store.csi.x-k8s.io'
+  resources:
+    - secretproviderclasses
+  verbs:
+    - get
+    - list
 ---

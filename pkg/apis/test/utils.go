@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"os"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -15,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 const dnsZone = "dev.radix.equinor.com"
@@ -28,8 +28,8 @@ type Utils struct {
 }
 
 // NewTestUtils Constructor
-func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface) Utils {
-	kubeUtil, _ := kube.New(client, radixclient, secretproviderfake.NewSimpleClientset())
+func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, secretproviderclient secretProviderClient.Interface) Utils {
+	kubeUtil, _ := kube.New(client, radixclient, secretproviderclient)
 	return Utils{
 		client:      client,
 		radixclient: radixclient,

@@ -49,10 +49,6 @@ rules:
   verbs:
     - get
     - list
-    - create
-    - update
-    - patch
-    - delete
 ---
 # used to grant pipeline access to create new namespaces and deployments
 apiVersion: rbac.authorization.k8s.io/v1

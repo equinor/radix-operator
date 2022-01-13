@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 )
@@ -26,19 +27,21 @@ func TestConfigMapSuite(t *testing.T) {
 }
 
 type ConfigMapTestEnv struct {
-	kubeclient       kubernetes.Interface
-	radixclient      radixclient.Interface
-	prometheusclient prometheusclient.Interface
-	kubeUtil         *Kube
+	kubeclient           kubernetes.Interface
+	radixclient          radixclient.Interface
+	secretproviderclient secretProviderClient.Interface
+	prometheusclient     prometheusclient.Interface
+	kubeUtil             *Kube
 }
 
 func getConfigMapTestEnv() ConfigMapTestEnv {
 	testEnv := ConfigMapTestEnv{
-		kubeclient:       kubefake.NewSimpleClientset(),
-		radixclient:      radix.NewSimpleClientset(),
-		prometheusclient: prometheusfake.NewSimpleClientset(),
+		kubeclient:           kubefake.NewSimpleClientset(),
+		radixclient:          radix.NewSimpleClientset(),
+		secretproviderclient: secretproviderfake.NewSimpleClientset(),
+		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient, secretproviderfake.NewSimpleClientset())
+	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

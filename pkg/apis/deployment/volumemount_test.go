@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"strings"
 	"testing"
 
@@ -31,11 +32,12 @@ type VolumeMountTestSuite struct {
 }
 
 type TestEnv struct {
-	kubeclient       kubernetes.Interface
-	radixclient      radixclient.Interface
-	prometheusclient prometheusclient.Interface
-	kubeUtil         *kube.Kube
-	deployment       *Deployment
+	kubeclient           kubernetes.Interface
+	radixclient          radixclient.Interface
+	secretproviderclient secretProviderClient.Interface
+	prometheusclient     prometheusclient.Interface
+	kubeUtil             *kube.Kube
+	deployment           *Deployment
 }
 
 type volumeMountTestScenario struct {
@@ -75,11 +77,12 @@ func (suite *VolumeMountTestSuite) SetupSuite() {
 
 func getTestEnv() TestEnv {
 	testEnv := TestEnv{
-		kubeclient:       kubefake.NewSimpleClientset(),
-		radixclient:      radix.NewSimpleClientset(),
-		prometheusclient: prometheusfake.NewSimpleClientset(),
+		kubeclient:           kubefake.NewSimpleClientset(),
+		radixclient:          radix.NewSimpleClientset(),
+		secretproviderclient: secretproviderfake.NewSimpleClientset(),
+		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, secretproviderfake.NewSimpleClientset())
+	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

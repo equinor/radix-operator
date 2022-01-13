@@ -40,10 +40,11 @@ func testAlertSyncerWithAlertConfigs(configs AlertConfigs) testAlertSyncerConfig
 
 type alertTestSuite struct {
 	suite.Suite
-	kubeClient  *fake.Clientset
-	radixClient *fakeradix.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
+	kubeClient           *fake.Clientset
+	radixClient          *fakeradix.Clientset
+	secretProviderClient *secretproviderfake.Clientset
+	promClient           *prometheusfake.Clientset
+	kubeUtil             *kube.Kube
 }
 
 func TestAlertTestSuite(t *testing.T) {
@@ -57,7 +58,8 @@ func (s *alertTestSuite) SetupSuite() {
 func (s *alertTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
+	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 }
 

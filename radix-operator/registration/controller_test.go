@@ -34,9 +34,9 @@ var synced chan bool
 func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client, radixClient, secretproviderfake.NewSimpleClientset())
-
-	handlerTestUtils := test.NewTestUtils(client, radixClient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return client, kubeUtil, radixClient
 }

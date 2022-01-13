@@ -20,17 +20,19 @@ import (
 
 type handlerSuite struct {
 	suite.Suite
-	kubeClient    *fake.Clientset
-	radixClient   *fakeradix.Clientset
-	promClient    *prometheusfake.Clientset
-	kubeUtil      *kube.Kube
-	eventRecorder *record.FakeRecorder
+	kubeClient           *fake.Clientset
+	radixClient          *fakeradix.Clientset
+	secretProviderClient *secretproviderfake.Clientset
+	promClient           *prometheusfake.Clientset
+	kubeUtil             *kube.Kube
+	eventRecorder        *record.FakeRecorder
 }
 
 func (s *handlerSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
+	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
 }

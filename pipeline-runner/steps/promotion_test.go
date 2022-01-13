@@ -155,43 +155,13 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 				utils.NewDeployComponentBuilder().
 					WithName("app").
 					WithSecrets([]string{"DEPLOYAPPSECRET"}).
-					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
-						Name: "TestKeyVault2",
-						Items: []v1.RadixAzureKeyVaultItem{
-							{
-								Name:   "Secret2",
-								EnvVar: "SECRET_2",
-								Type:   &secretType,
-							},
-							{
-								Name:   "Key2",
-								EnvVar: "KEY_2",
-								Type:   &keyType,
-							},
-						},
-					}}}).
 					WithNodeGpu("dev-gpu").
 					WithNodeGpuCount("1"),
 			).
 			WithJobComponent(
 				utils.NewDeployJobComponentBuilder().
 					WithName("job").
-					WithSecrets([]string{"DEPLOYJOBSECRET"}).
-					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
-						Name: "TestKeyVault",
-						Items: []v1.RadixAzureKeyVaultItem{
-							{
-								Name:   "Secret1",
-								EnvVar: "SECRET_1",
-								Type:   &secretType,
-							},
-							{
-								Name:   "Key1",
-								EnvVar: "KEY_1",
-								Type:   &keyType,
-							},
-						},
-					}}}),
+					WithSecrets([]string{"DEPLOYJOBSECRET"}),
 			).
 			WithRadixApplication(
 				utils.NewRadixApplicationBuilder().
@@ -209,6 +179,21 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							WithSecrets("APPSECRET1", "APPSECRET2").
 							WithCommonEnvironmentVariable("DB_TYPE", "mysql").
 							WithCommonEnvironmentVariable("DB_NAME", "my-db").
+							WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+								Name: "TestKeyVault2",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{
+										Name:   "Secret2",
+										EnvVar: "SECRET_2",
+										Type:   &secretType,
+									},
+									{
+										Name:   "Key2",
+										EnvVar: "KEY_2",
+										Type:   &keyType,
+									},
+								},
+							}}}).
 							WithEnvironmentConfigs(
 								utils.AnEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
@@ -230,6 +215,21 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 							WithSecrets("JOBSECRET1", "JOBSECRET2").
 							WithCommonEnvironmentVariable("COMMON1", "common1").
 							WithCommonEnvironmentVariable("COMMON2", "common2").
+							WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{
+								Name: "TestKeyVault",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{
+										Name:   "Secret1",
+										EnvVar: "SECRET_1",
+										Type:   &secretType,
+									},
+									{
+										Name:   "Key1",
+										EnvVar: "KEY_1",
+										Type:   &keyType,
+									},
+								},
+							}}}).
 							WithEnvironmentConfigs(
 								utils.AJobComponentEnvironmentConfig().
 									WithEnvironment(anyDevEnvironment).
@@ -653,78 +653,4 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 
 	rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyDevEnvironment)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 2, len(rds.Items))
-}
-
-// This test covers a bug causing nil map panic
-// when component variables are set and environment variables are not
-func TestPromote_PromoteToOtherEnvironment_EnvironmentVariablesNotSet(t *testing.T) {
-	anyApp := "any-app"
-	anyDeploymentName := "deployment-1"
-	anyImageTag := "abcdef"
-	anyPromoteJobName := "any-promote-job"
-	anyProdEnvironment := "prod"
-	anyDevEnvironment := "dev"
-	anyComponentName := "component"
-	anyJobName := "job"
-
-	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
-
-	deployment := utils.NewDeploymentBuilder().
-		WithAppName(anyApp).
-		WithDeploymentName(anyDeploymentName).
-		WithEnvironment(anyDevEnvironment).
-		WithComponent(utils.NewDeployComponentBuilder().WithName(anyComponentName)).
-		WithJobComponent(utils.NewDeployJobComponentBuilder().WithName(anyJobName)).
-		WithRadixApplication(
-			utils.NewRadixApplicationBuilder().
-				WithRadixRegistration(
-					utils.ARadixRegistration().
-						WithName(anyApp)).
-				WithAppName(anyApp).
-				WithEnvironment(anyDevEnvironment, "master").
-				WithEnvironment(anyProdEnvironment, "").
-				WithComponents(
-					utils.AnApplicationComponent().
-						WithName(anyComponentName).
-						WithCommonEnvironmentVariable("ENV1", "value").
-						WithEnvironmentConfigs(
-							utils.AnEnvironmentConfig().
-								WithEnvironment(anyProdEnvironment))).
-				WithJobComponents(
-					utils.AnApplicationJobComponent().
-						WithName(anyJobName).
-						WithCommonEnvironmentVariable("ENV1", "value").
-						WithSchedulerPort(numbers.Int32Ptr(8888)).
-						WithEnvironmentConfigs(
-							utils.AJobComponentEnvironmentConfig().
-								WithEnvironment(anyProdEnvironment)),
-				))
-
-	commonTestUtils.ApplyDeployment(deployment)
-
-	// Create prod environment without any deployments
-	test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
-
-	rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
-	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
-
-	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
-
-	pipelineInfo := &model.PipelineInfo{
-		PipelineArguments: model.PipelineArguments{
-			FromEnvironment: anyDevEnvironment,
-			ToEnvironment:   anyProdEnvironment,
-			DeploymentName:  anyDeploymentName,
-			JobName:         anyPromoteJobName,
-			ImageTag:        anyImageTag,
-			CommitID:        anyCommitID,
-		},
-	}
-
-	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
-	err := cli.Run(pipelineInfo)
-	assert.NoError(t, err)
 }

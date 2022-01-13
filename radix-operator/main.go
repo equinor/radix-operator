@@ -197,7 +197,7 @@ func startEnvironmentController(client kubernetes.Interface, radixClient radixcl
 	}
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient *secretProviderClient.Clientset) {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -302,7 +302,7 @@ func syncJobStatusMetrics(radixClient radixclient.Interface) error {
 	return nil
 }
 
-func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient *secretProviderClient.Clientset) {
+func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)

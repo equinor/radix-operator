@@ -47,9 +47,9 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
-	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient, secretproviderfake.NewSimpleClientset())
-
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }
