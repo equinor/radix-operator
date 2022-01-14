@@ -24,6 +24,10 @@ const (
 	azureSecureStorageProvider = "azure"
 )
 
+type stringArray struct {
+	Array []string `json:"array" yaml:"array"`
+}
+
 func (deploy *Deployment) createOrUpdateSecrets(registration *radixv1.RadixRegistration, deployment *radixv1.RadixDeployment) error {
 	envName := deployment.Spec.Environment
 	namespace := utils.GetEnvironmentNamespace(registration.Name, envName)
@@ -241,7 +245,7 @@ func getSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVa
 		}
 		parameterObject = append(parameterObject, obj)
 	}
-	parameterObjectArray := kube.StringArray{Array: []string{}}
+	parameterObjectArray := stringArray{}
 	for _, keyVaultObject := range parameterObject {
 		obj, err := yaml.Marshal(keyVaultObject)
 		if err != nil {

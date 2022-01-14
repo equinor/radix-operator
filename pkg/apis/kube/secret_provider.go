@@ -12,11 +12,6 @@ import (
 	"strings"
 )
 
-// StringArray ...
-type StringArray struct {
-	Array []string `json:"array" yaml:"array"`
-}
-
 // SecretProviderClassParameterObject Object for SecretProviderClass parameters
 type SecretProviderClassParameterObject struct {
 	// Name. Name of the Azure Key Vault object
@@ -42,7 +37,7 @@ func (kubeutil *Kube) GetSecretProviderClass(namespace string, className string)
 		}
 		return nil, err
 	}
-	return class, err
+	return class, nil
 }
 
 // ListSecretProviderClass Gets secret provider classes for the component
@@ -55,7 +50,7 @@ func (kubeutil *Kube) ListSecretProviderClass(namespace string, componentName st
 		}
 		return nil, err
 	}
-	return classList.Items, err
+	return classList.Items, nil
 }
 
 // GetSecretRefObjectLabelSelector Get label selector for secret-ref object (secret, secret provider class, etc.)

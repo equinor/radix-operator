@@ -204,8 +204,7 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 		}
 		for _, secretObject := range secretProviderClass.Spec.SecretObjects {
 			volume := v1.Volume{
-				Name:         secretObject.SecretName,
-				VolumeSource: v1.VolumeSource{},
+				Name: secretObject.SecretName,
 			}
 			provider := string(secretProviderClass.Spec.Provider)
 			switch provider {
@@ -221,7 +220,6 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 					VolumeAttributes:     map[string]string{csiVolumeSourceVolumeAttrSecretProviderClassName: secretProviderClass.Name},
 					NodePublishSecretRef: &corev1.LocalObjectReference{Name: credsSecretName},
 				}
-				break
 			default:
 				log.Errorf("not supported provider '%s' in the secret provider class %s", provider, secretProviderClass.Name)
 				continue

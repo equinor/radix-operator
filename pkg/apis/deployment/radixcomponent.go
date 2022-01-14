@@ -13,7 +13,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		componentName := radixComponent.Name
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
-			Environment:          env,
 			Public:               false,
 			IngressConfiguration: radixComponent.IngressConfiguration,
 			Ports:                radixComponent.Ports,
@@ -29,7 +28,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			deployComponent.Monitoring = environmentSpecificConfig.Monitoring
 			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
 			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
-			deployComponent.Environment = environmentSpecificConfig.Environment
 			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		}
 

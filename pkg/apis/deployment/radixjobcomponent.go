@@ -63,7 +63,6 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 
 	environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
 	if environmentSpecificConfig != nil {
-		deployJob.Environment = environmentSpecificConfig.Environment
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
