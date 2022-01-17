@@ -225,11 +225,6 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 		desiredDeployment.Spec.Replicas = int32Ptr(int32(DefaultReplicas))
 	}
 
-	timeLimitSeconds := deployComponent.GetTimeLimitSeconds()
-	if timeLimitSeconds != nil {
-		desiredDeployment.Spec.Template.Spec.ActiveDeadlineSeconds = deployComponent.GetTimeLimitSeconds()
-	}
-
 	// Override Replicas with horizontalScaling.minReplicas if exists
 	horizontalScaling := deployComponent.GetHorizontalScaling()
 	if replicas != nil && *replicas != 0 && horizontalScaling != nil {
