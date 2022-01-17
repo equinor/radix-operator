@@ -170,53 +170,58 @@ func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentN
 }
 
 func (deploy *Deployment) createSecretRefs(namespace, appName string, component radixv1.RadixCommonDeployComponent) ([]string, error) {
-	var secretsToManage []string
-	secretRef := component.GetSecretRefs()
-	azureKeyVaultSecretNames, err := deploy.createAzureKeyVaultSecretRefs(namespace, appName, component.GetName(), secretRef)
-	if err != nil {
-		return secretsToManage, err
-	}
-	return append(secretsToManage, azureKeyVaultSecretNames...), nil
-}
-
-func (deploy *Deployment) createAzureKeyVaultSecretRefs(namespace, appName, componentName string, radixSecretRef radixv1.RadixSecretRefs) ([]string, error) {
+	componentName := component.GetName()
+	deploymentName := deploy.radixDeployment.GetName()
 	var secretNames []string
-	for _, radixAzureKeyVault := range radixSecretRef.AzureKeyVaults {
-		className := kube.GetComponentSecretProviderClassName(componentName, deploy.radixDeployment.GetName(), radixv1.RadixSecretRefTypeAzureKeyVault, radixAzureKeyVault.Name)
-		secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(namespace, className)
-		if err != nil {
-			return secretNames, err
-		}
-		credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, componentName, radixAzureKeyVault.Name)
-		if err != nil {
-			return secretNames, err
-		}
-		secretNames = append(secretNames, credsSecret.Name)
-		if secretProviderClass != nil {
-			return secretNames, nil
-		}
+	for _, radixAzureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+		azureKeyVaultName := radixAzureKeyVault.Name
 
-		parameters, err := getSecretProviderClassParameters(radixAzureKeyVault, deploy.tenantId)
+		credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, componentName, azureKeyVaultName)
 		if err != nil {
 			return nil, err
 		}
-		secretProviderClass = buildSecretProviderClass(appName, componentName, className, deploy.radixDeployment, radixv1.RadixSecretRefTypeAzureKeyVault, radixAzureKeyVault.Name)
-		secretProviderClass.Spec.Parameters = parameters
-		secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(componentName, deploy.radixDeployment.GetName(), radixAzureKeyVault)
+		secretNames = append(secretNames, credsSecret.Name)
 
-		secretProviderClass, err = deploy.kubeutil.CreateSecretProviderClass(namespace, secretProviderClass)
+		className := kube.GetComponentSecretProviderClassName(componentName, deploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVaultName)
+		secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(namespace, className)
 		if err != nil {
+			if !errors.IsNotFound(err) {
+				continue //SecretProviderClass already exists for this deployment and Azure Key vault
+			}
 			return secretNames, err
 		}
-		if !isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
-			credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
-			_, err := deploy.kubeutil.ApplySecret(namespace, credsSecret)
-			if err != nil {
-				return secretNames, err
-			}
+
+		err = deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, err, radixAzureKeyVault, secretProviderClass, componentName, className, azureKeyVaultName, deploymentName, credsSecret)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return secretNames, nil
+}
+
+func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace string, appName string, err error, radixAzureKeyVault radixv1.RadixAzureKeyVault, secretProviderClass *secretsstorev1.SecretProviderClass, componentName string, className string, azureKeyVaultName string, deploymentName string, credsSecret *v1.Secret) error {
+	parameters, err := getSecretProviderClassParameters(radixAzureKeyVault, deploy.tenantId)
+	if err != nil {
+		return err
+	}
+	secretProviderClass = buildSecretProviderClass(appName, componentName, className, deploy.radixDeployment, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVaultName)
+	secretProviderClass.Spec.Parameters = parameters
+	secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(componentName, deploymentName, radixAzureKeyVault)
+
+	secretProviderClass, err = deploy.kubeutil.CreateSecretProviderClass(namespace, secretProviderClass)
+	if err != nil {
+		return err
+	}
+
+	if isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
+		return nil
+	}
+	credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
+	_, err = deploy.kubeutil.ApplySecret(namespace, credsSecret)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func getSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault, tenantId string) (map[string]string, error) {
@@ -286,14 +291,14 @@ func getSecretProviderClassSecretObjects(componentName, radixDeploymentName stri
 func (deploy *Deployment) getOrCreateAzureKeyVaultCredsSecret(namespace, appName, componentName, azKeyVaultName string) (*v1.Secret, error) {
 	secretName := defaults.GetCsiAzureKeyVaultCredsSecretName(componentName, azKeyVaultName)
 	secret, err := deploy.kubeutil.GetSecret(namespace, secretName)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			secret = buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName)
+			return deploy.kubeutil.ApplySecret(namespace, secret)
+		}
 		return nil, err
 	}
-	if secret != nil && !errors.IsNotFound(err) {
-		return secret, nil
-	}
-	secret = buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName)
-	return deploy.kubeutil.ApplySecret(namespace, secret)
+	return secret, nil
 }
 
 func buildSecretProviderClass(appName, componentName, name string, radixDeployment *radixv1.RadixDeployment, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {

@@ -799,7 +799,7 @@ func validateRadixComponentSecretRefs(radixComponent v1.RadixCommonComponent) er
 			return err
 		}
 	}
-	return nil
+	return validateSecretRefsPath(radixComponent)
 }
 
 func validateSecretRefs(componentName string, secretRefs v1.RadixSecretRefs) error {
@@ -834,32 +834,30 @@ func validateSecretRefs(componentName string, secretRefs v1.RadixSecretRefs) err
 	return nil
 }
 
-func validateSecretRefsPath(component v1.RadixCommonComponent) error {
-	azureKeyVaultPathForName := make(map[string]*string)
-	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+func validateSecretRefsPath(radixComponent v1.RadixCommonComponent) error {
+	commonAzureKeyVaultPathMap := make(map[string]string)
+	for _, azureKeyVault := range radixComponent.GetSecretRefs().AzureKeyVaults {
 		path := azureKeyVault.Path
 		if path != nil && len(*path) > 0 { //set only non-empty common path
-			azureKeyVaultPathForName[azureKeyVault.Name] = azureKeyVault.Path
+			commonAzureKeyVaultPathMap[azureKeyVault.Name] = *path
 		}
 	}
-	for _, environmentConfig := range component.GetEnvironmentConfig() {
-		envsAzureKeyVaultPathForName := make(map[string]*string)
-		for _, azureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
-			if _, exists := azureKeyVaultPathForName[azureKeyVault.Name]; exists { //set non-empty common path by default
-				envsAzureKeyVaultPathForName[azureKeyVault.Name] = azureKeyVaultPathForName[azureKeyVault.Name]
-			}
-			path := azureKeyVault.Path
-			if path != nil && len(*path) > 0 { //override common path by non-empty env-path, or set non-empty env path
-				envsAzureKeyVaultPathForName[azureKeyVault.Name] = path
+	for _, environmentConfig := range radixComponent.GetEnvironmentConfig() {
+		envAzureKeyVaultPathMap := make(map[string]string)
+		for commonAzureKeyVaultName, path := range commonAzureKeyVaultPathMap {
+			envAzureKeyVaultPathMap[commonAzureKeyVaultName] = path
+		}
+		for _, envAzureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
+			if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { //override common path by non-empty env-path, or set non-empty env path
+				envAzureKeyVaultPathMap[envAzureKeyVault.Name] = *envAzureKeyVault.Path
 			}
 		}
-		envsAzureKeyVaultNameForPath := make(map[string]string)
-		pathMap := make(map[string]bool)
-		for keyVaultName, path := range envsAzureKeyVaultNameForPath {
-			if _, exists := pathMap[path]; exists {
-				return duplicatePathForAzureKeyVault(path, keyVaultName, component.GetName())
+		envPathMap := make(map[string]bool)
+		for azureKeyVaultName, path := range envAzureKeyVaultPathMap {
+			if _, existsForOtherKeyVault := envPathMap[path]; existsForOtherKeyVault {
+				return duplicatePathForAzureKeyVault(path, azureKeyVaultName, radixComponent.GetName())
 			}
-			pathMap[path] = true
+			envPathMap[path] = true
 		}
 	}
 	return nil

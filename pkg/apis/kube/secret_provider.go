@@ -6,7 +6,6 @@ import (
 	"github.com/equinor/radix-common/utils"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 	"strings"
@@ -30,27 +29,7 @@ type SecretProviderClassParameterObject struct {
 
 // GetSecretProviderClass Gets secret provider class
 func (kubeutil *Kube) GetSecretProviderClass(namespace string, className string) (*secretsstorev1.SecretProviderClass, error) {
-	class, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Get(context.Background(), className, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return class, nil
-}
-
-// ListSecretProviderClass Gets secret provider classes for the component
-func (kubeutil *Kube) ListSecretProviderClass(namespace string, componentName string) ([]secretsstorev1.SecretProviderClass, error) {
-	classList, err := kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).
-		List(context.Background(), metav1.ListOptions{LabelSelector: GetAllSecretRefObjectsLabelSelector(componentName)})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return classList.Items, nil
+	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Get(context.Background(), className, metav1.GetOptions{})
 }
 
 // GetSecretRefObjectLabelSelector Get label selector for secret-ref object (secret, secret provider class, etc.)
