@@ -17,6 +17,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithSchedulerPort(*int32) RadixApplicationJobComponentBuilder
 	WithPayloadPath(*string) RadixApplicationJobComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
+	WithTimeLimitSeconds(*int64) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -33,6 +34,12 @@ type radixApplicationJobComponentBuilder struct {
 	schedulerPort     *int32
 	payloadPath       *string
 	node              v1.RadixNode
+	timeLimitSeconds  *int64
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
+	rcb.timeLimitSeconds = timeLimitSeconds
+	return rcb
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithName(name string) RadixApplicationJobComponentBuilder {
@@ -140,6 +147,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		SchedulerPort:     rcb.schedulerPort,
 		Payload:           payload,
 		Node:              rcb.node,
+		TimeLimitSeconds:  rcb.timeLimitSeconds,
 	}
 }
 
