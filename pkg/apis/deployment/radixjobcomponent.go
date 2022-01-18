@@ -1,9 +1,6 @@
 package deployment
 
 import (
-	"reflect"
-	"strings"
-
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -31,7 +28,7 @@ func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImage
 }
 
 func (c *jobComponentsBuilder) JobComponents() []v1.RadixDeployJobComponent {
-	jobs := []v1.RadixDeployJobComponent{}
+	var jobs []v1.RadixDeployJobComponent
 
 	for _, appJob := range c.ra.Spec.Jobs {
 		deployJob := c.buildJobComponent(appJob)
