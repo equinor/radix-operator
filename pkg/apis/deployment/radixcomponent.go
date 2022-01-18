@@ -1,116 +1,67 @@
 package deployment
 
 import (
-	"reflect"
-	"strings"
-
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
-	components := []v1.RadixDeployComponent{}
+	var components []v1.RadixDeployComponent
 
-	for _, appComponent := range radixApplication.Spec.Components {
-		componentName := appComponent.Name
-		componentImage := componentImages[componentName]
-
-		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(appComponent, env)
-
-		// Will later be overriden by default replicas if not set specifically
-		var replicas *int
-		var variables v1.EnvVarsMap
-		monitoring := false
-		var resources v1.ResourceRequirements
-		var horizontalScaling *v1.RadixHorizontalScaling
-		var volumeMounts []v1.RadixVolumeMount
-		var node v1.RadixNode
-		var imageTagName string
-		var alwaysPullImageOnDeploy bool
-		var environmentAuthentication *v1.Authentication
-
-		// Containers run as root unless overridden in config
-		runAsNonRoot := false
-
-		image := componentImage.ImagePath
-
-		if environmentSpecificConfig != nil {
-			replicas = environmentSpecificConfig.Replicas
-			variables = environmentSpecificConfig.Variables
-			monitoring = environmentSpecificConfig.Monitoring
-			resources = environmentSpecificConfig.Resources
-			horizontalScaling = environmentSpecificConfig.HorizontalScaling
-			volumeMounts = environmentSpecificConfig.VolumeMounts
-			node = environmentSpecificConfig.Node
-			imageTagName = environmentSpecificConfig.ImageTagName
-			runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
-			alwaysPullImageOnDeploy = GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, appComponent.AlwaysPullImageOnDeploy, false)
-			environmentAuthentication = environmentSpecificConfig.Authentication
-		} else {
-			alwaysPullImageOnDeploy = GetCascadeBoolean(nil, appComponent.AlwaysPullImageOnDeploy, false)
-		}
-
-		if variables == nil {
-			variables = make(v1.EnvVarsMap)
-		}
-
-		// Append common environment variables from appComponent.Variables to variables if not available yet
-		for variableKey, variableValue := range appComponent.Variables {
-			if _, found := variables[variableKey]; !found {
-				variables[variableKey] = variableValue
-			}
-		}
-
-		// Append common resources settings if currently empty
-		if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
-			resources = appComponent.Resources
-		}
-
-		// For deploy-only images, we will replace the dynamic tag with the tag from the environment
-		// config
-		if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
-			image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
-		}
-
-		updateComponentNode(&appComponent, &node)
-
-		// Append common environment variables from appComponent.Variables to variables if not available yet
-		for variableKey, variableValue := range appComponent.Variables {
-			if _, found := variables[variableKey]; !found {
-				variables[variableKey] = variableValue
-			}
-		}
-
-		externalAlias := GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
-		authentication := GetAuthenticationForComponent(appComponent.Authentication, environmentAuthentication)
-
+	for _, radixComponent := range radixApplication.Spec.Components {
+		componentName := radixComponent.Name
 		deployComponent := v1.RadixDeployComponent{
-			Name:                    componentName,
-			RunAsNonRoot:            runAsNonRoot,
-			Image:                   image,
-			Replicas:                replicas,
-			Public:                  false,
-			PublicPort:              getPublicPortFromAppComponent(appComponent),
-			Ports:                   appComponent.Ports,
-			Secrets:                 appComponent.Secrets,
-			IngressConfiguration:    appComponent.IngressConfiguration,
-			EnvironmentVariables:    variables, // todo: use single EnvVars instead
-			DNSAppAlias:             IsDNSAppAlias(env, componentName, dnsAppAlias),
-			DNSExternalAlias:        externalAlias,
-			Monitoring:              monitoring,
-			Resources:               resources,
-			HorizontalScaling:       horizontalScaling,
-			VolumeMounts:            volumeMounts,
-			Node:                    node,
-			AlwaysPullImageOnDeploy: alwaysPullImageOnDeploy,
-			Authentication:          authentication,
+			Name:                 componentName,
+			Public:               false,
+			IngressConfiguration: radixComponent.IngressConfiguration,
+			Ports:                radixComponent.Ports,
+			Secrets:              radixComponent.Secrets,
+			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
+			Monitoring:           false,
+			RunAsNonRoot:         false,
 		}
+
+		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
+		if environmentSpecificConfig != nil {
+			deployComponent.Replicas = environmentSpecificConfig.Replicas
+			deployComponent.Monitoring = environmentSpecificConfig.Monitoring
+			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
+			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
+			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
+		}
+
+		componentImage := componentImages[componentName]
+		deployComponent.Image = getImagePath(&componentImage, environmentSpecificConfig)
+		deployComponent.Node = getRadixCommonComponentNode(&radixComponent, environmentSpecificConfig)
+		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
+		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig)
+		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
+		deployComponent.Authentication = getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
+		deployComponent.DNSExternalAlias = GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
+		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
+		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 
 		components = append(components, deployComponent)
 	}
 
 	return components
+}
+
+func getRadixComponentAuthentication(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) *v1.Authentication {
+	var environmentAuthentication *v1.Authentication
+	if environmentSpecificConfig != nil {
+		environmentAuthentication = environmentSpecificConfig.Authentication
+	}
+	authentication := GetAuthenticationForComponent(radixComponent.Authentication, environmentAuthentication)
+	return authentication
+}
+
+func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) bool {
+	if environmentSpecificConfig != nil {
+		return GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, radixComponent.AlwaysPullImageOnDeploy, false)
+	}
+	return GetCascadeBoolean(nil, radixComponent.AlwaysPullImageOnDeploy, false)
 }
 
 func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) *v1.Authentication {
@@ -172,12 +123,11 @@ func getEnvironmentSpecificConfigForComponent(component v1.RadixComponent, env s
 	return nil
 }
 
-func getPublicPortFromAppComponent(appComponent v1.RadixComponent) string {
-	if appComponent.PublicPort == "" && appComponent.Public {
-		return appComponent.Ports[0].Name
+func getRadixComponentPort(radixComponent *v1.RadixComponent) string {
+	if radixComponent.PublicPort == "" && radixComponent.Public {
+		return radixComponent.Ports[0].Name
 	}
-
-	return appComponent.PublicPort
+	return radixComponent.PublicPort
 }
 
 // GetExternalDNSAliasForComponentEnvironment Gets external DNS alias

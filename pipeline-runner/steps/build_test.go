@@ -1,6 +1,7 @@
 package steps
 
 import (
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -19,10 +20,10 @@ func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTes
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
-
-	testUtils := commonTest.NewTestUtils(kubeclient, radixclient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
 	testUtils.CreateClusterPrerequisites(anyClusterName, anyContainerRegistry, egressIps)
-	kubeUtil, _ := kube.New(kubeclient, radixclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 
 	return kubeclient, kubeUtil, radixclient, testUtils
 }

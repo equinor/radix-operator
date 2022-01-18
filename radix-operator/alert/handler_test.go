@@ -5,29 +5,30 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/suite"
-
 	"github.com/equinor/radix-operator/pkg/apis/alert"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
+	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type handlerTestSuite struct {
 	suite.Suite
-	kubeClient    *fake.Clientset
-	radixClient   *fakeradix.Clientset
-	promClient    *prometheusfake.Clientset
-	kubeUtil      *kube.Kube
-	eventRecorder *record.FakeRecorder
-	mockCtrl      *gomock.Controller
-	syncerFactory *alert.MockAlertSyncerFactory
-	syncer        *alert.MockAlertSyncer
+	kubeClient           *fake.Clientset
+	radixClient          *fakeradix.Clientset
+	secretproviderclient *secretproviderfake.Clientset
+	promClient           *prometheusfake.Clientset
+	kubeUtil             *kube.Kube
+	eventRecorder        *record.FakeRecorder
+	mockCtrl             *gomock.Controller
+	syncerFactory        *alert.MockAlertSyncerFactory
+	syncer               *alert.MockAlertSyncer
 }
 
 func TestHandlerSuite(t *testing.T) {
@@ -37,7 +38,8 @@ func TestHandlerSuite(t *testing.T) {
 func (s *handlerTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
+	s.secretproviderclient = secretproviderfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretproviderclient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
 	s.mockCtrl = gomock.NewController(s.T())

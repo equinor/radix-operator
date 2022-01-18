@@ -108,6 +108,7 @@ type RadixComponent struct {
 	Public                  bool                     `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	SecretRefs              RadixSecretRefs          `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	IngressConfiguration    []string                 `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	EnvironmentConfig       []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
@@ -131,6 +132,7 @@ type RadixEnvironmentConfig struct {
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -144,6 +146,7 @@ type RadixJobComponent struct {
 	Payload           *RadixJobComponentPayload            `json:"payload,omitempty" yaml:"payload,omitempty"`
 	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
 	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	SecretRefs        RadixSecretRefs                      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
 	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
@@ -154,15 +157,16 @@ type RadixJobComponent struct {
 // RadixJobComponentEnvironmentConfig defines environment specific settings
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
-	Environment      string               `json:"environment" yaml:"environment"`
-	RunAsNonRoot     bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
-	Monitoring       bool                 `json:"monitoring" yaml:"monitoring"`
-	Resources        ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables        EnvVarsMap           `json:"variables" yaml:"variables"`
-	ImageTagName     string               `json:"imageTagName" yaml:"imageTagName"`
-	VolumeMounts     []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
-	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Environment  string               `json:"environment" yaml:"environment"`
+	RunAsNonRoot bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+	Monitoring   bool                 `json:"monitoring" yaml:"monitoring"`
+	Resources    ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Variables    EnvVarsMap           `json:"variables" yaml:"variables"`
+	ImageTagName string               `json:"imageTagName" yaml:"imageTagName"`
+	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node         RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
+	SecretRefs   RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	TimeLimitSeconds *int64           `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
@@ -240,11 +244,13 @@ func GetCsiAzureStorageClassProvisioners() []string {
 	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
 }
 
+//IsKnownVolumeMount Gets if volume mount is supported
 func IsKnownVolumeMount(volumeMount string) bool {
 	return IsKnownBlobFlexVolumeMount(volumeMount) ||
 		IsKnownCsiAzureVolumeMount(volumeMount)
 }
 
+//IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
 func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
 	case string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
@@ -253,6 +259,7 @@ func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	return false
 }
 
+//IsKnownBlobFlexVolumeMount Supported volume mount type Azure Blobfuse
 func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 	return volumeMount == string(MountTypeBlob)
 }
@@ -265,28 +272,117 @@ type RadixNode struct {
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
 
+//RadixSecretRefType Radix secret-ref of type
+type RadixSecretRefType string
+
+const (
+	//RadixSecretRefTypeAzureKeyVault Radix secret-ref of type Azure Key vault
+	RadixSecretRefTypeAzureKeyVault RadixSecretRefType = "az-keyvault"
+)
+
+// RadixSecretRefs defines secret vault
+type RadixSecretRefs struct {
+	// AzureKeyVaults. List of RadixSecretRefs-s, containing Azure Key Vault configurations
+	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty" yaml:"azureKeyVaults,omitempty"`
+}
+
+// RadixAzureKeyVault defines Azure Key Vault
+type RadixAzureKeyVault struct {
+	// Name. Name of the Azure Key Vault
+	Name string `json:"name" yaml:"name"`
+	// Path. Optional. Path within replicas, where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>
+	Path *string `json:"path,omitempty" yaml:"path,omitempty"`
+	// Items. Azure Key Vault items
+	Items []RadixAzureKeyVaultItem `json:"items" yaml:"items"`
+}
+
+//RadixAzureKeyVaultObjectType Azure Key Vault item type
+type RadixAzureKeyVaultObjectType string
+
+const (
+	//RadixAzureKeyVaultObjectTypeSecret Azure Key Vault item of type secret
+	RadixAzureKeyVaultObjectTypeSecret RadixAzureKeyVaultObjectType = "secret"
+	//RadixAzureKeyVaultObjectTypeKey Azure Key Vault item of type key
+	RadixAzureKeyVaultObjectTypeKey RadixAzureKeyVaultObjectType = "key"
+	//RadixAzureKeyVaultObjectTypeCert Azure Key Vault item of type certificate
+	RadixAzureKeyVaultObjectTypeCert RadixAzureKeyVaultObjectType = "cert"
+)
+
+//RadixAzureKeyVaultK8sSecretType Azure Key Vault secret item Kubernetes type
+type RadixAzureKeyVaultK8sSecretType string
+
+const (
+	//RadixAzureKeyVaultK8sSecretTypeOpaque Azure Key Vault secret item Kubernetes type Opaque
+	RadixAzureKeyVaultK8sSecretTypeOpaque RadixAzureKeyVaultK8sSecretType = "opaque"
+	//RadixAzureKeyVaultK8sSecretTypeTls Azure Key Vault secret item Kubernetes type kubernetes.io/tls
+	RadixAzureKeyVaultK8sSecretTypeTls RadixAzureKeyVaultK8sSecretType = "tls"
+)
+
+// RadixAzureKeyVaultItem defines Azure Key Vault setting: secrets, keys, certificates
+type RadixAzureKeyVaultItem struct {
+	// Name. Name of the Azure Key Vault object
+	Name string `json:"name" yaml:"name"`
+	// EnvVar. Name of the environment variable within replicas, containing Azure Key Vault object value
+	EnvVar string `json:"envVar" yaml:"envVar"`
+	// Type. Optional. Type of the Azure KeyVault object: secret (default), key, cert
+	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
+	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
+	Alias *string `json:"alias,omitempty" yaml:"alias,omitempty"`
+	// Version. Optional. object versions, default to the latest, if empty
+	Version *string `json:"version,omitempty" yaml:"version,omitempty"`
+	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
+	Format *string `json:"format,omitempty" yaml:"format,omitempty"`
+	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
+	Encoding *string `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	// K8SSecretType. Optional. Setting object k8s secret type.
+	// Allowed types: opaque (default), tls. It corresponds to "Opaque" and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
+	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty" yaml:"k8sSecretType,omitempty"`
+}
+
+//Authentication Radix authentication settings
 type Authentication struct {
+	//ClientCertificate Authentication client certificate
 	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
 }
 
+//ClientCertificate Authentication client certificate parameters
 type ClientCertificate struct {
-	Verification              *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
-	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
+	//Verification Client certificate verification type
+	Verification *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
+	//PassCertificateToUpstream Should a certificate be passed to upstream
+	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
 }
 
+//VerificationType Certificate verification type
 type VerificationType string
 
 const (
-	VerificationTypeOff          VerificationType = "off"
-	VerificationTypeOn           VerificationType = "on"
-	VerificationTypeOptional     VerificationType = "optional"
+	//VerificationTypeOff Certificate verification is off
+	VerificationTypeOff VerificationType = "off"
+	//VerificationTypeOn Certificate verification is on
+	VerificationTypeOn VerificationType = "on"
+	//VerificationTypeOptional Certificate verification is optional
+	VerificationTypeOptional VerificationType = "optional"
+	//VerificationTypeOptionalNoCa Certificate verification is optional no certificate authority
 	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
 
 //RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
+	//GetName Gets component name
 	GetName() string
+	//GetNode Gets component node parameters
 	GetNode() *RadixNode
+	//GetVariables Gets component environment variables
+	GetVariables() EnvVarsMap
+	//GetSecrets Gets component secrets
+	GetSecrets() []string
+	//GetSecretRefs Gets component secret-refs
+	GetSecretRefs() RadixSecretRefs
+	//GetResources Gets component resources
+	GetResources() ResourceRequirements
+	//GetEnvironmentConfig Gets component environment configuration
+	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 }
 
 func (component *RadixComponent) GetName() string {
@@ -297,12 +393,60 @@ func (component *RadixComponent) GetNode() *RadixNode {
 	return &component.Node
 }
 
+func (component *RadixComponent) GetVariables() EnvVarsMap {
+	return component.Variables
+}
+
+func (component *RadixComponent) GetSecrets() []string {
+	return component.Secrets
+}
+
+func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
+	return component.SecretRefs
+}
+
+func (component *RadixComponent) GetResources() ResourceRequirements {
+	return component.Resources
+}
+
+func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
+	var environmentConfigs []RadixCommonEnvironmentConfig
+	for _, environmentConfig := range component.EnvironmentConfig {
+		environmentConfigs = append(environmentConfigs, environmentConfig)
+	}
+	return environmentConfigs
+}
+
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
 }
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
 	return &component.Node
+}
+
+func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
+	return component.SecretRefs
+}
+
+func (component *RadixJobComponent) GetResources() ResourceRequirements {
+	return component.Resources
+}
+
+func (component *RadixJobComponent) GetSecrets() []string {
+	return component.Secrets
+}
+
+func (component *RadixJobComponent) GetVariables() EnvVarsMap {
+	return component.Variables
+}
+
+func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
+	var environmentConfigs []RadixCommonEnvironmentConfig
+	for _, environmentConfig := range component.EnvironmentConfig {
+		environmentConfigs = append(environmentConfigs, environmentConfig)
+	}
+	return environmentConfigs
 }
 
 func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {

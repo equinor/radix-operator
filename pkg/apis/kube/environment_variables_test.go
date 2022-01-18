@@ -3,7 +3,7 @@ package kube
 import (
 	"context"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
@@ -12,6 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"strings"
 	"testing"
 )
@@ -25,19 +27,21 @@ func TestEnvironmentVariablesSuite(t *testing.T) {
 }
 
 type EnvironmentVariablesTestEnv struct {
-	kubeclient       kubernetes.Interface
-	radixclient      radixclient.Interface
-	prometheusclient prometheusclient.Interface
-	kubeUtil         *Kube
+	kubeclient           kubernetes.Interface
+	radixclient          radixclient.Interface
+	secretproviderclient secretProviderClient.Interface
+	prometheusclient     prometheusclient.Interface
+	kubeUtil             *Kube
 }
 
 func getEnvironmentVariablesTestEnv() ConfigMapTestEnv {
 	testEnv := ConfigMapTestEnv{
-		kubeclient:       kubefake.NewSimpleClientset(),
-		radixclient:      radix.NewSimpleClientset(),
-		prometheusclient: prometheusfake.NewSimpleClientset(),
+		kubeclient:           kubefake.NewSimpleClientset(),
+		radixclient:          radixfake.NewSimpleClientset(),
+		secretproviderclient: secretproviderfake.NewSimpleClientset(),
+		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient)
+	kubeUtil, _ := New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }

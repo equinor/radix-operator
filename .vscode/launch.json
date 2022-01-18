@@ -77,6 +77,7 @@
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler-server:main-latest",
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
         "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER": "true",
+        "RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
       },
       "args": ["--useOutClusterClient=false"]
     },
