@@ -12,18 +12,25 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithImageTagName(string) RadixJobComponentEnvironmentConfigBuilder
 	WithNode(node v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixJobComponentEnvironmentConfigBuilder
+	WithTimeLimitSeconds(*int64) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
 type radixJobComponentEnvironmentConfigBuilder struct {
-	environment  string
-	variables    v1.EnvVarsMap
-	resources    v1.ResourceRequirements
-	volumeMounts []v1.RadixVolumeMount
-	imageTagName string
-	monitoring   bool
-	node         v1.RadixNode
-	runAsNonRoot bool
+	environment      string
+	variables        v1.EnvVarsMap
+	resources        v1.ResourceRequirements
+	volumeMounts     []v1.RadixVolumeMount
+	imageTagName     string
+	monitoring       bool
+	node             v1.RadixNode
+	runAsNonRoot     bool
+	timeLimitSeconds *int64
+}
+
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.timeLimitSeconds = timeLimitSeconds
+	return ceb
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixJobComponentEnvironmentConfigBuilder {
@@ -75,14 +82,15 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonR
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
-		Environment:  ceb.environment,
-		Variables:    ceb.variables,
-		Resources:    ceb.resources,
-		VolumeMounts: ceb.volumeMounts,
-		Monitoring:   ceb.monitoring,
-		ImageTagName: ceb.imageTagName,
-		Node:         ceb.node,
-		RunAsNonRoot: ceb.runAsNonRoot,
+		Environment:      ceb.environment,
+		Variables:        ceb.variables,
+		Resources:        ceb.resources,
+		VolumeMounts:     ceb.volumeMounts,
+		Monitoring:       ceb.monitoring,
+		ImageTagName:     ceb.imageTagName,
+		Node:             ceb.node,
+		RunAsNonRoot:     ceb.runAsNonRoot,
+		TimeLimitSeconds: ceb.timeLimitSeconds,
 	}
 }
 
