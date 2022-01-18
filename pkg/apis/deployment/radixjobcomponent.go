@@ -1,6 +1,11 @@
 package deployment
 
 import (
+	"reflect"
+	"strings"
+
+	"github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -60,12 +65,18 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Payload:       radixJobComponent.Payload,
 		SchedulerPort: radixJobComponent.SchedulerPort,
 	}
+	if radixJobComponent.TimeLimitSeconds == nil {
+		deployJob.TimeLimitSeconds = numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
+	} else {
+		deployJob.TimeLimitSeconds = radixJobComponent.TimeLimitSeconds
+	}
 
 	environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
 	if environmentSpecificConfig != nil {
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
+		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
 	}
 
 	componentImage := c.componentImages[componentName]

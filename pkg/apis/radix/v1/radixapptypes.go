@@ -151,6 +151,7 @@ type RadixJobComponent struct {
 	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
+	TimeLimitSeconds  *int64                               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -165,6 +166,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node         RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
 	SecretRefs   RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	TimeLimitSeconds *int64           `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
