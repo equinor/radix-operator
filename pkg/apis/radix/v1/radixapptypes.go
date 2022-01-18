@@ -242,11 +242,13 @@ func GetCsiAzureStorageClassProvisioners() []string {
 	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
 }
 
+//IsKnownVolumeMount Gets if volume mount is supported
 func IsKnownVolumeMount(volumeMount string) bool {
 	return IsKnownBlobFlexVolumeMount(volumeMount) ||
 		IsKnownCsiAzureVolumeMount(volumeMount)
 }
 
+//IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
 func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
 	case string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
@@ -255,6 +257,7 @@ func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	return false
 }
 
+//IsKnownBlobFlexVolumeMount Supported volume mount type Azure Blobfuse
 func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 	return volumeMount == string(MountTypeBlob)
 }
@@ -267,9 +270,11 @@ type RadixNode struct {
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
 
+//RadixSecretRefType Radix secret-ref of type
 type RadixSecretRefType string
 
 const (
+	//RadixSecretRefTypeAzureKeyVault Radix secret-ref of type Azure Key vault
 	RadixSecretRefTypeAzureKeyVault RadixSecretRefType = "az-keyvault"
 )
 
@@ -289,19 +294,26 @@ type RadixAzureKeyVault struct {
 	Items []RadixAzureKeyVaultItem `json:"items" yaml:"items"`
 }
 
+//RadixAzureKeyVaultObjectType Azure Key Vault item type
 type RadixAzureKeyVaultObjectType string
 
 const (
+	//RadixAzureKeyVaultObjectTypeSecret Azure Key Vault item of type secret
 	RadixAzureKeyVaultObjectTypeSecret RadixAzureKeyVaultObjectType = "secret"
-	RadixAzureKeyVaultObjectTypeKey    RadixAzureKeyVaultObjectType = "key"
-	RadixAzureKeyVaultObjectTypeCert   RadixAzureKeyVaultObjectType = "cert"
+	//RadixAzureKeyVaultObjectTypeKey Azure Key Vault item of type key
+	RadixAzureKeyVaultObjectTypeKey RadixAzureKeyVaultObjectType = "key"
+	//RadixAzureKeyVaultObjectTypeCert Azure Key Vault item of type certificate
+	RadixAzureKeyVaultObjectTypeCert RadixAzureKeyVaultObjectType = "cert"
 )
 
+//RadixAzureKeyVaultK8sSecretType Azure Key Vault secret item Kubernetes type
 type RadixAzureKeyVaultK8sSecretType string
 
 const (
+	//RadixAzureKeyVaultK8sSecretTypeOpaque Azure Key Vault secret item Kubernetes type Opaque
 	RadixAzureKeyVaultK8sSecretTypeOpaque RadixAzureKeyVaultK8sSecretType = "opaque"
-	RadixAzureKeyVaultK8sSecretTypeTls    RadixAzureKeyVaultK8sSecretType = "tls"
+	//RadixAzureKeyVaultK8sSecretTypeTls Azure Key Vault secret item Kubernetes type kubernetes.io/tls
+	RadixAzureKeyVaultK8sSecretTypeTls RadixAzureKeyVaultK8sSecretType = "tls"
 )
 
 // RadixAzureKeyVaultItem defines Azure Key Vault setting: secrets, keys, certificates
@@ -325,32 +337,49 @@ type RadixAzureKeyVaultItem struct {
 	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty" yaml:"k8sSecretType,omitempty"`
 }
 
+//Authentication Radix authentication settings
 type Authentication struct {
+	//ClientCertificate Authentication client certificate
 	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
 }
 
+//ClientCertificate Authentication client certificate parameters
 type ClientCertificate struct {
-	Verification              *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
-	PassCertificateToUpstream *bool             `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
+	//Verification Client certificate verification type
+	Verification *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
+	//PassCertificateToUpstream Should a certificate be passed to upstream
+	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
 }
 
+//VerificationType Certificate verification type
 type VerificationType string
 
 const (
-	VerificationTypeOff          VerificationType = "off"
-	VerificationTypeOn           VerificationType = "on"
-	VerificationTypeOptional     VerificationType = "optional"
+	//VerificationTypeOff Certificate verification is off
+	VerificationTypeOff VerificationType = "off"
+	//VerificationTypeOn Certificate verification is on
+	VerificationTypeOn VerificationType = "on"
+	//VerificationTypeOptional Certificate verification is optional
+	VerificationTypeOptional VerificationType = "optional"
+	//VerificationTypeOptionalNoCa Certificate verification is optional no certificate authority
 	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
 
 //RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
+	//GetName Gets component name
 	GetName() string
+	//GetNode Gets component node parameters
 	GetNode() *RadixNode
+	//GetVariables Gets component environment variables
 	GetVariables() EnvVarsMap
+	//GetSecrets Gets component secrets
 	GetSecrets() []string
+	//GetSecretRefs Gets component secret-refs
 	GetSecretRefs() RadixSecretRefs
+	//GetResources Gets component resources
 	GetResources() ResourceRequirements
+	//GetEnvironmentConfig Gets component environment configuration
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 }
 

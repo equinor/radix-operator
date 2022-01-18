@@ -94,7 +94,6 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 		return nil
 	}
 
-	var composedAzureKeyVaults []v1.RadixAzureKeyVault
 	envAzureKeyVaultsMap := make(map[string]v1.RadixAzureKeyVault)
 	envSecretRefsExistingEnvVarsMap := make(map[string]bool)
 
@@ -108,48 +107,47 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 	}
 
 	for _, commonAzureKeyVault := range radixComponent.GetSecretRefs().AzureKeyVaults {
-		envAzureKeyVault, existsEnvAzureKeyVault := envAzureKeyVaultsMap[commonAzureKeyVault.Name]
-		if !existsEnvAzureKeyVault {
-			var keyVaultItems []v1.RadixAzureKeyVaultItem
-			for _, commonKeyVaultItem := range commonAzureKeyVault.Items {
-				if _, existsInEnvSecretRefs := envSecretRefsExistingEnvVarsMap[commonKeyVaultItem.EnvVar]; !existsInEnvSecretRefs {
-					keyVaultItems = append(keyVaultItems, commonKeyVaultItem)
-				}
-			}
-			if len(keyVaultItems) > 0 {
-				composedAzureKeyVaults = append(composedAzureKeyVaults, v1.RadixAzureKeyVault{
-					Name:  commonAzureKeyVault.Name,
-					Path:  commonAzureKeyVault.Path,
-					Items: keyVaultItems,
-				})
-			}
-			continue
-		}
-
 		if len(commonAzureKeyVault.Items) == 0 {
-			composedAzureKeyVaults = append(composedAzureKeyVaults, envAzureKeyVault)
 			continue
 		}
-
-		composedKeyVaultItems := envAzureKeyVault.Items
-		for _, commonKeyVaultItem := range commonAzureKeyVault.Items {
-			if _, existsInEnv := envSecretRefsExistingEnvVarsMap[commonKeyVaultItem.EnvVar]; !existsInEnv {
-				composedKeyVaultItems = append(composedKeyVaultItems, commonKeyVaultItem)
+		envAzureKeyVault, existsEnvAzureKeyVault := envAzureKeyVaultsMap[commonAzureKeyVault.Name]
+		if !existsEnvAzureKeyVault { //Azure key vault, which configuration exists only in component, but not in environment
+			keyVaultItems := getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(&commonAzureKeyVault, envSecretRefsExistingEnvVarsMap)
+			envAzureKeyVaultsMap[commonAzureKeyVault.Name] = v1.RadixAzureKeyVault{
+				Name:  commonAzureKeyVault.Name,
+				Path:  commonAzureKeyVault.Path,
+				Items: keyVaultItems,
 			}
+			continue
 		}
 
 		composedAzureKeyVault := v1.RadixAzureKeyVault{
 			Name:  envAzureKeyVault.Name,
 			Path:  commonAzureKeyVault.Path,
-			Items: composedKeyVaultItems,
+			Items: append(envAzureKeyVault.Items, getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(&commonAzureKeyVault, envSecretRefsExistingEnvVarsMap)...),
 		}
-		envPath := envAzureKeyVault.Path
-		if envPath != nil && len(*envPath) > 0 { //override common path by env-path, if specified in env, or set non-empty env path
-			composedAzureKeyVault.Path = envPath
+		if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { //override common path by env-path, if specified in env, or set non-empty env path
+			composedAzureKeyVault.Path = envAzureKeyVault.Path
 		}
 
-		composedAzureKeyVaults = append(composedAzureKeyVaults, composedAzureKeyVault)
+		envAzureKeyVaultsMap[commonAzureKeyVault.Name] = composedAzureKeyVault
 	}
 
-	return composedAzureKeyVaults
+	var azureKeyVaults []v1.RadixAzureKeyVault
+	for _, azureKeyVault := range envAzureKeyVaultsMap {
+		if len(azureKeyVault.Items) > 0 {
+			azureKeyVaults = append(azureKeyVaults, azureKeyVault)
+		}
+	}
+	return azureKeyVaults
+}
+
+func getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(commonAzureKeyVault *v1.RadixAzureKeyVault, envSecretRefsExistingEnvVarsMap map[string]bool) []v1.RadixAzureKeyVaultItem {
+	var keyVaultItems []v1.RadixAzureKeyVaultItem
+	for _, commonKeyVaultItem := range commonAzureKeyVault.Items {
+		if _, existsInEnvSecretRefs := envSecretRefsExistingEnvVarsMap[commonKeyVaultItem.EnvVar]; !existsInEnvSecretRefs {
+			keyVaultItems = append(keyVaultItems, commonKeyVaultItem)
+		}
+	}
+	return keyVaultItems
 }

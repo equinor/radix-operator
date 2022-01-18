@@ -186,14 +186,13 @@ func (deploy *Deployment) createSecretRefs(namespace, appName string, component 
 		secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(namespace, className)
 		if err != nil {
 			if !errors.IsNotFound(err) {
-				continue //SecretProviderClass already exists for this deployment and Azure Key vault
+				return nil, err
 			}
-			return secretNames, err
-		}
-
-		err = deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, err, radixAzureKeyVault, secretProviderClass, componentName, className, azureKeyVaultName, deploymentName, credsSecret)
-		if err != nil {
-			return nil, err
+			err = deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, err, radixAzureKeyVault, secretProviderClass, componentName, className, azureKeyVaultName, deploymentName, credsSecret)
+			if err != nil {
+				return nil, err
+			}
+			//SecretProviderClass already exists for this deployment and Azure Key vault
 		}
 	}
 	return secretNames, nil
