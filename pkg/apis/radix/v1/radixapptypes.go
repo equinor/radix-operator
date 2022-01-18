@@ -293,6 +293,20 @@ const (
 	SessionStoreRedis SessionStoreType = "redis"
 )
 
+// CookieSameSiteType Cookie SameSite value
+type CookieSameSiteType string
+
+const (
+	// Set SameSite to strict
+	SameSiteStrict CookieSameSiteType = "strict"
+	// Set SameSite to lax
+	SameSiteLax CookieSameSiteType = "lax"
+	// Set SameSite to none. Not supported by IE. See compativility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	SameSiteNone CookieSameSiteType = "none"
+	// Do not set SameSite. Modern browsers defaults to lax when SameSite is not set. See compatibility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	SameSiteEmpty CookieSameSiteType = ""
+)
+
 // OAuth2 defines oauth proxy settings for a component
 type OAuth2 struct {
 	// ClientID. The OAuth2 client ID
@@ -344,9 +358,9 @@ type OAuth2Cookie struct {
 	// Default 60m0s
 	Refresh string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
 	// SameSite. Optional. The samesite cookie attribute
-	// Allowed values: strict, lax, none
-	// Default: "" (empty; default decided by browser)
-	SameSite string `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
+	// Allowed values: strict, lax, none or empty
+	// Default: lax
+	SameSite CookieSameSiteType `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
 }
 
 // OAuth2OIDC defines OIDC properties for oauth proxy

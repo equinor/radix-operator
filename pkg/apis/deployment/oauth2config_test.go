@@ -172,9 +172,10 @@ func (*oauth2ConfigFuncImplSuite) expectedDefaultConfig() *v1.OAuth2 {
 			InsecureSkipVerifyNonce: utils.BoolPtr(false),
 		},
 		Cookie: &v1.OAuth2Cookie{
-			Name:    "_oauth2_proxy",
-			Expire:  "168h0m0s",
-			Refresh: "60m0s",
+			Name:     "_oauth2_proxy",
+			Expire:   "168h0m0s",
+			Refresh:  "60m0s",
+			SameSite: v1.SameSiteLax,
 		},
 	}
 }

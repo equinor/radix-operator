@@ -14,6 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
@@ -31,7 +32,7 @@ const (
 
 var (
 	validOAuthSessionStoreTypes []string = []string{"", string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
-	validOAuthCookieSameSites   []string = []string{"", "strict", "lax", "none"}
+	validOAuthCookieSameSites   []string = []string{string(v1.SameSiteStrict), string(v1.SameSiteLax), string(v1.SameSiteNone), string(v1.SameSiteEmpty)}
 	illegalVariableNamePrefixes          = [...]string{"RADIX_", "RADIXOPERATOR_"}
 )
 
@@ -426,7 +427,7 @@ func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
 	}
 
 	if oauth.Cookie != nil {
-		if !slice.ContainsString(validOAuthCookieSameSites, oauth.Cookie.SameSite) {
+		if !slice.ContainsString(validOAuthCookieSameSites, string(oauth.Cookie.SameSite)) {
 			errors = append(errors, InvalidOAuthCookieSameSiteError(oauth.Cookie.SameSite))
 		}
 

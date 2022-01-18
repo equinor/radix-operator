@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
@@ -244,7 +245,7 @@ func InvalidOAuthSessionStoreTypeError(actualSessionStoreType string) error {
 	return fmt.Errorf("invalid session store type '%s'", actualSessionStoreType)
 }
 
-func InvalidOAuthCookieSameSiteError(actualSameSite string) error {
+func InvalidOAuthCookieSameSiteError(actualSameSite v1.CookieSameSiteType) error {
 	return fmt.Errorf("invalid cookie samesite '%s'", actualSameSite)
 }
 
