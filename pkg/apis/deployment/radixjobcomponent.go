@@ -69,11 +69,6 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 	// Runs as root by default unless overridden
 	runAsNonRoot := false
 	var timeLimitSeconds *int64
-	if appJobComponent.TimeLimitSeconds == nil {
-		timeLimitSeconds = numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
-	} else {
-		timeLimitSeconds = appJobComponent.TimeLimitSeconds
-	}
 
 	environmentSpecificConfig := c.getEnvironmentConfig(appJobComponent)
 	if environmentSpecificConfig != nil {
@@ -85,6 +80,14 @@ func (c *jobComponentsBuilder) buildJobComponent(appJobComponent v1.RadixJobComp
 		runAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		node = environmentSpecificConfig.Node
 		timeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
+	}
+
+	if timeLimitSeconds == nil {
+		if appJobComponent.TimeLimitSeconds != nil {
+			timeLimitSeconds = appJobComponent.TimeLimitSeconds
+		} else {
+			timeLimitSeconds = numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
+		}
 	}
 
 	if variables == nil {
