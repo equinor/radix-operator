@@ -50,6 +50,13 @@ func WithForceRunAsNonRootFromEnvVar(envVarName string) HandlerConfigOption {
 	}
 }
 
+// WithTenantIdFromEnvVar configures tenant-id for Handler from an environment variable
+func WithTenantIdFromEnvVar(envVarName string) HandlerConfigOption {
+	return func(h *Handler) {
+		h.tenantId = os.Getenv(envVarName)
+	}
+}
+
 // WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *Handler) {
@@ -65,6 +72,7 @@ type Handler struct {
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
 	forceRunAsNonRoot       bool
+	tenantId                string
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
 
@@ -125,7 +133,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

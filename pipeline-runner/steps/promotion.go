@@ -185,7 +185,7 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 		if !found {
 			return NonExistingComponentName(radixConfig.GetName(), job.Name)
 		}
-
+		//Environment variables, SecretRefs are taken from current configuration
 		newEnvJob.Secrets = job.Secrets
 		newEnvJob.Image = job.Image
 		radixDeployment.Spec.Jobs[idx] = newEnvJob
@@ -207,7 +207,7 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 		if !found {
 			return NonExistingComponentName(radixConfig.GetName(), component.Name)
 		}
-
+		//Environment variables, SecretRefs are taken from current configuration
 		newEnvComponent.Secrets = component.Secrets
 		newEnvComponent.Image = component.Image
 		radixDeployment.Spec.Components[idx] = newEnvComponent

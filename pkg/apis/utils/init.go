@@ -4,16 +4,16 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 )
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface) {
+func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 
@@ -53,6 +53,11 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitor
 		log.Fatalf("getClusterConfig prometheus-operator client: %v", err)
 	}
 
+	secretProviderClient, err := secretProviderClient.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("secretProvider secret provider client client: %v", err)
+	}
+
 	log.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, prometheusOperatorClient
+	return client, radixClient, prometheusOperatorClient, secretProviderClient
 }

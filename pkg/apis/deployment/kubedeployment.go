@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -38,7 +40,7 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		}
 	}
 
-	err = deploy.createOrUpdateCsiAzureResources(desiredDeployment)
+	err = deploy.createOrUpdateCsiAzureVolumeResources(desiredDeployment)
 	if err != nil {
 		return err
 	}
@@ -161,7 +163,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	desiredDeployment.ObjectMeta.Name = componentName
-	desiredDeployment.ObjectMeta.OwnerReferences = getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = deployComponent.GetType()
@@ -178,14 +180,14 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.securityContextBuilder.BuildContainerSecurityContext(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = deploy.securityContextBuilder.BuildPodSecurityContext(deployComponent)
 
-	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent)
+	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {
 		return err
 	}
@@ -244,7 +246,17 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
 
+	if hasRadixSecretRefs(deployComponent) {
+		desiredDeployment.Spec.RevisionHistoryLimit = numbers.Int32Ptr(0)
+	} else {
+		desiredDeployment.Spec.RevisionHistoryLimit = nil
+	}
+
 	return desiredDeployment, nil
+}
+
+func hasRadixSecretRefs(deployComponent v1.RadixCommonDeployComponent) bool {
+	return len(deployComponent.GetSecretRefs().AzureKeyVaults) > 0
 }
 
 func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {

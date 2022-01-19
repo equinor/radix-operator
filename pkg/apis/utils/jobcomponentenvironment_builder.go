@@ -17,15 +17,16 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 }
 
 type radixJobComponentEnvironmentConfigBuilder struct {
-	environment      string
-	variables        v1.EnvVarsMap
-	resources        v1.ResourceRequirements
-	volumeMounts     []v1.RadixVolumeMount
-	imageTagName     string
-	monitoring       bool
-	node             v1.RadixNode
-	runAsNonRoot     bool
-	timeLimitSeconds *int64
+	environment  		string
+	variables   		 v1.EnvVarsMap
+	resources    		v1.ResourceRequirements
+	volumeMounts 		[]v1.RadixVolumeMount
+	imageTagName 		string
+	monitoring   		bool
+	node         		v1.RadixNode
+	runAsNonRoot 		bool
+	secretRefs   		v1.RadixSecretRefs
+	timeLimitSeconds 	*int64
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -82,14 +83,15 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonR
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
-		Environment:      ceb.environment,
-		Variables:        ceb.variables,
-		Resources:        ceb.resources,
-		VolumeMounts:     ceb.volumeMounts,
-		Monitoring:       ceb.monitoring,
-		ImageTagName:     ceb.imageTagName,
-		Node:             ceb.node,
-		RunAsNonRoot:     ceb.runAsNonRoot,
+		Environment:  ceb.environment,
+		Variables:    ceb.variables,
+		Resources:    ceb.resources,
+		VolumeMounts: ceb.volumeMounts,
+		Monitoring:   ceb.monitoring,
+		ImageTagName: ceb.imageTagName,
+		Node:         ceb.node,
+		RunAsNonRoot: ceb.runAsNonRoot,
+		SecretRefs:   ceb.secretRefs,
 		TimeLimitSeconds: ceb.timeLimitSeconds,
 	}
 }

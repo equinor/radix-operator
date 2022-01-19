@@ -3,17 +3,17 @@ package radixvalidators
 import (
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"regexp"
 	"strings"
 	"unicode"
 
+	commonUtils "github.com/equinor/radix-common/utils"
+	errorUtils "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -24,8 +24,6 @@ const (
 	maximumPortNumber = 65535
 	cpuRegex          = "^[0-9]+m$"
 )
-
-var illegalVariableNamePrefixes = [...]string{"RADIX_", "RADIXOPERATOR_"}
 
 // MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
 func MissingPrivateImageHubUsernameError(server string) error {
@@ -169,6 +167,11 @@ func duplicatePathForVolumeMountType(path, volumeMountType, component, environme
 		path, volumeMountType, component, environment)
 }
 
+func duplicatePathForAzureKeyVault(path, azureKeyVaultName, component string) error {
+	return fmt.Errorf("duplicate path %s for Azure Key vault %s, for component %s. See documentation for more info",
+		path, azureKeyVaultName, component)
+}
+
 func duplicateNameForVolumeMountType(name, volumeMountType, component, environment string) error {
 	return fmt.Errorf("duplicate names %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
 		name, volumeMountType, component, environment)
@@ -236,6 +239,24 @@ func SecretNameConflictsWithEnvironmentVariable(componentName, secretName string
 		componentName, secretName)
 }
 
+func duplicateSecretName(name string) error {
+	return fmt.Errorf("secret has a duplicate name %s", name)
+}
+
+func duplicateEnvVarName(name string) error {
+	return fmt.Errorf("environment variable has a duplicate name %s", name)
+}
+
+func duplicateAzureKeyVaultName(name string) error {
+	return fmt.Errorf("Azure Key vault has a duplicate name %s", name)
+}
+
+func secretRefEnvVarNameConflictsWithEnvironmentVariable(componentName, secretRefEnvVarName string) error {
+	return fmt.Errorf(
+		"component %s has a secret reference with environment variable name %s which exists as a regular environment variable or a secret",
+		componentName, secretRefEnvVarName)
+}
+
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
 func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radixv1.RadixApplication) (bool, []error) {
 	errs := []error{}
@@ -259,12 +280,12 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	err = validateSecrets(app)
+	err = validateVariables(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	err = validateVariables(app)
+	err = validateSecrets(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -558,7 +579,7 @@ func validateVerificationType(verificationType *v1.VerificationType) error {
 	}
 
 	actualValue := string(*verificationType)
-	if !slice.ContainsString(validValues, actualValue) {
+	if !commonUtils.ContainsString(validValues, actualValue) {
 		return InvalidVerificationType(actualValue)
 	} else {
 		return nil
@@ -700,42 +721,66 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 			return err
 		}
 	}
-
 	for _, component := range app.Spec.Components {
-		if err := validateSecretNames("secret name", component.Secrets); err != nil {
-			return err
-		}
-
-		envVars := []radixv1.EnvVarsMap{component.Variables}
-		for _, env := range component.EnvironmentConfig {
-			envVars = append(envVars, env.Variables)
-		}
-
-		if err := validateConflictingEnvironmentAndSecretNames(component.Name, component.Secrets, envVars); err != nil {
+		if err := validateRadixComponentSecrets(&component); err != nil {
 			return err
 		}
 	}
-
 	for _, job := range app.Spec.Jobs {
-		if err := validateSecretNames("secret name", job.Secrets); err != nil {
-			return err
-		}
-
-		envVars := []radixv1.EnvVarsMap{job.Variables}
-		for _, env := range job.EnvironmentConfig {
-			envVars = append(envVars, env.Variables)
-		}
-
-		if err := validateConflictingEnvironmentAndSecretNames(job.Name, job.Secrets, envVars); err != nil {
+		if err := validateRadixComponentSecrets(&job); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
+func validateRadixComponentSecrets(component v1.RadixCommonComponent) error {
+	if err := validateSecretNames("secret name", component.GetSecrets()); err != nil {
+		return err
+	}
+
+	envsEnvVarsMap := make(map[string]map[string]bool)
+	for _, env := range component.GetEnvironmentConfig() {
+		envsEnvVarsMap[env.GetEnvironment()] = getEnvVarNameMap(component.GetVariables(), env.GetVariables())
+	}
+
+	if err := validateConflictingEnvironmentAndSecretNames(component.GetName(), component.GetSecrets(), envsEnvVarsMap); err != nil {
+		return err
+	}
+	for _, env := range component.GetEnvironmentConfig() {
+		envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.GetEnvironment()]
+		for _, secret := range component.GetSecrets() {
+			envsEnvVarsWithSecretsMap[secret] = true
+		}
+		envsEnvVarsMap[env.GetEnvironment()] = envsEnvVarsWithSecretsMap
+	}
+	if err := validateRadixComponentSecretRefs(component); err != nil {
+		return err
+	}
+	if err := validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getEnvVarNameMap(componentEnvVarsMap v1.EnvVarsMap, envsEnvVarsMap v1.EnvVarsMap) map[string]bool {
+	envVarsMap := make(map[string]bool)
+	for name := range componentEnvVarsMap {
+		envVarsMap[name] = true
+	}
+	for name := range envsEnvVarsMap {
+		envVarsMap[name] = true
+	}
+	return envVarsMap
+}
+
 func validateSecretNames(resourceName string, secrets []string) error {
+	existingSecret := make(map[string]bool)
 	for _, secret := range secrets {
+		if _, exists := existingSecret[secret]; exists {
+			return duplicateSecretName(secret)
+		}
+		existingSecret[secret] = true
 		if err := validateVariableName(resourceName, secret); err != nil {
 			return err
 		}
@@ -743,57 +788,156 @@ func validateSecretNames(resourceName string, secrets []string) error {
 	return nil
 }
 
+func validateRadixComponentSecretRefs(radixComponent v1.RadixCommonComponent) error {
+	err := validateSecretRefs(radixComponent.GetName(), radixComponent.GetSecretRefs())
+	if err != nil {
+		return err
+	}
+	for _, envConfig := range radixComponent.GetEnvironmentConfig() {
+		err := validateSecretRefs(radixComponent.GetName(), envConfig.GetSecretRefs())
+		if err != nil {
+			return err
+		}
+	}
+	return validateSecretRefsPath(radixComponent)
+}
+
+func validateSecretRefs(componentName string, secretRefs v1.RadixSecretRefs) error {
+	existingVariableName := make(map[string]bool)
+	existingAzureKeyVaultName := make(map[string]bool)
+	existingAzureKeyVaultPath := make(map[string]bool)
+	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
+		if _, exists := existingAzureKeyVaultName[azureKeyVault.Name]; exists {
+			return duplicateAzureKeyVaultName(azureKeyVault.Name)
+		}
+		existingAzureKeyVaultName[azureKeyVault.Name] = true
+		path := azureKeyVault.Path
+		if path != nil && len(*path) > 0 {
+			if _, exists := existingAzureKeyVaultPath[*path]; exists {
+				return duplicatePathForAzureKeyVault(*path, azureKeyVault.Name, componentName)
+			}
+			existingAzureKeyVaultPath[*path] = true
+		}
+		for _, keyVaultItem := range azureKeyVault.Items {
+			if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
+				return duplicateEnvVarName(keyVaultItem.EnvVar)
+			}
+			existingVariableName[keyVaultItem.EnvVar] = true
+			if err := validateVariableName("Azure Key vault secret references environment variable name", keyVaultItem.EnvVar); err != nil {
+				return err
+			}
+			if err := validateVariableName("Azure Key vault secret references name", keyVaultItem.Name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateSecretRefsPath(radixComponent v1.RadixCommonComponent) error {
+	commonAzureKeyVaultPathMap := make(map[string]string)
+	for _, azureKeyVault := range radixComponent.GetSecretRefs().AzureKeyVaults {
+		path := azureKeyVault.Path
+		if path != nil && len(*path) > 0 { //set only non-empty common path
+			commonAzureKeyVaultPathMap[azureKeyVault.Name] = *path
+		}
+	}
+	for _, environmentConfig := range radixComponent.GetEnvironmentConfig() {
+		envAzureKeyVaultPathMap := make(map[string]string)
+		for commonAzureKeyVaultName, path := range commonAzureKeyVaultPathMap {
+			envAzureKeyVaultPathMap[commonAzureKeyVaultName] = path
+		}
+		for _, envAzureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
+			if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { //override common path by non-empty env-path, or set non-empty env path
+				envAzureKeyVaultPathMap[envAzureKeyVault.Name] = *envAzureKeyVault.Path
+			}
+		}
+		envPathMap := make(map[string]bool)
+		for azureKeyVaultName, path := range envAzureKeyVaultPathMap {
+			if _, existsForOtherKeyVault := envPathMap[path]; existsForOtherKeyVault {
+				return duplicatePathForAzureKeyVault(path, azureKeyVaultName, radixComponent.GetName())
+			}
+			envPathMap[path] = true
+		}
+	}
+	return nil
+}
+
 func validateVariables(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
-		if err := validateVariableNames("environment variable name", component.Variables); err != nil {
+		err := validateRadixComponentVariables(&component)
+		if err != nil {
 			return err
 		}
-
-		for _, envConfig := range component.EnvironmentConfig {
-			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
-				return err
-			}
-		}
 	}
-
 	for _, job := range app.Spec.Jobs {
-		if err := validateVariableNames("environment variable name", job.Variables); err != nil {
+		err := validateRadixComponentVariables(&job)
+		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		for _, envConfig := range job.EnvironmentConfig {
-			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
-				return err
-			}
-		}
+func validateRadixComponentVariables(component v1.RadixCommonComponent) error {
+	if err := validateVariableNames("environment variable name", component.GetVariables()); err != nil {
+		return err
 	}
 
+	for _, envConfig := range component.GetEnvironmentConfig() {
+		if err := validateVariableNames("environment variable name", envConfig.GetVariables()); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func validateVariableNames(resourceName string, variables radixv1.EnvVarsMap) error {
-	for v := range variables {
-		if err := validateVariableName(resourceName, v); err != nil {
+	existingVariableName := make(map[string]bool)
+	for envVarName := range variables {
+		if _, exists := existingVariableName[envVarName]; exists {
+			return duplicateEnvVarName(envVarName)
+		}
+		existingVariableName[envVarName] = true
+		if err := validateVariableName(resourceName, envVarName); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateConflictingEnvironmentAndSecretNames(componentName string, secrets []string, variables []radixv1.EnvVarsMap) error {
-	secretNames := make(map[string]struct{})
+func validateConflictingEnvironmentAndSecretNames(componentName string, secrets []string, envsEnvVarMap map[string]map[string]bool) error {
 	for _, secret := range secrets {
-		secretNames[secret] = struct{}{}
-	}
-
-	for _, envVars := range variables {
-		for envVarKey := range envVars {
-			if _, contains := secretNames[envVarKey]; contains {
-				return SecretNameConflictsWithEnvironmentVariable(componentName, envVarKey)
+		for _, envVarMap := range envsEnvVarMap {
+			if _, contains := envVarMap[secret]; contains {
+				return SecretNameConflictsWithEnvironmentVariable(componentName, secret)
 			}
 		}
 	}
+	return nil
+}
 
+func validateConflictingEnvironmentAndSecretRefsNames(component v1.RadixCommonComponent, envsEnvVarMap map[string]map[string]bool) error {
+	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+		for _, item := range azureKeyVault.Items {
+			for _, envVarMap := range envsEnvVarMap {
+				if _, contains := envVarMap[item.EnvVar]; contains {
+					return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+				}
+			}
+		}
+	}
+	for _, environmentConfig := range component.GetEnvironmentConfig() {
+		for _, azureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
+			for _, item := range azureKeyVault.Items {
+				if envVarMap, ok := envsEnvVarMap[environmentConfig.GetEnvironment()]; ok {
+					if _, contains := envVarMap[item.EnvVar]; contains {
+						return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -846,9 +990,8 @@ func validateVariableName(resourceName, value string) error {
 func validateIllegalPrefixInVariableName(resourceName string, value string) error {
 	if utils.IsRadixEnvVar(value) {
 		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
@@ -964,20 +1107,12 @@ func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
 	env := getEnv(app, name)
-	if env != nil {
-		return true
-	}
-
-	return false
+	return env != nil
 }
 
 func doesEnvExistAndIsMappedToBranch(app *radixv1.RadixApplication, name string) bool {
 	env := getEnv(app, name)
-	if env != nil && env.Build.From != "" {
-		return true
-	}
-
-	return false
+	return env != nil && env.Build.From != ""
 }
 
 func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
@@ -992,11 +1127,7 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
 		if component.Name == name {
-			if component.Public || component.PublicPort != "" {
-				return true
-			}
-
-			return false
+			return component.Public || component.PublicPort != ""
 		}
 	}
 	return false

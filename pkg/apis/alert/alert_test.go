@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/suite"
-
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -16,12 +14,14 @@ import (
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type testAlertSyncerConfigOption func(sut *alertSyncer)
@@ -40,10 +40,11 @@ func testAlertSyncerWithAlertConfigs(configs AlertConfigs) testAlertSyncerConfig
 
 type alertTestSuite struct {
 	suite.Suite
-	kubeClient  *fake.Clientset
-	radixClient *fakeradix.Clientset
-	promClient  *prometheusfake.Clientset
-	kubeUtil    *kube.Kube
+	kubeClient           *fake.Clientset
+	radixClient          *fakeradix.Clientset
+	secretProviderClient *secretproviderfake.Clientset
+	promClient           *prometheusfake.Clientset
+	kubeUtil             *kube.Kube
 }
 
 func TestAlertTestSuite(t *testing.T) {
@@ -57,7 +58,8 @@ func (s *alertTestSuite) SetupSuite() {
 func (s *alertTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
+	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 }
 

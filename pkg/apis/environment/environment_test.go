@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 	"time"
 
@@ -41,9 +42,9 @@ const (
 func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	fakekube := fake.NewSimpleClientset()
 	fakeradix := radix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(fakekube, fakeradix)
-
-	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(fakekube, fakeradix, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, limitDefaultCPU)

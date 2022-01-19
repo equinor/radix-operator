@@ -96,8 +96,16 @@ func NewController(client kubernetes.Interface,
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
 	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			secret, _ := obj.(*corev1.Secret)
-			namespace, _ := client.CoreV1().Namespaces().Get(context.TODO(), secret.Namespace, metav1.GetOptions{})
+			secret, converted := obj.(*corev1.Secret)
+			if !converted {
+				logger.Errorf("corev1.Secret object cast failed during deleted event received.")
+				return
+			}
+			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), secret.Namespace, metav1.GetOptions{})
+			if err != nil {
+				logger.Error(err)
+				return
+			}
 			appName := namespace.Labels[kube.RadixAppLabel]
 
 			if isMachineUserToken(appName, secret) {
