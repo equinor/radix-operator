@@ -4,26 +4,27 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 )
 
 type IngressAnnotationProvider interface {
-	GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string
+	GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error)
 }
 
 type forceSslRedirectAnnotations struct{}
 
-func (forceSslRedirectAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
-	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}
+func (forceSslRedirectAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}, nil
 }
 
 type ingressConfigurationAnnotations struct {
 	config IngressConfiguration
 }
 
-func (o *ingressConfigurationAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
+func (o *ingressConfigurationAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	allAnnotations := make(map[string]string)
 
 	for _, configuration := range component.GetIngressConfiguration() {
@@ -33,7 +34,7 @@ func (o *ingressConfigurationAnnotations) GetAnnotations(component v1.RadixCommo
 		}
 	}
 
-	return allAnnotations
+	return allAnnotations, nil
 }
 
 func (o *ingressConfigurationAnnotations) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
@@ -50,7 +51,7 @@ type clientCertificateAnnotations struct {
 	namespace string
 }
 
-func (o *clientCertificateAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
+func (o *clientCertificateAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	result := make(map[string]string)
 	if auth := component.GetAuthentication(); auth != nil {
 		if clientCert := auth.ClientCertificate; clientCert != nil {
@@ -64,18 +65,22 @@ func (o *clientCertificateAnnotations) GetAnnotations(component v1.RadixCommonDe
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 type oauth2Annotations struct {
-	oauth2Config OAuth2Config
+	oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier
 }
 
-func (a *oauth2Annotations) GetAnnotations(component v1.RadixCommonDeployComponent) map[string]string {
+func (a *oauth2Annotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
-		oauth := a.oauth2Config.MergeWithDefaults(auth.OAuth2)
+		oauth, err := a.oauth2DefaultConfig.ApplyTo(auth.OAuth2)
+		if err != nil {
+			return nil, err
+		}
+
 		rootPath := fmt.Sprintf("https://$host%s", oauthutil.SanitizePathPrefix(oauth.ProxyPrefix))
 		annotations[authUrlAnnotation] = fmt.Sprintf("%s/auth", rootPath)
 		annotations[authSigninAnnotation] = fmt.Sprintf("%s/start?rd=$escaped_request_uri", rootPath)
@@ -92,5 +97,5 @@ func (a *oauth2Annotations) GetAnnotations(component v1.RadixCommonDeployCompone
 		}
 	}
 
-	return annotations
+	return annotations, nil
 }

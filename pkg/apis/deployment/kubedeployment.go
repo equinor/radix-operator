@@ -146,7 +146,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = deployComponent.GetType()
+	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = string(deployComponent.GetType())
 	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 
@@ -291,12 +291,14 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			garbageCollect = true
 		} else {
-			var componentType string
+			var componentType v1.RadixComponentType
 			commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
 
 			// If component type label is not set on the deployment, we default to "component"
-			if componentType, ok = deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
-				componentType = defaults.RadixComponentTypeComponent
+			if componentTypeString, ok := deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
+				componentType = v1.RadixComponentTypeComponent
+			} else {
+				componentType = v1.RadixComponentType(componentTypeString)
 			}
 
 			// Garbage collect if component type has changed.

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -57,6 +58,13 @@ func WithTenantIdFromEnvVar(envVarName string) HandlerConfigOption {
 	}
 }
 
+// WithOAuth2DefaultConfig configures default OAuth2 settings
+func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2DefaultConfig) HandlerConfigOption {
+	return func(h *Handler) {
+		h.oauth2DefaultConfig = oauth2Config
+	}
+}
+
 // WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *Handler) {
@@ -73,6 +81,7 @@ type Handler struct {
 	hasSynced               common.HasSynced
 	forceRunAsNonRoot       bool
 	tenantId                string
+	oauth2DefaultConfig     defaults.OAuth2DefaultConfig
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
 
@@ -133,7 +142,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, t.oauth2DefaultConfig)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

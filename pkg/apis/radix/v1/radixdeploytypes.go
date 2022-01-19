@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -104,8 +102,8 @@ func (deployComponent *RadixDeployComponent) GetName() string {
 	return deployComponent.Name
 }
 
-func (deployComponent *RadixDeployComponent) GetType() string {
-	return defaults.RadixComponentTypeComponent
+func (deployComponent *RadixDeployComponent) GetType() RadixComponentType {
+	return RadixComponentTypeComponent
 }
 
 func (deployComponent *RadixDeployComponent) GetImage() string {
@@ -200,8 +198,8 @@ func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetType() string {
-	return defaults.RadixComponentTypeJobScheduler
+func (deployJobComponent *RadixDeployJobComponent) GetType() RadixComponentType {
+	return RadixComponentTypeJobScheduler
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
@@ -241,7 +239,8 @@ func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() b
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetReplicas() *int {
-	return numbers.IntPtr(1)
+	replicas := 1
+	return &replicas
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetHorizontalScaling() *RadixHorizontalScaling {
@@ -324,10 +323,17 @@ type RadixDeployJobComponent struct {
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
+type RadixComponentType string
+
+const (
+	RadixComponentTypeComponent    RadixComponentType = "component"
+	RadixComponentTypeJobScheduler RadixComponentType = "job"
+)
+
 //RadixCommonDeployComponent defines a common component interface a RadixDeployment
 type RadixCommonDeployComponent interface {
 	GetName() string
-	GetType() string
+	GetType() RadixComponentType
 	GetImage() string
 	GetPorts() []ComponentPort
 	GetEnvironmentVariables() EnvVarsMap

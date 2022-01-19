@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -19,6 +20,7 @@ type DeploymentSyncerFactoryFunc func(
 	radixDeployment *v1.RadixDeployment,
 	forceRunAsNonRoot bool,
 	tenantId string,
+	oauth2DefaultConfig defaults.OAuth2DefaultConfig,
 ) DeploymentSyncer
 
 func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
@@ -30,8 +32,9 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	radixDeployment *v1.RadixDeployment,
 	forceRunAsNonRoot bool,
 	tenantId string,
+	oauth2DefaultConfig defaults.OAuth2DefaultConfig,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, forceRunAsNonRoot, tenantId)
+	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, forceRunAsNonRoot, tenantId, oauth2DefaultConfig)
 }
 
 //DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -44,5 +47,6 @@ type DeploymentSyncerFactory interface {
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,
 		forceRunAsNonRoot bool,
-		tenantId string) DeploymentSyncer
+		tenantId string,
+		oauth2DefaultConfig defaults.OAuth2DefaultConfig) DeploymentSyncer
 }

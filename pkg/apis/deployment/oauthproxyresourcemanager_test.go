@@ -39,7 +39,7 @@ type OAuthProxyResourceManagerTestSuite struct {
 	kubeUtil                  *kube.Kube
 	ctrl                      *gomock.Controller
 	ingressAnnotationProvider *MockIngressAnnotationProvider
-	oauth2Config              *MockOAuth2Config
+	oauth2Config              *defaults.MockOAuth2DefaultConfigApplier
 }
 
 func TestOAuthProxyResourceManagerTestSuite(t *testing.T) {
@@ -85,7 +85,7 @@ func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
 	s.ctrl = gomock.NewController(s.T())
 	s.ingressAnnotationProvider = NewMockIngressAnnotationProvider(s.ctrl)
-	s.oauth2Config = NewMockOAuth2Config(s.ctrl)
+	s.oauth2Config = defaults.NewMockOAuth2DefaultConfigApplier(s.ctrl)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) TearDownTest() {
@@ -93,15 +93,19 @@ func (s *OAuthProxyResourceManagerTestSuite) TearDownTest() {
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() {
+	ctrl := gomock.NewController(s.T())
+	defer ctrl.Finish()
+	oauthConfig := defaults.NewMockOAuth2DefaultConfigApplier(ctrl)
 	rd := utils.NewDeploymentBuilder().BuildRD()
 	rr := utils.NewRegistrationBuilder().BuildRR()
-	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil)
+
+	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, oauthConfig)
 	sut, ok := oauthManager.(*oauthProxyResourceManager)
 	s.True(ok)
 	s.Equal(rd, sut.rd)
 	s.Equal(rr, sut.rr)
 	s.Equal(s.kubeUtil, sut.kubeutil)
-	s.NotNil(sut.oauth2Config)
+	s.Equal(oauthConfig, sut.oauth2DefaultConfig)
 	s.Len(sut.ingressAnnotationProviders, 1)
 }
 
@@ -165,7 +169,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 			InsecureSkipVerifyNonce: utils.BoolPtr(false),
 		},
 	}
-	s.oauth2Config.EXPECT().MergeWithDefaults(inputOAuth).Times(1).Return(returnOAuth)
+	s.oauth2Config.EXPECT().ApplyTo(inputOAuth).Times(1).Return(returnOAuth, nil)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
@@ -232,7 +236,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 
 	// Env var OAUTH2_PROXY_REDIS_PASSWORD should not be present when SessionStoreType is cookie
 	returnOAuth.SessionStoreType = "cookie"
-	s.oauth2Config.EXPECT().MergeWithDefaults(inputOAuth).Times(1).Return(returnOAuth)
+	s.oauth2Config.EXPECT().ApplyTo(inputOAuth).Times(1).Return(returnOAuth, nil)
 	err = sut.Sync()
 	s.Nil(err)
 	actualDeploys, _ = s.kubeClient.AppsV1().Deployments(corev1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
@@ -243,7 +247,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCreated() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).WithMachineUser(true).BuildRR()
 	rd := utils.NewDeploymentBuilder().
@@ -287,7 +291,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCr
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarbageCollected() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreRedis})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreRedis}, nil)
 
 	secretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 	_, err := s.kubeClient.CoreV1().Secrets(envNs).Create(
@@ -323,7 +327,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 		actualSecret.Data)
 
 	// Remove redispassword if sessionstoretype is cookie
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreCookie})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SessionStoreType: v1.SessionStoreCookie}, nil)
 	sut.Sync()
 	actualSecret, _ = s.kubeClient.CoreV1().Secrets(envNs).Get(context.Background(), secretName, metav1.GetOptions{})
 	s.Equal(
@@ -336,7 +340,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecret_KeysGarb
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated() {
 	appName, envName, componentName := "anyapp", "qa", "server"
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
 
 	rr := utils.NewRegistrationBuilder().WithName(appName).BuildRR()
 	rd := utils.NewDeploymentBuilder().
@@ -424,17 +428,17 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyIngressesCreate
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
-	s.oauth2Config.EXPECT().MergeWithDefaults(rd.Spec.Components[0].Authentication.OAuth2).Times(1).Return(&v1.OAuth2{ProxyPrefix: "auth1"})
-	s.oauth2Config.EXPECT().MergeWithDefaults(rd.Spec.Components[1].Authentication.OAuth2).Times(1).Return(&v1.OAuth2{ProxyPrefix: "auth2"})
+	s.oauth2Config.EXPECT().ApplyTo(rd.Spec.Components[0].Authentication.OAuth2).Times(1).Return(&v1.OAuth2{ProxyPrefix: "auth1"}, nil)
+	s.oauth2Config.EXPECT().ApplyTo(rd.Spec.Components[1].Authentication.OAuth2).Times(1).Return(&v1.OAuth2{ProxyPrefix: "auth2"}, nil)
 
 	expectedIngServerCall := rd.Spec.Components[0].DeepCopy()
 	expectedIngServerCall.Authentication.OAuth2.ProxyPrefix = "auth1"
 	expectedIngServerAnnotations := map[string]string{"annotation1-1": "val1-1", "annotation1-2": "val1-2"}
-	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngServerCall).Times(1).Return(expectedIngServerAnnotations)
+	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngServerCall).Times(1).Return(expectedIngServerAnnotations, nil)
 	expectedIngWebCall := rd.Spec.Components[1].DeepCopy()
 	expectedIngWebCall.Authentication.OAuth2.ProxyPrefix = "auth2"
 	expectedIngWebAnnotations := map[string]string{"annotation2-1": "val2-1", "annotation2-2": "val2-2"}
-	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall).Times(2).Return(expectedIngWebAnnotations)
+	s.ingressAnnotationProvider.EXPECT().GetAnnotations(expectedIngWebCall).Times(2).Return(expectedIngWebAnnotations, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{s.ingressAnnotationProvider}, s.oauth2Config}
 	err := sut.Sync()
 	s.Nil(err)
@@ -529,7 +533,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		BuildRD()
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(2).Return(&v1.OAuth2{})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(2).Return(&v1.OAuth2{}, nil)
 	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config}
 	err := sut.Sync()
 	s.Nil(err)
@@ -555,7 +559,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyUninstall() {
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component1Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
 		WithComponent(utils.NewDeployComponentBuilder().WithName(component2Name).WithPublicPort("http").WithAuthentication(&v1.Authentication{})).
 		BuildRD()
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
 	sut = &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config}
 	err = sut.Sync()
 	s.Nil(err)

@@ -33,13 +33,13 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
 		ingressAnnotationProviders: []IngressAnnotationProvider{&forceSslRedirectAnnotations{}},
-		oauth2Config:               OAuth2ConfigFunc(oauth2ConfigFuncImpl),
+		oauth2DefaultConfig:        oauth2DefaultConfig,
 	}
 }
 
@@ -48,7 +48,7 @@ type oauthProxyResourceManager struct {
 	rr                         *v1.RadixRegistration
 	kubeutil                   *kube.Kube
 	ingressAnnotationProviders []IngressAnnotationProvider
-	oauth2Config               OAuth2Config
+	oauth2DefaultConfig        defaults.OAuth2DefaultConfigApplier
 }
 
 func (o *oauthProxyResourceManager) Sync() error {
@@ -63,7 +63,11 @@ func (o *oauthProxyResourceManager) Sync() error {
 func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		componentWithOAuthDefaults := component.DeepCopy()
-		componentWithOAuthDefaults.Authentication.OAuth2 = o.oauth2Config.MergeWithDefaults(componentWithOAuthDefaults.Authentication.OAuth2)
+		oauth, err := o.oauth2DefaultConfig.ApplyTo(componentWithOAuthDefaults.Authentication.OAuth2)
+		if err != nil {
+			return err
+		}
+		componentWithOAuthDefaults.Authentication.OAuth2 = oauth
 		return o.install(componentWithOAuthDefaults)
 	} else {
 		return o.uninstall(component)
@@ -367,7 +371,11 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 	}
 
 	for _, ingress := range ingresses.Items {
-		if auxIngress := o.buildOAuthProxyIngressForComponentIngress(component, ingress); auxIngress != nil {
+		auxIngress, err := o.buildOAuthProxyIngressForComponentIngress(component, ingress)
+		if err != nil {
+			return err
+		}
+		if auxIngress != nil {
 			if err := o.kubeutil.ApplyIngress(o.rd.Namespace, auxIngress); err != nil {
 				return err
 			}
@@ -377,16 +385,20 @@ func (o *oauthProxyResourceManager) createOrUpdateIngresses(component v1.RadixCo
 	return nil
 }
 
-func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress) *networkingv1.Ingress {
+func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(component v1.RadixCommonDeployComponent, componentIngress networkingv1.Ingress) (*networkingv1.Ingress, error) {
 	if len(componentIngress.Spec.Rules) == 0 {
-		return nil
+		return nil, nil
 	}
 	sourceHost := componentIngress.Spec.Rules[0]
 	pathType := networkingv1.PathTypeImplementationSpecific
 	annotations := map[string]string{}
 
 	for _, ia := range o.ingressAnnotationProviders {
-		annotations = radixmaps.MergeStringMaps(annotations, ia.GetAnnotations(component))
+		providedAnnotations, err := ia.GetAnnotations(component)
+		if err != nil {
+			return nil, err
+		}
+		annotations = radixmaps.MergeStringMaps(annotations, providedAnnotations)
 	}
 
 	var tls []networkingv1.IngressTLS
@@ -430,7 +442,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 	}
 
 	o.mergeAuxComponentResourceLabels(ingress, component)
-	return ingress
+	return ingress, nil
 }
 
 func (o *oauthProxyResourceManager) getOwnerReferenceOfIngress(ingress *networkingv1.Ingress) []metav1.OwnerReference {

@@ -210,12 +210,15 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		radixInformerFactory,
 	)
 
+	oauthDefaultConfig := defaults.NewOAuth2DefaultConfig(defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)))
+
 	handler := deployment.NewHandler(client,
 		kubeUtil,
 		radixClient,
 		prometheusOperatorClient,
 		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
 		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
+		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
 	)
 
 	waitForChildrenToSync := true

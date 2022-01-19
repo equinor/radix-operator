@@ -3158,12 +3158,12 @@ func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeutil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 	rd := v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Namespace: ""}}
-	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true, tenantId).(*Deployment)
+	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true, tenantId, defaults.OAuth2DefaultConfig{}).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual := deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.True(t, actual.forceRunAsNonRoot)
 
-	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false, tenantId).(*Deployment)
+	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false, tenantId, defaults.OAuth2DefaultConfig{}).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual = deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.False(t, actual.forceRunAsNonRoot)
@@ -3239,9 +3239,9 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	annotations1 := NewMockIngressAnnotationProvider(ctrl)
-	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(map[string]string{"foo": "x"})
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(map[string]string{"foo": "x"}, nil)
 	annotations2 := NewMockIngressAnnotationProvider(ctrl)
-	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(map[string]string{"bar": "y", "baz": "z"})
+	annotations2.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(map[string]string{"bar": "y", "baz": "z"}, nil)
 
 	syncer := Deployment{
 		kubeclient:                 kubeclient,
@@ -3260,6 +3260,33 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 	assert.Len(t, ingresses.Items, 1)
 	expected := map[string]string{"bar": "y", "baz": "z", "foo": "x"}
 	assert.Equal(t, expected, ingresses.Items[0].GetAnnotations())
+}
+
+func Test_IngressAnnotations_ReturnError(t *testing.T) {
+	_, kubeclient, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
+	rr := utils.NewRegistrationBuilder().WithName("app").BuildRR()
+	rd := utils.NewDeploymentBuilder().WithAppName("app").WithEnvironment("dev").WithComponent(utils.NewDeployComponentBuilder().WithName("comp").WithPublicPort("http")).BuildRD()
+	radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
+	radixclient.RadixV1().RadixDeployments("app-dev").Create(context.Background(), rd, metav1.CreateOptions{})
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	annotations1 := NewMockIngressAnnotationProvider(ctrl)
+	annotations1.EXPECT().GetAnnotations(&rd.Spec.Components[0]).Times(1).Return(nil, errors.New("any error"))
+
+	syncer := Deployment{
+		kubeclient:                 kubeclient,
+		radixclient:                radixclient,
+		prometheusperatorclient:    prometheusclient,
+		kubeutil:                   kubeUtil,
+		registration:               rr,
+		radixDeployment:            rd,
+		securityContextBuilder:     NewSecurityContextBuilder(true),
+		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1},
+	}
+
+	err := syncer.OnSync()
+	assert.Error(t, err)
 }
 
 func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
@@ -3364,7 +3391,8 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 	if err != nil {
 		return nil, err
 	}
-	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId)
+
+	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId, defaults.OAuth2DefaultConfig{})
 	err = deployment.OnSync()
 	if err != nil {
 		return nil, err
@@ -3386,7 +3414,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId)
+	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId, defaults.OAuth2DefaultConfig{})
 	err = deployment.OnSync()
 	if err != nil {
 		return err

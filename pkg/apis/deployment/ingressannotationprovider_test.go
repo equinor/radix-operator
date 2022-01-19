@@ -1,8 +1,10 @@
 package deployment
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/golang/mock/gomock"
@@ -12,8 +14,9 @@ import (
 
 func Test_ForceSslRedirectAnnotations(t *testing.T) {
 	sslAnnotations := forceSslRedirectAnnotations{}
-	actual := sslAnnotations.GetAnnotations(&v1.RadixDeployComponent{})
 	expected := map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}
+	actual, err := sslAnnotations.GetAnnotations(&v1.RadixDeployComponent{})
+	assert.Nil(t, err)
 	assert.Equal(t, expected, actual)
 }
 
@@ -27,13 +30,16 @@ func Test_IngressConfigurationAnnotations(t *testing.T) {
 	}
 	componentIngress := ingressConfigurationAnnotations{config: config}
 
-	annotations := componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"socket"}})
+	annotations, err := componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"socket"}})
+	assert.Nil(t, err)
 	assert.Equal(t, 3, len(annotations))
 
-	annotations = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"socket", "round-robin"}})
+	annotations, err = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"socket", "round-robin"}})
+	assert.Nil(t, err)
 	assert.Equal(t, 4, len(annotations))
 
-	annotations = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"non-existing"}})
+	annotations, err = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"non-existing"}})
+	assert.Nil(t, err)
 	assert.Equal(t, 0, len(annotations))
 }
 
@@ -73,22 +79,26 @@ func Test_ClientCertificateAnnotations(t *testing.T) {
 	}
 
 	ingressAnnotations := clientCertificateAnnotations{namespace: "ns"}
-	result := ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config1})
+	result, err := ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config1})
+	assert.Nil(t, err)
 	assert.Equal(t, expect1, result)
 
-	result = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config2})
+	result, err = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config2})
+	assert.Nil(t, err)
 	assert.Equal(t, expect2, result)
 
-	result = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config3})
+	result, err = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name", Authentication: config3})
+	assert.Nil(t, err)
 	assert.Equal(t, expect3, result)
 
-	result = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name"})
+	result, err = ingressAnnotations.GetAnnotations(&v1.RadixDeployComponent{Name: "name"})
+	assert.Nil(t, err)
 	assert.Empty(t, result, "Expected Annotations to be empty")
 }
 
 type OAuth2AnnotationsTestSuite struct {
 	suite.Suite
-	oauth2Config *MockOAuth2Config
+	oauth2Config *defaults.MockOAuth2DefaultConfigApplier
 	ctrl         *gomock.Controller
 }
 
@@ -98,7 +108,7 @@ func TestOAuth2AnnotationsTestSuite(t *testing.T) {
 
 func (s *OAuth2AnnotationsTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
-	s.oauth2Config = NewMockOAuth2Config(s.ctrl)
+	s.oauth2Config = defaults.NewMockOAuth2DefaultConfigApplier(s.ctrl)
 }
 
 func (s *OAuth2AnnotationsTestSuite) TearDownTest() {
@@ -106,54 +116,68 @@ func (s *OAuth2AnnotationsTestSuite) TearDownTest() {
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_NonPublicComponent() {
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(0)
-	sut := oauth2Annotations{oauth2Config: s.oauth2Config}
-	actual := sut.GetAnnotations(&v1.RadixDeployComponent{Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(0)
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}})
+	s.Nil(err)
 	s.Len(actual, 0)
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_PublicComponentNoOAuth() {
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(0)
-	sut := oauth2Annotations{oauth2Config: s.oauth2Config}
-	actual := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{}})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(0)
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{}})
+	s.Nil(err)
 	s.Len(actual, 0)
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_ComponentOAuthPassedToOAuth2Config() {
 	oauth := &v1.OAuth2{ClientID: "1234"}
-	s.oauth2Config.EXPECT().MergeWithDefaults(oauth).Times(1).Return(&v1.OAuth2{})
-	sut := oauth2Annotations{oauth2Config: s.oauth2Config}
+	s.oauth2Config.EXPECT().ApplyTo(oauth).Times(1).Return(&v1.OAuth2{}, nil)
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
 	sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: oauth}})
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{ProxyPrefix: "/anypath"})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{ProxyPrefix: "/anypath"}, nil)
 	expected := map[string]string{
 		"nginx.ingress.kubernetes.io/auth-signin": "https://$host/anypath/start?rd=$escaped_request_uri",
 		"nginx.ingress.kubernetes.io/auth-url":    "https://$host/anypath/auth",
 	}
-	sut := oauth2Annotations{oauth2Config: s.oauth2Config}
-	actual := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.Nil(err)
 	s.Equal(expected, actual)
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_All() {
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(true)})
-	sut := oauth2Annotations{oauth2Config: s.oauth2Config}
-	actual := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.Nil(err)
 	s.Equal("X-Auth-Request-Access-Token,X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email,X-Auth-Request-Preferred-Username,Authorization", actual["nginx.ingress.kubernetes.io/auth-response-headers"])
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHeadersOnly() {
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(false)})
-	sut := oauth2Annotations{oauth2Config: s.oauth2Config}
-	actual := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(false)}, nil)
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.Nil(err)
 	s.Equal("X-Auth-Request-Access-Token,X-Auth-Request-User,X-Auth-Request-Groups,X-Auth-Request-Email,X-Auth-Request-Preferred-Username", actual["nginx.ingress.kubernetes.io/auth-response-headers"])
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_AuthorizationHeaderOnly() {
-	s.oauth2Config.EXPECT().MergeWithDefaults(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)})
-	sut := oauth2Annotations{oauth2Config: s.oauth2Config}
-	actual := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.Nil(err)
 	s.Equal("Authorization", actual["nginx.ingress.kubernetes.io/auth-response-headers"])
+}
+
+func (s *OAuth2AnnotationsTestSuite) Test_OAuthConfig_ApplyTo_ReturnError() {
+	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, errors.New("any error"))
+	sut := oauth2Annotations{oauth2DefaultConfig: s.oauth2Config}
+	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
+	s.Error(err)
+	s.Nil(actual)
 }

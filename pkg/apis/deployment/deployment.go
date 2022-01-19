@@ -51,8 +51,11 @@ type Deployment struct {
 	tenantId                   string
 }
 
+// Test if NewDeployment implements DeploymentSyncerFactory
+var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeployment)
+
 // NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, forceRunAsNonRoot bool, tenantId string) DeploymentSyncer {
+func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, forceRunAsNonRoot bool, tenantId string, oauth2DefaultConfig defaults.OAuth2DefaultConfig) DeploymentSyncer {
 
 	ingressConfig, err := loadIngressConfigFromMap(kubeutil)
 	if err != nil {
@@ -62,7 +65,7 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 		forceSslRedirectAnnotations{},
 		&ingressConfigurationAnnotations{config: ingressConfig},
 		&clientCertificateAnnotations{namespace: radixDeployment.Namespace},
-		&oauth2Annotations{oauth2Config: OAuth2ConfigFunc(oauth2ConfigFuncImpl)},
+		&oauth2Annotations{oauth2DefaultConfig: &oauth2DefaultConfig},
 	}
 
 	return &Deployment{
@@ -73,7 +76,7 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 		registration:               registration,
 		radixDeployment:            radixDeployment,
 		securityContextBuilder:     NewSecurityContextBuilder(forceRunAsNonRoot),
-		auxResourceManagers:        []AuxiliaryResourceManager{NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)},
+		auxResourceManagers:        []AuxiliaryResourceManager{NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil, &oauth2DefaultConfig)},
 		ingressAnnotationProviders: ingressAnnotations,
 		tenantId:                   tenantId,
 	}
