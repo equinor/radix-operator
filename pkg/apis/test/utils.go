@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -30,8 +32,8 @@ type Utils struct {
 }
 
 // NewTestUtils Constructor
-func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface) Utils {
-	kubeUtil, _ := kube.New(client, radixclient)
+func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface, secretproviderclient secretProviderClient.Interface) Utils {
+	kubeUtil, _ := kube.New(client, radixclient, secretproviderclient)
 	return Utils{
 		client:      client,
 		radixclient: radixclient,
@@ -266,6 +268,7 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
 	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler-server:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
+	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot

@@ -27,12 +27,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type OAuthProxyResourceManagerTestSuite struct {
 	suite.Suite
 	kubeClient                kubernetes.Interface
 	radixClient               radixclient.Interface
+	secretProviderClient      secretProviderClient.Interface
 	kubeUtil                  *kube.Kube
 	ctrl                      *gomock.Controller
 	ingressAnnotationProvider *MockIngressAnnotationProvider
@@ -78,7 +81,8 @@ func (*OAuthProxyResourceManagerTestSuite) TearDownSuite() {
 func (s *OAuthProxyResourceManagerTestSuite) SetupTest() {
 	s.kubeClient = kubefake.NewSimpleClientset()
 	s.radixClient = radixfake.NewSimpleClientset()
-	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient)
+	s.secretProviderClient = secretproviderfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, s.secretProviderClient)
 	s.ctrl = gomock.NewController(s.T())
 	s.ingressAnnotationProvider = NewMockIngressAnnotationProvider(s.ctrl)
 	s.oauth2Config = NewMockOAuth2Config(s.ctrl)
@@ -178,7 +182,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 
 	actualDeploy := actualDeploys.Items[0]
 	s.Equal(utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix), actualDeploy.Name)
-	s.ElementsMatch(getOwnerReferenceOfDeployment(rd), actualDeploy.OwnerReferences)
+	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualDeploy.OwnerReferences)
 
 	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
 	s.Equal(expectedLabels, actualDeploy.Labels)
@@ -351,7 +355,7 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyServiceCreated(
 	s.Len(actualServices.Items, 1)
 	s.Equal(expectedServiceName, actualServices.Items[0].Name)
 	s.Equal(expectedLabels, actualServices.Items[0].Labels)
-	s.ElementsMatch(getOwnerReferenceOfDeployment(rd), actualServices.Items[0].OwnerReferences)
+	s.ElementsMatch([]metav1.OwnerReference{getOwnerReferenceOfDeployment(rd)}, actualServices.Items[0].OwnerReferences)
 	s.Equal(corev1.ServiceTypeClusterIP, actualServices.Items[0].Spec.Type)
 	s.Len(actualServices.Items[0].Spec.Ports, 1)
 	s.Equal(corev1.ServicePort{Port: oauthProxyPortNumber, TargetPort: intstr.FromString(oauthProxyPortName), Protocol: corev1.ProtocolTCP}, actualServices.Items[0].Spec.Ports[0])

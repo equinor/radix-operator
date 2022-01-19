@@ -12,6 +12,7 @@ import (
 	coreListers "k8s.io/client-go/listers/core/v1"
 	networkingListers "k8s.io/client-go/listers/networking/v1"
 	rbacListers "k8s.io/client-go/listers/rbac/v1"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 // Radix Annotations
@@ -30,10 +31,11 @@ const (
 	RadixAppLabel                    = "radix-app"
 	RadixEnvLabel                    = "radix-env"
 	RadixComponentLabel              = "radix-component"
+	RadixDeploymentLabel             = "radix-deployment"
 	RadixComponentTypeLabel          = "radix-component-type"
+	RadixJobNameLabel                = "radix-job-name"
 	RadixAuxiliaryComponentLabel     = "radix-aux-component"
 	RadixAuxiliaryComponentTypeLabel = "radix-aux-component-type"
-	RadixJobNameLabel                = "radix-job-name"
 	RadixBuildLabel                  = "radix-build"
 	RadixCommitLabel                 = "radix-commit"
 	RadixImageTagLabel               = "radix-image-tag"
@@ -52,15 +54,18 @@ const (
 	RadixGpuCountLabel               = "radix-node-gpu-count"
 	RadixNamespace                   = "radix-namespace"
 	RadixConfigMapTypeLabel          = "radix-config-map-type"
+	RadixSecretRefTypeLabel          = "radix-secret-ref-type"
+	RadixSecretRefNameLabel          = "radix-secret-ref-name"
 
-	// Only for backward compatibility
+	//Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
 )
 
-// Kube  Stuct for accessing lower level kubernetes functions
+// Kube  Struct for accessing lower level kubernetes functions
 type Kube struct {
 	kubeClient               kubernetes.Interface
 	radixclient              radixclient.Interface
+	secretProviderClient     secretProviderClient.Interface
 	RrLister                 v1Lister.RadixRegistrationLister
 	ReLister                 v1Lister.RadixEnvironmentLister
 	RdLister                 v1Lister.RadixDeploymentLister
@@ -86,10 +91,11 @@ func init() {
 }
 
 // New Constructor
-func New(client kubernetes.Interface, radixClient radixclient.Interface) (*Kube, error) {
+func New(client kubernetes.Interface, radixClient radixclient.Interface, secretProviderClient secretProviderClient.Interface) (*Kube, error) {
 	kubeutil := &Kube{
-		kubeClient:  client,
-		radixclient: radixClient,
+		kubeClient:           client,
+		radixclient:          radixClient,
+		secretProviderClient: secretProviderClient,
 	}
 	return kubeutil, nil
 }
@@ -97,11 +103,13 @@ func New(client kubernetes.Interface, radixClient radixclient.Interface) (*Kube,
 // NewWithListers Constructor
 func NewWithListers(client kubernetes.Interface,
 	radixclient radixclient.Interface,
+	secretProviderClient secretProviderClient.Interface,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory) (*Kube, error) {
 	kubeutil := &Kube{
 		kubeClient:               client,
 		radixclient:              radixclient,
+		secretProviderClient:     secretProviderClient,
 		RrLister:                 radixInformerFactory.Radix().V1().RadixRegistrations().Lister(),
 		ReLister:                 radixInformerFactory.Radix().V1().RadixEnvironments().Lister(),
 		RdLister:                 radixInformerFactory.Radix().V1().RadixDeployments().Lister(),

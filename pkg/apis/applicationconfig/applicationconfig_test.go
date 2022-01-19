@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 const (
@@ -37,9 +38,9 @@ func init() {
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	kubeclient := fake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeclient, radixclient)
-
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }

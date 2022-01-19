@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
@@ -48,16 +48,11 @@ type Deployment struct {
 	securityContextBuilder     SecurityContextBuilder
 	auxResourceManagers        []AuxiliaryResourceManager
 	ingressAnnotationProviders []IngressAnnotationProvider
+	tenantId                   string
 }
 
 // NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
-	registration *v1.RadixRegistration,
-	radixDeployment *v1.RadixDeployment,
-	forceRunAsNonRoot bool) DeploymentSyncer {
+func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, forceRunAsNonRoot bool, tenantId string) DeploymentSyncer {
 
 	ingressConfig, err := loadIngressConfigFromMap(kubeutil)
 	if err != nil {
@@ -80,6 +75,7 @@ func NewDeployment(kubeclient kubernetes.Interface,
 		securityContextBuilder:     NewSecurityContextBuilder(forceRunAsNonRoot),
 		auxResourceManagers:        []AuxiliaryResourceManager{NewOAuthProxyResourceManager(radixDeployment, registration, kubeutil)},
 		ingressAnnotationProviders: ingressAnnotations,
+		tenantId:                   tenantId,
 	}
 }
 
@@ -256,7 +252,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when syncing of components
 	if len(errs) > 0 {
-		return errorUtils.Concat(errs)
+		return errors.Concat(errs)
 	}
 
 	if err := deploy.syncAuxiliaryResources(); err != nil {

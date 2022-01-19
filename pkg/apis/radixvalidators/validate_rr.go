@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"strings"
 
+	errorUtils "github.com/equinor/radix-common/utils/errors"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

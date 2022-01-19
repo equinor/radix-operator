@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	secretsstorevclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 // PipelineRunner Instance variables
@@ -28,12 +29,11 @@ type PipelineRunner struct {
 }
 
 // InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface,
-	definfition *pipeline.Definition, appName string) PipelineRunner {
+func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 
-	kubeUtil, _ := kube.New(kubeclient, radixclient)
+	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
-		definfition:              definfition,
+		definfition:              definition,
 		kubeclient:               kubeclient,
 		kubeUtil:                 kubeUtil,
 		radixclient:              radixclient,

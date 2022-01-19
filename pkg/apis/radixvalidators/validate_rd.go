@@ -3,8 +3,8 @@ package radixvalidators
 import (
 	"fmt"
 
+	"github.com/equinor/radix-common/utils/errors"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 )
 

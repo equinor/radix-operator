@@ -51,7 +51,9 @@ func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCom
 		publicPortNumber = getPublicPortNumber(deployComponent.GetPorts(), deployComponent.GetPublicPort())
 	}
 
-	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	ownerReference := []metav1.OwnerReference{
+		getOwnerReferenceOfDeployment(deploy.radixDeployment),
+	}
 
 	// Only the active cluster should have the DNS alias, not to cause conflicts between clusters
 	if deployComponent.IsDNSAppAlias() && isActiveCluster(clustername) {

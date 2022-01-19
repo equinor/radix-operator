@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -11,7 +13,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
-	"time"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 //ControllerTestSuite Test suite
@@ -19,6 +21,7 @@ type ControllerTestSuite struct {
 	suite.Suite
 	KubeClient                *fake.Clientset
 	RadixClient               *fakeradix.Clientset
+	SecretProviderClient      *secretproviderfake.Clientset
 	PromClient                *prometheusfake.Clientset
 	KubeUtil                  *kube.Kube
 	EventRecorder             *record.FakeRecorder
@@ -35,7 +38,8 @@ type ControllerTestSuite struct {
 func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
-	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient)
+	s.SecretProviderClient = secretproviderfake.NewSimpleClientset()
+	s.KubeUtil, _ = kube.New(s.KubeClient, s.RadixClient, s.SecretProviderClient)
 	s.PromClient = prometheusfake.NewSimpleClientset()
 	s.EventRecorder = &record.FakeRecorder{}
 	s.RadixInformerFactory = informers.NewSharedInformerFactory(s.RadixClient, 0)

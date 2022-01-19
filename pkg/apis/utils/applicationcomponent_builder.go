@@ -1,6 +1,8 @@
 package utils
 
-import v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+import (
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
 
 // RadixApplicationComponentBuilder Handles construction of RA component
 type RadixApplicationComponentBuilder interface {
@@ -13,6 +15,7 @@ type RadixApplicationComponentBuilder interface {
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
+	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationComponentBuilder
 	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
@@ -20,6 +23,7 @@ type RadixApplicationComponentBuilder interface {
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationComponentBuilder
 	WithAuthentication(authentication *v1.Authentication) RadixApplicationComponentBuilder
+	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -33,12 +37,14 @@ type radixApplicationComponentBuilder struct {
 	publicPort              string
 	ports                   map[string]int32
 	secrets                 []string
+	secretRefs              v1.RadixSecretRefs
 	ingressConfiguration    []string
 	environmentConfig       []RadixEnvironmentConfigBuilder
 	variables               v1.EnvVarsMap
 	resources               v1.ResourceRequirements
 	node                    v1.RadixNode
 	authentication          *v1.Authentication
+	volumeMounts            []v1.RadixVolumeMount
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -79,6 +85,11 @@ func (rcb *radixApplicationComponentBuilder) WithPublicPort(publicPort string) R
 
 func (rcb *radixApplicationComponentBuilder) WithSecrets(secrets ...string) RadixApplicationComponentBuilder {
 	rcb.secrets = secrets
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixApplicationComponentBuilder {
+	rcb.secretRefs = secretRefs
 	return rcb
 }
 
@@ -125,6 +136,11 @@ func (rcb *radixApplicationComponentBuilder) WithAuthentication(authentication *
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithVolumeMounts(volumes []v1.RadixVolumeMount) RadixApplicationComponentBuilder {
+	rcb.volumeMounts = volumes
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) WithCommonResource(request map[string]string, limit map[string]string) RadixApplicationComponentBuilder {
 	rcb.resources = v1.ResourceRequirements{
 		Limits:   limit,
@@ -151,6 +167,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		Image:                   rcb.image,
 		Ports:                   componentPorts,
 		Secrets:                 rcb.secrets,
+		SecretRefs:              rcb.secretRefs,
 		IngressConfiguration:    rcb.ingressConfiguration,
 		Public:                  rcb.public,
 		PublicPort:              rcb.publicPort,

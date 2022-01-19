@@ -555,7 +555,7 @@ func (o *oauthProxyResourceManager) buildServiceSpec(component v1.RadixCommonDep
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
-			OwnerReferences: getOwnerReferenceOfDeployment(o.rd),
+			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
@@ -631,7 +631,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
 			Annotations:     make(map[string]string),
-			OwnerReferences: getOwnerReferenceOfDeployment(o.rd),
+			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(o.rd)},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(DefaultReplicas),

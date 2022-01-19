@@ -125,4 +125,11 @@ rules:
   - list
   - watch
   - create
+- apiGroups:
+    - 'secrets-store.csi.x-k8s.io'
+  resources:
+    - secretproviderclasses
+  verbs:
+    - get
+    - list
 ---

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
 // MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
@@ -245,7 +244,7 @@ func InvalidOAuthSessionStoreTypeError(actualSessionStoreType string) error {
 	return fmt.Errorf("invalid session store type '%s'", actualSessionStoreType)
 }
 
-func InvalidOAuthCookieSameSiteError(actualSameSite v1.CookieSameSiteType) error {
+func InvalidOAuthCookieSameSiteError(actualSameSite radixv1.CookieSameSiteType) error {
 	return fmt.Errorf("invalid cookie samesite '%s'", actualSameSite)
 }
 
@@ -264,4 +263,22 @@ func DuplicateComponentOrJobNameError(duplicates []string) error {
 // InvalidPortNumberError Invalid port number
 func InvalidPortNumberError(value int32) error {
 	return fmt.Errorf("submitted configuration contains port number %d. Port numbers must be greater than or equal to %d and lower than or equal to %d", value, minimumPortNumber, maximumPortNumber)
+}
+
+func duplicateSecretName(name string) error {
+	return fmt.Errorf("secret has a duplicate name %s", name)
+}
+
+func duplicateEnvVarName(name string) error {
+	return fmt.Errorf("environment variable has a duplicate name %s", name)
+}
+
+func duplicateAzureKeyVaultName(name string) error {
+	return fmt.Errorf("azure Key vault has a duplicate name %s", name)
+}
+
+func secretRefEnvVarNameConflictsWithEnvironmentVariable(componentName, secretRefEnvVarName string) error {
+	return fmt.Errorf(
+		"component %s has a secret reference with environment variable name %s which exists as a regular environment variable or a secret",
+		componentName, secretRefEnvVarName)
 }

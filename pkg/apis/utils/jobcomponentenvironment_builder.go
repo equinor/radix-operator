@@ -24,6 +24,7 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	monitoring   bool
 	node         v1.RadixNode
 	runAsNonRoot bool
+	secretRefs   v1.RadixSecretRefs
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixJobComponentEnvironmentConfigBuilder {
@@ -83,6 +84,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		ImageTagName: ceb.imageTagName,
 		Node:         ceb.node,
 		RunAsNonRoot: ceb.runAsNonRoot,
+		SecretRefs:   ceb.secretRefs,
 	}
 }
 

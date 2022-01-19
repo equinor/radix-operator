@@ -39,21 +39,23 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	kubernetes "k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 const clusterName = "AnyClusterName"
 const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 const egressIps = "0.0.0.0"
+const tenantId = "123456789"
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface) {
 	// Setup
 	kubeclient := kubefake.NewSimpleClientset()
 	radixClient := radix.NewSimpleClientset()
 	prometheusClient := prometheusfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(kubeclient, radixClient)
-
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(kubeclient, radixClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient
 }
@@ -68,6 +70,7 @@ func teardownTest() {
 	os.Unsetenv(defaults.DeploymentsHistoryLimitEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorClusterTypeEnvironmentVariable)
+	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
 var testIngressConfiguration = `
@@ -3152,14 +3155,15 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
 	kubeclient := kubefake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
-	kubeutil, _ := kube.New(kubeclient, radixclient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeutil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 	rd := v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Namespace: ""}}
-	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true).(*Deployment)
+	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true, tenantId).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual := deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.True(t, actual.forceRunAsNonRoot)
 
-	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false).(*Deployment)
+	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false, tenantId).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual = deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.False(t, actual.forceRunAsNonRoot)
@@ -3360,7 +3364,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 	if err != nil {
 		return nil, err
 	}
-	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false)
+	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId)
 	err = deployment.OnSync()
 	if err != nil {
 		return nil, err
@@ -3382,7 +3386,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false)
+	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, tenantId)
 	err = deployment.OnSync()
 	if err != nil {
 		return err

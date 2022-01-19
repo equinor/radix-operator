@@ -4,15 +4,24 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+	"github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/slice"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+)
+
+type SecretType string
+
+const (
+	SecretTypeOpaque SecretType = "Opaque"
+	SecretTypeTls    SecretType = "kubernetes.io/tls"
 )
 
 // SecretExists Checks if secret already exists
@@ -28,6 +37,19 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 	return true
 }
 
+// ListSecretExistsForLabels Gets list of secrets for specific labels
+func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector string) ([]corev1.Secret, error) {
+	list, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil && errors.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		log.Errorf("failed to get secret in namespace %s. %v", namespace, err)
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 // ApplySecret Creates or updates secret to namespace
 func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
 	secretName := secret.GetName()
@@ -41,12 +63,12 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 		return nil, fmt.Errorf("failed to get Secret object: %v", err)
 	}
 
-	oldSectetJSON, err := json.Marshal(oldSecret)
+	oldSecretJSON, err := json.Marshal(oldSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal old secret object: %v", err)
 	}
 
-	// Avoid uneccessary patching
+	// Avoid unnecessary patching
 	newSecret := oldSecret.DeepCopy()
 	newSecret.ObjectMeta.Labels = secret.ObjectMeta.Labels
 	newSecret.ObjectMeta.Annotations = secret.ObjectMeta.Annotations
@@ -58,7 +80,7 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 		return nil, fmt.Errorf("failed to marshal new secret object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldSectetJSON, newSecretJSON, corev1.Secret{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldSecretJSON, newSecretJSON, corev1.Secret{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create two way merge patch secret objects: %v", err)
 	}
@@ -142,4 +164,30 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 		return err
 	}
 	return nil
+}
+
+// GetSecretTypeForRadixAzureKeyVault Gets SecretType by RadixAzureKeyVaultK8sSecretType
+func GetSecretTypeForRadixAzureKeyVault(k8sSecretType *radixv1.RadixAzureKeyVaultK8sSecretType) SecretType {
+	if k8sSecretType != nil && *k8sSecretType == radixv1.RadixAzureKeyVaultK8sSecretTypeTls {
+		return SecretTypeTls
+	}
+	return SecretTypeOpaque
+}
+
+// GetAzureKeyVaultSecretRefSecretName Gets a secret name for Azure KeyVault RadixSecretRefs
+func GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azKeyVaultName string, secretType SecretType) string {
+	radixSecretRefSecretType := string(getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(secretType))
+	return getSecretRefSecretName(componentName, radixDeploymentName, string(radixv1.RadixSecretRefTypeAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)
+}
+
+func getSecretRefSecretName(componentName, radixDeploymentName, secretRefType, secretType, secretResourceName string) string {
+	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s-%s", componentName, radixDeploymentName, secretRefType, secretResourceName)))
+	return fmt.Sprintf("%s-%s-%s-%s-%s", componentName, secretRefType, secretType, secretResourceName, hash)
+}
+
+func getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(k8sSecretType SecretType) radixv1.RadixAzureKeyVaultK8sSecretType {
+	if k8sSecretType == SecretTypeTls {
+		return radixv1.RadixAzureKeyVaultK8sSecretTypeTls
+	}
+	return radixv1.RadixAzureKeyVaultK8sSecretTypeOpaque
 }
