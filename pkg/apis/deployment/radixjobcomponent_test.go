@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -306,4 +307,29 @@ func Test_GetRadixJobComponents_Secrets(t *testing.T) {
 	assert.ElementsMatch(t, []string{"SECRET1", "SECRET2"}, jobs[0].Secrets)
 
 	assert.Empty(t, jobs[1].Secrets)
+}
+
+func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
+	ra := utils.ARadixApplication().
+		WithJobComponents(
+			utils.AnApplicationJobComponent().
+				WithName("this job name does get set").
+				WithSchedulerPort(numbers.Int32Ptr(8888)).
+				WithTimeLimitSeconds(numbers.Int64Ptr(200)).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env1").
+						WithTimeLimitSeconds(numbers.Int64Ptr(100)),
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env2").
+						WithEnvironmentVariable("COMMON2", "override2"),
+				),
+		).BuildRA()
+
+	cfgEnv1 := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfgEnv2 := jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
+	env1Job := cfgEnv1.JobComponents()
+	env2Job := cfgEnv2.JobComponents()
+	assert.Equal(t, numbers.Int64Ptr(100), env1Job[0].TimeLimitSeconds)
+	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
 }

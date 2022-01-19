@@ -741,6 +741,11 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		**out = **in
 	}
 	out.Node = in.Node
+	if in.TimeLimitSeconds != nil {
+		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 
@@ -1135,6 +1140,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	out.Node = in.Node
+	if in.TimeLimitSeconds != nil {
+		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 
@@ -1166,6 +1176,11 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 	}
 	out.Node = in.Node
 	in.SecretRefs.DeepCopyInto(&out.SecretRefs)
+	if in.TimeLimitSeconds != nil {
+		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
+		*out = new(int64)
+		**out = **in
+	}
 	return
 }
 

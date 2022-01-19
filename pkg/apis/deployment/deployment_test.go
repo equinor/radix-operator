@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,11 +11,10 @@ import (
 
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/golang/mock/gomock"
-
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
-
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
