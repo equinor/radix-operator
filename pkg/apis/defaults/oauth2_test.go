@@ -1,15 +1,6 @@
 package defaults
 
 import (
-	// "os"
-	// "testing"
-
-	// "github.com/equinor/radix-operator/pkg/apis/defaults"
-	// v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	// "github.com/equinor/radix-operator/pkg/apis/test"
-	// "github.com/equinor/radix-operator/pkg/apis/utils"
-	// "github.com/stretchr/testify/suite"
-
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
