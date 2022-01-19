@@ -195,9 +195,8 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	s.Len(defaultContainer.Ports, 1)
 	s.Equal(oauthProxyPortNumber, defaultContainer.Ports[0].ContainerPort)
 	s.Equal(oauthProxyPortName, defaultContainer.Ports[0].Name)
-	readyProbe, err := getReadinessProbe(oauthProxyPortNumber)
-	s.Nil(err)
-	s.Equal(readyProbe, defaultContainer.ReadinessProbe)
+	s.NotNil(defaultContainer.ReadinessProbe)
+	s.Equal(oauthProxyPortNumber, defaultContainer.ReadinessProbe.TCPSocket.Port.IntVal)
 
 	s.Len(defaultContainer.Env, 29)
 	s.Equal("oidc", s.getEnvVarValueByName("OAUTH2_PROXY_PROVIDER", defaultContainer.Env))

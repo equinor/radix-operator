@@ -622,7 +622,7 @@ func (o *oauthProxyResourceManager) getCurrentAndDesiredDeployment(component v1.
 
 func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
 	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
-	readinessProbe, err := getReadinessProbe(oauthProxyPortNumber)
+	readinessProbe, err := getReadinessProbeWithDefaultsFromEnv(oauthProxyPortNumber)
 	if err != nil {
 		return nil, err
 	}
