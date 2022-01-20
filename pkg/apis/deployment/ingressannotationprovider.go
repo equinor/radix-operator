@@ -80,12 +80,12 @@ func (o *clientCertificateAnnotationProvider) GetAnnotations(component v1.RadixC
 	return result, nil
 }
 
-func NewOAuth2AnnotationProvider(oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier) IngressAnnotationProvider {
+func NewOAuth2AnnotationProvider(oauth2DefaultConfig defaults.OAuth2Config) IngressAnnotationProvider {
 	return &oauth2AnnotationProvider{oauth2DefaultConfig: oauth2DefaultConfig}
 }
 
 type oauth2AnnotationProvider struct {
-	oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier
+	oauth2DefaultConfig defaults.OAuth2Config
 }
 
 func (a *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {

@@ -33,7 +33,7 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier, ingressAnnotationProviders []IngressAnnotationProvider) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []IngressAnnotationProvider) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
@@ -48,7 +48,7 @@ type oauthProxyResourceManager struct {
 	rr                         *v1.RadixRegistration
 	kubeutil                   *kube.Kube
 	ingressAnnotationProviders []IngressAnnotationProvider
-	oauth2DefaultConfig        defaults.OAuth2DefaultConfigApplier
+	oauth2DefaultConfig        defaults.OAuth2Config
 }
 
 func (o *oauthProxyResourceManager) Sync() error {

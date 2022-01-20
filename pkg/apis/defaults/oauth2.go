@@ -7,14 +7,14 @@ import (
 	"github.com/imdario/mergo"
 )
 
-type OAuth2DefaultConfigApplier interface {
+type OAuth2Config interface {
 	ApplyTo(source *v1.OAuth2) (*v1.OAuth2, error)
 }
 
-type OAuth2DefaultConfigOptions func(cfg *OAuth2DefaultConfig)
+type OAuth2ConfigOptions func(cfg *oauth2Config)
 
-func WithOIDCIssuerURL(url string) OAuth2DefaultConfigOptions {
-	return func(config *OAuth2DefaultConfig) {
+func WithOIDCIssuerURL(url string) OAuth2ConfigOptions {
+	return func(config *oauth2Config) {
 		if config.OAuth2.OIDC == nil {
 			config.OAuth2.OIDC = &v1.OAuth2OIDC{}
 		}
@@ -22,19 +22,25 @@ func WithOIDCIssuerURL(url string) OAuth2DefaultConfigOptions {
 	}
 }
 
-func NewOAuth2DefaultConfig(options ...OAuth2DefaultConfigOptions) OAuth2DefaultConfig {
-	config := OAuth2DefaultConfig{OAuth2: oauth2Default()}
+func WithOAuth2Defaults() OAuth2ConfigOptions {
+	return func(cfg *oauth2Config) {
+		cfg.OAuth2 = oauth2Default()
+	}
+}
+
+func NewOAuth2Config(options ...OAuth2ConfigOptions) OAuth2Config {
+	config := oauth2Config{OAuth2: v1.OAuth2{}}
 	for _, option := range options {
 		option(&config)
 	}
-	return config
+	return &config
 }
 
-type OAuth2DefaultConfig struct {
+type oauth2Config struct {
 	v1.OAuth2
 }
 
-func (cfg *OAuth2DefaultConfig) ApplyTo(source *v1.OAuth2) (*v1.OAuth2, error) {
+func (cfg *oauth2Config) ApplyTo(source *v1.OAuth2) (*v1.OAuth2, error) {
 	authTransformer := mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 	target := cfg.OAuth2.DeepCopy()
 	if err := mergo.Merge(target, source, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {

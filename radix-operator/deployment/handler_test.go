@@ -127,16 +127,16 @@ func (s *handlerSuite) Test_Sync() {
 		syncer := deployment.NewMockDeploymentSyncer(ctrl)
 		syncer.EXPECT().OnSync().Times(1)
 		factory := deployment.NewMockDeploymentSyncerFactory(ctrl)
-		oauthConfig := defaults.OAuth2DefaultConfig{OAuth2: radixv1.OAuth2{ClientID: "1234"}}
+		oauthConfig := defaults.NewOAuth2Config()
 		ingressConfig := deployment.IngressConfiguration{AnnotationConfigurations: []deployment.AnnotationConfiguration{{Name: "test"}}}
 		expectedIngressAnnotations := []deployment.IngressAnnotationProvider{
 			deployment.NewForceSslRedirectAnnotationProvider(),
 			deployment.NewIngressConfigurationAnnotationProvider(ingressConfig),
 			deployment.NewClientCertificateAnnotationProvider(activeRd.Namespace),
-			deployment.NewOAuth2AnnotationProvider(&oauthConfig),
+			deployment.NewOAuth2AnnotationProvider(oauthConfig),
 		}
 		expectedAuxResources := []deployment.AuxiliaryResourceManager{
-			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, &oauthConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}),
+			deployment.NewOAuthProxyResourceManager(activeRd, rr, s.kubeUtil, oauthConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}),
 		}
 		factory.
 			EXPECT().

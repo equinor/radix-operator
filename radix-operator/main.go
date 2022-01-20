@@ -213,7 +213,10 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		radixInformerFactory,
 	)
 
-	oauthDefaultConfig := defaults.NewOAuth2DefaultConfig(defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)))
+	oauthDefaultConfig := defaults.NewOAuth2Config(
+		defaults.WithOAuth2Defaults(),
+		defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)),
+	)
 	ingressConfiguration, err := loadIngressConfigFromMap(kubeUtil)
 	if err != nil {
 		panic(fmt.Errorf("failed to load ingress configuration: %v", err))

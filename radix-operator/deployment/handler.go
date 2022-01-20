@@ -59,7 +59,7 @@ func WithTenantIdFromEnvVar(envVarName string) HandlerConfigOption {
 }
 
 // WithOAuth2DefaultConfig configures default OAuth2 settings
-func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2DefaultConfig) HandlerConfigOption {
+func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
 	return func(h *Handler) {
 		h.oauth2DefaultConfig = oauth2Config
 	}
@@ -88,7 +88,7 @@ type Handler struct {
 	hasSynced               common.HasSynced
 	forceRunAsNonRoot       bool
 	tenantId                string
-	oauth2DefaultConfig     defaults.OAuth2DefaultConfig
+	oauth2DefaultConfig     defaults.OAuth2Config
 	ingressConfiguration    deployment.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
@@ -154,11 +154,11 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewForceSslRedirectAnnotationProvider(),
 		deployment.NewIngressConfigurationAnnotationProvider(t.ingressConfiguration),
 		deployment.NewClientCertificateAnnotationProvider(syncRD.Namespace),
-		deployment.NewOAuth2AnnotationProvider(&t.oauth2DefaultConfig),
+		deployment.NewOAuth2AnnotationProvider(t.oauth2DefaultConfig),
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, &t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}),
+		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}),
 	}
 
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, ingressAnnotations, auxResourceManagers)
