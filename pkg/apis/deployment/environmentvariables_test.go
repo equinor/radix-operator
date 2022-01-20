@@ -189,8 +189,8 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testCases := []struct {
-		caseName                  string
+	scenarios := []struct {
+		name                      string
 		secrets                   []string
 		envVars                   map[string]string
 		azureKeyVaults            []v1.RadixAzureKeyVault
@@ -198,7 +198,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 		expectedSecrets           []string
 		expectedSecretRefsEnvVars []string
 	}{{
-		caseName: "Env vars with one Azure Key Vault of different types",
+		name: "Env vars with one Azure Key Vault of different types",
 		envVars: map[string]string{
 			"VAR1": "val1",
 			"VAR2": "val2",
@@ -230,7 +230,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 		},
 	},
 		{
-			caseName: "Multiple Azure Key Vault of different types",
+			name: "Multiple Azure Key Vault of different types",
 			azureKeyVaults: []v1.RadixAzureKeyVault{
 				{
 					Name: "kv1",
@@ -270,8 +270,8 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 
 	t.Run("Get env vars, secrets and secret-refs", func(t *testing.T) {
 		t.Parallel()
-		for _, testCase := range testCases {
-			t.Logf("Test case: %s", testCase.caseName)
+		for _, testCase := range scenarios {
+			t.Logf("Test case: %s", testCase.name)
 			testEnv := setupTextEnv()
 			rd := testEnv.applyRd(t, appName, envName, componentName, func(componentBuilder *utils.DeployComponentBuilder) {
 				(*componentBuilder).

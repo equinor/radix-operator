@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"strings"
 	"testing"
@@ -640,6 +641,53 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	})
 }
 
+func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResources() {
+	scenarios := []volumeMountTestScenario{
+		{
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
+			expectedVolumeName: "csi-az-file-app-volume1-storageName1",
+		},
+		{
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
+			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
+		},
+	}
+	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
+		t.Parallel()
+		for _, factory := range suite.radixCommonDeployComponentFactories {
+			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
+				BuildComponent()
+
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(volumeMounts))
+			mount := volumeMounts[0]
+			assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
+			assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+		}
+	})
+	suite.T().Run("Multiple File CSI Azure volume mount", func(t *testing.T) {
+		t.Parallel()
+		for _, factory := range suite.radixCommonDeployComponentFactories {
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
+				BuildComponent()
+
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+			assert.Nil(t, err)
+			for idx, testCase := range scenarios {
+				assert.Equal(t, 2, len(volumeMounts))
+				assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+				assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+			}
+		}
+	})
+}
+
 func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	appName := "any-app"
 	environment := "some-env"
@@ -810,6 +858,58 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				assert.Nil(t, err)
 				assert.True(t, equalStorageClassLists)
 			}
+		}
+	})
+}
+
+func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources() {
+	namespace := "some-namespace"
+	environment := "some-env"
+	componentName1 := "component1"
+	radixDeploymentName1 := "deploymentName1"
+	azureKeyVaultName1 := "kv1"
+	scenarios := []struct {
+		name                     string
+		componentName            string
+		deploymentName           string
+		azureKeyVaults           []v1.RadixAzureKeyVault
+		expectedVolumeNamePrefix string
+	}{
+		{
+			name:                     "One Azure Key volume",
+			componentName:            componentName1,
+			deploymentName:           radixDeploymentName1,
+			azureKeyVaults:           []v1.RadixAzureKeyVault{{Name: azureKeyVaultName1}},
+			expectedVolumeNamePrefix: "component1-",
+		},
+	}
+	suite.T().Run("CSI Azure Key vault volumes", func(t *testing.T) {
+		t.Parallel()
+		testEnv := getTestEnv()
+		for _, testCase := range scenarios {
+			for _, azureKeyVault := range testCase.azureKeyVaults {
+				secretProviderClassName := kube.GetComponentSecretProviderClassName(componentName1, radixDeploymentName1, v1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
+				secretProviderClass := &secretsstorev1.SecretProviderClass{
+					ObjectMeta: metav1.ObjectMeta{Name: secretProviderClassName, Namespace: namespace},
+					Spec: secretsstorev1.SecretProviderClassSpec{
+						Provider: azureSecureStorageProvider,
+						Parameters: map[string]string{
+							csiSecretProviderClassParameterKeyVaultName: azureKeyVault.Name,
+						},
+					},
+				}
+				testEnv.secretproviderclient.SecretsstoreV1().SecretProviderClasses(namespace).Create(context.Background(), secretProviderClass, metav1.CreateOptions{})
+			}
+			deployComponent := utils.NewDeployComponentBuilder().WithName(testCase.componentName).
+				WithSecretRefs(v1.RadixSecretRefs{
+					AzureKeyVaults: testCase.azureKeyVaults,
+				}).
+				BuildComponent()
+			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &deployComponent, testCase.deploymentName)
+			assert.Nil(t, err)
+			assert.Len(t, volumes, 1)
+			volume := volumes[0]
+			assert.True(t, strings.HasPrefix(volume.Name, testCase.expectedVolumeNamePrefix))
 		}
 	})
 }
