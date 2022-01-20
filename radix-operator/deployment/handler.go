@@ -65,6 +65,13 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2DefaultConfig) HandlerC
 	}
 }
 
+// WithIngressConfiguration sets the list of custom ingress confiigurations
+func WithIngressConfiguration(config deployment.IngressConfiguration) HandlerConfigOption {
+	return func(h *Handler) {
+		h.ingressConfiguration = config
+	}
+}
+
 // WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *Handler) {
@@ -82,6 +89,7 @@ type Handler struct {
 	forceRunAsNonRoot       bool
 	tenantId                string
 	oauth2DefaultConfig     defaults.OAuth2DefaultConfig
+	ingressConfiguration    deployment.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
 
@@ -142,7 +150,18 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, t.oauth2DefaultConfig)
+	ingressAnnotations := []deployment.IngressAnnotationProvider{
+		deployment.NewForceSslRedirectAnnotationProvider(),
+		deployment.NewIngressConfigurationAnnotationProvider(t.ingressConfiguration),
+		deployment.NewClientCertificateAnnotationProvider(syncRD.Namespace),
+		deployment.NewOAuth2AnnotationProvider(&t.oauth2DefaultConfig),
+	}
+
+	auxResourceManagers := []deployment.AuxiliaryResourceManager{
+		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, &t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}),
+	}
+
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, ingressAnnotations, auxResourceManagers)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

@@ -12,8 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,7 +31,6 @@ const (
 	appAliasTLSSecretName       = "app-wildcard-tls-cert"
 	clusterDefaultTLSSecretName = "cluster-wildcard-tls-cert"
 	activeClusterTLSSecretName  = "active-cluster-wildcard-tls-cert"
-	ingressConfigurationMap     = "radix-operator-ingress-configmap"
 )
 
 func (deploy *Deployment) createOrUpdateIngress(deployComponent radixv1.RadixCommonDeployComponent) error {
@@ -414,18 +411,4 @@ func getPublicPortNumber(ports []radixv1.ComponentPort, publicPort string) int32
 		}
 	}
 	return 0
-}
-
-func loadIngressConfigFromMap(kubeutil *kube.Kube) (IngressConfiguration, error) {
-	config := IngressConfiguration{}
-	configMap, err := kubeutil.GetConfigMap(corev1.NamespaceDefault, ingressConfigurationMap)
-	if err != nil {
-		return config, nil
-	}
-
-	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &config)
-	if err != nil {
-		return config, err
-	}
-	return config, nil
 }

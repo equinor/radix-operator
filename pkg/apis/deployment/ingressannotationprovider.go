@@ -14,17 +14,25 @@ type IngressAnnotationProvider interface {
 	GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error)
 }
 
-type forceSslRedirectAnnotations struct{}
+func NewForceSslRedirectAnnotationProvider() IngressAnnotationProvider {
+	return &forceSslRedirectAnnotationProvider{}
+}
 
-func (forceSslRedirectAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+type forceSslRedirectAnnotationProvider struct{}
+
+func (forceSslRedirectAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	return map[string]string{"nginx.ingress.kubernetes.io/force-ssl-redirect": "true"}, nil
 }
 
-type ingressConfigurationAnnotations struct {
+func NewIngressConfigurationAnnotationProvider(config IngressConfiguration) IngressAnnotationProvider {
+	return &ingressConfigurationAnnotationProvider{config: config}
+}
+
+type ingressConfigurationAnnotationProvider struct {
 	config IngressConfiguration
 }
 
-func (o *ingressConfigurationAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (o *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	allAnnotations := make(map[string]string)
 
 	for _, configuration := range component.GetIngressConfiguration() {
@@ -37,7 +45,7 @@ func (o *ingressConfigurationAnnotations) GetAnnotations(component v1.RadixCommo
 	return allAnnotations, nil
 }
 
-func (o *ingressConfigurationAnnotations) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
+func (o *ingressConfigurationAnnotationProvider) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
 	for _, ingressConfig := range config.AnnotationConfigurations {
 		if strings.EqualFold(ingressConfig.Name, name) {
 			return ingressConfig.Annotations
@@ -47,11 +55,15 @@ func (o *ingressConfigurationAnnotations) getAnnotationsFromConfiguration(name s
 	return nil
 }
 
-type clientCertificateAnnotations struct {
+func NewClientCertificateAnnotationProvider(certificateNamespace string) IngressAnnotationProvider {
+	return &clientCertificateAnnotationProvider{namespace: certificateNamespace}
+}
+
+type clientCertificateAnnotationProvider struct {
 	namespace string
 }
 
-func (o *clientCertificateAnnotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (o *clientCertificateAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	result := make(map[string]string)
 	if auth := component.GetAuthentication(); auth != nil {
 		if clientCert := auth.ClientCertificate; clientCert != nil {
@@ -68,11 +80,15 @@ func (o *clientCertificateAnnotations) GetAnnotations(component v1.RadixCommonDe
 	return result, nil
 }
 
-type oauth2Annotations struct {
+func NewOAuth2AnnotationProvider(oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier) IngressAnnotationProvider {
+	return &oauth2AnnotationProvider{oauth2DefaultConfig: oauth2DefaultConfig}
+}
+
+type oauth2AnnotationProvider struct {
 	oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier
 }
 
-func (a *oauth2Annotations) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (a *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {

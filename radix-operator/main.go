@@ -12,6 +12,7 @@ import (
 
 	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -28,6 +29,7 @@ import (
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -37,8 +39,9 @@ import (
 )
 
 const (
-	resyncPeriod = 0
-	threadiness  = 1
+	resyncPeriod            = 0
+	threadiness             = 1
+	ingressConfigurationMap = "radix-operator-ingress-configmap"
 )
 
 var logger *log.Entry
@@ -211,6 +214,10 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	)
 
 	oauthDefaultConfig := defaults.NewOAuth2DefaultConfig(defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)))
+	ingressConfiguration, err := loadIngressConfigFromMap(kubeUtil)
+	if err != nil {
+		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
+	}
 
 	handler := deployment.NewHandler(client,
 		kubeUtil,
@@ -219,6 +226,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
 		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
 		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
+		deployment.WithIngressConfiguration(ingressConfiguration),
 	)
 
 	waitForChildrenToSync := true
@@ -278,33 +286,6 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 	}
 }
 
-func syncJobStatusMetrics(radixClient radixclient.Interface) error {
-	logger.Info("Restore vulnerability scan metrics from build job.")
-	radixJobs, err := radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
-	radixJobMap := make(map[string]v1.RadixJob)
-	for _, radixJob := range radixJobs.Items {
-		if radixJob.Status.Condition != v1.JobSucceeded {
-			continue
-		}
-		for _, env := range radixJob.Status.TargetEnvs {
-			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
-			cachedRadixJob, found := radixJobMap[appEnvKey]
-			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
-				radixJobMap[appEnvKey] = radixJob
-			}
-		}
-	}
-	for _, radixJob := range radixJobMap {
-		metrics.RadixJobVulnerabilityScan(&radixJob)
-	}
-	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
-	return nil
-}
-
 func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
@@ -341,6 +322,47 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	if err := alertController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
+}
+
+func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfiguration, error) {
+	config := deploymentAPI.IngressConfiguration{}
+	configMap, err := kubeutil.GetConfigMap(metav1.NamespaceDefault, ingressConfigurationMap)
+	if err != nil {
+		return config, nil
+	}
+
+	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &config)
+	if err != nil {
+		return config, err
+	}
+	return config, nil
+}
+
+func syncJobStatusMetrics(radixClient radixclient.Interface) error {
+	logger.Info("Restore vulnerability scan metrics from build job.")
+	radixJobs, err := radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
+	radixJobMap := make(map[string]v1.RadixJob)
+	for _, radixJob := range radixJobs.Items {
+		if radixJob.Status.Condition != v1.JobSucceeded {
+			continue
+		}
+		for _, env := range radixJob.Status.TargetEnvs {
+			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
+			cachedRadixJob, found := radixJobMap[appEnvKey]
+			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
+				radixJobMap[appEnvKey] = radixJob
+			}
+		}
+	}
+	for _, radixJob := range radixJobMap {
+		metrics.RadixJobVulnerabilityScan(&radixJob)
+	}
+	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
+	return nil
 }
 
 func startMetricsServer(stop <-chan struct{}) {

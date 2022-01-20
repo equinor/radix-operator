@@ -33,12 +33,12 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2DefaultConfigApplier, ingressAnnotationProviders []IngressAnnotationProvider) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
-		ingressAnnotationProviders: []IngressAnnotationProvider{&forceSslRedirectAnnotations{}},
+		ingressAnnotationProviders: ingressAnnotationProviders,
 		oauth2DefaultConfig:        oauth2DefaultConfig,
 	}
 }

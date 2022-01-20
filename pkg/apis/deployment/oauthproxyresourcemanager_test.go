@@ -98,15 +98,16 @@ func (s *OAuthProxyResourceManagerTestSuite) TestNewOAuthProxyResourceManager() 
 	oauthConfig := defaults.NewMockOAuth2DefaultConfigApplier(ctrl)
 	rd := utils.NewDeploymentBuilder().BuildRD()
 	rr := utils.NewRegistrationBuilder().BuildRR()
+	ingressAnnotationProviders := []IngressAnnotationProvider{&MockIngressAnnotationProvider{}}
 
-	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, oauthConfig)
+	oauthManager := NewOAuthProxyResourceManager(rd, rr, s.kubeUtil, oauthConfig, ingressAnnotationProviders)
 	sut, ok := oauthManager.(*oauthProxyResourceManager)
 	s.True(ok)
 	s.Equal(rd, sut.rd)
 	s.Equal(rr, sut.rr)
 	s.Equal(s.kubeUtil, sut.kubeutil)
 	s.Equal(oauthConfig, sut.oauth2DefaultConfig)
-	s.Len(sut.ingressAnnotationProviders, 1)
+	s.Equal(ingressAnnotationProviders, sut.ingressAnnotationProviders)
 }
 
 func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_NotPublicOrNoOAuth() {
