@@ -315,14 +315,21 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 			utils.AnApplicationJobComponent().
 				WithName("this job name does get set").
 				WithSchedulerPort(numbers.Int32Ptr(8888)).
-				WithTimeLimitSeconds(numbers.Int64Ptr(200)),
-			utils.AnApplicationJobComponent().
-				WithName("job2").
-				WithTimeLimitSeconds(nil),
+				WithTimeLimitSeconds(numbers.Int64Ptr(200)).
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env1").
+						WithTimeLimitSeconds(numbers.Int64Ptr(100)),
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env2").
+						WithEnvironmentVariable("COMMON2", "override2"),
+				),
 		).BuildRA()
 
-	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs := cfg.JobComponents()
-	assert.Equal(t, numbers.Int64Ptr(200), jobs[0].TimeLimitSeconds)
-	assert.Equal(t, numbers.Int64Ptr(12*3600), jobs[1].TimeLimitSeconds)
+	cfgEnv1 := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	cfgEnv2 := jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
+	env1Job := cfgEnv1.JobComponents()
+	env2Job := cfgEnv2.JobComponents()
+	assert.Equal(t, numbers.Int64Ptr(100), env1Job[0].TimeLimitSeconds)
+	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
 }

@@ -62,11 +62,6 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Payload:       radixJobComponent.Payload,
 		SchedulerPort: radixJobComponent.SchedulerPort,
 	}
-	if radixJobComponent.TimeLimitSeconds == nil {
-		deployJob.TimeLimitSeconds = numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
-	} else {
-		deployJob.TimeLimitSeconds = radixJobComponent.TimeLimitSeconds
-	}
 
 	environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
 	if environmentSpecificConfig != nil {
@@ -74,6 +69,14 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
+	}
+
+	if deployJob.TimeLimitSeconds == nil {
+		if radixJobComponent.TimeLimitSeconds != nil {
+			deployJob.TimeLimitSeconds = radixJobComponent.TimeLimitSeconds
+		} else {
+			deployJob.TimeLimitSeconds = numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
+		}
 	}
 
 	componentImage := c.componentImages[componentName]
