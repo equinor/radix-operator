@@ -189,37 +189,95 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testCase := []struct {
+	testCases := []struct {
+		caseName                  string
+		secrets                   []string
 		envVars                   map[string]string
 		azureKeyVaults            []v1.RadixAzureKeyVault
 		expectedEnvVars           map[string]string
+		expectedSecrets           []string
 		expectedSecretRefsEnvVars []string
 	}{{
-		envVars: map[string]string{"VAR1": "val1"},
+		caseName: "Env vars with one Azure Key Vault of different types",
+		envVars: map[string]string{
+			"VAR1": "val1",
+			"VAR2": "val2",
+		},
+		secrets: []string{"SECRET1", "SECRET2"},
 		azureKeyVaults: []v1.RadixAzureKeyVault{
 			{
 				Name: "kv1",
 				Items: []v1.RadixAzureKeyVaultItem{
 					{Name: "secret1", EnvVar: "SECRET_REF_1"},
+					{Name: "secret1", EnvVar: "SECRET_REF_2"},
+					{Name: "secret3", EnvVar: "SECRET_REF_3", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
+					{Name: "key1", EnvVar: "KEY_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
+					{Name: "cert1", EnvVar: "CERT_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
 				},
 			},
 		},
 		expectedEnvVars: map[string]string{
 			"VAR1": "val1",
+			"VAR2": "val2",
 		},
+		expectedSecrets: []string{"SECRET1", "SECRET2"},
 		expectedSecretRefsEnvVars: []string{
 			"SECRET_REF_1",
+			"SECRET_REF_2",
+			"SECRET_REF_3",
+			"KEY_REF_1",
+			"CERT_REF_1",
 		},
-	}}
+	},
+		{
+			caseName: "Multiple Azure Key Vault of different types",
+			azureKeyVaults: []v1.RadixAzureKeyVault{
+				{
+					Name: "kv1",
+					Items: []v1.RadixAzureKeyVaultItem{
+						{Name: "secret1", EnvVar: "SECRET_REF_1"},
+						{Name: "secret1", EnvVar: "SECRET_REF_2"},
+						{Name: "secret3", EnvVar: "SECRET_REF_3", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
+						{Name: "key1", EnvVar: "KEY_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
+						{Name: "cert1", EnvVar: "CERT_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+					},
+				},
+				{
+					Name: "kv2",
+					Items: []v1.RadixAzureKeyVaultItem{
+						{Name: "secret1", EnvVar: "SECRET_REF_21"},
+						{Name: "secret1", EnvVar: "SECRET_REF_22"},
+						{Name: "secret3", EnvVar: "SECRET_REF_23", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
+						{Name: "key1", EnvVar: "KEY_REF_21", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
+						{Name: "cert1", EnvVar: "CERT_REF_21", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+					},
+				},
+			},
+			expectedSecretRefsEnvVars: []string{
+				"SECRET_REF_1",
+				"SECRET_REF_2",
+				"SECRET_REF_3",
+				"KEY_REF_1",
+				"CERT_REF_1",
+				"SECRET_REF_21",
+				"SECRET_REF_22",
+				"SECRET_REF_23",
+				"KEY_REF_21",
+				"CERT_REF_21",
+			},
+		},
+	}
 
-	t.Run("Get env vars and secret-refs", func(t *testing.T) {
+	t.Run("Get env vars, secrets and secret-refs", func(t *testing.T) {
 		t.Parallel()
-		for _, test := range testCase {
+		for _, testCase := range testCases {
+			t.Logf("Test case: %s", testCase.caseName)
 			testEnv := setupTextEnv()
 			rd := testEnv.applyRd(t, appName, envName, componentName, func(componentBuilder *utils.DeployComponentBuilder) {
 				(*componentBuilder).
-					WithEnvironmentVariables(test.envVars).
-					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: test.azureKeyVaults})
+					WithEnvironmentVariables(testCase.envVars).
+					WithSecrets(testCase.secrets).
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: testCase.azureKeyVaults})
 			})
 
 			envVars, err := GetEnvironmentVariables(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
@@ -230,13 +288,14 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			assert.Len(t, envVars, len(test.expectedEnvVars)+len(test.expectedSecretRefsEnvVars))
+			assert.Len(t, envVars, len(testCase.expectedEnvVars)+len(testCase.expectedSecrets)+len(testCase.expectedSecretRefsEnvVars))
 			envVarsConfigMap, envVarsConfigMapMetadata, err := testEnv.kubeUtil.GetOrCreateEnvVarsConfigMapAndMetadataMap(utils.GetEnvironmentNamespace(appName, env), appName, componentName)
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
 			assert.NotNil(t, envVarsConfigMapMetadata)
 			assert.NotNil(t, envVarsConfigMap.Data)
-			for envVarName, envVarVal := range test.expectedEnvVars {
+			testedResultEnvVars := make(map[string]bool)
+			for envVarName, envVarVal := range testCase.expectedEnvVars {
 				assert.Equal(t, envVarVal, envVarsConfigMap.Data[envVarName])
 				envVar, ok := resultEnvVarMap[envVarName]
 				assert.True(t, ok)
@@ -245,15 +304,35 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 				assert.Equal(t, envVarName, envVar.ValueFrom.ConfigMapKeyRef.Key)
 				assert.True(t, strings.HasPrefix(envVar.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name, "env-vars-"))
 				assert.True(t, strings.HasSuffix(envVar.ValueFrom.ConfigMapKeyRef.LocalObjectReference.Name, componentName))
+				testedResultEnvVars[envVarName] = true
 			}
-			for _, envVarName := range test.expectedSecretRefsEnvVars {
-				envVar, ok := resultEnvVarMap[envVarName]
+			for _, secretName := range testCase.expectedSecrets {
+				envVar, ok := resultEnvVarMap[secretName]
 				assert.True(t, ok)
 				assert.NotNil(t, envVar.ValueFrom)
 				assert.NotNil(t, envVar.ValueFrom.SecretKeyRef)
-				assert.Equal(t, envVarName, envVar.ValueFrom.SecretKeyRef.Key)
+				assert.Equal(t, secretName, envVar.ValueFrom.SecretKeyRef.Key)
+				assert.True(t, strings.HasPrefix(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, componentName))
+				testedResultEnvVars[secretName] = true
+			}
+			for _, secretRefsEnvVar := range testCase.expectedSecretRefsEnvVars {
+				envVar, ok := resultEnvVarMap[secretRefsEnvVar]
+				assert.True(t, ok)
+				assert.NotNil(t, envVar.ValueFrom)
+				assert.NotNil(t, envVar.ValueFrom.SecretKeyRef)
+				assert.Equal(t, secretRefsEnvVar, envVar.ValueFrom.SecretKeyRef.Key)
 				assert.True(t, strings.HasPrefix(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, componentName))
 				assert.True(t, strings.Contains(envVar.ValueFrom.SecretKeyRef.LocalObjectReference.Name, "-az-keyvault-"))
+				testedResultEnvVars[secretRefsEnvVar] = true
+			}
+			var notTestedEnvVars []string
+			for envVarName := range resultEnvVarMap {
+				if _, tested := testedResultEnvVars[envVarName]; !tested {
+					notTestedEnvVars = append(notTestedEnvVars, envVarName)
+				}
+			}
+			if len(notTestedEnvVars) > 0 {
+				assert.Fail(t, "Not expected env-vars and/or secrets:", strings.Join(notTestedEnvVars, ", "))
 			}
 		}
 	})

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -125,6 +126,113 @@ func TestSecretDeployed_ClientCertificateSecretGetsSet(t *testing.T) {
 		secretName = utils.GetComponentClientCertificateSecretName(componentName4)
 		secretExists = secretByNameExists(secretName, secrets)
 		assert.False(t, secretExists, "expected secret not to exist")
+	})
+
+	teardownSecretsTest()
+}
+func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
+	// Setup
+	testUtils, client, kubeUtil, radixclient, prometheusclient := setupSecretsTest()
+	appName, environment := "some-app", "dev"
+	componentName1, componentName2, componentName3, componentName4 := "component1", "component2", "component3", "component4"
+	azureKeyVaultName1, azureKeyVaultName2, azureKeyVaultName3 := "keyvault1", "keyvault2", "keyvault3"
+
+	radixDeployment, err := applyDeploymentWithSync(testUtils, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(environment).
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentName1).
+				WithPort("http", 8080).
+				WithSecretRefs(v1.RadixSecretRefs{
+					AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: azureKeyVaultName1,
+							Items: []v1.RadixAzureKeyVaultItem{
+								{
+									Name:   "secret1",
+									EnvVar: "SECRET_REF1",
+									Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								},
+								{
+									Name:   "key1",
+									EnvVar: "KEY_REF1",
+									Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey),
+								},
+								{
+									Name:   "cert1",
+									EnvVar: "CERT_REF1",
+									Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert),
+								},
+							},
+						},
+					},
+				},
+				),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName2).
+				WithPort("http", 8081).
+				WithSecretRefs(v1.RadixSecretRefs{
+					AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: azureKeyVaultName1,
+							Items: []v1.RadixAzureKeyVaultItem{
+								{
+									Name:   "secret1",
+									EnvVar: "SECRET_REF1",
+									Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								},
+							},
+						},
+						{
+							Name: azureKeyVaultName2,
+							Path: commonUtils.StringPtr("/mnt/kv2"),
+							Items: []v1.RadixAzureKeyVaultItem{
+								{
+									Name:   "secret1",
+									EnvVar: "SECRET_REF11",
+									Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								},
+							},
+						},
+					},
+				},
+				),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName3).
+				WithPort("http", 8082).
+				WithSecretRefs(v1.RadixSecretRefs{
+					AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: azureKeyVaultName3,
+						},
+					},
+				}),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName4).
+				WithPort("http", 8082),
+		),
+	)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, radixDeployment)
+
+	t.Run("get secret-refs Azure Key vaults credential secrets ", func(t *testing.T) {
+		var secretName string
+
+		envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+		allSecrets, _ := client.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		secrets := utils.GetAzureKeyVaultTypeSecrets(allSecrets)
+		assert.Equal(t, 4, len(secrets.Items), "Number of secrets was not according to spec")
+
+		secretName = defaults.GetCsiAzureKeyVaultCredsSecretName(componentName1, azureKeyVaultName1)
+		assert.True(t, secretByNameExists(secretName, secrets))
+		secretName = defaults.GetCsiAzureKeyVaultCredsSecretName(componentName2, azureKeyVaultName1)
+		assert.True(t, secretByNameExists(secretName, secrets))
+		secretName = defaults.GetCsiAzureKeyVaultCredsSecretName(componentName2, azureKeyVaultName2)
+		assert.True(t, secretByNameExists(secretName, secrets))
+		secretName = defaults.GetCsiAzureKeyVaultCredsSecretName(componentName3, azureKeyVaultName3)
+		assert.True(t, secretByNameExists(secretName, secrets), "Missing credentials secret for Azure Key vault config with empty Items")
 	})
 
 	teardownSecretsTest()
