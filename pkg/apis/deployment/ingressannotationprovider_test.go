@@ -34,7 +34,7 @@ func Test_NewClientCertificateAnnotationProvider(t *testing.T) {
 }
 
 func Test_NewOAuth2AnnotationProvider(t *testing.T) {
-	cfg := defaults.MockOAuth2DefaultConfigApplier{}
+	cfg := defaults.MockOAuth2Config{}
 	sut := NewOAuth2AnnotationProvider(&cfg)
 	assert.IsType(t, &oauth2AnnotationProvider{}, sut)
 	sutReal := sut.(*oauth2AnnotationProvider)
@@ -129,7 +129,7 @@ func Test_ClientCertificateAnnotations(t *testing.T) {
 
 type OAuth2AnnotationsTestSuite struct {
 	suite.Suite
-	oauth2Config *defaults.MockOAuth2DefaultConfigApplier
+	oauth2Config *defaults.MockOAuth2Config
 	ctrl         *gomock.Controller
 }
 
@@ -139,7 +139,7 @@ func TestOAuth2AnnotationsTestSuite(t *testing.T) {
 
 func (s *OAuth2AnnotationsTestSuite) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
-	s.oauth2Config = defaults.NewMockOAuth2DefaultConfigApplier(s.ctrl)
+	s.oauth2Config = defaults.NewMockOAuth2Config(s.ctrl)
 }
 
 func (s *OAuth2AnnotationsTestSuite) TearDownTest() {
@@ -147,7 +147,7 @@ func (s *OAuth2AnnotationsTestSuite) TearDownTest() {
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_NonPublicComponent() {
-	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(0)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(0)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{ClientID: "1234"}}})
 	s.Nil(err)
@@ -155,7 +155,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_NonPublicComponent() {
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_PublicComponentNoOAuth() {
-	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(0)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(0)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{}})
 	s.Nil(err)
@@ -164,13 +164,13 @@ func (s *OAuth2AnnotationsTestSuite) Test_PublicComponentNoOAuth() {
 
 func (s *OAuth2AnnotationsTestSuite) Test_ComponentOAuthPassedToOAuth2Config() {
 	oauth := &v1.OAuth2{ClientID: "1234"}
-	s.oauth2Config.EXPECT().ApplyTo(oauth).Times(1).Return(&v1.OAuth2{}, nil)
+	s.oauth2Config.EXPECT().MergeWith(oauth).Times(1).Return(&v1.OAuth2{}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: oauth}})
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
-	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{ProxyPrefix: "/anypath"}, nil)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{ProxyPrefix: "/anypath"}, nil)
 	expected := map[string]string{
 		"nginx.ingress.kubernetes.io/auth-signin": "https://$host/anypath/start?rd=$escaped_request_uri",
 		"nginx.ingress.kubernetes.io/auth-url":    "https://$host/anypath/auth",
@@ -182,7 +182,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthSigninAndUrlAnnotations() {
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_All() {
-	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
 	s.Nil(err)
@@ -190,7 +190,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_All() {
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHeadersOnly() {
-	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(false)}, nil)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(true), SetAuthorizationHeader: utils.BoolPtr(false)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
 	s.Nil(err)
@@ -198,7 +198,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_XAuthHea
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_AuthorizationHeaderOnly() {
-	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, nil)
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
 	s.Nil(err)
@@ -206,7 +206,7 @@ func (s *OAuth2AnnotationsTestSuite) Test_AuthResponseHeaderAnnotations_Authoriz
 }
 
 func (s *OAuth2AnnotationsTestSuite) Test_OAuthConfig_ApplyTo_ReturnError() {
-	s.oauth2Config.EXPECT().ApplyTo(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, errors.New("any error"))
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{SetXAuthRequestHeaders: utils.BoolPtr(false), SetAuthorizationHeader: utils.BoolPtr(true)}, errors.New("any error"))
 	sut := oauth2AnnotationProvider{oauth2DefaultConfig: s.oauth2Config}
 	actual, err := sut.GetAnnotations(&v1.RadixDeployComponent{PublicPort: "http", Authentication: &v1.Authentication{OAuth2: &v1.OAuth2{}}})
 	s.Error(err)

@@ -92,7 +92,7 @@ func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommo
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
-		oauth, err := provider.oauth2DefaultConfig.ApplyTo(auth.OAuth2)
+		oauth, err := provider.oauth2DefaultConfig.MergeWith(auth.OAuth2)
 		if err != nil {
 			return nil, err
 		}

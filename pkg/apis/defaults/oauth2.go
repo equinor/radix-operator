@@ -7,12 +7,17 @@ import (
 	"github.com/imdario/mergo"
 )
 
+// OAuth2Config is implemented by any value that has as MergeWith method
+// The MergeWith method takes an OAuth2 object as input and merges it with an existing OAuth2 object
+// The result of the merge is returned to the caller. The source object must not be modified
 type OAuth2Config interface {
-	ApplyTo(source *v1.OAuth2) (*v1.OAuth2, error)
+	MergeWith(source *v1.OAuth2) (*v1.OAuth2, error)
 }
 
+// OAuth2ConfigOptions defines configuration function for NewOAuth2Config
 type OAuth2ConfigOptions func(cfg *oauth2Config)
 
+// WithOIDCIssuerURL configures the OIDC.IssuerURL
 func WithOIDCIssuerURL(url string) OAuth2ConfigOptions {
 	return func(config *oauth2Config) {
 		if config.OAuth2.OIDC == nil {
@@ -22,12 +27,14 @@ func WithOIDCIssuerURL(url string) OAuth2ConfigOptions {
 	}
 }
 
+// WithOIDCIssuerURL sets the default OAuth2 values
 func WithOAuth2Defaults() OAuth2ConfigOptions {
 	return func(cfg *oauth2Config) {
 		cfg.OAuth2 = oauth2Default()
 	}
 }
 
+// NewOAuth2Config returns a new object that implements OAuth2Config
 func NewOAuth2Config(options ...OAuth2ConfigOptions) OAuth2Config {
 	config := oauth2Config{OAuth2: v1.OAuth2{}}
 	for _, option := range options {
@@ -40,7 +47,7 @@ type oauth2Config struct {
 	v1.OAuth2
 }
 
-func (cfg *oauth2Config) ApplyTo(source *v1.OAuth2) (*v1.OAuth2, error) {
+func (cfg *oauth2Config) MergeWith(source *v1.OAuth2) (*v1.OAuth2, error) {
 	authTransformer := mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
 	target := cfg.OAuth2.DeepCopy()
 	if err := mergo.Merge(target, source, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {

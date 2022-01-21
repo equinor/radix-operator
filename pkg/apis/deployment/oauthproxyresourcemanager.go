@@ -64,7 +64,7 @@ func (o *oauthProxyResourceManager) Sync() error {
 func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployComponent) error {
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		componentWithOAuthDefaults := component.DeepCopy()
-		oauth, err := o.oauth2DefaultConfig.ApplyTo(componentWithOAuthDefaults.Authentication.OAuth2)
+		oauth, err := o.oauth2DefaultConfig.MergeWith(componentWithOAuthDefaults.Authentication.OAuth2)
 		if err != nil {
 			return err
 		}

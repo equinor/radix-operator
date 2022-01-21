@@ -45,7 +45,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_ClientId() {
 	expected := s.oauthConfig()
 	expected.ClientID = "newclientid"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{ClientID: "newclientid"})
+	actual, err := sut.MergeWith(&v1.OAuth2{ClientID: "newclientid"})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -54,7 +54,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_LoginURL() {
 	expected := s.oauthConfig()
 	expected.LoginURL = "newloginurl"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{LoginURL: "newloginurl"})
+	actual, err := sut.MergeWith(&v1.OAuth2{LoginURL: "newloginurl"})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -63,7 +63,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_ProxyPrefix() {
 	expected := s.oauthConfig()
 	expected.ProxyPrefix = "newprefix"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{ProxyPrefix: "newprefix"})
+	actual, err := sut.MergeWith(&v1.OAuth2{ProxyPrefix: "newprefix"})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -72,7 +72,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_RedeemURL() {
 	expected := s.oauthConfig()
 	expected.RedeemURL = "newredeemurl"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{RedeemURL: "newredeemurl"})
+	actual, err := sut.MergeWith(&v1.OAuth2{RedeemURL: "newredeemurl"})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -81,7 +81,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_Scope() {
 	expected := s.oauthConfig()
 	expected.Scope = "newscope"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{Scope: "newscope"})
+	actual, err := sut.MergeWith(&v1.OAuth2{Scope: "newscope"})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -90,7 +90,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_SessionStoreType() {
 	expected := s.oauthConfig()
 	expected.SessionStoreType = v1.SessionStoreType("newsessionstore")
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{SessionStoreType: v1.SessionStoreType("newsessionstore")})
+	actual, err := sut.MergeWith(&v1.OAuth2{SessionStoreType: v1.SessionStoreType("newsessionstore")})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -99,7 +99,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_SetAuthorizationHeader() {
 	expected := s.oauthConfig()
 	expected.SetAuthorizationHeader = commonUtils.BoolPtr(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{SetAuthorizationHeader: commonUtils.BoolPtr(true)})
+	actual, err := sut.MergeWith(&v1.OAuth2{SetAuthorizationHeader: commonUtils.BoolPtr(true)})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -108,7 +108,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_SetXAuthRequestHeaders() {
 	expected := s.oauthConfig()
 	expected.SetXAuthRequestHeaders = commonUtils.BoolPtr(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{SetXAuthRequestHeaders: commonUtils.BoolPtr(true)})
+	actual, err := sut.MergeWith(&v1.OAuth2{SetXAuthRequestHeaders: commonUtils.BoolPtr(true)})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -117,7 +117,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_Cookie_Expire() {
 	expected := s.oauthConfig()
 	expected.Cookie.Expire = "newexpire"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{Expire: "newexpire"}})
+	actual, err := sut.MergeWith(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{Expire: "newexpire"}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -126,7 +126,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_Cookie_Name() {
 	expected := s.oauthConfig()
 	expected.Cookie.Name = "newcookiename"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "newcookiename"}})
+	actual, err := sut.MergeWith(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{Name: "newcookiename"}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -135,7 +135,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_Cookie_Refresh() {
 	expected := s.oauthConfig()
 	expected.Cookie.Refresh = "newrefresh"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{Refresh: "newrefresh"}})
+	actual, err := sut.MergeWith(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{Refresh: "newrefresh"}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -144,7 +144,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_Cookie_SameSite() {
 	expected := s.oauthConfig()
 	expected.Cookie.SameSite = v1.CookieSameSiteType("newsamesite")
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{SameSite: v1.CookieSameSiteType("newsamesite")}})
+	actual, err := sut.MergeWith(&v1.OAuth2{Cookie: &v1.OAuth2Cookie{SameSite: v1.CookieSameSiteType("newsamesite")}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -153,7 +153,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_CookieStore_Minimal() {
 	expected := s.oauthConfig()
 	expected.CookieStore.Minimal = commonUtils.BoolPtr(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}})
+	actual, err := sut.MergeWith(&v1.OAuth2{CookieStore: &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -162,7 +162,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_OIDC_InsecureSkipVerifyNonce(
 	expected := s.oauthConfig()
 	expected.OIDC.InsecureSkipVerifyNonce = commonUtils.BoolPtr(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{InsecureSkipVerifyNonce: commonUtils.BoolPtr(true)}})
+	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{InsecureSkipVerifyNonce: commonUtils.BoolPtr(true)}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -171,7 +171,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_OIDC_IssuerURL() {
 	expected := s.oauthConfig()
 	expected.OIDC.IssuerURL = "newissuerurl"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{IssuerURL: "newissuerurl"}})
+	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{IssuerURL: "newissuerurl"}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -180,7 +180,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_OIDC_JWKSURL() {
 	expected := s.oauthConfig()
 	expected.OIDC.JWKSURL = "newjwksurl"
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{JWKSURL: "newjwksurl"}})
+	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{JWKSURL: "newjwksurl"}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -189,7 +189,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_OIDC_SkipDiscovery() {
 	expected := s.oauthConfig()
 	expected.OIDC.SkipDiscovery = commonUtils.BoolPtr(true)
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{SkipDiscovery: commonUtils.BoolPtr(true)}})
+	actual, err := sut.MergeWith(&v1.OAuth2{OIDC: &v1.OAuth2OIDC{SkipDiscovery: commonUtils.BoolPtr(true)}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }
@@ -198,7 +198,7 @@ func (s *oauth2DefaultConfigOptionsTestSuite) Test_RedisStore_ConnectionURL() {
 	expected := s.oauthConfig()
 	expected.RedisStore = &v1.OAuth2RedisStore{ConnectionURL: "newconnectionurl"}
 	sut := oauth2Config{OAuth2: s.oauthConfig()}
-	actual, err := sut.ApplyTo(&v1.OAuth2{RedisStore: &v1.OAuth2RedisStore{ConnectionURL: "newconnectionurl"}})
+	actual, err := sut.MergeWith(&v1.OAuth2{RedisStore: &v1.OAuth2RedisStore{ConnectionURL: "newconnectionurl"}})
 	s.Nil(err)
 	s.Equal(expected, *actual)
 }

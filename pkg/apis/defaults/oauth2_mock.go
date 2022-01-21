@@ -11,40 +11,40 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockOAuth2DefaultConfigApplier is a mock of OAuth2DefaultConfigApplier interface.
-type MockOAuth2DefaultConfigApplier struct {
+// MockOAuth2Config is a mock of OAuth2Config interface.
+type MockOAuth2Config struct {
 	ctrl     *gomock.Controller
-	recorder *MockOAuth2DefaultConfigApplierMockRecorder
+	recorder *MockOAuth2ConfigMockRecorder
 }
 
-// MockOAuth2DefaultConfigApplierMockRecorder is the mock recorder for MockOAuth2DefaultConfigApplier.
-type MockOAuth2DefaultConfigApplierMockRecorder struct {
-	mock *MockOAuth2DefaultConfigApplier
+// MockOAuth2ConfigMockRecorder is the mock recorder for MockOAuth2Config.
+type MockOAuth2ConfigMockRecorder struct {
+	mock *MockOAuth2Config
 }
 
-// NewMockOAuth2DefaultConfigApplier creates a new mock instance.
-func NewMockOAuth2DefaultConfigApplier(ctrl *gomock.Controller) *MockOAuth2DefaultConfigApplier {
-	mock := &MockOAuth2DefaultConfigApplier{ctrl: ctrl}
-	mock.recorder = &MockOAuth2DefaultConfigApplierMockRecorder{mock}
+// NewMockOAuth2Config creates a new mock instance.
+func NewMockOAuth2Config(ctrl *gomock.Controller) *MockOAuth2Config {
+	mock := &MockOAuth2Config{ctrl: ctrl}
+	mock.recorder = &MockOAuth2ConfigMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockOAuth2DefaultConfigApplier) EXPECT() *MockOAuth2DefaultConfigApplierMockRecorder {
+func (m *MockOAuth2Config) EXPECT() *MockOAuth2ConfigMockRecorder {
 	return m.recorder
 }
 
-// ApplyTo mocks base method.
-func (m *MockOAuth2DefaultConfigApplier) ApplyTo(source *v1.OAuth2) (*v1.OAuth2, error) {
+// MergeWith mocks base method.
+func (m *MockOAuth2Config) MergeWith(source *v1.OAuth2) (*v1.OAuth2, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApplyTo", source)
+	ret := m.ctrl.Call(m, "MergeWith", source)
 	ret0, _ := ret[0].(*v1.OAuth2)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ApplyTo indicates an expected call of ApplyTo.
-func (mr *MockOAuth2DefaultConfigApplierMockRecorder) ApplyTo(source interface{}) *gomock.Call {
+// MergeWith indicates an expected call of MergeWith.
+func (mr *MockOAuth2ConfigMockRecorder) MergeWith(source interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyTo", reflect.TypeOf((*MockOAuth2DefaultConfigApplier)(nil).ApplyTo), source)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MergeWith", reflect.TypeOf((*MockOAuth2Config)(nil).MergeWith), source)
 }
