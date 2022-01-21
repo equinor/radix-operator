@@ -88,14 +88,17 @@ func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, e
 
 	if componentAuthentication == nil && environmentAuthentication == nil {
 		return nil, nil
-	} else if componentAuthentication == nil {
-		return environmentAuthentication.DeepCopy(), nil
-	} else if environmentAuthentication == nil {
-		return componentAuthentication.DeepCopy(), nil
 	}
 
-	authBase := componentAuthentication.DeepCopy()
-	authEnv := environmentAuthentication.DeepCopy()
+	authBase := &v1.Authentication{}
+	if componentAuthentication != nil {
+		authBase = componentAuthentication.DeepCopy()
+	}
+	authEnv := &v1.Authentication{}
+	if environmentAuthentication != nil {
+		authEnv = environmentAuthentication.DeepCopy()
+	}
+
 	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {
 		return nil, err
 	}
