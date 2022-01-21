@@ -2,10 +2,7 @@ package test
 
 import (
 	"context"
-	"encoding/base64"
-	"math/rand"
 	"os"
-	"time"
 
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 
@@ -360,11 +357,4 @@ func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *v1.RadixDeployment, deploy
 	}
 	_ = tu.kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
 	return desiredConfigMap
-}
-
-func RandomString(len int) string {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]byte, len)
-	rand.Read(b)
-	return base64.URLEncoding.EncodeToString(b)
 }

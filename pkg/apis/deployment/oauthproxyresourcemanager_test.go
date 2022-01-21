@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"testing"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -142,31 +142,31 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyDeploymentCreat
 	envNs := utils.GetEnvironmentNamespace(appName, envName)
 	inputOAuth := &v1.OAuth2{ClientID: "1234"}
 	returnOAuth := &v1.OAuth2{
-		ClientID:               test.RandomString(20),
-		Scope:                  test.RandomString(20),
-		SetXAuthRequestHeaders: utils.BoolPtr(true),
-		SetAuthorizationHeader: utils.BoolPtr(false),
-		ProxyPrefix:            test.RandomString(20),
-		LoginURL:               test.RandomString(20),
-		RedeemURL:              test.RandomString(20),
+		ClientID:               commonUtils.RandString(20),
+		Scope:                  commonUtils.RandString(20),
+		SetXAuthRequestHeaders: commonUtils.BoolPtr(true),
+		SetAuthorizationHeader: commonUtils.BoolPtr(false),
+		ProxyPrefix:            commonUtils.RandString(20),
+		LoginURL:               commonUtils.RandString(20),
+		RedeemURL:              commonUtils.RandString(20),
 		SessionStoreType:       "redis",
 		Cookie: &v1.OAuth2Cookie{
-			Name:     test.RandomString(20),
-			Expire:   test.RandomString(20),
-			Refresh:  test.RandomString(20),
-			SameSite: v1.CookieSameSiteType(test.RandomString(20)),
+			Name:     commonUtils.RandString(20),
+			Expire:   commonUtils.RandString(20),
+			Refresh:  commonUtils.RandString(20),
+			SameSite: v1.CookieSameSiteType(commonUtils.RandString(20)),
 		},
 		CookieStore: &v1.OAuth2CookieStore{
 			Minimal: utils.BoolPtr(true),
 		},
 		RedisStore: &v1.OAuth2RedisStore{
-			ConnectionURL: test.RandomString(20),
+			ConnectionURL: commonUtils.RandString(20),
 		},
 		OIDC: &v1.OAuth2OIDC{
-			IssuerURL:               test.RandomString(20),
-			JWKSURL:                 test.RandomString(20),
-			SkipDiscovery:           utils.BoolPtr(true),
-			InsecureSkipVerifyNonce: utils.BoolPtr(false),
+			IssuerURL:               commonUtils.RandString(20),
+			JWKSURL:                 commonUtils.RandString(20),
+			SkipDiscovery:           commonUtils.BoolPtr(true),
+			InsecureSkipVerifyNonce: commonUtils.BoolPtr(false),
 		},
 	}
 	s.oauth2Config.EXPECT().ApplyTo(inputOAuth).Times(1).Return(returnOAuth, nil)
