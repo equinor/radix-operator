@@ -32,11 +32,11 @@ type ingressConfigurationAnnotationProvider struct {
 	config IngressConfiguration
 }
 
-func (o *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (provider *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	allAnnotations := make(map[string]string)
 
 	for _, configuration := range component.GetIngressConfiguration() {
-		annotations := o.getAnnotationsFromConfiguration(configuration, o.config)
+		annotations := provider.getAnnotationsFromConfiguration(configuration, provider.config)
 		for key, value := range annotations {
 			allAnnotations[key] = value
 		}
@@ -45,7 +45,7 @@ func (o *ingressConfigurationAnnotationProvider) GetAnnotations(component v1.Rad
 	return allAnnotations, nil
 }
 
-func (o *ingressConfigurationAnnotationProvider) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
+func (provider *ingressConfigurationAnnotationProvider) getAnnotationsFromConfiguration(name string, config IngressConfiguration) map[string]string {
 	for _, ingressConfig := range config.AnnotationConfigurations {
 		if strings.EqualFold(ingressConfig.Name, name) {
 			return ingressConfig.Annotations
@@ -63,12 +63,12 @@ type clientCertificateAnnotationProvider struct {
 	namespace string
 }
 
-func (o *clientCertificateAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (provider *clientCertificateAnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	result := make(map[string]string)
 	if auth := component.GetAuthentication(); auth != nil {
 		if clientCert := auth.ClientCertificate; clientCert != nil {
 			if IsSecretRequiredForClientCertificate(clientCert) {
-				result["nginx.ingress.kubernetes.io/auth-tls-secret"] = fmt.Sprintf("%s/%s", o.namespace, utils.GetComponentClientCertificateSecretName(component.GetName()))
+				result["nginx.ingress.kubernetes.io/auth-tls-secret"] = fmt.Sprintf("%s/%s", provider.namespace, utils.GetComponentClientCertificateSecretName(component.GetName()))
 			}
 
 			certificateConfig := parseClientCertificateConfiguration(*clientCert)
@@ -88,11 +88,11 @@ type oauth2AnnotationProvider struct {
 	oauth2DefaultConfig defaults.OAuth2Config
 }
 
-func (a *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
+func (provider *oauth2AnnotationProvider) GetAnnotations(component v1.RadixCommonDeployComponent) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
-		oauth, err := a.oauth2DefaultConfig.ApplyTo(auth.OAuth2)
+		oauth, err := provider.oauth2DefaultConfig.ApplyTo(auth.OAuth2)
 		if err != nil {
 			return nil, err
 		}
