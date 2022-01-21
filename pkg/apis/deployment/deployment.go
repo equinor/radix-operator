@@ -565,11 +565,5 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		}
 	}
 
-	// err = deploy.oauthProxyResourceManager.Sync(component)
-	// if err != nil {
-	// 	log.Infof("Failed to sync oauth2 proxy: %v", err)
-	// 	return fmt.Errorf("failed to sync oauth2 proxy: %v", err)
-	// }
-
 	return nil
 }
