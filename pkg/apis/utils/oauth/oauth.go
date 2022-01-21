@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// SanitizePathPrefix adds a leading "/" and strips away any "/" at the end
+// SanitizePathPrefix adds a trailing "/" and strips away any "/" at the end
 // Each path element in the input is path escaped
 func SanitizePathPrefix(prefix string) string {
 	// Add "/" to make prefix path absolute. Join calls Clean internally to find the shortest path
