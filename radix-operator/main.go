@@ -222,6 +222,10 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
 	}
 
+	oauth2DockerImage := os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable)
+	if oauth2DockerImage == "" {
+		panic(fmt.Errorf("failed to read OAuth2 Docker image from environment variable %s", defaults.RadixOAuthProxyImageEnvironmentVariable))
+	}
 	handler := deployment.NewHandler(client,
 		kubeUtil,
 		radixClient,
@@ -230,6 +234,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
 		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
 		deployment.WithIngressConfiguration(ingressConfiguration),
+		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
 	)
 
 	waitForChildrenToSync := true

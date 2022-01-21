@@ -65,6 +65,13 @@ func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOp
 	}
 }
 
+// WithOAuth2ProxyDockerImage configures the Docker image to use for OAuth2 proxy auxiliary component
+func WithOAuth2ProxyDockerImage(image string) HandlerConfigOption {
+	return func(h *Handler) {
+		h.oauth2ProxyDockerImage = image
+	}
+}
+
 // WithIngressConfiguration sets the list of custom ingress confiigurations
 func WithIngressConfiguration(config deployment.IngressConfiguration) HandlerConfigOption {
 	return func(h *Handler) {
@@ -89,6 +96,7 @@ type Handler struct {
 	forceRunAsNonRoot       bool
 	tenantId                string
 	oauth2DefaultConfig     defaults.OAuth2Config
+	oauth2ProxyDockerImage  string
 	ingressConfiguration    deployment.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
@@ -158,7 +166,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	}
 
 	auxResourceManagers := []deployment.AuxiliaryResourceManager{
-		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}),
+		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
 	}
 
 	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, ingressAnnotations, auxResourceManagers)

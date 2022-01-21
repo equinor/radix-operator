@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"reflect"
 
 	radixmaps "github.com/equinor/radix-common/utils/maps"
@@ -33,13 +32,14 @@ const (
 )
 
 // NewOAuthProxyResourceManager creates a new OAuthProxyResourceManager
-func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []IngressAnnotationProvider) AuxiliaryResourceManager {
+func NewOAuthProxyResourceManager(rd *v1.RadixDeployment, rr *v1.RadixRegistration, kubeutil *kube.Kube, oauth2DefaultConfig defaults.OAuth2Config, ingressAnnotationProviders []IngressAnnotationProvider, oauth2ProxyDockerImage string) AuxiliaryResourceManager {
 	return &oauthProxyResourceManager{
 		rd:                         rd,
 		rr:                         rr,
 		kubeutil:                   kubeutil,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		oauth2DefaultConfig:        oauth2DefaultConfig,
+		oauth2ProxyDockerImage:     oauth2ProxyDockerImage,
 	}
 }
 
@@ -49,6 +49,7 @@ type oauthProxyResourceManager struct {
 	kubeutil                   *kube.Kube
 	ingressAnnotationProviders []IngressAnnotationProvider
 	oauth2DefaultConfig        defaults.OAuth2Config
+	oauth2ProxyDockerImage     string
 }
 
 func (o *oauthProxyResourceManager) Sync() error {
@@ -639,6 +640,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 		return nil, err
 	}
 
+	// Spec.Strategy defaults to RollingUpdate, ref https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            deploymentName,
@@ -661,7 +663,7 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 				Spec: corev1.PodSpec{Containers: []corev1.Container{
 					{
 						Name:            component.GetName(),
-						Image:           os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable),
+						Image:           o.oauth2ProxyDockerImage,
 						ImagePullPolicy: corev1.PullAlways,
 						Env:             o.getEnvVars(component),
 						Ports: []corev1.ContainerPort{

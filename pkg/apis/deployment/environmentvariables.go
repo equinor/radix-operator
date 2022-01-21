@@ -97,7 +97,6 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 		return nil, err
 	}
 
-	// return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), deployComponent.IsPublic(), deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
 	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent, envVarsConfigMap), nil
 }
 
