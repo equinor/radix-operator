@@ -867,20 +867,58 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 	environment := "some-env"
 	componentName1 := "component1"
 	radixDeploymentName1 := "deploymentName1"
-	azureKeyVaultName1 := "kv1"
+	type expectedVolumeProps struct {
+		expectedVolumeName               string
+		expectedNodePublishSecretRefName string
+		expectedVolumeAttributePefixes   map[string]string
+	}
 	scenarios := []struct {
-		name                     string
-		componentName            string
-		deploymentName           string
-		azureKeyVaults           []v1.RadixAzureKeyVault
-		expectedVolumeNamePrefix string
+		name                    string
+		componentName           string
+		deploymentName          string
+		secretObjectSecretNames []string
+		azureKeyVaults          []v1.RadixAzureKeyVault
+		expectedVolumeProps     []expectedVolumeProps
 	}{
+		//{
+		//    name:                    "No Azure Key volumes as no RadixAzureKeyVault-s",
+		//    componentName:           componentName1,
+		//    deploymentName:          radixDeploymentName1,
+		//    secretObjectSecretNames: []string{"secretName1"},
+		//    azureKeyVaults:          []v1.RadixAzureKeyVault{},
+		//    expectedVolumeCount:     0,
+		//},
+		//{
+		//    name:                    "No Azure Key volumes as no secret names in secret object",
+		//    componentName:           componentName1,
+		//    deploymentName:          radixDeploymentName1,
+		//    secretObjectSecretNames: []string{},
+		//    azureKeyVaults:          []v1.RadixAzureKeyVault{{Name: azureKeyVaultName1}},
+		//    expectedVolumeCount:     0,
+		//},
 		{
-			name:                     "One Azure Key volume",
-			componentName:            componentName1,
-			deploymentName:           radixDeploymentName1,
-			azureKeyVaults:           []v1.RadixAzureKeyVault{{Name: azureKeyVaultName1}},
-			expectedVolumeNamePrefix: "component1-",
+			name:                    "One Azure Key volume for one secret objects secret name",
+			componentName:           componentName1,
+			deploymentName:          radixDeploymentName1,
+			secretObjectSecretNames: []string{"secretName1"},
+			azureKeyVaults: []v1.RadixAzureKeyVault{{
+				Name: "kv1",
+				Items: []v1.RadixAzureKeyVaultItem{
+					{
+						Name:   "secret1",
+						EnvVar: "SECRET_REF1",
+					},
+				},
+			}},
+			expectedVolumeProps: []expectedVolumeProps{
+				{
+					expectedVolumeName:               "\"secretName1\"",
+					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
+					expectedVolumeAttributePefixes: map[string]string{
+						"secretProviderClass": "component1-az-keyvault-kv1-",
+					},
+				},
+			},
 		},
 	}
 	suite.T().Run("CSI Azure Key vault volumes", func(t *testing.T) {
@@ -898,6 +936,9 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 						},
 					},
 				}
+				for _, secretName := range testCase.secretObjectSecretNames {
+					secretProviderClass.Spec.SecretObjects = append(secretProviderClass.Spec.SecretObjects, &secretsstorev1.SecretObject{SecretName: secretName})
+				}
 				testEnv.secretproviderclient.SecretsstoreV1().SecretProviderClasses(namespace).Create(context.Background(), secretProviderClass, metav1.CreateOptions{})
 			}
 			deployComponent := utils.NewDeployComponentBuilder().WithName(testCase.componentName).
@@ -907,9 +948,25 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 				BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &deployComponent, testCase.deploymentName)
 			assert.Nil(t, err)
-			assert.Len(t, volumes, 1)
-			volume := volumes[0]
-			assert.True(t, strings.HasPrefix(volume.Name, testCase.expectedVolumeNamePrefix))
+			assert.Len(t, volumes, len(testCase.expectedVolumeProps))
+			if len(testCase.expectedVolumeProps) == 0 {
+				continue
+			}
+			for _, volume := range volumes {
+				assert.NotNil(t, volume.CSI)
+				assert.NotNil(t, volume.CSI.VolumeAttributes)
+				assert.NotNil(t, volume.CSI.NodePublishSecretRef)
+				assert.Equal(t, "secrets-store-csi.k8s.io", volume.CSI.Driver)
+				for _, volumeProp := range testCase.expectedVolumeProps {
+					for attrKey, attrValue := range volumeProp.expectedVolumeAttributePefixes {
+						spcValue, exists := volume.CSI.VolumeAttributes[attrKey]
+						assert.True(t, exists)
+						assert.True(t, strings.HasPrefix(spcValue, attrValue))
+					}
+					assert.Equal(t, volumeProp.expectedNodePublishSecretRefName, volume.CSI.NodePublishSecretRef.Name)
+				}
+			}
+
 		}
 	})
 }
