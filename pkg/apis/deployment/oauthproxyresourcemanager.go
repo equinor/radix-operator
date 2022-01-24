@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	commonutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -595,7 +596,7 @@ func (o *oauthProxyResourceManager) getLabelsForAuxComponent(component v1.RadixC
 }
 
 func (o *oauthProxyResourceManager) generateRandomCookieSecret() ([]byte, error) {
-	randomBytes := utils.GenerateRandomKey(32)
+	randomBytes := commonutils.GenerateRandomKey(32)
 	// Extra check to make sure correct number of bytes are returned for the random key
 	if len(randomBytes) != 32 {
 		return nil, fmt.Errorf("failed to generator cookie secret")

@@ -73,21 +73,6 @@ func teardownTest() {
 	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
-var testIngressConfiguration = `
-configuration:
-  - name: ewma
-    annotations:
-      nginx.ingress.kubernetes.io/load-balance: ewma
-  - name: round-robin
-    annotations:
-      nginx.ingress.kubernetes.io/load-balance: round_robin
-  - name: socket
-    annotations:
-      nginx.ingress.kubernetes.io/proxy-connect-timeout: 3600
-      nginx.ingress.kubernetes.io/proxy-read-timeout: 3600
-      nginx.ingress.kubernetes.io/proxy-send-timeout: 3600
-`
-
 func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 	defer teardownTest()
 	for _, componentsExist := range []bool{true, false} {

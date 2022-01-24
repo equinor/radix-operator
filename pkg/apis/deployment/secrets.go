@@ -192,7 +192,7 @@ func (deploy *Deployment) createSecretRefs(namespace, appName string, component 
 			if !errors.IsNotFound(err) {
 				return nil, err
 			}
-			err = deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, err, radixAzureKeyVault, secretProviderClass, componentName, className, azureKeyVaultName, deploymentName, credsSecret)
+			err = deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixAzureKeyVault, secretProviderClass, componentName, className, azureKeyVaultName, deploymentName, credsSecret)
 			if err != nil {
 				return nil, err
 			}
@@ -202,7 +202,7 @@ func (deploy *Deployment) createSecretRefs(namespace, appName string, component 
 	return secretNames, nil
 }
 
-func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace string, appName string, err error, radixAzureKeyVault radixv1.RadixAzureKeyVault, secretProviderClass *secretsstorev1.SecretProviderClass, componentName string, className string, azureKeyVaultName string, deploymentName string, credsSecret *v1.Secret) error {
+func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace string, appName string, radixAzureKeyVault radixv1.RadixAzureKeyVault, secretProviderClass *secretsstorev1.SecretProviderClass, componentName string, className string, azureKeyVaultName string, deploymentName string, credsSecret *v1.Secret) error {
 	parameters, err := getSecretProviderClassParameters(radixAzureKeyVault, deploy.tenantId)
 	if err != nil {
 		return err
