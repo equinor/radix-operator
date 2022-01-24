@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"fmt"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/numbers"
@@ -112,15 +111,6 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 		return nil, err
 	}
 
-	if len(desiredDeployment.Spec.Template.Spec.Containers[0].Ports) > 0 {
-		log.Debugln("Set readiness Prob for ports. Amount of ports: ", len(desiredDeployment.Spec.Template.Spec.Containers[0].Ports))
-		readinessProbe, err := getReadinessProbe(desiredDeployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
-		if err != nil {
-			return nil, err
-		}
-		desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
-	}
-
 	deploymentStrategy, err := getDeploymentStrategy()
 	if err != nil {
 		return nil, err
@@ -141,16 +131,6 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 		return nil, err
 	}
 
-	if len(deployComponent.GetPorts()) > 0 {
-		log.Debugf("Deployment component has %d ports.", len(deployComponent.GetPorts()))
-		err := getReadinessProbeSettings(desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe, &(deployComponent.GetPorts()[0]))
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		log.Debugf("Deployment component has no ports - Readiness Probe is not set.")
-	}
-
 	err = setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
 	if err != nil {
 		return nil, err
@@ -166,7 +146,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
 	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = deployComponent.GetType()
+	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = string(deployComponent.GetType())
 	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 
@@ -192,11 +172,19 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 		return err
 	}
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
 	volumes, err := deploy.GetVolumesForComponent(deployComponent)
 	if err != nil {
 		return err
 	}
 	desiredDeployment.Spec.Template.Spec.Volumes = volumes
+
+	readinessProbe, err := getReadinessProbeForComponent(deployComponent)
+	if err != nil {
+		return err
+	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
+
 	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode())
 
 	return nil
@@ -259,32 +247,6 @@ func hasRadixSecretRefs(deployComponent v1.RadixCommonDeployComponent) bool {
 	return len(deployComponent.GetSecretRefs().AzureKeyVaults) > 0
 }
 
-func getReadinessProbe(componentPort int32) (*corev1.Probe, error) {
-	initialDelaySeconds, err := defaults.GetDefaultReadinessProbeInitialDelaySeconds()
-	if err != nil {
-		return nil, err
-	}
-
-	periodSeconds, err := defaults.GetDefaultReadinessProbePeriodSeconds()
-	if err != nil {
-		return nil, err
-	}
-
-	probe := corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: componentPort,
-				},
-			},
-		},
-		InitialDelaySeconds: initialDelaySeconds,
-		PeriodSeconds:       periodSeconds,
-	}
-
-	return &probe, nil
-}
-
 func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 	rollingUpdateMaxUnavailable, err := defaults.GetDefaultRollingUpdateMaxUnavailable()
 	if err != nil {
@@ -319,7 +281,7 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	}
 
 	for _, deployment := range deployments {
-		componentName, ok := NewRadixComponentNameFromLabels(deployment)
+		componentName, ok := RadixComponentNameFromComponentLabel(deployment)
 		if !ok {
 			continue
 		}
@@ -329,12 +291,14 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			garbageCollect = true
 		} else {
-			var componentType string
+			var componentType v1.RadixComponentType
 			commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
 
 			// If component type label is not set on the deployment, we default to "component"
-			if componentType, ok = deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
-				componentType = defaults.RadixComponentTypeComponent
+			if componentTypeString, ok := deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
+				componentType = v1.RadixComponentTypeComponent
+			} else {
+				componentType = v1.RadixComponentType(componentTypeString)
 			}
 
 			// Garbage collect if component type has changed.
@@ -358,28 +322,41 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	return nil
 }
 
-func getReadinessProbeSettings(probe *corev1.Probe, componentPort *v1.ComponentPort) error {
-	if componentPort == nil {
-		return fmt.Errorf("Null Component Port")
+func getReadinessProbeForComponent(component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
+	if len(component.GetPorts()) == 0 {
+		return nil, nil
 	}
+
+	return getReadinessProbeWithDefaultsFromEnv(component.GetPorts()[0].Port)
+}
+
+func getReadinessProbeWithDefaultsFromEnv(componentPort int32) (*corev1.Probe, error) {
 	initialDelaySeconds, err := defaults.GetDefaultReadinessProbeInitialDelaySeconds()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	periodSeconds, err := defaults.GetDefaultReadinessProbePeriodSeconds()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if probe == nil || probe.TCPSocket == nil {
-		return fmt.Errorf("Null or invalid probe")
-	}
-	probe.TCPSocket.Port.IntVal = componentPort.Port
-	probe.InitialDelaySeconds = initialDelaySeconds
-	probe.PeriodSeconds = periodSeconds
+	probe := getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds)
+	return &probe, nil
+}
 
-	return nil
+func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) corev1.Probe {
+	return corev1.Probe{
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: componentPort,
+				},
+			},
+		},
+		InitialDelaySeconds: initialDelaySeconds,
+		PeriodSeconds:       periodSeconds,
+	}
 }
 
 func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error {

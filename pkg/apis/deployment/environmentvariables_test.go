@@ -1,6 +1,8 @@
 package deployment
 
 import (
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -11,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"testing"
 )
 
 func Test_order_of_env_variables(t *testing.T) {
@@ -45,10 +46,9 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 	envName := "dev"
 	componentName := "any-component"
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {
-		t.Parallel()
-
 		envVarsMap := map[string]string{
 			"VAR1": "val1",
 			"VAR2": "val2",
@@ -76,10 +76,9 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 	envName := "dev"
 	componentName := "any-component"
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {
-		t.Parallel()
-
 		envVarsMap := map[string]string{
 			"VAR1": "val1",
 			"VAR2": "val2",
@@ -119,9 +118,8 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	namespace := utils.GetEnvironmentNamespace(appName, env)
 	componentName := "any-component"
 	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
-		t.Parallel()
-
 		kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
 			"VAR1":          "val1",
 			"OUTDATED_VAR1": "val1z",

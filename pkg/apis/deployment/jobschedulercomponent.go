@@ -20,8 +20,8 @@ func newJobSchedulerComponent(jobComponent *v1.RadixDeployJobComponent, rd *v1.R
 	}
 }
 
-func (js *jobSchedulerComponent) GetType() string {
-	return defaults.RadixComponentTypeJobScheduler
+func (js *jobSchedulerComponent) GetType() v1.RadixComponentType {
+	return v1.RadixComponentTypeJobScheduler
 }
 
 func (js *jobSchedulerComponent) GetImage() string {

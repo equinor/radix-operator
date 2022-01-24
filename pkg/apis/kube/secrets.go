@@ -11,9 +11,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	labelHelpers "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -40,7 +38,7 @@ func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 }
 
 // ListSecretExistsForLabels Gets list of secrets for specific labels
-func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector string) ([]v1.Secret, error) {
+func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector string) ([]corev1.Secret, error) {
 	list, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil && errors.IsNotFound(err) {
 		return nil, nil
@@ -125,30 +123,18 @@ func (kubeutil *Kube) GetSecret(namespace, name string) (*corev1.Secret, error) 
 }
 
 // ListSecrets secrets in namespace
-func (kubeutil *Kube) ListSecrets(namespace string) ([]*v1.Secret, error) {
-	return kubeutil.ListSecretsWithSelector(namespace, nil)
+func (kubeutil *Kube) ListSecrets(namespace string) ([]*corev1.Secret, error) {
+	return kubeutil.ListSecretsWithSelector(namespace, "")
 }
 
 // ListSecretsWithSelector secrets in namespace
-func (kubeutil *Kube) ListSecretsWithSelector(namespace string, labelSelectorString *string) ([]*v1.Secret, error) {
-	var secrets []*v1.Secret
-	var err error
+func (kubeutil *Kube) ListSecretsWithSelector(namespace string, labelSelectorString string) ([]*corev1.Secret, error) {
+	var secrets []*corev1.Secret
 
 	if kubeutil.SecretLister != nil {
-		var selector labels.Selector
-		if labelSelectorString != nil {
-			labelSelector, err := labelHelpers.ParseToLabelSelector(*labelSelectorString)
-			if err != nil {
-				return nil, err
-			}
-
-			selector, err = labelHelpers.LabelSelectorAsSelector(labelSelector)
-			if err != nil {
-				return nil, err
-			}
-
-		} else {
-			selector = labels.NewSelector()
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
 		}
 
 		secrets, err = kubeutil.SecretLister.Secrets(namespace).List(selector)
@@ -156,9 +142,8 @@ func (kubeutil *Kube) ListSecretsWithSelector(namespace string, labelSelectorStr
 			return nil, err
 		}
 	} else {
-		listOptions := metav1.ListOptions{}
-		if labelSelectorString != nil {
-			listOptions.LabelSelector = *labelSelectorString
+		listOptions := metav1.ListOptions{
+			LabelSelector: labelSelectorString,
 		}
 
 		list, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).List(context.TODO(), listOptions)
@@ -166,7 +151,7 @@ func (kubeutil *Kube) ListSecretsWithSelector(namespace string, labelSelectorStr
 			return nil, err
 		}
 
-		secrets = slice.PointersOf(list.Items).([]*v1.Secret)
+		secrets = slice.PointersOf(list.Items).([]*corev1.Secret)
 	}
 
 	return secrets, nil

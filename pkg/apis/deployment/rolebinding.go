@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,17 +37,17 @@ func (deploy *Deployment) grantAppAdminAccessToRuntimeSecrets(namespace string, 
 	return deploy.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
+func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {
 	labelSelector := getLabelSelectorForComponent(component)
-	roleBindings, err := deploy.kubeutil.ListRoleBindingsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
+	roleBindings, err := deploy.kubeutil.ListRoleBindingsWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 
 	if err != nil {
 		return err
 	}
 
 	if len(roleBindings) > 0 {
-		for n := range roleBindings {
-			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), roleBindings[n].Name, metav1.DeleteOptions{})
+		for _, rb := range roleBindings {
+			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), rb.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -60,9 +59,12 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpecForComponent(c
 
 func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 	roleBindings, err := deploy.kubeutil.ListRoleBindings(deploy.radixDeployment.GetNamespace())
+	if err != nil {
+		return nil
+	}
 
 	for _, roleBinding := range roleBindings {
-		componentName, ok := NewRadixComponentNameFromLabels(roleBinding)
+		componentName, ok := RadixComponentNameFromComponentLabel(roleBinding)
 		if !ok {
 			continue
 		}

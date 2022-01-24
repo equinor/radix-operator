@@ -75,11 +75,23 @@ func Test_NewRadixComponentNameFromLabels(t *testing.T) {
 		},
 	}
 
-	name, ok := NewRadixComponentNameFromLabels(radixLabelled)
+	radixAuxLabelled := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				kube.RadixAuxiliaryComponentLabel: "component",
+			},
+		},
+	}
+
+	name, ok := RadixComponentNameFromComponentLabel(radixLabelled)
 	assert.True(t, ok)
 	assert.Equal(t, RadixComponentName("component"), name)
 
-	name, ok = NewRadixComponentNameFromLabels(nonRadix)
+	name, ok = RadixComponentNameFromAuxComponentLabel(radixAuxLabelled)
+	assert.True(t, ok)
+	assert.Equal(t, RadixComponentName("component"), name)
+
+	name, ok = RadixComponentNameFromComponentLabel(nonRadix)
 	assert.False(t, ok)
 	assert.Equal(t, RadixComponentName(""), name)
 }

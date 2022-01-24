@@ -10,7 +10,7 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 	jobs, err := deploy.kubeutil.ListJobs(deploy.radixDeployment.GetNamespace())
 
 	for _, job := range jobs {
-		componentName, ok := NewRadixComponentNameFromLabels(job)
+		componentName, ok := RadixComponentNameFromComponentLabel(job)
 		if !ok {
 			continue
 		}

@@ -1,11 +1,17 @@
 package deployment
 
 import (
+	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/imdario/mergo"
 )
 
-func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) []v1.RadixDeployComponent {
+var (
+	authTransformer mergo.Transformers = mergoutils.CombinedTransformer{Transformers: []mergo.Transformers{mergoutils.BoolPtrTransformer{}}}
+)
+
+func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) ([]v1.RadixDeployComponent, error) {
 	dnsAppAlias := radixApplication.Spec.DNSAppAlias
 	var components []v1.RadixDeployComponent
 
@@ -37,24 +43,27 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
 		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
-		deployComponent.Authentication = getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
 		deployComponent.DNSExternalAlias = GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
+		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
+		if err != nil {
+			return nil, err
+		}
+		deployComponent.Authentication = auth
 
 		components = append(components, deployComponent)
 	}
 
-	return components
+	return components, nil
 }
 
-func getRadixComponentAuthentication(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) *v1.Authentication {
+func getRadixComponentAuthentication(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) (*v1.Authentication, error) {
 	var environmentAuthentication *v1.Authentication
 	if environmentSpecificConfig != nil {
 		environmentAuthentication = environmentSpecificConfig.Authentication
 	}
-	authentication := GetAuthenticationForComponent(radixComponent.Authentication, environmentAuthentication)
-	return authentication
+	return GetAuthenticationForComponent(radixComponent.Authentication, environmentAuthentication)
 }
 
 func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) bool {
@@ -64,45 +73,36 @@ func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixCompon
 	return GetCascadeBoolean(nil, radixComponent.AlwaysPullImageOnDeploy, false)
 }
 
-func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) *v1.Authentication {
-	var authentication *v1.Authentication
+func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) (auth *v1.Authentication, err error) {
+	// mergo uses the reflect package, and reflect use panic() when errors are detected
+	// We handle panics to prevent process termination even if the RD will be re-queued forever (until a new RD is built)
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				panic(r)
+			}
+		}
+	}()
 
 	if componentAuthentication == nil && environmentAuthentication == nil {
-		authentication = nil
-	} else if componentAuthentication == nil {
-		authentication = environmentAuthentication.DeepCopy()
-	} else if environmentAuthentication == nil {
-		authentication = componentAuthentication.DeepCopy()
-	} else {
-		authentication = &v1.Authentication{
-			ClientCertificate: GetClientCertificateForComponent(componentAuthentication.ClientCertificate, environmentAuthentication.ClientCertificate),
-		}
+		return nil, nil
 	}
 
-	return authentication
-}
-
-func GetClientCertificateForComponent(componentCertificate *v1.ClientCertificate, environmentCertificate *v1.ClientCertificate) *v1.ClientCertificate {
-	var certificate *v1.ClientCertificate
-	if componentCertificate == nil && environmentCertificate == nil {
-		certificate = nil
-	} else if componentCertificate == nil {
-		certificate = environmentCertificate.DeepCopy()
-	} else if environmentCertificate == nil {
-		certificate = componentCertificate.DeepCopy()
-	} else {
-		certificate = componentCertificate.DeepCopy()
-		envCert := environmentCertificate.DeepCopy()
-		if envCert.PassCertificateToUpstream != nil {
-			certificate.PassCertificateToUpstream = envCert.PassCertificateToUpstream
-		}
-
-		if envCert.Verification != nil {
-			certificate.Verification = envCert.Verification
-		}
+	authBase := &v1.Authentication{}
+	if componentAuthentication != nil {
+		authBase = componentAuthentication.DeepCopy()
+	}
+	authEnv := &v1.Authentication{}
+	if environmentAuthentication != nil {
+		authEnv = environmentAuthentication.DeepCopy()
 	}
 
-	return certificate
+	if err := mergo.Merge(authBase, authEnv, mergo.WithOverride, mergo.WithTransformers(authTransformer)); err != nil {
+		return nil, err
+	}
+	return authBase, nil
 }
 
 // IsDNSAppAlias Checks if environment and component represents the DNS app alias
