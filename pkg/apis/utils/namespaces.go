@@ -18,26 +18,6 @@ func GetEnvironmentNamespace(appName, environment string) string {
 	return fmt.Sprintf("%s-%s", appName, environment)
 }
 
-// GetDeploymentName Function to get deployment name
-func GetDeploymentName(appName, env, tag string) string {
-	random := strings.ToLower(RandString(8))
-	return fmt.Sprintf("%s-%s-%s", env, tag, random)
-}
-
-// GetAuxiliaryComponentDeploymentName returns deployment name for auxiliary component, e.g. the oauth proxy
-func GetAuxiliaryComponentDeploymentName(componentName string, auxSuffix string) string {
-	return fmt.Sprintf("%s-%s", componentName, auxSuffix)
-}
-
-// GetAuxiliaryComponentServiceName returns service name for auxiliary component, e.g. the oauth proxy
-func GetAuxiliaryComponentServiceName(componentName string, auxSuffix string) string {
-	return fmt.Sprintf("%s-%s", componentName, auxSuffix)
-}
-
-func GetAuxiliaryComponentSecretName(componentName string, suffix string) string {
-	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, suffix))
-}
-
 // GetAppAndTagPairFromName Reverse engineer deployment name
 func GetAppAndTagPairFromName(name string) (string, string) {
 	runes := []rune(name)
