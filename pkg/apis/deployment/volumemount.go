@@ -607,7 +607,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeploymen
 		if !existsRadixVolumeMount {
 			return errors.New(fmt.Sprintf("not found Radix volume mount for desired volume %s", volume.Name))
 		}
-		storageClass, storageClassIsCreated, err := deploy.getOrCreateCsiAzureStorageClass(appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, scMap)
+		storageClass, storageClassIsCreated, err := deploy.getOrCreateCsiAzureVolumeMountStorageClass(appName, volumeRootMount, namespace, componentName, radixVolumeMount, volume.Name, scMap)
 		if err != nil {
 			return err
 		}
@@ -688,14 +688,14 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(storageClass *stor
 	return deploy.createPersistentVolumeClaim(appName, namespace, componentName, persistentVolumeClaimName, storageClass.Name, radixVolumeMount)
 }
 
-//getOrCreateCsiAzureStorageClass returns creates or existing StorageClass, storageClassIsCreated=true, if created; error, if any
-func (deploy *Deployment) getOrCreateCsiAzureStorageClass(appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, scMap map[string]*storagev1.StorageClass) (*storagev1.StorageClass, bool, error) {
+//getOrCreateCsiAzureVolumeMountStorageClass returns creates or existing StorageClass, storageClassIsCreated=true, if created; error, if any
+func (deploy *Deployment) getOrCreateCsiAzureVolumeMountStorageClass(appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, scMap map[string]*storagev1.StorageClass) (*storagev1.StorageClass, bool, error) {
 	volumeMountProvisioner, foundProvisioner := radixv1.GetStorageClassProvisionerByVolumeMountType(radixVolumeMount.Type)
 	if !foundProvisioner {
 		return nil, false, fmt.Errorf("not found Storage Class provisioner for volume mount type %s", string(radixVolumeMount.Type))
 	}
 	storageClassName := GetCsiAzureStorageClassName(namespace, volumeName)
-	csiVolumeSecretName := defaults.GetCsiAzureCredsSecretName(componentName, radixVolumeMount.Name)
+	csiVolumeSecretName := defaults.GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMount.Name)
 	if existingStorageClass, exists := scMap[storageClassName]; exists {
 		desiredStorageClass := existingStorageClass.DeepCopy()
 		populateCsiAzureStorageClass(desiredStorageClass, appName, volumeRootMount, namespace, componentName, storageClassName, radixVolumeMount, csiVolumeSecretName, volumeMountProvisioner)

@@ -334,7 +334,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				}
 
 				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(componentNameRadixQuote, blobVolumeName), secrets)
-				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureCredsSecretName(componentNameRadixQuote, blobCsiAzureVolumeName), secrets)
+				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureVolumeMountCredsSecretName(componentNameRadixQuote, blobCsiAzureVolumeName), secrets)
 				if !componentsExist {
 					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
 					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
@@ -568,7 +568,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.True(t, secretByNameExists(jobSecretName, secrets), "Job secret is not as expected")
 
 				blobFuseSecretExists := secretByNameExists(defaults.GetBlobFuseCredsSecretName(jobName, blobVolumeName), secrets)
-				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureCredsSecretName(jobName, blobCsiAzureVolumeName), secrets)
+				blobCsiAzureFuseSecretExists := secretByNameExists(defaults.GetCsiAzureVolumeMountCredsSecretName(jobName, blobCsiAzureVolumeName), secrets)
 				if !jobsExist {
 					assert.True(t, blobFuseSecretExists, "expected Blobfuse volume mount secret")
 					assert.True(t, blobCsiAzureFuseSecretExists, "expected blob CSI Azure volume mount secret")
