@@ -197,7 +197,7 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 	secretRef := deployComponent.GetSecretRefs()
 	var volumes []v1.Volume
 	for _, azureKeyVault := range secretRef.AzureKeyVaults {
-		secretProviderClassName := kube.GetComponentSecretProviderClassName(deployComponent.GetName(), radixDeploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
+		secretProviderClassName := kube.GetComponentSecretProviderClassName(radixDeploymentName, deployComponent.GetName(), radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
 		secretProviderClass, err := kubeutil.GetSecretProviderClass(namespace, secretProviderClassName)
 		if err != nil {
 			return nil, err

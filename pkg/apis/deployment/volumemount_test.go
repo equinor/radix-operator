@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"strings"
 	"testing"
@@ -865,60 +864,50 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 	namespace := "some-namespace"
 	environment := "some-env"
 	componentName1 := "component1"
-	radixDeploymentName1 := "deploymentName1"
 	type expectedVolumeProps struct {
-		expectedVolumeName               string
+		expectedVolumeNamePrefix         string
 		expectedNodePublishSecretRefName string
-		expectedVolumeAttributePefixes   map[string]string
+		expectedVolumeAttributePrefixes  map[string]string
 	}
 	scenarios := []struct {
 		name                    string
+		deployComponentBuilders []utils.DeployCommonComponentBuilder
 		componentName           string
-		deploymentName          string
-		secretObjectSecretNames []string
 		azureKeyVaults          []v1.RadixAzureKeyVault
-		expectedVolumeProps     map[string]expectedVolumeProps
+		expectedVolumeProps     []expectedVolumeProps
+		radixVolumeMounts       []v1.RadixVolumeMount
 	}{
-		//{
-		//    name:                    "No Azure Key volumes as no RadixAzureKeyVault-s",
-		//    componentName:           componentName1,
-		//    deploymentName:          radixDeploymentName1,
-		//    secretObjectSecretNames: []string{"secretName1"},
-		//    azureKeyVaults:          []v1.RadixAzureKeyVault{},
-		//    expectedVolumeCount:     0,
-		//},
-		//{
-		//    name:                    "No Azure Key volumes as no secret names in secret object",
-		//    componentName:           componentName1,
-		//    deploymentName:          radixDeploymentName1,
-		//    secretObjectSecretNames: []string{},
-		//    azureKeyVaults:          []v1.RadixAzureKeyVault{{Name: azureKeyVaultName1}},
-		//    expectedVolumeCount:     0,
-		//},
-		//{
-		//    name:                    "One Azure Key volume for one secret objects secret name",
-		//    componentName:           componentName1,
-		//    deploymentName:          radixDeploymentName1,
-		//    secretObjectSecretNames: []string{"secretName1"},
-		//    azureKeyVaults: []v1.RadixAzureKeyVault{{
-		//        Name:  "kv1",
-		//        Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
-		//    }},
-		//    expectedVolumeProps: []expectedVolumeProps{
-		//        {
-		//            expectedVolumeName:               "secretName1",
-		//            expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
-		//            expectedVolumeAttributePefixes: map[string]string{
-		//                "secretProviderClass": "component1-az-keyvault-kv1-",
-		//            },
-		//        },
-		//    },
-		//},
 		{
-			name:                    "Multiple Azure Key volumes for each RadixAzureKeyVault",
-			componentName:           componentName1,
-			deploymentName:          radixDeploymentName1,
-			secretObjectSecretNames: []string{"secretName1", "secretName2"},
+			name:                "No Azure Key volumes as no RadixAzureKeyVault-s",
+			componentName:       componentName1,
+			azureKeyVaults:      []v1.RadixAzureKeyVault{},
+			expectedVolumeProps: []expectedVolumeProps{},
+		},
+		{
+			name:           "No Azure Key volumes as no secret names in secret object",
+			componentName:  componentName1,
+			azureKeyVaults: []v1.RadixAzureKeyVault{{Name: "kv1"}},
+		},
+		{
+			name:          "One Azure Key volume for one secret objects secret name",
+			componentName: componentName1,
+			azureKeyVaults: []v1.RadixAzureKeyVault{{
+				Name:  "kv1",
+				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+			}},
+			expectedVolumeProps: []expectedVolumeProps{
+				{
+					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
+					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
+					expectedVolumeAttributePrefixes: map[string]string{
+						"secretProviderClass": "component1-az-keyvault-kv1-",
+					},
+				},
+			},
+		},
+		{
+			name:          "Multiple Azure Key volumes for each RadixAzureKeyVault",
+			componentName: componentName1,
 			azureKeyVaults: []v1.RadixAzureKeyVault{
 				{
 					Name:  "kv1",
@@ -929,16 +918,18 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2", EnvVar: "SECRET_REF2"}},
 				},
 			},
-			expectedVolumeProps: map[string]expectedVolumeProps{
-				"secretName1": {
+			expectedVolumeProps: []expectedVolumeProps{
+				{
+					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
 					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
-					expectedVolumeAttributePefixes: map[string]string{
+					expectedVolumeAttributePrefixes: map[string]string{
 						"secretProviderClass": "component1-az-keyvault-kv1-",
 					},
 				},
-				"secretName2": {
+				{
+					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv2-",
 					expectedNodePublishSecretRefName: "component1-kv2-csiazkvcreds",
-					expectedVolumeAttributePefixes: map[string]string{
+					expectedVolumeAttributePrefixes: map[string]string{
 						"secretProviderClass": "component1-az-keyvault-kv2-",
 					},
 				},
@@ -947,52 +938,48 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 	}
 	suite.T().Run("CSI Azure Key vault volumes", func(t *testing.T) {
 		t.Parallel()
-		testEnv := getTestEnv()
-		for _, testCase := range scenarios {
-			for _, azureKeyVault := range testCase.azureKeyVaults {
-				secretProviderClassName := kube.GetComponentSecretProviderClassName(componentName1, radixDeploymentName1, v1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
-				secretProviderClass := &secretsstorev1.SecretProviderClass{
-					ObjectMeta: metav1.ObjectMeta{Name: secretProviderClassName, Namespace: namespace},
-					Spec: secretsstorev1.SecretProviderClassSpec{
-						Provider: azureSecureStorageProvider,
-						Parameters: map[string]string{
-							csiSecretProviderClassParameterKeyVaultName: azureKeyVault.Name,
-						},
-					},
+		for _, scenario := range scenarios {
+			testEnv := getTestEnv()
+			deployment := getDeployment(testEnv)
+			deployment.radixDeployment = buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
+				var builders []utils.DeployComponentBuilder
+				builders = append(builders, utils.NewDeployComponentBuilder().
+					WithName(scenario.componentName).
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
+				return builders
+			})
+			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
+			for _, azureKeyVault := range scenario.azureKeyVaults {
+				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
+				if err != nil {
+					t.Logf(err.Error())
+				} else {
+					t.Logf("created secret provider class %s", spc.Name)
 				}
-				for _, secretName := range testCase.secretObjectSecretNames {
-					secretProviderClass.Spec.SecretObjects = append(secretProviderClass.Spec.SecretObjects, &secretsstorev1.SecretObject{SecretName: secretName})
-				}
-				testEnv.secretproviderclient.SecretsstoreV1().SecretProviderClasses(namespace).Create(context.Background(), secretProviderClass, metav1.CreateOptions{})
 			}
-			deployComponent := utils.NewDeployComponentBuilder().WithName(testCase.componentName).
-				WithSecretRefs(v1.RadixSecretRefs{
-					AzureKeyVaults: testCase.azureKeyVaults,
-				}).
-				BuildComponent()
-			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &deployComponent, testCase.deploymentName)
+			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, radixDeployComponent, deployment.radixDeployment.GetName())
 			assert.Nil(t, err)
-			assert.Len(t, volumes, len(testCase.expectedVolumeProps))
-			if len(testCase.expectedVolumeProps) == 0 {
+			assert.Len(t, volumes, len(scenario.expectedVolumeProps))
+			if len(scenario.expectedVolumeProps) == 0 {
 				continue
 			}
 
-			for _, volume := range volumes {
+			for i := 0; i < len(volumes); i++ {
+				volume := volumes[i]
 				assert.NotNil(t, volume.CSI)
 				assert.NotNil(t, volume.CSI.VolumeAttributes)
 				assert.NotNil(t, volume.CSI.NodePublishSecretRef)
 				assert.Equal(t, "secrets-store.csi.k8s.io", volume.CSI.Driver)
 
-				volumeProp, ok := testCase.expectedVolumeProps[volume.Name]
-				assert.True(t, ok)
-				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePefixes {
+				volumeProp := scenario.expectedVolumeProps[i]
+				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {
 					spcValue, exists := volume.CSI.VolumeAttributes[attrKey]
 					assert.True(t, exists)
 					assert.True(t, strings.HasPrefix(spcValue, attrValue))
 				}
+				assert.True(t, strings.Contains(volume.Name, volumeProp.expectedVolumeNamePrefix))
 				assert.Equal(t, volumeProp.expectedNodePublishSecretRefName, volume.CSI.NodePublishSecretRef.Name)
 			}
-
 		}
 	})
 }
@@ -1162,6 +1149,14 @@ func createPvc(namespace, componentName string, mountType v1.MountType, modify f
 		modify(&pvc)
 	}
 	return pvc
+}
+
+func buildRdWithComponentBuilders(appName string, environment string, componentBuilders func() []utils.DeployComponentBuilder) *v1.RadixDeployment {
+	return utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(environment).
+		WithComponents(componentBuilders()...).
+		BuildRD()
 }
 
 func createExpectedStorageClass(props expectedPvcScProperties, modify func(class *storagev1.StorageClass)) storagev1.StorageClass {

@@ -12,21 +12,21 @@ import (
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
-func (deploy *Deployment) createSecretRefs(namespace string, component radixv1.RadixCommonDeployComponent) ([]string, error) {
+func (deploy *Deployment) createSecretRefs(namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent) ([]string, error) {
 	appName := deploy.registration.Name
-	componentName := component.GetName()
-	deploymentName := deploy.radixDeployment.GetName()
+	radixDeployComponentName := radixDeployComponent.GetName()
+	radixDeploymentName := deploy.radixDeployment.GetName()
 	var secretNames []string
-	for _, radixAzureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+	for _, radixAzureKeyVault := range radixDeployComponent.GetSecretRefs().AzureKeyVaults {
 		azureKeyVaultName := radixAzureKeyVault.Name
 
-		credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, componentName, azureKeyVaultName)
+		credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, azureKeyVaultName)
 		if err != nil {
 			return nil, err
 		}
 		secretNames = append(secretNames, credsSecret.Name)
 
-		className := kube.GetComponentSecretProviderClassName(componentName, deploymentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVaultName)
+		className := kube.GetComponentSecretProviderClassName(radixDeploymentName, radixDeployComponentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVaultName)
 		secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(namespace, className)
 		if err == nil && secretProviderClass != nil {
 			continue //SecretProviderClass already exists for this deployment and Azure Key vault
@@ -34,7 +34,7 @@ func (deploy *Deployment) createSecretRefs(namespace string, component radixv1.R
 		if !errors.IsNotFound(err) {
 			return nil, err
 		}
-		secretProviderClass, err = deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, componentName, deploymentName, radixAzureKeyVault)
+		secretProviderClass, err = deploy.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixDeployComponentName, radixAzureKeyVault)
 		if err != nil {
 			return nil, err
 		}
@@ -49,14 +49,14 @@ func (deploy *Deployment) createSecretRefs(namespace string, component radixv1.R
 	return secretNames, nil
 }
 
-func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace string, appName string, componentName string, deploymentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
+func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
 	parameters, err := getAzureKeyVaultSecretProviderClassParameters(azureKeyVault, deploy.tenantId)
 	if err != nil {
 		return nil, err
 	}
-	secretProviderClass := buildSecretProviderClass(appName, componentName, deploy.radixDeployment, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
+	secretProviderClass := buildSecretProviderClass(appName, deploy.radixDeployment, radixDeployComponentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
 	secretProviderClass.Spec.Parameters = parameters
-	secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(componentName, deploymentName, azureKeyVault)
+	secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(radixDeployComponentName, deploy.radixDeployment.GetName(), azureKeyVault)
 
 	return deploy.kubeutil.CreateSecretProviderClass(namespace, secretProviderClass)
 }
@@ -138,15 +138,15 @@ func (deploy *Deployment) getOrCreateAzureKeyVaultCredsSecret(namespace, appName
 	return secret, nil
 }
 
-func buildSecretProviderClass(appName, componentName string, radixDeployment *radixv1.RadixDeployment, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
-	className := kube.GetComponentSecretProviderClassName(componentName, radixDeployment.GetName(), radixSecretRefType, secretRefName)
+func buildSecretProviderClass(appName string, radixDeployment *radixv1.RadixDeployment, radixDeployComponentName string, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) *secretsstorev1.SecretProviderClass {
+	className := kube.GetComponentSecretProviderClassName(radixDeployment.GetName(), radixDeployComponentName, radixSecretRefType, secretRefName)
 	return &secretsstorev1.SecretProviderClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: className,
 			Labels: map[string]string{
 				kube.RadixAppLabel:           appName,
-				kube.RadixComponentLabel:     componentName,
 				kube.RadixDeploymentLabel:    radixDeployment.GetName(),
+				kube.RadixComponentLabel:     radixDeployComponentName,
 				kube.RadixSecretRefTypeLabel: string(radixSecretRefType),
 				kube.RadixSecretRefNameLabel: secretRefName,
 			},
