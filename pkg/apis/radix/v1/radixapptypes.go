@@ -1,8 +1,9 @@
 package v1
 
 import (
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
+
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -157,16 +158,16 @@ type RadixJobComponent struct {
 // RadixJobComponentEnvironmentConfig defines environment specific settings
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
-	Environment  string               `json:"environment" yaml:"environment"`
-	RunAsNonRoot bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
-	Monitoring   bool                 `json:"monitoring" yaml:"monitoring"`
-	Resources    ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables    EnvVarsMap           `json:"variables" yaml:"variables"`
-	ImageTagName string               `json:"imageTagName" yaml:"imageTagName"`
-	VolumeMounts []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	Node         RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
-	SecretRefs   RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
-	TimeLimitSeconds *int64           `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Environment      string               `json:"environment" yaml:"environment"`
+	RunAsNonRoot     bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
+	Monitoring       bool                 `json:"monitoring" yaml:"monitoring"`
+	Resources        ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
+	Variables        EnvVarsMap           `json:"variables" yaml:"variables"`
+	ImageTagName     string               `json:"imageTagName" yaml:"imageTagName"`
+	VolumeMounts     []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
+	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
+	SecretRefs       RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
@@ -343,6 +344,7 @@ type RadixAzureKeyVaultItem struct {
 type Authentication struct {
 	//ClientCertificate Authentication client certificate
 	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
+	OAuth2            *OAuth2            `json:"oauth2,omitempty" yaml:"oauth2,omitempty"`
 }
 
 //ClientCertificate Authentication client certificate parameters
@@ -352,6 +354,16 @@ type ClientCertificate struct {
 	//PassCertificateToUpstream Should a certificate be passed to upstream
 	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
 }
+
+// SessionStoreType type of session store
+type SessionStoreType string
+
+const (
+	// SessionStoreCookie use cookies for session store
+	SessionStoreCookie SessionStoreType = "cookie"
+	// SessionStoreRedis use redis for session store
+	SessionStoreRedis SessionStoreType = "redis"
+)
 
 //VerificationType Certificate verification type
 type VerificationType string
@@ -366,6 +378,106 @@ const (
 	//VerificationTypeOptionalNoCa Certificate verification is optional no certificate authority
 	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
+
+// CookieSameSiteType Cookie SameSite value
+type CookieSameSiteType string
+
+const (
+	// Set SameSite to strict
+	SameSiteStrict CookieSameSiteType = "strict"
+	// Set SameSite to lax
+	SameSiteLax CookieSameSiteType = "lax"
+	// Set SameSite to none. Not supported by IE. See compativility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	SameSiteNone CookieSameSiteType = "none"
+	// Do not set SameSite. Modern browsers defaults to lax when SameSite is not set. See compatibility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	SameSiteEmpty CookieSameSiteType = ""
+)
+
+// OAuth2 defines oauth proxy settings for a component
+type OAuth2 struct {
+	// ClientID. The OAuth2 client ID
+	ClientID string `json:"clientId,omitempty" yaml:"clientId,omitempty"`
+	// Scope. Optional. The requested scope by the OAuth code flow
+	// Default: openid profile email
+	Scope string `json:"scope,omitempty" yaml:"scope,omitempty"`
+	// SetXAuthRequestHeaders. Optional. Defines if X-Auth-* headers should added to the request
+	// Sets the X-Auth-Request-User, X-Auth-Request-Groups, X-Auth-Request-Email, X-Auth-Request-Preferred-Username and X-Auth-Request-Access-Token
+	// from values in the Access Token redeemed by the OAuth Proxy
+	// Default: false
+	SetXAuthRequestHeaders *bool `json:"setXAuthRequestHeaders,omitempty" yaml:"setXAuthRequestHeaders,omitempty"`
+	// SetAuthorizationHeader. Optional. Defines if the IDToken received by the OAuth Proxy should be added to the Autherization header
+	// Default: false
+	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty" yaml:"setAuthorizationHeader,omitempty"`
+	// ProxyPrefix. Optional. The url root path that OAuth Proxy should be nested under
+	// Default: /oauth2
+	ProxyPrefix string `json:"proxyPrefix,omitempty" yaml:"proxyPrefix,omitempty"`
+	// LoginURL. Optional. Authentication endpoint
+	// Must be set if OIDC.SkipDiscovery is true
+	LoginURL string `json:"loginUrl,omitempty" yaml:"loginUrl,omitempty"`
+	// RedeemURL. Optional. Endpoint to redeem the authorization code received from the OAuth code flow
+	// Must be set if OIDC.SkipDiscovery is true
+	RedeemURL string `json:"redeemUrl,omitempty" yaml:"redeemUrl,omitempty"`
+	// OIDC. Optional. Defines OIDC settings
+	OIDC *OAuth2OIDC `json:"oidc,omitempty" yaml:"oidc,omitempty"`
+	// Cookie. Optional. Settings for the session cookie
+	Cookie *OAuth2Cookie `json:"cookie,omitempty" yaml:"cookie,omitempty"`
+	// SessionStoreType. Optional. Specifies where to store the session data
+	// Allowed values: cookie, redis
+	// Default: cookie
+	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty" yaml:"sessionStoreType,omitempty"`
+	// CookieStore. Optional. Settings for cookie that stores session data when SessionStoreType is cookie
+	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty" yaml:"cookieStore,omitempty"`
+	// RedisStore. Optional. Settings for Redis store when SessionStoreType is redis
+	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty" yaml:"redisStore,omitempty"`
+}
+
+// OAuth2Cookie defines properties for the oauth cookie
+type OAuth2Cookie struct {
+	// Name. Optional. Defines the name of the OAuth session cookie
+	// Default: _oauth2_proxy
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// Expire. Optional. The expire timeframe for the session cookie
+	// Default: 168h0m0s
+	Expire string `json:"expire,omitempty" yaml:"expire,omitempty"`
+	// Refresh. Optional. The interval between cookie refreshes
+	// The value must be a shorter timeframe than Expire
+	// Default 60m0s
+	Refresh string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
+	// SameSite. Optional. The samesite cookie attribute
+	// Allowed values: strict, lax, none or empty
+	// Default: lax
+	SameSite CookieSameSiteType `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
+}
+
+// OAuth2OIDC defines OIDC properties for oauth proxy
+type OAuth2OIDC struct {
+	// IssuerURL. Optional. The OIDC issuer URL
+	// Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
+	IssuerURL string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
+	// JWKSURL. Optional. OIDC JWKS URL for token verification; required if OIDC discovery is disabled
+	JWKSURL string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
+	// SkipDiscovery. Optional. Defines if OIDC endpoint discovery should be bypassed
+	// LoginURL, RedeemURL, JWKSURL must be configured if discovery is disabled
+	// Default: false
+	SkipDiscovery *bool `json:"skipDiscovery,omitempty" yaml:"skipDiscovery,omitempty"`
+	// InsecureSkipVerifyNonce. Optional. Skip verifying the OIDC ID Token's nonce claim
+	// Default: false
+	InsecureSkipVerifyNonce *bool `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
+}
+
+// OAuth2RedisStore properties for redis session storage
+type OAuth2RedisStore struct {
+	// ConnectionURL. The URL for the Redis server when SessionStoreType is redis
+	ConnectionURL string `json:"connectionUrl,omitempty" yaml:"connectionUrl,omitempty"`
+}
+
+// OAuth2CookieStore properties for cookie session storage
+type OAuth2CookieStore struct {
+	// Minimal. Optional. Strips OAuth tokens from cookies if they are not needed (only when SessionStoreType is cookie)
+	// Cookie.Refresh must be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader must be false if this setting is true
+	// Default: false
+	Minimal *bool `json:"minimal,omitempty" yaml:"minimal,omitempty"`
+}
 
 //RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {

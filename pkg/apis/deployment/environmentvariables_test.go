@@ -1,6 +1,9 @@
 package deployment
 
 import (
+	"strings"
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -12,8 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
-	"strings"
-	"testing"
 )
 
 type testEnvProps struct {
@@ -55,11 +56,10 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testEnv := setupTextEnv()
+	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {
-		t.Parallel()
-
 		rd := testEnv.applyRd(t, appName, envName, componentName, func(componentBuilder *utils.DeployComponentBuilder) {
 			(*componentBuilder).WithEnvironmentVariables(map[string]string{
 				"VAR1": "val1",
@@ -88,10 +88,9 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 	envName := "dev"
 	componentName := "any-component"
 	testEnv := setupTextEnv()
+	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {
-		t.Parallel()
-
 		rd := testEnv.applyRd(t, appName, envName, componentName, func(componentBuilder *utils.DeployComponentBuilder) {
 			(*componentBuilder).WithEnvironmentVariables(map[string]string{
 				"VAR1": "val1",
@@ -133,9 +132,8 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	namespace := utils.GetEnvironmentNamespace(appName, env)
 	componentName := "any-component"
 	testEnv := setupTextEnv()
+	defer teardownTest()
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
-		t.Parallel()
-
 		//goland:noinspection GoUnhandledErrorResult
 		testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
 			"VAR1":          "val1",

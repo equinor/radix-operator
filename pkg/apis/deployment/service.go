@@ -18,9 +18,12 @@ func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDe
 
 func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
+	if err != nil {
+		return err
+	}
 
 	for _, service := range services {
-		componentName, ok := NewRadixComponentNameFromLabels(service)
+		componentName, ok := RadixComponentNameFromComponentLabel(service)
 		if !ok {
 			continue
 		}

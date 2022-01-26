@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"os"
+
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -253,7 +254,7 @@ func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder builders.EnvironmentB
 // SetRequiredEnvironmentVariables  Sets the required environment
 // variables needed for the operator to run properly
 func SetRequiredEnvironmentVariables() {
-	os.Setenv("RADIXOPERATOR_DEFAULT_USER_GROUP", "1234-5678-91011")
+	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "1234-5678-91011")
 	os.Setenv(defaults.OperatorDNSZoneEnvironmentVariable, dnsZone)
 	os.Setenv(defaults.OperatorAppAliasBaseURLEnvironmentVariable, "app.dev.radix.equinor.com")
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, "1")

@@ -19,7 +19,7 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 	if currentDeployment == nil {
 		createdDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Create(context.TODO(), desiredDeployment, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to create Deployment object: %v", err)
+			return fmt.Errorf("failed to create Deployment object: %v", err)
 		}
 		log.Debugf("Created Deployment: %s in namespace %s", createdDeployment.Name, namespace)
 		return nil
@@ -27,17 +27,17 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 
 	currentDeploymentJSON, err := json.Marshal(currentDeployment)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal old deployment object: %v", err)
+		return fmt.Errorf("failed to marshal old deployment object: %v", err)
 	}
 
 	desiredDeploymentJSON, err := json.Marshal(desiredDeployment)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal new deployment object: %v", err)
+		return fmt.Errorf("failed to marshal new deployment object: %v", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(currentDeploymentJSON, desiredDeploymentJSON, appsv1.Deployment{})
 	if err != nil {
-		return fmt.Errorf("Failed to create two way merge patch deployment objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch deployment objects: %v", err)
 	}
 
 	if IsEmptyPatch(patchBytes) {
@@ -48,7 +48,7 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 	log.Debugf("Patch: %s", string(patchBytes))
 	patchedDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Patch(context.TODO(), currentDeployment.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to patch deployment object: %v", err)
+		return fmt.Errorf("failed to patch deployment object: %v", err)
 	}
 	log.Debugf("Patched deployment: %s in namespace %s", patchedDeployment.Name, namespace)
 	return nil
@@ -56,16 +56,25 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 
 // ListDeployments List deployments
 func (kubeutil *Kube) ListDeployments(namespace string) ([]*appsv1.Deployment, error) {
+	return kubeutil.ListDeploymentsWithSelector(namespace, "")
+}
+
+// ListDeploymentsWithSelector List deployments with selector
+func (kubeutil *Kube) ListDeploymentsWithSelector(namespace, labelSelectorString string) ([]*appsv1.Deployment, error) {
 	var deployments []*appsv1.Deployment
-	var err error
 
 	if kubeutil.DeploymentLister != nil {
-		deployments, err = kubeutil.DeploymentLister.Deployments(namespace).List(labels.NewSelector())
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
+		}
+		deployments, err = kubeutil.DeploymentLister.Deployments(namespace).List(selector)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		list, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
+		listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
+		list, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).List(context.TODO(), listOptions)
 		if err != nil {
 			return nil, err
 		}

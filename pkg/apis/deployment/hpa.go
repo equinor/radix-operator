@@ -61,7 +61,7 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	}
 
 	for _, hpa := range hpas.Items {
-		componentName, ok := NewRadixComponentNameFromLabels(&hpa)
+		componentName, ok := RadixComponentNameFromComponentLabel(&hpa)
 		if !ok {
 			continue
 		}

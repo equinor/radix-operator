@@ -17,3 +17,7 @@ func GetComponentSecretName(componentName string) string {
 func GetComponentClientCertificateSecretName(componentame string) string {
 	return fmt.Sprintf("%s-clientcertca", componentame)
 }
+
+func GetAuxiliaryComponentSecretName(componentName string, suffix string) string {
+	return GetComponentSecretName(GetAuxiliaryComponentDeploymentName(componentName, suffix))
+}

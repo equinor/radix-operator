@@ -65,7 +65,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 
 	dnsExternalAlias := component.GetDNSExternalAlias()
-	if dnsExternalAlias != nil && len(dnsExternalAlias) > 0 {
+	if len(dnsExternalAlias) > 0 {
 		err := deploy.garbageCollectSecretsNoLongerInSpecForComponentAndExternalAlias(component)
 		if err != nil {
 			return err
@@ -103,8 +103,13 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
+	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
+	if err != nil {
+		return err
+	}
+
 	clientCertificateSecretName := utils.GetComponentClientCertificateSecretName(component.GetName())
-	if auth := component.GetAuthentication(); auth != nil && component.GetPublicPort() != "" && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
+	if auth := component.GetAuthentication(); auth != nil && component.IsPublic() && IsSecretRequiredForClientCertificate(auth.ClientCertificate) {
 		if !deploy.kubeutil.SecretExists(namespace, clientCertificateSecretName) {
 			if err := deploy.createClientCertificateSecret(namespace, deploy.registration.Name, component.GetName(), clientCertificateSecretName); err != nil {
 				return err

@@ -129,37 +129,23 @@ func TestGetResourceRequirements_ProvideRequestsCpu_OverDefaultLimits(t *testing
 	assert.Equal(t, 0, requirements.Limits.Memory().Cmp(resource.MustParse("0")), "Missing memory limit should be 0")
 }
 
-func TestGetReadinessProbe_Default(t *testing.T) {
+func TestGetReadinessProbe_MissingDefaultEnvVars(t *testing.T) {
 	teardownReadinessProbe()
 
-	probe := corev1.Probe{}
-	componentPort := v1.ComponentPort{Port: int32(80)}
-
-	err := getReadinessProbeSettings(&probe, &componentPort)
-
-	assert.NotNil(t, err)
+	probe, err := getReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(80)}}})
+	assert.Error(t, err)
+	assert.Nil(t, probe)
 }
 
 func TestGetReadinessProbe_Custom(t *testing.T) {
 	test.SetRequiredEnvironmentVariables()
 
-	probe := corev1.Probe{
-		Handler: corev1.Handler{
-			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.IntOrString{
-					IntVal: int32(0),
-				},
-			},
-		},
-		InitialDelaySeconds: int32(0),
-		PeriodSeconds:       int32(0),
-	}
-	componentPort := v1.ComponentPort{Port: int32(80)}
-	getReadinessProbeSettings(&probe, &componentPort)
+	probe, err := getReadinessProbeForComponent(&v1.RadixDeployComponent{Ports: []v1.ComponentPort{{Name: "http", Port: int32(5000)}}})
+	assert.Nil(t, err)
 
 	assert.Equal(t, int32(5), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
-	assert.Equal(t, componentPort.Port, probe.Handler.TCPSocket.Port.IntVal)
+	assert.Equal(t, int32(5000), probe.Handler.TCPSocket.Port.IntVal)
 
 	teardownReadinessProbe()
 }

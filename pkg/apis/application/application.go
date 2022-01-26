@@ -8,6 +8,7 @@ import (
 
 	"k8s.io/client-go/util/retry"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -22,9 +23,6 @@ var logger *log.Entry
 
 // GranterFunction Handle to granter function for granting access to service account token
 type GranterFunction func(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error
-
-// OperatorDefaultUserGroupEnvironmentVariable If users don't provide ad-group, then it should default to this
-const OperatorDefaultUserGroupEnvironmentVariable = "RADIXOPERATOR_DEFAULT_USER_GROUP"
 
 // Application Instance variables
 type Application struct {
@@ -195,9 +193,9 @@ func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 // GetAdGroups Gets ad-groups from registration. If missing, gives default for cluster
 func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
 	if registration.Spec.AdGroups == nil || len(registration.Spec.AdGroups) <= 0 {
-		defaultGroup := os.Getenv(OperatorDefaultUserGroupEnvironmentVariable)
+		defaultGroup := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
 		if defaultGroup == "" {
-			err := fmt.Errorf("cannot obtain ad-group as %s has not been set for the operator", OperatorDefaultUserGroupEnvironmentVariable)
+			err := fmt.Errorf("cannot obtain ad-group as %s has not been set for the operator", defaults.OperatorDefaultUserGroupEnvironmentVariable)
 			return []string{}, err
 		}
 
