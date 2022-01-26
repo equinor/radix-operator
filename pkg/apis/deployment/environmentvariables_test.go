@@ -56,7 +56,7 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	testEnv := setupTextEnv()
 	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {

@@ -206,7 +206,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 			continue
 		}
 
-		componentName, ok := NewRadixComponentNameFromLabels(existingSecret)
+		componentName, ok := RadixComponentNameFromComponentLabel(existingSecret)
 		if !ok {
 			continue
 		}
@@ -321,7 +321,7 @@ func (deploy *Deployment) listSecretsForVolumeMounts(component radixv1.RadixComm
 }
 
 func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error) {
-	secrets, err := deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), &labelSelector)
+	secrets, err := deploy.kubeutil.ListSecretsWithSelector(deploy.radixDeployment.GetNamespace(), labelSelector)
 
 	if err != nil {
 		return nil, err
@@ -333,7 +333,7 @@ func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error
 func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName string, isExternalAlias bool) error {
 	secretType := v1.SecretType(kube.SecretTypeOpaque)
 	if isExternalAlias {
-		secretType = v1.SecretType("kubernetes.io/tls")
+		secretType = "kubernetes.io/tls"
 	}
 
 	secret := v1.Secret{

@@ -1302,13 +1302,11 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("").
-				WithReplicas(test.IntPtr(0)).
-				WithSecrets([]string{"a_secret"}),
+				WithReplicas(test.IntPtr(0)),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
-				WithPublicPort("http").
-				WithSecrets([]string{"a_secret"})))
+				WithPublicPort("http")))
 
 	assert.NoError(t, err)
 
@@ -2140,64 +2138,64 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	teardownTest()
 }
 
-func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T) {
-	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-
-	// Setup
-	client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
-		context.TODO(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      ingressConfigurationMap,
-				Namespace: corev1.NamespaceDefault,
-			},
-			Data: map[string]string{
-				"ingressConfiguration": testIngressConfiguration,
-			},
-		},
-		metav1.CreateOptions{})
-
-	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
-	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-		WithAppName("any-app").
-		WithEnvironment("dev").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("frontend").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithDNSAppAlias(true).
-				WithIngressConfiguration("non-existing")))
-
-	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-		WithAppName("any-app-2").
-		WithEnvironment("dev").
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName("frontend").
-				WithPort("http", 8080).
-				WithPublicPort("http").
-				WithDNSAppAlias(true).
-				WithIngressConfiguration("socket")))
-
-	// Test
-	ingresses, _ := client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
-	appAliasIngress := getIngressByName("any-app-url-alias", ingresses)
-	clusterSpecificIngress := getIngressByName("frontend", ingresses)
-	activeClusterIngress := getIngressByName("frontend-active-cluster-url-alias", ingresses)
-	assert.Equal(t, 1, len(appAliasIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 1, len(clusterSpecificIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 1, len(activeClusterIngress.ObjectMeta.Annotations))
-
-	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(context.TODO(), metav1.ListOptions{})
-	appAliasIngress = getIngressByName("any-app-2-url-alias", ingresses)
-	clusterSpecificIngress = getIngressByName("frontend", ingresses)
-	activeClusterIngress = getIngressByName("frontend-active-cluster-url-alias", ingresses)
-	assert.Equal(t, 4, len(appAliasIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 4, len(clusterSpecificIngress.ObjectMeta.Annotations))
-	assert.Equal(t, 4, len(activeClusterIngress.ObjectMeta.Annotations))
-
-}
+//func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T) {
+//	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+//
+//	// Setup
+//	client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
+//		context.TODO(),
+//		&corev1.ConfigMap{
+//			ObjectMeta: metav1.ObjectMeta{
+//				Name:      ingressConfigurationMap,
+//				Namespace: corev1.NamespaceDefault,
+//			},
+//			Data: map[string]string{
+//				"ingressConfiguration": testIngressConfiguration,
+//			},
+//		},
+//		metav1.CreateOptions{})
+//
+//	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+//	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+//		WithAppName("any-app").
+//		WithEnvironment("dev").
+//		WithComponents(
+//			utils.NewDeployComponentBuilder().
+//				WithName("frontend").
+//				WithPort("http", 8080).
+//				WithPublicPort("http").
+//				WithDNSAppAlias(true).
+//				WithIngressConfiguration("non-existing")))
+//
+//	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+//		WithAppName("any-app-2").
+//		WithEnvironment("dev").
+//		WithComponents(
+//			utils.NewDeployComponentBuilder().
+//				WithName("frontend").
+//				WithPort("http", 8080).
+//				WithPublicPort("http").
+//				WithDNSAppAlias(true).
+//				WithIngressConfiguration("socket")))
+//
+//	// Test
+//	ingresses, _ := client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
+//	appAliasIngress := getIngressByName("any-app-url-alias", ingresses)
+//	clusterSpecificIngress := getIngressByName("frontend", ingresses)
+//	activeClusterIngress := getIngressByName("frontend-active-cluster-url-alias", ingresses)
+//	assert.Equal(t, 1, len(appAliasIngress.ObjectMeta.Annotations))
+//	assert.Equal(t, 1, len(clusterSpecificIngress.ObjectMeta.Annotations))
+//	assert.Equal(t, 1, len(activeClusterIngress.ObjectMeta.Annotations))
+//
+//	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(context.TODO(), metav1.ListOptions{})
+//	appAliasIngress = getIngressByName("any-app-2-url-alias", ingresses)
+//	clusterSpecificIngress = getIngressByName("frontend", ingresses)
+//	activeClusterIngress = getIngressByName("frontend-active-cluster-url-alias", ingresses)
+//	assert.Equal(t, 4, len(appAliasIngress.ObjectMeta.Annotations))
+//	assert.Equal(t, 4, len(clusterSpecificIngress.ObjectMeta.Annotations))
+//	assert.Equal(t, 4, len(activeClusterIngress.ObjectMeta.Annotations))
+//
+//}
 
 func TestHPAConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
