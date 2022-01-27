@@ -56,7 +56,7 @@ func Test_GetEnvironmentVariables(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testEnv := setupTextEnv()
+	testEnv := setupTestEnv()
 	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {
@@ -87,7 +87,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 	appName := "any-app"
 	envName := "dev"
 	componentName := "any-component"
-	testEnv := setupTextEnv()
+	testEnv := setupTestEnv()
 	defer teardownTest()
 
 	t.Run("Get env vars", func(t *testing.T) {
@@ -131,7 +131,7 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	envName := "dev"
 	namespace := utils.GetEnvironmentNamespace(appName, env)
 	componentName := "any-component"
-	testEnv := setupTextEnv()
+	testEnv := setupTestEnv()
 	defer teardownTest()
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
 		//goland:noinspection GoUnhandledErrorResult
@@ -270,7 +270,7 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 		t.Parallel()
 		for _, testCase := range scenarios {
 			t.Logf("Test case: %s", testCase.name)
-			testEnv := setupTextEnv()
+			testEnv := setupTestEnv()
 			rd := testEnv.applyRd(t, appName, envName, componentName, func(componentBuilder *utils.DeployComponentBuilder) {
 				(*componentBuilder).
 					WithEnvironmentVariables(testCase.envVars).
@@ -353,7 +353,7 @@ func (testEnv *testEnvProps) applyRd(t *testing.T, appName string, envName strin
 	return rd
 }
 
-func setupTextEnv() *testEnvProps {
+func setupTestEnv() *testEnvProps {
 	testEnv := testEnvProps{}
 	testEnv.testUtil, testEnv.kubeclient, testEnv.kubeUtil, testEnv.radixclient, testEnv.prometheusclient, testEnv.secretproviderclient = setupTest()
 	return &testEnv
