@@ -20,8 +20,8 @@ func newJobSchedulerComponent(jobComponent *v1.RadixDeployJobComponent, rd *v1.R
 	}
 }
 
-func (js *jobSchedulerComponent) GetType() string {
-	return defaults.RadixComponentTypeJobScheduler
+func (js *jobSchedulerComponent) GetType() v1.RadixComponentType {
+	return v1.RadixComponentTypeJobScheduler
 }
 
 func (js *jobSchedulerComponent) GetImage() string {
@@ -57,6 +57,10 @@ func (js *jobSchedulerComponent) GetEnvironmentVariables() v1.EnvVarsMap {
 
 func (js *jobSchedulerComponent) GetSecrets() []string {
 	return nil
+}
+
+func (js *jobSchedulerComponent) GetSecretRefs() v1.RadixSecretRefs {
+	return v1.RadixSecretRefs{}
 }
 
 func (js *jobSchedulerComponent) GetMonitoring() bool {

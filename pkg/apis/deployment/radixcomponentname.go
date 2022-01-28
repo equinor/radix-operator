@@ -11,12 +11,21 @@ import (
 // RadixComponentName defines values for radix-component label
 type RadixComponentName string
 
-// NewRadixComponentNameFromLabels returns RadixComponentName from labels defined for the object
-func NewRadixComponentNameFromLabels(object metav1.Object) (componentName RadixComponentName, ok bool) {
+// RadixComponentNameFromComponentLabel returns RadixComponentName from object's radix-component label
+func RadixComponentNameFromComponentLabel(object metav1.Object) (componentName RadixComponentName, ok bool) {
+	return radixComponentNameFromLabel(object, kube.RadixComponentLabel)
+}
+
+// RadixComponentNameFromAuxComponentLabel returns RadixComponentName from object's radix-aux-component label
+func RadixComponentNameFromAuxComponentLabel(object metav1.Object) (componentName RadixComponentName, ok bool) {
+	return radixComponentNameFromLabel(object, kube.RadixAuxiliaryComponentLabel)
+}
+
+func radixComponentNameFromLabel(object metav1.Object, label string) (componentName RadixComponentName, ok bool) {
 	var nameLabelValue string
 	labels := object.GetLabels()
 
-	nameLabelValue, labelOk := labels[kube.RadixComponentLabel]
+	nameLabelValue, labelOk := labels[label]
 	if !labelOk {
 		return "", false
 	}

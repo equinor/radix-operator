@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	kube "github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
@@ -39,32 +39,35 @@ type DeploymentSyncer interface {
 
 // Deployment Instance variables
 type Deployment struct {
-	kubeclient              kubernetes.Interface
-	radixclient             radixclient.Interface
-	kubeutil                *kube.Kube
-	prometheusperatorclient monitoring.Interface
-	registration            *v1.RadixRegistration
-	radixDeployment         *v1.RadixDeployment
-	securityContextBuilder  SecurityContextBuilder
+	kubeclient                 kubernetes.Interface
+	radixclient                radixclient.Interface
+	kubeutil                   *kube.Kube
+	prometheusperatorclient    monitoring.Interface
+	registration               *v1.RadixRegistration
+	radixDeployment            *v1.RadixDeployment
+	securityContextBuilder     SecurityContextBuilder
+	auxResourceManagers        []AuxiliaryResourceManager
+	ingressAnnotationProviders []IngressAnnotationProvider
+	tenantId                   string
 }
 
-// NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusperatorclient monitoring.Interface,
-	registration *v1.RadixRegistration,
-	radixDeployment *v1.RadixDeployment,
-	forceRunAsNonRoot bool) DeploymentSyncer {
+// Test if NewDeployment implements DeploymentSyncerFactory
+var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeployment)
 
+// NewDeployment Constructor
+func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, forceRunAsNonRoot bool, tenantId string, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
 	return &Deployment{
-		kubeclient,
-		radixclient,
-		kubeutil,
-		prometheusperatorclient,
-		registration,
-		radixDeployment,
-		NewSecurityContextBuilder(forceRunAsNonRoot)}
+		kubeclient:                 kubeclient,
+		radixclient:                radixclient,
+		kubeutil:                   kubeutil,
+		prometheusperatorclient:    prometheusperatorclient,
+		registration:               registration,
+		radixDeployment:            radixDeployment,
+		securityContextBuilder:     NewSecurityContextBuilder(forceRunAsNonRoot),
+		auxResourceManagers:        auxResourceManagers,
+		ingressAnnotationProviders: ingressAnnotationProviders,
+		tenantId:                   tenantId,
+	}
 }
 
 // GetDeploymentComponent Gets the index  of and the component given name
@@ -79,7 +82,10 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
 func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
-	components := GetRadixComponentsForEnv(config, env, componentImages)
+	components, err := GetRadixComponentsForEnv(config, env, componentImages)
+	if err != nil {
+		return v1.RadixDeployment{}, err
+	}
 	jobs := NewJobComponentsBuilder(config, env, componentImages).JobComponents()
 	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, components, jobs)
 	return radixDeployment, nil
@@ -110,15 +116,13 @@ func (deploy *Deployment) OnSync() error {
 		return nil
 	}
 
-	err = deploy.syncDeployment()
-
-	if err == nil {
-		// Only remove old RDs if deployment is successful
-		deploy.maintainHistoryLimit()
-		metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
+	if err := deploy.syncDeployment(); err != nil {
+		return err
 	}
 
-	return err
+	deploy.maintainHistoryLimit()
+	metrics.RequestedResources(deploy.registration, deploy.radixDeployment)
+	return nil
 }
 
 // IsRadixDeploymentInactive checks if deployment is inactive
@@ -203,6 +207,10 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("failed to perform garbage collection of removed components: %v", err)
 	}
 
+	if err := deploy.garbageCollectAuxiliaryResources(); err != nil {
+		return fmt.Errorf("failed to perform auxiliary resource garbage collection: %v", err)
+	}
+
 	deploy.configureRbac()
 
 	err = deploy.createOrUpdateSecrets(deploy.registration, deploy.radixDeployment)
@@ -235,9 +243,22 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when syncing of components
 	if len(errs) > 0 {
-		return errorUtils.Concat(errs)
+		return errors.Concat(errs)
 	}
 
+	if err := deploy.syncAuxiliaryResources(); err != nil {
+		return fmt.Errorf("failed to sync auxiliary resource : %v", err)
+	}
+
+	return nil
+}
+
+func (deploy *Deployment) syncAuxiliaryResources() error {
+	for _, aux := range deploy.auxResourceManagers {
+		if err := aux.Sync(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -401,6 +422,15 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 	return nil
 }
 
+func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
+	for _, aux := range deploy.auxResourceManagers {
+		if err := aux.GarbageCollect(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
@@ -450,17 +480,6 @@ func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeploy
 	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure), string(v1.MountTypeFileCsiAzure))
 }
 
-func getRadixJobSchedulerImage() (string, error) {
-	image := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-
-	if image == "" {
-		err := fmt.Errorf("cannot obtain radix-job-builder image tag as %s has not been set for the operator", defaults.OperatorRadixJobSchedulerEnvironmentVariable)
-		log.Error(err)
-	}
-
-	return image, nil
-}
-
 func (deploy *Deployment) maintainHistoryLimit() {
 	historyLimit := strings.TrimSpace(os.Getenv(defaults.DeploymentsHistoryLimitEnvironmentVariable))
 	if historyLimit == "" {
@@ -505,17 +524,20 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		log.Infof("Failed to create deployment: %v", err)
 		return fmt.Errorf("failed to create deployment: %v", err)
 	}
+
 	err = deploy.createOrUpdateHPA(component)
 	if err != nil {
 		log.Infof("Failed to create horizontal pod autoscaler: %v", err)
 		return fmt.Errorf("failed to create deployment: %v", err)
 	}
+
 	err = deploy.createOrUpdateService(component)
 	if err != nil {
 		log.Infof("Failed to create service: %v", err)
 		return fmt.Errorf("failed to create service: %v", err)
 	}
-	if component.GetPublicPort() != "" || component.IsPublic() {
+
+	if component.IsPublic() {
 		err = deploy.createOrUpdateIngress(component)
 		if err != nil {
 			log.Infof("Failed to create ingress: %v", err)
@@ -542,5 +564,6 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 			return fmt.Errorf("failed to delete servicemonitor: %v", err)
 		}
 	}
+
 	return nil
 }

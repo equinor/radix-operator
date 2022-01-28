@@ -10,6 +10,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithImage(string) RadixApplicationJobComponentBuilder
 	WithPort(string, int32) RadixApplicationJobComponentBuilder
 	WithSecrets(...string) RadixApplicationJobComponentBuilder
+	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationJobComponentBuilder
 	WithEnvironmentConfig(RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithEnvironmentConfigs(...RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationJobComponentBuilder
@@ -17,6 +18,8 @@ type RadixApplicationJobComponentBuilder interface {
 	WithSchedulerPort(*int32) RadixApplicationJobComponentBuilder
 	WithPayloadPath(*string) RadixApplicationJobComponentBuilder
 	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
+	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder
+	WithTimeLimitSeconds(*int64) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -27,12 +30,20 @@ type radixApplicationJobComponentBuilder struct {
 	image             string
 	ports             map[string]int32
 	secrets           []string
+	secretRefs        v1.RadixSecretRefs
 	environmentConfig []RadixJobComponentEnvironmentConfigBuilder
 	variables         v1.EnvVarsMap
 	resources         v1.ResourceRequirements
 	schedulerPort     *int32
 	payloadPath       *string
 	node              v1.RadixNode
+	volumes           []v1.RadixVolumeMount
+	timeLimitSeconds  *int64
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
+	rcb.timeLimitSeconds = timeLimitSeconds
+	return rcb
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithName(name string) RadixApplicationJobComponentBuilder {
@@ -57,6 +68,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithImage(image string) RadixApp
 
 func (rcb *radixApplicationJobComponentBuilder) WithSecrets(secrets ...string) RadixApplicationJobComponentBuilder {
 	rcb.secrets = secrets
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixApplicationJobComponentBuilder {
+	rcb.secretRefs = secretRefs
 	return rcb
 }
 
@@ -111,6 +127,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithNode(node v1.RadixNode) Radi
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder {
+	rcb.volumes = volumeMounts
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	componentPorts := make([]v1.ComponentPort, 0)
 	for key, value := range rcb.ports {
@@ -134,12 +155,14 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Image:             rcb.image,
 		Ports:             componentPorts,
 		Secrets:           rcb.secrets,
+		SecretRefs:        rcb.secretRefs,
 		EnvironmentConfig: environmentConfig,
 		Variables:         rcb.variables,
 		Resources:         rcb.resources,
 		SchedulerPort:     rcb.schedulerPort,
 		Payload:           payload,
 		Node:              rcb.node,
+		TimeLimitSeconds:  rcb.timeLimitSeconds,
 	}
 }
 

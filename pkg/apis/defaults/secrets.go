@@ -38,7 +38,29 @@ const (
 	// CsiAzureCredsAccountNamePart Account name part of secret data
 	CsiAzureCredsAccountNamePart = "accountname"
 
-	csiAzureCreds = "%s-%s-csiazurecreds" // <componentname>-<radixvolumemountname>-csiazurecreds
+	// OAuthCookieSecretKeyName defines the name of the key which holds the secret used by OAuth to encrypt the session cookie
+	OAuthCookieSecretKeyName = "CookieSecret"
+
+	// OAuthClientSecretKeyName defines the name of the key which holds the OAuth clientid secret
+	OAuthClientSecretKeyName = "ClientSecret"
+
+	// OAuthRedisPasswordKeyName defines the name of the key which holds the Redis password used by OAuth to store session data
+	OAuthRedisPasswordKeyName = "RedisPassword"
+
+	csiAzureCreds         = "%s-%s-csiazurecreds" // <componentname>-<radixvolumemountname>-csiazurecreds
+	csiAzureKeyVaultCreds = "%s-%s-csiazkvcreds"  // <componentname>-<azure-keyvault-name>-csiazkvcreds
+
+	// CsiAzureKeyVaultCredsClientIdSuffix Client ID suffix of secret listed
+	CsiAzureKeyVaultCredsClientIdSuffix = "-azkv-clientid"
+
+	// CsiAzureKeyVaultCredsClientSecretSuffix Client secret suffix of secret listed
+	CsiAzureKeyVaultCredsClientSecretSuffix = "-azkv-clientsecret"
+
+	// CsiAzureKeyVaultCredsClientIdPart Client ID part of secret data for Azure Key Vault
+	CsiAzureKeyVaultCredsClientIdPart = "clientid"
+
+	// CsiAzureKeyVaultCredsClientSecretPart Client secret part of secret data for Azure Key Vault
+	CsiAzureKeyVaultCredsClientSecretPart = "clientsecret"
 )
 
 // GetBlobFuseCredsSecretName Helper method
@@ -49,4 +71,9 @@ func GetBlobFuseCredsSecretName(componentName string, volumeMountName string) st
 // GetCsiAzureCredsSecretName Helper method
 func GetCsiAzureCredsSecretName(componentName, radixVolumeMountName string) string {
 	return fmt.Sprintf(csiAzureCreds, componentName, radixVolumeMountName)
+}
+
+// GetCsiAzureKeyVaultCredsSecretName Helper method
+func GetCsiAzureKeyVaultCredsSecretName(componentName, azureKeyVaultName string) string {
+	return fmt.Sprintf(csiAzureKeyVaultCreds, componentName, azureKeyVaultName)
 }

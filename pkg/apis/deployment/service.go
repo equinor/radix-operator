@@ -18,9 +18,12 @@ func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDe
 
 func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	services, err := deploy.kubeutil.ListServices(deploy.radixDeployment.GetNamespace())
+	if err != nil {
+		return err
+	}
 
 	for _, service := range services {
-		componentName, ok := NewRadixComponentNameFromLabels(service)
+		componentName, ok := RadixComponentNameFromComponentLabel(service)
 		if !ok {
 			continue
 		}
@@ -46,7 +49,9 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 }
 
 func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
-	ownerReference := getOwnerReferenceOfDeployment(radixDeployment)
+	ownerReference := []metav1.OwnerReference{
+		getOwnerReferenceOfDeployment(radixDeployment),
+	}
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{

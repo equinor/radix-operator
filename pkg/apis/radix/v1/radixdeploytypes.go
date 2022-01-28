@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -87,6 +85,7 @@ type RadixDeployComponent struct {
 	PublicPort              string                  `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	EnvironmentVariables    EnvVarsMap              `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets                 []string                `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	IngressConfiguration    []string                `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
 	DNSAppAlias             bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
 	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
@@ -103,8 +102,8 @@ func (deployComponent *RadixDeployComponent) GetName() string {
 	return deployComponent.Name
 }
 
-func (deployComponent *RadixDeployComponent) GetType() string {
-	return defaults.RadixComponentTypeComponent
+func (deployComponent *RadixDeployComponent) GetType() RadixComponentType {
+	return RadixComponentTypeComponent
 }
 
 func (deployComponent *RadixDeployComponent) GetImage() string {
@@ -121,6 +120,10 @@ func (deployComponent *RadixDeployComponent) GetEnvironmentVariables() EnvVarsMa
 
 func (deployComponent *RadixDeployComponent) GetSecrets() []string {
 	return deployComponent.Secrets
+}
+
+func (deployComponent *RadixDeployComponent) GetSecretRefs() RadixSecretRefs {
+	return deployComponent.SecretRefs
 }
 
 func (deployComponent *RadixDeployComponent) GetMonitoring() bool {
@@ -175,6 +178,10 @@ func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
 }
 
+func (deployComponent *RadixDeployComponent) GetTimeLimitSeconds() *int64 {
+	return nil
+}
+
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
 	return deployComponent.Authentication
 }
@@ -191,8 +198,8 @@ func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetType() string {
-	return defaults.RadixComponentTypeJobScheduler
+func (deployJobComponent *RadixDeployJobComponent) GetType() RadixComponentType {
+	return RadixComponentTypeJobScheduler
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
@@ -209,6 +216,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetEnvironmentVariables() Env
 
 func (deployJobComponent *RadixDeployJobComponent) GetSecrets() []string {
 	return deployJobComponent.Secrets
+}
+
+func (deployComponent *RadixDeployJobComponent) GetSecretRefs() RadixSecretRefs {
+	return deployComponent.SecretRefs
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetMonitoring() bool {
@@ -228,7 +239,8 @@ func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() b
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetReplicas() *int {
-	return numbers.IntPtr(1)
+	replicas := 1
+	return &replicas
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetHorizontalScaling() *RadixHorizontalScaling {
@@ -263,6 +275,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetTimeLimitSeconds() *int64 {
+	return deployJobComponent.TimeLimitSeconds
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
 	return nil
 }
@@ -290,10 +306,12 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 // The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name" yaml:"name"`
+	Environment             string                    `json:"environment" yaml:"environment"`
 	Image                   string                    `json:"image" yaml:"image"`
 	Ports                   []ComponentPort           `json:"ports" yaml:"ports"`
 	EnvironmentVariables    EnvVarsMap                `json:"environmentVariables,omitempty" yaml:"environmentVariables,omitempty"`
 	Secrets                 []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	Monitoring              bool                      `json:"monitoring" yaml:"monitoring"`
 	Resources               ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
@@ -302,16 +320,25 @@ type RadixDeployJobComponent struct {
 	RunAsNonRoot            bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
+	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 }
+
+type RadixComponentType string
+
+const (
+	RadixComponentTypeComponent    RadixComponentType = "component"
+	RadixComponentTypeJobScheduler RadixComponentType = "job"
+)
 
 //RadixCommonDeployComponent defines a common component interface a RadixDeployment
 type RadixCommonDeployComponent interface {
 	GetName() string
-	GetType() string
+	GetType() RadixComponentType
 	GetImage() string
 	GetPorts() []ComponentPort
 	GetEnvironmentVariables() EnvVarsMap
 	GetSecrets() []string
+	GetSecretRefs() RadixSecretRefs
 	GetMonitoring() bool
 	GetResources() *ResourceRequirements
 	GetVolumeMounts() []RadixVolumeMount
@@ -328,6 +355,7 @@ type RadixCommonDeployComponent interface {
 	GetAuthentication() *Authentication
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
+	GetTimeLimitSeconds() *int64
 }
 
 //RadixCommonDeployComponentFactory defines a common component factory

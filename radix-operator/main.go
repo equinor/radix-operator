@@ -4,20 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/metrics"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -30,15 +28,20 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/registration"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 const (
-	resyncPeriod = 0
-	threadiness  = 1
+	resyncPeriod            = 0
+	threadiness             = 1
+	ingressConfigurationMap = "radix-operator-ingress-configmap"
 )
 
 var logger *log.Entry
@@ -53,7 +56,7 @@ func main() {
 	default:
 		logger.Logger.SetLevel(log.InfoLevel)
 	}
-	client, radixClient, prometheusOperatorClient := utils.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient()
 
 	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	logger.Printf("Active cluster name: %v", activeclusternameEnvVar)
@@ -65,12 +68,12 @@ func main() {
 
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
-	go startRegistrationController(client, radixClient, eventRecorder, stop)
-	go startApplicationController(client, radixClient, eventRecorder, stop)
-	go startEnvironmentController(client, radixClient, eventRecorder, stop)
-	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
-	go startJobController(client, radixClient, eventRecorder, stop)
-	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop)
+	go startRegistrationController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient)
+	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient)
+	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -78,11 +81,7 @@ func main() {
 	<-sigTerm
 }
 
-func startRegistrationController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -90,6 +89,7 @@ func startRegistrationController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -123,11 +123,7 @@ func startRegistrationController(
 	}
 }
 
-func startApplicationController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -135,6 +131,7 @@ func startApplicationController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -164,11 +161,7 @@ func startApplicationController(
 	}
 }
 
-func startEnvironmentController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -176,6 +169,7 @@ func startEnvironmentController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -206,12 +200,7 @@ func startEnvironmentController(
 	}
 }
 
-func startDeploymentController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	prometheusOperatorClient monitoring.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -219,15 +208,33 @@ func startDeploymentController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
 
+	oauthDefaultConfig := defaults.NewOAuth2Config(
+		defaults.WithOAuth2Defaults(),
+		defaults.WithOIDCIssuerURL(os.Getenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable)),
+	)
+	ingressConfiguration, err := loadIngressConfigFromMap(kubeUtil)
+	if err != nil {
+		panic(fmt.Errorf("failed to load ingress configuration: %v", err))
+	}
+
+	oauth2DockerImage := os.Getenv(defaults.RadixOAuthProxyImageEnvironmentVariable)
+	if oauth2DockerImage == "" {
+		panic(fmt.Errorf("failed to read OAuth2 Docker image from environment variable %s", defaults.RadixOAuthProxyImageEnvironmentVariable))
+	}
 	handler := deployment.NewHandler(client,
 		kubeUtil,
 		radixClient,
 		prometheusOperatorClient,
 		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
+		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
+		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
+		deployment.WithIngressConfiguration(ingressConfiguration),
+		deployment.WithOAuth2ProxyDockerImage(oauth2DockerImage),
 	)
 
 	waitForChildrenToSync := true
@@ -249,11 +256,7 @@ func startDeploymentController(
 	}
 }
 
-func startJobController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	syncJobStatusMetrics(radixClient)
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
@@ -262,6 +265,7 @@ func startJobController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -290,39 +294,7 @@ func startJobController(
 	}
 }
 
-func syncJobStatusMetrics(radixClient radixclient.Interface) error {
-	logger.Info("Restore vulnerability scan metrics from build job.")
-	radixJobs, err := radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
-	radixJobMap := make(map[string]v1.RadixJob)
-	for _, radixJob := range radixJobs.Items {
-		if radixJob.Status.Condition != v1.JobSucceeded {
-			continue
-		}
-		for _, env := range radixJob.Status.TargetEnvs {
-			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
-			cachedRadixJob, found := radixJobMap[appEnvKey]
-			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
-				radixJobMap[appEnvKey] = radixJob
-			}
-		}
-	}
-	for _, radixJob := range radixJobMap {
-		metrics.RadixJobVulnerabilityScan(&radixJob)
-	}
-	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
-	return nil
-}
-
-func startAlertController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	prometheusOperatorClient monitoring.Interface,
-	recorder record.EventRecorder,
-	stop <-chan struct{}) {
+func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -330,6 +302,7 @@ func startAlertController(
 	kubeUtil, _ := kube.NewWithListers(
 		client,
 		radixClient,
+		secretProviderClient,
 		kubeInformerFactory,
 		radixInformerFactory,
 	)
@@ -357,6 +330,47 @@ func startAlertController(
 	if err := alertController.Run(threadiness, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
+}
+
+func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfiguration, error) {
+	config := deploymentAPI.IngressConfiguration{}
+	configMap, err := kubeutil.GetConfigMap(metav1.NamespaceDefault, ingressConfigurationMap)
+	if err != nil {
+		return config, nil
+	}
+
+	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &config)
+	if err != nil {
+		return config, err
+	}
+	return config, nil
+}
+
+func syncJobStatusMetrics(radixClient radixclient.Interface) error {
+	logger.Info("Restore vulnerability scan metrics from build job.")
+	radixJobs, err := radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
+	radixJobMap := make(map[string]v1.RadixJob)
+	for _, radixJob := range radixJobs.Items {
+		if radixJob.Status.Condition != v1.JobSucceeded {
+			continue
+		}
+		for _, env := range radixJob.Status.TargetEnvs {
+			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
+			cachedRadixJob, found := radixJobMap[appEnvKey]
+			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
+				radixJobMap[appEnvKey] = radixJob
+			}
+		}
+	}
+	for _, radixJob := range radixJobMap {
+		metrics.RadixJobVulnerabilityScan(&radixJob)
+	}
+	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
+	return nil
 }
 
 func startMetricsServer(stop <-chan struct{}) {

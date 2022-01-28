@@ -97,19 +97,36 @@ func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSou
 		return nil, err
 	}
 
-	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
-	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent.GetName(), deployComponent.GetSecrets(), isPortPublic, deployComponent.GetPorts(), envVarsConfigMap, deployComponent.GetEnvironmentVariables()), nil
+	return getEnvironmentVariables(appName, envVarsSource, radixDeployment, deployComponent, envVarsConfigMap), nil
 }
 
-func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, componentName string, radixSecretNames []string, isPublic bool, ports []v1.ComponentPort, envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
+func getEnvironmentVariables(appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent, envVarConfigMap *corev1.ConfigMap) []corev1.EnvVar {
 	var (
 		namespace             = radixDeployment.Namespace
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
-	var envVars = getEnvVars(envVarConfigMap, deployComponentEnvVars)
-	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, isPublic, namespace, appName, componentName, ports, radixDeploymentLabels)
-	envVars = appendEnvVarsFromSecrets(envVars, radixSecretNames, utils.GetComponentSecretName(componentName))
+	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
+	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent, radixDeploymentLabels)
+	envVars = appendEnvVarsFromSecrets(envVars, deployComponent.GetSecrets(), utils.GetComponentSecretName(deployComponent.GetName()))
+	envVars = appendEnvVarsFromSecretRefs(envVars, deployComponent, radixDeployment.GetName())
+	return envVars
+}
+
+func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, deployComponent v1.RadixCommonDeployComponent, radixDeploymentName string) []corev1.EnvVar {
+	return append(envVars, getAzureKeyVaultSecretRefsAsEnvVars(deployComponent, radixDeploymentName)...)
+}
+
+func getAzureKeyVaultSecretRefsAsEnvVars(deployComponent v1.RadixCommonDeployComponent, radixDeploymentName string) []corev1.EnvVar {
+	var envVars []corev1.EnvVar
+	for _, azureKeyVault := range deployComponent.GetSecretRefs().AzureKeyVaults {
+		for _, keyVaultItem := range azureKeyVault.Items {
+			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
+			secretName := kube.GetAzureKeyVaultSecretRefSecretName(deployComponent.GetName(), radixDeploymentName, azureKeyVault.Name, kubeSecretType)
+			secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)
+			envVars = append(envVars, secretEnvVar)
+		}
+	}
 	return envVars
 }
 
@@ -128,7 +145,7 @@ func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string
 func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.EnvVarsMap) []corev1.EnvVar {
 	envVarConfigMapName := envVarConfigMap.GetName()
 	// map is not sorted, which lead to random order of env variable in deployment
-	// during stop/start/restart of a single component this lead to restart of several other components
+	// during stop/start/restart of a single component this lead to restart of other several components
 	envVarNames := getMapKeysSorted(envVarConfigMap.Data)
 	var resultEnvVars []corev1.EnvVar
 	usedConfigMapEnvVarNames := map[string]bool{}
@@ -168,30 +185,21 @@ func removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfi
 	}
 }
 
-func getEnvVarNamesSorted(envVarsMap v1.EnvVarsMap) []string {
-	var envVarNames []string
-	for k := range envVarsMap {
-		envVarNames = append(envVarNames, k)
-	}
-	sort.Strings(envVarNames)
-	return envVarNames
-}
-
-func createEnvVarWithSecretRef(componentSecretName string, secretName string) corev1.EnvVar {
+func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 	return corev1.EnvVar{
-		Name: secretName,
+		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
 			SecretKeyRef: &corev1.SecretKeySelector{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: componentSecretName,
+					Name: secretName,
 				},
-				Key: secretName,
+				Key: envVarName,
 			},
 		},
 	}
 }
 
-func createEnvVarWithConfigMapRef(envVarConfigMapName string, envVarName string) corev1.EnvVar {
+func createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName string) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name: envVarName,
 		ValueFrom: &corev1.EnvVarSource{
@@ -205,7 +213,7 @@ func createEnvVarWithConfigMapRef(envVarConfigMapName string, envVarName string)
 	}
 }
 
-func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment string, isPublic bool, namespace, appName, componentName string, ports []v1.ComponentPort, radixDeploymentLabels map[string]string) []corev1.EnvVar {
+func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVariablesSourceDecorator, currentEnvironment, namespace, appName string, deployComponent v1.RadixCommonDeployComponent, radixDeploymentLabels map[string]string) []corev1.EnvVar {
 	envVarSet := utils.NewEnvironmentVariablesSet().Init(envVars)
 	dnsZone, err := envVarsSource.getDnsZone()
 	if err != nil {
@@ -233,11 +241,12 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 	}
 	envVarSet.Add(defaults.ClusternameEnvironmentVariable, clusterName)
 	envVarSet.Add(defaults.EnvironmentnameEnvironmentVariable, currentEnvironment)
-	if isPublic {
-		canonicalHostName := getHostName(componentName, namespace, clusterName, dnsZone)
+	isPortPublic := deployComponent.GetPublicPort() != "" || deployComponent.IsPublic()
+	if isPortPublic {
+		canonicalHostName := getHostName(deployComponent.GetName(), namespace, clusterName, dnsZone)
 		publicHostName := ""
 		if isActiveCluster(clusterName) {
-			publicHostName = getActiveClusterHostName(componentName, namespace)
+			publicHostName = getActiveClusterHostName(deployComponent.GetName(), namespace)
 		} else {
 			publicHostName = canonicalHostName
 		}
@@ -245,7 +254,8 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		envVarSet.Add(defaults.CanonicalEndpointEnvironmentVariable, canonicalHostName)
 	}
 	envVarSet.Add(defaults.RadixAppEnvironmentVariable, appName)
-	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, componentName)
+	envVarSet.Add(defaults.RadixComponentEnvironmentVariable, deployComponent.GetName())
+	ports := deployComponent.GetPorts()
 	if len(ports) > 0 {
 		portNumbers, portNames := getPortNumbersAndNamesString(ports)
 		envVarSet.Add(defaults.RadixPortsEnvironmentVariable, portNumbers)

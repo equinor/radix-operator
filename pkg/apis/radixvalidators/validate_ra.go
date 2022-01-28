@@ -1,19 +1,27 @@
 package radixvalidators
 
 import (
-	"errors"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+
+	commonUtils "github.com/equinor/radix-common/utils"
+	errorUtils "github.com/equinor/radix-common/utils/errors"
+
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-	errorUtils "github.com/equinor/radix-operator/pkg/apis/utils/errors"
+
+	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
+
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -25,159 +33,11 @@ const (
 	cpuRegex          = "^[0-9]+m$"
 )
 
-var illegalVariableNamePrefixes = [...]string{"RADIX_", "RADIXOPERATOR_"}
-
-// MissingPrivateImageHubUsernameError Error when username for private image hubs is not defined
-func MissingPrivateImageHubUsernameError(server string) error {
-	return fmt.Errorf("username is required for private image hub %s", server)
-}
-
-// MissingPrivateImageHubEmailError Error when email for private image hubs is not defined
-func MissingPrivateImageHubEmailError(server string) error {
-	return fmt.Errorf("email is required for private image hub %s", server)
-}
-
-// EnvForDNSAppAliasNotDefinedError Error when env not defined
-func EnvForDNSAppAliasNotDefinedError(env string) error {
-	return fmt.Errorf("env %s refered to by dnsAppAlias is not defined", env)
-}
-
-// ComponentForDNSAppAliasNotDefinedError Error when env not defined
-func ComponentForDNSAppAliasNotDefinedError(component string) error {
-	return fmt.Errorf("component %s refered to by dnsAppAlias is not defined", component)
-}
-
-// ExternalAliasCannotBeEmptyError Structure cannot be left empty
-func ExternalAliasCannotBeEmptyError() error {
-	return errors.New("external alias cannot be empty")
-}
-
-// EnvForDNSExternalAliasNotDefinedError Error when env not defined
-func EnvForDNSExternalAliasNotDefinedError(env string) error {
-	return fmt.Errorf("env %s refered to by dnsExternalAlias is not defined", env)
-}
-
-// ComponentForDNSExternalAliasNotDefinedError Error when env not defined
-func ComponentForDNSExternalAliasNotDefinedError(component string) error {
-	return fmt.Errorf("component %s refered to by dnsExternalAlias is not defined", component)
-}
-
-// ComponentForDNSExternalAliasIsNotMarkedAsPublicError Component is not marked as public
-func ComponentForDNSExternalAliasIsNotMarkedAsPublicError(component string) error {
-	return fmt.Errorf("component %s refered to by dnsExternalAlias is not marked as public", component)
-}
-
-// EnvironmentReferencedByComponentDoesNotExistError Environment does not exists
-func EnvironmentReferencedByComponentDoesNotExistError(environment, component string) error {
-	return fmt.Errorf("env %s refered to by component %s is not defined", environment, component)
-}
-
-// InvalidPortNameLengthError Invalid resource length
-func InvalidPortNameLengthError(value string) error {
-	return fmt.Errorf("%s (%s) max length is %d", "port name", value, maxPortNameLength)
-}
-
-// InvalidPortNumberError Invalid port number
-func InvalidPortNumberError(value int32) error {
-	return fmt.Errorf("submitted configuration contains port number %d. Port numbers must be greater than or equal to %d and lower than or equal to %d", value, minimumPortNumber, maximumPortNumber)
-}
-
-// PortSpecificationCannotBeEmptyForComponentError Port cannot be empty for component
-func PortSpecificationCannotBeEmptyForComponentError(component string) error {
-	return fmt.Errorf("port specification cannot be empty for %s", component)
-}
-
-// PortNameIsRequiredForPublicComponentError Port name cannot be empty
-func PortNameIsRequiredForPublicComponentError(publicPortName, component string) error {
-	return fmt.Errorf("%s port name is required for public component %s", publicPortName, component)
-}
-
-// MultipleMatchingPortNamesError Multiple matching port names
-func MultipleMatchingPortNamesError(matchingPortName int, publicPortName, component string) error {
-	return fmt.Errorf("there are %d ports with name %s for component %s. Only 1 is allowed", matchingPortName, publicPortName, component)
-}
-
-// SchedulerPortCannotBeEmptyForJobError Scheduler port cannot be empty for job
-func SchedulerPortCannotBeEmptyForJobError(jobName string) error {
-	return fmt.Errorf("scheduler port cannot be empty for %s", jobName)
-}
-
-// PayloadPathCannotBeEmptyForJobError Payload path cannot be empty for job
-func PayloadPathCannotBeEmptyForJobError(jobName string) error {
-	return fmt.Errorf("payload path cannot be empty for %s", jobName)
-}
-
-// MemoryResourceRequirementFormatError Invalid memory resource requirement error
-func MemoryResourceRequirementFormatError(value string) error {
-	return fmt.Errorf("format of memory resource requirement %s (value %s) is wrong. Value must be a valid Kubernetes quantity", "memory", value)
-}
-
-// CPUResourceRequirementFormatError Invalid CPU resource requirement
-func CPUResourceRequirementFormatError(value string) error {
-	return fmt.Errorf("format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
-}
-
-func InvalidVerificationType(verification string) error {
-	return fmt.Errorf("invalid VerificationType (value %s)", verification)
-}
-
-// ResourceRequestOverLimitError Invalid resource requirement error
-func ResourceRequestOverLimitError(resource string, require string, limit string) error {
-	return fmt.Errorf("%s resource requirement (value %s) is larger than the limit (value %s)", resource, require, limit)
-}
-
-// InvalidResourceError Invalid resource type
-func InvalidResourceError(name string) error {
-	return fmt.Errorf("only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
-}
-
-// DuplicateExternalAliasError Cannot have duplicate external alias
-func DuplicateExternalAliasError() error {
-	return errors.New("cannot have duplicate aliases for dnsExternalAlias")
-}
-
-// InvalidBranchNameError Indicates that branch name is invalid
-func InvalidBranchNameError(branch string) error {
-	return fmt.Errorf("invalid branch name %s. See documentation for more info", branch)
-}
-
-// MaxReplicasForHPANotSetOrZeroError Indicates that minReplicas of horizontalScaling is not set or set to 0
-func MaxReplicasForHPANotSetOrZeroError(component, environment string) error {
-	return fmt.Errorf("maxReplicas is not set or set to 0 for component %s in environment %s. See documentation for more info", component, environment)
-}
-
-// MinReplicasGreaterThanMaxReplicasError Indicates that minReplicas is greater than maxReplicas
-func MinReplicasGreaterThanMaxReplicasError(component, environment string) error {
-	return fmt.Errorf("minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
-}
-
-func emptyVolumeMountTypeContainerNameOrTempPathError(component, environment string) error {
-	return fmt.Errorf("volume mount type, name, containers and temp-path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
-}
-
-func duplicateVolumeMountType(component, environment string) error {
-	return fmt.Errorf("duplicate type of volume mount type for component %s in environment %s. See documentation for more info", component, environment)
-}
-
-func duplicateContainerForVolumeMountType(storage, volumeMountType, component, environment string) error {
-	return fmt.Errorf("duplicate containers %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
-		storage, volumeMountType, component, environment)
-}
-
-func duplicatePathForVolumeMountType(path, volumeMountType, component, environment string) error {
-	return fmt.Errorf("duplicate path %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
-		path, volumeMountType, component, environment)
-}
-
-func duplicateNameForVolumeMountType(name, volumeMountType, component, environment string) error {
-	return fmt.Errorf("duplicate names %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
-		name, volumeMountType, component, environment)
-}
-
-func unknownVolumeMountTypeError(volumeMountType, component, environment string) error {
-	return fmt.Errorf("not recognized volume mount type %s for component %s in environment %s. See documentation for more info",
-		volumeMountType, component, environment)
-}
+var (
+	validOAuthSessionStoreTypes []string = []string{"", string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
+	validOAuthCookieSameSites   []string = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	illegalVariableNamePrefixes          = [...]string{"RADIX_", "RADIXOPERATOR_"}
+)
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
 func CanRadixApplicationBeInserted(client radixclient.Interface, app *radixv1.RadixApplication) (bool, error) {
@@ -199,41 +59,9 @@ func IsApplicationNameLowercase(appName string) (bool, error) {
 	return true, nil
 }
 
-//ApplicationNameNotLowercaseError Indicates that application name contains upper case letters
-func ApplicationNameNotLowercaseError(appName string) error {
-	return fmt.Errorf("application with name %s contains uppercase letters", appName)
-}
-
-// PublicImageComponentCannotHaveSourceOrDockerfileSet Error if image is set and radix config contains src or dockerfile
-func PublicImageComponentCannotHaveSourceOrDockerfileSet(componentName string) error {
-	return fmt.Errorf("component %s cannot have neither 'src' nor 'Dockerfile' set", componentName)
-}
-
-// ComponentWithDynamicTagRequiresTagInEnvironmentConfig Error if image is set with dynamic tag and tag is missing
-func ComponentWithDynamicTagRequiresTagInEnvironmentConfig(componentName string) error {
-	return fmt.Errorf("component %s with %s on image requires an image tag set on environment config",
-		componentName, radixv1.DynamicTagNameInEnvironmentConfig)
-}
-
-// ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment Error if image is set with dynamic tag and tag is missing
-func ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(componentName, environment string) error {
-	return fmt.Errorf(
-		"component %s with %s on image requires an image tag set on environment config for environment %s",
-		componentName, radixv1.DynamicTagNameInEnvironmentConfig, environment)
-}
-
-// ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag If tag is set then the dynamic tag needs to be set on the image
-func ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(componentName, environment string) error {
-	return fmt.Errorf(
-		"component %s with image tag set on environment config for environment %s requires %s on image setting",
-		componentName, environment, radixv1.DynamicTagNameInEnvironmentConfig)
-}
-
-// SecretNameConflictsWithEnvironmentVariable If secret name is the same as environment variable fail validation
-func SecretNameConflictsWithEnvironmentVariable(componentName, secretName string) error {
-	return fmt.Errorf(
-		"component %s has a secret with name %s which exists as an environment variable",
-		componentName, secretName)
+func duplicatePathForAzureKeyVault(path, azureKeyVaultName, component string) error {
+	return fmt.Errorf("duplicate path %s for Azure Key vault %s, for component %s. See documentation for more info",
+		path, azureKeyVaultName, component)
 }
 
 // CanRadixApplicationBeInsertedErrors Checks if application config is valid. Returns list of errors, if present
@@ -254,17 +82,21 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, jobErrs...)
 	}
 
+	if err = validateNoDuplicateComponentAndJobNames(app); err != nil {
+		errs = append(errs, err)
+	}
+
 	err = validateEnvNames(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	err = validateSecrets(app)
+	err = validateVariables(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	err = validateVariables(app)
+	err = validateSecrets(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -304,7 +136,7 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	if len(errs) <= 0 {
+	if len(errs) == 0 {
 		return true, nil
 	}
 	return false, errs
@@ -384,6 +216,27 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
+func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
+	names := make(map[string]int)
+	for _, comp := range app.Spec.Components {
+		names[comp.Name]++
+	}
+	for _, job := range app.Spec.Jobs {
+		names[job.Name]++
+	}
+
+	var duplicates []string
+	for k, v := range names {
+		if v > 1 {
+			duplicates = append(duplicates, k)
+		}
+	}
+	if len(duplicates) > 0 {
+		return DuplicateComponentOrJobNameError(duplicates)
+	}
+	return nil
+}
+
 func validateComponents(app *radixv1.RadixApplication) []error {
 	errs := []error{}
 	for _, component := range app.Spec.Components {
@@ -405,31 +258,28 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			}
 		}
 
-		err := validateRequiredResourceName("component name", component.Name)
+		err := validateComponentName(component.Name, "component")
 		if err != nil {
 			errs = append(errs, err)
 		}
 
 		errList := validatePorts(component.Name, component.Ports)
-		if errList != nil && len(errList) > 0 {
+		if len(errList) > 0 {
 			errs = append(errs, errList...)
 		}
 
 		errList = validatePublicPort(component)
-		if errList != nil && len(errList) > 0 {
+		if len(errList) > 0 {
 			errs = append(errs, errList...)
 		}
 
 		// Common resource requirements
 		errList = validateResourceRequirements(&component.Resources)
-		if errList != nil && len(errList) > 0 {
+		if len(errList) > 0 {
 			errs = append(errs, errList...)
 		}
 
-		err = validateAuthentication(component.Authentication)
-		if err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateAuthentication(component.Authentication)...)
 
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
@@ -443,7 +293,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			}
 
 			errList = validateResourceRequirements(&environment.Resources)
-			if errList != nil && len(errList) > 0 {
+			if len(errList) > 0 {
 				errs = append(errs, errList...)
 			}
 
@@ -452,10 +302,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
 			}
 
-			err = validateAuthentication(environment.Authentication)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			errs = append(errs, validateAuthentication(environment.Authentication)...)
 		}
 	}
 
@@ -482,7 +329,7 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 			}
 		}
 
-		err := validateRequiredResourceName("job name", job.Name)
+		err := validateComponentName(job.Name, "job")
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -497,14 +344,14 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 
 		if job.Ports != nil && len(job.Ports) > 0 {
 			errList := validatePorts(job.Name, job.Ports)
-			if errList != nil && len(errList) > 0 {
+			if len(errList) > 0 {
 				errs = append(errs, errList...)
 			}
 		}
 
 		// Common resource requirements
 		errList := validateResourceRequirements(&job.Resources)
-		if errList != nil && len(errList) > 0 {
+		if len(errList) > 0 {
 			errs = append(errs, errList...)
 		}
 
@@ -515,7 +362,7 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 			}
 
 			errList = validateResourceRequirements(&environment.Resources)
-			if errList != nil && len(errList) > 0 {
+			if len(errList) > 0 {
 				errs = append(errs, errList...)
 			}
 
@@ -529,15 +376,22 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
-func validateAuthentication(authentication *v1.Authentication) error {
+func validateAuthentication(authentication *radixv1.Authentication) []error {
+	var errors []error
 	if authentication == nil {
 		return nil
 	}
 
-	return validateClientCertificate(authentication.ClientCertificate)
+	if err := validateClientCertificate(authentication.ClientCertificate); err != nil {
+		errors = append(errors, err)
+	}
+
+	errors = append(errors, validateOAuth(authentication.OAuth2)...)
+
+	return errors
 }
 
-func validateClientCertificate(clientCertificate *v1.ClientCertificate) error {
+func validateClientCertificate(clientCertificate *radixv1.ClientCertificate) error {
 	if clientCertificate == nil {
 		return nil
 	}
@@ -545,24 +399,60 @@ func validateClientCertificate(clientCertificate *v1.ClientCertificate) error {
 	return validateVerificationType(clientCertificate.Verification)
 }
 
-func validateVerificationType(verificationType *v1.VerificationType) error {
+func validateVerificationType(verificationType *radixv1.VerificationType) error {
 	if verificationType == nil {
 		return nil
 	}
 
 	validValues := []string{
-		string(v1.VerificationTypeOff),
-		string(v1.VerificationTypeOn),
-		string(v1.VerificationTypeOptional),
-		string(v1.VerificationTypeOptionalNoCa),
+		string(radixv1.VerificationTypeOff),
+		string(radixv1.VerificationTypeOn),
+		string(radixv1.VerificationTypeOptional),
+		string(radixv1.VerificationTypeOptionalNoCa),
 	}
 
 	actualValue := string(*verificationType)
-	if !slice.ContainsString(validValues, actualValue) {
+	if !commonUtils.ContainsString(validValues, actualValue) {
 		return InvalidVerificationType(actualValue)
 	} else {
 		return nil
 	}
+}
+
+func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
+	if oauth == nil {
+		return
+	}
+
+	if len(oauth.ProxyPrefix) > 0 {
+		if oauthutil.SanitizePathPrefix(oauth.ProxyPrefix) == "/" {
+			errors = append(errors, OAuthProxyPrefixIsRootError())
+		}
+	}
+
+	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauth.SessionStoreType)) {
+		errors = append(errors, InvalidOAuthSessionStoreTypeError(string(oauth.SessionStoreType)))
+	}
+
+	if oauth.Cookie != nil {
+		if !slice.ContainsString(validOAuthCookieSameSites, string(oauth.Cookie.SameSite)) {
+			errors = append(errors, InvalidOAuthCookieSameSiteError(oauth.Cookie.SameSite))
+		}
+
+		if oauth.Cookie.Expire != "" {
+			if _, err := time.ParseDuration(oauth.Cookie.Expire); err != nil {
+				errors = append(errors, InvalidOAuthCookieExpireError(oauth.Cookie.Expire))
+			}
+		}
+
+		if oauth.Cookie.Refresh != "" {
+			if _, err := time.ParseDuration(oauth.Cookie.Refresh); err != nil {
+				errors = append(errors, InvalidOAuthCookieRefreshError(oauth.Cookie.Refresh))
+			}
+		}
+	}
+
+	return
 }
 
 func usesDynamicTaggingForDeployOnly(componentImage string) bool {
@@ -576,7 +466,7 @@ func environmentHasDynamicTaggingButImageLacksTag(environmentImageTag, component
 			!strings.HasSuffix(componentImage, radixv1.DynamicTagNameInEnvironmentConfig))
 }
 
-func validateJobSchedulerPort(job *v1.RadixJobComponent) error {
+func validateJobSchedulerPort(job *radixv1.RadixJobComponent) error {
 	if job.SchedulerPort == nil {
 		return SchedulerPortCannotBeEmptyForJobError(job.Name)
 	}
@@ -584,7 +474,7 @@ func validateJobSchedulerPort(job *v1.RadixJobComponent) error {
 	return nil
 }
 
-func validateJobPayload(job *v1.RadixJobComponent) error {
+func validateJobPayload(job *radixv1.RadixJobComponent) error {
 	if job.Payload != nil && job.Payload.Path == "" {
 		return PayloadPathCannotBeEmptyForJobError(job.Name)
 	}
@@ -592,10 +482,10 @@ func validateJobPayload(job *v1.RadixJobComponent) error {
 	return nil
 }
 
-func validatePorts(componentName string, ports []v1.ComponentPort) []error {
+func validatePorts(componentName string, ports []radixv1.ComponentPort) []error {
 	errs := []error{}
 
-	if ports == nil || len(ports) == 0 {
+	if len(ports) == 0 {
 		err := PortSpecificationCannotBeEmptyForComponentError(componentName)
 		errs = append(errs, err)
 	}
@@ -700,42 +590,66 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 			return err
 		}
 	}
-
 	for _, component := range app.Spec.Components {
-		if err := validateSecretNames("secret name", component.Secrets); err != nil {
-			return err
-		}
-
-		envVars := []radixv1.EnvVarsMap{component.Variables}
-		for _, env := range component.EnvironmentConfig {
-			envVars = append(envVars, env.Variables)
-		}
-
-		if err := validateConflictingEnvironmentAndSecretNames(component.Name, component.Secrets, envVars); err != nil {
+		if err := validateRadixComponentSecrets(&component); err != nil {
 			return err
 		}
 	}
-
 	for _, job := range app.Spec.Jobs {
-		if err := validateSecretNames("secret name", job.Secrets); err != nil {
-			return err
-		}
-
-		envVars := []radixv1.EnvVarsMap{job.Variables}
-		for _, env := range job.EnvironmentConfig {
-			envVars = append(envVars, env.Variables)
-		}
-
-		if err := validateConflictingEnvironmentAndSecretNames(job.Name, job.Secrets, envVars); err != nil {
+		if err := validateRadixComponentSecrets(&job); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
+func validateRadixComponentSecrets(component radixv1.RadixCommonComponent) error {
+	if err := validateSecretNames("secret name", component.GetSecrets()); err != nil {
+		return err
+	}
+
+	envsEnvVarsMap := make(map[string]map[string]bool)
+	for _, env := range component.GetEnvironmentConfig() {
+		envsEnvVarsMap[env.GetEnvironment()] = getEnvVarNameMap(component.GetVariables(), env.GetVariables())
+	}
+
+	if err := validateConflictingEnvironmentAndSecretNames(component.GetName(), component.GetSecrets(), envsEnvVarsMap); err != nil {
+		return err
+	}
+	for _, env := range component.GetEnvironmentConfig() {
+		envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.GetEnvironment()]
+		for _, secret := range component.GetSecrets() {
+			envsEnvVarsWithSecretsMap[secret] = true
+		}
+		envsEnvVarsMap[env.GetEnvironment()] = envsEnvVarsWithSecretsMap
+	}
+	if err := validateRadixComponentSecretRefs(component); err != nil {
+		return err
+	}
+	if err := validateConflictingEnvironmentAndSecretRefsNames(component, envsEnvVarsMap); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getEnvVarNameMap(componentEnvVarsMap radixv1.EnvVarsMap, envsEnvVarsMap radixv1.EnvVarsMap) map[string]bool {
+	envVarsMap := make(map[string]bool)
+	for name := range componentEnvVarsMap {
+		envVarsMap[name] = true
+	}
+	for name := range envsEnvVarsMap {
+		envVarsMap[name] = true
+	}
+	return envVarsMap
+}
+
 func validateSecretNames(resourceName string, secrets []string) error {
+	existingSecret := make(map[string]bool)
 	for _, secret := range secrets {
+		if _, exists := existingSecret[secret]; exists {
+			return duplicateSecretName(secret)
+		}
+		existingSecret[secret] = true
 		if err := validateVariableName(resourceName, secret); err != nil {
 			return err
 		}
@@ -743,57 +657,156 @@ func validateSecretNames(resourceName string, secrets []string) error {
 	return nil
 }
 
+func validateRadixComponentSecretRefs(radixComponent radixv1.RadixCommonComponent) error {
+	err := validateSecretRefs(radixComponent.GetName(), radixComponent.GetSecretRefs())
+	if err != nil {
+		return err
+	}
+	for _, envConfig := range radixComponent.GetEnvironmentConfig() {
+		err := validateSecretRefs(radixComponent.GetName(), envConfig.GetSecretRefs())
+		if err != nil {
+			return err
+		}
+	}
+	return validateSecretRefsPath(radixComponent)
+}
+
+func validateSecretRefs(componentName string, secretRefs radixv1.RadixSecretRefs) error {
+	existingVariableName := make(map[string]bool)
+	existingAzureKeyVaultName := make(map[string]bool)
+	existingAzureKeyVaultPath := make(map[string]bool)
+	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
+		if _, exists := existingAzureKeyVaultName[azureKeyVault.Name]; exists {
+			return duplicateAzureKeyVaultName(azureKeyVault.Name)
+		}
+		existingAzureKeyVaultName[azureKeyVault.Name] = true
+		path := azureKeyVault.Path
+		if path != nil && len(*path) > 0 {
+			if _, exists := existingAzureKeyVaultPath[*path]; exists {
+				return duplicatePathForAzureKeyVault(*path, azureKeyVault.Name, componentName)
+			}
+			existingAzureKeyVaultPath[*path] = true
+		}
+		for _, keyVaultItem := range azureKeyVault.Items {
+			if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
+				return duplicateEnvVarName(keyVaultItem.EnvVar)
+			}
+			existingVariableName[keyVaultItem.EnvVar] = true
+			if err := validateVariableName("Azure Key vault secret references environment variable name", keyVaultItem.EnvVar); err != nil {
+				return err
+			}
+			if err := validateVariableName("Azure Key vault secret references name", keyVaultItem.Name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateSecretRefsPath(radixComponent radixv1.RadixCommonComponent) error {
+	commonAzureKeyVaultPathMap := make(map[string]string)
+	for _, azureKeyVault := range radixComponent.GetSecretRefs().AzureKeyVaults {
+		path := azureKeyVault.Path
+		if path != nil && len(*path) > 0 { //set only non-empty common path
+			commonAzureKeyVaultPathMap[azureKeyVault.Name] = *path
+		}
+	}
+	for _, environmentConfig := range radixComponent.GetEnvironmentConfig() {
+		envAzureKeyVaultPathMap := make(map[string]string)
+		for commonAzureKeyVaultName, path := range commonAzureKeyVaultPathMap {
+			envAzureKeyVaultPathMap[commonAzureKeyVaultName] = path
+		}
+		for _, envAzureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
+			if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { //override common path by non-empty env-path, or set non-empty env path
+				envAzureKeyVaultPathMap[envAzureKeyVault.Name] = *envAzureKeyVault.Path
+			}
+		}
+		envPathMap := make(map[string]bool)
+		for azureKeyVaultName, path := range envAzureKeyVaultPathMap {
+			if _, existsForOtherKeyVault := envPathMap[path]; existsForOtherKeyVault {
+				return duplicatePathForAzureKeyVault(path, azureKeyVaultName, radixComponent.GetName())
+			}
+			envPathMap[path] = true
+		}
+	}
+	return nil
+}
+
 func validateVariables(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
-		if err := validateVariableNames("environment variable name", component.Variables); err != nil {
+		err := validateRadixComponentVariables(&component)
+		if err != nil {
 			return err
 		}
-
-		for _, envConfig := range component.EnvironmentConfig {
-			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
-				return err
-			}
-		}
 	}
-
 	for _, job := range app.Spec.Jobs {
-		if err := validateVariableNames("environment variable name", job.Variables); err != nil {
+		err := validateRadixComponentVariables(&job)
+		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		for _, envConfig := range job.EnvironmentConfig {
-			if err := validateVariableNames("environment variable name", envConfig.Variables); err != nil {
-				return err
-			}
-		}
+func validateRadixComponentVariables(component radixv1.RadixCommonComponent) error {
+	if err := validateVariableNames("environment variable name", component.GetVariables()); err != nil {
+		return err
 	}
 
+	for _, envConfig := range component.GetEnvironmentConfig() {
+		if err := validateVariableNames("environment variable name", envConfig.GetVariables()); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func validateVariableNames(resourceName string, variables radixv1.EnvVarsMap) error {
-	for v := range variables {
-		if err := validateVariableName(resourceName, v); err != nil {
+	existingVariableName := make(map[string]bool)
+	for envVarName := range variables {
+		if _, exists := existingVariableName[envVarName]; exists {
+			return duplicateEnvVarName(envVarName)
+		}
+		existingVariableName[envVarName] = true
+		if err := validateVariableName(resourceName, envVarName); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateConflictingEnvironmentAndSecretNames(componentName string, secrets []string, variables []radixv1.EnvVarsMap) error {
-	secretNames := make(map[string]struct{})
+func validateConflictingEnvironmentAndSecretNames(componentName string, secrets []string, envsEnvVarMap map[string]map[string]bool) error {
 	for _, secret := range secrets {
-		secretNames[secret] = struct{}{}
-	}
-
-	for _, envVars := range variables {
-		for envVarKey := range envVars {
-			if _, contains := secretNames[envVarKey]; contains {
-				return SecretNameConflictsWithEnvironmentVariable(componentName, envVarKey)
+		for _, envVarMap := range envsEnvVarMap {
+			if _, contains := envVarMap[secret]; contains {
+				return SecretNameConflictsWithEnvironmentVariable(componentName, secret)
 			}
 		}
 	}
+	return nil
+}
 
+func validateConflictingEnvironmentAndSecretRefsNames(component radixv1.RadixCommonComponent, envsEnvVarMap map[string]map[string]bool) error {
+	for _, azureKeyVault := range component.GetSecretRefs().AzureKeyVaults {
+		for _, item := range azureKeyVault.Items {
+			for _, envVarMap := range envsEnvVarMap {
+				if _, contains := envVarMap[item.EnvVar]; contains {
+					return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+				}
+			}
+		}
+	}
+	for _, environmentConfig := range component.GetEnvironmentConfig() {
+		for _, azureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
+			for _, item := range azureKeyVault.Items {
+				if envVarMap, ok := envsEnvVarMap[environmentConfig.GetEnvironment()]; ok {
+					if _, contains := envVarMap[item.EnvVar]; contains {
+						return secretRefEnvVarNameConflictsWithEnvironmentVariable(component.GetName(), item.EnvVar)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -846,9 +859,8 @@ func validateVariableName(resourceName, value string) error {
 func validateIllegalPrefixInVariableName(resourceName string, value string) error {
 	if utils.IsRadixEnvVar(value) {
 		return fmt.Errorf("%s %s can not start with prefix reserved for platform", resourceName, value)
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func validateResourceWithRegexp(resourceName, value, regexpExpression string) error {
@@ -908,7 +920,7 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 }
 
 func validateVolumeMounts(componentName, environment string, volumeMounts []radixv1.RadixVolumeMount) error {
-	if volumeMounts == nil || len(volumeMounts) == 0 {
+	if len(volumeMounts) == 0 {
 		return nil
 	}
 
@@ -925,7 +937,7 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 			{
 				return emptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
 			}
-		case v1.IsKnownVolumeMount(volumeMountType):
+		case radixv1.IsKnownVolumeMount(volumeMountType):
 			{
 				if _, exists := mountsInComponent[volumeMountType]; !exists {
 					mountsInComponent[volumeMountType] = volumeMountConfigMaps{names: make(map[string]bool), path: make(map[string]bool)}
@@ -963,21 +975,12 @@ func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
 }
 
 func doesEnvExist(app *radixv1.RadixApplication, name string) bool {
-	env := getEnv(app, name)
-	if env != nil {
-		return true
-	}
-
-	return false
+	return getEnv(app, name) != nil
 }
 
 func doesEnvExistAndIsMappedToBranch(app *radixv1.RadixApplication, name string) bool {
 	env := getEnv(app, name)
-	if env != nil && env.Build.From != "" {
-		return true
-	}
-
-	return false
+	return env != nil && env.Build.From != ""
 }
 
 func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
@@ -992,12 +995,21 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
 		if component.Name == name {
-			if component.Public || component.PublicPort != "" {
-				return true
-			}
-
-			return false
+			return component.Public || component.PublicPort != ""
 		}
 	}
 	return false
+}
+
+func validateComponentName(componentName, componentType string) error {
+	if err := validateRequiredResourceName(fmt.Sprintf("%s name", componentType), componentName); err != nil {
+		return err
+	}
+
+	for _, aux := range []string{defaults.OAuthProxyAuxiliaryComponentSuffix} {
+		if strings.HasSuffix(componentName, fmt.Sprintf("-%s", aux)) {
+			return ComponentNameReservedSuffixError(componentName, componentType, string(aux))
+		}
+	}
+	return nil
 }

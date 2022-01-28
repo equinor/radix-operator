@@ -15,7 +15,7 @@ func (deploy *Deployment) denyTrafficFromOtherNamespaces() error {
 	env := deploy.radixDeployment.Spec.Environment
 
 	ns := utils.GetEnvironmentNamespace(appName, env)
-	owner := getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	owner := []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
 
 	networkPolicy := defaultNetworkPolicy(appName, env, owner)
 

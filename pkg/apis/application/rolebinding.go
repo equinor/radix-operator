@@ -178,7 +178,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", defaults.PipelineRunnerRoleName, appName),
 			Labels: map[string]string{
-				"radixReg": appName,
+				kube.RadixAppLabel: appName,
 			},
 			OwnerReferences: ownerReference,
 		},
@@ -211,7 +211,7 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 		ObjectMeta: metav1.ObjectMeta{
 			Name: defaults.PipelineRoleName,
 			Labels: map[string]string{
-				"radixReg": appName,
+				kube.RadixAppLabel: appName,
 			},
 		},
 		RoleRef: auth.RoleRef{
@@ -309,7 +309,7 @@ func (app Application) rrPipelineClusterRoleBinding(serviceAccount *corev1.Servi
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleBindingName,
 			Labels: map[string]string{
-				"radixReg": appName,
+				kube.RadixAppLabel: appName,
 			},
 			OwnerReferences: ownerReference,
 		},
@@ -356,7 +356,7 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleBindingName,
 			Labels: map[string]string{
-				"radixReg": appName,
+				kube.RadixAppLabel: appName,
 			},
 			OwnerReferences: ownerReference,
 		},
@@ -397,7 +397,7 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleBindingName,
 			Labels: map[string]string{
-				"radixReg": appName,
+				kube.RadixAppLabel: appName,
 			},
 			OwnerReferences: ownerReference,
 		},

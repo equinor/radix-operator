@@ -12,7 +12,7 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "RADIX_APP=radix-app-satr",
+        "RADIX_APP=radix-job-demo",
         "BRANCH=main",
         "COMMIT_ID=1234",
         "IMAGE_TAG=abcdef",
@@ -70,13 +70,16 @@
         "RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE": "25%",
         "RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS": "5",
         "RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS": "10",
-        "RADIX_ACTIVE_CLUSTERNAME": "weekly-39-b",
+        "RADIX_ACTIVE_CLUSTERNAME": "weekly-49",
         "RADIX_CONFIG_TO_MAP": "radix-config-2-map:master-latest",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
         "RADIX_IMAGE_SCANNER": "radix-image-scanner:master-latest",
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler-server:main-latest",
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
         "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER": "true",
+        "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL": "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0",
+        "RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.2.0",
+        "RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0"
       },
       "args": ["--useOutClusterClient=false"]
     },

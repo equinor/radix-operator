@@ -3,6 +3,10 @@ package deployment
 import (
 	"context"
 	"fmt"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
+	"strings"
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -19,8 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	"strings"
-	"testing"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 type VolumeMountTestSuite struct {
@@ -29,11 +32,12 @@ type VolumeMountTestSuite struct {
 }
 
 type TestEnv struct {
-	kubeclient       kubernetes.Interface
-	radixclient      radixclient.Interface
-	prometheusclient prometheusclient.Interface
-	kubeUtil         *kube.Kube
-	deployment       *Deployment
+	kubeclient           kubernetes.Interface
+	radixclient          radixclient.Interface
+	secretproviderclient secretProviderClient.Interface
+	prometheusclient     prometheusclient.Interface
+	kubeUtil             *kube.Kube
+	deployment           *Deployment
 }
 
 type volumeMountTestScenario struct {
@@ -73,11 +77,12 @@ func (suite *VolumeMountTestSuite) SetupSuite() {
 
 func getTestEnv() TestEnv {
 	testEnv := TestEnv{
-		kubeclient:       kubefake.NewSimpleClientset(),
-		radixclient:      radix.NewSimpleClientset(),
-		prometheusclient: prometheusfake.NewSimpleClientset(),
+		kubeclient:           kubefake.NewSimpleClientset(),
+		radixclient:          radix.NewSimpleClientset(),
+		secretproviderclient: secretproviderfake.NewSimpleClientset(),
+		prometheusclient:     prometheusfake.NewSimpleClientset(),
 	}
-	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient)
+	kubeUtil, _ := kube.New(testEnv.kubeclient, testEnv.radixclient, testEnv.secretproviderclient)
 	testEnv.kubeUtil = kubeUtil
 	return testEnv
 }
@@ -100,7 +105,7 @@ func (suite *VolumeMountTestSuite) Test_NoVolumeMounts() {
 				WithName("app").
 				BuildComponent()
 
-			volumeMounts, _ := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, _ := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Equal(t, 0, len(volumeMounts))
 		}
 	})
@@ -126,7 +131,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			assert.Equal(t, 1, len(volumeMounts))
 			mount := volumeMounts[0]
@@ -142,7 +147,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
 				assert.Equal(t, 2, len(volumeMounts))
@@ -172,7 +177,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			assert.Equal(t, 1, len(volumeMounts))
 			mount := volumeMounts[0]
@@ -189,7 +194,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
 				BuildComponent()
 
-			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component)
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
 				assert.Equal(t, 2, len(volumeMounts))
@@ -229,7 +234,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 						testCase.radixVolumeMount}).
 					BuildComponent()
 
-				_, err := GetRadixDeployComponentVolumeMounts(component)
+				_, err := GetRadixDeployComponentVolumeMounts(component, "")
 				assert.NotNil(t, err)
 				assert.Equal(t, testCase.expectedError, err.Error())
 			}
@@ -255,7 +260,7 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 			WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
 			BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
+		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component, "")
 		assert.Nil(t, err)
 		assert.Equal(t, 1, len(volumeMounts))
 		mount := volumeMounts[0]
@@ -268,7 +273,7 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 			WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
 			BuildComponent()
 
-		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component)
+		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component, "")
 		assert.Nil(t, err)
 		for idx, testCase := range scenarios {
 			assert.Equal(t, 2, len(volumeMounts))
@@ -285,7 +290,8 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	suite.T().Run("No volumes in component", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		volumes, err := GetVolumes(testEnv.kubeclient, namespace, environment, componentName, []v1.RadixVolumeMount{})
+		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{}).BuildComponent()
+		volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 		assert.Nil(t, err)
 		assert.Len(t, volumes, 0)
 	})
@@ -313,8 +319,8 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario '%s'", scenario.name)
-			mounts := []v1.RadixVolumeMount{scenario.radixVolumeMount}
-			volumes, err := GetVolumes(testEnv.kubeclient, namespace, environment, componentName, mounts)
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			volume := volumes[0]
@@ -326,8 +332,8 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	suite.T().Run("Blobfuse-flex volume", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		mounts := []v1.RadixVolumeMount{blobFuseScenario.radixVolumeMount}
-		volumes, err := GetVolumes(testEnv.kubeclient, namespace, environment, componentName, mounts)
+		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{blobFuseScenario.radixVolumeMount}).BuildComponent()
+		volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 		assert.Nil(t, err)
 		assert.Len(t, volumes, 1)
 		volume := volumes[0]
@@ -344,8 +350,8 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range append(scenarios, blobFuseScenario) {
-			mounts := []v1.RadixVolumeMount{scenario.radixVolumeMount}
-			volumes, err := GetVolumes(testEnv.kubeclient, namespace, environment, componentName, mounts)
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			volume := volumes[0]
@@ -359,7 +365,8 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		mounts := []v1.RadixVolumeMount{
 			{Type: "unsupported-type", Name: "volume1", Container: "storage1", Path: "path1"},
 		}
-		volumes, err := GetVolumes(testEnv.kubeclient, namespace, environment, componentName, mounts)
+		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(mounts).BuildComponent()
+		volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 		assert.Len(t, volumes, 0)
 		assert.NotNil(t, err)
 		assert.Equal(t, "unsupported volume type unsupported-type", err.Error())
@@ -432,7 +439,8 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			t.Logf("Scenario '%s' for volume mount type '%s', PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
 			_, _ = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), &scenario.pvc, metav1.CreateOptions{})
 
-			volumes, err := GetVolumes(testEnv.kubeclient, namespace, environment, componentName, []v1.RadixVolumeMount{scenario.radixVolumeMount})
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
@@ -447,7 +455,8 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		for _, scenario := range scenarios {
 			t.Logf("Scenario '%s' for volume mount type '%s', PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
 
-			volumes, err := GetVolumes(testEnv.kubeclient, namespace, environment, componentName, []v1.RadixVolumeMount{scenario.radixVolumeMount})
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
@@ -602,7 +611,7 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{})
 			deployComponent := deployment.radixDeployment.Spec.Components[0]
 
-			volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent)
+			volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 0)
@@ -619,7 +628,7 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 				deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{scenario.radixVolumeMount})
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
 
-				volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent)
+				volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 				assert.Nil(t, err)
 				assert.Len(t, volumes, 1)
@@ -789,7 +798,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
 
 				//action
-				err := deployment.createOrUpdateCsiAzureResources(desiredDeployment)
+				err := deployment.createOrUpdateCsiAzureVolumeResources(desiredDeployment)
 				assert.Nil(t, err)
 
 				existingPvcs, existingScs, err := getExistingPvcsAndStorageClassesFromFakeCluster(deployment)

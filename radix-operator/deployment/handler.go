@@ -6,6 +6,7 @@ import (
 	"os"
 
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -50,6 +51,34 @@ func WithForceRunAsNonRootFromEnvVar(envVarName string) HandlerConfigOption {
 	}
 }
 
+// WithTenantIdFromEnvVar configures tenant-id for Handler from an environment variable
+func WithTenantIdFromEnvVar(envVarName string) HandlerConfigOption {
+	return func(h *Handler) {
+		h.tenantId = os.Getenv(envVarName)
+	}
+}
+
+// WithOAuth2DefaultConfig configures default OAuth2 settings
+func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
+	return func(h *Handler) {
+		h.oauth2DefaultConfig = oauth2Config
+	}
+}
+
+// WithOAuth2ProxyDockerImage configures the Docker image to use for OAuth2 proxy auxiliary component
+func WithOAuth2ProxyDockerImage(image string) HandlerConfigOption {
+	return func(h *Handler) {
+		h.oauth2ProxyDockerImage = image
+	}
+}
+
+// WithIngressConfiguration sets the list of custom ingress confiigurations
+func WithIngressConfiguration(config deployment.IngressConfiguration) HandlerConfigOption {
+	return func(h *Handler) {
+		h.ingressConfiguration = config
+	}
+}
+
 // WithDeploymentSyncerFactory configures the deploymentSyncerFactory for the Handler
 func WithDeploymentSyncerFactory(factory deployment.DeploymentSyncerFactory) HandlerConfigOption {
 	return func(h *Handler) {
@@ -65,6 +94,10 @@ type Handler struct {
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
 	forceRunAsNonRoot       bool
+	tenantId                string
+	oauth2DefaultConfig     defaults.OAuth2Config
+	oauth2ProxyDockerImage  string
+	ingressConfiguration    deployment.IngressConfiguration
 	deploymentSyncerFactory deployment.DeploymentSyncerFactory
 }
 
@@ -125,7 +158,18 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		return err
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot)
+	ingressAnnotations := []deployment.IngressAnnotationProvider{
+		deployment.NewForceSslRedirectAnnotationProvider(),
+		deployment.NewIngressConfigurationAnnotationProvider(t.ingressConfiguration),
+		deployment.NewClientCertificateAnnotationProvider(syncRD.Namespace),
+		deployment.NewOAuth2AnnotationProvider(t.oauth2DefaultConfig),
+	}
+
+	auxResourceManagers := []deployment.AuxiliaryResourceManager{
+		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
+	}
+
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, ingressAnnotations, auxResourceManagers)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

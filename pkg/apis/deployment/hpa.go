@@ -61,7 +61,7 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	}
 
 	for _, hpa := range hpas.Items {
-		componentName, ok := NewRadixComponentNameFromLabels(&hpa)
+		componentName, ok := RadixComponentNameFromComponentLabel(&hpa)
 		if !ok {
 			continue
 		}
@@ -79,7 +79,9 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 
 func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32) *autoscalingv1.HorizontalPodAutoscaler {
 	appName := deploy.radixDeployment.Spec.AppName
-	ownerReference := getOwnerReferenceOfDeployment(deploy.radixDeployment)
+	ownerReference := []metav1.OwnerReference{
+		getOwnerReferenceOfDeployment(deploy.radixDeployment),
+	}
 	cpuTarget := int32(targetCPUUtilizationPercentage)
 
 	hpa := &autoscalingv1.HorizontalPodAutoscaler{

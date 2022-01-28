@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 const (
@@ -31,9 +32,9 @@ const (
 func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
 	radixClient := fakeradix.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client, radixClient)
-
-	handlerTestUtils := test.NewTestUtils(client, radixClient)
+	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return handlerTestUtils, client, kubeUtil, radixClient
 }
@@ -106,7 +107,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
-	os.Setenv(OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
+	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
 
 	// Test
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().

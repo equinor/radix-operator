@@ -80,4 +80,12 @@ const (
 
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
+
+	// RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable Default OIDC issuer URL for OAuth Proxy
+	RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable = "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL"
+
+	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
+	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
+	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
+	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
 )

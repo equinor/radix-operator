@@ -19,6 +19,14 @@ spec:
         clientCertificate:
           verification: optional
           passCertificateToUpstream: false
+        oauth2:
+          clientId: 12cf
+          sessionStoreType: cookie
+          proxyPrefix: /oauth2/path
+          cookie:
+            refresh: 30m
+            expire: 168h
+            sameSite: "strict"
       resources:
         limits:
           memory: "128Mi"
@@ -33,6 +41,14 @@ spec:
             clientCertificate:
               verification: on
               passCertificateToUpstream: true
+            oauth2:
+              clientId: 12cf
+              sessionStoreType: cookie
+              proxyPrefix: /oauth2
+              cookie:
+                refresh: 30m
+                expire: 168h
+                sameSite: "strict"
           resources:
             limits:
               memory: "512Mi"

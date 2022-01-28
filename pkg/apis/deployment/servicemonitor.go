@@ -26,7 +26,7 @@ func (deploy *Deployment) deleteServiceMonitorForComponent(component v1.RadixCom
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		componentName, ok := NewRadixComponentNameFromLabels(serviceMonitor)
+		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
 		if ok && component.GetName() == string(componentName) {
 			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceMonitor.Name, metav1.DeleteOptions{})
 			if err != nil {
@@ -54,7 +54,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 			garbageCollectBackwardCompatibility = true
 		}
 
-		componentName, ok := NewRadixComponentNameFromLabels(serviceMonitor)
+		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
 		if !ok {
 			continue
 		}
