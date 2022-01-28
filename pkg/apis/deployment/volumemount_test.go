@@ -866,6 +866,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 	componentName1 := "component1"
 	type expectedVolumeProps struct {
 		expectedVolumeNamePrefix         string
+		expectedVolumeMountPath          string
 		expectedNodePublishSecretRefName string
 		expectedVolumeAttributePrefixes  map[string]string
 	}
@@ -898,6 +899,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			expectedVolumeProps: []expectedVolumeProps{
 				{
 					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
+					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
 					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
 					expectedVolumeAttributePrefixes: map[string]string{
 						"secretProviderClass": "component1-az-keyvault-kv1-",
@@ -911,6 +913,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			azureKeyVaults: []v1.RadixAzureKeyVault{
 				{
 					Name:  "kv1",
+					Path:  utils.StringPtr("/mnt/customPath"),
 					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
 				},
 				{
@@ -921,6 +924,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			expectedVolumeProps: []expectedVolumeProps{
 				{
 					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
+					expectedVolumeMountPath:          "/mnt/customPath",
 					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
 					expectedVolumeAttributePrefixes: map[string]string{
 						"secretProviderClass": "component1-az-keyvault-kv1-",
@@ -928,6 +932,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 				},
 				{
 					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv2-",
+					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv2",
 					expectedNodePublishSecretRefName: "component1-kv2-csiazkvcreds",
 					expectedVolumeAttributePrefixes: map[string]string{
 						"secretProviderClass": "component1-az-keyvault-kv2-",
@@ -979,6 +984,44 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 				}
 				assert.True(t, strings.Contains(volume.Name, volumeProp.expectedVolumeNamePrefix))
 				assert.Equal(t, volumeProp.expectedNodePublishSecretRefName, volume.CSI.NodePublishSecretRef.Name)
+			}
+		}
+	})
+
+	suite.T().Run("CSI Azure Key vault volume mounts", func(t *testing.T) {
+		t.Parallel()
+		for _, scenario := range scenarios {
+			testEnv := getTestEnv()
+			deployment := getDeployment(testEnv)
+			deployment.radixDeployment = buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
+				var builders []utils.DeployComponentBuilder
+				builders = append(builders, utils.NewDeployComponentBuilder().
+					WithName(scenario.componentName).
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
+				return builders
+			})
+			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
+			for _, azureKeyVault := range scenario.azureKeyVaults {
+				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
+				if err != nil {
+					t.Logf(err.Error())
+				} else {
+					t.Logf("created secret provider class %s", spc.Name)
+				}
+			}
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(radixDeployComponent, deployment.radixDeployment.GetName())
+			assert.Nil(t, err)
+			assert.Len(t, volumeMounts, len(scenario.expectedVolumeProps))
+			if len(scenario.expectedVolumeProps) == 0 {
+				continue
+			}
+
+			for i := 0; i < len(volumeMounts); i++ {
+				volumeMount := volumeMounts[i]
+				volumeProp := scenario.expectedVolumeProps[i]
+				assert.True(t, strings.Contains(volumeMount.Name, volumeProp.expectedVolumeNamePrefix))
+				assert.Equal(t, volumeProp.expectedVolumeMountPath, volumeMount.MountPath)
+				assert.True(t, volumeMount.ReadOnly)
 			}
 		}
 	})

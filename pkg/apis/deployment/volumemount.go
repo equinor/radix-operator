@@ -114,9 +114,10 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 			}
 		}
 		for kubeSecretType := range k8sSecretTypeMap {
-			secretName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
+			volumeMountName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      secretName,
+				Name:      volumeMountName,
+				ReadOnly:  true,
 				MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
 			})
 		}

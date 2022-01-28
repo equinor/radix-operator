@@ -127,22 +127,33 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
 			allSecretProviderClasses, _ := testEnv.secretproviderclient.SecretsstoreV1().SecretProviderClasses(envNamespace).List(context.TODO(), metav1.ListOptions{})
 			secretProviderClasses := allSecretProviderClasses.Items
+			validatedSecretProviderClassesCount := 0
 
 			assert.Equal(t, len(scenario.radixSecretRefs.AzureKeyVaults), len(secretProviderClasses))
 
 			for _, azureKeyVault := range scenario.radixSecretRefs.AzureKeyVaults {
 				expectedClassName := kube.GetComponentSecretProviderClassName(rd.Name, scenario.componentName, v1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
 				secretProviderClass := getSecretProviderClassByName(expectedClassName, secretProviderClasses)
+				validatedSecretProviderClassesCount++
 				assert.NotNil(t, secretProviderClass, "Missing secret provider class for Azure Key vault")
-				secretParamsObjects, objectParamsExist := secretProviderClass.Spec.Parameters["objects"]
-				assert.True(t, objectParamsExist)
-				assert.True(t, len(secretParamsObjects) > 0)
-				//TODO
+				usePodIdentitySecretParam, usePodIdentityParamExists := secretProviderClass.Spec.Parameters["usePodIdentity"]
+				assert.True(t, usePodIdentityParamExists)
+				assert.Equal(t, "false", usePodIdentitySecretParam)
+				keyvaultNameSecretParam, keyvaultNameParamsExists := secretProviderClass.Spec.Parameters["keyvaultName"]
+				assert.True(t, keyvaultNameParamsExists)
+				assert.Equal(t, azureKeyVault.Name, keyvaultNameSecretParam)
+				tenantIdSecretParam, tenantIdParamsExists := secretProviderClass.Spec.Parameters["tenantId"]
+				assert.True(t, tenantIdParamsExists)
+				assert.Equal(t, testTenantId, tenantIdSecretParam)
+				objectsSecretParam, objectsSecretParamExists := secretProviderClass.Spec.Parameters["objects"]
+				assert.True(t, objectsSecretParamExists)
+				assert.True(t, len(objectsSecretParam) > 0)
 				assert.Len(t, secretProviderClass.Spec.SecretObjects, 1)
 				secretObject := secretProviderClass.Spec.SecretObjects[0]
-				assert.Equal(t, expectedClassName, secretObject.SecretName)
+				expectedSecretRefSecretName := kube.GetAzureKeyVaultSecretRefSecretName(scenario.componentName, rd.Name, azureKeyVault.Name, kube.SecretTypeOpaque)
+				assert.Equal(t, expectedSecretRefSecretName, secretObject.SecretName)
 				assert.Equal(t, string(kube.SecretTypeOpaque), secretObject.Type)
-				assert.Equal(t, len(azureKeyVault.Items), secretObject.Data)
+				assert.Equal(t, len(azureKeyVault.Items), len(secretObject.Data))
 				secretObjectItemMap := make(map[string]*secretsstorev1.SecretObjectData)
 				for _, item := range secretObject.Data {
 					item := item
@@ -154,9 +165,11 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 						assert.Fail(t, fmt.Sprintf("missing data item for EnvVar %s", keyVaultItem.EnvVar))
 					}
 					assert.Equal(t, keyVaultItem.Name, dataItem.ObjectName)
-					assert.True(t, strings.Contains(secretParamsObjects, dataItem.ObjectName))
+					assert.True(t, strings.Contains(objectsSecretParam, dataItem.ObjectName))
 				}
 			}
+
+			assert.Equal(t, validatedSecretProviderClassesCount, len(secretProviderClasses), "Not all secretProviderClasses where validated")
 		}
 	})
 }
