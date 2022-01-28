@@ -279,7 +279,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
-		errs = append(errs, validateAuthentication(component.Authentication)...)
+		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
@@ -301,8 +301,6 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 				errs = append(errs,
 					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
 			}
-
-			errs = append(errs, validateAuthentication(environment.Authentication)...)
 		}
 	}
 
@@ -376,18 +374,41 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
-func validateAuthentication(authentication *radixv1.Authentication) []error {
+func validateAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment) []error {
 	var errors []error
-	if authentication == nil {
+	componentAuth := component.Authentication
+	if componentAuth == nil {
 		return nil
 	}
 
-	if err := validateClientCertificate(authentication.ClientCertificate); err != nil {
-		errors = append(errors, err)
+	envAuthConfigGetter := func(name string) *radixv1.Authentication {
+		for _, envConfig := range component.EnvironmentConfig {
+			if envConfig.Environment == name {
+				return envConfig.Authentication
+			}
+		}
+		return nil
 	}
 
-	errors = append(errors, validateOAuth(authentication.OAuth2)...)
+	for _, environment := range environments {
+		environmentAuth := envAuthConfigGetter(environment.Name)
+		if componentAuth == nil && environmentAuth == nil {
+			continue
+		}
+		combinedAuth, err := deployment.GetAuthenticationForComponent(componentAuth, environmentAuth)
+		if err != nil {
+			errors = append(errors, err)
+		}
+		if combinedAuth == nil {
+			continue
+		}
 
+		if err := validateClientCertificate(combinedAuth.ClientCertificate); err != nil {
+			errors = append(errors, err)
+		}
+
+		errors = append(errors, validateOAuth(combinedAuth.OAuth2)...)
+	}
 	return errors
 }
 
@@ -424,30 +445,43 @@ func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
 		return
 	}
 
-	if len(oauth.ProxyPrefix) > 0 {
-		if oauthutil.SanitizePathPrefix(oauth.ProxyPrefix) == "/" {
+	oauthWithDefaults, err := defaults.NewOAuth2Config(defaults.WithOAuth2Defaults()).MergeWith(oauth)
+	if err != nil {
+		errors = append(errors, err)
+		return
+	}
+
+	// Validate clientId is set
+	// Validate expire>refresh
+	// Validate expire>0
+	// Validate expire=0 when sessionStoreType=cookie and cookieStore.minimal=true
+	// Validate connectionUrl is set when sessionStoreType=redis
+	// Validate loginUrl, redeemUrl and jwksUrl is set when skipDiscovery=true
+
+	if len(oauthWithDefaults.ProxyPrefix) > 0 {
+		if oauthutil.SanitizePathPrefix(oauthWithDefaults.ProxyPrefix) == "/" {
 			errors = append(errors, OAuthProxyPrefixIsRootError())
 		}
 	}
 
-	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauth.SessionStoreType)) {
-		errors = append(errors, InvalidOAuthSessionStoreTypeError(string(oauth.SessionStoreType)))
+	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
+		errors = append(errors, InvalidOAuthSessionStoreTypeError(string(oauthWithDefaults.SessionStoreType)))
 	}
 
-	if oauth.Cookie != nil {
-		if !slice.ContainsString(validOAuthCookieSameSites, string(oauth.Cookie.SameSite)) {
-			errors = append(errors, InvalidOAuthCookieSameSiteError(oauth.Cookie.SameSite))
+	if oauthWithDefaults.Cookie != nil {
+		if !slice.ContainsString(validOAuthCookieSameSites, string(oauthWithDefaults.Cookie.SameSite)) {
+			errors = append(errors, InvalidOAuthCookieSameSiteError(oauthWithDefaults.Cookie.SameSite))
 		}
 
-		if oauth.Cookie.Expire != "" {
-			if _, err := time.ParseDuration(oauth.Cookie.Expire); err != nil {
-				errors = append(errors, InvalidOAuthCookieExpireError(oauth.Cookie.Expire))
+		if oauthWithDefaults.Cookie.Expire != "" {
+			if _, err := time.ParseDuration(oauthWithDefaults.Cookie.Expire); err != nil {
+				errors = append(errors, InvalidOAuthCookieExpireError(oauthWithDefaults.Cookie.Expire))
 			}
 		}
 
-		if oauth.Cookie.Refresh != "" {
-			if _, err := time.ParseDuration(oauth.Cookie.Refresh); err != nil {
-				errors = append(errors, InvalidOAuthCookieRefreshError(oauth.Cookie.Refresh))
+		if oauthWithDefaults.Cookie.Refresh != "" {
+			if _, err := time.ParseDuration(oauthWithDefaults.Cookie.Refresh); err != nil {
+				errors = append(errors, InvalidOAuthCookieRefreshError(oauthWithDefaults.Cookie.Refresh))
 			}
 		}
 	}
