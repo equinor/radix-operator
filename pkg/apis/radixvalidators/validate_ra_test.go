@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/errors"
-	numbers "github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
@@ -1288,6 +1289,8 @@ func Test_SecretRefs(t *testing.T) {
 	prodEnvName := "prod"
 	anyBranchName1 := "some-branch1"
 	anyBranchName2 := "some-branch2"
+	path1 := "/mnt/path1"
+	path2 := "/mnt/path2"
 
 	var testScenarios = []struct {
 		name                 string
@@ -1463,6 +1466,461 @@ func Test_SecretRefs(t *testing.T) {
 			},
 			isValid:    false,
 			isErrorNil: false,
+		},
+		{
+			name: "secret-refs AzureKeyVault item env-vars in two envs have no colliding names in same component",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVault item env-vars in two envs have no colliding names in same job",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVault item env-vars in two different components same envs have no colliding names in different components",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})),
+				createComponentBuilder("c2").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVault item env-vars in two different components same envs have no colliding names in different jobs",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})),
+				createJobComponentBuilder("c2").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+									{Name: "secret2", EnvVar: "SECRET_REF1"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in two different components same envs have no colliding path in different components",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})),
+				createComponentBuilder("c2").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in two different components same envs have no colliding path in different jobs",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})),
+				createJobComponentBuilder("c2").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in two different envs have no colliding path in same components",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in two different envs have no colliding path in same jobs",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in two different envs have no colliding path in same components",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in two different envs have no colliding path in same jobs",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in common conf and env have no colliding path in same components",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1",
+							Path: commonUtils.StringPtr(path1),
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "VAR1"},
+							},
+						},
+					}}).
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs AzureKeyVaults in common conf and envs have no colliding path in same jobs",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1",
+							Path: commonUtils.StringPtr(path1),
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "VAR1"},
+							},
+						},
+					}}).
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs of two AzureKeyVaults in common conf have no colliding path in same component",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1",
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "VAR1"},
+							},
+						},
+						{
+							Name: "kv2",
+							Path: commonUtils.StringPtr(path1),
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "VAR2"},
+							},
+						},
+						{
+							Name: "kv3",
+							Path: commonUtils.StringPtr(path2),
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "VAR3"},
+							},
+						},
+					}}),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs of two AzureKeyVaults in common conf have no colliding path in same jobs",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+							{
+								Name: "kv2",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+							{
+								Name: "kv3",
+								Path: commonUtils.StringPtr(path2),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR3"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs of two AzureKeyVaults in common conf have no colliding path in same component",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "secret-refs of two AzureKeyVaults in common conf have no colliding path in same jobs",
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("c1").
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(devEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR1"},
+								},
+							},
+						}})).
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(prodEnvName).
+						WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{
+								Name: "kv1",
+								Path: commonUtils.StringPtr(path1),
+								Items: []v1.RadixAzureKeyVaultItem{
+									{Name: "secret1", EnvVar: "VAR2"},
+								},
+							},
+						}})),
+			},
+			isValid:    true,
+			isErrorNil: true,
 		},
 	}
 
