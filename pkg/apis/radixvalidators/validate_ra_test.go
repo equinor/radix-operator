@@ -7,6 +7,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/errors"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -474,20 +475,115 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Name = name50charsLong
 			ra.Spec.Environments = append(ra.Spec.Environments, v1.Environment{Name: "extra-14-chars"})
 		}},
-		{"invalid OAuth session store type", radixvalidators.InvalidOAuthSessionStoreTypeError("invalid-store"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.SessionStoreType = "invalid-store"
+		{"missing OAuth clientId for dev env - common OAuth config", radixvalidators.OAuthClientIdEmptyError(validRAFirstComponentName, "dev"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].Authentication.OAuth2 = &v1.OAuth2{}
 		}},
-		{"invalid OAuth cookie same site", radixvalidators.InvalidOAuthCookieSameSiteError("invalid-samesite"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.Cookie.SameSite = "invalid-samesite"
+		{"missing OAuth clientId for prod env - environmentConfig OAuth config", radixvalidators.OAuthClientIdEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.ClientID = ""
 		}},
 		{"OAuth path prefix is root", radixvalidators.OAuthProxyPrefixIsRootError(), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.ProxyPrefix = "/"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.ProxyPrefix = "/"
 		}},
-		{"invalid OAuth cookie expire timeframe", radixvalidators.InvalidOAuthCookieExpireError("invalid-expire"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.Cookie.Expire = "invalid-expire"
+		{"invalid OAuth session store type", radixvalidators.OAuthSessionStoreTypeInvalidError(validRAFirstComponentName, "prod", "invalid-store"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = "invalid-store"
 		}},
-		{"invalid OAuth cookie refresh time frame", radixvalidators.InvalidOAuthCookieRefreshError("invalid-refresh"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.Cookie.Refresh = "invalid-refresh"
+		{"missing OAuth redisStore property", radixvalidators.OAuthRedisStoreEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedisStore = nil
+		}},
+		{"missing OAuth redis connection URL", radixvalidators.OAuthRedisStoreConnectionURLEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedisStore.ConnectionURL = ""
+		}},
+		{"no error when skipDiscovery=true and login, redeem and jwks urls set", nil, func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+				JWKSURL:       "jwksurl",
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
+		}},
+		{"error when skipDiscovery=true and missing loginUrl", radixvalidators.OAuthLoginUrlEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+				JWKSURL:       "jwksurl",
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
+		}},
+		{"error when skipDiscovery=true and missing redeemUrl", radixvalidators.OAuthRedeemUrlEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+				JWKSURL:       "jwksurl",
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
+		}},
+		{"error when skipDiscovery=true and missing redeemUrl", radixvalidators.OAuthOidcJwksUrlEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
+		}},
+		{"valid OAuth configuration for session store cookie and cookieStore.minimal=true", nil, func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "0s",
+			}
+		}},
+		{"error when cookieStore.minimal=true and SetAuthorizationHeader=true", radixvalidators.OAuthCookieStoreMinimalIncorrectSetAuthorizationHeaderError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "0s",
+			}
+		}},
+		{"error when cookieStore.minimal=true and SetXAuthRequestHeaders=true", radixvalidators.OAuthCookieStoreMinimalIncorrectSetXAuthRequestHeadersError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "0s",
+			}
+		}},
+		{"error when cookieStore.minimal=true and Cookie.Refresh>0", radixvalidators.OAuthCookieStoreMinimalIncorrectCookieRefreshIntervalError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "1s",
+			}
+		}},
+		{"invalid OAuth cookie same site", radixvalidators.OAuthCookieSameSiteInvalidError(validRAFirstComponentName, "prod", "invalid-samesite"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.SameSite = "invalid-samesite"
+		}},
+		{"invalid OAuth cookie expire timeframe", radixvalidators.OAuthCookieExpireInvalidError(validRAFirstComponentName, "prod", "invalid-expire"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "invalid-expire"
+		}},
+		{"negative OAuth cookie expire timeframe", radixvalidators.OAuthCookieExpireInvalidError(validRAFirstComponentName, "prod", "-1s"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "-1s"
+		}},
+		{"invalid OAuth cookie refresh time frame", radixvalidators.OAuthCookieRefreshInvalidError(validRAFirstComponentName, "prod", "invalid-refresh"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "invalid-refresh"
+		}},
+		{"negative OAuth cookie refresh time frame", radixvalidators.OAuthCookieRefreshInvalidError(validRAFirstComponentName, "prod", "-1s"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "-1s"
+		}},
+		{"oauth cookie expire equals refresh", radixvalidators.OAuthCookieExpireEqualLessThanRefreshError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "1h"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
+		}},
+		{"oauth cookie expire less than refresh", radixvalidators.OAuthCookieExpireEqualLessThanRefreshError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
 		}},
 		{"duplicate name in job/component boundary", radixvalidators.DuplicateComponentOrJobNameError([]string{validRAFirstComponentName}), func(ra *v1.RadixApplication) {
 			job := *ra.Spec.Jobs[0].DeepCopy()

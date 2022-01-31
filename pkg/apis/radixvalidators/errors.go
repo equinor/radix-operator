@@ -236,25 +236,113 @@ func InvalidConfigBranchName(configBranch string) error {
 	return fmt.Errorf("config branch name is not valid (value: %s)", configBranch)
 }
 
+// *********** OAuth2 config errors ***********
+
+func oauthRequiredPropertyEmptyError(componentName, environmentName, propertyName string) error {
+	return fmt.Errorf("required property %s in oauth2 configuration for component %s in environment %s is not set", propertyName, componentName, environmentName)
+}
+
+func oauthPropertyInvalidValueError(componentName, environmentName, propertyName, value string) error {
+	return fmt.Errorf("invalid value '%s' for property %s in oauth2 configuration for component %s in environment %s", value, propertyName, componentName, environmentName)
+}
+
+func oauthRequiredPropertyEmptyWithConditionError(componentName, environmentName, propertyName, conditionText string) error {
+	return fmt.Errorf("property %s in oauth2 configuration for component %s in environment %s must be set when %s", propertyName, componentName, environmentName, conditionText)
+}
+
+func oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, propertyName string) error {
+	return oauthRequiredPropertyEmptyWithConditionError(componentName, environmentName, propertyName, "oidc.skipDiscovery is true")
+}
+
+func oauthRequiredPropertyEmptyWithSessionStoreRedisError(componentName, environmentName, propertyName string) error {
+	return oauthRequiredPropertyEmptyWithConditionError(componentName, environmentName, propertyName, "sessionStoreType is redis")
+}
+
+func oauthCookieStoreMinimalIncorrectPropertyValueError(componentName, environmentName, propertyName, expectedValue string) error {
+	return fmt.Errorf("oauth2 property %s must be %s when cookieStore.minimal is true for component %s in environment %s", propertyName, expectedValue, componentName, environmentName)
+}
+
+func OAuthClientIdEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyError(componentName, environmentName, "clientId")
+}
+
+func OAuthProxyPrefixEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyError(componentName, environmentName, "proxyPrefix")
+}
+
 func OAuthProxyPrefixIsRootError() error {
 	return fmt.Errorf("oauth2 proxy prefix cannot be root path")
 }
 
-func InvalidOAuthSessionStoreTypeError(actualSessionStoreType string) error {
-	return fmt.Errorf("invalid session store type '%s'", actualSessionStoreType)
+func OAuthOidcJwksUrlEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.jwksurl")
 }
 
-func InvalidOAuthCookieSameSiteError(actualSameSite radixv1.CookieSameSiteType) error {
-	return fmt.Errorf("invalid cookie samesite '%s'", actualSameSite)
+func OAuthLoginUrlEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.jwksurl")
 }
 
-func InvalidOAuthCookieExpireError(actualExpire string) error {
-	return fmt.Errorf("invalid cookie expire timeframe '%s'", actualExpire)
+func OAuthRedeemUrlEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.jwksurl")
 }
 
-func InvalidOAuthCookieRefreshError(actualRefresh string) error {
-	return fmt.Errorf("invalid cookie refresh duration '%s'", actualRefresh)
+func OAuthOidcEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyError(componentName, environmentName, "oidc")
 }
+
+func OAuthOidcSkipDiscoveryEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyError(componentName, environmentName, "oidc.skipDiscovery")
+}
+
+func OAuthRedisStoreEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyWithSessionStoreRedisError(componentName, environmentName, "redisStore")
+}
+
+func OAuthRedisStoreConnectionURLEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyWithSessionStoreRedisError(componentName, environmentName, "redisStore.connectionUrl")
+}
+
+func OAuthCookieEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyError(componentName, environmentName, "cookie")
+}
+
+func OAuthCookieNameEmptyError(componentName, environmentName string) error {
+	return oauthRequiredPropertyEmptyError(componentName, environmentName, "cookie.name")
+}
+
+func OAuthCookieStoreMinimalIncorrectCookieRefreshIntervalError(componentName, environmentName string) error {
+	return oauthCookieStoreMinimalIncorrectPropertyValueError(componentName, environmentName, "cookie.refresh", "0")
+}
+
+func OAuthCookieStoreMinimalIncorrectSetXAuthRequestHeadersError(componentName, environmentName string) error {
+	return oauthCookieStoreMinimalIncorrectPropertyValueError(componentName, environmentName, "setXAuthRequestHeaders", "false")
+}
+
+func OAuthCookieStoreMinimalIncorrectSetAuthorizationHeaderError(componentName, environmentName string) error {
+	return oauthCookieStoreMinimalIncorrectPropertyValueError(componentName, environmentName, "setAuthorizationHeader", "false")
+}
+
+func OAuthSessionStoreTypeInvalidError(componentName, environmentName string, actualSessionStoreType radixv1.SessionStoreType) error {
+	return oauthPropertyInvalidValueError(componentName, environmentName, "cookie.name", string(actualSessionStoreType))
+}
+
+func OAuthCookieSameSiteInvalidError(componentName, environmentName string, actualSameSite radixv1.CookieSameSiteType) error {
+	return oauthPropertyInvalidValueError(componentName, environmentName, "cookie.name", string(actualSameSite))
+}
+
+func OAuthCookieExpireInvalidError(componentName, environmentName, actualExpire string) error {
+	return oauthPropertyInvalidValueError(componentName, environmentName, "cookie.expire", actualExpire)
+}
+
+func OAuthCookieRefreshInvalidError(componentName, environmentName, actualRefresh string) error {
+	return oauthPropertyInvalidValueError(componentName, environmentName, "cookie.refresh", actualRefresh)
+}
+
+func OAuthCookieExpireEqualLessThanRefreshError(componentName, environmentName string) error {
+	return fmt.Errorf("oauth2 cookie.expire must be greater than cookie.refresh for component %s in environment %s", componentName, environmentName)
+}
+
+// ********************************************
 
 func DuplicateComponentOrJobNameError(duplicates []string) error {
 	return fmt.Errorf("duplicate component/job names %s not allowed", duplicates)

@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes []string = []string{"", string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
+	validOAuthSessionStoreTypes []string = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
 	validOAuthCookieSameSites   []string = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
 	illegalVariableNamePrefixes          = [...]string{"RADIX_", "RADIXOPERATOR_"}
 )
@@ -407,7 +407,7 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 			errors = append(errors, err)
 		}
 
-		errors = append(errors, validateOAuth(combinedAuth.OAuth2)...)
+		errors = append(errors, validateOAuth(combinedAuth.OAuth2, component.GetName(), environment.Name)...)
 	}
 	return errors
 }
@@ -440,7 +440,7 @@ func validateVerificationType(verificationType *radixv1.VerificationType) error 
 	}
 }
 
-func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
+func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string) (errors []error) {
 	if oauth == nil {
 		return
 	}
@@ -451,37 +451,95 @@ func validateOAuth(oauth *radixv1.OAuth2) (errors []error) {
 		return
 	}
 
-	// Validate clientId is set
-	// Validate expire>refresh
-	// Validate expire>0
-	// Validate expire=0 when sessionStoreType=cookie and cookieStore.minimal=true
-	// Validate connectionUrl is set when sessionStoreType=redis
-	// Validate loginUrl, redeemUrl and jwksUrl is set when skipDiscovery=true
-
-	if len(oauthWithDefaults.ProxyPrefix) > 0 {
-		if oauthutil.SanitizePathPrefix(oauthWithDefaults.ProxyPrefix) == "/" {
-			errors = append(errors, OAuthProxyPrefixIsRootError())
-		}
+	// Validate ClientID
+	if len(strings.TrimSpace(oauthWithDefaults.ClientID)) == 0 {
+		errors = append(errors, OAuthClientIdEmptyError(componentName, environmentName))
 	}
 
+	// Validate ProxyPrefix
+	if len(strings.TrimSpace(oauthWithDefaults.ProxyPrefix)) == 0 {
+		errors = append(errors, OAuthProxyPrefixEmptyError(componentName, environmentName))
+	} else if oauthutil.SanitizePathPrefix(oauthWithDefaults.ProxyPrefix) == "/" {
+		errors = append(errors, OAuthProxyPrefixIsRootError())
+	}
+
+	// Validate SessionStoreType
 	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
-		errors = append(errors, InvalidOAuthSessionStoreTypeError(string(oauthWithDefaults.SessionStoreType)))
+		errors = append(errors, OAuthSessionStoreTypeInvalidError(componentName, environmentName, oauthWithDefaults.SessionStoreType))
 	}
 
-	if oauthWithDefaults.Cookie != nil {
-		if !slice.ContainsString(validOAuthCookieSameSites, string(oauthWithDefaults.Cookie.SameSite)) {
-			errors = append(errors, InvalidOAuthCookieSameSiteError(oauthWithDefaults.Cookie.SameSite))
+	// Validate RedisStore
+	if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreRedis {
+		if redisStore := oauthWithDefaults.RedisStore; redisStore == nil {
+			errors = append(errors, OAuthRedisStoreEmptyError(componentName, environmentName))
+		} else if len(strings.TrimSpace(redisStore.ConnectionURL)) == 0 {
+			errors = append(errors, OAuthRedisStoreConnectionURLEmptyError(componentName, environmentName))
 		}
+	}
 
-		if oauthWithDefaults.Cookie.Expire != "" {
-			if _, err := time.ParseDuration(oauthWithDefaults.Cookie.Expire); err != nil {
-				errors = append(errors, InvalidOAuthCookieExpireError(oauthWithDefaults.Cookie.Expire))
+	// Validate OIDC config
+	if oidc := oauthWithDefaults.OIDC; oidc == nil {
+		errors = append(errors, OAuthOidcEmptyError(componentName, environmentName))
+	} else {
+		if oidc.SkipDiscovery == nil {
+			errors = append(errors, OAuthOidcSkipDiscoveryEmptyError(componentName, environmentName))
+		} else if *oidc.SkipDiscovery {
+			// Validate URLs when SkipDiscovery=true
+			if len(strings.TrimSpace(oidc.JWKSURL)) == 0 {
+				errors = append(errors, OAuthOidcJwksUrlEmptyError(componentName, environmentName))
+			}
+			if len(strings.TrimSpace(oauthWithDefaults.LoginURL)) == 0 {
+				errors = append(errors, OAuthLoginUrlEmptyError(componentName, environmentName))
+			}
+			if len(strings.TrimSpace(oauthWithDefaults.RedeemURL)) == 0 {
+				errors = append(errors, OAuthRedeemUrlEmptyError(componentName, environmentName))
 			}
 		}
+	}
 
-		if oauthWithDefaults.Cookie.Refresh != "" {
-			if _, err := time.ParseDuration(oauthWithDefaults.Cookie.Refresh); err != nil {
-				errors = append(errors, InvalidOAuthCookieRefreshError(oauthWithDefaults.Cookie.Refresh))
+	// Validate Cookie
+	if cookie := oauthWithDefaults.Cookie; cookie == nil {
+		errors = append(errors, OAuthCookieEmptyError(componentName, environmentName))
+	} else {
+		if len(strings.TrimSpace(cookie.Name)) == 0 {
+			errors = append(errors, OAuthCookieNameEmptyError(componentName, environmentName))
+		}
+		if !slice.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
+			errors = append(errors, OAuthCookieSameSiteInvalidError(componentName, environmentName, cookie.SameSite))
+		}
+
+		// Validate Expire and Refresh
+		expireValid, refreshValid := true, true
+
+		expire, err := time.ParseDuration(cookie.Expire)
+		if err != nil || expire < 0 {
+			errors = append(errors, OAuthCookieExpireInvalidError(componentName, environmentName, cookie.Expire))
+			expireValid = false
+		}
+		refresh, err := time.ParseDuration(cookie.Refresh)
+		if err != nil || refresh < 0 {
+			errors = append(errors, OAuthCookieRefreshInvalidError(componentName, environmentName, cookie.Refresh))
+			refreshValid = false
+		}
+
+		// Verify expire > refresh
+		if expireValid && refreshValid && !(expire > refresh) {
+			errors = append(errors, OAuthCookieExpireEqualLessThanRefreshError(componentName, environmentName))
+		}
+
+		// Verify required configuration when sessionStore=cookie and cookieStore.minimal=true
+		if oauthWithDefaults.SessionStoreType == radixv1.SessionStoreCookie && oauthWithDefaults.CookieStore != nil && oauthWithDefaults.CookieStore.Minimal != nil && *oauthWithDefaults.CookieStore.Minimal {
+			// Refresh must be 0
+			if refreshValid && refresh != 0 {
+				errors = append(errors, OAuthCookieStoreMinimalIncorrectCookieRefreshIntervalError(componentName, environmentName))
+			}
+			// SetXAuthRequestHeaders must be false
+			if oauthWithDefaults.SetXAuthRequestHeaders == nil || *oauthWithDefaults.SetXAuthRequestHeaders {
+				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetXAuthRequestHeadersError(componentName, environmentName))
+			}
+			// SetAuthorizationHeader must be false
+			if oauthWithDefaults.SetAuthorizationHeader == nil || *oauthWithDefaults.SetAuthorizationHeader {
+				errors = append(errors, OAuthCookieStoreMinimalIncorrectSetAuthorizationHeaderError(componentName, environmentName))
 			}
 		}
 	}
