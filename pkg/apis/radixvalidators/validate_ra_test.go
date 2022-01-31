@@ -5,10 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
 	"github.com/equinor/radix-common/utils/errors"
-
+	numbers "github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -1281,6 +1280,138 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			assert.Equal(t, testcase.isErrorNil, isErrorNil)
 		})
 	}
+}
+
+func Test_SecretRefs(t *testing.T) {
+	testAppName := "testapp"
+	devEnvName := "dev"
+	prodEnvName := "prod"
+	anyBranchName1 := "some-branch1"
+	anyBranchName2 := "some-branch2"
+
+	var testScenarios = []struct {
+		name                 string
+		componentBuilders    []utils.RadixApplicationComponentBuilder
+		jobComponentBuilders []utils.RadixApplicationJobComponentBuilder
+		isValid              bool
+		isErrorNil           bool
+	}{
+		{
+			name: "env-var, secrets and secret-refs AzureKeyVault item env-vars have not colliding names",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithCommonEnvironmentVariable("VAR1", "var1").
+					WithSecrets("SECRET1").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1",
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "SECRET_REF1"},
+							},
+						},
+					}}),
+				createComponentBuilder("c2").
+					WithCommonEnvironmentVariable("VAR1", "var1").
+					WithCommonEnvironmentVariable("VAR2", "var2").
+					WithSecrets("SECRET1", "SECRET2").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1",
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "SECRET_REF1"},
+								{Name: "secret2", EnvVar: "SECRET_REF2"},
+							},
+						},
+					}}),
+			},
+			jobComponentBuilders: []utils.RadixApplicationJobComponentBuilder{
+				createJobComponentBuilder("j1").
+					WithCommonEnvironmentVariable("VAR1", "var1").
+					WithSecrets("SECRET1").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1", Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "SECRET_REF1"},
+							},
+						},
+					}}),
+				createJobComponentBuilder("j2").
+					WithCommonEnvironmentVariable("VAR1", "var1").
+					WithCommonEnvironmentVariable("VAR3", "var3").
+					WithSecrets("SECRET1", "SECRET3").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1", Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "SECRET_REF1"},
+								{Name: "secret1", EnvVar: "SECRET_REF3"},
+							},
+						},
+					}}),
+			},
+			isValid:    true,
+			isErrorNil: true,
+		},
+		{
+			name: "env-var and secret-refs AzureKeyVault item env-vars have colliding names in same component",
+			componentBuilders: []utils.RadixApplicationComponentBuilder{
+				createComponentBuilder("c1").
+					WithCommonEnvironmentVariable("VAR1", "var1").
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+						{
+							Name: "kv1",
+							Items: []v1.RadixAzureKeyVaultItem{
+								{Name: "secret1", EnvVar: "VAR1"},
+							},
+						},
+					}}),
+			},
+			isValid:    false,
+			isErrorNil: false,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, scenario := range testScenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			ra := utils.NewRadixApplicationBuilder().
+				WithAppName(testAppName).
+				WithEnvironment(devEnvName, anyBranchName1).
+				WithEnvironment(prodEnvName, anyBranchName2).
+				WithComponents(scenario.componentBuilders...).
+				WithJobComponents(scenario.jobComponentBuilders...).
+				BuildRA()
+			isValid, err := radixvalidators.CanRadixApplicationBeInserted(client, ra)
+			isErrorNil := false
+			if err == nil {
+				isErrorNil = true
+			}
+
+			assert.Equal(t, scenario.isValid, isValid)
+			assert.Equal(t, scenario.isErrorNil, isErrorNil, getErrorMessage(err))
+		})
+	}
+}
+
+func getErrorMessage(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func createComponentBuilder(componentName string) utils.RadixApplicationComponentBuilder {
+	return utils.NewApplicationComponentBuilder().
+		WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment("dev")).
+		WithName(componentName).
+		WithPort("p", 8000)
+}
+
+func createJobComponentBuilder(jobName string) utils.RadixApplicationJobComponentBuilder {
+	return utils.NewApplicationJobComponentBuilder().
+		WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment("dev")).
+		WithName(jobName).
+		WithPort("p", 8000).
+		WithSchedulerPort(numbers.Int32Ptr(8001))
 }
 
 func createValidRA() *v1.RadixApplication {
