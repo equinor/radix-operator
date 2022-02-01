@@ -481,7 +481,7 @@ func Test_invalid_ra(t *testing.T) {
 		{"missing OAuth clientId for prod env - environmentConfig OAuth config", radixvalidators.OAuthClientIdEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.ClientID = ""
 		}},
-		{"OAuth path prefix is root", radixvalidators.OAuthProxyPrefixIsRootError(), func(rr *v1.RadixApplication) {
+		{"OAuth path prefix is root", radixvalidators.OAuthProxyPrefixIsRootError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.ProxyPrefix = "/"
 		}},
 		{"invalid OAuth session store type", radixvalidators.OAuthSessionStoreTypeInvalidError(validRAFirstComponentName, "prod", "invalid-store"), func(rr *v1.RadixApplication) {

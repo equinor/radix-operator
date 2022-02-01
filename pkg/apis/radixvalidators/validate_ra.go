@@ -460,7 +460,7 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 	if len(strings.TrimSpace(oauthWithDefaults.ProxyPrefix)) == 0 {
 		errors = append(errors, OAuthProxyPrefixEmptyError(componentName, environmentName))
 	} else if oauthutil.SanitizePathPrefix(oauthWithDefaults.ProxyPrefix) == "/" {
-		errors = append(errors, OAuthProxyPrefixIsRootError())
+		errors = append(errors, OAuthProxyPrefixIsRootError(componentName, environmentName))
 	}
 
 	// Validate SessionStoreType
