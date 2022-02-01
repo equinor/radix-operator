@@ -77,7 +77,11 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixRegistration, _ := obj.(*v1.RadixRegistration)
+			radixRegistration, converted := obj.(*v1.RadixRegistration)
+			if !converted || radixRegistration == nil {
+				logger.Errorf("v1.RadixRegistration object cast failed during deleted event received.")
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixRegistration)
 			if err == nil {
 				logger.Debugf("Registration object deleted event received for %s. Do nothing", key)
