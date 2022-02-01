@@ -34,9 +34,8 @@ const (
 )
 
 var (
-	validOAuthSessionStoreTypes []string = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
-	validOAuthCookieSameSites   []string = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
-	illegalVariableNamePrefixes          = [...]string{"RADIX_", "RADIXOPERATOR_"}
+	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
+	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
 )
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
