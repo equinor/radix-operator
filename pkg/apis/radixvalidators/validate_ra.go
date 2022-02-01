@@ -521,8 +521,8 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 			errors = append(errors, OAuthCookieRefreshInvalidError(componentName, environmentName, cookie.Refresh))
 			refreshValid = false
 		}
-		if expireValid && refreshValid && !(expire > refresh) {
-			errors = append(errors, OAuthCookieExpireEqualLessThanRefreshError(componentName, environmentName))
+		if expireValid && refreshValid && !(refresh < expire) {
+			errors = append(errors, OAuthCookieRefreshMustBeLessThanExpireError(componentName, environmentName))
 		}
 
 		// Validate required settings when sessionStore=cookie and cookieStore.minimal=true

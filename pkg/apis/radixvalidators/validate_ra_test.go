@@ -577,11 +577,11 @@ func Test_invalid_ra(t *testing.T) {
 		{"negative OAuth cookie refresh time frame", radixvalidators.OAuthCookieRefreshInvalidError(validRAFirstComponentName, "prod", "-1s"), func(rr *v1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "-1s"
 		}},
-		{"oauth cookie expire equals refresh", radixvalidators.OAuthCookieExpireEqualLessThanRefreshError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+		{"oauth cookie expire equals refresh", radixvalidators.OAuthCookieRefreshMustBeLessThanExpireError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "1h"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
 		}},
-		{"oauth cookie expire less than refresh", radixvalidators.OAuthCookieExpireEqualLessThanRefreshError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+		{"oauth cookie expire less than refresh", radixvalidators.OAuthCookieRefreshMustBeLessThanExpireError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
 			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
 		}},

@@ -338,8 +338,8 @@ func OAuthCookieRefreshInvalidError(componentName, environmentName, actualRefres
 	return oauthPropertyInvalidValueError(componentName, environmentName, "cookie.refresh", actualRefresh)
 }
 
-func OAuthCookieExpireEqualLessThanRefreshError(componentName, environmentName string) error {
-	return fmt.Errorf("component %s in environment %s: property cookie.expire property in oauth configuration must be greater than cookie.refresh", componentName, environmentName)
+func OAuthCookieRefreshMustBeLessThanExpireError(componentName, environmentName string) error {
+	return fmt.Errorf("component %s in environment %s: property cookie.refresh property in oauth configuration must be less than cookie.expire", componentName, environmentName)
 }
 
 // ********************************************
