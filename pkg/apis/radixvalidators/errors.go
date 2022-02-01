@@ -239,7 +239,7 @@ func InvalidConfigBranchName(configBranch string) error {
 // *********** OAuth2 config errors ***********
 
 func oauthRequiredPropertyEmptyError(componentName, environmentName, propertyName string) error {
-	return fmt.Errorf("required property %s in oauth2 configuration for component %s in environment %s is not set", propertyName, componentName, environmentName)
+	return fmt.Errorf("required property %s not set in oauth2 configuration for component %s in environment %s", propertyName, componentName, environmentName)
 }
 
 func oauthPropertyInvalidValueError(componentName, environmentName, propertyName, value string) error {
@@ -259,7 +259,7 @@ func oauthRequiredPropertyEmptyWithSessionStoreRedisError(componentName, environ
 }
 
 func oauthCookieStoreMinimalIncorrectPropertyValueError(componentName, environmentName, propertyName, expectedValue string) error {
-	return fmt.Errorf("oauth2 property %s must be %s when cookieStore.minimal is true for component %s in environment %s", propertyName, expectedValue, componentName, environmentName)
+	return fmt.Errorf("oauth2 property %s must be set to '%s' when cookieStore.minimal is true for component %s in environment %s", propertyName, expectedValue, componentName, environmentName)
 }
 
 func OAuthClientIdEmptyError(componentName, environmentName string) error {
@@ -271,7 +271,7 @@ func OAuthProxyPrefixEmptyError(componentName, environmentName string) error {
 }
 
 func OAuthProxyPrefixIsRootError() error {
-	return fmt.Errorf("oauth2 proxy prefix cannot be root path")
+	return fmt.Errorf("property proxyPrefix in oauth configuration cannot be set to '/' (root)")
 }
 
 func OAuthOidcJwksUrlEmptyError(componentName, environmentName string) error {
@@ -339,7 +339,7 @@ func OAuthCookieRefreshInvalidError(componentName, environmentName, actualRefres
 }
 
 func OAuthCookieExpireEqualLessThanRefreshError(componentName, environmentName string) error {
-	return fmt.Errorf("oauth2 cookie.expire must be greater than cookie.refresh for component %s in environment %s", componentName, environmentName)
+	return fmt.Errorf("cookie.expire property in oauth configuration must be greater than cookie.refresh for component %s in environment %s", componentName, environmentName)
 }
 
 // ********************************************
