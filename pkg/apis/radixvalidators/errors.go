@@ -279,15 +279,15 @@ func OAuthSessionStoreTypeInvalidError(componentName, environmentName string, ac
 }
 
 func OAuthOidcJwksUrlEmptyError(componentName, environmentName string) error {
-	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.jwksurl")
+	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.jwksUrl")
 }
 
 func OAuthLoginUrlEmptyError(componentName, environmentName string) error {
-	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.jwksurl")
+	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.loginUrl")
 }
 
 func OAuthRedeemUrlEmptyError(componentName, environmentName string) error {
-	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.jwksurl")
+	return oauthRequiredPropertyEmptyWithSkipDiscoveryEnabledError(componentName, environmentName, "oidc.redeemUrl")
 }
 
 func OAuthOidcEmptyError(componentName, environmentName string) error {
