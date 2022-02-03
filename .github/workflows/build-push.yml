@@ -1,9 +1,12 @@
 name: radix-operator-build
+
 on:
   push:
     branches:
       - master
       - release
+permissions:
+  id-token: write
 jobs:
   build-operator:
     name: Build-push-operator
@@ -22,19 +25,25 @@ jobs:
       - name: build operator
         run: |
           docker build . -f operator.Dockerfile -t radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }} -t radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
-      - uses: azure/docker-login@v1
+      - uses: azure/login@v1
         with:
-          login-server: radixdev.azurecr.io
-          username: ${{ secrets.DEV_REGISTRY_USERNAME }}
-          password: ${{ secrets.DEV_REGISTRY_PASSWORD }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID_DEV }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_DEV }}
+      - name: 'Login to ACR radixdev'
+        run: |
+          az acr login --name radixdev
       - name: push to radixdev
         run: |
           docker push radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
-      - uses: azure/docker-login@v1
+      - uses: azure/login@v1
         with:
-          login-server: radixprod.azurecr.io
-          username: ${{ secrets.PROD_REGISTRY_USERNAME }}
-          password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID_PROD }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_PROD }}
+      - name: 'Login to ACR radixprod'
+        run: |
+          az acr login --name radixprod
       - name: push to radixprod
         run: |
           docker push radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
@@ -46,19 +55,25 @@ jobs:
       - name: build pipeline
         run: |
           docker build . -f pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
-      - uses: azure/docker-login@v1
+      - uses: azure/login@v1
         with:
-          login-server: radixdev.azurecr.io
-          username: ${{ secrets.DEV_REGISTRY_USERNAME }}
-          password: ${{ secrets.DEV_REGISTRY_PASSWORD }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID_DEV }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_DEV }}
+      - name: 'Login to ACR radixdev'
+        run: |
+          az acr login --name radixdev
       - name: push to radixdev
         run: |
           docker push radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
-      - uses: azure/docker-login@v1
+      - uses: azure/login@v1
         with:
-          login-server: radixprod.azurecr.io
-          username: ${{ secrets.PROD_REGISTRY_USERNAME }}
-          password: ${{ secrets.PROD_REGISTRY_PASSWORD }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID_PROD }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_PROD }}
+      - name: 'Login to ACR radixprod'
+        run: |
+          az acr login --name radixprod
       - name: push to radixprod
         run: |
           docker push radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
