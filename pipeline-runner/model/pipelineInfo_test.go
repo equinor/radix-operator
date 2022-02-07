@@ -28,8 +28,8 @@ func Test_DefaultPipeType(t *testing.T) {
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[3].SucceededMsg())
-	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_BuildDeployPipeType(t *testing.T) {
@@ -41,8 +41,8 @@ func Test_BuildDeployPipeType(t *testing.T) {
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[3].SucceededMsg())
-	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
