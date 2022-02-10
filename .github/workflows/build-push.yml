@@ -1,5 +1,4 @@
 name: radix-operator-build
-
 on:
   push:
     branches:
@@ -8,8 +7,8 @@ on:
 permissions:
   id-token: write
 jobs:
-  build-operator:
-    name: Build-push-operator
+  build-operator-dev:
+    name: Build-push operator to dev
     env:
       IMAGE: radix-operator
     runs-on: ubuntu-latest
@@ -22,58 +21,80 @@ jobs:
           sha=${GITHUB_SHA::8}
           ts=$(date +%s)
           echo "::set-output name=BUILD_ID::${branch}-${sha}-${ts}"
-      - name: build operator
+      - name: 'Build docker image'
         run: |
-          docker build . -f operator.Dockerfile -t radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }} -t radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
-      - uses: azure/login@v1
+          docker build . -f operator.Dockerfile -t radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
+      - name: 'Login to dev'
+        uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID_DEV }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_DEV }}
-      - name: 'Login to ACR radixdev'
+      - name: 'Push to dev'
         run: |
           az acr login --name radixdev
-      - name: push to radixdev
-        run: |
           docker push radixdev.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
-      - uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID_PROD }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_PROD }}
-      - name: 'Login to ACR radixprod'
-        run: |
-          az acr login --name radixprod
-      - name: push to radixprod
-        run: |
-          docker push radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
-  build-pipeline:
-    name: Build-push-pipeline
+  build-operator-prod:
+    if: github.ref == 'refs/heads/release'
+    name: Build-push operator to prod
+    env:
+      IMAGE: radix-operator
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: build pipeline
+      - name: Generate build ID
+        id: prep
         run: |
-          docker build . -f pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+          branch=${GITHUB_REF##*/}
+          sha=${GITHUB_SHA::8}
+          ts=$(date +%s)
+          echo "::set-output name=BUILD_ID::${branch}-${sha}-${ts}"
+      - name: 'Build docker image'
+        run: |
+          docker build . -f operator.Dockerfile -t radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
+      - name: 'Login to prod'
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID_PROD }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_PROD }}
+      - name: 'Push to prod'
+        run: |
+          az acr login --name radixprod
+          docker push radixprod.azurecr.io/${{ env.IMAGE }}:${{ steps.prep.outputs.BUILD_ID }}
+  build-pipeline-dev:
+    name: Build-push pipeline to dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build pipeline image
+        run: |
+          docker build . -f pipeline.Dockerfile -t radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
       - uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID_DEV }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_DEV }}
-      - name: 'Login to ACR radixdev'
+      - name: push to dev
         run: |
           az acr login --name radixdev
-      - name: push to radixdev
-        run: |
           docker push radixdev.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+  build-pipeline-prod:
+    if: github.ref == 'refs/heads/release'
+    name: Build-push pipeline to prod
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build pipeline image
+        run: |
+          docker build . -f pipeline.Dockerfile -t radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
       - uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID_PROD }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_PROD }}
-      - name: 'Login to ACR radixprod'
+      - name: push to prod
         run: |
           az acr login --name radixprod
-      - name: push to radixprod
-        run: |
           docker push radixprod.azurecr.io/radix-pipeline:${GITHUB_REF##*/}-latest
+  
