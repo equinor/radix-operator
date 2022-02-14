@@ -136,7 +136,8 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	stepImplementations ...Step) (*PipelineInfo, error) {
 
 	timestamp := time.Now().Format("20060102150405")
-	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s", timestamp, pipelineArguments.ImageTag)
+	hash := utils.RandStringStrSeed(5, pipelineArguments.JobName)
+	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, hash, pipelineArguments.ImageTag)
 
 	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
 	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
