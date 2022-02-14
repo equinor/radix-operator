@@ -1,0 +1,17 @@
+apiVersion: radix.equinor.com/v1
+kind: RadixEnvironment
+metadata:
+  name: testenv
+  uid: af1d2960-5eb7-40e8-9ca2-12fc1fd9916e
+spec:
+  appName: "testapp"
+  egressRules:
+    - destinations:
+        - 195.88.55.16/32
+        - 195.88.54.16/31
+      ports:
+        - number: 80
+          protocol: TCP
+        - number: 443
+          protocol: TCP
+  envName: "testenv"

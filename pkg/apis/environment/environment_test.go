@@ -26,12 +26,13 @@ import (
 )
 
 const (
-	clusterName       = "AnyClusterName"
-	containerRegistry = "any.container.registry"
-	envConfigFileName = "./testdata/re.yaml"
-	regConfigFileName = "./testdata/rr.yaml"
-	namespaceName     = "testapp-testenv"
-	egressIps         = "0.0.0.0"
+	clusterName                 = "AnyClusterName"
+	containerRegistry           = "any.container.registry"
+	envConfigFileName           = "./testdata/re.yaml"
+	egressRuleEnvConfigFileName = "./testdata/re_egress.yaml"
+	regConfigFileName           = "./testdata/rr.yaml"
+	namespaceName               = "testapp-testenv"
+	egressIps                   = "0.0.0.0"
 
 	limitDefaultCPU          = "432m" // 0.432
 	limitDefaultReqestCPU    = "234m" // 0.234
@@ -55,9 +56,9 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	return handlerTestUtils, fakekube, kubeUtil, fakeradix
 }
 
-func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment) {
+func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, radixEnvFileName string) (*v1.RadixRegistration, *v1.RadixEnvironment, Environment) {
 	rr, _ := utils.GetRadixRegistrationFromFile(regConfigFileName)
-	re, _ := utils.GetRadixEnvironmentFromFile(envConfigFileName)
+	re, _ := utils.GetRadixEnvironmentFromFile(radixEnvFileName)
 	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
 	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger)
 	// register instance with radix-client so UpdateStatus() can find it
@@ -67,7 +68,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 
 func Test_Create_Namespace(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
-	rr, _, env := newEnv(client, kubeUtil, radixclient)
+	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	sync(t, &env)
 
@@ -78,9 +79,29 @@ func Test_Create_Namespace(t *testing.T) {
 	commonAsserts(t, env, namespacesAsMeta(namespaces.Items), namespaceName)
 }
 
+func Test_Create_EgressRules(t *testing.T) {
+	_, client, kubeUtil, radixclient := setupTest()
+	rr, _, env := newEnv(client, kubeUtil, radixclient, egressRuleEnvConfigFileName)
+
+	sync(t, &env)
+
+	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), meta.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
+	})
+
+	t.Run("Egress rules are correct", func(t *testing.T) {
+		egressRules := env.config.Spec.EgressRules
+		assert.Len(t, egressRules, 1)
+		assert.Equal(t, egressRules[0].Destinations[0], "195.88.55.16/32")
+		assert.Len(t, egressRules[0].Ports, 2)
+	})
+
+	commonAsserts(t, env, namespacesAsMeta(namespaces.Items), namespaceName)
+}
+
 func Test_Create_RoleBinding(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
-	rr, _, env := newEnv(client, kubeUtil, radixclient)
+	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	sync(t, &env)
 
@@ -107,7 +128,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 func Test_Create_LimitRange(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
-	_, _, env := newEnv(client, kubeUtil, radixclient)
+	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	sync(t, &env)
 
@@ -126,7 +147,7 @@ func Test_Create_LimitRange(t *testing.T) {
 
 func Test_Orphaned_Status(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
-	_, _, env := newEnv(client, kubeUtil, radixclient)
+	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	env.appConfig = nil
 	sync(t, &env)

@@ -72,6 +72,13 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
+	err = env.updateEgressRules()
+	if err != nil {
+		errmsg := "Failed to add egress rules: "
+		env.logger.Errorf("%s%v", errmsg, err)
+		return fmt.Errorf("%s%v", errmsg, err)
+	}
+
 	isOrphaned := !existsInAppConfig(env.appConfig, env.config.Spec.EnvName)
 
 	err = env.updateRadixEnvironmentStatus(env.config, func(currStatus *v1.RadixEnvironmentStatus) {
