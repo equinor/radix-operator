@@ -27,10 +27,11 @@ import (
 )
 
 const (
-	maxPortNameLength = 15
-	minimumPortNumber = 1024
-	maximumPortNumber = 65535
-	cpuRegex          = "^[0-9]+m$"
+	maximumNumberOfEgressRules = 1000
+	maxPortNameLength          = 15
+	minimumPortNumber          = 1024
+	maximumPortNumber          = 65535
+	cpuRegex                   = "^[0-9]+m$"
 )
 
 var (
@@ -943,6 +944,9 @@ func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
 func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 	var errs []error
 	for _, env := range app.Spec.Environments {
+		if len(env.EgressRules) > maximumNumberOfEgressRules {
+			return []error{fmt.Errorf("number of egress rules for env %s exceeds max nr %d", env.Name, maximumNumberOfEgressRules)}
+		}
 		for _, egressRule := range env.EgressRules {
 			if len(egressRule.Destinations) < 1 {
 				return []error{fmt.Errorf("Egress rule must contain at least one destination")}

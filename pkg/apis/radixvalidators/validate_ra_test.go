@@ -1473,6 +1473,19 @@ func Test_EgressRules(t *testing.T) {
 			isValid: false,
 		},
 		{
+			name: "can not exceed max nr of egress rules",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{}
+				for i := 0; i <= 1000; i++ {
+					ra.Spec.Environments[0].EgressRules = append(ra.Spec.Environments[0].EgressRules, v1.EgressRule{
+						Destinations: []string{"10.0.0.0/8"},
+						Ports:        nil,
+					})
+				}
+			},
+			isValid: false,
+		},
+		{
 			name: "sample egress rule with valid destination, zero ports",
 			updateRA: func(ra *v1.RadixApplication) {
 				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{

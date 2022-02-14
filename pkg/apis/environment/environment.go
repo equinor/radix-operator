@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/network"
 
 	"k8s.io/client-go/util/retry"
 
@@ -72,10 +73,9 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
-	err = env.updateEgressRules()
+	err = network.UpdateEnvEgressRules(env.kubeclient, env.logger, env.config.Spec.EgressRules, env.config.Spec.AppName, env.config.Spec.EnvName)
 	if err != nil {
-		errmsg := "Failed to add egress rules: "
-		env.logger.Errorf("%s%v", errmsg, err)
+		errmsg := fmt.Sprintf("Failed to add egress rules in %s, environment %s: ", env.config.Spec.AppName, env.config.Spec.EnvName)
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 

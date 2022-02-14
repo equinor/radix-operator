@@ -1,4 +1,4 @@
-package environment
+package network
 
 import (
 	"context"
@@ -6,12 +6,14 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 	"strconv"
 	"strings"
 )
@@ -21,24 +23,22 @@ const (
 	userDefinedEgressRuleNamePrefix = "user-defined-egress-rule-"
 )
 
-func (envObject *Environment) updateEgressRules() error {
-	appName := envObject.GetConfig().Spec.AppName
-	env := envObject.GetConfig().Spec.EnvName
+func UpdateEnvEgressRules(kubeClient kubernetes.Interface, logger *logrus.Entry, egressRules []rx.EgressRule, appName string, env string) error {
 
 	ns := utils.GetEnvironmentNamespace(appName, env)
 
 	// cleaning up all user defined egress policies before applying new ones
-	n, err := deleteUserDefinedEgressPolicies(envObject, appName, ns, env)
+	n, err := deleteUserDefinedEgressPolicies(kubeClient, appName, ns, env)
 	if err != nil {
 		return err
 	}
-	envObject.logger.Debugf("Deleted %d existing user defined egress policies in ns %s before applying new ones", n, ns)
+	logger.Debugf("Deleted %d existing user defined egress policies in ns %s before applying new ones", n, ns)
 
 	// if there are _no_ egress rules defined in radixconfig, we also clean up the default egress policy which allows
 	// DNS. This is because if there are one or more egress policies applied to the namespace, the default behaviour
 	// is to block all other traffic.
-	if len(envObject.config.Spec.EgressRules) == 0 {
-		err = deleteDefaultDnsEgressPolicy(envObject, ns)
+	if len(egressRules) == 0 {
+		err = deleteDefaultDnsEgressPolicy(kubeClient, logger, ns)
 		if err != nil {
 			return err
 		}
@@ -46,10 +46,10 @@ func (envObject *Environment) updateEgressRules() error {
 	}
 
 	// creating user defined egress objects as specified in radixconfig
-	userDefinedEgressPolicies := createEgressPolicies(envObject, appName, env)
+	userDefinedEgressPolicies := createEgressPolicies(egressRules, appName, env)
 
 	// applying the policies from previous step
-	err = applyEgressPolicies(envObject, userDefinedEgressPolicies, ns)
+	err = applyEgressPolicies(kubeClient, logger, userDefinedEgressPolicies, ns)
 	if err != nil {
 		return err
 	}
@@ -58,41 +58,42 @@ func (envObject *Environment) updateEgressRules() error {
 	dnsEgressPolicy := []*v1.NetworkPolicy{createAllowKubeDnsEgressPolicy(appName, env)}
 
 	// applying DNS egress policy object
-	err = applyEgressPolicies(envObject, dnsEgressPolicy, ns)
+	err = applyEgressPolicies(kubeClient, logger, dnsEgressPolicy, ns)
 	if err != nil {
 		return err
 	}
-	envObject.logger.Debugf("Applied default DNS allow egress policy to ns %s", ns)
+	logger.Debugf("Applied default DNS allow egress policy to ns %s", ns)
 
 	return nil
 }
 
-func deleteDefaultDnsEgressPolicy(envObject *Environment, ns string) error {
-	existingDnsEgressPolicy, err := envObject.kubeclient.NetworkingV1().NetworkPolicies(ns).Get(
+func deleteDefaultDnsEgressPolicy(kubeClient kubernetes.Interface, logger *logrus.Entry, ns string) error {
+	existingDnsEgressPolicy, err := kubeClient.NetworkingV1().NetworkPolicies(ns).Get(
 		context.TODO(), allowEgressToKubeDns, metav1.GetOptions{},
 	)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			envObject.logger.Debugf("No egress rules defined in radixconfig.yaml. No existing default DNS egress policy in ns %s. Nothing to delete.", ns)
+			logger.Debugf("No egress rules defined in radixconfig.yaml. No existing default DNS egress policy in ns %s. Nothing to delete.", ns)
 			return nil
 		}
 		return err
 	}
 
-	err = envObject.kubeclient.NetworkingV1().NetworkPolicies(ns).Delete(context.TODO(), existingDnsEgressPolicy.GetName(), metav1.DeleteOptions{})
+	err = kubeClient.NetworkingV1().NetworkPolicies(ns).Delete(context.TODO(), existingDnsEgressPolicy.GetName(), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 
-	envObject.logger.Debugf(
+	logger.Debugf(
 		"Deleted existing default DNS egress policy in ns %s because egress rules in radiconfig are empty", ns,
 	)
 	return nil
 }
 
-func deleteUserDefinedEgressPolicies(envObject *Environment, appName string, ns string, env string) (int, error) {
+func deleteUserDefinedEgressPolicies(kubeClient kubernetes.Interface, appName string, ns string, env string) (int, error) {
 	nrOfDeletedPolicies := 0
-	existingPolicies, err := envObject.kubeclient.NetworkingV1().NetworkPolicies(ns).List(
+
+	existingPolicies, err := kubeClient.NetworkingV1().NetworkPolicies(ns).List(
 		context.TODO(), metav1.ListOptions{
 			LabelSelector: labels.Set(metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -109,7 +110,7 @@ func deleteUserDefinedEgressPolicies(envObject *Environment, appName string, ns 
 	}
 
 	for _, policy := range existingPolicies.Items {
-		err = envObject.kubeclient.NetworkingV1().NetworkPolicies(ns).Delete(context.TODO(), policy.GetName(), metav1.DeleteOptions{})
+		err = kubeClient.NetworkingV1().NetworkPolicies(ns).Delete(context.TODO(), policy.GetName(), metav1.DeleteOptions{})
 		nrOfDeletedPolicies++
 		if err != nil {
 			return nrOfDeletedPolicies, err
@@ -119,25 +120,25 @@ func deleteUserDefinedEgressPolicies(envObject *Environment, appName string, ns 
 	return nrOfDeletedPolicies, nil
 }
 
-func applyEgressPolicies(envObject *Environment, networkPolicies []*v1.NetworkPolicy, ns string) error {
+func applyEgressPolicies(kubeClient kubernetes.Interface, logger *logrus.Entry, networkPolicies []*v1.NetworkPolicy, ns string) error {
 	for _, networkPolicy := range networkPolicies {
-		_, err := envObject.kubeclient.NetworkingV1().NetworkPolicies(ns).Create(context.TODO(), networkPolicy, metav1.CreateOptions{})
+		_, err := kubeClient.NetworkingV1().NetworkPolicies(ns).Create(context.TODO(), networkPolicy, metav1.CreateOptions{})
 		if k8serrors.IsAlreadyExists(err) {
-			_, err = envObject.kubeclient.NetworkingV1().NetworkPolicies(ns).Update(context.TODO(), networkPolicy, metav1.UpdateOptions{})
+			_, err = kubeClient.NetworkingV1().NetworkPolicies(ns).Update(context.TODO(), networkPolicy, metav1.UpdateOptions{})
 		}
 		if err != nil {
 			return err
 		}
-		envObject.logger.Debugf("Successfully inserted %s to ns %s", networkPolicy.Name, ns)
+		logger.Debugf("Successfully inserted %s to ns %s", networkPolicy.Name, ns)
 	}
 	return nil
 }
 
-func createEgressPolicies(envObject *Environment, appName string, env string) []*v1.NetworkPolicy {
+func createEgressPolicies(egressRules []rx.EgressRule, appName string, env string) []*v1.NetworkPolicy {
 	var networkPolicies []*v1.NetworkPolicy
 
 	// Iterating over egress rules in radixconfig, making one k8s policy for each
-	for i, egressRule := range envObject.config.Spec.EgressRules {
+	for i, egressRule := range egressRules {
 		networkPolicy := createEgressPolicy(appName, env, i, egressRule, true)
 		networkPolicies = append(networkPolicies, networkPolicy)
 	}
@@ -214,7 +215,7 @@ func createEgressPolicy(appName string, env string, i int, egressRule rx.EgressR
 
 	np := v1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s%02d", userDefinedEgressRuleNamePrefix, i),
+			Name: fmt.Sprintf("%s%03d", userDefinedEgressRuleNamePrefix, i),
 			Labels: map[string]string{
 				kube.RadixAppLabel:                      appName,
 				kube.RadixEnvLabel:                      env,
