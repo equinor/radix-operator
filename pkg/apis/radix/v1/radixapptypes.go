@@ -383,13 +383,13 @@ const (
 type CookieSameSiteType string
 
 const (
-	// Set SameSite to strict
+	// SameSiteStrict Use strict as samesite for cookie
 	SameSiteStrict CookieSameSiteType = "strict"
-	// Set SameSite to lax
+	// SameSiteLax Use lax as samesite for cookie
 	SameSiteLax CookieSameSiteType = "lax"
-	// Set SameSite to none. Not supported by IE. See compativility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	// SameSiteNone Use none as samesite for cookie. Not supported by IE. See compativility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
 	SameSiteNone CookieSameSiteType = "none"
-	// Do not set SameSite. Modern browsers defaults to lax when SameSite is not set. See compatibility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	// SameSiteEmpty Use empty string as samesite for cookie. Modern browsers defaults to lax when SameSite is not set. See compatibility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
 	SameSiteEmpty CookieSameSiteType = ""
 )
 
@@ -405,7 +405,7 @@ type OAuth2 struct {
 	// from values in the Access Token redeemed by the OAuth Proxy
 	// Default: false
 	SetXAuthRequestHeaders *bool `json:"setXAuthRequestHeaders,omitempty" yaml:"setXAuthRequestHeaders,omitempty"`
-	// SetAuthorizationHeader. Optional. Defines if the IDToken received by the OAuth Proxy should be added to the Autherization header
+	// SetAuthorizationHeader. Optional. Defines if the IDToken received by the OAuth Proxy should be added to the Authorization header
 	// Default: false
 	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty" yaml:"setAuthorizationHeader,omitempty"`
 	// ProxyPrefix. Optional. The url root path that OAuth Proxy should be nested under

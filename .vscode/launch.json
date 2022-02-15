@@ -12,7 +12,7 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "RADIX_APP=radix-job-demo",
+        "RADIX_APP=radix-oauth2-example",
         "BRANCH=main",
         "COMMIT_ID=1234",
         "IMAGE_TAG=abcdef",
@@ -24,7 +24,7 @@
         "RADIX_IMAGE_BUILDER=radix-image-builder:master-latest",
         "RADIX_IMAGE_SCANNER=radix-image-scanner:master-latest",
         "RADIX_CLUSTER_TYPE=development",
-        "RADIX_CLUSTERNAME=weekly-16",
+        "RADIX_CLUSTERNAME=weekly-04",
         "RADIX_FILE_NAME=/workspace/radixconfig.yaml",
         "DEBUG=true"
       ]

@@ -65,6 +65,7 @@ func oauth2Default() v1.OAuth2 {
 		SessionStoreType:       v1.SessionStoreCookie,
 		OIDC: &v1.OAuth2OIDC{
 			InsecureSkipVerifyNonce: commonUtils.BoolPtr(false),
+			SkipDiscovery:           commonUtils.BoolPtr(false),
 		},
 		Cookie: &v1.OAuth2Cookie{
 			Name:     "_oauth2_proxy",
