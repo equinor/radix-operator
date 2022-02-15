@@ -19,6 +19,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+{{- if .Values.service.annotations}}
+  annotations:
+{{ toYaml .Values.service.annotations | indent 4 }}
+{{- end }}
   labels:
     app: radix-operator
     operater-radix: "true"

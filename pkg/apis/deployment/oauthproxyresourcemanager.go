@@ -658,24 +658,30 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 					Labels: o.getLabelsForAuxComponent(component),
 					Annotations: map[string]string{
 						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
-						"seccomp.security.alpha.kubernetes.io/pod": "docker/default",
 					},
 				},
-				Spec: corev1.PodSpec{Containers: []corev1.Container{
-					{
-						Name:            component.GetName(),
-						Image:           o.oauth2ProxyDockerImage,
-						ImagePullPolicy: corev1.PullAlways,
-						Env:             o.getEnvVars(component),
-						Ports: []corev1.ContainerPort{
-							{
-								Name:          oauthProxyPortName,
-								ContainerPort: oauthProxyPortNumber,
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:            component.GetName(),
+							Image:           o.oauth2ProxyDockerImage,
+							ImagePullPolicy: corev1.PullAlways,
+							Env:             o.getEnvVars(component),
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          oauthProxyPortName,
+									ContainerPort: oauthProxyPortNumber,
+								},
 							},
+							ReadinessProbe: readinessProbe,
 						},
-						ReadinessProbe: readinessProbe,
 					},
-				}},
+					SecurityContext: &corev1.PodSecurityContext{
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: "RuntimeDefault",
+						},
+					},
+				},
 			},
 		},
 	}

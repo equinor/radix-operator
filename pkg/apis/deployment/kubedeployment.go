@@ -156,7 +156,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations["seccomp.security.alpha.kubernetes.io/pod"] = "docker/default"
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
