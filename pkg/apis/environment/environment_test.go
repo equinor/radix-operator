@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"os"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
@@ -60,7 +61,8 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 	rr, _ := utils.GetRadixRegistrationFromFile(regConfigFileName)
 	re, _ := utils.GetRadixEnvironmentFromFile(radixEnvFileName)
 	logger := logrus.WithFields(logrus.Fields{"environmentName": namespaceName})
-	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger)
+	nw, _ := networkpolicy.NewNetworkPolicy(client, kubeUtil, logger, re.Spec.AppName)
+	env, _ := NewEnvironment(client, kubeUtil, radixclient, re, rr, nil, logger, &nw)
 	// register instance with radix-client so UpdateStatus() can find it
 	radixclient.RadixV1().RadixEnvironments().Create(context.TODO(), re, meta.CreateOptions{})
 	return rr, re, env

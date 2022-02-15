@@ -3,8 +3,7 @@ package environment
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/network"
-
+	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
@@ -22,13 +21,14 @@ import (
 
 // Environment is the aggregate-root for manipulating RadixEnvironments
 type Environment struct {
-	kubeclient  kubernetes.Interface
-	radixclient radixclient.Interface
-	kubeutil    *kube.Kube
-	config      *v1.RadixEnvironment
-	regConfig   *v1.RadixRegistration
-	appConfig   *v1.RadixApplication
-	logger      *logrus.Entry
+	kubeclient    kubernetes.Interface
+	radixclient   radixclient.Interface
+	kubeutil      *kube.Kube
+	config        *v1.RadixEnvironment
+	regConfig     *v1.RadixRegistration
+	appConfig     *v1.RadixApplication
+	logger        *logrus.Entry
+	networkPolicy *networkpolicy.NetworkPolicy
 }
 
 // NewEnvironment is the constructor for Environment
@@ -39,7 +39,8 @@ func NewEnvironment(
 	config *v1.RadixEnvironment,
 	regConfig *v1.RadixRegistration,
 	appConfig *v1.RadixApplication,
-	logger *logrus.Entry) (Environment, error) {
+	logger *logrus.Entry,
+	networkPolicy *networkpolicy.NetworkPolicy) (Environment, error) {
 
 	return Environment{
 		kubeclient,
@@ -48,7 +49,8 @@ func NewEnvironment(
 		config,
 		regConfig,
 		appConfig,
-		logger}, nil
+		logger,
+		networkPolicy}, nil
 }
 
 // OnSync is called by the handler when changes are applied and must be
@@ -73,7 +75,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
-	err = network.UpdateEnvEgressRules(env.kubeclient, env.logger, env.config.Spec.EgressRules, env.config.Spec.AppName, env.config.Spec.EnvName)
+	err = env.networkPolicy.UpdateEnvEgressRules(env.config.Spec.EgressRules, env.config.Spec.EnvName)
 	if err != nil {
 		errmsg := fmt.Sprintf("Failed to add egress rules in %s, environment %s: ", env.config.Spec.AppName, env.config.Spec.EnvName)
 		return fmt.Errorf("%s%v", errmsg, err)

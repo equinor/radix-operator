@@ -28,6 +28,7 @@ const (
 
 // Radix Labels
 const (
+	K8sAppLabel                        = "k8s-app"
 	RadixAppLabel                      = "radix-app"
 	RadixEnvLabel                      = "radix-env"
 	RadixComponentLabel                = "radix-component"

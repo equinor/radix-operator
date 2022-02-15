@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/environment"
@@ -79,7 +80,6 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 			utilruntime.HandleError(fmt.Errorf("Failed to get RadixRegistartion object: %v", err))
 			return nil
 		}
-
 		return err
 	}
 
@@ -87,7 +87,12 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	radixApplication, _ := t.radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(syncEnvironment.Spec.AppName)).
 		Get(context.TODO(), syncEnvironment.Spec.AppName, meta.GetOptions{})
 
-	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, logger)
+	nw, err := networkpolicy.NewNetworkPolicy(t.kubeclient, t.kubeutil, logger, syncEnvironment.Spec.AppName)
+	if err != nil {
+		return err
+	}
+
+	env, err := environment.NewEnvironment(t.kubeclient, t.kubeutil, t.radixclient, syncEnvironment, radixRegistration, radixApplication, logger, &nw)
 
 	if err != nil {
 		return err
