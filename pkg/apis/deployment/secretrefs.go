@@ -105,7 +105,7 @@ func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.Ra
 
 func getSecretProviderClassSecretObjects(componentName, radixDeploymentName string, radixAzureKeyVault radixv1.RadixAzureKeyVault) []*secretsstorev1.SecretObject {
 	var secretObjects []*secretsstorev1.SecretObject
-	secretObjectMap := make(map[kube.SecretType]*secretsstorev1.SecretObject)
+	secretObjectMap := make(map[v1.SecretType]*secretsstorev1.SecretObject)
 	for _, keyVaultItem := range radixAzureKeyVault.Items {
 		kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
 		secretObject, existsSecretObject := secretObjectMap[kubeSecretType]

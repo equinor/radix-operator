@@ -357,3 +357,19 @@ func (tu *Utils) ensurePopulatedEnvVarsConfigMaps(rd *v1.RadixDeployment, deploy
 	_ = tu.kubeUtil.ApplyConfigMap(rd.GetNamespace(), initialEnvVarsConfigMap, desiredConfigMap)
 	return desiredConfigMap
 }
+
+//GetRadixAzureKeyVaultObjectTypePtr Gets pointer to RadixAzureKeyVaultObjectType
+func GetRadixAzureKeyVaultObjectTypePtr(objectType v1.RadixAzureKeyVaultObjectType) *v1.RadixAzureKeyVaultObjectType {
+	return &objectType
+}
+
+//GetAzureKeyVaultTypeSecrets Gets secrets with kube.RadixSecretRefTypeLabel and value v1.RadixSecretRefTypeAzureKeyVault
+func GetAzureKeyVaultTypeSecrets(secrets *corev1.SecretList) *corev1.SecretList {
+	var azureKeyVaultSecrets []corev1.Secret
+	for _, secret := range secrets.Items {
+		if label, ok := secret.ObjectMeta.Labels[kube.RadixSecretRefTypeLabel]; ok && label == string(v1.RadixSecretRefTypeAzureKeyVault) {
+			azureKeyVaultSecrets = append(azureKeyVaultSecrets, secret)
+		}
+	}
+	return &corev1.SecretList{Items: azureKeyVaultSecrets}
+}

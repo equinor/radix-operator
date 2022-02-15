@@ -208,9 +208,9 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 				Items: []v1.RadixAzureKeyVaultItem{
 					{Name: "secret1", EnvVar: "SECRET_REF_1"},
 					{Name: "secret1", EnvVar: "SECRET_REF_2"},
-					{Name: "secret3", EnvVar: "SECRET_REF_3", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
-					{Name: "key1", EnvVar: "KEY_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
-					{Name: "cert1", EnvVar: "CERT_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+					{Name: "secret3", EnvVar: "SECRET_REF_3", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
+					{Name: "key1", EnvVar: "KEY_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
+					{Name: "cert1", EnvVar: "CERT_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
 				},
 			},
 		},
@@ -235,9 +235,9 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 					Items: []v1.RadixAzureKeyVaultItem{
 						{Name: "secret1", EnvVar: "SECRET_REF_1"},
 						{Name: "secret1", EnvVar: "SECRET_REF_2"},
-						{Name: "secret3", EnvVar: "SECRET_REF_3", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
-						{Name: "key1", EnvVar: "KEY_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
-						{Name: "cert1", EnvVar: "CERT_REF_1", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+						{Name: "secret3", EnvVar: "SECRET_REF_3", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
+						{Name: "key1", EnvVar: "KEY_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
+						{Name: "cert1", EnvVar: "CERT_REF_1", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
 					},
 				},
 				{
@@ -245,9 +245,9 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 					Items: []v1.RadixAzureKeyVaultItem{
 						{Name: "secret1", EnvVar: "SECRET_REF_21"},
 						{Name: "secret1", EnvVar: "SECRET_REF_22"},
-						{Name: "secret3", EnvVar: "SECRET_REF_23", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
-						{Name: "key1", EnvVar: "KEY_REF_21", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
-						{Name: "cert1", EnvVar: "CERT_REF_21", Type: utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
+						{Name: "secret3", EnvVar: "SECRET_REF_23", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret)},
+						{Name: "key1", EnvVar: "KEY_REF_21", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey)},
+						{Name: "cert1", EnvVar: "CERT_REF_21", Type: test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert)},
 					},
 				},
 			},

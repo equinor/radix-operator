@@ -106,7 +106,7 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 	secretRefs := deployComponent.GetSecretRefs()
 	var volumeMounts []v1.VolumeMount
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
-		k8sSecretTypeMap := make(map[kube.SecretType]bool)
+		k8sSecretTypeMap := make(map[v1.SecretType]bool)
 		for _, keyVaultItem := range azureKeyVault.Items {
 			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
 			if _, ok := k8sSecretTypeMap[kubeSecretType]; !ok {

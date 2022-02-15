@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/test"
+	corev1 "k8s.io/api/core/v1"
 	"os"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 	"strings"
@@ -46,17 +48,17 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:   "secret1",
 								EnvVar: "SECRET_REF1",
-								Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
 							},
 							{
 								Name:   "key1",
 								EnvVar: "KEY_REF1",
-								Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey),
+								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeKey),
 							},
 							{
 								Name:   "cert1",
 								EnvVar: "CERT_REF1",
-								Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert),
+								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeCert),
 							},
 						},
 					},
@@ -73,7 +75,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:   "secret1",
 								EnvVar: "SECRET_REF1",
-								Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
 							},
 						},
 					},
@@ -84,7 +86,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:   "secret1",
 								EnvVar: "SECRET_REF11",
-								Type:   utils.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
 							},
 						},
 					},
@@ -107,7 +109,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 
 			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
 			allSecrets, _ := testEnv.kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
-			secrets := utils.GetAzureKeyVaultTypeSecrets(allSecrets)
+			secrets := test.GetAzureKeyVaultTypeSecrets(allSecrets)
 
 			for _, azureKeyVault := range scenario.radixSecretRefs.AzureKeyVaults {
 				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(scenario.componentName, azureKeyVault.Name)
@@ -150,9 +152,9 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 				assert.True(t, len(objectsSecretParam) > 0)
 				assert.Len(t, secretProviderClass.Spec.SecretObjects, 1)
 				secretObject := secretProviderClass.Spec.SecretObjects[0]
-				expectedSecretRefSecretName := kube.GetAzureKeyVaultSecretRefSecretName(scenario.componentName, rd.Name, azureKeyVault.Name, kube.SecretTypeOpaque)
+				expectedSecretRefSecretName := kube.GetAzureKeyVaultSecretRefSecretName(scenario.componentName, rd.Name, azureKeyVault.Name, corev1.SecretTypeOpaque)
 				assert.Equal(t, expectedSecretRefSecretName, secretObject.SecretName)
-				assert.Equal(t, string(kube.SecretTypeOpaque), secretObject.Type)
+				assert.Equal(t, string(corev1.SecretTypeOpaque), secretObject.Type)
 				assert.Equal(t, len(azureKeyVault.Items), len(secretObject.Data))
 				secretObjectItemMap := make(map[string]*secretsstorev1.SecretObjectData)
 				for _, item := range secretObject.Data {

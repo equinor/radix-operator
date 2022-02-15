@@ -331,9 +331,9 @@ func (deploy *Deployment) listSecrets(labelSelector string) ([]*v1.Secret, error
 }
 
 func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName string, isExternalAlias bool) error {
-	secretType := v1.SecretType(kube.SecretTypeOpaque)
+	secretType := v1.SecretTypeOpaque
 	if isExternalAlias {
-		secretType = "kubernetes.io/tls"
+		secretType = v1.SecretTypeTLS
 	}
 
 	secret := v1.Secret{
@@ -353,8 +353,8 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 
 		// Will need to set fake data in order to apply the secret. The user then need to set data to real values
 		data := make(map[string][]byte)
-		data["tls.crt"] = defaultValue
-		data["tls.key"] = defaultValue
+		data[v1.TLSCertKey] = defaultValue
+		data[v1.TLSPrivateKeyKey] = defaultValue
 
 		secret.Data = data
 	}
@@ -368,7 +368,7 @@ func (deploy *Deployment) createOrUpdateSecret(ns, app, component, secretName st
 }
 
 func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azKeyVaultName string) *v1.Secret {
-	secretType := v1.SecretType(kube.SecretTypeOpaque)
+	secretType := v1.SecretTypeOpaque
 	secret := v1.Secret{
 		Type: secretType,
 		ObjectMeta: metav1.ObjectMeta{
@@ -393,7 +393,7 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 
 func (deploy *Deployment) createClientCertificateSecret(ns, app, component, secretName string) error {
 	secret := v1.Secret{
-		Type: v1.SecretType(kube.SecretTypeOpaque),
+		Type: v1.SecretTypeOpaque,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{

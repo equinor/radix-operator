@@ -327,7 +327,7 @@ type RadixAzureKeyVaultItem struct {
 	EnvVar string `json:"envVar" yaml:"envVar"`
 	// Type. Optional. Type of the Azure KeyVault object: secret (default), key, cert
 	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
-	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
+	// Alias. Optional.It is not yet fully supported by the Azure CSI Key vault driver. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
 	Alias *string `json:"alias,omitempty" yaml:"alias,omitempty"`
 	// Version. Optional. object versions, default to the latest, if empty
 	Version *string `json:"version,omitempty" yaml:"version,omitempty"`
