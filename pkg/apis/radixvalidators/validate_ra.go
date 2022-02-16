@@ -21,8 +21,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -945,11 +945,11 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 	var errs []error
 	for _, env := range app.Spec.Environments {
 		if len(env.EgressRules) > maximumNumberOfEgressRules {
-			return []error{fmt.Errorf("number of egress rules for env %s exceeds max nr %d", env.Name, maximumNumberOfEgressRules)}
+			errs = append(errs, fmt.Errorf("number of egress rules for env %s exceeds max nr %d", env.Name, maximumNumberOfEgressRules))
 		}
 		for _, egressRule := range env.EgressRules {
 			if len(egressRule.Destinations) < 1 {
-				return []error{fmt.Errorf("egress rule must contain at least one destination")}
+				errs = append(errs, fmt.Errorf("egress rule must contain at least one destination"))
 			}
 			for _, ipMask := range egressRule.Destinations {
 				err := validateEgressRuleIpMask(ipMask)
@@ -984,7 +984,7 @@ func validateEgressRulePortNumber(number int32) error {
 
 func validateEgressRulePortProtocol(protocol string) error {
 	upperCaseProtocol := strings.ToUpper(protocol)
-	validProtocols := []string{"TCP", "UDP", "SCTP"}
+	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP), string(corev1.ProtocolSCTP)}
 	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
 		return nil
 	} else {

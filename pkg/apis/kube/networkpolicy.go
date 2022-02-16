@@ -27,11 +27,7 @@ func (kubeutil *Kube) ApplyEgressPolicy(networkPolicy *v1.NetworkPolicy, ns stri
 	if k8serrors.IsAlreadyExists(err) {
 		_, err = kubeutil.kubeClient.NetworkingV1().NetworkPolicies(ns).Update(context.TODO(), networkPolicy, metav1.UpdateOptions{})
 	}
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (kubeutil *Kube) listNetworkPoliciesByLabels(ns string, mapLabels map[string]string) (*v1.NetworkPolicyList, error) {
