@@ -32,16 +32,6 @@ func (kubeutil *Kube) GetSecretProviderClass(namespace string, className string)
 	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Get(context.Background(), className, metav1.GetOptions{})
 }
 
-// GetSecretRefObjectLabelSelector Get label selector for secret-ref object (secret, secret provider class, etc.)
-func GetSecretRefObjectLabelSelector(componentName, radixDeploymentName string, radixSecretRefType radixv1.RadixSecretRefType, radixSecretRefName string) string {
-	return fmt.Sprintf("%s=%s, %s=%s, %s=%s, %s=%s", RadixComponentLabel, componentName, RadixDeploymentLabel, radixDeploymentName, RadixSecretRefTypeLabel, string(radixSecretRefType), RadixSecretRefNameLabel, radixSecretRefName)
-}
-
-// GetAllSecretRefObjectsLabelSelector Get label selector for all secret-ref objects (secret, secret provider class, etc.)
-func GetAllSecretRefObjectsLabelSelector(componentName string) string {
-	return fmt.Sprintf("%s=%s, %s", RadixComponentLabel, componentName, RadixSecretRefTypeLabel)
-}
-
 // CreateSecretProviderClass Creates secret provider class to namespace
 func (kubeutil *Kube) CreateSecretProviderClass(namespace string, secretProviderClass *secretsstorev1.SecretProviderClass) (savedSecret *secretsstorev1.SecretProviderClass, err error) {
 	log.Debugf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
@@ -49,9 +39,9 @@ func (kubeutil *Kube) CreateSecretProviderClass(namespace string, secretProvider
 }
 
 // GetComponentSecretProviderClassName Gets unique name of the component secret storage class
-func GetComponentSecretProviderClassName(componentName, radixDeploymentName string, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) string {
+func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployComponentName string, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) string {
 	// include a hash so that users cannot get access to a secret-ref they should not get
 	// by naming component the same as secret-ref object
-	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s-%s", componentName, radixDeploymentName, radixSecretRefType, secretRefName)))
-	return fmt.Sprintf("%s-%s-%s-%s", componentName, radixSecretRefType, secretRefName, hash)
+	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s-%s", radixDeployComponentName, radixDeploymentName, radixSecretRefType, secretRefName)))
+	return fmt.Sprintf("%s-%s-%s-%s", radixDeployComponentName, radixSecretRefType, secretRefName, hash)
 }

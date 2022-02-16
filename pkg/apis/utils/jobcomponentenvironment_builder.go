@@ -13,20 +13,21 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithNode(node v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithTimeLimitSeconds(*int64) RadixJobComponentEnvironmentConfigBuilder
+	WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
 type radixJobComponentEnvironmentConfigBuilder struct {
-	environment  		string
-	variables   		 v1.EnvVarsMap
-	resources    		v1.ResourceRequirements
-	volumeMounts 		[]v1.RadixVolumeMount
-	imageTagName 		string
-	monitoring   		bool
-	node         		v1.RadixNode
-	runAsNonRoot 		bool
-	secretRefs   		v1.RadixSecretRefs
-	timeLimitSeconds 	*int64
+	environment      string
+	variables        v1.EnvVarsMap
+	resources        v1.ResourceRequirements
+	volumeMounts     []v1.RadixVolumeMount
+	imageTagName     string
+	monitoring       bool
+	node             v1.RadixNode
+	runAsNonRoot     bool
+	secretRefs       v1.RadixSecretRefs
+	timeLimitSeconds *int64
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -81,17 +82,22 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonR
 	return ceb
 }
 
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.secretRefs = secretRefs
+	return ceb
+}
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
-		Environment:  ceb.environment,
-		Variables:    ceb.variables,
-		Resources:    ceb.resources,
-		VolumeMounts: ceb.volumeMounts,
-		Monitoring:   ceb.monitoring,
-		ImageTagName: ceb.imageTagName,
-		Node:         ceb.node,
-		RunAsNonRoot: ceb.runAsNonRoot,
-		SecretRefs:   ceb.secretRefs,
+		Environment:      ceb.environment,
+		Variables:        ceb.variables,
+		Resources:        ceb.resources,
+		VolumeMounts:     ceb.volumeMounts,
+		Monitoring:       ceb.monitoring,
+		ImageTagName:     ceb.imageTagName,
+		Node:             ceb.node,
+		RunAsNonRoot:     ceb.runAsNonRoot,
+		SecretRefs:       ceb.secretRefs,
 		TimeLimitSeconds: ceb.timeLimitSeconds,
 	}
 }

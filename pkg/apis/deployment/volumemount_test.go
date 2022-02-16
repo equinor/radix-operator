@@ -37,7 +37,6 @@ type TestEnv struct {
 	secretproviderclient secretProviderClient.Interface
 	prometheusclient     prometheusclient.Interface
 	kubeUtil             *kube.Kube
-	deployment           *Deployment
 }
 
 type volumeMountTestScenario struct {
@@ -640,6 +639,53 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	})
 }
 
+func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResources() {
+	scenarios := []volumeMountTestScenario{
+		{
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
+			expectedVolumeName: "csi-az-file-app-volume1-storageName1",
+		},
+		{
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
+			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
+		},
+	}
+	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
+		t.Parallel()
+		for _, factory := range suite.radixCommonDeployComponentFactories {
+			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
+				BuildComponent()
+
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(volumeMounts))
+			mount := volumeMounts[0]
+			assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
+			assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+		}
+	})
+	suite.T().Run("Multiple File CSI Azure volume mount", func(t *testing.T) {
+		t.Parallel()
+		for _, factory := range suite.radixCommonDeployComponentFactories {
+			component := utils.NewDeployCommonComponentBuilder(factory).
+				WithName("app").
+				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
+				BuildComponent()
+
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+			assert.Nil(t, err)
+			for idx, testCase := range scenarios {
+				assert.Equal(t, 2, len(volumeMounts))
+				assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+				assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+			}
+		}
+	})
+}
+
 func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	appName := "any-app"
 	environment := "some-env"
@@ -814,6 +860,173 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 	})
 }
 
+func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources() {
+	namespace := "some-namespace"
+	environment := "some-env"
+	componentName1 := "component1"
+	type expectedVolumeProps struct {
+		expectedVolumeNamePrefix         string
+		expectedVolumeMountPath          string
+		expectedNodePublishSecretRefName string
+		expectedVolumeAttributePrefixes  map[string]string
+	}
+	scenarios := []struct {
+		name                    string
+		deployComponentBuilders []utils.DeployCommonComponentBuilder
+		componentName           string
+		azureKeyVaults          []v1.RadixAzureKeyVault
+		expectedVolumeProps     []expectedVolumeProps
+		radixVolumeMounts       []v1.RadixVolumeMount
+	}{
+		{
+			name:                "No Azure Key volumes as no RadixAzureKeyVault-s",
+			componentName:       componentName1,
+			azureKeyVaults:      []v1.RadixAzureKeyVault{},
+			expectedVolumeProps: []expectedVolumeProps{},
+		},
+		{
+			name:           "No Azure Key volumes as no secret names in secret object",
+			componentName:  componentName1,
+			azureKeyVaults: []v1.RadixAzureKeyVault{{Name: "kv1"}},
+		},
+		{
+			name:          "One Azure Key volume for one secret objects secret name",
+			componentName: componentName1,
+			azureKeyVaults: []v1.RadixAzureKeyVault{{
+				Name:  "kv1",
+				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+			}},
+			expectedVolumeProps: []expectedVolumeProps{
+				{
+					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
+					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
+					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
+					expectedVolumeAttributePrefixes: map[string]string{
+						"secretProviderClass": "component1-az-keyvault-kv1-",
+					},
+				},
+			},
+		},
+		{
+			name:          "Multiple Azure Key volumes for each RadixAzureKeyVault",
+			componentName: componentName1,
+			azureKeyVaults: []v1.RadixAzureKeyVault{
+				{
+					Name:  "kv1",
+					Path:  utils.StringPtr("/mnt/customPath"),
+					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+				},
+				{
+					Name:  "kv2",
+					Items: []v1.RadixAzureKeyVaultItem{{Name: "secret2", EnvVar: "SECRET_REF2"}},
+				},
+			},
+			expectedVolumeProps: []expectedVolumeProps{
+				{
+					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv1-",
+					expectedVolumeMountPath:          "/mnt/customPath",
+					expectedNodePublishSecretRefName: "component1-kv1-csiazkvcreds",
+					expectedVolumeAttributePrefixes: map[string]string{
+						"secretProviderClass": "component1-az-keyvault-kv1-",
+					},
+				},
+				{
+					expectedVolumeNamePrefix:         "component1-az-keyvault-opaque-kv2-",
+					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv2",
+					expectedNodePublishSecretRefName: "component1-kv2-csiazkvcreds",
+					expectedVolumeAttributePrefixes: map[string]string{
+						"secretProviderClass": "component1-az-keyvault-kv2-",
+					},
+				},
+			},
+		},
+	}
+	suite.T().Run("CSI Azure Key vault volumes", func(t *testing.T) {
+		t.Parallel()
+		for _, scenario := range scenarios {
+			testEnv := getTestEnv()
+			deployment := getDeployment(testEnv)
+			deployment.radixDeployment = buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
+				var builders []utils.DeployComponentBuilder
+				builders = append(builders, utils.NewDeployComponentBuilder().
+					WithName(scenario.componentName).
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
+				return builders
+			})
+			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
+			for _, azureKeyVault := range scenario.azureKeyVaults {
+				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
+				if err != nil {
+					t.Logf(err.Error())
+				} else {
+					t.Logf("created secret provider class %s", spc.Name)
+				}
+			}
+			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, radixDeployComponent, deployment.radixDeployment.GetName())
+			assert.Nil(t, err)
+			assert.Len(t, volumes, len(scenario.expectedVolumeProps))
+			if len(scenario.expectedVolumeProps) == 0 {
+				continue
+			}
+
+			for i := 0; i < len(volumes); i++ {
+				volume := volumes[i]
+				assert.NotNil(t, volume.CSI)
+				assert.NotNil(t, volume.CSI.VolumeAttributes)
+				assert.NotNil(t, volume.CSI.NodePublishSecretRef)
+				assert.Equal(t, "secrets-store.csi.k8s.io", volume.CSI.Driver)
+
+				volumeProp := scenario.expectedVolumeProps[i]
+				for attrKey, attrValue := range volumeProp.expectedVolumeAttributePrefixes {
+					spcValue, exists := volume.CSI.VolumeAttributes[attrKey]
+					assert.True(t, exists)
+					assert.True(t, strings.HasPrefix(spcValue, attrValue))
+				}
+				assert.True(t, strings.Contains(volume.Name, volumeProp.expectedVolumeNamePrefix))
+				assert.Equal(t, volumeProp.expectedNodePublishSecretRefName, volume.CSI.NodePublishSecretRef.Name)
+			}
+		}
+	})
+
+	suite.T().Run("CSI Azure Key vault volume mounts", func(t *testing.T) {
+		t.Parallel()
+		for _, scenario := range scenarios {
+			testEnv := getTestEnv()
+			deployment := getDeployment(testEnv)
+			deployment.radixDeployment = buildRdWithComponentBuilders(appName, environment, func() []utils.DeployComponentBuilder {
+				var builders []utils.DeployComponentBuilder
+				builders = append(builders, utils.NewDeployComponentBuilder().
+					WithName(scenario.componentName).
+					WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.azureKeyVaults}))
+				return builders
+			})
+			radixDeployComponent := deployment.radixDeployment.GetComponentByName(scenario.componentName)
+			for _, azureKeyVault := range scenario.azureKeyVaults {
+				spc, err := deployment.createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace, appName, radixDeployComponent.GetName(), azureKeyVault)
+				if err != nil {
+					t.Logf(err.Error())
+				} else {
+					t.Logf("created secret provider class %s", spc.Name)
+				}
+			}
+			volumeMounts, err := GetRadixDeployComponentVolumeMounts(radixDeployComponent, deployment.radixDeployment.GetName())
+			assert.Nil(t, err)
+			assert.Len(t, volumeMounts, len(scenario.expectedVolumeProps))
+			if len(scenario.expectedVolumeProps) == 0 {
+				continue
+			}
+
+			for i := 0; i < len(volumeMounts); i++ {
+				volumeMount := volumeMounts[i]
+				volumeProp := scenario.expectedVolumeProps[i]
+				assert.True(t, strings.Contains(volumeMount.Name, volumeProp.expectedVolumeNamePrefix))
+				assert.Equal(t, volumeProp.expectedVolumeMountPath, volumeMount.MountPath)
+				assert.True(t, volumeMount.ReadOnly)
+			}
+		}
+	})
+}
+
 func createRandomStorageClass(props expectedPvcScProperties, namespace, componentName string) storagev1.StorageClass {
 	return createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
 		sc.ObjectMeta.Name = utils.RandString(10)
@@ -979,6 +1192,14 @@ func createPvc(namespace, componentName string, mountType v1.MountType, modify f
 		modify(&pvc)
 	}
 	return pvc
+}
+
+func buildRdWithComponentBuilders(appName string, environment string, componentBuilders func() []utils.DeployComponentBuilder) *v1.RadixDeployment {
+	return utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(environment).
+		WithComponents(componentBuilders()...).
+		BuildRD()
 }
 
 func createExpectedStorageClass(props expectedPvcScProperties, modify func(class *storagev1.StorageClass)) storagev1.StorageClass {

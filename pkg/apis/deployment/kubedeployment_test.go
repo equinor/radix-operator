@@ -344,7 +344,7 @@ func (s *noopSecurityContextBuilder) BuildPodSecurityContext(component v1.RadixC
 }
 
 func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[string]string) Deployment {
-	tu, client, kubeUtil, radixclient, prometheusclient := setupTest()
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
 		utils.ARadixDeployment().
 			WithComponents(utils.NewDeployComponentBuilder().
