@@ -17,13 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-type SecretType string
-
-const (
-	SecretTypeOpaque SecretType = "Opaque"
-	SecretTypeTls    SecretType = "kubernetes.io/tls"
-)
-
 // SecretExists Checks if secret already exists
 func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 	_, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
