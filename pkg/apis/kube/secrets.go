@@ -17,13 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
-type SecretType string
-
-const (
-	SecretTypeOpaque SecretType = "Opaque"
-	SecretTypeTls    SecretType = "kubernetes.io/tls"
-)
-
 // SecretExists Checks if secret already exists
 func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
 	_, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
@@ -166,16 +159,16 @@ func (kubeutil *Kube) DeleteSecret(namespace, secretName string) error {
 	return nil
 }
 
-// GetSecretTypeForRadixAzureKeyVault Gets SecretType by RadixAzureKeyVaultK8sSecretType
-func GetSecretTypeForRadixAzureKeyVault(k8sSecretType *radixv1.RadixAzureKeyVaultK8sSecretType) SecretType {
+// GetSecretTypeForRadixAzureKeyVault Gets corev1.SecretType by RadixAzureKeyVaultK8sSecretType
+func GetSecretTypeForRadixAzureKeyVault(k8sSecretType *radixv1.RadixAzureKeyVaultK8sSecretType) corev1.SecretType {
 	if k8sSecretType != nil && *k8sSecretType == radixv1.RadixAzureKeyVaultK8sSecretTypeTls {
-		return SecretTypeTls
+		return corev1.SecretTypeTLS
 	}
-	return SecretTypeOpaque
+	return corev1.SecretTypeOpaque
 }
 
 // GetAzureKeyVaultSecretRefSecretName Gets a secret name for Azure KeyVault RadixSecretRefs
-func GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azKeyVaultName string, secretType SecretType) string {
+func GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azKeyVaultName string, secretType corev1.SecretType) string {
 	radixSecretRefSecretType := string(getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(secretType))
 	return getSecretRefSecretName(componentName, radixDeploymentName, string(radixv1.RadixSecretRefTypeAzureKeyVault), radixSecretRefSecretType, azKeyVaultName)
 }
@@ -185,8 +178,8 @@ func getSecretRefSecretName(componentName, radixDeploymentName, secretRefType, s
 	return fmt.Sprintf("%s-%s-%s-%s-%s", componentName, secretRefType, secretType, secretResourceName, hash)
 }
 
-func getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(k8sSecretType SecretType) radixv1.RadixAzureKeyVaultK8sSecretType {
-	if k8sSecretType == SecretTypeTls {
+func getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(k8sSecretType corev1.SecretType) radixv1.RadixAzureKeyVaultK8sSecretType {
+	if k8sSecretType == corev1.SecretTypeTLS {
 		return radixv1.RadixAzureKeyVaultK8sSecretTypeTls
 	}
 	return radixv1.RadixAzureKeyVaultK8sSecretTypeOpaque
