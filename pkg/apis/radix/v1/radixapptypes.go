@@ -52,10 +52,21 @@ type BuildSpec struct {
 	Secrets []string `json:"secrets" yaml:"secrets"`
 }
 
+type EgressPort struct {
+	Number   int32  `json:"number" yaml:"number"`
+	Protocol string `json:"protocol" yaml:"protocol"`
+}
+
+type EgressRule struct {
+	Destinations []string     `json:"destinations" yaml:"destinations"`
+	Ports        []EgressPort `json:"ports,omitempty" yaml:"ports,omitempty"`
+}
+
 //Environment defines a Radix application environment
 type Environment struct {
-	Name  string   `json:"name" yaml:"name"`
-	Build EnvBuild `json:"build,omitempty" yaml:"build,omitempty"`
+	Name        string       `json:"name" yaml:"name"`
+	Build       EnvBuild     `json:"build,omitempty" yaml:"build,omitempty"`
+	EgressRules []EgressRule `json:"egressRules,omitempty" yaml:"egressRules,omitempty"`
 }
 
 // EnvBuild defines build parameters of a specific environment

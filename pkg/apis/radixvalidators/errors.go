@@ -3,6 +3,7 @@ package radixvalidators
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
@@ -369,4 +370,16 @@ func secretRefEnvVarNameConflictsWithEnvironmentVariable(componentName, secretRe
 	return fmt.Errorf(
 		"component %s has a secret reference with environment variable name %s which exists as a regular environment variable or a secret",
 		componentName, secretRefEnvVarName)
+}
+
+func NotValidCidrError(s string) error {
+	return fmt.Errorf(s)
+}
+
+func NotValidIPv4CidrError(ipMask string) error {
+	return fmt.Errorf("%s is not a valid IPv4 mask", ipMask)
+}
+
+func InvalidEgressPortProtocolError(protocol string, validProtocols []string) error {
+	return fmt.Errorf("protocol '%s' must be one of {%s}", protocol, strings.Join(validProtocols, ", "))
 }

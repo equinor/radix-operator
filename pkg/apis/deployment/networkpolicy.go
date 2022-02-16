@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	v1 "k8s.io/api/networking/v1"

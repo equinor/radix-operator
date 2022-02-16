@@ -588,6 +588,11 @@ func Test_invalid_ra(t *testing.T) {
 			job.Name = validRAFirstComponentName
 			ra.Spec.Jobs = append(ra.Spec.Jobs, job)
 		}},
+		{"no mask size postfix in egress rule destination", radixvalidators.DuplicateComponentOrJobNameError([]string{validRAFirstComponentName}), func(ra *v1.RadixApplication) {
+			job := *ra.Spec.Jobs[0].DeepCopy()
+			job.Name = validRAFirstComponentName
+			ra.Spec.Jobs = append(ra.Spec.Jobs, job)
+		}},
 	}
 
 	_, client := validRASetup()
@@ -1373,6 +1378,149 @@ func Test_ValidHPA_NoError(t *testing.T) {
 
 			assert.Equal(t, testcase.isValid, isValid)
 			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+		})
+	}
+}
+
+func Test_EgressRules(t *testing.T) {
+	var testScenarios = []struct {
+		name     string
+		updateRA updateRAFunc
+		isValid  bool
+	}{
+		{
+			name: "egress rule must have valid destination masks",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"notanIPmask"},
+					Ports:        nil,
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must use IPv4 in destination CIDR, zero ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"2001:0DB8:0000:000b::/64"},
+					Ports:        nil,
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must use IPv4 in destination CIDR",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"2001:0DB8:0000:000b::/64"},
+					Ports: []v1.EgressPort{{
+						Number:   10,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must have postfix in IPv4 CIDR",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1"},
+					Ports:        nil,
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must have valid ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1"},
+					Ports: []v1.EgressPort{{
+						Number:   0,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must have valid ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1"},
+					Ports: []v1.EgressPort{{
+						Number:   66000,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must contain destination",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: nil,
+					Ports: []v1.EgressPort{{
+						Number:   24,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "can not exceed max nr of egress rules",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{}
+				for i := 0; i <= 1000; i++ {
+					ra.Spec.Environments[0].EgressRules = append(ra.Spec.Environments[0].EgressRules, v1.EgressRule{
+						Destinations: []string{"10.0.0.0/8"},
+						Ports:        nil,
+					})
+				}
+			},
+			isValid: false,
+		},
+		{
+			name: "sample egress rule with valid destination, zero ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.0/8"},
+					Ports:        nil,
+				}}
+			},
+			isValid: true,
+		},
+		{
+			name: "sample egress rule with valid destinations",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.0/8", "192.10.10.10/32"},
+					Ports: []v1.EgressPort{
+						{
+							Number:   53,
+							Protocol: "udp",
+						},
+						{
+							Number:   53,
+							Protocol: "TCP",
+						},
+					},
+				}}
+			},
+			isValid: true,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, _ := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			assert.Equal(t, testcase.isValid, isValid)
 		})
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 
+	"net"
 	"regexp"
 	"strings"
 	"time"
@@ -18,19 +19,19 @@ import (
 
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
-
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
-	maxPortNameLength = 15
-	minimumPortNumber = 1024
-	maximumPortNumber = 65535
-	cpuRegex          = "^[0-9]+m$"
+	maximumNumberOfEgressRules = 1000
+	maxPortNameLength          = 15
+	minimumPortNumber          = 1024
+	maximumPortNumber          = 65535
+	cpuRegex                   = "^[0-9]+m$"
 )
 
 var (
@@ -89,6 +90,8 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	if err != nil {
 		errs = append(errs, err)
 	}
+
+	errs = append(errs, validateEnvironmentEgressRules(app)...)
 
 	err = validateVariables(app)
 	if err != nil {
@@ -935,6 +938,71 @@ func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
 	if len(appName)+len(envName) > 62 {
 		return fmt.Errorf("summary length of app name and environment together should not exceed 62 characters")
 	}
+	return nil
+}
+
+func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
+	var errs []error
+	for _, env := range app.Spec.Environments {
+		if len(env.EgressRules) > maximumNumberOfEgressRules {
+			errs = append(errs, fmt.Errorf("number of egress rules for env %s exceeds max nr %d", env.Name, maximumNumberOfEgressRules))
+			continue
+		}
+		for _, egressRule := range env.EgressRules {
+			if len(egressRule.Destinations) < 1 {
+				errs = append(errs, fmt.Errorf("egress rule must contain at least one destination"))
+			}
+			for _, ipMask := range egressRule.Destinations {
+				err := validateEgressRuleIpMask(ipMask)
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+			for _, port := range egressRule.Ports {
+				err := validateEgressRulePortProtocol(port.Protocol)
+				if err != nil {
+					errs = append(errs, err)
+				}
+				err = validateEgressRulePortNumber(port.Number)
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+	}
+	if len(errs) != 0 {
+		return errs
+	}
+	return nil
+}
+
+func validateEgressRulePortNumber(number int32) error {
+	if number < 1 || number > maximumPortNumber {
+		return fmt.Errorf("%d must be equal to or greater than 1 and lower than or equal to %d", number, maximumPortNumber)
+	}
+	return nil
+}
+
+func validateEgressRulePortProtocol(protocol string) error {
+	upperCaseProtocol := strings.ToUpper(protocol)
+	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP), string(corev1.ProtocolSCTP)}
+	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
+		return nil
+	} else {
+		return InvalidEgressPortProtocolError(protocol, validProtocols)
+	}
+}
+
+func validateEgressRuleIpMask(ipMask string) error {
+	ipAddr, _, err := net.ParseCIDR(ipMask)
+	if err != nil {
+		return NotValidCidrError(err.Error())
+	}
+	ipV4Addr := ipAddr.To4()
+	if ipV4Addr == nil {
+		return NotValidIPv4CidrError(ipMask)
+	}
+
 	return nil
 }
 
