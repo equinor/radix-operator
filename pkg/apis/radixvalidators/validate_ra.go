@@ -946,6 +946,7 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 	for _, env := range app.Spec.Environments {
 		if len(env.EgressRules) > maximumNumberOfEgressRules {
 			errs = append(errs, fmt.Errorf("number of egress rules for env %s exceeds max nr %d", env.Name, maximumNumberOfEgressRules))
+			continue
 		}
 		for _, egressRule := range env.EgressRules {
 			if len(egressRule.Destinations) < 1 {
