@@ -381,5 +381,5 @@ func NotValidIPv4CidrError(ipMask string) error {
 }
 
 func InvalidEgressPortProtocolError(protocol string, validProtocols []string) error {
-	return fmt.Errorf("Protocol '%s' must be one of {%s}", protocol, strings.Join(validProtocols, ", "))
+	return fmt.Errorf("protocol '%s' must be one of {%s}", protocol, strings.Join(validProtocols, ", "))
 }

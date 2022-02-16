@@ -62,22 +62,22 @@ func (env *Environment) OnSync(time metav1.Time) error {
 
 	err := env.ApplyNamespace(namespaceName)
 	if err != nil {
-		return fmt.Errorf("Failed to apply namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply namespace %s: %v", namespaceName, err)
 	}
 
 	err = env.ApplyAdGroupRoleBinding(namespaceName)
 	if err != nil {
-		return fmt.Errorf("Failed to apply RBAC on namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply RBAC on namespace %s: %v", namespaceName, err)
 	}
 
 	err = env.ApplyLimitRange(namespaceName)
 	if err != nil {
-		return fmt.Errorf("Failed to apply limit range on namespace %s: %v", namespaceName, err)
+		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
 	err = env.networkPolicy.UpdateEnvEgressRules(env.config.Spec.EgressRules, env.config.Spec.EnvName)
 	if err != nil {
-		errmsg := fmt.Sprintf("Failed to add egress rules in %s, environment %s: ", env.config.Spec.AppName, env.config.Spec.EnvName)
+		errmsg := fmt.Sprintf("failed to add egress rules in %s, environment %s: ", env.config.Spec.AppName, env.config.Spec.EnvName)
 		return fmt.Errorf("%s%v", errmsg, err)
 	}
 
@@ -89,7 +89,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		currStatus.Reconciled = time
 	})
 	if err != nil {
-		return fmt.Errorf("Failed to update status on environment %s: %v", env.config.Spec.EnvName, err)
+		return fmt.Errorf("failed to update status on environment %s: %v", env.config.Spec.EnvName, err)
 	}
 	env.logger.Debugf("Environment %s reconciled", namespaceName)
 	return nil

@@ -8,11 +8,11 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/networking/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -40,34 +40,68 @@ func NewNetworkPolicy(
 	}, nil
 }
 
+func convertToK8sEgressRules(radixEgressRules []rx.EgressRule) []v1.NetworkPolicyEgressRule {
+	var egressRules []v1.NetworkPolicyEgressRule
+
+	for _, radixEgressRule := range radixEgressRules {
+		egressRule := convertToK8sEgressRule(radixEgressRule)
+		egressRules = append(egressRules, egressRule)
+
+	}
+	return egressRules
+}
+
+func convertToK8sEgressRule(radixEgressRule rx.EgressRule) (egressRule v1.NetworkPolicyEgressRule) {
+
+	var ports []v1.NetworkPolicyPort
+	var cidrs []v1.NetworkPolicyPeer
+
+	for _, radixPort := range radixEgressRule.Ports {
+		portProtocol := corev1.Protocol(strings.ToUpper(radixPort.Protocol))
+		ports = append(ports, v1.NetworkPolicyPort{
+			Protocol: &portProtocol,
+			Port: &intstr.IntOrString{
+				IntVal: radixPort.Number,
+			},
+		})
+	}
+
+	for _, radixCidr := range radixEgressRule.Destinations {
+		cidrs = append(cidrs, v1.NetworkPolicyPeer{
+			IPBlock: &v1.IPBlock{
+				CIDR: radixCidr,
+			},
+		})
+	}
+
+	return v1.NetworkPolicyEgressRule{
+		Ports: ports,
+		To:    cidrs,
+	}
+}
+
+// UpdateEnvEgressRules Applies a list of egress rules to the specified radix app environment
 func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, env string) error {
 
 	ns := utils.GetEnvironmentNamespace(nw.appName, env)
 
-	var err error
 	// if there are _no_ egress rules defined in radixconfig, we delete existing policy
 	if len(radixEgressRules) == 0 {
-		err = nw.deleteUserDefinedEgressPolicies(ns, env)
-		if err != nil {
-			return err
-		}
-		return nil
+		return nw.deleteUserDefinedEgressPolicies(ns, env)
 	}
 
-	// converting rules from radixconfig to k8s egress rules
-	userDefinedEgressRules := utils.ConvertRadixRules(radixEgressRules)
+	userDefinedEgressRules := convertToK8sEgressRules(radixEgressRules)
 
 	// adding kube-dns to user-defined egress rules
 	egressRules := append(userDefinedEgressRules, nw.createAllowKubeDnsEgressRule())
 
-	// combining the egress rules created from previous steps in a network policy and applying it
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
-	err = nw.applyEgressPolicy(egressPolicy, ns)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	err := nw.kubeUtil.ApplyEgressPolicy(egressPolicy, ns)
+	if err == nil {
+		nw.logger.Debugf("Successfully inserted %s to ns %s", egressPolicy.Name, ns)
+	}
+	return err
 }
 
 func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ns string, env string) error {
@@ -83,21 +117,9 @@ func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ns string, env string) 
 	return nil
 }
 
-func (nw *NetworkPolicy) applyEgressPolicy(networkPolicy *v1.NetworkPolicy, ns string) error {
-	_, err := nw.kubeClient.NetworkingV1().NetworkPolicies(ns).Create(context.TODO(), networkPolicy, metav1.CreateOptions{})
-	if k8serrors.IsAlreadyExists(err) {
-		_, err = nw.kubeClient.NetworkingV1().NetworkPolicies(ns).Update(context.TODO(), networkPolicy, metav1.UpdateOptions{})
-	}
-	if err != nil {
-		return err
-	}
-	nw.logger.Debugf("Successfully inserted %s to ns %s", networkPolicy.Name, ns)
-	return nil
-}
-
 func (nw *NetworkPolicy) createAllowKubeDnsEgressRule() v1.NetworkPolicyEgressRule {
-	var tcp = corev1.Protocol("TCP")
-	var udp = corev1.Protocol("UDP")
+	var tcp = corev1.ProtocolTCP
+	var udp = corev1.ProtocolUDP
 
 	dnsEgressRule := v1.NetworkPolicyEgressRule{
 		Ports: []v1.NetworkPolicyPort{
@@ -118,6 +140,7 @@ func (nw *NetworkPolicy) createAllowKubeDnsEgressRule() v1.NetworkPolicyEgressRu
 			PodSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{kube.K8sAppLabel: "kube-dns"},
 			},
+			// empty namespaceSelector is necessary for podSelector to work
 			NamespaceSelector: &metav1.LabelSelector{},
 		}},
 	}
@@ -136,7 +159,7 @@ func (nw *NetworkPolicy) createEgressPolicy(env string, egressRules []v1.Network
 			},
 		},
 		Spec: v1.NetworkPolicySpec{
-			PolicyTypes: []v1.PolicyType{"Egress"},
+			PolicyTypes: []v1.PolicyType{v1.PolicyTypeEgress},
 			Egress:      egressRules,
 		},
 	}

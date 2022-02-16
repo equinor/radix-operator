@@ -949,7 +949,7 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 		}
 		for _, egressRule := range env.EgressRules {
 			if len(egressRule.Destinations) < 1 {
-				return []error{fmt.Errorf("Egress rule must contain at least one destination")}
+				return []error{fmt.Errorf("egress rule must contain at least one destination")}
 			}
 			for _, ipMask := range egressRule.Destinations {
 				err := validateEgressRuleIpMask(ipMask)
@@ -985,12 +985,11 @@ func validateEgressRulePortNumber(number int32) error {
 func validateEgressRulePortProtocol(protocol string) error {
 	upperCaseProtocol := strings.ToUpper(protocol)
 	validProtocols := []string{"TCP", "UDP", "SCTP"}
-	for _, validProtocol := range validProtocols {
-		if upperCaseProtocol == validProtocol {
-			return nil
-		}
+	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
+		return nil
+	} else {
+		return InvalidEgressPortProtocolError(protocol, validProtocols)
 	}
-	return InvalidEgressPortProtocolError(protocol, validProtocols)
 }
 
 func validateEgressRuleIpMask(ipMask string) error {
