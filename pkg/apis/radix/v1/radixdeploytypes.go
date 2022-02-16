@@ -234,6 +234,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetVolumeMounts() []RadixVolu
 	return deployJobComponent.VolumeMounts
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetEnvironment() string {
+	return deployJobComponent.Environment
+}
+
 func (deployJobComponent *RadixDeployJobComponent) IsAlwaysPullImageOnDeploy() bool {
 	return deployJobComponent.AlwaysPullImageOnDeploy
 }

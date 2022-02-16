@@ -12,7 +12,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	kube "github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -213,7 +213,7 @@ func (deploy *Deployment) syncDeployment() error {
 
 	deploy.configureRbac()
 
-	err = deploy.createOrUpdateSecrets(deploy.registration, deploy.radixDeployment)
+	err = deploy.createOrUpdateSecrets()
 	if err != nil {
 		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("failed to provision secrets: %v", err)
