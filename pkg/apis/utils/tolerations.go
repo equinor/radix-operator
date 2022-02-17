@@ -14,15 +14,8 @@ func GetPodSpecTolerations(node *v1.RadixNode) []corev1.Toleration {
 		return nil
 	}
 
-	// No toleration required if Gpu is empty
-	if len(strings.ReplaceAll(node.Gpu, " ", "")) == 0 {
-		return nil
-	}
-
 	var tolerations []corev1.Toleration
-
 	tolerations = append(tolerations, getGpuNodeTolerations(node)...)
-
 	return tolerations
 }
 
