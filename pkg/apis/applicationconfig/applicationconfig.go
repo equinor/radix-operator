@@ -178,14 +178,14 @@ func (app *ApplicationConfig) OnSync() error {
 
 // createEnvironments Will create environments defined in the radix config
 func (app *ApplicationConfig) createEnvironments() error {
-	targetEnvs := getTargetEnvironmentsAsMap("", app.config)
 
-	for env := range targetEnvs {
+	for _, env := range app.config.Spec.Environments {
 		app.applyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(app.config.Name).
 			WithAppLabel().
-			WithEnvironmentName(env).
+			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(app.registration).
+			WithEgressRules(env.EgressRules).
 			// Orphaned flag will be set by the environment handler but until
 			// reconciliation we must ensure it is false
 			// Update: It seems Update method does not update status object when using real k8s client, but the fake client does.

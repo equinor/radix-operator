@@ -52,10 +52,21 @@ type BuildSpec struct {
 	Secrets []string `json:"secrets" yaml:"secrets"`
 }
 
+type EgressPort struct {
+	Number   int32  `json:"number" yaml:"number"`
+	Protocol string `json:"protocol" yaml:"protocol"`
+}
+
+type EgressRule struct {
+	Destinations []string     `json:"destinations" yaml:"destinations"`
+	Ports        []EgressPort `json:"ports,omitempty" yaml:"ports,omitempty"`
+}
+
 //Environment defines a Radix application environment
 type Environment struct {
-	Name  string   `json:"name" yaml:"name"`
-	Build EnvBuild `json:"build,omitempty" yaml:"build,omitempty"`
+	Name        string       `json:"name" yaml:"name"`
+	Build       EnvBuild     `json:"build,omitempty" yaml:"build,omitempty"`
+	EgressRules []EgressRule `json:"egressRules,omitempty" yaml:"egressRules,omitempty"`
 }
 
 // EnvBuild defines build parameters of a specific environment
@@ -327,7 +338,7 @@ type RadixAzureKeyVaultItem struct {
 	EnvVar string `json:"envVar" yaml:"envVar"`
 	// Type. Optional. Type of the Azure KeyVault object: secret (default), key, cert
 	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
-	// Alias. Optional. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
+	// Alias. Optional.It is not yet fully supported by the Azure CSI Key vault driver. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
 	Alias *string `json:"alias,omitempty" yaml:"alias,omitempty"`
 	// Version. Optional. object versions, default to the latest, if empty
 	Version *string `json:"version,omitempty" yaml:"version,omitempty"`
@@ -383,13 +394,13 @@ const (
 type CookieSameSiteType string
 
 const (
-	// Set SameSite to strict
+	// SameSiteStrict Use strict as samesite for cookie
 	SameSiteStrict CookieSameSiteType = "strict"
-	// Set SameSite to lax
+	// SameSiteLax Use lax as samesite for cookie
 	SameSiteLax CookieSameSiteType = "lax"
-	// Set SameSite to none. Not supported by IE. See compativility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	// SameSiteNone Use none as samesite for cookie. Not supported by IE. See compativility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
 	SameSiteNone CookieSameSiteType = "none"
-	// Do not set SameSite. Modern browsers defaults to lax when SameSite is not set. See compatibility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
+	// SameSiteEmpty Use empty string as samesite for cookie. Modern browsers defaults to lax when SameSite is not set. See compatibility matrix https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite#browser_compatibility
 	SameSiteEmpty CookieSameSiteType = ""
 )
 
@@ -405,7 +416,7 @@ type OAuth2 struct {
 	// from values in the Access Token redeemed by the OAuth Proxy
 	// Default: false
 	SetXAuthRequestHeaders *bool `json:"setXAuthRequestHeaders,omitempty" yaml:"setXAuthRequestHeaders,omitempty"`
-	// SetAuthorizationHeader. Optional. Defines if the IDToken received by the OAuth Proxy should be added to the Autherization header
+	// SetAuthorizationHeader. Optional. Defines if the IDToken received by the OAuth Proxy should be added to the Authorization header
 	// Default: false
 	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty" yaml:"setAuthorizationHeader,omitempty"`
 	// ProxyPrefix. Optional. The url root path that OAuth Proxy should be nested under

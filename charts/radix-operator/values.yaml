@@ -50,6 +50,7 @@ image:
   pullPolicy: Always
 
 service:
+  # annotations: {}
   type: ClusterIP
   internalPort: 9000
 

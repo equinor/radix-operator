@@ -5,10 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/errors"
-
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -474,22 +473,122 @@ func Test_invalid_ra(t *testing.T) {
 			ra.Name = name50charsLong
 			ra.Spec.Environments = append(ra.Spec.Environments, v1.Environment{Name: "extra-14-chars"})
 		}},
-		{"invalid OAuth session store type", radixvalidators.InvalidOAuthSessionStoreTypeError("invalid-store"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.SessionStoreType = "invalid-store"
+		{"missing OAuth clientId for dev env - common OAuth config", radixvalidators.OAuthClientIdEmptyError(validRAFirstComponentName, "dev"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].Authentication.OAuth2 = &v1.OAuth2{}
 		}},
-		{"invalid OAuth cookie same site", radixvalidators.InvalidOAuthCookieSameSiteError("invalid-samesite"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.Cookie.SameSite = "invalid-samesite"
+		{"missing OAuth clientId for prod env - environmentConfig OAuth config", radixvalidators.OAuthClientIdEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.ClientID = ""
 		}},
-		{"OAuth path prefix is root", radixvalidators.OAuthProxyPrefixIsRootError(), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.ProxyPrefix = "/"
+		{"OAuth path prefix is root", radixvalidators.OAuthProxyPrefixIsRootError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.ProxyPrefix = "/"
 		}},
-		{"invalid OAuth cookie expire timeframe", radixvalidators.InvalidOAuthCookieExpireError("invalid-expire"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.Cookie.Expire = "invalid-expire"
+		{"invalid OAuth session store type", radixvalidators.OAuthSessionStoreTypeInvalidError(validRAFirstComponentName, "prod", "invalid-store"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = "invalid-store"
 		}},
-		{"invalid OAuth cookie refresh time frame", radixvalidators.InvalidOAuthCookieRefreshError("invalid-refresh"), func(rr *v1.RadixApplication) {
-			rr.Spec.Components[0].Authentication.OAuth2.Cookie.Refresh = "invalid-refresh"
+		{"missing OAuth redisStore property", radixvalidators.OAuthRedisStoreEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedisStore = nil
+		}},
+		{"missing OAuth redis connection URL", radixvalidators.OAuthRedisStoreConnectionURLEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedisStore.ConnectionURL = ""
+		}},
+		{"no error when skipDiscovery=true and login, redeem and jwks urls set", nil, func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+				JWKSURL:       "jwksurl",
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
+		}},
+		{"error when skipDiscovery=true and missing loginUrl", radixvalidators.OAuthLoginUrlEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+				JWKSURL:       "jwksurl",
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
+		}},
+		{"error when skipDiscovery=true and missing redeemUrl", radixvalidators.OAuthRedeemUrlEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+				JWKSURL:       "jwksurl",
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
+		}},
+		{"error when skipDiscovery=true and missing redeemUrl", radixvalidators.OAuthOidcJwksUrlEmptyError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.OIDC = &v1.OAuth2OIDC{
+				SkipDiscovery: commonUtils.BoolPtr(true),
+			}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.LoginURL = "loginurl"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.RedeemURL = "redeemurl"
+		}},
+		{"valid OAuth configuration for session store cookie and cookieStore.minimal=true", nil, func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "0s",
+			}
+		}},
+		{"error when cookieStore.minimal=true and SetAuthorizationHeader=true", radixvalidators.OAuthCookieStoreMinimalIncorrectSetAuthorizationHeaderError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "0s",
+			}
+		}},
+		{"error when cookieStore.minimal=true and SetXAuthRequestHeaders=true", radixvalidators.OAuthCookieStoreMinimalIncorrectSetXAuthRequestHeadersError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(true)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "0s",
+			}
+		}},
+		{"error when cookieStore.minimal=true and Cookie.Refresh>0", radixvalidators.OAuthCookieStoreMinimalIncorrectCookieRefreshIntervalError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SessionStoreType = v1.SessionStoreCookie
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.CookieStore = &v1.OAuth2CookieStore{Minimal: commonUtils.BoolPtr(true)}
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetAuthorizationHeader = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.SetXAuthRequestHeaders = commonUtils.BoolPtr(false)
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie = &v1.OAuth2Cookie{
+				Expire:  "1h",
+				Refresh: "1s",
+			}
+		}},
+		{"invalid OAuth cookie same site", radixvalidators.OAuthCookieSameSiteInvalidError(validRAFirstComponentName, "prod", "invalid-samesite"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.SameSite = "invalid-samesite"
+		}},
+		{"invalid OAuth cookie expire timeframe", radixvalidators.OAuthCookieExpireInvalidError(validRAFirstComponentName, "prod", "invalid-expire"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "invalid-expire"
+		}},
+		{"negative OAuth cookie expire timeframe", radixvalidators.OAuthCookieExpireInvalidError(validRAFirstComponentName, "prod", "-1s"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "-1s"
+		}},
+		{"invalid OAuth cookie refresh time frame", radixvalidators.OAuthCookieRefreshInvalidError(validRAFirstComponentName, "prod", "invalid-refresh"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "invalid-refresh"
+		}},
+		{"negative OAuth cookie refresh time frame", radixvalidators.OAuthCookieRefreshInvalidError(validRAFirstComponentName, "prod", "-1s"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "-1s"
+		}},
+		{"oauth cookie expire equals refresh", radixvalidators.OAuthCookieRefreshMustBeLessThanExpireError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "1h"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
+		}},
+		{"oauth cookie expire less than refresh", radixvalidators.OAuthCookieRefreshMustBeLessThanExpireError(validRAFirstComponentName, "prod"), func(rr *v1.RadixApplication) {
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Expire = "30m"
+			rr.Spec.Components[0].EnvironmentConfig[0].Authentication.OAuth2.Cookie.Refresh = "1h"
 		}},
 		{"duplicate name in job/component boundary", radixvalidators.DuplicateComponentOrJobNameError([]string{validRAFirstComponentName}), func(ra *v1.RadixApplication) {
+			job := *ra.Spec.Jobs[0].DeepCopy()
+			job.Name = validRAFirstComponentName
+			ra.Spec.Jobs = append(ra.Spec.Jobs, job)
+		}},
+		{"no mask size postfix in egress rule destination", radixvalidators.DuplicateComponentOrJobNameError([]string{validRAFirstComponentName}), func(ra *v1.RadixApplication) {
 			job := *ra.Spec.Jobs[0].DeepCopy()
 			job.Name = validRAFirstComponentName
 			ra.Spec.Jobs = append(ra.Spec.Jobs, job)
@@ -1279,6 +1378,149 @@ func Test_ValidHPA_NoError(t *testing.T) {
 
 			assert.Equal(t, testcase.isValid, isValid)
 			assert.Equal(t, testcase.isErrorNil, isErrorNil)
+		})
+	}
+}
+
+func Test_EgressRules(t *testing.T) {
+	var testScenarios = []struct {
+		name     string
+		updateRA updateRAFunc
+		isValid  bool
+	}{
+		{
+			name: "egress rule must have valid destination masks",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"notanIPmask"},
+					Ports:        nil,
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must use IPv4 in destination CIDR, zero ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"2001:0DB8:0000:000b::/64"},
+					Ports:        nil,
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must use IPv4 in destination CIDR",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"2001:0DB8:0000:000b::/64"},
+					Ports: []v1.EgressPort{{
+						Number:   10,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must have postfix in IPv4 CIDR",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1"},
+					Ports:        nil,
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must have valid ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1"},
+					Ports: []v1.EgressPort{{
+						Number:   0,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must have valid ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1"},
+					Ports: []v1.EgressPort{{
+						Number:   66000,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must contain destination",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: nil,
+					Ports: []v1.EgressPort{{
+						Number:   24,
+						Protocol: "TCP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "can not exceed max nr of egress rules",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{}
+				for i := 0; i <= 1000; i++ {
+					ra.Spec.Environments[0].EgressRules = append(ra.Spec.Environments[0].EgressRules, v1.EgressRule{
+						Destinations: []string{"10.0.0.0/8"},
+						Ports:        nil,
+					})
+				}
+			},
+			isValid: false,
+		},
+		{
+			name: "sample egress rule with valid destination, zero ports",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.0/8"},
+					Ports:        nil,
+				}}
+			},
+			isValid: true,
+		},
+		{
+			name: "sample egress rule with valid destinations",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.0/8", "192.10.10.10/32"},
+					Ports: []v1.EgressPort{
+						{
+							Number:   53,
+							Protocol: "udp",
+						},
+						{
+							Number:   53,
+							Protocol: "TCP",
+						},
+					},
+				}}
+			},
+			isValid: true,
+		},
+	}
+
+	_, client := validRASetup()
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			validRA := createValidRA()
+			testcase.updateRA(validRA)
+			isValid, _ := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
+			assert.Equal(t, testcase.isValid, isValid)
 		})
 	}
 }

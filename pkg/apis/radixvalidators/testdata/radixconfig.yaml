@@ -19,14 +19,6 @@ spec:
         clientCertificate:
           verification: optional
           passCertificateToUpstream: false
-        oauth2:
-          clientId: 12cf
-          sessionStoreType: cookie
-          proxyPrefix: /oauth2/path
-          cookie:
-            refresh: 30m
-            expire: 168h
-            sameSite: "strict"
       resources:
         limits:
           memory: "128Mi"
@@ -43,7 +35,9 @@ spec:
               passCertificateToUpstream: true
             oauth2:
               clientId: 12cf
-              sessionStoreType: cookie
+              sessionStoreType: redis
+              redisStore:
+                connectionUrl: redis://redis:6379
               proxyPrefix: /oauth2
               cookie:
                 refresh: 30m
