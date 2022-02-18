@@ -95,7 +95,7 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 	// adding kube-dns and own namespace to user-defined egress rules
 	egressRules := append(userDefinedEgressRules,
 		nw.createAllowKubeDnsEgressRule(),
-		nw.createAllowOwnNameSpaceEgressRule(env),
+		nw.createAllowOwnNamespaceEgressRule(env),
 	)
 
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
@@ -151,7 +151,7 @@ func (nw *NetworkPolicy) createAllowKubeDnsEgressRule() v1.NetworkPolicyEgressRu
 	return dnsEgressRule
 }
 
-func (nw *NetworkPolicy) createAllowOwnNameSpaceEgressRule(env string) v1.NetworkPolicyEgressRule {
+func (nw *NetworkPolicy) createAllowOwnNamespaceEgressRule(env string) v1.NetworkPolicyEgressRule {
 	ownNamespaceEgressRule := v1.NetworkPolicyEgressRule{
 		Ports: nil, // allowing all ports
 		To: []v1.NetworkPolicyPeer{{
