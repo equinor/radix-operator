@@ -2577,6 +2577,12 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Equal(t, corev1.NodeSelectorOpIn, expression.Operator)
 		assert.Equal(t, 1, len(expression.Values))
 		assert.Contains(t, expression.Values, gpuNvidiaV100)
+
+		tolerations := deployment.Spec.Template.Spec.Tolerations
+		assert.Len(t, tolerations, 1)
+		assert.Equal(t, kube.NodeTaintGpuCountKey, tolerations[0].Key)
+		assert.Equal(t, corev1.TolerationOpExists, tolerations[0].Operator)
+		assert.Equal(t, corev1.TaintEffectNoSchedule, tolerations[0].Effect)
 	})
 	t.Run("has node with nvidia-v100, nvidia-p100", func(t *testing.T) {
 		t.Parallel()
@@ -2593,6 +2599,12 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Equal(t, 2, len(expression.Values))
 		assert.Contains(t, expression.Values, gpuNvidiaV100)
 		assert.Contains(t, expression.Values, gpuNvidiaP100)
+
+		tolerations := deployment.Spec.Template.Spec.Tolerations
+		assert.Len(t, tolerations, 1)
+		assert.Equal(t, kube.NodeTaintGpuCountKey, tolerations[0].Key)
+		assert.Equal(t, corev1.TolerationOpExists, tolerations[0].Operator)
+		assert.Equal(t, corev1.TaintEffectNoSchedule, tolerations[0].Effect)
 	})
 	t.Run("has node with nvidia-v100, nvidia-p100, not nvidia-k80", func(t *testing.T) {
 		t.Parallel()
@@ -2614,17 +2626,29 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		assert.Equal(t, corev1.NodeSelectorOpNotIn, expression1.Operator)
 		assert.Equal(t, 1, len(expression1.Values))
 		assert.Contains(t, expression1.Values, gpuNvidiaK80)
+
+		tolerations := deployment.Spec.Template.Spec.Tolerations
+		assert.Len(t, tolerations, 1)
+		assert.Equal(t, kube.NodeTaintGpuCountKey, tolerations[0].Key)
+		assert.Equal(t, corev1.TolerationOpExists, tolerations[0].Operator)
+		assert.Equal(t, corev1.TaintEffectNoSchedule, tolerations[0].Effect)
 	})
 	t.Run("has node with no gpu", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
 		assert.Nil(t, deployment.Spec.Template.Spec.Affinity)
+
+		tolerations := deployment.Spec.Template.Spec.Tolerations
+		assert.Len(t, tolerations, 0)
 	})
 	t.Run("job has node, but pod template of Job Scheduler does not have it", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
 		assert.Nil(t, affinity)
+
+		tolerations := deployment.Spec.Template.Spec.Tolerations
+		assert.Len(t, tolerations, 0)
 	})
 }
 

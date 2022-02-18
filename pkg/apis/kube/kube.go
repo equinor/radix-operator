@@ -59,6 +59,10 @@ const (
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
 
+	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
+	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
+	NodeTaintGpuCountKey = "radix-node-gpu-count"
+
 	//Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
 )
