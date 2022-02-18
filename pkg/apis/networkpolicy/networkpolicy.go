@@ -92,8 +92,11 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 
 	userDefinedEgressRules := convertToK8sEgressRules(radixEgressRules)
 
-	// adding kube-dns to user-defined egress rules
-	egressRules := append(userDefinedEgressRules, nw.createAllowKubeDnsEgressRule())
+	// adding kube-dns and own namespace to user-defined egress rules
+	egressRules := append(userDefinedEgressRules,
+		nw.createAllowKubeDnsEgressRule(),
+		nw.createAllowOwnNamespaceEgressRule(env),
+	)
 
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
 
@@ -146,6 +149,22 @@ func (nw *NetworkPolicy) createAllowKubeDnsEgressRule() v1.NetworkPolicyEgressRu
 	}
 
 	return dnsEgressRule
+}
+
+func (nw *NetworkPolicy) createAllowOwnNamespaceEgressRule(env string) v1.NetworkPolicyEgressRule {
+	ownNamespaceEgressRule := v1.NetworkPolicyEgressRule{
+		Ports: nil, // allowing all ports
+		To: []v1.NetworkPolicyPeer{{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					kube.RadixAppLabel: nw.appName,
+					kube.RadixEnvLabel: env,
+				},
+			},
+		}},
+	}
+
+	return ownNamespaceEgressRule
 }
 
 func (nw *NetworkPolicy) createEgressPolicy(env string, egressRules []v1.NetworkPolicyEgressRule, isUserDefined bool) *v1.NetworkPolicy {
