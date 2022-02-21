@@ -61,7 +61,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("Radix registration '%s' in work queue no longer exists", name))
+			utilruntime.HandleError(fmt.Errorf("radix registration '%s' in work queue no longer exists", name))
 			return nil
 		}
 

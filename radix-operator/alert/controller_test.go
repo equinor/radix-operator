@@ -2,6 +2,8 @@ package alert
 
 import (
 	"context"
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -9,7 +11,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
-	"testing"
 )
 
 type controllerTestSuite struct {

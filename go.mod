@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/equinor/radix-common v1.1.10
-	github.com/golang/mock v1.5.0
+	github.com/golang/mock v1.6.0
 	github.com/imdario/mergo v0.3.12
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.54.0
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.54.0

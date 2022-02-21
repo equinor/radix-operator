@@ -2,19 +2,14 @@ package application
 
 import (
 	"context"
+	"testing"
+
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-)
-
-const (
-	clusterName       = "AnyClusterName"
-	dnsZone           = "dev.radix.equinor.com"
-	containerRegistry = "any.container.registry"
 )
 
 type controllerTestSuite struct {
@@ -72,7 +67,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_MachineU
 	s.WaitForSynced("unset machine-user")
 
 	rr.Spec.AdGroups = []string{"another-group"}
-	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
+	s.RadixClient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
 	s.Handler.EXPECT().Sync(namespace, appName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
 	s.WaitForSynced("unset machine-user")
 }

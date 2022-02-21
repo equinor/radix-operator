@@ -23,15 +23,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-// Controller Instance variables
-type Controller struct {
-	clientset   kubernetes.Interface
-	radixclient radixclient.Interface
-	queue       workqueue.RateLimitingInterface
-	informer    cache.SharedIndexInformer
-	handler     common.Handler
-}
-
 var logger *log.Entry
 
 const (

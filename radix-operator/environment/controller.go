@@ -14,7 +14,6 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/sirupsen/logrus"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -141,9 +140,7 @@ func NewController(client kubernetes.Interface,
 			if err == nil {
 				for _, environment := range environments.Items {
 					// Will sync the environment
-					var obj metav1.Object
-					obj = &environment
-					controller.Enqueue(obj)
+					controller.Enqueue(&environment)
 				}
 			}
 		},
@@ -191,7 +188,7 @@ func deepEqual(old, new *v1.RadixEnvironment) bool {
 }
 
 func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), name, meta.GetOptions{})
+	return radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), name, metav1.GetOptions{})
 }
 
 func getAddedOrDroppedEnvironmentNames(oldRa *v1.RadixApplication, newRa *v1.RadixApplication) []string {

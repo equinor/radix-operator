@@ -2,8 +2,9 @@ package registration
 
 import (
 	"context"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
+
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -28,8 +29,6 @@ const (
 	containerRegistry = "any.container.registry"
 	egressIps         = "0.0.0.0"
 )
-
-var synced chan bool
 
 func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
