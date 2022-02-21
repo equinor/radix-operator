@@ -182,9 +182,9 @@ func (syncer *alertSyncer) buildAlertmanagerConfigReceiver(receiver *radixv1.Rec
 					LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(syncer.radixAlert.Name)},
 					Key:                  GetSlackConfigSecretKeyName(receiverName),
 				},
-				Text:      &syncer.slackMessageTemplate.text,
-				Title:     &syncer.slackMessageTemplate.title,
-				TitleLink: &syncer.slackMessageTemplate.titleLink,
+				Text:      syncer.slackMessageTemplate.text,
+				Title:     syncer.slackMessageTemplate.title,
+				TitleLink: syncer.slackMessageTemplate.titleLink,
 			},
 		}
 	}
