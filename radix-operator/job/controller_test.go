@@ -69,7 +69,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+	go startJobController(client, radixClient, radixInformerFactory, kubeInformerFactory, jobHandler, stop)
 
 	// Test
 
@@ -112,7 +112,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 func startJobController(
 	client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -122,7 +121,7 @@ func startJobController(
 
 	waitForChildrenToSync := false
 	controller := NewController(
-		client, kubeutil, radixClient, &handler,
+		client, radixClient, &handler,
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,

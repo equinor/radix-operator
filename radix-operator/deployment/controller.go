@@ -36,7 +36,6 @@ func init() {
 
 // NewController creates a new controller that handles RadixDeployments
 func NewController(client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,

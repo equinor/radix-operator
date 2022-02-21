@@ -25,7 +25,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler() {
 	namespace := utils.GetAppNamespace(appName)
 	appNamespace := test.CreateAppNamespace(s.KubeClient, appName)
 
-	sut := NewController(s.KubeClient, s.KubeUtil, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
 
@@ -45,7 +45,7 @@ func (s *controllerTestSuite) Test_Controller_Calls_Handler_On_Admin_Or_MachineU
 	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{MachineUser: false, AdGroups: []string{"first-group"}}}
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
 
-	sut := NewController(s.KubeClient, s.KubeUtil, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
 

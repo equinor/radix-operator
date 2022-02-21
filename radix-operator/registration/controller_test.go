@@ -62,7 +62,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		},
 		mockedGranter,
 	)
-	go startRegistrationController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+	go startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
 
 	// Test
 
@@ -110,7 +110,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 func startRegistrationController(
 	client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -120,7 +119,7 @@ func startRegistrationController(
 	eventRecorder := &record.FakeRecorder{}
 
 	waitForChildrenToSync := false
-	controller := NewController(client, kubeutil, radixClient, &handler,
+	controller := NewController(client, radixClient, &handler,
 		kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
