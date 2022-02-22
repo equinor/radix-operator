@@ -61,7 +61,7 @@ func convertToK8sEgressRule(radixEgressRule rx.EgressRule) (egressRule v1.Networ
 		ports = append(ports, v1.NetworkPolicyPort{
 			Protocol: &portProtocol,
 			Port: &intstr.IntOrString{
-				IntVal: radixPort.Number,
+				IntVal: radixPort.Port,
 			},
 		})
 	}

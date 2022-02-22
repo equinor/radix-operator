@@ -963,7 +963,7 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 				if err != nil {
 					errs = append(errs, err)
 				}
-				err = validateEgressRulePortNumber(port.Number)
+				err = validateEgressRulePortNumber(port.Port)
 				if err != nil {
 					errs = append(errs, err)
 				}

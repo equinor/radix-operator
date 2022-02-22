@@ -1414,7 +1414,7 @@ func Test_EgressRules(t *testing.T) {
 				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
 					Destinations: []string{"2001:0DB8:0000:000b::/64"},
 					Ports: []v1.EgressPort{{
-						Number:   10,
+						Port:     10,
 						Protocol: "TCP",
 					}},
 				}}
@@ -1437,7 +1437,7 @@ func Test_EgressRules(t *testing.T) {
 				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.1"},
 					Ports: []v1.EgressPort{{
-						Number:   0,
+						Port:     0,
 						Protocol: "TCP",
 					}},
 				}}
@@ -1450,7 +1450,7 @@ func Test_EgressRules(t *testing.T) {
 				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.1"},
 					Ports: []v1.EgressPort{{
-						Number:   66000,
+						Port:     66000,
 						Protocol: "TCP",
 					}},
 				}}
@@ -1463,7 +1463,7 @@ func Test_EgressRules(t *testing.T) {
 				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
 					Destinations: nil,
 					Ports: []v1.EgressPort{{
-						Number:   24,
+						Port:     24,
 						Protocol: "TCP",
 					}},
 				}}
@@ -1500,11 +1500,11 @@ func Test_EgressRules(t *testing.T) {
 					Destinations: []string{"10.0.0.0/8", "192.10.10.10/32"},
 					Ports: []v1.EgressPort{
 						{
-							Number:   53,
+							Port:     53,
 							Protocol: "udp",
 						},
 						{
-							Number:   53,
+							Port:     53,
 							Protocol: "TCP",
 						},
 					},
