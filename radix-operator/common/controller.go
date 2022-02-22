@@ -151,7 +151,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("Invalid resource key: %s", key))
+		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
 		metrics.OperatorError(c.HandlerOf, "split_meta_namespace_key", "invalid_resource_key")
 		return nil
 	}
@@ -161,7 +161,7 @@ func (c *Controller) syncHandler(key string) error {
 		// DEBUG
 		log.Errorf("Error while syncing: %v", err)
 
-		utilruntime.HandleError(fmt.Errorf("Problems syncing: %s", key))
+		utilruntime.HandleError(fmt.Errorf("problems syncing: %s", key))
 		metrics.OperatorError(c.HandlerOf, "c_handler_sync", fmt.Sprintf("problems_sync_%s", key))
 		return err
 	}

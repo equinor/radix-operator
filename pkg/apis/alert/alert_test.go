@@ -473,9 +473,9 @@ func (s *alertTestSuite) Test_OnSync_AlertmanagerConfig_ConfiguredCorrectly() {
 			APIURL: &corev1.SecretKeySelector{
 				Key:                  GetSlackConfigSecretKeyName(receiverName),
 				LocalObjectReference: corev1.LocalObjectReference{Name: GetAlertSecretName(alertName)}},
-			Title:     &slackTemplate.title,
-			TitleLink: &slackTemplate.titleLink,
-			Text:      &slackTemplate.text,
+			Title:     slackTemplate.title,
+			TitleLink: slackTemplate.titleLink,
+			Text:      slackTemplate.text,
 		}
 	}
 	getRouteByAlertandReceiver := func(routes []v1alpha1.Route, alert, receiver string) (route v1alpha1.Route, found bool) {

@@ -2,6 +2,8 @@ package alert
 
 import (
 	"context"
+	"testing"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/radix-operator/common"
@@ -9,7 +11,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
-	"testing"
 )
 
 type controllerTestSuite struct {
@@ -24,7 +25,7 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	alertName, namespace := "any-alert", "any-ns"
 	alert := &v1.RadixAlert{ObjectMeta: metav1.ObjectMeta{Name: alertName}}
 
-	sut := NewController(s.KubeClient, s.KubeUtil, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
 	go sut.Run(1, s.Stop)
@@ -53,7 +54,7 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: v1.RadixRegistrationSpec{Owner: "first-owner", MachineUser: true, AdGroups: []string{"first-group"}}}
 	rr, _ = s.RadixClient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
 
-	sut := NewController(s.KubeClient, s.KubeUtil, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
+	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
 	go sut.Run(1, s.Stop)

@@ -107,7 +107,6 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	waitForChildrenToSync := true
 	registrationController := registration.NewController(
 		client,
-		kubeUtil,
 		radixClient,
 		&handler,
 		kubeInformerFactory,
@@ -145,7 +144,6 @@ func startApplicationController(client kubernetes.Interface, radixClient radixcl
 	waitForChildrenToSync := true
 	applicationController := application.NewController(
 		client,
-		kubeUtil,
 		radixClient,
 		&handler,
 		kubeInformerFactory,
@@ -184,7 +182,6 @@ func startEnvironmentController(client kubernetes.Interface, radixClient radixcl
 	waitForChildrenToSync := true
 	environmentController := environment.NewController(
 		client,
-		kubeUtil,
 		radixClient,
 		&handler,
 		kubeInformerFactory,
@@ -240,7 +237,6 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	waitForChildrenToSync := true
 	deployController := deployment.NewController(
 		client,
-		kubeUtil,
 		radixClient,
 		handler,
 		kubeInformerFactory,
@@ -278,7 +274,6 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 	waitForChildrenToSync := true
 	jobController := job.NewController(
 		client,
-		kubeUtil,
 		radixClient,
 		&handler,
 		kubeInformerFactory,
@@ -316,7 +311,6 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	waitForChildrenToSync := true
 	alertController := alert.NewController(
 		client,
-		kubeUtil,
 		radixClient,
 		handler,
 		kubeInformerFactory,

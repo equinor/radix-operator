@@ -3,8 +3,9 @@ package job
 import (
 	"context"
 	"os"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
+
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
@@ -28,8 +29,6 @@ const (
 	containerRegistry = "any.container.registry"
 	egressIps         = "0.0.0.0"
 )
-
-var synced chan bool
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
@@ -70,7 +69,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+	go startJobController(client, radixClient, radixInformerFactory, kubeInformerFactory, jobHandler, stop)
 
 	// Test
 
@@ -113,7 +112,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 func startJobController(
 	client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -123,7 +121,7 @@ func startJobController(
 
 	waitForChildrenToSync := false
 	controller := NewController(
-		client, kubeutil, radixClient, &handler,
+		client, radixClient, &handler,
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,
