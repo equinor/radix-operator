@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -34,7 +35,6 @@ func init() {
 
 //NewController creates a new controller that handles RadixRegistrations
 func NewController(client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,
@@ -107,6 +107,11 @@ func NewController(client kubernetes.Interface,
 			}
 			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), secret.Namespace, metav1.GetOptions{})
 			if err != nil {
+				// Ignore error if namespace does not exist.
+				// This is normal when a RR is deleted, resulting in deletion of namespaces and it's secrets
+				if errors.IsNotFound(err) {
+					return
+				}
 				logger.Error(err)
 				return
 			}

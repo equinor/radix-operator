@@ -347,7 +347,7 @@ func getReadinessProbeWithDefaultsFromEnv(componentPort int32) (*corev1.Probe, e
 
 func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) corev1.Probe {
 	return corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
 					IntVal: componentPort,

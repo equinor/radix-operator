@@ -3,8 +3,9 @@ package environment
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"time"
+
+	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 
 	"github.com/equinor/radix-operator/pkg/apis/environment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -62,7 +63,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Environment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("Radix environment '%s' in work queue no longer exists", name))
+			utilruntime.HandleError(fmt.Errorf("radix environment '%s' in work queue no longer exists", name))
 			return nil
 		}
 
@@ -77,7 +78,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Registration resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("Failed to get RadixRegistartion object: %v", err))
+			utilruntime.HandleError(fmt.Errorf("failed to get RadixRegistartion object: %v", err))
 			return nil
 		}
 		return err
