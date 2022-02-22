@@ -52,11 +52,13 @@ type BuildSpec struct {
 	Secrets []string `json:"secrets" yaml:"secrets"`
 }
 
+// EgressPort defines a port in context of EgressRule
 type EgressPort struct {
-	Number   int32  `json:"number" yaml:"number"`
+	Port     int32  `json:"port" yaml:"port"`
 	Protocol string `json:"protocol" yaml:"protocol"`
 }
 
+// EgressRule defines an egress rule in network policy
 type EgressRule struct {
 	Destinations []string     `json:"destinations" yaml:"destinations"`
 	Ports        []EgressPort `json:"ports,omitempty" yaml:"ports,omitempty"`
