@@ -985,7 +985,7 @@ func validateEgressRulePort(port int32) error {
 
 func validateEgressRulePortProtocol(protocol string) error {
 	upperCaseProtocol := strings.ToUpper(protocol)
-	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP), string(corev1.ProtocolSCTP)}
+	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP)}
 	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
 		return nil
 	} else {

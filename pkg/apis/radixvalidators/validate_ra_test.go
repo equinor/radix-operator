@@ -1471,6 +1471,32 @@ func Test_EgressRules(t *testing.T) {
 			isValid: false,
 		},
 		{
+			name: "egress rule must have valid port protocol",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1/32"},
+					Ports: []v1.EgressPort{{
+						Port:     2000,
+						Protocol: "SCTP",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
+			name: "egress rule must have valid port protocol",
+			updateRA: func(ra *v1.RadixApplication) {
+				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+					Destinations: []string{"10.0.0.1/32"},
+					Ports: []v1.EgressPort{{
+						Port:     2000,
+						Protocol: "erwef",
+					}},
+				}}
+			},
+			isValid: false,
+		},
+		{
 			name: "can not exceed max nr of egress rules",
 			updateRA: func(ra *v1.RadixApplication) {
 				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{}
