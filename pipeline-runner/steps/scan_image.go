@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -147,7 +148,8 @@ func createScanJob(appName, scannerImage string, componentImages map[string]pipe
 	timestamp := time.Now().Format("20060102150405")
 	imageTag := pipelineArguments.ImageTag
 	jobName := pipelineArguments.JobName
-	scanJobName := fmt.Sprintf("radix-scanner-%s-%s", timestamp, imageTag)
+	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
+	scanJobName := fmt.Sprintf("radix-scanner-%s-%s-%s", timestamp, imageTag, hash)
 	backOffLimit := int32(0)
 
 	imageScanContainers, imageScanComponentImages, containerOutput := createImageScanContainers(appName, scannerImage, scanJobName, componentImages, pipelineArguments.ContainerSecurityContext)
