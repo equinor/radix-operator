@@ -58,12 +58,14 @@ const (
 	RadixSecretRefTypeLabel            = "radix-secret-ref-type"
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
+	//RadixBatchNameLabel A label that k8s automatically adds to a Pod created by Job and to the Job for a Batch
+	RadixBatchNameLabel = "radix-batch-name"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
 	NodeTaintGpuCountKey = "radix-node-gpu-count"
 
-	//Only for backward compatibility
+	//RadixBranchDeprecated Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
 )
 
@@ -140,6 +142,12 @@ func IsEmptyPatch(patchBytes []byte) bool {
 	return string(patchBytes) == "{}"
 }
 
+//KubeClient Kubernetes client
 func (kubeutil *Kube) KubeClient() kubernetes.Interface {
 	return kubeutil.kubeClient
+}
+
+//RadixClient Radix Kubernetes CRD client
+func (kubeutil *Kube) RadixClient() radixclient.Interface {
+	return kubeutil.radixclient
 }
