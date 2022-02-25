@@ -46,6 +46,7 @@ const (
 	RadixJobTypeScan                   = "scan"
 	RadixJobTypeCloneConfig            = "clone-config"
 	RadixJobTypeJobSchedule            = "job-scheduler"
+	RadixJobTypeBatchSchedule          = "batch-scheduler"
 	RadixAppAliasLabel                 = "radix-app-alias"
 	RadixExternalAliasLabel            = "radix-app-external-alias"
 	RadixActiveClusterAliasLabel       = "radix-app-active-cluster-alias"
@@ -60,6 +61,7 @@ const (
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
 	//RadixBatchNameLabel A label that k8s automatically adds to a Pod created by Job and to the Job for a Batch
 	RadixBatchNameLabel = "radix-batch-name"
+	RadixJobIdLabel     = "radix-job-id"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
