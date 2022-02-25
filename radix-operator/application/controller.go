@@ -2,12 +2,12 @@ package application
 
 import (
 	"context"
+	"reflect"
+
 	radixutils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"reflect"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -20,15 +20,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 )
-
-// Controller Instance variables
-type Controller struct {
-	clientset   kubernetes.Interface
-	radixclient radixclient.Interface
-	queue       workqueue.RateLimitingInterface
-	informer    cache.SharedIndexInformer
-	handler     common.Handler
-}
 
 var logger *log.Entry
 
@@ -43,7 +34,6 @@ func init() {
 
 // NewController creates a new controller that handles RadixApplications
 func NewController(client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
 	radixInformerFactory informers.SharedInformerFactory,

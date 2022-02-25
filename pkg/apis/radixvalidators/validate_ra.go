@@ -963,7 +963,7 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 				if err != nil {
 					errs = append(errs, err)
 				}
-				err = validateEgressRulePortNumber(port.Number)
+				err = validateEgressRulePort(port.Port)
 				if err != nil {
 					errs = append(errs, err)
 				}
@@ -976,16 +976,16 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 	return nil
 }
 
-func validateEgressRulePortNumber(number int32) error {
-	if number < 1 || number > maximumPortNumber {
-		return fmt.Errorf("%d must be equal to or greater than 1 and lower than or equal to %d", number, maximumPortNumber)
+func validateEgressRulePort(port int32) error {
+	if port < 1 || port > maximumPortNumber {
+		return fmt.Errorf("%d must be equal to or greater than 1 and lower than or equal to %d", port, maximumPortNumber)
 	}
 	return nil
 }
 
 func validateEgressRulePortProtocol(protocol string) error {
 	upperCaseProtocol := strings.ToUpper(protocol)
-	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP), string(corev1.ProtocolSCTP)}
+	validProtocols := []string{string(corev1.ProtocolTCP), string(corev1.ProtocolUDP)}
 	if commonUtils.ContainsString(validProtocols, upperCaseProtocol) {
 		return nil
 	} else {

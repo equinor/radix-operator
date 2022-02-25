@@ -2,8 +2,9 @@ package registration
 
 import (
 	"context"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
+
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -28,8 +29,6 @@ const (
 	containerRegistry = "any.container.registry"
 	egressIps         = "0.0.0.0"
 )
-
-var synced chan bool
 
 func setupTest() (kubernetes.Interface, *kube.Kube, radixclient.Interface) {
 	client := fake.NewSimpleClientset()
@@ -63,7 +62,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		},
 		mockedGranter,
 	)
-	go startRegistrationController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
+	go startRegistrationController(client, radixClient, radixInformerFactory, kubeInformerFactory, registrationHandler, stop)
 
 	// Test
 
@@ -111,7 +110,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 
 func startRegistrationController(
 	client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -121,7 +119,7 @@ func startRegistrationController(
 	eventRecorder := &record.FakeRecorder{}
 
 	waitForChildrenToSync := false
-	controller := NewController(client, kubeutil, radixClient, &handler,
+	controller := NewController(client, radixClient, &handler,
 		kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)

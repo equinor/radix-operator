@@ -3,8 +3,9 @@ package deployment
 import (
 	"context"
 	"os"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
+
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -84,7 +85,7 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 		prometheusclient,
 		WithHasSyncedCallback(func(syncedOk bool) { synced <- syncedOk }),
 	)
-	go startDeploymentController(client, kubeUtil, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
+	go startDeploymentController(client, radixClient, radixInformerFactory, kubeInformerFactory, deploymentHandler, stop)
 
 	// Test
 
@@ -140,7 +141,6 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 }
 
 func startDeploymentController(client kubernetes.Interface,
-	kubeutil *kube.Kube,
 	radixClient radixclient.Interface,
 	radixInformerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -150,7 +150,7 @@ func startDeploymentController(client kubernetes.Interface,
 
 	waitForChildrenToSync := false
 	controller := NewController(
-		client, kubeutil, radixClient, handler,
+		client, radixClient, handler,
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,

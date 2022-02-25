@@ -145,7 +145,7 @@ func TestGetReadinessProbe_Custom(t *testing.T) {
 
 	assert.Equal(t, int32(5), probe.InitialDelaySeconds)
 	assert.Equal(t, int32(10), probe.PeriodSeconds)
-	assert.Equal(t, int32(5000), probe.Handler.TCPSocket.Port.IntVal)
+	assert.Equal(t, int32(5000), probe.ProbeHandler.TCPSocket.Port.IntVal)
 
 	teardownReadinessProbe()
 }

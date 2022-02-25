@@ -34,13 +34,14 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	defaultMode, backOffLimit := int32(256), int32(0)
 
 	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
+	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("radix-builder-%s-%s", timestamp, imageTag),
+			Name: fmt.Sprintf("radix-builder-%s-%s-%s", timestamp, imageTag, hash),
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  jobName,
-				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s", appName, imageTag),
+				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s-%s", appName, imageTag, hash),
 				"radix-app-name":        appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
