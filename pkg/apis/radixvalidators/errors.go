@@ -70,7 +70,7 @@ func PortNameIsRequiredForPublicComponentError(publicPortName, component string)
 
 // MonitoringPortNameIsNotFoundComponentError Monitoring port name not found on component
 func MonitoringPortNameIsNotFoundComponentError(portName, component string) error {
-	return fmt.Errorf("%s port name not found on component %s", portName, component)
+	return fmt.Errorf("%s port name referred to in MonitoringConfig not found on component %s", portName, component)
 }
 
 // MultipleMatchingPortNamesError Multiple matching port names
