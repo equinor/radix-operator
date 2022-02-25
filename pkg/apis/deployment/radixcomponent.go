@@ -22,6 +22,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			Public:               false,
 			IngressConfiguration: radixComponent.IngressConfiguration,
 			Ports:                radixComponent.Ports,
+			MonitoringConfig:     radixComponent.MonitoringConfig,
 			Secrets:              radixComponent.Secrets,
 			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
 			Monitoring:           false,
@@ -37,6 +38,11 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		}
 
+		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
+		if err != nil {
+			return nil, err
+		}
+
 		componentImage := componentImages[componentName]
 		deployComponent.Image = getImagePath(&componentImage, environmentSpecificConfig)
 		deployComponent.Node = getRadixCommonComponentNode(&radixComponent, environmentSpecificConfig)
@@ -46,10 +52,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.DNSExternalAlias = GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
-		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
-		if err != nil {
-			return nil, err
-		}
 		deployComponent.Authentication = auth
 
 		components = append(components, deployComponent)

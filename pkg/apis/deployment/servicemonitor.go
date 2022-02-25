@@ -14,8 +14,13 @@ import (
 )
 
 func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixCommonDeployComponent) error {
+	monitoringConfig := deployComponent.GetMonitoringConfig()
+	if monitoringConfig.PortName == "" {
+		monitoringConfig.PortName = deployComponent.GetPorts()[0].Name
+	}
+
 	namespace := deploy.radixDeployment.Namespace
-	serviceMonitor := getServiceMonitorConfig(deployComponent.GetName(), namespace, deployComponent.GetPorts())
+	serviceMonitor := getServiceMonitorConfig(deployComponent.GetName(), namespace, monitoringConfig)
 	return deploy.applyServiceMonitor(namespace, serviceMonitor)
 }
 
@@ -70,7 +75,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	return nil
 }
 
-func getServiceMonitorConfig(componentName, namespace string, componentPorts []v1.ComponentPort) *monitoringv1.ServiceMonitor {
+func getServiceMonitorConfig(componentName, namespace string, monitoringConfig v1.MonitoringConfig) *monitoringv1.ServiceMonitor {
 	serviceMonitor := &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
@@ -82,7 +87,8 @@ func getServiceMonitorConfig(componentName, namespace string, componentPorts []v
 			Endpoints: []monitoringv1.Endpoint{
 				{
 					Interval: "5s",
-					Port:     componentPorts[0].Name,
+					Path:     monitoringConfig.Path,
+					Port:     monitoringConfig.PortName,
 				},
 			},
 			JobLabel: fmt.Sprintf("%s-%s", namespace, componentName),
