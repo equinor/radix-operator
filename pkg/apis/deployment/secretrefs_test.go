@@ -35,8 +35,9 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 	defer teardownSecretRefsTest()
 	appName, environment := "some-app", "dev"
 	scenarios := []struct {
-		componentName   string
-		radixSecretRefs v1.RadixSecretRefs
+		componentName      string
+		radixSecretRefs    v1.RadixSecretRefs
+		expectedObjectName map[string]map[string]string
 	}{
 		{
 			componentName: "componentName1",
@@ -124,7 +125,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:  "secret1",
 								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
-								Alias: commonUtils.StringPtr("some-secret1-alias"),
+								Alias: commonUtils.StringPtr("some-secret1-alias1"),
 							},
 						},
 					},
@@ -135,10 +136,18 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 							{
 								Name:  "secret1",
 								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
-								Alias: commonUtils.StringPtr("some-secret1-alias"),
+								Alias: commonUtils.StringPtr("some-secret1-alias2"),
 							},
 						},
 					},
+				},
+			},
+			expectedObjectName: map[string]map[string]string{
+				"azureKeyVaultName5": {
+					"secret1": "some-secret1-alias1",
+				},
+				"azureKeyVaultName6": {
+					"secret1": "some-secret1-alias2",
 				},
 			},
 		},
@@ -212,7 +221,12 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 					if !exists {
 						assert.Fail(t, fmt.Sprintf("missing data item for EnvVar %s", keyVaultItem.EnvVar))
 					}
-					assert.Equal(t, keyVaultItem.Name, dataItem.ObjectName)
+					if scenario.expectedObjectName != nil {
+						assert.Equal(t, scenario.expectedObjectName[azureKeyVault.Name][keyVaultItem.Name],
+							dataItem.ObjectName)
+					} else {
+						assert.Equal(t, keyVaultItem.Name, dataItem.ObjectName)
+					}
 					assert.True(t, strings.Contains(objectsSecretParam, dataItem.ObjectName))
 				}
 			}
@@ -232,8 +246,9 @@ func getSecretProviderClassByName(className string, classes []secretsstorev1.Sec
 }
 
 func applyRadixDeployWithSyncForSecretRefs(testEnv *testEnvProps, appName string, environment string, scenario struct {
-	componentName   string
-	radixSecretRefs v1.RadixSecretRefs
+	componentName      string
+	radixSecretRefs    v1.RadixSecretRefs
+	expectedObjectName map[string]map[string]string
 }) (*v1.RadixDeployment, error) {
 	radixDeployment, err := applyDeploymentWithSyncForTestEnv(testEnv, utils.ARadixDeployment().
 		WithAppName(appName).

@@ -119,10 +119,15 @@ func getSecretProviderClassSecretObjects(componentName, radixDeploymentName stri
 			secretObjectMap[kubeSecretType] = secretObject
 			secretObjects = append(secretObjects, secretObject)
 		}
-		secretObject.Data = append(secretObject.Data, &secretsstorev1.SecretObjectData{
-			ObjectName: keyVaultItem.Name,
-			Key:        keyVaultItem.EnvVar,
-		})
+		data := secretsstorev1.SecretObjectData{
+			Key: keyVaultItem.EnvVar,
+		}
+		if keyVaultItem.Alias != nil && len(*keyVaultItem.Alias) != 0 {
+			data.ObjectName = *keyVaultItem.Alias
+		} else {
+			data.ObjectName = keyVaultItem.Name
+		}
+		secretObject.Data = append(secretObject.Data, &data)
 	}
 	return secretObjects
 }
