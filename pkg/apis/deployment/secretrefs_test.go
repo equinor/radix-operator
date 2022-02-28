@@ -97,6 +97,51 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 			componentName:   "componentName3",
 			radixSecretRefs: v1.RadixSecretRefs{},
 		},
+		{
+			componentName: "componentName4",
+			radixSecretRefs: v1.RadixSecretRefs{
+				AzureKeyVaults: []v1.RadixAzureKeyVault{
+					{
+						Name: "AZURE-KEY-VAULT4",
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:   "secret1",
+								EnvVar: "SECRET_REF1",
+								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			componentName: "componentName5",
+			radixSecretRefs: v1.RadixSecretRefs{
+				AzureKeyVaults: []v1.RadixAzureKeyVault{
+					{
+						Name: "azureKeyVaultName5",
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:  "secret1",
+								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: commonUtils.StringPtr("some-secret1-alias"),
+							},
+						},
+					},
+					{
+						Name: "azureKeyVaultName6",
+						Path: commonUtils.StringPtr("/mnt/kv2"),
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:  "secret1",
+								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: commonUtils.StringPtr("some-secret1-alias"),
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	t.Run("get secret-refs Azure Key vaults credential secrets ", func(t *testing.T) {
@@ -154,6 +199,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 				secretObject := secretProviderClass.Spec.SecretObjects[0]
 				expectedSecretRefSecretName := kube.GetAzureKeyVaultSecretRefSecretName(scenario.componentName, rd.Name, azureKeyVault.Name, corev1.SecretTypeOpaque)
 				assert.Equal(t, expectedSecretRefSecretName, secretObject.SecretName)
+				assert.Equal(t, strings.ToLower(expectedSecretRefSecretName), secretObject.SecretName)
 				assert.Equal(t, string(corev1.SecretTypeOpaque), secretObject.Type)
 				assert.Equal(t, len(azureKeyVault.Items), len(secretObject.Data))
 				secretObjectItemMap := make(map[string]*secretsstorev1.SecretObjectData)

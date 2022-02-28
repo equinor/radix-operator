@@ -175,8 +175,10 @@ func GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azK
 }
 
 func getSecretRefSecretName(componentName, radixDeploymentName, secretRefType, secretType, secretResourceName string) string {
-	hash := strings.ToLower(utils.RandStringStrSeed(5, fmt.Sprintf("%s-%s-%s-%s", componentName, radixDeploymentName, secretRefType, secretResourceName)))
-	return fmt.Sprintf("%s-%s-%s-%s-%s", componentName, secretRefType, secretType, secretResourceName, hash)
+	hash := strings.ToLower(utils.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s", componentName,
+		radixDeploymentName, secretRefType, secretResourceName))))
+	return strings.ToLower(fmt.Sprintf("%s-%s-%s-%s-%s", componentName, secretRefType, secretType,
+		secretResourceName, hash))
 }
 
 func getK8sSecretTypeRadixAzureKeyVaultK8sSecretType(k8sSecretType corev1.SecretType) radixv1.RadixAzureKeyVaultK8sSecretType {
