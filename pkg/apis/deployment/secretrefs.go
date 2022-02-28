@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+	"strings"
 )
 
 func (deploy *Deployment) createSecretRefs(namespace string, radixDeployComponent radixv1.RadixCommonDeployComponent) ([]string, error) {
@@ -54,7 +55,8 @@ func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployme
 	if err != nil {
 		return nil, err
 	}
-	secretProviderClass := buildSecretProviderClass(appName, deploy.radixDeployment, radixDeployComponentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
+	secretProviderClass := buildSecretProviderClass(appName, deploy.radixDeployment, radixDeployComponentName,
+		radixv1.RadixSecretRefTypeAzureKeyVault, strings.ToLower(azureKeyVault.Name))
 	secretProviderClass.Spec.Parameters = parameters
 	secretProviderClass.Spec.SecretObjects = getSecretProviderClassSecretObjects(radixDeployComponentName, deploy.radixDeployment.GetName(), azureKeyVault)
 
