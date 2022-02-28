@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -82,11 +83,7 @@ func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.Ra
 			Format:   commonUtils.StringUnPtr(item.Format),
 			Encoding: commonUtils.StringUnPtr(item.Encoding),
 		}
-		if item.Type != nil {
-			obj.Type = string(*item.Type)
-		} else {
-			obj.Type = string(radixv1.RadixAzureKeyVaultObjectTypeSecret)
-		}
+		obj.Type = getObjectType(&item)
 		parameterObject = append(parameterObject, obj)
 	}
 	parameterObjectArray := stringArray{}
@@ -105,6 +102,13 @@ func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.Ra
 	return parameterMap, nil
 }
 
+func getObjectType(item *radixv1.RadixAzureKeyVaultItem) string {
+	if item.Type != nil {
+		return string(*item.Type)
+	}
+	return string(radixv1.RadixAzureKeyVaultObjectTypeSecret)
+}
+
 func getSecretProviderClassSecretObjects(componentName, radixDeploymentName string, radixAzureKeyVault radixv1.RadixAzureKeyVault) []*secretsstorev1.SecretObject {
 	var secretObjects []*secretsstorev1.SecretObject
 	secretObjectMap := make(map[v1.SecretType]*secretsstorev1.SecretObject)
@@ -120,16 +124,26 @@ func getSecretProviderClassSecretObjects(componentName, radixDeploymentName stri
 			secretObjects = append(secretObjects, secretObject)
 		}
 		data := secretsstorev1.SecretObjectData{
-			Key: keyVaultItem.EnvVar,
-		}
-		if keyVaultItem.Alias != nil && len(*keyVaultItem.Alias) != 0 {
-			data.ObjectName = *keyVaultItem.Alias
-		} else {
-			data.ObjectName = keyVaultItem.Name
+			Key:        getSecretRefAzureKeyVaultItemDataKey(&keyVaultItem),
+			ObjectName: getSecretRefAzureKeyVaultItemDataObjectName(&keyVaultItem),
 		}
 		secretObject.Data = append(secretObject.Data, &data)
 	}
 	return secretObjects
+}
+
+func getSecretRefAzureKeyVaultItemDataKey(keyVaultItem *radixv1.RadixAzureKeyVaultItem) string {
+	if len(keyVaultItem.EnvVar) > 0 {
+		return keyVaultItem.EnvVar
+	}
+	return fmt.Sprintf("%s--%s", keyVaultItem.Name, getObjectType(keyVaultItem))
+}
+
+func getSecretRefAzureKeyVaultItemDataObjectName(keyVaultItem *radixv1.RadixAzureKeyVaultItem) string {
+	if keyVaultItem.Alias != nil && len(*keyVaultItem.Alias) != 0 {
+		return *keyVaultItem.Alias
+	}
+	return keyVaultItem.Name
 }
 
 func (deploy *Deployment) getOrCreateAzureKeyVaultCredsSecret(namespace, appName, componentName, azKeyVaultName string) (*v1.Secret, error) {

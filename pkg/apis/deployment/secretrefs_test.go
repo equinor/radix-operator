@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	corev1 "k8s.io/api/core/v1"
@@ -217,9 +216,9 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 					secretObjectItemMap[item.Key] = item
 				}
 				for _, keyVaultItem := range azureKeyVault.Items {
-					dataItem, exists := secretObjectItemMap[keyVaultItem.EnvVar]
+					dataItem, exists := secretObjectItemMap[getSecretRefAzureKeyVaultItemDataKey(&keyVaultItem)]
 					if !exists {
-						assert.Fail(t, fmt.Sprintf("missing data item for EnvVar %s", keyVaultItem.EnvVar))
+						assert.Fail(t, "missing data item for EnvVar or Alias")
 					}
 					if scenario.expectedObjectName != nil {
 						assert.Equal(t, scenario.expectedObjectName[azureKeyVault.Name][keyVaultItem.Name],
