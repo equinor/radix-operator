@@ -1,6 +1,9 @@
 package defaults
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	// BuildSecretPrefix All build secrets will be mounted with this prefix
@@ -65,15 +68,15 @@ const (
 
 // GetBlobFuseCredsSecretName Helper method
 func GetBlobFuseCredsSecretName(componentName string, volumeMountName string) string {
-	return fmt.Sprintf(blobFuseCreds, componentName, volumeMountName)
+	return strings.ToLower(fmt.Sprintf(blobFuseCreds, componentName, volumeMountName))
 }
 
 // GetCsiAzureVolumeMountCredsSecretName Gets credentials secret for CSI Azure Volume mount
 func GetCsiAzureVolumeMountCredsSecretName(componentName, radixVolumeMountName string) string {
-	return fmt.Sprintf(csiAzureCreds, componentName, radixVolumeMountName)
+	return strings.ToLower(fmt.Sprintf(csiAzureCreds, componentName, radixVolumeMountName))
 }
 
 // GetCsiAzureKeyVaultCredsSecretName Gets credentials secret for CSI Azure Key vault
 func GetCsiAzureKeyVaultCredsSecretName(componentName, azureKeyVaultName string) string {
-	return fmt.Sprintf(csiAzureKeyVaultCreds, componentName, azureKeyVaultName)
+	return strings.ToLower(fmt.Sprintf(csiAzureKeyVaultCreds, componentName, azureKeyVaultName))
 }

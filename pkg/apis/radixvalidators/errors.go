@@ -362,6 +362,10 @@ func duplicateEnvVarName(name string) error {
 	return fmt.Errorf("environment variable has a duplicate name %s", name)
 }
 
+func duplicateAlias(alias string) error {
+	return fmt.Errorf("alias has a duplicate %s", alias)
+}
+
 func duplicateAzureKeyVaultName(name string) error {
 	return fmt.Errorf("azure Key vault has a duplicate name %s", name)
 }

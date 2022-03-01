@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	corev1 "k8s.io/api/core/v1"
@@ -35,8 +34,9 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 	defer teardownSecretRefsTest()
 	appName, environment := "some-app", "dev"
 	scenarios := []struct {
-		componentName   string
-		radixSecretRefs v1.RadixSecretRefs
+		componentName      string
+		radixSecretRefs    v1.RadixSecretRefs
+		expectedObjectName map[string]map[string]string
 	}{
 		{
 			componentName: "componentName1",
@@ -97,6 +97,59 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 			componentName:   "componentName3",
 			radixSecretRefs: v1.RadixSecretRefs{},
 		},
+		{
+			componentName: "componentName4",
+			radixSecretRefs: v1.RadixSecretRefs{
+				AzureKeyVaults: []v1.RadixAzureKeyVault{
+					{
+						Name: "AZURE-KEY-VAULT4",
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:   "secret1",
+								EnvVar: "SECRET_REF1",
+								Type:   test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			componentName: "componentName5",
+			radixSecretRefs: v1.RadixSecretRefs{
+				AzureKeyVaults: []v1.RadixAzureKeyVault{
+					{
+						Name: "azureKeyVaultName5",
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:  "secret1",
+								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: commonUtils.StringPtr("some-secret1-alias1"),
+							},
+						},
+					},
+					{
+						Name: "azureKeyVaultName6",
+						Path: commonUtils.StringPtr("/mnt/kv2"),
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:  "secret1",
+								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: commonUtils.StringPtr("some-secret1-alias2"),
+							},
+						},
+					},
+				},
+			},
+			expectedObjectName: map[string]map[string]string{
+				"azureKeyVaultName5": {
+					"secret1": "some-secret1-alias1",
+				},
+				"azureKeyVaultName6": {
+					"secret1": "some-secret1-alias2",
+				},
+			},
+		},
 	}
 
 	t.Run("get secret-refs Azure Key vaults credential secrets ", func(t *testing.T) {
@@ -154,6 +207,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 				secretObject := secretProviderClass.Spec.SecretObjects[0]
 				expectedSecretRefSecretName := kube.GetAzureKeyVaultSecretRefSecretName(scenario.componentName, rd.Name, azureKeyVault.Name, corev1.SecretTypeOpaque)
 				assert.Equal(t, expectedSecretRefSecretName, secretObject.SecretName)
+				assert.Equal(t, strings.ToLower(expectedSecretRefSecretName), secretObject.SecretName)
 				assert.Equal(t, string(corev1.SecretTypeOpaque), secretObject.Type)
 				assert.Equal(t, len(azureKeyVault.Items), len(secretObject.Data))
 				secretObjectItemMap := make(map[string]*secretsstorev1.SecretObjectData)
@@ -162,11 +216,16 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 					secretObjectItemMap[item.Key] = item
 				}
 				for _, keyVaultItem := range azureKeyVault.Items {
-					dataItem, exists := secretObjectItemMap[keyVaultItem.EnvVar]
+					dataItem, exists := secretObjectItemMap[getSecretRefAzureKeyVaultItemDataKey(&keyVaultItem)]
 					if !exists {
-						assert.Fail(t, fmt.Sprintf("missing data item for EnvVar %s", keyVaultItem.EnvVar))
+						assert.Fail(t, "missing data item for EnvVar or Alias")
 					}
-					assert.Equal(t, keyVaultItem.Name, dataItem.ObjectName)
+					if scenario.expectedObjectName != nil {
+						assert.Equal(t, scenario.expectedObjectName[azureKeyVault.Name][keyVaultItem.Name],
+							dataItem.ObjectName)
+					} else {
+						assert.Equal(t, keyVaultItem.Name, dataItem.ObjectName)
+					}
 					assert.True(t, strings.Contains(objectsSecretParam, dataItem.ObjectName))
 				}
 			}
@@ -186,8 +245,9 @@ func getSecretProviderClassByName(className string, classes []secretsstorev1.Sec
 }
 
 func applyRadixDeployWithSyncForSecretRefs(testEnv *testEnvProps, appName string, environment string, scenario struct {
-	componentName   string
-	radixSecretRefs v1.RadixSecretRefs
+	componentName      string
+	radixSecretRefs    v1.RadixSecretRefs
+	expectedObjectName map[string]map[string]string
 }) (*v1.RadixDeployment, error) {
 	radixDeployment, err := applyDeploymentWithSyncForTestEnv(testEnv, utils.ARadixDeployment().
 		WithAppName(appName).
