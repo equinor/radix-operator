@@ -121,6 +121,9 @@ func getAzureKeyVaultSecretRefsAsEnvVars(deployComponent v1.RadixCommonDeployCom
 	var envVars []corev1.EnvVar
 	for _, azureKeyVault := range deployComponent.GetSecretRefs().AzureKeyVaults {
 		for _, keyVaultItem := range azureKeyVault.Items {
+			if len(keyVaultItem.EnvVar) == 0 {
+				continue //Do not add cert,secret or key as environment variable - it will exist only as s file
+			}
 			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
 			secretName := kube.GetAzureKeyVaultSecretRefSecretName(deployComponent.GetName(), radixDeploymentName, azureKeyVault.Name, kubeSecretType)
 			secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)

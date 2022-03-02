@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -377,7 +378,7 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 				kube.RadixAppLabel:           appName,
 				kube.RadixComponentLabel:     componentName,
 				kube.RadixSecretRefTypeLabel: string(radixv1.RadixSecretRefTypeAzureKeyVault),
-				kube.RadixSecretRefNameLabel: azKeyVaultName,
+				kube.RadixSecretRefNameLabel: strings.ToLower(azKeyVaultName),
 			},
 		},
 	}

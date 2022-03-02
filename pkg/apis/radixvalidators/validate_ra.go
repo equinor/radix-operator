@@ -765,6 +765,7 @@ func validateRadixComponentSecretRefs(radixComponent radixv1.RadixCommonComponen
 
 func validateSecretRefs(componentName string, secretRefs radixv1.RadixSecretRefs) error {
 	existingVariableName := make(map[string]bool)
+	existingAlias := make(map[string]bool)
 	existingAzureKeyVaultName := make(map[string]bool)
 	existingAzureKeyVaultPath := make(map[string]bool)
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
@@ -780,15 +781,26 @@ func validateSecretRefs(componentName string, secretRefs radixv1.RadixSecretRefs
 			existingAzureKeyVaultPath[*path] = true
 		}
 		for _, keyVaultItem := range azureKeyVault.Items {
-			if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
-				return duplicateEnvVarName(keyVaultItem.EnvVar)
-			}
-			existingVariableName[keyVaultItem.EnvVar] = true
-			if err := validateVariableName("Azure Key vault secret references environment variable name", keyVaultItem.EnvVar); err != nil {
-				return err
+			if len(keyVaultItem.EnvVar) > 0 {
+				if _, exists := existingVariableName[keyVaultItem.EnvVar]; exists {
+					return duplicateEnvVarName(keyVaultItem.EnvVar)
+				}
+				existingVariableName[keyVaultItem.EnvVar] = true
+				if err := validateVariableName("Azure Key vault secret references environment variable name", keyVaultItem.EnvVar); err != nil {
+					return err
+				}
 			}
 			if err := validateVariableName("Azure Key vault secret references name", keyVaultItem.Name); err != nil {
 				return err
+			}
+			if keyVaultItem.Alias != nil && len(*keyVaultItem.Alias) > 0 {
+				if _, exists := existingAlias[*keyVaultItem.Alias]; exists {
+					return duplicateAlias(*keyVaultItem.Alias)
+				}
+				existingAlias[*keyVaultItem.Alias] = true
+				if err := validateVariableName("Azure Key vault item alias name", *keyVaultItem.Alias); err != nil {
+					return err
+				}
 			}
 		}
 	}
