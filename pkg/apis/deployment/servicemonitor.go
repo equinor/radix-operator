@@ -16,7 +16,10 @@ import (
 func (deploy *Deployment) createOrUpdateServiceMonitor(deployComponent v1.RadixCommonDeployComponent) error {
 	monitoringConfig := deployComponent.GetMonitoringConfig()
 	if monitoringConfig.PortName == "" {
-		monitoringConfig.PortName = deployComponent.GetPorts()[0].Name
+		ports := deployComponent.GetPorts()
+		if len(ports) > 0 {
+			monitoringConfig.PortName = ports[0].Name
+		}
 	}
 
 	namespace := deploy.radixDeployment.Namespace
