@@ -281,6 +281,11 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, errList...)
 		}
 
+		err = validateMonitoring(&component)
+		if err != nil {
+			errs = append(errs, err)
+		}
+
 		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
 		for _, environment := range component.EnvironmentConfig {
@@ -353,6 +358,11 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 		errList := validateResourceRequirements(&job.Resources)
 		if len(errList) > 0 {
 			errs = append(errs, errList...)
+		}
+
+		err = validateMonitoring(&job)
+		if err != nil {
+			errs = append(errs, err)
 		}
 
 		for _, environment := range job.EnvironmentConfig {
@@ -625,6 +635,25 @@ func validatePublicPort(component radixv1.RadixComponent) []error {
 	}
 
 	return errs
+}
+
+func validateMonitoring(component radixv1.RadixCommonComponent) error {
+	monitoringConfig := component.GetMonitoringConfig()
+	if monitoringConfig.PortName != "" {
+		ports := component.GetPorts()
+		isValidPort := false
+		for i := range ports {
+			if strings.EqualFold(ports[i].Name, monitoringConfig.PortName) {
+				isValidPort = true
+				break
+			}
+		}
+
+		if !isValidPort {
+			return MonitoringPortNameIsNotFoundComponentError(monitoringConfig.PortName, component.GetName())
+		}
+	}
+	return nil
 }
 
 func validateResourceRequirements(resourceRequirements *radixv1.ResourceRequirements) []error {

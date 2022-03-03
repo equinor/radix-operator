@@ -119,6 +119,7 @@ type RadixComponent struct {
 	Image                   string                   `json:"image" yaml:"image"`
 	DockerfileName          string                   `json:"dockerfileName" yaml:"dockerfileName"`
 	Ports                   []ComponentPort          `json:"ports" yaml:"ports"`
+	MonitoringConfig        MonitoringConfig         `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
 	Public                  bool                     `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
 	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
@@ -159,6 +160,7 @@ type RadixJobComponent struct {
 	SchedulerPort     *int32                               `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
 	Payload           *RadixJobComponentPayload            `json:"payload,omitempty" yaml:"payload,omitempty"`
 	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
+	MonitoringConfig  MonitoringConfig                     `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
 	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	SecretRefs        RadixSecretRefs                      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
@@ -284,6 +286,14 @@ type RadixNode struct {
 	Gpu string `json:"gpu" yaml:"gpu"`
 	// GpuCount Optional. Holds minimum count of GPU on node
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
+}
+
+// Monitoring configuration
+type MonitoringConfig struct {
+	// Port name
+	PortName string `json:"portName" yaml:"portName"`
+	// HTTP path to scrape for metrics.
+	Path string `json:"path,omitempty" yaml:"path,omitempty"`
 }
 
 //RadixSecretRefType Radix secret-ref of type
@@ -500,6 +510,10 @@ type RadixCommonComponent interface {
 	GetNode() *RadixNode
 	//GetVariables Gets component environment variables
 	GetVariables() EnvVarsMap
+	//GetMonitoringConfig Gets component ports
+	GetPorts() []ComponentPort
+	//GetMonitoringConfig Gets component monitoring configuration
+	GetMonitoringConfig() MonitoringConfig
 	//GetSecrets Gets component secrets
 	GetSecrets() []string
 	//GetSecretRefs Gets component secret-refs
@@ -520,6 +534,14 @@ func (component *RadixComponent) GetNode() *RadixNode {
 
 func (component *RadixComponent) GetVariables() EnvVarsMap {
 	return component.Variables
+}
+
+func (component *RadixComponent) GetPorts() []ComponentPort {
+	return component.Ports
+}
+
+func (component *RadixComponent) GetMonitoringConfig() MonitoringConfig {
+	return component.MonitoringConfig
 }
 
 func (component *RadixComponent) GetSecrets() []string {
@@ -550,20 +572,28 @@ func (component *RadixJobComponent) GetNode() *RadixNode {
 	return &component.Node
 }
 
-func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
-	return component.SecretRefs
+func (component *RadixJobComponent) GetVariables() EnvVarsMap {
+	return component.Variables
 }
 
-func (component *RadixJobComponent) GetResources() ResourceRequirements {
-	return component.Resources
+func (component *RadixJobComponent) GetPorts() []ComponentPort {
+	return component.Ports
+}
+
+func (component *RadixJobComponent) GetMonitoringConfig() MonitoringConfig {
+	return component.MonitoringConfig
 }
 
 func (component *RadixJobComponent) GetSecrets() []string {
 	return component.Secrets
 }
 
-func (component *RadixJobComponent) GetVariables() EnvVarsMap {
-	return component.Variables
+func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
+	return component.SecretRefs
+}
+
+func (component *RadixJobComponent) GetResources() ResourceRequirements {
+	return component.Resources
 }
 
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
