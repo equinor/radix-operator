@@ -134,7 +134,7 @@ func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(namespace, appName,
 	}
 	if configMap != nil {
 		//HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
-		configMap, err := kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
+		configMap, err = kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
 		if err != nil {
 			return nil, err
 		}
@@ -151,7 +151,7 @@ func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, 
 	}
 	if configMap != nil {
 		//HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
-		return kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
+		configMap, err = kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
 		if err != nil {
 			return nil, err
 		}
