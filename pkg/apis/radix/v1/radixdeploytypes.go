@@ -90,6 +90,7 @@ type RadixDeployComponent struct {
 	DNSAppAlias             bool                    `json:"dnsAppAlias,omitempty" yaml:"dnsAppAlias,omitempty"`
 	DNSExternalAlias        []string                `json:"dnsExternalAlias,omitempty" yaml:"dnsExternalAlias,omitempty"`
 	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
+	MonitoringConfig        MonitoringConfig        `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
 	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
 	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
 	AlwaysPullImageOnDeploy bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
@@ -128,6 +129,10 @@ func (deployComponent *RadixDeployComponent) GetSecretRefs() RadixSecretRefs {
 
 func (deployComponent *RadixDeployComponent) GetMonitoring() bool {
 	return deployComponent.Monitoring
+}
+
+func (deployComponent *RadixDeployComponent) GetMonitoringConfig() MonitoringConfig {
+	return deployComponent.MonitoringConfig
 }
 
 func (deployComponent *RadixDeployComponent) GetResources() *ResourceRequirements {
@@ -226,6 +231,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetMonitoring() bool {
 	return deployJobComponent.Monitoring
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetMonitoringConfig() MonitoringConfig {
+	return deployJobComponent.MonitoringConfig
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetResources() *ResourceRequirements {
 	return &deployJobComponent.Resources
 }
@@ -317,6 +326,7 @@ type RadixDeployJobComponent struct {
 	Secrets                 []string                  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 	SecretRefs              RadixSecretRefs           `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	Monitoring              bool                      `json:"monitoring" yaml:"monitoring"`
+	MonitoringConfig        MonitoringConfig          `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
 	Resources               ResourceRequirements      `json:"resources,omitempty" yaml:"resources,omitempty"`
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	SchedulerPort           *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
@@ -344,6 +354,7 @@ type RadixCommonDeployComponent interface {
 	GetSecrets() []string
 	GetSecretRefs() RadixSecretRefs
 	GetMonitoring() bool
+	GetMonitoringConfig() MonitoringConfig
 	GetResources() *ResourceRequirements
 	GetVolumeMounts() []RadixVolumeMount
 	IsAlwaysPullImageOnDeploy() bool

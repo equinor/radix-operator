@@ -54,13 +54,14 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent) v1.RadixDeployJobComponent {
 	componentName := radixJobComponent.Name
 	deployJob := v1.RadixDeployJobComponent{
-		Name:          componentName,
-		Ports:         radixJobComponent.Ports,
-		Secrets:       radixJobComponent.Secrets,
-		Monitoring:    false,
-		RunAsNonRoot:  false,
-		Payload:       radixJobComponent.Payload,
-		SchedulerPort: radixJobComponent.SchedulerPort,
+		Name:             componentName,
+		Ports:            radixJobComponent.Ports,
+		Secrets:          radixJobComponent.Secrets,
+		Monitoring:       false,
+		MonitoringConfig: radixJobComponent.MonitoringConfig,
+		RunAsNonRoot:     false,
+		Payload:          radixJobComponent.Payload,
+		SchedulerPort:    radixJobComponent.SchedulerPort,
 	}
 
 	environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)

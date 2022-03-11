@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 const (
@@ -132,6 +133,11 @@ func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsConfigMap(namespace, appName,
 		return nil, err
 	}
 	if configMap != nil {
+		//HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
+		configMap, err = kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
+		if err != nil {
+			return nil, err
+		}
 		return configMap, nil
 	}
 	configMap = BuildRadixConfigEnvVarsConfigMap(appName, componentName)
@@ -144,10 +150,28 @@ func (kubeutil *Kube) getOrCreateRadixConfigEnvVarsMetadataConfigMap(namespace, 
 		return nil, err
 	}
 	if configMap != nil {
+		//HACK: fix a label radix-app, if it is wrong. Delete this code after radix-operator fix all env-var config-maps
+		configMap, err = kubeutil.fixRadixAppNameLabel(namespace, appName, configMap)
+		if err != nil {
+			return nil, err
+		}
 		return configMap, nil
 	}
 	configMap = BuildRadixConfigEnvVarsMetadataConfigMap(appName, componentName)
 	return kubeutil.CreateConfigMap(namespace, configMap)
+}
+
+func (kubeutil *Kube) fixRadixAppNameLabel(namespace string, appName string, configMap *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+	if appNameLabel, ok := configMap.ObjectMeta.Labels[RadixAppLabel]; ok && !strings.EqualFold(appNameLabel, appName) {
+		desiredConfigMap := configMap.DeepCopy()
+		desiredConfigMap.ObjectMeta.Labels[RadixAppLabel] = appName
+		err := kubeutil.ApplyConfigMap(namespace, configMap, desiredConfigMap)
+		if err != nil {
+			return nil, err
+		}
+		return desiredConfigMap, nil
+	}
+	return configMap, nil
 }
 
 //BuildRadixConfigEnvVarsConfigMap Build environment-variables config-map

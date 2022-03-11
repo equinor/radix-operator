@@ -291,6 +291,8 @@ func Test_GetRadixSecretRefsAsEnvironmentVariables(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, envVarsConfigMap)
 			assert.NotNil(t, envVarsConfigMapMetadata)
+			assert.Equal(t, appName, envVarsConfigMap.ObjectMeta.Labels[kube.RadixAppLabel])
+			assert.Equal(t, appName, envVarsConfigMapMetadata.ObjectMeta.Labels[kube.RadixAppLabel])
 			assert.NotNil(t, envVarsConfigMap.Data)
 			testedResultEnvVars := make(map[string]bool)
 			for envVarName, envVarVal := range testCase.expectedEnvVars {
