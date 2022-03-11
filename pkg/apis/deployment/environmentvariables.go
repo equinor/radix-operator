@@ -92,7 +92,8 @@ func GetEnvironmentVariables(kubeutil *kube.Kube, appName string, radixDeploymen
 }
 
 func getEnvironmentVariablesFrom(kubeutil *kube.Kube, appName string, envVarsSource environmentVariablesSourceDecorator, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
-	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(radixDeployment.GetNamespace(), radixDeployment.GetName(), deployComponent.GetName())
+	envVarsConfigMap, _, err := kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(radixDeployment.GetNamespace(),
+		appName, deployComponent.GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +304,9 @@ func getEnvVar(name string) (string, error) {
 }
 
 func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(deployComponent v1.RadixCommonDeployComponent) error {
-	currentEnvVarsConfigMap, envVarsMetadataConfigMap, err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(), deploy.radixDeployment.GetName(), deployComponent.GetName())
+	currentEnvVarsConfigMap, envVarsMetadataConfigMap,
+		err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(),
+		deploy.radixDeployment.Spec.AppName, deployComponent.GetName())
 	if err != nil {
 		return err
 	}
