@@ -11,6 +11,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithPort(string, int32) RadixApplicationJobComponentBuilder
 	WithSecrets(...string) RadixApplicationJobComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationJobComponentBuilder
+	WithMonitoringConfig(v1.MonitoringConfig) RadixApplicationJobComponentBuilder
 	WithEnvironmentConfig(RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithEnvironmentConfigs(...RadixJobComponentEnvironmentConfigBuilder) RadixApplicationJobComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationJobComponentBuilder
@@ -31,6 +32,7 @@ type radixApplicationJobComponentBuilder struct {
 	ports             map[string]int32
 	secrets           []string
 	secretRefs        v1.RadixSecretRefs
+	monitoringConfig  v1.MonitoringConfig
 	environmentConfig []RadixJobComponentEnvironmentConfigBuilder
 	variables         v1.EnvVarsMap
 	resources         v1.ResourceRequirements
@@ -82,6 +84,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithPort(name string, port int32
 	}
 
 	rcb.ports[name] = port
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) RadixApplicationJobComponentBuilder {
+	rcb.monitoringConfig = monitoringConfig
 	return rcb
 }
 
@@ -156,6 +163,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Ports:             componentPorts,
 		Secrets:           rcb.secrets,
 		SecretRefs:        rcb.secretRefs,
+		MonitoringConfig:  rcb.monitoringConfig,
 		EnvironmentConfig: environmentConfig,
 		Variables:         rcb.variables,
 		Resources:         rcb.resources,

@@ -16,6 +16,7 @@ type RadixApplicationComponentBuilder interface {
 	WithPort(string, int32) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationComponentBuilder
+	WithMonitoringConfig(v1.MonitoringConfig) RadixApplicationComponentBuilder
 	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
@@ -35,6 +36,7 @@ type radixApplicationComponentBuilder struct {
 	alwaysPullImageOnDeploy *bool
 	public                  bool // Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
 	publicPort              string
+	monitoringConfig        v1.MonitoringConfig
 	ports                   map[string]int32
 	secrets                 []string
 	secretRefs              v1.RadixSecretRefs
@@ -90,6 +92,11 @@ func (rcb *radixApplicationComponentBuilder) WithSecrets(secrets ...string) Radi
 
 func (rcb *radixApplicationComponentBuilder) WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixApplicationComponentBuilder {
 	rcb.secretRefs = secretRefs
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) RadixApplicationComponentBuilder {
+	rcb.monitoringConfig = monitoringConfig
 	return rcb
 }
 
@@ -171,6 +178,7 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		IngressConfiguration:    rcb.ingressConfiguration,
 		Public:                  rcb.public,
 		PublicPort:              rcb.publicPort,
+		MonitoringConfig:        rcb.monitoringConfig,
 		EnvironmentConfig:       environmentConfig,
 		Variables:               rcb.variables,
 		Resources:               rcb.resources,
