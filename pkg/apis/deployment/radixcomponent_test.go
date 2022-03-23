@@ -434,6 +434,63 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 	assert.Equal(t, "environment_common_2", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
 }
 
+func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
+	envs := [2]string{"prod", "dev"}
+
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+
+	monitoringConfig := v1.MonitoringConfig{
+		PortName: "monitor",
+		Path:     "/api/monitor",
+	}
+
+	radApp := utils.ARadixApplication().
+		WithEnvironment(envs[0], "release").
+		WithEnvironment(envs[1], "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1").
+				WithMonitoringConfig(monitoringConfig).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[0]).
+						WithMonitoring(true),
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[1]),
+				),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_2").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[0]),
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[1]).
+						WithMonitoring(true),
+				),
+		).BuildRA()
+
+	// check component(s) env
+	comps, err := GetRadixComponentsForEnv(radApp, envs[0], componentImages)
+	assert.Nil(t, err)
+	assert.True(t, comps[0].Monitoring)
+	assert.Equal(t, monitoringConfig.PortName, comps[0].MonitoringConfig.PortName)
+	assert.Equal(t, monitoringConfig.Path, comps[0].MonitoringConfig.Path)
+	assert.False(t, comps[1].Monitoring)
+	assert.Empty(t, comps[1].MonitoringConfig.PortName)
+	assert.Empty(t, comps[1].MonitoringConfig.Path)
+
+	// check other component(s) env
+	comps, err = GetRadixComponentsForEnv(radApp, envs[1], componentImages)
+	assert.Nil(t, err)
+	assert.False(t, comps[0].Monitoring)
+	assert.Equal(t, monitoringConfig.PortName, comps[0].MonitoringConfig.PortName)
+	assert.Equal(t, monitoringConfig.Path, comps[0].MonitoringConfig.Path)
+	assert.True(t, comps[1].Monitoring)
+	assert.Empty(t, comps[1].MonitoringConfig.PortName)
+	assert.Empty(t, comps[1].MonitoringConfig.Path)
+}
+
 func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {
 	componentImages := make(map[string]pipeline.ComponentImage)
 	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
