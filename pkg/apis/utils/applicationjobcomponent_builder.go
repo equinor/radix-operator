@@ -29,7 +29,7 @@ type radixApplicationJobComponentBuilder struct {
 	sourceFolder      string
 	dockerfileName    string
 	image             string
-	ports             map[string]int32
+	ports             []v1.ComponentPort
 	secrets           []string
 	secretRefs        v1.RadixSecretRefs
 	monitoringConfig  v1.MonitoringConfig
@@ -80,10 +80,17 @@ func (rcb *radixApplicationJobComponentBuilder) WithSecretRefs(secretRefs v1.Rad
 
 func (rcb *radixApplicationJobComponentBuilder) WithPort(name string, port int32) RadixApplicationJobComponentBuilder {
 	if rcb.ports == nil {
-		rcb.ports = make(map[string]int32)
+		rcb.ports = make([]v1.ComponentPort, 0)
 	}
 
-	rcb.ports[name] = port
+	rcb.ports = append(rcb.ports, v1.ComponentPort{Name: name, Port: port})
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithPorts(ports []v1.ComponentPort) RadixApplicationJobComponentBuilder {
+	for i := range ports {
+		rcb.WithPort(ports[i].Name, ports[i].Port)
+	}
 	return rcb
 }
 
@@ -140,11 +147,6 @@ func (rcb *radixApplicationJobComponentBuilder) WithVolumeMounts(volumeMounts []
 }
 
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
-	componentPorts := make([]v1.ComponentPort, 0)
-	for key, value := range rcb.ports {
-		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
-	}
-
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
 		environmentConfig = append(environmentConfig, env.BuildEnvironmentConfig())
@@ -160,7 +162,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		SourceFolder:      rcb.sourceFolder,
 		DockerfileName:    rcb.dockerfileName,
 		Image:             rcb.image,
-		Ports:             componentPorts,
+		Ports:             rcb.ports,
 		Secrets:           rcb.secrets,
 		SecretRefs:        rcb.secretRefs,
 		MonitoringConfig:  rcb.monitoringConfig,
