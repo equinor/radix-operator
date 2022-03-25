@@ -9,9 +9,11 @@ type DeployJobComponentBuilder interface {
 	WithName(string) DeployJobComponentBuilder
 	WithImage(string) DeployJobComponentBuilder
 	WithPort(string, int32) DeployJobComponentBuilder
+	WithPorts([]v1.ComponentPort) DeployJobComponentBuilder
 	WithEnvironmentVariable(string, string) DeployJobComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployJobComponentBuilder
 	WithMonitoring(bool) DeployJobComponentBuilder
+	WithMonitoringConfig(v1.MonitoringConfig) DeployJobComponentBuilder
 	WithAlwaysPullImageOnDeploy(bool) DeployJobComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployJobComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
@@ -29,9 +31,10 @@ type DeployJobComponentBuilder interface {
 type deployJobComponentBuilder struct {
 	name                    string
 	image                   string
-	ports                   map[string]int32
+	ports                   []v1.ComponentPort
 	environmentVariables    map[string]string
 	monitoring              bool
+	monitoringConfig        v1.MonitoringConfig
 	alwaysPullImageOnDeploy bool
 	secrets                 []string
 	secretRefs              v1.RadixSecretRefs
@@ -85,15 +88,27 @@ func (dcb *deployJobComponentBuilder) WithImage(image string) DeployJobComponent
 
 func (dcb *deployJobComponentBuilder) WithPort(name string, port int32) DeployJobComponentBuilder {
 	if dcb.ports == nil {
-		dcb.ports = make(map[string]int32)
+		dcb.ports = make([]v1.ComponentPort, 0)
 	}
 
-	dcb.ports[name] = port
+	dcb.ports = append(dcb.ports, v1.ComponentPort{Name: name, Port: port})
+	return dcb
+}
+
+func (dcb *deployJobComponentBuilder) WithPorts(ports []v1.ComponentPort) DeployJobComponentBuilder {
+	for i := range ports {
+		dcb.WithPort(ports[i].Name, ports[i].Port)
+	}
 	return dcb
 }
 
 func (dcb *deployJobComponentBuilder) WithMonitoring(monitoring bool) DeployJobComponentBuilder {
 	dcb.monitoring = monitoring
+	return dcb
+}
+
+func (dcb *deployJobComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) DeployJobComponentBuilder {
+	dcb.monitoringConfig = monitoringConfig
 	return dcb
 }
 
@@ -142,11 +157,6 @@ func (dcb *deployJobComponentBuilder) WithRunAsNonRoot(runAsNonRoot bool) Deploy
 }
 
 func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobComponent {
-	componentPorts := make([]v1.ComponentPort, 0)
-	for key, value := range dcb.ports {
-		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
-	}
-
 	var payload *v1.RadixJobComponentPayload
 	if dcb.payloadPath != nil {
 		payload = &v1.RadixJobComponentPayload{Path: *dcb.payloadPath}
@@ -155,8 +165,9 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 	return v1.RadixDeployJobComponent{
 		Image:                   dcb.image,
 		Name:                    dcb.name,
-		Ports:                   componentPorts,
+		Ports:                   dcb.ports,
 		Monitoring:              dcb.monitoring,
+		MonitoringConfig:        dcb.monitoringConfig,
 		Secrets:                 dcb.secrets,
 		SecretRefs:              dcb.secretRefs,
 		EnvironmentVariables:    dcb.environmentVariables,

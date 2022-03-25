@@ -76,7 +76,6 @@ func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder builders.Registrati
 
 // ApplyApplication Will help persist an application
 func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder) (*v1.RadixApplication, error) {
-
 	regBuilder := applicationBuilder.GetRegistrationBuilder()
 	var rr *v1.RadixRegistration
 

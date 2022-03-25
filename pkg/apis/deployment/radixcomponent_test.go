@@ -21,14 +21,14 @@ const (
 	anyImageTag  = "latest"
 )
 
-func TestGetAuthenticationForComponent(t *testing.T) {
-	type scenarioDef struct {
-		name     string
-		comp     *v1.Authentication
-		env      *v1.Authentication
-		expected *v1.Authentication
-	}
+type scenarioDef struct {
+	name     string
+	comp     interface{}
+	env      interface{}
+	expected interface{}
+}
 
+func TestGetAuthenticationForComponent(t *testing.T) {
 	scenarios := []scenarioDef{
 		{name: "should return nil when component and environment is nil"},
 		{name: "should return component when environment is nil", comp: &v1.Authentication{}, expected: &v1.Authentication{}},
@@ -36,21 +36,17 @@ func TestGetAuthenticationForComponent(t *testing.T) {
 	}
 
 	for i, scenario := range scenarios {
-		actual, _ := GetAuthenticationForComponent(scenario.comp, scenario.env)
-		assert.Equal(t, scenario.expected, actual, "%v: %v", i+1, scenario.name)
+		comp, _ := scenario.comp.(*v1.Authentication)
+		env, _ := scenario.env.(*v1.Authentication)
+		expected, _ := scenario.expected.(*v1.Authentication)
+		actual, _ := GetAuthenticationForComponent(comp, env)
+		assert.Equal(t, expected, actual, "%v: %v", i+1, scenario.name)
 	}
 }
 
 func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
 	verificationOptional := v1.VerificationTypeOptional
 	verificationOff := v1.VerificationTypeOff
-
-	type scenarioDef struct {
-		name     string
-		comp     *v1.ClientCertificate
-		env      *v1.ClientCertificate
-		expected *v1.ClientCertificate
-	}
 
 	scenarios := []scenarioDef{
 		{name: "should return nil when component and environment is nil"},
@@ -125,21 +121,15 @@ func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
 	}
 
 	for i, scenario := range scenarios {
-		comp := scenario.comp
-		env := scenario.env
+		comp, _ := scenario.comp.(*v1.ClientCertificate)
+		env, _ := scenario.env.(*v1.ClientCertificate)
+		expected, _ := scenario.expected.(*v1.ClientCertificate)
 		actual, _ := GetAuthenticationForComponent(&v1.Authentication{ClientCertificate: comp}, &v1.Authentication{ClientCertificate: env})
-		assert.Equal(t, scenario.expected, actual.ClientCertificate, "%v: %v", i+1, scenario.name)
+		assert.Equal(t, expected, actual.ClientCertificate, "%v: %v", i+1, scenario.name)
 	}
 }
 
 func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
-	type scenarioDef struct {
-		name     string
-		comp     *v1.OAuth2
-		env      *v1.OAuth2
-		expected *v1.OAuth2
-	}
-
 	scenarios := []scenarioDef{
 		{name: "should return nil when component and environment is nil"},
 		{name: "should return component when environment is nil", comp: &v1.OAuth2{}, expected: &v1.OAuth2{}},
@@ -171,10 +161,11 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 	}
 
 	for i, scenario := range scenarios {
-		comp := scenario.comp
-		env := scenario.env
+		comp, _ := scenario.comp.(*v1.OAuth2)
+		env, _ := scenario.env.(*v1.OAuth2)
+		expected, _ := scenario.expected.(*v1.OAuth2)
 		actual, _ := GetAuthenticationForComponent(&v1.Authentication{OAuth2: comp}, &v1.Authentication{OAuth2: env})
-		assert.Equal(t, scenario.expected, actual.OAuth2, "%v: %v", i+1, scenario.name)
+		assert.Equal(t, expected, actual.OAuth2, "%v: %v", i+1, scenario.name)
 	}
 }
 
@@ -432,6 +423,63 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_NilVariablesMapInEn
 	assert.Equal(t, "comp_2", deployComponentDev[1].Name)
 	assert.Equal(t, 1, len(deployComponentDev[1].EnvironmentVariables))
 	assert.Equal(t, "environment_common_2", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
+}
+
+func TestGetRadixComponentsForEnv_Monitoring(t *testing.T) {
+	envs := [2]string{"prod", "dev"}
+
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+
+	monitoringConfig := v1.MonitoringConfig{
+		PortName: "monitor",
+		Path:     "/api/monitor",
+	}
+
+	radApp := utils.ARadixApplication().
+		WithEnvironment(envs[0], "release").
+		WithEnvironment(envs[1], "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1").
+				WithMonitoringConfig(monitoringConfig).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[0]).
+						WithMonitoring(true),
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[1]),
+				),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_2").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[0]),
+					utils.AnEnvironmentConfig().
+						WithEnvironment(envs[1]).
+						WithMonitoring(true),
+				),
+		).BuildRA()
+
+	// check component(s) env
+	comps, err := GetRadixComponentsForEnv(radApp, envs[0], componentImages)
+	assert.Nil(t, err)
+	assert.True(t, comps[0].Monitoring)
+	assert.Equal(t, monitoringConfig.PortName, comps[0].MonitoringConfig.PortName)
+	assert.Equal(t, monitoringConfig.Path, comps[0].MonitoringConfig.Path)
+	assert.False(t, comps[1].Monitoring)
+	assert.Empty(t, comps[1].MonitoringConfig.PortName)
+	assert.Empty(t, comps[1].MonitoringConfig.Path)
+
+	// check other component(s) env
+	comps, err = GetRadixComponentsForEnv(radApp, envs[1], componentImages)
+	assert.Nil(t, err)
+	assert.False(t, comps[0].Monitoring)
+	assert.Equal(t, monitoringConfig.PortName, comps[0].MonitoringConfig.PortName)
+	assert.Equal(t, monitoringConfig.Path, comps[0].MonitoringConfig.Path)
+	assert.True(t, comps[1].Monitoring)
+	assert.Empty(t, comps[1].MonitoringConfig.PortName)
+	assert.Empty(t, comps[1].MonitoringConfig.Path)
 }
 
 func TestGetRadixComponentsForEnv_CommonResources(t *testing.T) {

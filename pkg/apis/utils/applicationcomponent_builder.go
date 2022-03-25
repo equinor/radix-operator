@@ -14,8 +14,10 @@ type RadixApplicationComponentBuilder interface {
 	WithPublic(bool) RadixApplicationComponentBuilder // Deprecated: For backwards comptibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublicPort(string) RadixApplicationComponentBuilder
 	WithPort(string, int32) RadixApplicationComponentBuilder
+	WithPorts([]v1.ComponentPort) RadixApplicationComponentBuilder
 	WithSecrets(...string) RadixApplicationComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixApplicationComponentBuilder
+	WithMonitoringConfig(v1.MonitoringConfig) RadixApplicationComponentBuilder
 	WithIngressConfiguration(...string) RadixApplicationComponentBuilder
 	WithEnvironmentConfig(RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
@@ -35,7 +37,8 @@ type radixApplicationComponentBuilder struct {
 	alwaysPullImageOnDeploy *bool
 	public                  bool // Deprecated: For backwards compatibility public is still supported, new code should use publicPort instead
 	publicPort              string
-	ports                   map[string]int32
+	monitoringConfig        v1.MonitoringConfig
+	ports                   []v1.ComponentPort
 	secrets                 []string
 	secretRefs              v1.RadixSecretRefs
 	ingressConfiguration    []string
@@ -93,6 +96,11 @@ func (rcb *radixApplicationComponentBuilder) WithSecretRefs(secretRefs v1.RadixS
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) RadixApplicationComponentBuilder {
+	rcb.monitoringConfig = monitoringConfig
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) WithIngressConfiguration(ingressConfiguration ...string) RadixApplicationComponentBuilder {
 	rcb.ingressConfiguration = ingressConfiguration
 	return rcb
@@ -100,10 +108,17 @@ func (rcb *radixApplicationComponentBuilder) WithIngressConfiguration(ingressCon
 
 func (rcb *radixApplicationComponentBuilder) WithPort(name string, port int32) RadixApplicationComponentBuilder {
 	if rcb.ports == nil {
-		rcb.ports = make(map[string]int32)
+		rcb.ports = make([]v1.ComponentPort, 0)
 	}
 
-	rcb.ports[name] = port
+	rcb.ports = append(rcb.ports, v1.ComponentPort{Name: name, Port: port})
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithPorts(ports []v1.ComponentPort) RadixApplicationComponentBuilder {
+	for i := range ports {
+		rcb.WithPort(ports[i].Name, ports[i].Port)
+	}
 	return rcb
 }
 
@@ -150,11 +165,6 @@ func (rcb *radixApplicationComponentBuilder) WithCommonResource(request map[stri
 }
 
 func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent {
-	componentPorts := make([]v1.ComponentPort, 0)
-	for key, value := range rcb.ports {
-		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
-	}
-
 	var environmentConfig = make([]v1.RadixEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
 		environmentConfig = append(environmentConfig, env.BuildEnvironmentConfig())
@@ -165,12 +175,13 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		SourceFolder:            rcb.sourceFolder,
 		DockerfileName:          rcb.dockerfileName,
 		Image:                   rcb.image,
-		Ports:                   componentPorts,
+		Ports:                   rcb.ports,
 		Secrets:                 rcb.secrets,
 		SecretRefs:              rcb.secretRefs,
 		IngressConfiguration:    rcb.ingressConfiguration,
 		Public:                  rcb.public,
 		PublicPort:              rcb.publicPort,
+		MonitoringConfig:        rcb.monitoringConfig,
 		EnvironmentConfig:       environmentConfig,
 		Variables:               rcb.variables,
 		Resources:               rcb.resources,
