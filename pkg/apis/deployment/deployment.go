@@ -223,7 +223,9 @@ func (deploy *Deployment) syncDeployment() error {
 
 	// If any error occurred when setting network policies
 	if len(errs) > 0 {
-		return errors.Concat(errs)
+		combinedErrs := errors.Concat(errs)
+		log.Errorf("%s", combinedErrs)
+		return combinedErrs
 	}
 
 	for _, component := range deploy.radixDeployment.Spec.Components {
