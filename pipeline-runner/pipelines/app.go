@@ -12,6 +12,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
+	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	tektonClient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	secretsstorevclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
@@ -19,24 +21,26 @@ import (
 
 // PipelineRunner Instance variables
 type PipelineRunner struct {
-	definfition              *pipeline.Definition
+	definition               *pipeline.Definition
 	kubeclient               kubernetes.Interface
 	kubeUtil                 *kube.Kube
 	radixclient              radixclient.Interface
 	prometheusOperatorClient monitoring.Interface
+	tektonClient             versioned.Interface
 	appName                  string
 	pipelineInfo             *model.PipelineInfo
 }
 
 // InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, tektonClient tektonClient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
-		definfition:              definition,
+		definition:               definition,
 		kubeclient:               kubeclient,
 		kubeUtil:                 kubeUtil,
 		radixclient:              radixclient,
+		tektonClient:             tektonClient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		appName:                  appName,
 	}
@@ -52,9 +56,10 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient, cli.prometheusOperatorClient, radixRegistration)
+	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient,
+		cli.prometheusOperatorClient, cli.tektonClient, radixRegistration)
 	cli.pipelineInfo, err = model.InitPipeline(
-		cli.definfition,
+		cli.definition,
 		pipelineArgs,
 		stepImplementations...)
 
@@ -101,24 +106,20 @@ func (cli *PipelineRunner) TearDown() {
 	}
 }
 
-func initStepImplementations(
-	kubeclient kubernetes.Interface,
-	kubeUtil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusOperatorClient monitoring.Interface,
-	registration *v1.RadixRegistration) []model.Step {
+func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, tektonClient versioned.Interface, registration *v1.RadixRegistration) []model.Step {
 
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewCopyConfigToMapStep())
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
+	stepImplementations = append(stepImplementations, steps.NewCustomPipelineStep())
 	stepImplementations = append(stepImplementations, steps.NewScanImageStep())
 	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(kubeclient)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, registration)
+			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, tektonClient, registration)
 	}
 
 	return stepImplementations

@@ -110,7 +110,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), scenario.appName, metav1.GetOptions{})
 
 			cli := NewPromoteStep()
-			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
+			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, commonTestUtils.GetTektonClient(), rr)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -254,7 +254,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, commonTestUtils.GetTektonClient(), rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -375,7 +375,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, commonTestUtils.GetTektonClient(), rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -464,7 +464,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, commonTestUtils.GetTektonClient(), rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -576,7 +576,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, commonTestUtils.GetTektonClient(), rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -633,7 +633,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, commonTestUtils.GetTektonClient(), rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{

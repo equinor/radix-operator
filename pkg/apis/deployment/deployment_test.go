@@ -26,6 +26,7 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -35,7 +36,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	kubernetes "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretProvider "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
@@ -53,8 +54,9 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	radixClient := radix.NewSimpleClientset()
 	prometheusClient := prometheusfake.NewSimpleClientset()
 	secretProviderClient := secretproviderfake.NewSimpleClientset()
+	tektonclient := tektonclientfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeclient, radixClient, secretProviderClient)
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretProviderClient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixClient, secretProviderClient, tektonclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixClient, prometheusClient, secretProviderClient
 }

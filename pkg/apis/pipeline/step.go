@@ -25,6 +25,9 @@ const (
 	// or an older deployment to an active
 	PromoteStep
 
+	// CustomPipelineStep Step to run custom pipeline
+	CustomPipelineStep
+
 	// end marker of the enum
 	numSteps
 )

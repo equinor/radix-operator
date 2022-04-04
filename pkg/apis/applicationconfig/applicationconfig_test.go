@@ -15,6 +15,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,8 +40,9 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	kubeclient := fake.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
+	tektonclient := tektonclientfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient, tektonclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }

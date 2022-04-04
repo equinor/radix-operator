@@ -10,6 +10,7 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
+	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
@@ -26,7 +27,8 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, *secretproviderfake.C
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	tektonclient := tektonclientfake.NewSimpleClientset()
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient, tektonclient)
 	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return kubeclient, radixclient, secretproviderclient, testUtils
 }
@@ -34,7 +36,7 @@ func setupTest() (*kubernetes.Clientset, *radix.Clientset, *secretproviderfake.C
 func TestPrepare_NoRegistration_NotValid(t *testing.T) {
 	kubeclient, radixclient, secretproviderclient, _ := setupTest()
 	pipelineDefinition, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	cli := InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, secretproviderclient, pipelineDefinition, "any-app")
+	cli := InitRunner(kubeclient, radixclient, &monitoring.Clientset{}, secretproviderclient, nil, pipelineDefinition, "any-app")
 
 	err := cli.PrepareRun(model.PipelineArguments{})
 	assert.Error(t, err)
