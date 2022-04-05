@@ -108,13 +108,14 @@ func (cli *PipelineRunner) TearDown() {
 
 func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, tektonClient versioned.Interface, registration *v1.RadixRegistration) []model.Step {
 
+	namespaceWatcher := kube.NewNamespaceWatcherImpl(kubeclient)
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewCopyConfigToMapStep())
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
-	stepImplementations = append(stepImplementations, steps.NewCustomPipelineStep())
+	stepImplementations = append(stepImplementations, steps.NewTektonPipelineStep())
 	stepImplementations = append(stepImplementations, steps.NewScanImageStep())
-	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(kubeclient)))
+	stepImplementations = append(stepImplementations, steps.NewDeployStep(namespaceWatcher))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {

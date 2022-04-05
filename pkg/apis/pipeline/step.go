@@ -25,8 +25,8 @@ const (
 	// or an older deployment to an active
 	PromoteStep
 
-	// CustomPipelineStep Step to run custom pipeline
-	CustomPipelineStep
+	// TektonPipelineStep Step to run tekton pipeline
+	TektonPipelineStep
 
 	// end marker of the enum
 	numSteps
