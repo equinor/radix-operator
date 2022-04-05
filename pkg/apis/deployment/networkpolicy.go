@@ -126,6 +126,16 @@ func allowAllHttpsAndDnsEgressNetworkPolicy(policyName string, targetLabelKey st
 						},
 					},
 				},
+				{
+					To: []v1.NetworkPolicyPeer{{
+						NamespaceSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								kube.RadixAppLabel: appName,
+								kube.RadixEnvLabel: env,
+							},
+						},
+					}},
+				},
 			},
 		},
 	}
