@@ -219,14 +219,14 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("failed to provision secrets: %v", err)
 	}
 
-	err = deploy.denyTrafficFromOtherNamespaces()
-	if err != nil {
-		errmsg := "Failed to setup NSP whitelist: "
-		log.Errorf("%s%v", errmsg, err)
-		return fmt.Errorf("%s%v", errmsg, err)
-	}
+	errs := deploy.setDefaultNetworkPolicies()
 
-	errs := []error{}
+	// If any error occurred when setting network policies
+	if len(errs) > 0 {
+		combinedErrs := errors.Concat(errs)
+		log.Errorf("%s", combinedErrs)
+		return combinedErrs
+	}
 
 	for _, component := range deploy.radixDeployment.Spec.Components {
 		if err := deploy.syncDeploymentForRadixComponent(&component); err != nil {
