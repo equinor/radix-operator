@@ -41,7 +41,7 @@ func NewNetworkPolicy(
 }
 
 // UpdateEnvEgressRules Applies a list of egress rules to the specified radix app environment
-func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, env string) error {
+func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, allowRadix bool, env string) error {
 
 	ns := utils.GetEnvironmentNamespace(nw.appName, env)
 
@@ -57,6 +57,12 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 		createAllowKubeDnsEgressRule(),
 		nw.createAllowOwnNamespaceEgressRule(env),
 	)
+
+	if allowRadix {
+		egressRules = append(egressRules,
+			createAllowRadixEgressRule(),
+		)
+	}
 
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
 
@@ -183,4 +189,47 @@ func createAllowKubeDnsEgressRule() v1.NetworkPolicyEgressRule {
 	}
 
 	return dnsEgressRule
+}
+
+func createAllowRadixEgressRule() v1.NetworkPolicyEgressRule {
+	var tcp = corev1.ProtocolTCP
+	var udp = corev1.ProtocolUDP
+
+	httpToRadixEgressRule := v1.NetworkPolicyEgressRule{
+		Ports: []v1.NetworkPolicyPort{
+			{
+				Protocol: &tcp,
+				Port: &intstr.IntOrString{
+					IntVal: 80,
+				},
+			},
+			{
+				Protocol: &tcp,
+				Port: &intstr.IntOrString{
+					IntVal: 443,
+				},
+			},
+			{
+				Protocol: &udp,
+				Port: &intstr.IntOrString{
+					IntVal: 80,
+				},
+			},
+			{
+				Protocol: &udp,
+				Port: &intstr.IntOrString{
+					IntVal: 443,
+				},
+			},
+		},
+		To: []v1.NetworkPolicyPeer{{
+			PodSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "ingress-nginx"},
+			},
+			// empty namespaceSelector is necessary for podSelector to work
+			NamespaceSelector: &metav1.LabelSelector{},
+		}},
+	}
+
+	return httpToRadixEgressRule
 }

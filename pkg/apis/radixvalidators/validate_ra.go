@@ -985,11 +985,11 @@ func validateMaxNameLengthForAppAndEnv(appName, envName string) error {
 func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 	var errs []error
 	for _, env := range app.Spec.Environments {
-		if len(env.EgressRules) > maximumNumberOfEgressRules {
+		if len(env.Egress.Rules) > maximumNumberOfEgressRules {
 			errs = append(errs, fmt.Errorf("number of egress rules for env %s exceeds max nr %d", env.Name, maximumNumberOfEgressRules))
 			continue
 		}
-		for _, egressRule := range env.EgressRules {
+		for _, egressRule := range env.Egress.Rules {
 			if len(egressRule.Destinations) < 1 {
 				errs = append(errs, fmt.Errorf("egress rule must contain at least one destination"))
 			}

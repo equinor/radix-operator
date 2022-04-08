@@ -22,7 +22,7 @@ type EnvironmentBuilder interface {
 	WithRegistrationOwner(registration *rx.RadixRegistration) EnvironmentBuilder
 	WithRegistrationBuilder(builder RegistrationBuilder) EnvironmentBuilder
 	WithOrphaned(isOrphan bool) EnvironmentBuilder
-	WithEgressRules(egressRules []rx.EgressRule) EnvironmentBuilder
+	WithEgressConfig(egressRules rx.EgressConfig) EnvironmentBuilder
 	WithResourceVersion(version string) EnvironmentBuilder
 	GetRegistrationBuilder() RegistrationBuilder
 	BuildRE() *rx.RadixEnvironment
@@ -33,7 +33,7 @@ type EnvironmentBuilderStruct struct {
 	registrationBuilder RegistrationBuilder
 	EnvironmentName     string
 	AppName             string
-	EgressRules         []rx.EgressRule
+	EgressConfig        rx.EgressConfig
 	Labels              map[string]string
 	AppLabel            bool
 	CreatedTime         *time.Time
@@ -130,9 +130,9 @@ func (eb *EnvironmentBuilderStruct) WithOrphaned(isOrphan bool) EnvironmentBuild
 	return eb
 }
 
-// WithEgressRules sets the egress rules for this environment
-func (eb *EnvironmentBuilderStruct) WithEgressRules(egressRules []rx.EgressRule) EnvironmentBuilder {
-	eb.EgressRules = egressRules
+// WithEgressConfig sets the egress configuration for this environment
+func (eb *EnvironmentBuilderStruct) WithEgressConfig(egress rx.EgressConfig) EnvironmentBuilder {
+	eb.EgressConfig = egress
 	return eb
 }
 
@@ -165,9 +165,9 @@ func (eb *EnvironmentBuilderStruct) BuildRE() *rx.RadixEnvironment {
 			OwnerReferences: eb.Owners,
 		},
 		Spec: rx.RadixEnvironmentSpec{
-			AppName:     eb.AppName,
-			EnvName:     eb.EnvironmentName,
-			EgressRules: eb.EgressRules,
+			AppName: eb.AppName,
+			EnvName: eb.EnvironmentName,
+			Egress:  eb.EgressConfig,
 		},
 		Status: rx.RadixEnvironmentStatus{
 			Orphaned: eb.IsOrphan,
