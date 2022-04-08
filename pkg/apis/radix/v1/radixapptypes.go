@@ -66,7 +66,7 @@ type EgressRule struct {
 
 // EgressConfig defines an egress configuration for an environment
 type EgressConfig struct {
-	AllowRadix bool         `json:"allowRadix" yaml:"allowRadix"`
+	AllowRadix *bool        `json:"allowRadix,omitempty" yaml:"allowRadix,omitempty"`
 	Rules      []EgressRule `json:"rules,omitempty" yaml:"rules,omitempty"`
 }
 

@@ -41,12 +41,12 @@ func NewNetworkPolicy(
 }
 
 // UpdateEnvEgressRules Applies a list of egress rules to the specified radix app environment
-func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, allowRadix bool, env string) error {
+func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, allowRadix *bool, env string) error {
 
 	ns := utils.GetEnvironmentNamespace(nw.appName, env)
 
-	// if there are _no_ egress rules defined in radixconfig, we delete existing policy
-	if len(radixEgressRules) == 0 {
+	// if there are _no_ egress rules defined in radixconfig, and 'allowRadix' is undefined, we delete existing policy
+	if len(radixEgressRules) == 0 && allowRadix == nil {
 		return nw.deleteUserDefinedEgressPolicies(ns, env)
 	}
 
@@ -58,10 +58,12 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 		nw.createAllowOwnNamespaceEgressRule(env),
 	)
 
-	if allowRadix {
-		egressRules = append(egressRules,
-			createAllowRadixEgressRule(),
-		)
+	if allowRadix != nil {
+		if *allowRadix == true {
+			egressRules = append(egressRules,
+				createAllowRadixEgressRule(),
+			)
+		}
 	}
 
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
