@@ -27,9 +27,9 @@ type RadixEnvironmentList struct {
 
 //RadixEnvironmentSpec is the spec for an RE
 type RadixEnvironmentSpec struct {
-	AppName     string       `json:"appName" yaml:"appName"`
-	EnvName     string       `json:"envName" yaml:"envName"`
-	EgressRules []EgressRule `json:"egressRules,omitempty" yaml:"egressRules,omitempty"`
+	AppName string       `json:"appName" yaml:"appName"`
+	EnvName string       `json:"envName" yaml:"envName"`
+	Egress  EgressConfig `json:"egress,omitempty" yaml:"egress,omitempty"`
 }
 
 // RadixEnvironmentStatus is the status for an RE

@@ -1382,7 +1382,7 @@ func Test_ValidHPA_NoError(t *testing.T) {
 	}
 }
 
-func Test_EgressRules(t *testing.T) {
+func Test_EgressConfig(t *testing.T) {
 	var testScenarios = []struct {
 		name     string
 		updateRA updateRAFunc
@@ -1391,7 +1391,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must have valid destination masks",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"notanIPmask"},
 					Ports:        nil,
 				}}
@@ -1401,7 +1401,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must use IPv4 in destination CIDR, zero ports",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"2001:0DB8:0000:000b::/64"},
 					Ports:        nil,
 				}}
@@ -1411,7 +1411,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must use IPv4 in destination CIDR",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"2001:0DB8:0000:000b::/64"},
 					Ports: []v1.EgressPort{{
 						Port:     10,
@@ -1424,7 +1424,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must have postfix in IPv4 CIDR",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.1"},
 					Ports:        nil,
 				}}
@@ -1434,7 +1434,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must have valid ports",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.1"},
 					Ports: []v1.EgressPort{{
 						Port:     0,
@@ -1447,7 +1447,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must have valid ports",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.1"},
 					Ports: []v1.EgressPort{{
 						Port:     66000,
@@ -1460,7 +1460,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must contain destination",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: nil,
 					Ports: []v1.EgressPort{{
 						Port:     24,
@@ -1473,7 +1473,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must have valid port protocol",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.1/32"},
 					Ports: []v1.EgressPort{{
 						Port:     2000,
@@ -1486,7 +1486,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "egress rule must have valid port protocol",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.1/32"},
 					Ports: []v1.EgressPort{{
 						Port:     2000,
@@ -1499,9 +1499,9 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "can not exceed max nr of egress rules",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{}
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{}
 				for i := 0; i <= 1000; i++ {
-					ra.Spec.Environments[0].EgressRules = append(ra.Spec.Environments[0].EgressRules, v1.EgressRule{
+					ra.Spec.Environments[0].Egress.Rules = append(ra.Spec.Environments[0].Egress.Rules, v1.EgressRule{
 						Destinations: []string{"10.0.0.0/8"},
 						Ports:        nil,
 					})
@@ -1512,7 +1512,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "sample egress rule with valid destination, zero ports",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.0/8"},
 					Ports:        nil,
 				}}
@@ -1522,7 +1522,7 @@ func Test_EgressRules(t *testing.T) {
 		{
 			name: "sample egress rule with valid destinations",
 			updateRA: func(ra *v1.RadixApplication) {
-				ra.Spec.Environments[0].EgressRules = []v1.EgressRule{{
+				ra.Spec.Environments[0].Egress.Rules = []v1.EgressRule{{
 					Destinations: []string{"10.0.0.0/8", "192.10.10.10/32"},
 					Ports: []v1.EgressPort{
 						{
