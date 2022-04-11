@@ -21,8 +21,8 @@ func (kubeutil *Kube) ListUserDefinedNetworkPolicies(appName string, env string)
 	return kubeutil.listNetworkPoliciesByLabels(ns, labelsMap)
 }
 
-// ApplyEgressPolicy Applies a k8s network policy to specified namespace
-func (kubeutil *Kube) ApplyEgressPolicy(networkPolicy *v1.NetworkPolicy, ns string) error {
+// ApplyNetworkPolicy Applies a k8s network policy to specified namespace
+func (kubeutil *Kube) ApplyNetworkPolicy(networkPolicy *v1.NetworkPolicy, ns string) error {
 	_, err := kubeutil.kubeClient.NetworkingV1().NetworkPolicies(ns).Create(context.TODO(), networkPolicy, metav1.CreateOptions{})
 	if k8serrors.IsAlreadyExists(err) {
 		_, err = kubeutil.kubeClient.NetworkingV1().NetworkPolicies(ns).Update(context.TODO(), networkPolicy, metav1.UpdateOptions{})

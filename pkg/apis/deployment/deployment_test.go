@@ -381,7 +381,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				t.Parallel()
 				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+				assert.Equal(t, 3, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
 	}
@@ -611,7 +611,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				t.Parallel()
 				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+				assert.Equal(t, 3, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
 	}

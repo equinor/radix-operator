@@ -59,6 +59,7 @@ const (
 	RadixSecretRefTypeLabel            = "radix-secret-ref-type"
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
+	RadixPodIsJobSchedulerLabel        = "is-job-scheduler-pod"
 	//RadixBatchNameLabel A label that k8s automatically adds to a Pod created by Job and to the Job for a Batch
 	RadixBatchNameLabel = "radix-batch-name"
 	RadixJobIdLabel     = "radix-job-id"

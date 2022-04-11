@@ -86,6 +86,10 @@ const (
 
 	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
+
 	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
 	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
+
+	// KubernetesApiPortEnvironmentVariable Port which the K8s API server listens to for HTTPS
+	KubernetesApiPortEnvironmentVariable = "KUBERNETES_SERVICE_PORT"
 )
