@@ -58,12 +58,8 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 		nw.createAllowOwnNamespaceEgressRule(env),
 	)
 
-	if allowRadix != nil {
-		if *allowRadix == true {
-			egressRules = append(egressRules,
-				createAllowRadixEgressRule(),
-			)
-		}
+	if allowRadix != nil && *allowRadix {
+		egressRules = append(egressRules, createAllowRadixEgressRule())
 	}
 
 	egressPolicy := nw.createEgressPolicy(env, egressRules, true)
@@ -226,7 +222,7 @@ func createAllowRadixEgressRule() v1.NetworkPolicyEgressRule {
 		},
 		To: []v1.NetworkPolicyPeer{{
 			PodSelector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"app": "ingress-nginx"},
+				MatchLabels: map[string]string{"app.kubernetes.io/name": "ingress-nginx"},
 			},
 			// empty namespaceSelector is necessary for podSelector to work
 			NamespaceSelector: &metav1.LabelSelector{},
