@@ -33,7 +33,7 @@ type TektonPipelineStepImplementation struct {
 // NewTektonPipelineStep Constructor
 func NewTektonPipelineStep() model.Step {
 	return &TektonPipelineStepImplementation{
-		stepType: pipeline.TektonPipelineStep,
+		stepType: pipeline.RunTektonPipelineStep,
 	}
 }
 
@@ -73,10 +73,14 @@ func (cli *TektonPipelineStepImplementation) Run(pipelineInfo *model.PipelineInf
 	return cli.GetKubeutil().WaitForCompletionOf(job)
 }
 
-func (cli *TektonPipelineStepImplementation) runTektonPipeline(ra *v1.RadixRegistration,
+func (cli *TektonPipelineStepImplementation) runTektonPipeline(rr *v1.RadixRegistration,
 	pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) (*batchv1.Job, error) {
 	namespace := utils.GetAppNamespace(cli.GetAppName())
-	appName := ra.Name
+	appName := rr.Name
+	ra := pipelineInfo.RadixApplication
+	if ra == nil {
+		return nil, fmt.Errorf("no RadixApplication")
+	}
 	timestamp := time.Now().Format("20060102150405")
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	branch := pipelineInfo.PipelineArguments.Branch

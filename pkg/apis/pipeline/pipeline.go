@@ -15,12 +15,24 @@ type Definition struct {
 // GetSupportedPipelines Lists supported pipelines
 func GetSupportedPipelines() []Definition {
 	return []Definition{
-		Definition{v1.BuildDeploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep, TektonPipelineStep, DeployStep,
-			ScanImageStep}},
-		Definition{v1.Build, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep,
-			TektonPipelineStep, ScanImageStep}},
-		Definition{v1.Promote, []StepType{TektonPipelineStep, PromoteStep}},
-		Definition{v1.Deploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, TektonPipelineStep, DeployStep}}}
+		Definition{v1.BuildDeploy, []StepType{
+			CopyConfigToMapStep,
+			ApplyConfigStep,
+			BuildStep,
+			RunTektonPipelineStep,
+			//TODO: restore
+			//DeployStep,
+			//ScanImageStep,
+		}},
+		Definition{v1.Build, []StepType{
+			CopyConfigToMapStep,
+			ApplyConfigStep,
+			BuildStep,
+			RunTektonPipelineStep,
+			ScanImageStep,
+		}},
+		Definition{v1.Promote, []StepType{RunTektonPipelineStep, PromoteStep}},
+		Definition{v1.Deploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, RunTektonPipelineStep, DeployStep}}}
 }
 
 // GetPipelineFromName Gets pipeline from string

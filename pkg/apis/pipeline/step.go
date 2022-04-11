@@ -9,6 +9,9 @@ const (
 	// CopyConfigToMapStep Step type to copy cloned radix config to configmap
 	CopyConfigToMapStep StepType = iota
 
+	// PrepareTektonPipelineStep Step to prepare tekton pipeline
+	PrepareTektonPipelineStep
+
 	// ApplyConfigStep Step type to apply radix config
 	ApplyConfigStep
 
@@ -25,8 +28,8 @@ const (
 	// or an older deployment to an active
 	PromoteStep
 
-	// TektonPipelineStep Step to run tekton pipeline
-	TektonPipelineStep
+	// RunTektonPipelineStep Step to run tekton pipeline
+	RunTektonPipelineStep
 
 	// end marker of the enum
 	numSteps

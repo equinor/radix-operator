@@ -2,6 +2,7 @@ package steps
 
 import (
 	"fmt"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/errors"
@@ -52,26 +53,13 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	ra := &v1.RadixApplication{}
-	if err := yaml.Unmarshal([]byte(configMap.Data["content"]), ra); err != nil {
+	configFileContent, ok := configMap.Data["content"]
+	if !ok {
+		return fmt.Errorf("failed load RadixApplication from ConfigMap")
+	}
+	ra, err := CreateRadixApplication(cli.GetRadixclient(), configFileContent)
+	if err != nil {
 		return err
-	}
-
-	// Validate RA
-	if validate.RAContainsOldPublic(ra) {
-		log.Warnf("component.public is deprecated, please use component.publicPort instead")
-	}
-
-	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
-	if !isAppNameLowercase {
-		log.Warnf("%s Converting name to lowercase", err.Error())
-		ra.Name = strings.ToLower(ra.Name)
-	}
-
-	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.GetRadixclient(), ra)
-	if !isRAValid {
-		log.Errorf("Radix config not valid.")
-		return errors.Concat(errs)
 	}
 
 	// Apply RA to cluster
@@ -90,4 +78,31 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
 	return nil
+}
+
+//CreateRadixApplication Create RadixApplication from radixconfig.yaml content
+func CreateRadixApplication(radixClient radixclient.Interface,
+	configFileContent string) (*v1.RadixApplication, error) {
+	ra := &v1.RadixApplication{}
+	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
+		return nil, err
+	}
+
+	// Validate RA
+	if validate.RAContainsOldPublic(ra) {
+		log.Warnf("component.public is deprecated, please use component.publicPort instead")
+	}
+
+	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
+	if !isAppNameLowercase {
+		log.Warnf("%s Converting name to lowercase", err.Error())
+		ra.Name = strings.ToLower(ra.Name)
+	}
+
+	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(radixClient, ra)
+	if !isRAValid {
+		log.Errorf("Radix config not valid.")
+		return nil, errors.Concat(errs)
+	}
+	return ra, nil
 }
