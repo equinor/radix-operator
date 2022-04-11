@@ -12,51 +12,56 @@ import (
 )
 
 var (
-	copyConfigToMap = &DefaultStepImplementation{StepType: pipeline.CopyConfigToMapStep, SuccessMessage: "config copied to map"}
-	applyConfigStep = &DefaultStepImplementation{StepType: pipeline.ApplyConfigStep, SuccessMessage: "config applied"}
-	buildStep       = &DefaultStepImplementation{StepType: pipeline.BuildStep, SuccessMessage: "built"}
-	scanImageStep   = &DefaultStepImplementation{StepType: pipeline.ScanImageStep, SuccessMessage: "image scanned"}
-	deployStep      = &DefaultStepImplementation{StepType: pipeline.DeployStep, SuccessMessage: "deployed"}
+	copyConfigToMap    = &DefaultStepImplementation{StepType: pipeline.CopyConfigToMapStep, SuccessMessage: "config copied to map"}
+	applyConfigStep    = &DefaultStepImplementation{StepType: pipeline.ApplyConfigStep, SuccessMessage: "config applied"}
+	buildStep          = &DefaultStepImplementation{StepType: pipeline.BuildStep, SuccessMessage: "built"}
+	scanImageStep      = &DefaultStepImplementation{StepType: pipeline.ScanImageStep, SuccessMessage: "image scanned"}
+	deployStep         = &DefaultStepImplementation{StepType: pipeline.DeployStep, SuccessMessage: "deployed"}
+	tektonPipelineStep = &DefaultStepImplementation{StepType: pipeline.TektonPipelineStep,
+		SuccessMessage: "tekton pipeline completed"}
 )
 
 func Test_DefaultPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName("")
-	p, _ := InitPipeline(pipelineType, PipelineArguments{}, copyConfigToMap, applyConfigStep, buildStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, PipelineArguments{}, copyConfigToMap, applyConfigStep, buildStep, tektonPipelineStep, scanImageStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
-	assert.Equal(t, 5, len(p.Steps))
+	assert.Equal(t, 6, len(p.Steps))
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "deployed", p.Steps[3].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
+	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
+	assert.Equal(t, "image scanned", p.Steps[5].SucceededMsg())
 }
 
 func Test_BuildDeployPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	p, _ := InitPipeline(pipelineType, PipelineArguments{}, copyConfigToMap, applyConfigStep, buildStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, PipelineArguments{}, copyConfigToMap, applyConfigStep, buildStep, tektonPipelineStep, scanImageStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
-	assert.Equal(t, 5, len(p.Steps))
+	assert.Equal(t, 6, len(p.Steps))
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "deployed", p.Steps[3].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
+	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
+	assert.Equal(t, "image scanned", p.Steps[5].SucceededMsg())
 }
 
 func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
 	pipelineArgs := GetPipelineArgsFromArguments(make(map[string]string))
-	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, buildStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, buildStep, tektonPipelineStep, scanImageStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
-	assert.Equal(t, 4, len(p.Steps))
+	assert.Equal(t, 5, len(p.Steps))
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_BuildOnlyPipeline(t *testing.T) {
@@ -66,14 +71,15 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 		PushImage: false,
 	}
 
-	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, buildStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, buildStep, tektonPipelineStep, scanImageStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
-	assert.Equal(t, 4, len(p.Steps))
+	assert.Equal(t, 5, len(p.Steps))
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_BuildAndPushOnlyPipeline(t *testing.T) {
@@ -83,14 +89,15 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 		PushImage: true,
 	}
 
-	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, buildStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, buildStep, tektonPipelineStep, scanImageStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
-	assert.Equal(t, 4, len(p.Steps))
+	assert.Equal(t, 5, len(p.Steps))
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_DeployOnlyPipeline(t *testing.T) {
@@ -101,13 +108,14 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 		ToEnvironment: toEnvironment,
 	}
 
-	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, deployStep)
+	p, _ := InitPipeline(pipelineType, pipelineArgs, copyConfigToMap, applyConfigStep, tektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Deploy, p.Definition.Type)
 	assert.Equal(t, toEnvironment, p.PipelineArguments.ToEnvironment)
-	assert.Equal(t, 3, len(p.Steps))
+	assert.Equal(t, 4, len(p.Steps))
 	assert.Equal(t, "config copied to map", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
-	assert.Equal(t, "deployed", p.Steps[2].SucceededMsg())
+	assert.Equal(t, "tekton pipeline completed", p.Steps[2].SucceededMsg())
+	assert.Equal(t, "deployed", p.Steps[3].SucceededMsg())
 }
 
 func Test_NonExistingPipelineType(t *testing.T) {
