@@ -16,23 +16,29 @@ type Definition struct {
 func GetSupportedPipelines() []Definition {
 	return []Definition{
 		Definition{v1.BuildDeploy, []StepType{
-			CopyConfigToMapStep,
+			PrepareTektonPipelineStep,
 			ApplyConfigStep,
 			BuildStep,
 			RunTektonPipelineStep,
-			//TODO: restore
-			//DeployStep,
-			//ScanImageStep,
+			DeployStep,
+			ScanImageStep,
 		}},
 		Definition{v1.Build, []StepType{
-			CopyConfigToMapStep,
+			PrepareTektonPipelineStep,
 			ApplyConfigStep,
 			BuildStep,
 			RunTektonPipelineStep,
 			ScanImageStep,
 		}},
-		Definition{v1.Promote, []StepType{RunTektonPipelineStep, PromoteStep}},
-		Definition{v1.Deploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, RunTektonPipelineStep, DeployStep}}}
+		Definition{v1.Promote, []StepType{
+			PrepareTektonPipelineStep,
+			RunTektonPipelineStep,
+			PromoteStep}},
+		Definition{v1.Deploy, []StepType{
+			PrepareTektonPipelineStep,
+			ApplyConfigStep,
+			RunTektonPipelineStep,
+			DeployStep}}}
 }
 
 // GetPipelineFromName Gets pipeline from string

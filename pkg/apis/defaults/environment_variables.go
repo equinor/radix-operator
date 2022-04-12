@@ -87,6 +87,32 @@ const (
 	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
 
+	// RadixTektonPipelineImageEnvironmentVariable Points to the utility image for preparing radixconfig copying
+	///config/file to/map and preparing Tekton resources
+	RadixTektonPipelineImageEnvironmentVariable = "RADIX_TEKTON_IMAGE"
+
+	// RadixPodNamespaceEnvironmentVariable Namespace of the running pod
+	RadixPodNamespaceEnvironmentVariable = "RADIX_POD_NAMESPACE"
+
+	// RadixConfigFileNameEnvironmentVariable Path to a radixconfig.yaml
+	// to be loaded from Radix application config branch
+	RadixConfigFileNameEnvironmentVariable = "RADIX_FILE_NAME"
+
+	// RadixImageTagEnvironmentVariable Image tag for the built component
+	RadixImageTagEnvironmentVariable = "IMAGE_TAG"
+
+	// RadixConfigConfigMapNameEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
+	RadixConfigConfigMapNameEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP_NAME"
+
+	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
+	RadixBranchEnvironmentVariable = "RADIX_BRANCH"
+
+	// RadixPipelineTypeEnvironmentVariable Pipeline type
+	RadixPipelineTypeEnvironmentVariable = "RADIX_PIPELINE_TYPE"
+
+	// RadixPipelineRunEnvironmentVariable Tekton Pipeline label for a Radix pipeline run
+	RadixPipelineRunEnvironmentVariable = "RADIX_PIPELINE_RUN"
+
 	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
 	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
 

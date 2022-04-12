@@ -110,7 +110,7 @@ func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kub
 
 	namespaceWatcher := kube.NewNamespaceWatcherImpl(kubeclient)
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, steps.NewCopyConfigToMapStep())
+	stepImplementations = append(stepImplementations, steps.NewPrepareTektonPipelineStep())
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
 	stepImplementations = append(stepImplementations, steps.NewTektonPipelineStep())

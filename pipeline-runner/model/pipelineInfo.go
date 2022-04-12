@@ -38,6 +38,7 @@ type PipelineInfo struct {
 
 	// Temporary data
 	RadixConfigMapName string
+	RadixPipelineRun   string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
 
@@ -64,14 +65,15 @@ type PipelineArguments struct {
 	ContainerSecurityContext corev1.SecurityContext
 
 	// Images used for copying radix config/building/scanning
-	ConfigToMap  string
-	ImageBuilder string
-	ImageScanner string
+	ConfigToMap    string
+	TektonPipeline string
+	ImageBuilder   string
 
+	ImageScanner string
 	// Used for tagging metainformation
 	Clustertype string
-	Clustername string
 
+	Clustername string
 	// Used to indicate debugging session
 	Debug bool
 }
@@ -92,6 +94,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion and deploy pipeline
 
 	configToMap := args[defaults.RadixConfigToMapEnvironmentVariable]
+	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
 	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
@@ -121,6 +124,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
 		ConfigToMap:     configToMap,
+		TektonPipeline:  tektonPipeline,
 		ImageBuilder:    imageBuilder,
 		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
@@ -138,6 +142,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
+	pipelineRunLabel := fmt.Sprintf("tekton-pipeline-%s-%s", timestamp, hash)
 
 	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
 	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
@@ -155,6 +160,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 		PipelineArguments:  pipelineArguments,
 		Steps:              stepImplementationsForType,
 		RadixConfigMapName: radixConfigMapName,
+		RadixPipelineRun:   pipelineRunLabel,
 	}, nil
 }
 
