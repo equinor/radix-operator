@@ -81,6 +81,7 @@ func (cli *PrepareTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipe
 
 func (cli *PrepareTektonPipelineStepImplementation) getJobConfig(containerRegistry string, pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	registration := cli.GetRegistration()
+	appName := cli.GetAppName()
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 	timestamp := time.Now().Format("20060102150405")
@@ -93,10 +94,10 @@ func (cli *PrepareTektonPipelineStepImplementation) getJobConfig(containerRegist
 			Name: fmt.Sprintf("radix-tekton-pipeline-%s-%s-%s", timestamp, imageTag, hash),
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:     jobName,
-				kube.RadixAppLabel:         cli.GetAppName(),
+				kube.RadixAppLabel:         appName,
 				kube.RadixImageTagLabel:    imageTag,
 				kube.RadixJobTypeLabel:     kube.RadixJobTypeTektonPipeline,
-				kube.RadixPipelineRunLabel: pipelineInfo.RadixPipelineRun,
+				kube.RadixPipelineRunLabel: pipelineInfo.PipelineArguments.RadixPipelineRun,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -115,17 +116,15 @@ func (cli *PrepareTektonPipelineStepImplementation) getJobConfig(containerRegist
 							SecurityContext: &pipelineInfo.PipelineArguments.ContainerSecurityContext,
 							Env: []corev1.EnvVar{
 								{
-									Name: defaults.RadixPodNamespaceEnvironmentVariable,
-									ValueFrom: &corev1.EnvVarSource{
-										FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"},
-									},
+									Name:  defaults.RadixAppEnvironmentVariable,
+									Value: appName,
 								},
 								{
-									Name:  defaults.RadixConfigConfigMapNameEnvironmentVariable,
+									Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
 									Value: pipelineInfo.RadixConfigMapName,
 								},
 								{
-									Name:  defaults.RadixConfigFileNameEnvironmentVariable,
+									Name:  defaults.RadixConfigFileEnvironmentVariable,
 									Value: pipelineInfo.PipelineArguments.RadixConfigFile,
 								},
 								{
@@ -139,6 +138,22 @@ func (cli *PrepareTektonPipelineStepImplementation) getJobConfig(containerRegist
 								{
 									Name:  defaults.RadixImageTagEnvironmentVariable,
 									Value: pipelineInfo.PipelineArguments.ImageTag,
+								},
+								{
+									Name:  defaults.RadixPipelineRunEnvironmentVariable,
+									Value: pipelineInfo.PipelineArguments.RadixPipelineRun,
+								},
+								{
+									Name:  defaults.RadixPromoteDeploymentEnvironmentVariable,
+									Value: pipelineInfo.PipelineArguments.DeploymentName,
+								},
+								{
+									Name:  defaults.RadixPromoteFromEnvironmentEnvironmentVariable,
+									Value: pipelineInfo.PipelineArguments.FromEnvironment,
+								},
+								{
+									Name:  defaults.RadixPromoteToEnvironmentEnvironmentVariable,
+									Value: pipelineInfo.PipelineArguments.ToEnvironment,
 								},
 							},
 						},

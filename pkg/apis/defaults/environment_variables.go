@@ -73,6 +73,15 @@ const (
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
 
+	// RadixPromoteDeploymentEnvironmentVariable Name of Radix Deployment for pipeline
+	RadixPromoteDeploymentEnvironmentVariable = "DEPLOYMENT_NAME"
+
+	// RadixPromoteFromEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote from
+	RadixPromoteFromEnvironmentEnvironmentVariable = "FROM_ENVIRONMENT"
+
+	// RadixPromoteToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
+	RadixPromoteToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
+
 	// RadixDeploymentForceNonRootContainers Controls the non-root configuration for component containers
 	// true: all component containers are force to run as non-root
 	// false: non-root for a component container is controlled by runAsNonRoot from radixconfig
@@ -91,24 +100,21 @@ const (
 	///config/file to/map and preparing Tekton resources
 	RadixTektonPipelineImageEnvironmentVariable = "RADIX_TEKTON_IMAGE"
 
-	// RadixPodNamespaceEnvironmentVariable Namespace of the running pod
-	RadixPodNamespaceEnvironmentVariable = "RADIX_POD_NAMESPACE"
-
-	// RadixConfigFileNameEnvironmentVariable Path to a radixconfig.yaml
+	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
 	// to be loaded from Radix application config branch
-	RadixConfigFileNameEnvironmentVariable = "RADIX_FILE_NAME"
+	RadixConfigFileEnvironmentVariable = "RADIX_FILE_NAME"
 
 	// RadixImageTagEnvironmentVariable Image tag for the built component
 	RadixImageTagEnvironmentVariable = "IMAGE_TAG"
 
-	// RadixConfigConfigMapNameEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
-	RadixConfigConfigMapNameEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP_NAME"
+	// RadixConfigConfigMapEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
+	RadixConfigConfigMapEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP"
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
-	RadixBranchEnvironmentVariable = "RADIX_BRANCH"
+	RadixBranchEnvironmentVariable = "BRANCH"
 
 	// RadixPipelineTypeEnvironmentVariable Pipeline type
-	RadixPipelineTypeEnvironmentVariable = "RADIX_PIPELINE_TYPE"
+	RadixPipelineTypeEnvironmentVariable = "PIPELINE_TYPE"
 
 	// RadixPipelineRunEnvironmentVariable Tekton Pipeline label for a Radix pipeline run
 	RadixPipelineRunEnvironmentVariable = "RADIX_PIPELINE_RUN"

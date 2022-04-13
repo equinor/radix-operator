@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -64,20 +65,57 @@ func (cli *RunTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipeline
 	radixPipelineJobName := pipelineInfo.PipelineArguments.JobName
 	hash := strings.ToLower(utils.RandStringStrSeed(5, radixPipelineJobName))
 	pipelineList, err := cli.GetTektonclient().TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixPipelineRunLabel, pipelineInfo.RadixPipelineRun),
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixPipelineRunLabel, pipelineInfo.PipelineArguments.RadixPipelineRun),
 	})
 	if err != nil {
 		return err
 	}
 
-	pipelineRunMap := make(map[string]*v1beta1.PipelineRun)
+	pipelineRunMap, err := cli.runPipelines(pipelineInfo, pipelineList, timestamp, imageTag, hash,
+		radixPipelineJobName, appName, branch, namespace)
 
+	if err != nil {
+		err = fmt.Errorf("failed to run pipelines: %w", err)
+		deleteErrors := cli.deletePipelineRuns(pipelineRunMap, namespace, err)
+		if len(deleteErrors) > 0 {
+			deleteErrors = append(deleteErrors, err)
+			return commonErrors.Concat(deleteErrors)
+		}
+		return err
+	}
+
+	err = cli.WaitForCompletionOf(pipelineRunMap)
+	if err != nil {
+		return fmt.Errorf("failed tekton pipelines, %v, for app '%s'. %w",
+			pipelineInfo.TargetEnvironments, appName,
+			err)
+	}
+	return nil
+}
+
+func (cli *RunTektonPipelineStepImplementation) deletePipelineRuns(pipelineRunMap map[string]*v1beta1.PipelineRun, namespace string, err error) []error {
+	var deleteErrors []error
+	for _, pipelineRun := range pipelineRunMap {
+		log.Debugf("delete the pipeline-run '%s'", pipelineRun.Name)
+		deleteErr := cli.GetTektonclient().TektonV1beta1().PipelineRuns(namespace).
+			Delete(context.Background(), pipelineRun.GetName(), metav1.DeleteOptions{})
+		if deleteErr != nil {
+			log.Debugf("failed to delete the pipeline-run '%s'", pipelineRun.Name)
+			deleteErrors = append(deleteErrors, deleteErr)
+		}
+	}
+	return deleteErrors
+}
+
+func (cli *RunTektonPipelineStepImplementation) runPipelines(pipelineInfo *model.PipelineInfo, pipelineList *v1beta1.PipelineList, timestamp string, imageTag string, hash string, radixPipelineJobName string, appName string, branch string, namespace string) (map[string]*v1beta1.PipelineRun, error) {
+	pipelineRunMap := make(map[string]*v1beta1.PipelineRun)
+	var createPipelineError error
 	for _, pipeline := range pipelineList.Items {
 		pipelineRunName := fmt.Sprintf("tekton-pipeline-run-%s-%s-%s", timestamp, imageTag, hash)
 		pipelineRun := v1beta1.PipelineRun{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   pipelineRunName,
-				Labels: getLabels(radixPipelineJobName, appName, imageTag, hash, pipelineInfo.RadixPipelineRun),
+				Labels: getLabels(radixPipelineJobName, appName, imageTag, hash, pipelineInfo.PipelineArguments.RadixPipelineRun),
 				Annotations: map[string]string{
 					kube.RadixBranchAnnotation: branch,
 				},
@@ -88,23 +126,17 @@ func (cli *RunTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipeline
 				},
 			},
 		}
-		createdPipelineRun, err := cli.GetTektonclient().TektonV1beta1().PipelineRuns(namespace).Create(context.
-			Background(),
-			&pipelineRun,
-			metav1.CreateOptions{})
+		createdPipelineRun, err := cli.GetTektonclient().TektonV1beta1().PipelineRuns(namespace).
+			Create(context.
+				Background(),
+				&pipelineRun,
+				metav1.CreateOptions{})
 		if err != nil {
-			return err
+			break
 		}
 		pipelineRunMap[createdPipelineRun.GetName()] = createdPipelineRun
 	}
-
-	err = cli.WaitForCompletionOf(pipelineRunMap)
-	if err != nil {
-		return fmt.Errorf("failed tekton pipeline, %v, for app %s. %v",
-			pipelineInfo.TargetEnvironments, appName,
-			err)
-	}
-	return nil
+	return pipelineRunMap, createPipelineError
 }
 
 func getLabels(radixPipelineJobName, appName, imageTag, hash, radixPipelineRun string) map[string]string {

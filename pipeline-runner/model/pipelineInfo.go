@@ -38,7 +38,6 @@ type PipelineInfo struct {
 
 	// Temporary data
 	RadixConfigMapName string
-	RadixPipelineRun   string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
 
@@ -48,31 +47,32 @@ type PipelineInfo struct {
 
 // PipelineArguments Holds arguments for the pipeline
 type PipelineArguments struct {
-	PipelineType    string
-	JobName         string
-	Branch          string
-	CommitID        string
-	ImageTag        string
-	UseCache        string
-	PushImage       bool
-	DeploymentName  string
-	FromEnvironment string
-	ToEnvironment   string
+	RadixPipelineRun string
+	PipelineType     string
+	JobName          string
+	Branch           string
+	CommitID         string
+	ImageTag         string
+	UseCache         string
+	PushImage        bool
+	DeploymentName   string
+	FromEnvironment  string
+	ToEnvironment    string
+
 	RadixConfigFile string
-
 	// Security context
-	PodSecurityContext       corev1.PodSecurityContext
-	ContainerSecurityContext corev1.SecurityContext
+	PodSecurityContext corev1.PodSecurityContext
 
+	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building/scanning
 	ConfigToMap    string
 	TektonPipeline string
-	ImageBuilder   string
 
+	ImageBuilder string
 	ImageScanner string
-	// Used for tagging metainformation
-	Clustertype string
 
+	// Used for tagging meta-information
+	Clustertype string
 	Clustername string
 	// Used to indicate debugging session
 	Debug bool
@@ -80,18 +80,19 @@ type PipelineArguments struct {
 
 // GetPipelineArgsFromArguments Gets pipeline arguments from arg string
 func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
-	radixConfigFile := args["RADIX_FILE_NAME"]
-	branch := args["BRANCH"]
+	radixConfigFile := args[defaults.RadixConfigFileEnvironmentVariable]
+	branch := args[defaults.RadixBranchEnvironmentVariable]
 	commitID := args["COMMIT_ID"]
-	imageTag := args["IMAGE_TAG"]
+	imageTag := args[defaults.RadixImageTagEnvironmentVariable]
 	jobName := args["JOB_NAME"]
 	useCache := args["USE_CACHE"]
-	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
-	pushImage := args["PUSH_IMAGE"]       // "0"
+	pipelineType := args[defaults.RadixPipelineTypeEnvironmentVariable] // string(model.Build)
+	pushImage := args["PUSH_IMAGE"]                                     // "0"
 
-	deploymentName := args["DEPLOYMENT_NAME"]   // For promotion pipeline
-	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
-	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion and deploy pipeline
+	// promote pipeline
+	deploymentName := args[defaults.RadixPromoteDeploymentEnvironmentVariable]       // For promotion pipeline
+	fromEnvironment := args[defaults.RadixPromoteFromEnvironmentEnvironmentVariable] // For promotion
+	toEnvironment := args[defaults.RadixPromoteToEnvironmentEnvironmentVariable]     // For promotion and deploy
 
 	configToMap := args[defaults.RadixConfigToMapEnvironmentVariable]
 	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
@@ -110,7 +111,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		useCache = "true"
 	}
 
-	pushImagebool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
+	pushImageBool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
 
 	return PipelineArguments{
 		PipelineType:    pipelineType,
@@ -119,7 +120,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		CommitID:        commitID,
 		ImageTag:        imageTag,
 		UseCache:        useCache,
-		PushImage:       pushImagebool,
+		PushImage:       pushImageBool,
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
@@ -142,15 +143,16 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
-	pipelineRunLabel := fmt.Sprintf("tekton-pipeline-%s-%s", timestamp, hash)
+	pipelineRun := fmt.Sprintf("radix-pipeline-run-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
 	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
 	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
+	pipelineArguments.RadixPipelineRun = pipelineRun
 
-	stepImplementationsForType, err := getStepstepImplementationsFromType(pipelineType, stepImplementations...)
+	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
 		return nil, err
 	}
@@ -160,17 +162,16 @@ func InitPipeline(pipelineType *pipeline.Definition,
 		PipelineArguments:  pipelineArguments,
 		Steps:              stepImplementationsForType,
 		RadixConfigMapName: radixConfigMapName,
-		RadixPipelineRun:   pipelineRunLabel,
 	}, nil
 }
 
-func getStepstepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) ([]Step, error) {
+func getStepStepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) ([]Step, error) {
 	stepImplementations := make([]Step, 0)
 
 	for _, step := range pipelineType.Steps {
 		stepImplementation := getStepImplementationForStepType(step, allStepImplementations)
 		if stepImplementation == nil {
-			return nil, fmt.Errorf("No step implementation found by type %s", stepImplementation)
+			return nil, fmt.Errorf("no step implementation found by type %s", stepImplementation)
 		}
 
 		stepImplementations = append(stepImplementations, stepImplementation)
