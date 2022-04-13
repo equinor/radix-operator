@@ -2,7 +2,6 @@ package onpush
 
 import (
 	"context"
-
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -12,8 +11,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
-	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	tektonClient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	secretsstorevclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
@@ -26,13 +23,12 @@ type PipelineRunner struct {
 	kubeUtil                 *kube.Kube
 	radixclient              radixclient.Interface
 	prometheusOperatorClient monitoring.Interface
-	tektonClient             versioned.Interface
 	appName                  string
 	pipelineInfo             *model.PipelineInfo
 }
 
 // InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, tektonClient tektonClient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
@@ -40,7 +36,6 @@ func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfa
 		kubeclient:               kubeclient,
 		kubeUtil:                 kubeUtil,
 		radixclient:              radixclient,
-		tektonClient:             tektonClient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		appName:                  appName,
 	}
@@ -57,7 +52,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	}
 
 	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient,
-		cli.prometheusOperatorClient, cli.tektonClient, radixRegistration)
+		cli.prometheusOperatorClient, radixRegistration)
 	cli.pipelineInfo, err = model.InitPipeline(
 		cli.definition,
 		pipelineArgs,
@@ -106,7 +101,7 @@ func (cli *PipelineRunner) TearDown() {
 	}
 }
 
-func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, tektonClient versioned.Interface, registration *v1.RadixRegistration) []model.Step {
+func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, registration *v1.RadixRegistration) []model.Step {
 
 	namespaceWatcher := kube.NewNamespaceWatcherImpl(kubeclient)
 	stepImplementations := make([]model.Step, 0)
@@ -120,7 +115,7 @@ func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kub
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, tektonClient, registration)
+			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, registration)
 	}
 
 	return stepImplementations

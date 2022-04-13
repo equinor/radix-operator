@@ -47,15 +47,14 @@ func prepareRunner() (*pipe.PipelineRunner, error) {
 	appName := args[defaults.RadixAppEnvironmentVariable]
 
 	pipelineArgs := model.GetPipelineArgsFromArguments(args)
-	client, radixClient, prometheusOperatorClient, secretProviderClient, tektonClient := utils.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient()
 
 	pipelineDefinition, err := pipeline.GetPipelineFromName(pipelineArgs.PipelineType)
 	if err != nil {
 		return nil, err
 	}
 
-	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, secretProviderClient,
-		tektonClient, pipelineDefinition, appName)
+	pipelineRunner := pipe.InitRunner(client, radixClient, prometheusOperatorClient, secretProviderClient, pipelineDefinition, appName)
 
 	err = pipelineRunner.PrepareRun(pipelineArgs)
 	if err != nil {

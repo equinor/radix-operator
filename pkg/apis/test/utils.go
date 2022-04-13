@@ -11,7 +11,6 @@ import (
 	builders "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	tektonClient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,30 +22,24 @@ const dnsZone = "dev.radix.equinor.com"
 
 // Utils Instance variables
 type Utils struct {
-	client       kubernetes.Interface
-	radixclient  radixclient.Interface
-	kubeUtil     *kube.Kube
-	tektonClient tektonClient.Interface
+	client      kubernetes.Interface
+	radixclient radixclient.Interface
+	kubeUtil    *kube.Kube
 }
 
 // NewTestUtils Constructor
 func NewTestUtils(client kubernetes.Interface, radixclient radixclient.Interface,
-	secretproviderclient secretProviderClient.Interface, tektonClient tektonClient.Interface) Utils {
+	secretproviderclient secretProviderClient.Interface) Utils {
 	kubeUtil, _ := kube.New(client, radixclient, secretproviderclient)
 	return Utils{
-		client:       client,
-		radixclient:  radixclient,
-		kubeUtil:     kubeUtil,
-		tektonClient: tektonClient,
+		client:      client,
+		radixclient: radixclient,
+		kubeUtil:    kubeUtil,
 	}
 }
 
 func (tu *Utils) GetKubeUtil() *kube.Kube {
 	return tu.kubeUtil
-}
-
-func (tu *Utils) GetTektonClient() tektonClient.Interface {
-	return tu.tektonClient
 }
 
 // ApplyRegistration Will help persist an application registration

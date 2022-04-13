@@ -6,13 +6,12 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
-	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 )
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, tektonclient.Interface,
+	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface,
 		*v1.RadixRegistration)
 
 	ImplementationForType() pipeline.StepType
@@ -24,7 +23,6 @@ type Step interface {
 	GetRegistration() *v1.RadixRegistration
 	GetKubeclient() kubernetes.Interface
 	GetRadixclient() radixclient.Interface
-	GetTektonclient() tektonclient.Interface
 	GetKubeutil() *kube.Kube
 	GetPrometheusOperatorClient() monitoring.Interface
 }
@@ -36,7 +34,6 @@ type DefaultStepImplementation struct {
 	radixclient              radixclient.Interface
 	kubeutil                 *kube.Kube
 	prometheusOperatorClient monitoring.Interface
-	tektonclient             tektonclient.Interface
 	rr                       *v1.RadixRegistration
 	ErrorMessage             string
 	SuccessMessage           string
@@ -45,12 +42,11 @@ type DefaultStepImplementation struct {
 
 // Init Initialize step
 func (step *DefaultStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface,
-	kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, tektonClient tektonclient.Interface,
+	kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface,
 	rr *v1.RadixRegistration) {
 	step.rr = rr
 	step.kubeclient = kubeclient
 	step.radixclient = radixclient
-	step.tektonclient = tektonClient
 	step.kubeutil = kubeutil
 	step.prometheusOperatorClient = prometheusOperatorClient
 }
@@ -93,11 +89,6 @@ func (step *DefaultStepImplementation) GetKubeclient() kubernetes.Interface {
 // GetRadixclient Default implementation
 func (step *DefaultStepImplementation) GetRadixclient() radixclient.Interface {
 	return step.radixclient
-}
-
-// GetTektonclient Default implementation
-func (step *DefaultStepImplementation) GetTektonclient() tektonclient.Interface {
-	return step.tektonclient
 }
 
 // GetKubeutil Default implementation

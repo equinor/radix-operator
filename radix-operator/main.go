@@ -56,7 +56,7 @@ func main() {
 	default:
 		logger.Logger.SetLevel(log.InfoLevel)
 	}
-	client, radixClient, prometheusOperatorClient, secretProviderClient, _ := utils.GetKubernetesClient()
+	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient()
 
 	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	logger.Printf("Active cluster name: %v", activeclusternameEnvVar)

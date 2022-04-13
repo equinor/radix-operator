@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -25,7 +24,7 @@ var (
 )
 
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface, tektonclient.Interface) {
+func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 
@@ -59,11 +58,6 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitor
 		log.Fatalf("secretProvider secret provider client client: %v", err)
 	}
 
-	tektonClient, err := tektonclient.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("tektonClient tekton client: %v", err)
-	}
-
 	log.Printf("Successfully constructed k8s client to API server %v", config.Host)
-	return client, radixClient, prometheusOperatorClient, secretProviderClient, tektonClient
+	return client, radixClient, prometheusOperatorClient, secretProviderClient
 }

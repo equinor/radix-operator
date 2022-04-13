@@ -3,14 +3,12 @@ package steps
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
@@ -19,8 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-const containerName = "radix-tekton"
 
 // PrepareTektonPipelineStepImplementation Step to run custom pipeline
 type PrepareTektonPipelineStepImplementation struct {
@@ -58,7 +54,7 @@ func (cli *PrepareTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipe
 	namespace := utils.GetAppNamespace(appName)
 	log.Infof("Run tekton pipeline app %s for branch %s and commit %s", appName, branch, commitID)
 
-	job := cli.getJobConfig(pipelineInfo.ContainerRegistry, pipelineInfo)
+	job := cli.getPrepareTektonPipelinesJobConfig(pipelineInfo)
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
@@ -79,124 +75,67 @@ func (cli *PrepareTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipe
 	return cli.GetKubeutil().WaitForCompletionOf(job)
 }
 
-func (cli *PrepareTektonPipelineStepImplementation) getJobConfig(containerRegistry string, pipelineInfo *model.PipelineInfo) *batchv1.Job {
-	registration := cli.GetRegistration()
+func (cli *PrepareTektonPipelineStepImplementation) getPrepareTektonPipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
-	imageTag := pipelineInfo.PipelineArguments.ImageTag
-	jobName := pipelineInfo.PipelineArguments.JobName
-	timestamp := time.Now().Format("20060102150405")
+
+	action := "prepare"
+	envVars := []corev1.EnvVar{
+		{
+			Name:  defaults.RadixTektonActionEnvironmentVariable,
+			Value: action,
+		},
+		{
+			Name:  defaults.RadixAppEnvironmentVariable,
+			Value: appName,
+		},
+		{
+			Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
+			Value: pipelineInfo.RadixConfigMapName,
+		},
+		{
+			Name:  defaults.RadixConfigFileEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.RadixConfigFile,
+		},
+		{
+			Name:  defaults.RadixBranchEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.Branch,
+		},
+		{
+			Name:  defaults.RadixPipelineTypeEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.PipelineType,
+		},
+		{
+			Name:  defaults.RadixImageTagEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.ImageTag,
+		},
+		{
+			Name:  defaults.RadixPipelineRunEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.RadixPipelineRun,
+		},
+		{
+			Name:  defaults.RadixPromoteDeploymentEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.DeploymentName,
+		},
+		{
+			Name:  defaults.RadixPromoteFromEnvironmentEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.FromEnvironment,
+		},
+		{
+			Name:  defaults.RadixPromoteToEnvironmentEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.ToEnvironment,
+		},
+	}
+
+	initContainers := cli.getInitContainers(pipelineInfo)
+
+	return pipelineUtils.CreateTektonPipelineJob(action, pipelineInfo, appName, initContainers, &envVars)
+
+}
+
+func (cli *PrepareTektonPipelineStepImplementation) getInitContainers(pipelineInfo *model.PipelineInfo) []corev1.Container {
+	registration := cli.GetRegistration()
 	configBranch := applicationconfig.GetConfigBranch(registration)
-	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
-
-	backOffLimit := int32(0)
-	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("radix-tekton-pipeline-%s-%s-%s", timestamp, imageTag, hash),
-			Labels: map[string]string{
-				kube.RadixJobNameLabel:     jobName,
-				kube.RadixAppLabel:         appName,
-				kube.RadixImageTagLabel:    imageTag,
-				kube.RadixJobTypeLabel:     kube.RadixJobTypeTektonPipeline,
-				kube.RadixPipelineRunLabel: pipelineInfo.PipelineArguments.RadixPipelineRun,
-			},
-		},
-		Spec: batchv1.JobSpec{
-			BackoffLimit: &backOffLimit,
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					ServiceAccountName: defaults.ConfigToMapRunnerRoleName,
-					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,
-					InitContainers:     getInitContainers(registration.Spec.CloneURL, configBranch, pipelineInfo.PipelineArguments.ContainerSecurityContext),
-					Containers: []corev1.Container{
-						{
-							Name:            containerName,
-							Image:           fmt.Sprintf("%s/%s", containerRegistry, pipelineInfo.PipelineArguments.TektonPipeline),
-							ImagePullPolicy: corev1.PullAlways,
-							VolumeMounts:    getJobContainerVolumeMounts(),
-							SecurityContext: &pipelineInfo.PipelineArguments.ContainerSecurityContext,
-							Env: []corev1.EnvVar{
-								{
-									Name:  defaults.RadixAppEnvironmentVariable,
-									Value: appName,
-								},
-								{
-									Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
-									Value: pipelineInfo.RadixConfigMapName,
-								},
-								{
-									Name:  defaults.RadixConfigFileEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.RadixConfigFile,
-								},
-								{
-									Name:  defaults.RadixBranchEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.Branch,
-								},
-								{
-									Name:  defaults.RadixPipelineTypeEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.PipelineType,
-								},
-								{
-									Name:  defaults.RadixImageTagEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.ImageTag,
-								},
-								{
-									Name:  defaults.RadixPipelineRunEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.RadixPipelineRun,
-								},
-								{
-									Name:  defaults.RadixPromoteDeploymentEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.DeploymentName,
-								},
-								{
-									Name:  defaults.RadixPromoteFromEnvironmentEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.FromEnvironment,
-								},
-								{
-									Name:  defaults.RadixPromoteToEnvironmentEnvironmentVariable,
-									Value: pipelineInfo.PipelineArguments.ToEnvironment,
-								},
-							},
-						},
-					},
-					Volumes:       getJobVolumes(),
-					RestartPolicy: "Never",
-				},
-			},
-		},
-	}
-
-}
-
-func getInitContainers(sshURL string, configBranch string, containerSecContext corev1.SecurityContext) []corev1.Container {
-	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName, containerSecContext)
-}
-
-func getJobVolumes() []corev1.Volume {
-	defaultMode := int32(256)
-
-	volumes := []corev1.Volume{
-		{
-			Name: git.BuildContextVolumeName,
-		},
-		{
-			Name: git.GitSSHKeyVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  git.GitSSHKeyVolumeName,
-					DefaultMode: &defaultMode,
-				},
-			},
-		},
-	}
-
-	return volumes
-}
-
-func getJobContainerVolumeMounts() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
-		{
-			Name:      git.BuildContextVolumeName,
-			MountPath: git.Workspace,
-		},
-	}
+	sshURL := registration.Spec.CloneURL
+	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName,
+		pipelineInfo.PipelineArguments.ContainerSecurityContext)
 }

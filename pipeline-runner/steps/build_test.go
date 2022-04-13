@@ -11,7 +11,6 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
-	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
@@ -21,8 +20,7 @@ func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTes
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	tektonclient := tektonclientfake.NewSimpleClientset()
-	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient, tektonclient)
+	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
 	testUtils.CreateClusterPrerequisites(anyClusterName, anyContainerRegistry, egressIps)
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 
@@ -30,7 +28,7 @@ func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTes
 }
 
 func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
-	kubeclient, kube, radixclient, testUtils := setupTest()
+	kubeclient, kube, radixclient, _ := setupTest()
 
 	anyBranch := "master"
 	anyEnvironment := "dev"
@@ -51,7 +49,7 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 	// Prometheus doesn´t contain any fake
 	cli := NewBuildStep()
-	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, testUtils.GetTektonClient(), rr)
+	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kube, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)

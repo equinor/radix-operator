@@ -6,13 +6,18 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
-	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
+
+const jobNameLabel = "job-name"
+
+var imageErrors = map[string]bool{"ImagePullBackOff": true, "ImageInspectError": true, "ErrImagePull": true,
+	"ErrImageNeverPull": true, "RegistryUnavailable": true, "InvalidImageName": true}
 
 // WaitForCompletionOf Will wait for job to complete
 func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
@@ -22,37 +27,79 @@ func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
 		kubeutil.kubeClient, 0, kubeinformers.WithNamespace(job.GetNamespace()))
-	informer := kubeInformerFactory.Batch().V1().Jobs().Informer()
+	jobsInformer := kubeInformerFactory.Batch().V1().Jobs().Informer()
 
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	jobsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
-			j, success := cur.(*batchv1.Job)
-			if success && job.GetName() == j.GetName() && job.GetNamespace() == j.GetNamespace() {
+			job, success := cur.(*batchv1.Job)
+			if success && job.GetName() == job.GetName() && job.GetNamespace() == job.GetNamespace() {
 				switch {
-				case j.Status.Succeeded == 1:
+				case job.Status.Succeeded == 1:
 					errChan <- nil
-				case j.Status.Failed == 1:
-					errChan <- fmt.Errorf("Job failed. See log for more details")
-				default:
-					log.Debugf("Ongoing - job has not completed yet")
+				case job.Status.Failed == 1:
+					errChan <- fmt.Errorf("job failed. See log for more details")
 				}
 			}
 		},
 		DeleteFunc: func(old interface{}) {
-			j, success := old.(*batchv1.Job)
-			if success && j.GetName() == job.GetName() && job.GetNamespace() == j.GetNamespace() {
-				errChan <- errors.New("Job failed - Job deleted")
+			job, success := old.(*batchv1.Job)
+			if success && job.GetName() == job.GetName() && job.GetNamespace() == job.GetNamespace() {
+				errChan <- errors.New("job failed - Job deleted")
 			}
 		},
 	})
 
-	go informer.Run(stop)
-	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
-		errChan <- fmt.Errorf("Timed out waiting for caches to sync")
+	podsInformer := kubeInformerFactory.Core().V1().Pods().Informer()
+	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			pod, success := cur.(*corev1.Pod)
+			if success && job.GetNamespace() == pod.GetNamespace() &&
+				pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() &&
+				len(pod.Status.ContainerStatuses) > 0 {
+				err := checkPodIsTerminatedOrFailed(&pod.Status.ContainerStatuses)
+				if err != nil {
+					errChan <- err
+				}
+			}
+		},
+		DeleteFunc: func(old interface{}) {
+			pod, success := old.(*corev1.Pod)
+			if success && job.GetNamespace() == pod.GetNamespace() && pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() {
+				errChan <- fmt.Errorf("job's pod deleted")
+			}
+		},
+	})
+
+	go jobsInformer.Run(stop)
+	if !cache.WaitForCacheSync(stop, jobsInformer.HasSynced) {
+		errChan <- fmt.Errorf("timed out waiting for caches to sync")
+	} else {
+		go podsInformer.Run(stop)
+		if !cache.WaitForCacheSync(stop, podsInformer.HasSynced) {
+			errChan <- fmt.Errorf("timed out waiting for caches to sync")
+		}
 	}
 
 	err := <-errChan
 	return err
+}
+
+func checkPodIsTerminatedOrFailed(containerStatuses *[]corev1.ContainerStatus) error {
+	for _, containerStatus := range *containerStatuses {
+		if containerStatus.State.Terminated != nil {
+			return fmt.Errorf("job's pod failed: %s", containerStatus.State.Terminated.Message)
+		}
+		if containerStatus.State.Waiting != nil {
+			if _, ok := imageErrors[containerStatus.State.Waiting.Reason]; ok {
+				return fmt.Errorf("job's pod failed: %s", containerStatus.State.Waiting.Message)
+			}
+		}
+		if containerStatus.LastTerminationState.Terminated != nil {
+			return fmt.Errorf("job's pod failed: %s",
+				containerStatus.LastTerminationState.Terminated.Message)
+		}
+	}
+	return nil
 }
 
 // ListJobs Lists jobs from cache or from cluster

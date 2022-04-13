@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	"os"
 	"testing"
 
@@ -35,8 +34,7 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	radixClient := fakeradix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
-	tektonclient := tektonclientfake.NewSimpleClientset()
-	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient, tektonclient)
+	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	return handlerTestUtils, client, kubeUtil, radixClient
 }
