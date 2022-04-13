@@ -20,3 +20,6 @@ rootfs/
 .idea/
 radix-operator/__debug_bin
 pipeline-runner/__debug_bin
+
+# binary built by goland
+radix-operator/main
