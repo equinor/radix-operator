@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	defaultRadixconfigPath     = "/workspace/radixconfig.yaml"
 	workerImage                = "radix-pipeline"
 	PRIVILEGED_CONTAINER       = false
 	ALLOW_PRIVILEGE_ESCALATION = false
@@ -29,10 +30,9 @@ const (
 
 func (job *Job) createJob() error {
 	namespace := job.radixJob.Namespace
-	name := job.radixJob.Name
 
 	ownerReference := GetOwnerReference(job.radixJob)
-	jobConfig, err := job.getJobConfig(name)
+	jobConfig, err := job.getJobConfig()
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func (job *Job) createJob() error {
 	return nil
 }
 
-func (job *Job) getJobConfig(name string) (*batchv1.Job, error) {
+func (job *Job) getJobConfig() (*batchv1.Job, error) {
 	imageTag := fmt.Sprintf("%s/%s:%s", job.radixJob.Spec.DockerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
 	log.Infof("Using image: %s", imageTag)
 
@@ -108,8 +108,8 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	// Base arguments for all types of pipeline
 	args := []string{
 		fmt.Sprintf("%s=%s", defaults.RadixAppEnvironmentVariable, appName),
-		fmt.Sprintf("JOB_NAME=%s", jobName),
-		fmt.Sprintf("PIPELINE_TYPE=%s", pipeline.Type),
+		fmt.Sprintf("%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
+		fmt.Sprintf("%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
 
 		// Pass config-to-map, builder and scanner images
 		fmt.Sprintf("%s=%s", defaults.RadixConfigToMapEnvironmentVariable, os.Getenv(defaults.RadixConfigToMapEnvironmentVariable)),
@@ -123,18 +123,18 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
-		args = append(args, fmt.Sprintf("IMAGE_TAG=%s", jobSpec.Build.ImageTag))
-		args = append(args, fmt.Sprintf("BRANCH=%s", jobSpec.Build.Branch))
-		args = append(args, fmt.Sprintf("COMMIT_ID=%s", jobSpec.Build.CommitID))
-		args = append(args, fmt.Sprintf("PUSH_IMAGE=%s", getPushImageTag(jobSpec.Build.PushImage)))
-		args = append(args, fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixconfigPath))
 	case v1.Promote:
-		args = append(args, fmt.Sprintf("DEPLOYMENT_NAME=%s", jobSpec.Promote.DeploymentName))
-		args = append(args, fmt.Sprintf("FROM_ENVIRONMENT=%s", jobSpec.Promote.FromEnvironment))
-		args = append(args, fmt.Sprintf("TO_ENVIRONMENT=%s", jobSpec.Promote.ToEnvironment))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
 	case v1.Deploy:
-		args = append(args, fmt.Sprintf("TO_ENVIRONMENT=%s", jobSpec.Deploy.ToEnvironment))
-		args = append(args, fmt.Sprintf("RADIX_FILE_NAME=%s", "/workspace/radixconfig.yaml"))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixconfigPath))
 	}
 
 	return args

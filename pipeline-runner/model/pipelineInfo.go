@@ -82,12 +82,12 @@ type PipelineArguments struct {
 func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	radixConfigFile := args[defaults.RadixConfigFileEnvironmentVariable]
 	branch := args[defaults.RadixBranchEnvironmentVariable]
-	commitID := args["COMMIT_ID"]
+	commitID := args[defaults.RadixCommitIdEnvironmentVariable]
 	imageTag := args[defaults.RadixImageTagEnvironmentVariable]
-	jobName := args["JOB_NAME"]
-	useCache := args["USE_CACHE"]
+	jobName := args[defaults.RadixPipelineJobEnvironmentVariable]
+	useCache := args[defaults.RadixUseCacheEnvironmentVariable]
 	pipelineType := args[defaults.RadixPipelineTypeEnvironmentVariable] // string(model.Build)
-	pushImage := args["PUSH_IMAGE"]                                     // "0"
+	pushImage := args[defaults.RadixPushImageEnvironmentVariable]       // "0"
 
 	// promote pipeline
 	deploymentName := args[defaults.RadixPromoteDeploymentEnvironmentVariable]       // For promotion pipeline

@@ -101,11 +101,15 @@ func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
 
 // IsThereAnythingToDeploy Checks if given branch requires deployment to environments
 func (app *ApplicationConfig) IsThereAnythingToDeploy(branch string) (bool, map[string]bool) {
-	targetEnvs := getTargetEnvironmentsAsMap(branch, app.config)
+	return IsThereAnythingToDeployForRadixApplication(branch, app.config)
+}
+
+// IsThereAnythingToDeployForRadixApplication Checks if given branch requires deployment to environments
+func IsThereAnythingToDeployForRadixApplication(branch string, ra *v1.RadixApplication) (bool, map[string]bool) {
+	targetEnvs := getTargetEnvironmentsAsMap(branch, ra)
 	if isTargetEnvsEmpty(targetEnvs) {
 		return false, targetEnvs
 	}
-
 	return true, targetEnvs
 }
 

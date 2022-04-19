@@ -93,6 +93,10 @@ func (cli *PrepareTektonPipelineStepImplementation) getPrepareTektonPipelinesJob
 			Value: pipelineInfo.RadixConfigMapName,
 		},
 		{
+			Name:  defaults.RadixPipelineJobEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.JobName,
+		},
+		{
 			Name:  defaults.RadixConfigFileEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.RadixConfigFile,
 		},

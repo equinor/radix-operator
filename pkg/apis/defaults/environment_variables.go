@@ -107,11 +107,23 @@ const (
 	// RadixImageTagEnvironmentVariable Image tag for the built component
 	RadixImageTagEnvironmentVariable = "IMAGE_TAG"
 
+	// RadixPushImageEnvironmentVariable Push an image for the built component to an ACR
+	RadixPushImageEnvironmentVariable = "PUSH_IMAGE"
+
+	// RadixUseCacheEnvironmentVariable Use cache for the built component
+	RadixUseCacheEnvironmentVariable = "USE_CACHE"
+
+	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
+	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
+
 	// RadixConfigConfigMapEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
 	RadixConfigConfigMapEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP"
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
+
+	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
+	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
 
 	// RadixPipelineTypeEnvironmentVariable Pipeline type
 	RadixPipelineTypeEnvironmentVariable = "PIPELINE_TYPE"
