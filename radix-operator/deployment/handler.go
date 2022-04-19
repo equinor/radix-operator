@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -58,6 +59,14 @@ func WithTenantIdFromEnvVar(envVarName string) HandlerConfigOption {
 	}
 }
 
+// WithKubernetesApiPortFromEnvVar configures kubernetes api port for Handler from an environment variable
+func WithKubernetesApiPortFromEnvVar(envVarName string) HandlerConfigOption {
+	return func(h *Handler) {
+		var kubernetesApiPort, _ = strconv.ParseInt(os.Getenv(defaults.KubernetesApiPortEnvironmentVariable), 10, 32)
+		h.kubernetesApiPort = int32(kubernetesApiPort)
+	}
+}
+
 // WithOAuth2DefaultConfig configures default OAuth2 settings
 func WithOAuth2DefaultConfig(oauth2Config defaults.OAuth2Config) HandlerConfigOption {
 	return func(h *Handler) {
@@ -95,6 +104,7 @@ type Handler struct {
 	hasSynced               common.HasSynced
 	forceRunAsNonRoot       bool
 	tenantId                string
+	kubernetesApiPort       int32
 	oauth2DefaultConfig     defaults.OAuth2Config
 	oauth2ProxyDockerImage  string
 	ingressConfiguration    deployment.IngressConfiguration
@@ -169,7 +179,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, ingressAnnotations, auxResourceManagers)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, t.kubernetesApiPort, ingressAnnotations, auxResourceManagers)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

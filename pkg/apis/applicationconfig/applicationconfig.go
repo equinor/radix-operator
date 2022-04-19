@@ -189,7 +189,7 @@ func (app *ApplicationConfig) createEnvironments() error {
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
 			WithRegistrationOwner(app.registration).
-			WithEgressRules(env.EgressRules).
+			WithEgressConfig(env.Egress).
 			// Orphaned flag will be set by the environment handler but until
 			// reconciliation we must ensure it is false
 			// Update: It seems Update method does not update status object when using real k8s client, but the fake client does.

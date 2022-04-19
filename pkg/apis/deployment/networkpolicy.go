@@ -8,8 +8,6 @@ import (
 	v1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"os"
-	"strconv"
 )
 
 func (deploy *Deployment) setDefaultNetworkPolicies() []error {
@@ -21,8 +19,9 @@ func (deploy *Deployment) setDefaultNetworkPolicies() []error {
 
 	networkPolicies := []*v1.NetworkPolicy{
 		defaultIngressNetworkPolicy(appName, env, owner),
-		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner),
+		allowJobSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.kubernetesApiPort),
 		allowOauthAuxComponentEgressNetworkPolicy(appName, env, owner),
+		allowBatchSchedulerServerEgressNetworkPolicy(appName, env, owner, deploy.kubernetesApiPort),
 	}
 
 	var errs []error
@@ -75,12 +74,18 @@ func allowOauthAuxComponentEgressNetworkPolicy(appName string, env string, owner
 	return allowAllHttpsAndDnsEgressNetworkPolicy("radix-allow-oauth-aux-egress", kube.RadixAuxiliaryComponentTypeLabel, defaults.OAuthProxyAuxiliaryComponentType, 443, appName, env, owner)
 }
 
-func allowJobSchedulerServerEgressNetworkPolicy(appName string, env string, owner []metav1.OwnerReference) *v1.NetworkPolicy {
+func allowJobSchedulerServerEgressNetworkPolicy(appName string, env string, owner []metav1.OwnerReference, kubernetesApiPort int32) *v1.NetworkPolicy {
 	// We allow outbound to entire Internet from the job scheduler server pods.
 	// This is because egress rule must allow traffic to public IP of k8s API server,
 	// and the public IP is dynamic.
-	var kubernetesApiPort, _ = strconv.ParseInt(os.Getenv(defaults.KubernetesApiPortEnvironmentVariable), 10, 32)
-	return allowAllHttpsAndDnsEgressNetworkPolicy("radix-allow-job-scheduler-egress", kube.RadixPodIsJobSchedulerLabel, "true", int32(kubernetesApiPort), appName, env, owner)
+	return allowAllHttpsAndDnsEgressNetworkPolicy("radix-allow-job-scheduler-egress", kube.RadixPodIsJobSchedulerLabel, "true", kubernetesApiPort, appName, env, owner)
+}
+
+func allowBatchSchedulerServerEgressNetworkPolicy(appName string, env string, owner []metav1.OwnerReference, kubernetesApiPort int32) *v1.NetworkPolicy {
+	// We allow outbound to entire Internet from the batch scheduler server pods.
+	// This is because egress rule must allow traffic to public IP of k8s API server,
+	// and the public IP is dynamic.
+	return allowAllHttpsAndDnsEgressNetworkPolicy("radix-allow-batch-scheduler-egress", kube.RadixJobTypeLabel, kube.RadixJobTypeBatchSchedule, kubernetesApiPort, appName, env, owner)
 }
 
 func allowAllHttpsAndDnsEgressNetworkPolicy(policyName string, targetLabelKey string, targetLabelValue string, portNumber int32, appName string, env string, owner []metav1.OwnerReference) *v1.NetworkPolicy {

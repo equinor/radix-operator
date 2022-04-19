@@ -91,7 +91,7 @@ func Test_Create_EgressRules(t *testing.T) {
 	})
 
 	t.Run("Egress rules are correct", func(t *testing.T) {
-		egressRules := env.config.Spec.EgressRules
+		egressRules := env.config.Spec.Egress.Rules
 		assert.Len(t, egressRules, 1)
 		assert.Equal(t, egressRules[0].Destinations[0], "195.88.55.16/32")
 		assert.Len(t, egressRules[0].Ports, 2)

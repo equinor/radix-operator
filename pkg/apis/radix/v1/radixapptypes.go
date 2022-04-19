@@ -64,11 +64,17 @@ type EgressRule struct {
 	Ports        []EgressPort `json:"ports,omitempty" yaml:"ports,omitempty"`
 }
 
+// EgressConfig defines an egress configuration for an environment
+type EgressConfig struct {
+	AllowRadix *bool        `json:"allowRadix,omitempty" yaml:"allowRadix,omitempty"`
+	Rules      []EgressRule `json:"rules,omitempty" yaml:"rules,omitempty"`
+}
+
 //Environment defines a Radix application environment
 type Environment struct {
-	Name        string       `json:"name" yaml:"name"`
-	Build       EnvBuild     `json:"build,omitempty" yaml:"build,omitempty"`
-	EgressRules []EgressRule `json:"egressRules,omitempty" yaml:"egressRules,omitempty"`
+	Name   string       `json:"name" yaml:"name"`
+	Build  EnvBuild     `json:"build,omitempty" yaml:"build,omitempty"`
+	Egress EgressConfig `json:"egress,omitempty" yaml:"egress,omitempty"`
 }
 
 // EnvBuild defines build parameters of a specific environment
