@@ -40,6 +40,8 @@ spec:
               value: {{ .Values.prometheusName }}
             - name: DNS_ZONE
               value: {{ .Values.dnsZone }}
+            - name: RADIX_ZONE
+              value: { { .Values.radixZone } }
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
