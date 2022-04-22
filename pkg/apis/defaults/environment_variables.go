@@ -92,4 +92,7 @@ const (
 
 	// KubernetesApiPortEnvironmentVariable Port which the K8s API server listens to for HTTPS
 	KubernetesApiPortEnvironmentVariable = "KUBERNETES_SERVICE_PORT"
+
+	// RadixZoneEnvironmentVariable denotes the Radix zone of the current cluster. E.g. "c1" or "c2"
+	RadixZoneEnvironmentVariable = "RADIX_ZONE"
 )

@@ -21,9 +21,11 @@ type environmentVariablesSourceDecorator interface {
 	getDnsZone() (string, error)
 	getClusterType() (string, error)
 	getClusterActiveEgressIps() (string, error)
+	getRadixZone() (string, error)
 }
 
 type radixApplicationEnvironmentVariablesSourceDecorator struct{}
+
 type radixOperatorEnvironmentVariablesSourceDecorator struct {
 	kubeutil *kube.Kube
 }
@@ -46,6 +48,10 @@ func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClu
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps() (string, error) {
 	return getEnvVar(defaults.RadixActiveClusterEgressIpsEnvironmentVariable)
+}
+
+func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getRadixZone() (string, error) {
+	return getEnvVar(defaults.RadixZoneEnvironmentVariable)
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
@@ -78,6 +84,10 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 		return "", fmt.Errorf("failed to get cluster egress IPs from ConfigMap: %v", err)
 	}
 	return egressIps, nil
+}
+
+func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getRadixZone() (string, error) {
+	return getEnvVar(defaults.RadixZoneEnvironmentVariable)
 }
 
 //getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
@@ -275,6 +285,13 @@ func appendDefaultEnvVars(envVars []corev1.EnvVar, envVarsSource environmentVari
 		return envVarSet.Items()
 	}
 	envVarSet.Add(defaults.RadixActiveClusterEgressIpsEnvironmentVariable, activeClusterEgressIps)
+
+	radixZone, err := envVarsSource.getRadixZone()
+	if err != nil {
+		log.Error(err)
+		return envVarSet.Items()
+	}
+	envVarSet.Add(defaults.RadixZoneEnvironmentVariable, radixZone)
 
 	return envVarSet.Items()
 }
