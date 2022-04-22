@@ -25,7 +25,7 @@ func CreateTektonPipelineJob(action string, pipelineInfo *model.PipelineInfo, ap
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.RadixPipelineRun))
 	backOffLimit := int32(0)
-	return &batchv1.Job{
+	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("radix-tekton-pipeline-%s-%s-%s-%s", action, timestamp, imageTag, hash),
 			Labels: map[string]string{
@@ -40,7 +40,7 @@ func CreateTektonPipelineJob(action string, pipelineInfo *model.PipelineInfo, ap
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					ServiceAccountName: defaults.ConfigToMapRunnerRoleName,
+					ServiceAccountName: defaults.RadixTektonRunnerRoleName,
 					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,
 					InitContainers:     initContainers,
 					Containers: []corev1.Container{
@@ -59,6 +59,7 @@ func CreateTektonPipelineJob(action string, pipelineInfo *model.PipelineInfo, ap
 			},
 		},
 	}
+	return &job
 }
 
 func getJobVolumes() []corev1.Volume {

@@ -74,13 +74,13 @@ func (app Application) applyRbacOnPipelineRunner(serviceAccount *corev1.ServiceA
 	return app.givePipelineAccessToDefaultNamespace(serviceAccount)
 }
 
-func (app Application) applyRbacOnConfigToMapRunner() error {
-	serviceAccount, err := app.applyConfigToMapServiceAccount()
+func (app Application) applyRbacOnRadixTektonRunner() error {
+	serviceAccount, err := app.applyRadixTektonServiceAccount()
 	if err != nil {
 		return err
 	}
 
-	return app.giveConfigToMapRunnerAccessToAppNamespace(serviceAccount)
+	return app.giveRadixTektonRunnerAccessToAppNamespace(serviceAccount)
 }
 
 func (app Application) applyRbacOnScanImageRunner() error {
@@ -120,22 +120,22 @@ func (app Application) givePipelineAccessToAppNamespace(serviceAccount *corev1.S
 	return k.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (app Application) giveConfigToMapRunnerAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
+func (app Application) giveRadixTektonRunnerAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
 	k := app.kubeutil
 	registration := app.registration
 
 	namespace := utils.GetAppNamespace(registration.Name)
 
 	// create role
-	role := app.configToMapRunnerRole()
+	role := app.radixTektonRunnerRole()
 	err := k.ApplyRole(namespace, role)
 	if err != nil {
 		return err
 	}
 
 	// Create role binding
-	rolebinding := app.configToMapRunnerRoleBinding(serviceAccount)
-	return k.ApplyRoleBinding(namespace, rolebinding)
+	roleBinding := app.radixTektonRunnerRoleBinding(serviceAccount)
+	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
 func (app Application) giveScanImageRunnerAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
@@ -230,10 +230,10 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 	return rolebinding
 }
 
-func (app Application) configToMapRunnerRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
+func (app Application) radixTektonRunnerRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	logger.Debugf("Create rolebinding config %s", defaults.ConfigToMapRunnerRoleName)
+	logger.Debugf("Create rolebinding config %s", defaults.RadixTektonRunnerRoleName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -241,7 +241,7 @@ func (app Application) configToMapRunnerRoleBinding(serviceAccount *corev1.Servi
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.ConfigToMapRunnerRoleName,
+			Name: defaults.RadixTektonRunnerRoleName,
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
 			},
@@ -249,7 +249,7 @@ func (app Application) configToMapRunnerRoleBinding(serviceAccount *corev1.Servi
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",
-			Name:     defaults.ConfigToMapRunnerRoleName,
+			Name:     defaults.RadixTektonRunnerRoleName,
 		},
 		Subjects: []auth.Subject{
 			auth.Subject{

@@ -6,11 +6,8 @@ import "fmt"
 type StepType int
 
 const (
-	// CopyConfigToMapStep Step type to copy cloned radix config to configmap
-	CopyConfigToMapStep StepType = iota
-
 	// PrepareTektonPipelineStep Step to prepare tekton pipeline
-	PrepareTektonPipelineStep
+	PrepareTektonPipelineStep StepType = iota
 
 	// ApplyConfigStep Step type to apply radix config
 	ApplyConfigStep

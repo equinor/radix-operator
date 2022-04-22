@@ -65,7 +65,6 @@ type PipelineArguments struct {
 
 	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building/scanning
-	ConfigToMap    string
 	TektonPipeline string
 
 	ImageBuilder string
@@ -94,7 +93,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	fromEnvironment := args[defaults.RadixPromoteFromEnvironmentEnvironmentVariable] // For promotion
 	toEnvironment := args[defaults.RadixPromoteToEnvironmentEnvironmentVariable]     // For promotion and deploy
 
-	configToMap := args[defaults.RadixConfigToMapEnvironmentVariable]
 	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
 	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
@@ -124,7 +122,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
-		ConfigToMap:     configToMap,
 		TektonPipeline:  tektonPipeline,
 		ImageBuilder:    imageBuilder,
 		ImageScanner:    imageScanner,

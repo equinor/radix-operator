@@ -103,7 +103,7 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		return err
 	}
 
-	err = app.applyRbacOnConfigToMapRunner()
+	err = app.applyRbacOnRadixTektonRunner()
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed to copy radix config to configmap: %v", err)
 		return err

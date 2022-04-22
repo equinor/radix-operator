@@ -59,14 +59,14 @@ func (app Application) rrClusterrole(clusterroleName string, verbs []string) *au
 	return clusterrole
 }
 
-func (app Application) configToMapRunnerRole() *auth.Role {
+func (app Application) radixTektonRunnerRole() *auth.Role {
 	return &auth.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
 			Kind:       "Role",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.ConfigToMapRunnerRoleName,
+			Name: defaults.RadixTektonRunnerRoleName,
 			Labels: map[string]string{
 				kube.RadixAppLabel: app.registration.Name,
 			},
@@ -76,6 +76,21 @@ func (app Application) configToMapRunnerRole() *auth.Role {
 				APIGroups: []string{""},
 				Resources: []string{"configmaps"},
 				Verbs:     []string{"create"},
+			},
+			{
+				APIGroups: []string{"radix.equinor.com"},
+				Resources: []string{"radixapplications"},
+				Verbs:     []string{"get", "list"},
+			},
+			{
+				APIGroups: []string{"tekton.dev/v1beta1"},
+				Resources: []string{"pipelines", "tasks"},
+				Verbs:     []string{"create", "update", "get", "list"},
+			},
+			{
+				APIGroups: []string{"tekton.dev/v1beta1"},
+				Resources: []string{"pipelineruns"},
+				Verbs:     []string{"create", "update", "get", "list", "watch", "update"},
 			},
 		},
 	}

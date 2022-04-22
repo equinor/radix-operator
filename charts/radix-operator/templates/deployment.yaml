@@ -87,8 +87,8 @@ spec:
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
             - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
               value: {{ .Values.jobsPerAppHistoryLimit | quote }}
-            - name: RADIX_CONFIG_TO_MAP
-              value: {{ .Values.configToMap }}
+            - name: RADIX_TEKTON_IMAGE
+              value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
               value: {{ .Values.imageBuilder }}
             - name: RADIX_IMAGE_SCANNER
