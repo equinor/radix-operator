@@ -99,11 +99,11 @@ See table 1.3 for complete listing of permissions
 
 #### Roles
 
-- radix-config-to-map-runner
-  - Purpose: Role to run cloning of radixconfig from master branch and to put into temporary config map
+- radix-tekton-runner
+  - Purpose: Role to run cloning of radixconfig from master branch and to put into temporary config map, create Tekton tasks and pipelines
   - Lives in: app namespace
   - Created by: Operator
-  - Role binding: radix-config-to-map-runner
+  - Role binding: radix-tekton-runner
 
 #### Clusterrole bindings
 
@@ -120,8 +120,8 @@ See table 1.3 for complete listing of permissions
   - Purpose: Give radix-pipeline service account inside app namespace access to update radix config and execute the outer pipeline through the radix-pipeline clusterrole
   - Lives in: app namespace
   - Created by: Operator
-- radix-config-to-map-runner
-  - Purpose: Give radix-config-to-map-runner service account inside app namespace access to create config map where a clone of radixconfig from master branch is put
+- radix-tekton-runner
+  - Purpose: Give radix-tekton-runner service account inside app namespace access to create config map where a clone of radixconfig from master branch is put, create Tekton tasks and pipelines
   - Lives in: app namespace
   - Created by: Operator
 
@@ -187,7 +187,7 @@ These tables are at this moment manually created and maintained and can become o
 #### Table 1.1 Roles and Bindings
 
 Account-ns|Account|Role|Role-Type|Binding-ns|Binding|Binding-Type
---|--|--|--|--|--|--
+---|---|---|---|---|---|---
 application|`application`-machine-user|radix-platform-user|clusterrole|global|`application`-machine-user|clusterrolebinding
 application|`application`-machine-user|radix-platform-user-rr-`application`|clusterrole|global|radix-platform-user-rr-`application`|clusterrolebinding
 application|`application`-machine-user|radix-app-admin|clusterrole|application|radix-app-admin|rolebinding
@@ -207,7 +207,7 @@ application|`application`-machine-user|`application`-machine-user-token|role|app
 ||radixGroups.playground|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
 ||radixGroups.user|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
 environment|radix-api|radix-api|clusterrole|global|`environment`-radix-api|clusterrolebinding
-application|radix-config-to-map-runner|radix-config-to-map-runner|role|application|radix-config-to-map-runner|rolebinding
+application|radix-tekton-runner|radix-tekton-runner|role|application|radix-tekton-runner|rolebinding
 environment|radix-github-webhook|radix-webhook|clusterrole|global|`environment`-radix-github-webhook|clusterrolebinding
 global|radix-operator|radix-operator|clusterrole|global|radix-operator-new|clusterrolebinding
 application|radix-pipeline|radix-pipeline-runner|clusterrole|global|radix-pipeline-runner-`application`|clusterrolebinding
@@ -220,7 +220,7 @@ application|radix-pipeline|pipeline-build-secrets|role|application|pipeline-buil
 #### Table 1.2 Source map
 
 Source|Type|Resource Name
---|--|--
+---|---|---
 charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-platform-user
 charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-app-admin
 charts/radix-operator/templates/radix-user-groups-rbac.yaml|clusterrole|radix-app-admin-envs
@@ -264,33 +264,33 @@ pkg/apis/environment/environment.go:ApplyAdGroupRoleBinding|rolebinding|radix-ap
 
 #### Table 1.3 Permissions
 
-Role|Domain|Create|Get|List|Watch|Update|Patch|Delete
---|--|--|--|--|--|--|--|--
-`application`-machine-user-token|k8s||secrets|secrets|secrets|secrets|secrets|secrets
-cluster-admin||||||||
-pipeline-build-secrets|k8s||secrets|secrets|secrets|secrets|secrets|secrets
-radix-api|k8s|jobs|namespaces, serviceaccounts, jobs|namespaces, serviceaccounts, jobs|serviceaccounts, jobs|||namespaces
-radix-api|radix|radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs||radixjobs|
-radix-app-adm-`component`|k8s||secrets|secrets|secrets|secrets|secrets|secrets
-radix-app-admin|k8s||pods, pods/log, jobs|pods, pods/log, jobs|pods, pods/log, jobs|||jobs
-radix-app-admin|radix||radixapplications|radixapplications|radixapplications|||
-radix-app-admin-build-secrets|k8s||secrets|secrets|secrets|secrets|secrets|secrets
-radix-app-admin-envs|k8s|secrets|deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|||deployments, pods, pods/log, services
-radix-app-admin-envs|radix|radixdeployments|radixdeployments|radixdeployments|radixdeployments||radixdeployments|radixdeployments
-radix-config-to-map-runner|k8s|configmaps||||||
-radix-pipeline|k8s|jobs|jobs|jobs|jobs|||
-radix-pipeline|radix|radixapplications|radixapplications, radixjobs|radixapplications|radixapplications|radixapplications||
-radix-pipeline-rr-`application`|k8s||radixregistrations|||||
-radix-pipeline-rr-`application`|radix|jobs|jobs|jobs|jobs|||
-radix-pipeline-runner|radix|radixapplications|radixapplications|radixapplications|radixapplications|radixapplications||
-radix-platform-user|k8s|selfsubjectaccessreviews|namespaces, jobs, ingresses, horizontalpodautoscalers|namespaces, jobs, ingresses, horizontalpodautoscalers|namespaces, jobs, ingresses, horizontalpodautoscalers|||
-radix-platform-user|radix|radixregistrations|radixjobs|radixapplications, radixdeployments, radixjobs|radixapplications, radixjobs|radixjobs||
-radix-platform-user-rr-`application`|radix||radixregistrations|radixregistrations|radixregistrations|radixregistrations|radixregistrations|radixregistrations
-radix-private-image-hubs|k8s||secrets|secrets|secrets|secrets|secrets|secrets
-radix-webhook|k8s|jobs|namespaces, ingresses, deployments, jobs|namespaces, ingresses, deployments, jobs|namespaces, ingresses, deployments, jobs||jobs|
-radix-webhook|radix|radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs||radixjobs|
+ Role                                 |Domain| Create                                                                    |Get|List|Watch|Update|Patch| Delete 
+--------------------------------------|---|---------------------------------------------------------------------------|---|---|---|---|---|-------
+`application`-machine-user-token     |k8s|| secrets                                                                   |secrets|secrets|secrets|secrets|secrets
+ cluster-admin                        ||||||||
+ pipeline-build-secrets               |k8s|| secrets                                                                   |secrets|secrets|secrets|secrets|secrets
+ radix-api                            |k8s| jobs                                                                      |namespaces, serviceaccounts, jobs|namespaces, serviceaccounts, jobs|serviceaccounts, jobs|||namespaces
+ radix-api                            |radix| radixjobs                                                                 |radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs||radixjobs|
+ radix-app-adm-`component`            |k8s|| secrets                                                                   |secrets|secrets|secrets|secrets|secrets
+ radix-app-admin                      |k8s|| pods, pods/log, jobs                                                      |pods, pods/log, jobs|pods, pods/log, jobs|||jobs
+ radix-app-admin                      |radix|| radixapplications                                                         |radixapplications|radixapplications|||
+ radix-app-admin-build-secrets        |k8s|| secrets                                                                   |secrets|secrets|secrets|secrets|secrets
+ radix-app-admin-envs                 |k8s| secrets                                                                   |deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|||deployments, pods, pods/log, services
+ radix-app-admin-envs                 |radix| radixdeployments                                                          |radixdeployments|radixdeployments|radixdeployments||radixdeployments|radixdeployments
+ radix-tekton-runner                  |k8s| configmaps, tasks.tekton.dev, pipeline.tekton.dev, pipelinerun.tekton.dev |tasks.tekton.dev, pipeline.tekton.dev, pipelinerun.tekton.dev|tasks.tekton.dev, pipeline.tekton.dev, pipelinerun.tekton.dev|tasks.tekton.dev, pipeline.tekton.dev, pipelinerun.tekton.dev|||
+ radix-pipeline                       |k8s| jobs                                                                      |jobs|jobs|jobs|||
+ radix-pipeline                       |radix| radixapplications                                                         |radixapplications, radixjobs|radixapplications|radixapplications|radixapplications||
+ radix-pipeline-rr-`application`      |k8s|| radixregistrations                                                        |||||
+ radix-pipeline-rr-`application`      |radix| jobs                                                                      |jobs|jobs|jobs|||
+ radix-pipeline-runner                |radix| radixapplications                                                         |radixapplications|radixapplications|radixapplications|radixapplications||
+ radix-platform-user                  |k8s| selfsubjectaccessreviews                                                  |namespaces, jobs, ingresses, horizontalpodautoscalers|namespaces, jobs, ingresses, horizontalpodautoscalers|namespaces, jobs, ingresses, horizontalpodautoscalers|||
+ radix-platform-user                  |radix| radixregistrations                                                        |radixjobs|radixapplications, radixdeployments, radixjobs|radixapplications, radixjobs|radixjobs||
+ radix-platform-user-rr-`application` |radix|| radixregistrations                                                        |radixregistrations|radixregistrations|radixregistrations|radixregistrations|radixregistrations
+ radix-private-image-hubs             |k8s|| secrets                                                                   |secrets|secrets|secrets|secrets|secrets
+ radix-webhook                        |k8s| jobs                                                                      |namespaces, ingresses, deployments, jobs|namespaces, ingresses, deployments, jobs|namespaces, ingresses, deployments, jobs||jobs|
+ radix-webhook                        |radix| radixjobs                                                                 |radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs|radixregistrations, radixapplications, radixdeployments, radixjobs||radixjobs|
 
 Role|Domain|All permissions
---|--|--
+--|---|--
 radix-operator|k8s|events, limitranges, namespaces, secrets, serviceaccounts, roles, rolebindings, clusterroles, clusterrolebindings, deployments, services, ingresses, servicemonitors, networkpolicies
 radix-operator|radix|radixregistrations, radixregistrations/status, radixapplications, radixenvironments, radixenvironments/status, radixdeployments, radixdeployments/status, radixjobs, radixjobs/status

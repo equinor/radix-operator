@@ -136,4 +136,7 @@ const (
 
 	// KubernetesApiPortEnvironmentVariable Port which the K8s API server listens to for HTTPS
 	KubernetesApiPortEnvironmentVariable = "KUBERNETES_SERVICE_PORT"
+
+	// LogLevel Log level: ERROR, INFO (default), DEBUG
+	LogLevel = "LOG_LEVEL"
 )

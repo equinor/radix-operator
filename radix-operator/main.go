@@ -48,7 +48,7 @@ var logger *log.Entry
 
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
-	switch os.Getenv("LOG_LEVEL") {
+	switch os.Getenv(defaults.LogLevel) {
 	case "DEBUG":
 		logger.Logger.SetLevel(log.DebugLevel)
 	case "ERROR":

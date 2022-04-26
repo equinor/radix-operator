@@ -1,6 +1,9 @@
 package steps
 
 import (
+	"github.com/equinor/radix-operator/pipeline-runner/model/env"
+	"github.com/equinor/radix-operator/pipeline-runner/model/mock"
+	"github.com/golang/mock/gomock"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -15,7 +18,10 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
+func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils, env.Env) {
+	mockCtrl := gomock.NewController(t)
+	mockEnv := mock.NewMockEnv(mockCtrl)
+	mockEnv.EXPECT().GetLogLevel().Return(string(env.LogLevelInfo)).AnyTimes()
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
@@ -24,11 +30,11 @@ func setupTest() (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTes
 	testUtils.CreateClusterPrerequisites(anyClusterName, anyContainerRegistry, egressIps)
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 
-	return kubeclient, kubeUtil, radixclient, testUtils
+	return kubeclient, kubeUtil, radixclient, testUtils, mockEnv
 }
 
 func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
-	kubeclient, kube, radixclient, _ := setupTest()
+	kubeclient, kube, radixclient, _, env := setupTest(t)
 
 	anyBranch := "master"
 	anyEnvironment := "dev"
@@ -49,7 +55,7 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 	// Prometheus doesn´t contain any fake
 	cli := NewBuildStep()
-	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, env)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kube, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)

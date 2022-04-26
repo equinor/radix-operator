@@ -79,18 +79,18 @@ func (app Application) radixTektonRunnerRole() *auth.Role {
 			},
 			{
 				APIGroups: []string{"radix.equinor.com"},
-				Resources: []string{"radixapplications"},
+				Resources: []string{"radixapplications", "radixregistrations"},
 				Verbs:     []string{"get", "list"},
 			},
 			{
 				APIGroups: []string{"tekton.dev/v1beta1"},
 				Resources: []string{"pipelines", "tasks"},
-				Verbs:     []string{"create", "update", "get", "list"},
+				Verbs:     []string{"create", "get", "list", "update"},
 			},
 			{
 				APIGroups: []string{"tekton.dev/v1beta1"},
 				Resources: []string{"pipelineruns"},
-				Verbs:     []string{"create", "update", "get", "list", "watch", "update"},
+				Verbs:     []string{"create", "get", "list", "watch", "update"},
 			},
 		},
 	}

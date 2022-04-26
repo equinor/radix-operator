@@ -128,6 +128,10 @@ func (cli *PrepareTektonPipelineStepImplementation) getPrepareTektonPipelinesJob
 			Name:  defaults.RadixPromoteToEnvironmentEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.ToEnvironment,
 		},
+		{
+			Name:  defaults.LogLevel,
+			Value: cli.GetEnv().GetLogLevel(),
+		},
 	}
 
 	initContainers := cli.getInitContainers(pipelineInfo)

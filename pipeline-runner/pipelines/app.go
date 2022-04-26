@@ -3,6 +3,7 @@ package onpush
 import (
 	"context"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/model/env"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -25,10 +26,11 @@ type PipelineRunner struct {
 	prometheusOperatorClient monitoring.Interface
 	appName                  string
 	pipelineInfo             *model.PipelineInfo
+	env                      env.Env
 }
 
 // InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string, environment env.Env) PipelineRunner {
 
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
@@ -38,6 +40,7 @@ func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfa
 		radixclient:              radixclient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		appName:                  appName,
+		env:                      environment,
 	}
 
 	return handler
@@ -51,8 +54,7 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient,
-		cli.prometheusOperatorClient, radixRegistration)
+	stepImplementations := cli.initStepImplementations(radixRegistration)
 	cli.pipelineInfo, err = model.InitPipeline(
 		cli.definition,
 		pipelineArgs,
@@ -101,9 +103,8 @@ func (cli *PipelineRunner) TearDown() {
 	}
 }
 
-func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, registration *v1.RadixRegistration) []model.Step {
-
-	namespaceWatcher := kube.NewNamespaceWatcherImpl(kubeclient)
+func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {
+	namespaceWatcher := kube.NewNamespaceWatcherImpl(cli.kubeclient)
 	stepImplementations := make([]model.Step, 0)
 	stepImplementations = append(stepImplementations, steps.NewPrepareTektonPipelineStep())
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
@@ -115,7 +116,7 @@ func initStepImplementations(kubeclient kubernetes.Interface, kubeUtil *kube.Kub
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, registration)
+			Init(cli.kubeclient, cli.radixclient, cli.kubeUtil, cli.prometheusOperatorClient, registration, cli.env)
 	}
 
 	return stepImplementations
