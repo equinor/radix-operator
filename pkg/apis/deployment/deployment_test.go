@@ -46,6 +46,7 @@ const dnsZone = "dev.radix.equinor.com"
 const anyContainerRegistry = "any.container.registry"
 const egressIps = "0.0.0.0"
 const testTenantId = "123456789"
+const testKubernetesApiPort = 543
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface, prometheusclient.Interface, secretProvider.Interface) {
 	// Setup
@@ -379,7 +380,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				t.Parallel()
 				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+				assert.Equal(t, 4, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
 	}
@@ -609,7 +610,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
 				t.Parallel()
 				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.Equal(t, 1, len(np.Items), "Number of networkpolicy was not expected")
+				assert.Equal(t, 4, len(np.Items), "Number of networkpolicy was not expected")
 			})
 		})
 	}
@@ -2283,103 +2284,79 @@ func TestHPAConfig(t *testing.T) {
 func TestMonitoringConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
-	anyAppName := "anyappname"
-	anyEnvironmentName := "test"
-	componentOneName := "componentOneName"
-	componentTwoName := "componentTwoName"
-	componentThreeName := "componentThreeName"
+	myAppName := "anyappname"
+	myEnvName := "test"
 
-	// Test
-	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("httpa", 8000).
-				WithMonitoring(true),
-			utils.NewDeployComponentBuilder().
-				WithName(componentTwoName).
-				WithPort("httpb", 8001).
-				WithMonitoring(true)))
-
-	assert.NoError(t, err)
-
-	serviceMonitorTestFunc := func(t *testing.T, componentName, portName string, serviceMonitor *monitoringv1.ServiceMonitor) {
-		assert.Equal(t, portName, serviceMonitor.Spec.Endpoints[0].Port)
-		assert.Equal(t, fmt.Sprintf("%s-%s-%s", anyAppName, anyEnvironmentName, componentName), serviceMonitor.Spec.JobLabel)
-		assert.Len(t, serviceMonitor.Spec.NamespaceSelector.MatchNames, 1)
-		assert.Equal(t, fmt.Sprintf("%s-%s", anyAppName, anyEnvironmentName), serviceMonitor.Spec.NamespaceSelector.MatchNames[0])
-		assert.Len(t, serviceMonitor.Spec.Selector.MatchLabels, 1)
-		assert.Equal(t, componentName, serviceMonitor.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	compNames := []string{
+		"withMonitoringConfigAndEnabled",
+		"withMonitoringEnabled",
+		"withMonitoringConfigAndDisabled",
+		"withMonitoringDisabled",
+	}
+	monitoringConfig := v1.MonitoringConfig{PortName: "monitoring", Path: "some/special/path"}
+	ports := []v1.ComponentPort{
+		{Name: "public", Port: 8080},
+		{Name: monitoringConfig.PortName, Port: 9001},
+		{Name: "super_secure_public_port", Port: 8443},
 	}
 
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
-	t.Run("validate service montitors", func(t *testing.T) {
-		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 2, len(servicemonitors.Items), "Number of service monitors was not as expected")
-		assert.True(t, serviceMonitorByNameExists(componentOneName, servicemonitors), "componentTwoName service monitor should exist")
-		assert.True(t, serviceMonitorByNameExists(componentTwoName, servicemonitors), "componentTwoName service monitor should exist")
+	serviceMonitorTestFunc := func(t *testing.T, compName string, port v1.MonitoringConfig, serviceMonitor *monitoringv1.ServiceMonitor) {
+		assert.Equal(t, port.PortName, serviceMonitor.Spec.Endpoints[0].Port)
+		assert.Equal(t, port.Path, serviceMonitor.Spec.Endpoints[0].Path)
+		assert.Equal(t, fmt.Sprintf("%s-%s-%s", myAppName, myEnvName, compName), serviceMonitor.Spec.JobLabel)
+		assert.Len(t, serviceMonitor.Spec.NamespaceSelector.MatchNames, 1)
+		assert.Equal(t, fmt.Sprintf("%s-%s", myAppName, myEnvName), serviceMonitor.Spec.NamespaceSelector.MatchNames[0])
+		assert.Len(t, serviceMonitor.Spec.Selector.MatchLabels, 1)
+		assert.Equal(t, compName, serviceMonitor.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	}
 
-		serviceMonitor := getServiceMonitorByName(componentOneName, servicemonitors)
-		serviceMonitorTestFunc(t, componentOneName, "httpa", serviceMonitor)
-		serviceMonitor = getServiceMonitorByName(componentTwoName, servicemonitors)
-		serviceMonitorTestFunc(t, componentTwoName, "httpb", serviceMonitor)
-	})
-
-	// Test - rename port names
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(myAppName).
+		WithEnvironment(myEnvName).
 		WithComponents(
 			utils.NewDeployComponentBuilder().
-				WithName(componentOneName).
-				WithPort("metrica", 8000).
+				WithName(compNames[0]).
+				WithPorts(ports).
+				WithMonitoring(true).
+				WithMonitoringConfig(monitoringConfig),
+			utils.NewDeployComponentBuilder().
+				WithName(compNames[1]).
+				WithPorts(ports).
 				WithMonitoring(true),
 			utils.NewDeployComponentBuilder().
-				WithName(componentTwoName).
-				WithPort("metricb", 8001).
-				WithMonitoring(true)))
+				WithName(compNames[2]).
+				WithPorts(ports).
+				WithMonitoringConfig(monitoringConfig),
+			utils.NewDeployComponentBuilder().
+				WithName(compNames[3]).
+				WithPorts(ports)))
 
 	assert.NoError(t, err)
 
-	t.Run("validate service monitoring after renaming port", func(t *testing.T) {
+	envNamespace := utils.GetEnvironmentNamespace(myAppName, myEnvName)
+	t.Run("validate service monitors", func(t *testing.T) {
 		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 2, len(servicemonitors.Items), "Number of service monitors was not as expected")
-		assert.True(t, serviceMonitorByNameExists(componentOneName, servicemonitors), "componentTwoName service monitor should exist")
-		assert.True(t, serviceMonitorByNameExists(componentTwoName, servicemonitors), "componentTwoName service monitor should exist")
+		assert.True(t, serviceMonitorByNameExists(compNames[0], servicemonitors), "compName[0] service monitor should exist")
+		assert.True(t, serviceMonitorByNameExists(compNames[1], servicemonitors), "compNames[1] service monitor should exist")
+		assert.False(t, serviceMonitorByNameExists(compNames[2], servicemonitors), "compNames[2] service monitor should NOT exist")
+		assert.False(t, serviceMonitorByNameExists(compNames[3], servicemonitors), "compNames[3] service monitor should NOT exist")
 
-		serviceMonitor := getServiceMonitorByName(componentOneName, servicemonitors)
-		serviceMonitorTestFunc(t, componentOneName, "metrica", serviceMonitor)
-		serviceMonitor = getServiceMonitorByName(componentTwoName, servicemonitors)
-		serviceMonitorTestFunc(t, componentTwoName, "metricb", serviceMonitor)
-	})
+		// serviceMonitor, monitoringConfig, should use monitoringConfig
+		serviceMonitor := getServiceMonitorByName(compNames[0], servicemonitors)
+		serviceMonitorTestFunc(t, compNames[0], monitoringConfig, serviceMonitor)
 
-	// Test - disable monitoring for component two, remove component one, add component three
-	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-		WithAppName(anyAppName).
-		WithEnvironment(anyEnvironmentName).
-		WithComponents(
-			utils.NewDeployComponentBuilder().
-				WithName(componentThreeName).
-				WithPort("metricx", 8000).
-				WithMonitoring(true),
-			utils.NewDeployComponentBuilder().
-				WithName(componentTwoName).
-				WithPort("metricb", 8001).
-				WithMonitoring(false)))
+		// serviceMonitor, no monitoringConfig, should use first port
+		serviceMonitor = getServiceMonitorByName(compNames[1], servicemonitors)
+		serviceMonitorTestFunc(t, compNames[1], v1.MonitoringConfig{PortName: ports[0].Name}, serviceMonitor)
 
-	assert.NoError(t, err)
+		// no serviceMonitor, monitoringConfig, should not exist
+		serviceMonitor = getServiceMonitorByName(compNames[2], servicemonitors)
+		assert.Nil(t, serviceMonitor)
 
-	t.Run("validate hpas after deleting component one and adding component three", func(t *testing.T) {
-		servicemonitors, _ := prometheusclient.MonitoringV1().ServiceMonitors(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(servicemonitors.Items), "Number of service monitors was not as expected")
-		assert.False(t, serviceMonitorByNameExists(componentOneName, servicemonitors), "componentOneName service monitor not should exist")
-		assert.False(t, serviceMonitorByNameExists(componentTwoName, servicemonitors), "componentTwoName service monitor not should exist")
-		assert.True(t, serviceMonitorByNameExists(componentThreeName, servicemonitors), "componentThreeName service monitor should exist")
-
-		serviceMonitor := getServiceMonitorByName(componentThreeName, servicemonitors)
-		serviceMonitorTestFunc(t, componentThreeName, "metricx", serviceMonitor)
+		// no serviceMonitor, no monitoringConfig, should not exist
+		serviceMonitor = getServiceMonitorByName(compNames[3], servicemonitors)
+		assert.Nil(t, serviceMonitor)
 	})
 }
 
@@ -3168,12 +3145,12 @@ func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeutil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 	rd := v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Namespace: ""}}
-	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true, testTenantId, nil, nil).(*Deployment)
+	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true, testTenantId, testKubernetesApiPort, nil, nil).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual := deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.True(t, actual.forceRunAsNonRoot)
 
-	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false, testTenantId, nil, nil).(*Deployment)
+	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false, testTenantId, testKubernetesApiPort, nil, nil).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
 	actual = deployment.securityContextBuilder.(*securityContextBuilder)
 	assert.False(t, actual.forceRunAsNonRoot)
@@ -3411,7 +3388,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 		return nil, err
 	}
 
-	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, testTenantId, nil, nil)
+	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, testTenantId, testKubernetesApiPort, nil, nil)
 	err = deployment.OnSync()
 	if err != nil {
 		return nil, err
@@ -3433,7 +3410,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, testTenantId, nil, nil)
+	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, testTenantId, testKubernetesApiPort, nil, nil)
 	err = deployment.OnSync()
 	if err != nil {
 		return err
@@ -3518,13 +3495,7 @@ func getEnvVariableByName(name string, envVars []corev1.EnvVar, envVarsConfigMap
 }
 
 func hpaByNameExists(name string, hpas *autoscalingv1.HorizontalPodAutoscalerList) bool {
-	for _, hpa := range hpas.Items {
-		if hpa.Name == name {
-			return true
-		}
-	}
-
-	return false
+	return getHPAByName(name, hpas) != nil
 }
 
 func getHPAByName(name string, hpas *autoscalingv1.HorizontalPodAutoscalerList) *autoscalingv1.HorizontalPodAutoscaler {
@@ -3538,13 +3509,7 @@ func getHPAByName(name string, hpas *autoscalingv1.HorizontalPodAutoscalerList) 
 }
 
 func serviceMonitorByNameExists(name string, serviceMonitors *monitoringv1.ServiceMonitorList) bool {
-	for _, serviceMonitor := range serviceMonitors.Items {
-		if serviceMonitor.Name == name {
-			return true
-		}
-	}
-
-	return false
+	return getServiceMonitorByName(name, serviceMonitors) != nil
 }
 
 func getServiceMonitorByName(name string, serviceMonitors *monitoringv1.ServiceMonitorList) *monitoringv1.ServiceMonitor {
@@ -3578,8 +3543,7 @@ func getIngressByName(name string, ingresses *networkingv1.IngressList) *network
 }
 
 func ingressByNameExists(name string, ingresses *networkingv1.IngressList) bool {
-	ingress := getIngressByName(name, ingresses)
-	return ingress != nil
+	return getIngressByName(name, ingresses) != nil
 }
 
 func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
@@ -3593,8 +3557,7 @@ func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
 }
 
 func roleByNameExists(name string, roles *rbacv1.RoleList) bool {
-	role := getRoleByName(name, roles)
-	return role != nil
+	return getRoleByName(name, roles) != nil
 }
 
 func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
@@ -3608,8 +3571,7 @@ func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
 }
 
 func secretByNameExists(name string, secrets *corev1.SecretList) bool {
-	secret := getSecretByName(name, secrets)
-	return secret != nil
+	return getSecretByName(name, secrets) != nil
 }
 
 func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rbacv1.RoleBinding {
@@ -3623,8 +3585,7 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 }
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
-	role := getRoleBindingByName(name, roleBindings)
-	return role != nil
+	return getRoleBindingByName(name, roleBindings) != nil
 }
 
 func getPortByName(name string, ports []corev1.ContainerPort) *corev1.ContainerPort {

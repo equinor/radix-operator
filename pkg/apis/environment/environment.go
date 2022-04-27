@@ -75,7 +75,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
 	}
 
-	err = env.networkPolicy.UpdateEnvEgressRules(env.config.Spec.EgressRules, env.config.Spec.EnvName)
+	err = env.networkPolicy.UpdateEnvEgressRules(env.config.Spec.Egress.Rules, env.config.Spec.Egress.AllowRadix, env.config.Spec.EnvName)
 	if err != nil {
 		errmsg := fmt.Sprintf("failed to add egress rules in %s, environment %s: ", env.config.Spec.AppName, env.config.Spec.EnvName)
 		return fmt.Errorf("%s%v", errmsg, err)

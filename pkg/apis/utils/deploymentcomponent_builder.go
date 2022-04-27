@@ -9,11 +9,13 @@ type DeployComponentBuilder interface {
 	WithName(string) DeployComponentBuilder
 	WithImage(string) DeployComponentBuilder
 	WithPort(string, int32) DeployComponentBuilder
+	WithPorts([]v1.ComponentPort) DeployComponentBuilder
 	WithEnvironmentVariable(string, string) DeployComponentBuilder
 	WithEnvironmentVariables(map[string]string) DeployComponentBuilder
 	WithPublic(bool) DeployComponentBuilder // Deprecated: For backwards compatibility WithPublic is still supported, new code should use WithPublicPort instead
 	WithPublicPort(string) DeployComponentBuilder
 	WithMonitoring(bool) DeployComponentBuilder
+	WithMonitoringConfig(v1.MonitoringConfig) DeployComponentBuilder
 	WithAlwaysPullImageOnDeploy(bool) DeployComponentBuilder
 	WithReplicas(*int) DeployComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
@@ -36,11 +38,12 @@ type deployComponentBuilder struct {
 	name                    string
 	runAsNonRoot            bool
 	image                   string
-	ports                   map[string]int32
+	ports                   []v1.ComponentPort
 	environmentVariables    map[string]string
 	public                  bool // Deprecated: For backwards comptibility public is still supported, new code should use publicPort instead
 	publicPort              string
 	monitoring              bool
+	monitoringConfig        v1.MonitoringConfig
 	replicas                *int
 	alwaysPullImageOnDeploy bool
 	ingressConfiguration    []string
@@ -116,10 +119,17 @@ func (dcb *deployComponentBuilder) WithImage(image string) DeployComponentBuilde
 
 func (dcb *deployComponentBuilder) WithPort(name string, port int32) DeployComponentBuilder {
 	if dcb.ports == nil {
-		dcb.ports = make(map[string]int32)
+		dcb.ports = make([]v1.ComponentPort, 0)
 	}
 
-	dcb.ports[name] = port
+	dcb.ports = append(dcb.ports, v1.ComponentPort{Name: name, Port: port})
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithPorts(ports []v1.ComponentPort) DeployComponentBuilder {
+	for i := range ports {
+		dcb.WithPort(ports[i].Name, ports[i].Port)
+	}
 	return dcb
 }
 
@@ -136,6 +146,11 @@ func (dcb *deployComponentBuilder) WithPublicPort(publicPort string) DeployCompo
 
 func (dcb *deployComponentBuilder) WithMonitoring(monitoring bool) DeployComponentBuilder {
 	dcb.monitoring = monitoring
+	return dcb
+}
+
+func (dcb *deployComponentBuilder) WithMonitoringConfig(monitoringConfig v1.MonitoringConfig) DeployComponentBuilder {
+	dcb.monitoringConfig = monitoringConfig
 	return dcb
 }
 
@@ -192,19 +207,15 @@ func (dcb *deployComponentBuilder) WithAuthentication(authentication *v1.Authent
 }
 
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
-	componentPorts := make([]v1.ComponentPort, 0)
-	for key, value := range dcb.ports {
-		componentPorts = append(componentPorts, v1.ComponentPort{Name: key, Port: value})
-	}
-
 	return v1.RadixDeployComponent{
 		Image:                   dcb.image,
 		RunAsNonRoot:            dcb.runAsNonRoot,
 		Name:                    dcb.name,
-		Ports:                   componentPorts,
+		Ports:                   dcb.ports,
 		Public:                  dcb.public,
 		PublicPort:              dcb.publicPort,
 		Monitoring:              dcb.monitoring,
+		MonitoringConfig:        dcb.monitoringConfig,
 		Replicas:                dcb.replicas,
 		Secrets:                 dcb.secrets,
 		SecretRefs:              dcb.secretRefs,

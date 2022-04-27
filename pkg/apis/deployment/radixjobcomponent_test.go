@@ -1,8 +1,9 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"testing"
+
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -96,10 +97,25 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 }
 
 func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
+	monitoringConfig := v1.MonitoringConfig{
+		PortName: "monitor",
+		Path:     "/api/monitor",
+	}
+
 	ra := utils.ARadixApplication().
 		WithJobComponents(
 			utils.AnApplicationJobComponent().
-				WithName("job").
+				WithName("job_1").
+				WithEnvironmentConfigs(
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env1").
+						WithMonitoring(true),
+					utils.NewJobComponentEnvironmentBuilder().
+						WithEnvironment("env2"),
+				),
+			utils.AnApplicationJobComponent().
+				WithName("job_2").
+				WithMonitoringConfig(monitoringConfig).
 				WithEnvironmentConfigs(
 					utils.NewJobComponentEnvironmentBuilder().
 						WithEnvironment("env1").
@@ -112,10 +128,26 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
 	job := cfg.JobComponents()[0]
 	assert.True(t, job.Monitoring)
+	assert.Empty(t, job.MonitoringConfig.PortName)
+	assert.Empty(t, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
 	job = cfg.JobComponents()[0]
 	assert.False(t, job.Monitoring)
+	assert.Empty(t, job.MonitoringConfig.PortName)
+	assert.Empty(t, job.MonitoringConfig.Path)
+
+	cfg = jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
+	job = cfg.JobComponents()[1]
+	assert.True(t, job.Monitoring)
+	assert.Equal(t, monitoringConfig.PortName, job.MonitoringConfig.PortName)
+	assert.Equal(t, monitoringConfig.Path, job.MonitoringConfig.Path)
+
+	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
+	job = cfg.JobComponents()[1]
+	assert.False(t, job.Monitoring)
+	assert.Equal(t, monitoringConfig.PortName, job.MonitoringConfig.PortName)
+	assert.Equal(t, monitoringConfig.Path, job.MonitoringConfig.Path)
 }
 
 func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {

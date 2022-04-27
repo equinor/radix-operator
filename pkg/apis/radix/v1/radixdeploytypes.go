@@ -37,7 +37,7 @@ func (rd *RadixDeployment) GetJobComponentByName(name string) *RadixDeployJobCom
 	return nil
 }
 
-//RadixDeployStatus is the status for a rd
+// RadixDeployStatus is the status for a rd
 type RadixDeployStatus struct {
 	ActiveFrom meta_v1.Time         `json:"activeFrom" yaml:"activeFrom"`
 	ActiveTo   meta_v1.Time         `json:"activeTo" yaml:"activeTo"`
@@ -56,7 +56,7 @@ const (
 	DeploymentInactive RadixDeployCondition = "Inactive"
 )
 
-//RadixDeploymentSpec is the spec for a deployment
+// RadixDeploymentSpec is the spec for a deployment
 type RadixDeploymentSpec struct {
 	AppName          string                         `json:"appname" yaml:"appname"`
 	Components       []RadixDeployComponent         `json:"components"`
@@ -67,14 +67,14 @@ type RadixDeploymentSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//RadixDeploymentList is a list of Radix deployments
+// RadixDeploymentList is a list of Radix deployments
 type RadixDeploymentList struct {
 	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
 	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
 	Items            []RadixDeployment `json:"items" yaml:"items"`
 }
 
-//RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
+// RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
 	Name                    string                  `json:"name" yaml:"name"`
 	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
@@ -315,7 +315,7 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	return replicas
 }
 
-//RadixDeployJobComponent defines a single job component within a RadixDeployment
+// RadixDeployJobComponent defines a single job component within a RadixDeployment
 // The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name" yaml:"name"`
@@ -344,7 +344,7 @@ const (
 	RadixComponentTypeJobScheduler RadixComponentType = "job"
 )
 
-//RadixCommonDeployComponent defines a common component interface a RadixDeployment
+// RadixCommonDeployComponent defines a common component interface a RadixDeployment
 type RadixCommonDeployComponent interface {
 	GetName() string
 	GetType() RadixComponentType
@@ -373,7 +373,7 @@ type RadixCommonDeployComponent interface {
 	GetTimeLimitSeconds() *int64
 }
 
-//RadixCommonDeployComponentFactory defines a common component factory
+// RadixCommonDeployComponentFactory defines a common component factory
 type RadixCommonDeployComponentFactory interface {
 	Create() RadixCommonDeployComponent
 	GetTargetType() reflect.Type

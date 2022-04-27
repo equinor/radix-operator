@@ -54,6 +54,8 @@ rules:
       - create
       - delete
       - list
+      - update
+      - patch
   - apiGroups:
       - ''
     resources:
