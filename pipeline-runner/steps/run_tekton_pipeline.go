@@ -64,7 +64,7 @@ func (cli *RunTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipeline
 		job.OwnerReferences = ownerReference
 	}
 
-	log.Infof("Apply job (%s) to copy radixconfig to configmap for app %s", job.Name, appName)
+	log.Infof("Apply job (%s) to run Tekton pipeline %s", job.Name, appName)
 	job, err := cli.GetKubeclient().BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return err

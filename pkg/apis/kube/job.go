@@ -87,7 +87,12 @@ func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 func checkPodIsTerminatedOrFailed(containerStatuses *[]corev1.ContainerStatus) error {
 	for _, containerStatus := range *containerStatuses {
 		if containerStatus.State.Terminated != nil {
-			return fmt.Errorf("job's pod failed: %s", containerStatus.State.Terminated.Message)
+			terminated := containerStatus.State.Terminated
+			if terminated.Reason == "Failed" {
+				return fmt.Errorf("job's pod failed: %s", terminated.Message)
+			} else {
+				return nil
+			}
 		}
 		if containerStatus.State.Waiting != nil {
 			if _, ok := imageErrors[containerStatus.State.Waiting.Reason]; ok {
