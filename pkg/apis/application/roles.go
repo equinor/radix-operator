@@ -18,10 +18,10 @@ func (app Application) rrUserClusterRole() *auth.ClusterRole {
 	return app.rrClusterrole(clusterroleName, []string{"get", "list", "watch", "update", "patch", "delete"})
 }
 
-func (app Application) rrPipelineClusterRole() *auth.ClusterRole {
+func (app Application) rrPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
 	registration := app.registration
 	appName := registration.Name
-	clusterroleName := fmt.Sprintf("radix-pipeline-rr-%s", appName)
+	clusterroleName := fmt.Sprintf("%s-%s", roleNamePrefix, appName)
 	return app.rrClusterrole(clusterroleName, []string{"get"})
 }
 

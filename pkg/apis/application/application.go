@@ -97,32 +97,21 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 
 	logger.Debugf("Applied secrets needed by pipelines")
 
-	pipelineServiceAccount, err := app.applyPipelineServiceAccount()
-	if err != nil {
-		logger.Errorf("Failed to apply service account needed by pipeline. %v", err)
-		return err
-	}
-
 	err = app.applyRbacOnRadixTektonRunner()
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed to copy radix config to configmap: %v", err)
 		return err
 	}
-
+	err = app.applyRbacOnPipelineRunner()
+	if err != nil {
+		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
+		return err
+	}
 	err = app.applyRbacOnScanImageRunner()
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed to copy vulnerability scan results to configmap: %v", err)
 		return err
 	}
-
-	logger.Debugf("Applied service account needed by pipelines")
-
-	err = app.applyRbacOnPipelineRunner(pipelineServiceAccount)
-	if err != nil {
-		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
-		return err
-	}
-
 	logger.Debugf("Applied access permissions needed by pipeline")
 
 	err = app.applyRbacRadixRegistration()
