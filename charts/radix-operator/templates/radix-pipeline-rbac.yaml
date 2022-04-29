@@ -47,15 +47,16 @@ rules:
   resources:
     - secretproviderclasses
   verbs:
-    - get
-    - list
+  - get
+  - list
 - apiGroups:
-    - ""
+  - ""
   resources:
-    - pods
+  - pods
   verbs:
-    - list
-    - watch
+  - get
+  - list
+  - watch
 ---
 # used to grant pipeline access to create new namespaces and deployments
 apiVersion: rbac.authorization.k8s.io/v1

@@ -136,7 +136,7 @@ func (cli *PrepareTektonPipelineStepImplementation) getPrepareTektonPipelinesJob
 
 	initContainers := cli.getInitContainers(pipelineInfo)
 
-	return pipelineUtils.CreateTektonPipelineJob(action, pipelineInfo, appName, initContainers, &envVars)
+	return pipelineUtils.CreateTektonPipelineJob(defaults.RadixPipelineJobPrepareTektonContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
 }
 

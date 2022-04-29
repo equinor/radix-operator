@@ -28,7 +28,7 @@ const (
 	FS_GROUP                   = 1000
 )
 
-func (job *Job) createJob() error {
+func (job *Job) createPipelineJob() error {
 	namespace := job.radixJob.Namespace
 
 	ownerReference := GetOwnerReference(job.radixJob)
@@ -78,7 +78,7 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 					ServiceAccountName: defaults.PipelineRoleName,
 					Containers: []corev1.Container{
 						{
-							Name:            workerImage,
+							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),

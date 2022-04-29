@@ -137,22 +137,9 @@ func (app Application) giveRadixTektonRunnerAccessToAppNamespace(serviceAccount 
 
 	namespace := utils.GetAppNamespace(registration.Name)
 
-	// create role
-	role := app.radixTektonRunnerRole()
-	err := k.ApplyRole(namespace, role)
-	if err != nil {
-		return err
-	}
-
 	// Create role binding
 	roleBinding := app.radixTektonRunnerRoleBinding(serviceAccount)
-	err = k.ApplyRoleBinding(namespace, roleBinding)
-	if err != nil {
-		return err
-	}
-	// Create Cluster role binding
-	clusterRoleBinding := app.radixTektonRunnerClusterRoleBinding(serviceAccount)
-	return k.ApplyClusterRoleBinding(clusterRoleBinding)
+	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
 func (app Application) giveScanImageRunnerAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
@@ -205,7 +192,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 			Name:     defaults.PipelineRunnerRoleName,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -237,41 +224,7 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 			Name:     defaults.PipelineRoleName,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccount.Name,
-				Namespace: serviceAccount.Namespace,
-			},
-		},
-	}
-	return rolebinding
-}
-
-func (app Application) radixTektonRunnerClusterRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.ClusterRoleBinding {
-	registration := app.registration
-	appName := registration.Name
-	ownerReference := app.getOwnerReference()
-	logger.Debugf("Create cluster rolebinding config %s", defaults.RadixTektonRunnerRoleName)
-
-	rolebinding := &auth.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", defaults.RadixTektonRunnerRoleName, appName),
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-			OwnerReferences: ownerReference,
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     defaults.RadixTektonRunnerRoleName,
-		},
-		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -299,11 +252,11 @@ func (app Application) radixTektonRunnerRoleBinding(serviceAccount *corev1.Servi
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
+			Kind:     "ClusterRole",
 			Name:     defaults.RadixTektonRunnerRoleName,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -370,7 +323,7 @@ func (app Application) rrClusterRoleBinding(serviceAccount *corev1.ServiceAccoun
 			Name:     clusterrole.Name,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -432,7 +385,7 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 
 	ownerReference := app.getOwnerReference()
 
-	subjects := []auth.Subject{auth.Subject{
+	subjects := []auth.Subject{{
 		Kind:      "ServiceAccount",
 		Name:      defaults.GetMachineUserRoleName(registration.Name),
 		Namespace: utils.GetAppNamespace(registration.Name),

@@ -59,43 +59,6 @@ func (app Application) rrClusterrole(clusterroleName string, verbs []string) *au
 	return clusterrole
 }
 
-func (app Application) radixTektonRunnerRole() *auth.Role {
-	return &auth.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.RadixTektonRunnerRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: app.registration.Name,
-			},
-		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"configmaps"},
-				Verbs:     []string{"create"},
-			},
-			{
-				APIGroups: []string{"radix.equinor.com"},
-				Resources: []string{"radixapplications", "radixregistrations"},
-				Verbs:     []string{"get", "list"},
-			},
-			{
-				APIGroups: []string{"tekton.dev/v1beta1"},
-				Resources: []string{"pipelines", "tasks"},
-				Verbs:     []string{"create", "get", "list", "update"},
-			},
-			{
-				APIGroups: []string{"tekton.dev/v1beta1"},
-				Resources: []string{"pipelineruns"},
-				Verbs:     []string{"create", "get", "list", "watch", "update"},
-			},
-		},
-	}
-}
-
 func (app Application) scanImageRunnerRole() *auth.Role {
 	return &auth.Role{
 		TypeMeta: metav1.TypeMeta{

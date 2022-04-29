@@ -73,7 +73,7 @@ func (job *Job) OnSync() error {
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
 
 	if k8serrors.IsNotFound(err) {
-		err = job.createJob()
+		err = job.createPipelineJob()
 	}
 
 	job.maintainHistoryLimit()

@@ -14,12 +14,8 @@ import (
 	"time"
 )
 
-const containerName = "radix-tekton"
-
 //CreateTektonPipelineJob Create Tekton pipeline job
-func CreateTektonPipelineJob(action string, pipelineInfo *model.PipelineInfo, appName string,
-	initContainers []corev1.Container,
-	envVars *[]corev1.EnvVar) *batchv1.Job {
+func CreateTektonPipelineJob(containerName string, action string, pipelineInfo *model.PipelineInfo, appName string, initContainers []corev1.Container, envVars *[]corev1.EnvVar) *batchv1.Job {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 	timestamp := time.Now().Format("20060102150405")
