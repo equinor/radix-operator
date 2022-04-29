@@ -169,32 +169,6 @@ func CreateAppRole(appName, roleName string, customLabels map[string]string, rul
 // CreateManageSecretRole creates a role that can manage a secret with predefined set of verbs
 func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels map[string]string) *rbacv1.Role {
 	return CreateAppRole(appName, roleName, customLabels, ManageSecretsRule(secretNames))
-	// role := &rbacv1.Role{
-	// 	TypeMeta: metav1.TypeMeta{
-	// 		APIVersion: "rbac.authorization.k8s.io/v1",
-	// 		Kind:       "Role",
-	// 	},
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name: roleName,
-	// 		Labels: map[string]string{
-	// 			RadixAppLabel: appName,
-	// 		},
-	// 	},
-	// 	Rules: []rbacv1.PolicyRule{
-	// 		{
-	// 			APIGroups:     []string{""},
-	// 			Resources:     []string{"secrets"},
-	// 			ResourceNames: secretNames,
-	// 			Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
-	// 		},
-	// 	},
-	// }
-
-	// for key, value := range customLabels {
-	// 	role.ObjectMeta.Labels[key] = value
-	// }
-
-	// return role
 }
 
 // ListRoles List roles
