@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
@@ -95,12 +94,12 @@ func (cli *PipelineRunner) Run() error {
 
 // TearDown performs any needed cleanup
 func (cli *PipelineRunner) TearDown() {
-	namespace := utils.GetAppNamespace(cli.appName)
-	configMapName := cli.pipelineInfo.RadixConfigMapName
-	err := cli.kubeclient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), configMapName, metav1.DeleteOptions{})
-	if err != nil {
-		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", configMapName, namespace, err)
-	}
+	//namespace := utils.GetAppNamespace(cli.appName)
+	//configMapName := cli.pipelineInfo.RadixConfigMapName
+	//err := cli.kubeclient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), configMapName, metav1.DeleteOptions{})
+	//if err != nil {
+	//	log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", configMapName, namespace, err)
+	//}
 }
 
 func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {

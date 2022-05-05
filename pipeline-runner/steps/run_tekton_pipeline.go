@@ -3,8 +3,6 @@ package steps
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -84,6 +82,10 @@ func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(p
 			Value: action,
 		},
 		{
+			Name:  defaults.RadixBranchEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.Branch,
+		},
+		{
 			Name:  defaults.RadixAppEnvironmentVariable,
 			Value: appName,
 		},
@@ -92,8 +94,8 @@ func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(p
 			Value: pipelineInfo.PipelineArguments.RadixPipelineRun,
 		},
 		{
-			Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
-			Value: getTargetEnvironments(pipelineInfo),
+			Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
+			Value: pipelineInfo.RadixConfigMapName,
 		},
 		{
 			Name:  defaults.LogLevel,
@@ -101,13 +103,4 @@ func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(p
 		},
 	}
 	return pipelineUtils.CreateTektonPipelineJob(defaults.RadixPipelineJobRunTektonContainerName, action, pipelineInfo, appName, nil, &envVars)
-}
-
-func getTargetEnvironments(pipelineInfo *model.PipelineInfo) string {
-	var targetEnvs []string
-	for targetEnv, _ := range pipelineInfo.TargetEnvironments {
-		targetEnvs = append(targetEnvs, targetEnv)
-	}
-	targetEnvironments := fmt.Sprintf("(%s)", strings.Join(targetEnvs, ","))
-	return targetEnvironments
 }

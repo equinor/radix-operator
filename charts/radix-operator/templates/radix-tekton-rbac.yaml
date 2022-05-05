@@ -16,14 +16,7 @@ rules:
       - configmaps
     verbs:
       - create
-  - apiGroups:
-      - radix.equinor.com
-    resources:
-      - radixapplications
-      - radixregistrations
-    verbs:
       - get
-      - list
   - apiGroups:
       - tekton.dev
     resources:
