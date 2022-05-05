@@ -171,11 +171,11 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Value: clusterNameImage,
 			},
 			{
-				Name:  "BRANCH",
+				Name:  defaults.RadixBranchEnvironmentVariable,
 				Value: branch,
 			},
 			{
-				Name:  "TARGET_ENVIRONMENTS",
+				Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
 				Value: targetEnvs,
 			},
 		}

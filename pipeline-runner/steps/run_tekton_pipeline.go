@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
@@ -76,7 +77,6 @@ func (cli *RunTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipeline
 func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
 	PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
-
 	action := "run"
 	envVars := []corev1.EnvVar{
 		{
@@ -92,9 +92,22 @@ func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(p
 			Value: pipelineInfo.PipelineArguments.RadixPipelineRun,
 		},
 		{
+			Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
+			Value: getTargetEnvironments(pipelineInfo),
+		},
+		{
 			Name:  defaults.LogLevel,
 			Value: cli.GetEnv().GetLogLevel(),
 		},
 	}
 	return pipelineUtils.CreateTektonPipelineJob(defaults.RadixPipelineJobRunTektonContainerName, action, pipelineInfo, appName, nil, &envVars)
+}
+
+func getTargetEnvironments(pipelineInfo *model.PipelineInfo) string {
+	var targetEnvs []string
+	for targetEnv, _ := range pipelineInfo.TargetEnvironments {
+		targetEnvs = append(targetEnvs, targetEnv)
+	}
+	targetEnvironments := fmt.Sprintf("(%s)", strings.Join(targetEnvs, ","))
+	return targetEnvironments
 }
