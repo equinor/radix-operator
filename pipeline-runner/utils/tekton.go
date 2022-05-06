@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+const (
+	podLabelsVolumeName = "pod-labels"
+	podLabelsFileName   = "labels"
+)
+
 //CreateTektonPipelineJob Create Tekton pipeline job
 func CreateTektonPipelineJob(containerName string, action string, pipelineInfo *model.PipelineInfo, appName string, initContainers []corev1.Container, envVars *[]corev1.EnvVar) *batchv1.Job {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
@@ -74,6 +79,19 @@ func getJobVolumes() []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: podLabelsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				DownwardAPI: &corev1.DownwardAPIVolumeSource{
+					Items: []corev1.DownwardAPIVolumeFile{
+						{
+							Path:     podLabelsFileName,
+							FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.labels"},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	return volumes
@@ -84,6 +102,10 @@ func getJobContainerVolumeMounts() []corev1.VolumeMount {
 		{
 			Name:      git.BuildContextVolumeName,
 			MountPath: git.Workspace,
+		},
+		{
+			Name:      podLabelsVolumeName,
+			MountPath: fmt.Sprintf("/%s", podLabelsVolumeName),
 		},
 	}
 }

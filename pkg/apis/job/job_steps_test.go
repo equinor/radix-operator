@@ -580,7 +580,7 @@ func (s *RadixJobStepTestSuite) getCloneConfigJob(name, radixJobName, appName, i
 }
 
 func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTag string, componentImages map[string]pipeline.ComponentImage) *batchv1.Job {
-	componentImageAnnontation, _ := json.Marshal(&componentImages)
+	componentImageAnnotation, _ := json.Marshal(&componentImages)
 
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -594,15 +594,15 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
 			},
 			Annotations: map[string]string{
-				kube.RadixComponentImagesAnnotation: string(componentImageAnnontation),
+				kube.RadixComponentImagesAnnotation: string(componentImageAnnotation),
 			},
 		},
 	}
 }
 
 func (s *RadixJobStepTestSuite) getScanJob(name, radixJobName, appName, imageTag string, componentImages map[string]pipeline.ComponentImage, containerOutput pipeline.ContainerOutputName) *batchv1.Job {
-	componentImageAnnontation, _ := json.Marshal(&componentImages)
-	containerOutputAnnontation, _ := json.Marshal(&containerOutput)
+	componentImageAnnotation, _ := json.Marshal(&componentImages)
+	containerOutputAnnotation, _ := json.Marshal(&containerOutput)
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -614,8 +614,8 @@ func (s *RadixJobStepTestSuite) getScanJob(name, radixJobName, appName, imageTag
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeScan,
 			},
 			Annotations: map[string]string{
-				kube.RadixComponentImagesAnnotation: string(componentImageAnnontation),
-				kube.RadixContainerOutputAnnotation: string(containerOutputAnnontation),
+				kube.RadixComponentImagesAnnotation: string(componentImageAnnotation),
+				kube.RadixContainerOutputAnnotation: string(containerOutputAnnotation),
 			},
 		},
 	}
