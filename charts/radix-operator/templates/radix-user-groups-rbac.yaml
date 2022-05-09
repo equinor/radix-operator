@@ -3,6 +3,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: radix-cluster-admins
+  labels:
+    {{- include "radix-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -15,9 +17,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    group: fg_radix_platform_user
   name: radix-platform-user
+  labels:
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - radix.equinor.com
@@ -117,12 +119,9 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    app: radix-operator
-    chart: radix-operator-0.1.0
-    heritage: Tiller
-    release: radix-operator
   name: radix-app-admin
+  labels:
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - radix.equinor.com
@@ -173,12 +172,9 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    app: radix-operator
-    chart: radix-operator-0.1.0
-    heritage: Tiller
-    release: radix-operator
   name: radix-app-admin-envs
+  labels:
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - radix.equinor.com
