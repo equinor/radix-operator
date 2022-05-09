@@ -97,7 +97,7 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 
 	logger.Debugf("Applied secrets needed by pipelines")
 
-	err = app.applyRbacOnRadixTektonRunner()
+	err = app.applyRbacOnRadixTekton()
 	if err != nil {
 		logger.Errorf("Failed to set access permissions needed to copy radix config to configmap: %v", err)
 		return err

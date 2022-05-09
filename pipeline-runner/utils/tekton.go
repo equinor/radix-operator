@@ -41,7 +41,7 @@ func CreateTektonPipelineJob(containerName string, action string, pipelineInfo *
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					ServiceAccountName: defaults.RadixTektonRunnerRoleName,
+					ServiceAccountName: defaults.RadixTektonRoleName,
 					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,
 					InitContainers:     initContainers,
 					Containers: []corev1.Container{

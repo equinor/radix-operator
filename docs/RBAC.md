@@ -96,11 +96,11 @@ See table 1.3 for complete listing of permissions
   - Purpose: Get access to read RR belonging to \<app\>
   - Created by: Operator
   - Cluster Role binding: radix-pipeline-rr-\<app\>
-- radix-tekton-runner
+- radix-tekton
   - Purpose: Role to run cloning of radixconfig from master branch and to put into temporary config map, create Tekton tasks and pipelines
   - Lives in: app namespace
   - Created by: Operator
-  - Role binding: radix-tekton-runner
+  - Role binding: radix-tekton
 
 #### Clusterrole bindings
 
@@ -120,8 +120,8 @@ See table 1.3 for complete listing of permissions
   - Purpose: Give radix-pipeline service account inside app namespace access to update radix config and execute the outer pipeline through the radix-pipeline clusterrole
   - Lives in: app namespace
   - Created by: Operator
-- radix-tekton-runner
-  - Purpose: Give radix-tekton-runner service account inside app namespace access to create config map where a clone of radixconfig from master branch is put, create Tekton tasks and pipelines
+- radix-tekton
+  - Purpose: Give radix-tekton service account inside app namespace access to create config map where a clone of radixconfig from master branch is put, create Tekton tasks and pipelines
   - Lives in: app namespace
   - Created by: Operator
 
@@ -207,7 +207,7 @@ application|`application`-machine-user|`application`-machine-user-token|role|app
 ||radixGroups.playground|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
 ||radixGroups.user|radix-platform-user|clusterrole|global|radix-platform-user-binding|clusterrolebinding
 environment|radix-api|radix-api|clusterrole|global|`environment`-radix-api|clusterrolebinding
-application|radix-tekton-runner|radix-tekton-runner|role|application|radix-tekton-runner|rolebinding
+application|radix-tekton|radix-tekton|role|application|radix-tekton|rolebinding
 environment|radix-github-webhook|radix-webhook|clusterrole|global|`environment`-radix-github-webhook|clusterrolebinding
 global|radix-operator|radix-operator|clusterrole|global|radix-operator-new|clusterrolebinding
 application|radix-pipeline|radix-pipeline-runner|clusterrole|global|radix-pipeline-runner-`application`|clusterrolebinding
@@ -234,18 +234,18 @@ charts/radix-operator/templates/radix-operator-rbac.yaml|clusterrolebinding|radi
 charts/radix-operator/templates/radix-apps-rbac.yaml|clusterrole|radix-webhook
 charts/radix-operator/templates/radix-apps-rbac.yaml|clusterrole|radix-api
 pkg/apis/application/serviceaccount.go:applyPipelineServiceAccount|serviceaccount|radix-pipeline
-pkg/apis/application/serviceaccount.go:applyRadixTektonServiceAccount|serviceaccount|radix-tekton-runner
+pkg/apis/application/serviceaccount.go:applyRadixTektonServiceAccount|serviceaccount|radix-tekton
 pkg/apis/application/serviceaccount.go:applyMachineUserServiceAccount|serviceaccount|`application`-machine-user
 pkg/apis/application/serviceaccount.go:applyMachineUserServiceAccount|clusterrolebinding|`application`-machine-user
 pkg/apis/application/serviceaccount.go:GrantAppAdminAccessToMachineUserToken|role|`application`-machine-user-token
 pkg/apis/application/serviceaccount.go:GrantAppAdminAccessToMachineUserToken|rolebinding|`application`-machine-user-token
 pkg/apis/application/roles.go:rrUserClusterRole|clusterrole|radix-platform-user-rr-`application`
 pkg/apis/application/roles.go:rrPipelineClusterRole|clusterrole|radix-pipeline-rr-`application`
-pkg/apis/application/roles.go:radixTektonRunnerRole|role|radix-tekton-runner
+pkg/apis/application/roles.go:radixTektonRole|role|radix-tekton
 pkg/apis/application/rolebinding.go:grantAccessToCICDLogs|rolebinding|radix-app-admin
 pkg/apis/application/rolebinding.go:pipelineClusterRolebinding|clusterrolebinding|radix-pipeline-runner-`application`
 pkg/apis/application/rolebinding.go:pipelineRoleBinding|rolebinding|radix-pipeline
-pkg/apis/application/rolebinding.go:giveRadixTektonRunnerAccessToAppNamespace|rolebinding|radix-tekton-runner
+pkg/apis/application/rolebinding.go:giveRadixTektonAccessToAppNamespace|rolebinding|radix-tekton
 pkg/apis/application/rolebinding.go:rrPipelineClusterRoleBinding|clusterrolebinding|radix-pipeline-rr-`application`
 pkg/apis/application/rolebinding.go:rrClusterroleBinding|clusterrolebinding|radix-platform-user-rr-`application`
 pkg/apis/applicationconfig/role.go:grantAppAdminAccessToBuildSecrets|role|radix-app-admin-build-secrets
@@ -277,8 +277,8 @@ pkg/apis/environment/environment.go:ApplyAdGroupRoleBinding|rolebinding|radix-ap
  radix-app-admin-build-secrets        | k8s        || secrets                      |secrets|secrets|secrets|secrets|secrets
  radix-app-admin-envs                 | k8s        | secrets                      |deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|deployments, pods, pods/log, services, ingresses|||deployments, pods, pods/log, services
  radix-app-admin-envs                 | radix      | radixdeployments             |radixdeployments|radixdeployments|radixdeployments||radixdeployments|radixdeployments
- radix-tekton-runner                  | k8s        | configmaps                  ||||||
- radix-tekton-runner                  | tekton.dev | tasks, pipeline, pipelinerun |tasks, pipeline, pipelinerun|tasks, pipeline, pipelinerun|tasks, pipeline, pipelinerun|||
+ radix-tekton                  | k8s        | configmaps                  ||||||
+ radix-tekton                  | tekton.dev | tasks, pipeline, pipelinerun |tasks, pipeline, pipelinerun|tasks, pipeline, pipelinerun|tasks, pipeline, pipelinerun|||
  radix-pipeline                       | k8s        | jobs                         |jobs|jobs|jobs|||
  radix-pipeline                       | radix      | radixapplications            |radixapplications, radixjobs|radixapplications|radixapplications|radixapplications||
  radix-pipeline-rr-`application`      | k8s        || radixregistrations           |||||

@@ -23,11 +23,11 @@ func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, er
 	return app.kubeutil.ApplyServiceAccount(serviceAccount)
 }
 
-// applyRadixTektonServiceAccount create service account needed by radix-tekton-runner
+// applyRadixTektonServiceAccount create service account needed by radix-tekton
 func (app Application) applyRadixTektonServiceAccount() (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.RadixTektonRunnerRoleName,
+			Name:      defaults.RadixTektonRoleName,
 			Namespace: utils.GetAppNamespace(app.registration.Name),
 		},
 	}
