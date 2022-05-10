@@ -113,10 +113,6 @@ func (cli *PrepareTektonPipelineStepImplementation) getPrepareTektonPipelinesJob
 			Value: pipelineInfo.PipelineArguments.ImageTag,
 		},
 		{
-			Name:  defaults.RadixPipelineRunEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.RadixPipelineRun,
-		},
-		{
 			Name:  defaults.RadixPromoteDeploymentEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.DeploymentName,
 		},

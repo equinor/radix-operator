@@ -45,7 +45,8 @@ const (
 	RadixJobTypeBuild                  = "build"
 	RadixJobTypeScan                   = "scan"
 	RadixJobTypeCloneConfig            = "clone-config"
-	RadixJobTypeTektonPipeline         = "tekton-pipeline"
+	RadixJobTypeTektonPipelinePrepare  = "tekton-pipeline-prepare"
+	RadixJobTypeTektonPipelineRun      = "tekton-pipeline-run"
 	RadixJobTypeJobSchedule            = "job-scheduler"
 	RadixJobTypeBatchSchedule          = "batch-scheduler"
 	RadixAppAliasLabel                 = "radix-app-alias"
@@ -64,8 +65,6 @@ const (
 	//RadixBatchNameLabel A label that k8s automatically adds to a Pod created by Job and to the Job for a Batch
 	RadixBatchNameLabel = "radix-batch-name"
 	RadixJobIdLabel     = "radix-job-id"
-	//RadixPipelineRunLabel A Radix pipeline run Id for its resources: pipeline jobs, Tekton tasks, Tekton pipelines
-	RadixPipelineRunLabel = "radix-pipeline-run"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule

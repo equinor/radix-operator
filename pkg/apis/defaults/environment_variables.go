@@ -125,9 +125,6 @@ const (
 	// RadixPipelineTypeEnvironmentVariable Pipeline type
 	RadixPipelineTypeEnvironmentVariable = "PIPELINE_TYPE"
 
-	// RadixPipelineRunEnvironmentVariable Tekton Pipeline label for a Radix pipeline run
-	RadixPipelineRunEnvironmentVariable = "RADIX_PIPELINE_RUN"
-
 	// RadixPipelineTargetEnvironmentsVariable Pipeline target environments
 	RadixPipelineTargetEnvironmentsVariable = "TARGET_ENVIRONMENTS"
 

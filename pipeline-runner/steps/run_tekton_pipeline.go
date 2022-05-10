@@ -90,8 +90,8 @@ func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(p
 			Value: appName,
 		},
 		{
-			Name:  defaults.RadixPipelineRunEnvironmentVariable,
-			Value: pipelineInfo.PipelineArguments.RadixPipelineRun,
+			Name:  defaults.RadixPipelineJobEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.JobName,
 		},
 		{
 			Name:  defaults.RadixConfigConfigMapEnvironmentVariable,
