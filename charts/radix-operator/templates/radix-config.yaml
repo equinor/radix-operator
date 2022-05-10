@@ -7,6 +7,6 @@ metadata:
     {{- include "radix-operator.labels" . | nindent 4 }}
 data:
   clustername: {{ .Values.clusterName }}
-  containerRegistry: {{ .Values.imageRegistry }}
+  containerRegistry: {{ .Values.containerRegistry }}
   subscriptionId: {{ .Values.subscriptionId }}
   clusterActiveEgressIps: {{ .Values.clusterActiveEgressIps }}
