@@ -3,10 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   name: radixdeployments.radix.equinor.com
   labels:
-    app: "radix-operator"
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    {{- include "radix-operator.labels" . | nindent 4 }}
 spec:
   group: radix.equinor.com
   names:

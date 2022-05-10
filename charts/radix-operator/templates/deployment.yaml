@@ -1,25 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "radix-operator"
+  name: {{ template "radix-operator.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: "radix-operator"
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "radix-operator.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: "radix-operator"
-      release: {{ .Release.Name }}
+      {{- include "radix-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: "radix-operator"
-        release: {{ .Release.Name }}
+        {{- include "radix-operator.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccount: "radix-operator"
+      serviceAccount: {{ include "radix-operator.serviceAccountName" . }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -28,7 +24,7 @@ spec:
         supplementalGroups:
           - 1000
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ template "radix-operator.fullname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:

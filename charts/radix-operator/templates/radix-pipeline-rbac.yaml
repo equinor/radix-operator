@@ -5,10 +5,7 @@ kind: ClusterRole
 metadata:
   name: radix-pipeline
   labels:
-    app: "radix-operator"
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - radix.equinor.com
@@ -64,10 +61,7 @@ kind: ClusterRole
 metadata:
   name: radix-pipeline-runner
   labels:
-    app: "radix-operator"
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - ""

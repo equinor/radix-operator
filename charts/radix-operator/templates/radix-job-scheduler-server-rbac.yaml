@@ -4,9 +4,7 @@ kind: ClusterRole
 metadata:
   name: radix-job-scheduler-server
   labels:
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - '*'
