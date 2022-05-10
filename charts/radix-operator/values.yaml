@@ -1,5 +1,6 @@
 # Default values for radix-operator.
-
+nameOverride: ""
+fullnameOverride: ""
 clusterName: xx
 activeClusterName: xx
 clusterActiveEgressIps: xx
