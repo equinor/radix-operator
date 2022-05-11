@@ -128,8 +128,8 @@ const (
 	// RadixPipelineTargetEnvironmentsVariable Pipeline target environments
 	RadixPipelineTargetEnvironmentsVariable = "TARGET_ENVIRONMENTS"
 
-	// RadixTektonActionEnvironmentVariable Tekton action: prepare, run
-	RadixTektonActionEnvironmentVariable = "RADIX_TEKTON_ACTION"
+	// RadixPipelineActionEnvironmentVariable Pipeline action: prepare, run
+	RadixPipelineActionEnvironmentVariable = "RADIX_PIPELINE_ACTION"
 
 	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
 	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"

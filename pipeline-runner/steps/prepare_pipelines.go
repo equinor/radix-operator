@@ -81,7 +81,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 	action := "prepare"
 	envVars := []corev1.EnvVar{
 		{
-			Name:  defaults.RadixTektonActionEnvironmentVariable,
+			Name:  defaults.RadixPipelineActionEnvironmentVariable,
 			Value: action,
 		},
 		{

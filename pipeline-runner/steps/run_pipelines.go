@@ -78,7 +78,7 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 	action := "run"
 	envVars := []corev1.EnvVar{
 		{
-			Name:  defaults.RadixTektonActionEnvironmentVariable,
+			Name:  defaults.RadixPipelineActionEnvironmentVariable,
 			Value: action,
 		},
 		{
