@@ -16,10 +16,10 @@ var (
 	buildStep                 = &DefaultStepImplementation{StepType: pipeline.BuildStep, SuccessMessage: "built"}
 	scanImageStep             = &DefaultStepImplementation{StepType: pipeline.ScanImageStep, SuccessMessage: "image scanned"}
 	deployStep                = &DefaultStepImplementation{StepType: pipeline.DeployStep, SuccessMessage: "deployed"}
-	prepareTektonPipelineStep = &DefaultStepImplementation{StepType: pipeline.PrepareTektonPipelineStep,
-		SuccessMessage: "tekton pipeline prepared"}
-	runTektonPipelineStep = &DefaultStepImplementation{StepType: pipeline.RunTektonPipelineStep,
-		SuccessMessage: "tekton pipeline completed"}
+	prepareTektonPipelineStep = &DefaultStepImplementation{StepType: pipeline.PreparePipelinesStep,
+		SuccessMessage: "pipelines prepared"}
+	runTektonPipelineStep = &DefaultStepImplementation{StepType: pipeline.RunPipelinesStep,
+		SuccessMessage: "run pipelines completed"}
 )
 
 func Test_DefaultPipeType(t *testing.T) {
@@ -28,10 +28,10 @@ func Test_DefaultPipeType(t *testing.T) {
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 6, len(p.Steps))
-	assert.Equal(t, "tekton pipeline prepared", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
 	assert.Equal(t, "image scanned", p.Steps[5].SucceededMsg())
 }
@@ -42,10 +42,10 @@ func Test_BuildDeployPipeType(t *testing.T) {
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 6, len(p.Steps))
-	assert.Equal(t, "tekton pipeline prepared", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
 	assert.Equal(t, "image scanned", p.Steps[5].SucceededMsg())
 }
@@ -58,10 +58,10 @@ func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 5, len(p.Steps))
-	assert.Equal(t, "tekton pipeline prepared", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
@@ -76,10 +76,10 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 5, len(p.Steps))
-	assert.Equal(t, "tekton pipeline prepared", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
@@ -94,10 +94,10 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 5, len(p.Steps))
-	assert.Equal(t, "tekton pipeline prepared", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
-	assert.Equal(t, "tekton pipeline completed", p.Steps[3].SucceededMsg())
+	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
@@ -113,9 +113,9 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 	assert.Equal(t, v1.Deploy, p.Definition.Type)
 	assert.Equal(t, toEnvironment, p.PipelineArguments.ToEnvironment)
 	assert.Equal(t, 4, len(p.Steps))
-	assert.Equal(t, "tekton pipeline prepared", p.Steps[0].SucceededMsg())
+	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
-	assert.Equal(t, "tekton pipeline completed", p.Steps[2].SucceededMsg())
+	assert.Equal(t, "run pipelines completed", p.Steps[2].SucceededMsg())
 	assert.Equal(t, "deployed", p.Steps[3].SucceededMsg())
 }
 

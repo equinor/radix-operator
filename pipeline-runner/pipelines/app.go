@@ -106,10 +106,10 @@ func (cli *PipelineRunner) TearDown() {
 func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {
 	namespaceWatcher := kube.NewNamespaceWatcherImpl(cli.kubeclient)
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, steps.NewPrepareTektonPipelineStep())
+	stepImplementations = append(stepImplementations, steps.NewPreparePipelinesStep())
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
-	stepImplementations = append(stepImplementations, steps.NewTektonPipelineStep())
+	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep())
 	stepImplementations = append(stepImplementations, steps.NewScanImageStep())
 	stepImplementations = append(stepImplementations, steps.NewDeployStep(namespaceWatcher))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())

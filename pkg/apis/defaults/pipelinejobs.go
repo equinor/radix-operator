@@ -1,5 +1,5 @@
 package defaults
 
 const RadixPipelineJobPipelineContainerName = "radix-pipeline"
-const RadixPipelineJobPrepareTektonContainerName = "prepare-radix-tekton"
-const RadixPipelineJobRunTektonContainerName = "run-radix-tekton"
+const RadixPipelineJobPreparePipelinesContainerName = "prepare-pipelines"
+const RadixPipelineJobRunPipelinesContainerName = "run-pipelines"

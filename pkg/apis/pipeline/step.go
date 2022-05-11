@@ -6,8 +6,8 @@ import "fmt"
 type StepType int
 
 const (
-	// PrepareTektonPipelineStep Step to prepare tekton pipeline
-	PrepareTektonPipelineStep StepType = iota
+	// PreparePipelinesStep Step to prepare pipelines
+	PreparePipelinesStep StepType = iota
 
 	// ApplyConfigStep Step type to apply radix config
 	ApplyConfigStep
@@ -25,8 +25,8 @@ const (
 	// or an older deployment to an active
 	PromoteStep
 
-	// RunTektonPipelineStep Step to run tekton pipeline
-	RunTektonPipelineStep
+	// RunPipelinesStep Step to run pipelines
+	RunPipelinesStep
 
 	// end marker of the enum
 	numSteps

@@ -16,28 +16,28 @@ type Definition struct {
 func GetSupportedPipelines() []Definition {
 	return []Definition{
 		Definition{v1.BuildDeploy, []StepType{
-			PrepareTektonPipelineStep,
+			PreparePipelinesStep,
 			ApplyConfigStep,
 			BuildStep,
-			RunTektonPipelineStep,
+			RunPipelinesStep,
 			DeployStep,
 			ScanImageStep,
 		}},
 		Definition{v1.Build, []StepType{
-			PrepareTektonPipelineStep,
+			PreparePipelinesStep,
 			ApplyConfigStep,
 			BuildStep,
-			RunTektonPipelineStep,
+			RunPipelinesStep,
 			ScanImageStep,
 		}},
 		Definition{v1.Promote, []StepType{
-			PrepareTektonPipelineStep,
-			RunTektonPipelineStep,
+			PreparePipelinesStep,
+			RunPipelinesStep,
 			PromoteStep}},
 		Definition{v1.Deploy, []StepType{
-			PrepareTektonPipelineStep,
+			PreparePipelinesStep,
 			ApplyConfigStep,
-			RunTektonPipelineStep,
+			RunPipelinesStep,
 			DeployStep}}}
 }
 

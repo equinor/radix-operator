@@ -15,41 +15,41 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// RunTektonPipelineStepImplementation Step to run custom pipeline
-type RunTektonPipelineStepImplementation struct {
+// RunPipelinesStepImplementation Step to run custom pipeline
+type RunPipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
 }
 
-// NewTektonPipelineStep Constructor
-func NewTektonPipelineStep() model.Step {
-	return &RunTektonPipelineStepImplementation{
-		stepType: pipeline.RunTektonPipelineStep,
+// NewRunPipelinesStep Constructor
+func NewRunPipelinesStep() model.Step {
+	return &RunPipelinesStepImplementation{
+		stepType: pipeline.RunPipelinesStep,
 	}
 }
 
 // ImplementationForType Override of default step method
-func (cli *RunTektonPipelineStepImplementation) ImplementationForType() pipeline.StepType {
+func (cli *RunPipelinesStepImplementation) ImplementationForType() pipeline.StepType {
 	return cli.stepType
 }
 
 // SucceededMsg Override of default step method
-func (cli *RunTektonPipelineStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: tekton pipeline step for application %s", cli.GetAppName())
+func (cli *RunPipelinesStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: pipelines step for application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *RunTektonPipelineStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed tekton pipeline for the application %s. Error: %v", cli.GetAppName(), err)
+func (cli *RunPipelinesStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed pipelines for the application %s. Error: %v", cli.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *RunTektonPipelineStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (cli *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.PipelineArguments.CommitID
 	appName := cli.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Infof("Run tekton pipeline app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Infof("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
 	job := cli.getRunTektonPipelinesJobConfig(pipelineInfo)
 
@@ -72,7 +72,7 @@ func (cli *RunTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipeline
 	return cli.GetKubeutil().WaitForCompletionOf(job)
 }
 
-func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
+func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
 	PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
 	action := "run"
@@ -102,5 +102,5 @@ func (cli *RunTektonPipelineStepImplementation) getRunTektonPipelinesJobConfig(p
 			Value: cli.GetEnv().GetLogLevel(),
 		},
 	}
-	return pipelineUtils.CreateTektonPipelineJob(defaults.RadixPipelineJobRunTektonContainerName, action, pipelineInfo, appName, nil, &envVars)
+	return pipelineUtils.CreatePipelinesJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
 }

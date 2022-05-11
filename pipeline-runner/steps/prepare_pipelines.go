@@ -18,43 +18,43 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// PrepareTektonPipelineStepImplementation Step to run custom pipeline
-type PrepareTektonPipelineStepImplementation struct {
+// PreparePipelinesStepImplementation Step to run custom pipeline
+type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
 }
 
-// NewPrepareTektonPipelineStep Constructor
-func NewPrepareTektonPipelineStep() model.Step {
-	return &PrepareTektonPipelineStepImplementation{
-		stepType: pipeline.PrepareTektonPipelineStep,
+// NewPreparePipelinesStep Constructor
+func NewPreparePipelinesStep() model.Step {
+	return &PreparePipelinesStepImplementation{
+		stepType: pipeline.PreparePipelinesStep,
 	}
 }
 
 // ImplementationForType Override of default step method
-func (cli *PrepareTektonPipelineStepImplementation) ImplementationForType() pipeline.StepType {
+func (cli *PreparePipelinesStepImplementation) ImplementationForType() pipeline.StepType {
 	return cli.stepType
 }
 
 // SucceededMsg Override of default step method
-func (cli *PrepareTektonPipelineStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: prepare tekton pipeline step for application %s", cli.GetAppName())
+func (cli *PreparePipelinesStepImplementation) SucceededMsg() string {
+	return fmt.Sprintf("Succeded: prepare pipelines step for application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
-func (cli *PrepareTektonPipelineStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed prepare tekton pipeline for the application %s. Error: %v", cli.GetAppName(), err)
+func (cli *PreparePipelinesStepImplementation) ErrorMsg(err error) string {
+	return fmt.Sprintf("Failed prepare pipelines for the application %s. Error: %v", cli.GetAppName(), err)
 }
 
 // Run Override of default step method
-func (cli *PrepareTektonPipelineStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.PipelineArguments.CommitID
 	appName := cli.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Infof("Run tekton pipeline app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Infof("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
-	job := cli.getPrepareTektonPipelinesJobConfig(pipelineInfo)
+	job := cli.getPreparePipelinesJobConfig(pipelineInfo)
 
 	// When debugging pipeline there will be no RJ
 	if !pipelineInfo.PipelineArguments.Debug {
@@ -75,7 +75,7 @@ func (cli *PrepareTektonPipelineStepImplementation) Run(pipelineInfo *model.Pipe
 	return cli.GetKubeutil().WaitForCompletionOf(job)
 }
 
-func (cli *PrepareTektonPipelineStepImplementation) getPrepareTektonPipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
+func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
 
 	action := "prepare"
@@ -132,11 +132,11 @@ func (cli *PrepareTektonPipelineStepImplementation) getPrepareTektonPipelinesJob
 
 	initContainers := cli.getInitContainers(pipelineInfo)
 
-	return pipelineUtils.CreateTektonPipelineJob(defaults.RadixPipelineJobPrepareTektonContainerName, action, pipelineInfo, appName, initContainers, &envVars)
+	return pipelineUtils.CreatePipelinesJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
 }
 
-func (cli *PrepareTektonPipelineStepImplementation) getInitContainers(pipelineInfo *model.PipelineInfo) []corev1.Container {
+func (cli *PreparePipelinesStepImplementation) getInitContainers(pipelineInfo *model.PipelineInfo) []corev1.Container {
 	registration := cli.GetRegistration()
 	configBranch := applicationconfig.GetConfigBranch(registration)
 	sshURL := registration.Spec.CloneURL
