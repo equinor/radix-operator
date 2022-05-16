@@ -1,5 +1,6 @@
 # Default values for radix-operator.
-
+nameOverride: ""
+fullnameOverride: ""
 clusterName: xx
 activeClusterName: xx
 clusterActiveEgressIps: xx
@@ -12,8 +13,8 @@ jobScheduler: radix-job-scheduler-server:main-latest
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 containerRegistry: radixdev.azurecr.io
-tenantId:
-subscriptionId:
+tenantId: xx
+subscriptionId: xx
 
 app:
   # Limit range on app namespace
@@ -53,6 +54,11 @@ service:
   # annotations: {}
   type: ClusterIP
   internalPort: 9000
+
+serviceAccount:
+  # The name of the service account to use.
+  # If not set, a name is generated using the fullname template
+  name: ""
 
 resources: 
   limits:
