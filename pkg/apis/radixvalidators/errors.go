@@ -95,7 +95,7 @@ func MemoryResourceRequirementFormatError(value string) error {
 
 // CPUResourceRequirementFormatError Invalid CPU resource requirement
 func CPUResourceRequirementFormatError(value string) error {
-	return fmt.Errorf("format of cpu resource requirement %s (value %s) is wrong. Must match regex '%s'", "cpu", value, cpuRegex)
+	return fmt.Errorf("format of cpu resource requirement %s (value %s) is wrong. Must match regex %s", "cpu", value, cpuRegex)
 }
 
 func InvalidVerificationType(verification string) error {
@@ -109,7 +109,7 @@ func ResourceRequestOverLimitError(resource string, require string, limit string
 
 // InvalidResourceError Invalid resource type
 func InvalidResourceError(name string) error {
-	return fmt.Errorf("only support resource requirement type 'memory' and 'cpu' (not '%s')", name)
+	return fmt.Errorf("only support resource requirement type 'memory' and 'cpu' (not %s)", name)
 }
 
 // DuplicateExternalAliasError Cannot have duplicate external alias
@@ -249,7 +249,7 @@ func oauthRequiredPropertyEmptyError(componentName, environmentName, propertyNam
 }
 
 func oauthPropertyInvalidValueError(componentName, environmentName, propertyName, value string) error {
-	return fmt.Errorf("component %s in environment %s: invalid value '%s' for property %s in oauth2 configuration", componentName, environmentName, value, propertyName)
+	return fmt.Errorf("component %s in environment %s: invalid value %s for property %s in oauth2 configuration", componentName, environmentName, value, propertyName)
 }
 
 func oauthRequiredPropertyEmptyWithConditionError(componentName, environmentName, propertyName, whenCondition string) error {
@@ -265,7 +265,7 @@ func oauthRequiredPropertyEmptyWithSessionStoreRedisError(componentName, environ
 }
 
 func oauthCookieStoreMinimalIncorrectPropertyValueError(componentName, environmentName, propertyName, expectedValue string) error {
-	return fmt.Errorf("component %s in environment %s: property %s in oauth configuration must be set to '%s' when cookieStore.minimal is true", componentName, environmentName, propertyName, expectedValue)
+	return fmt.Errorf("component %s in environment %s: property %s in oauth configuration must be set to %s when cookieStore.minimal is true", componentName, environmentName, propertyName, expectedValue)
 }
 
 func OAuthClientIdEmptyError(componentName, environmentName string) error {
@@ -390,5 +390,5 @@ func NotValidIPv4CidrError(ipMask string) error {
 }
 
 func InvalidEgressPortProtocolError(protocol string, validProtocols []string) error {
-	return fmt.Errorf("protocol '%s' must be one of {%s}", protocol, strings.Join(validProtocols, ", "))
+	return fmt.Errorf("protocol %s must be one of {%s}", protocol, strings.Join(validProtocols, ", "))
 }

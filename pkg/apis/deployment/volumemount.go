@@ -222,7 +222,7 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 					NodePublishSecretRef: &corev1.LocalObjectReference{Name: credsSecretName},
 				}
 			default:
-				log.Errorf("not supported provider '%s' in the secret provider class %s", provider, secretProviderClass.Name)
+				log.Errorf("not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)
 				continue
 			}
 			volumes = append(volumes, volume)
@@ -527,7 +527,7 @@ func (deploy *Deployment) deletePersistentVolumeClaim(namespace, pvcName string)
 	if len(namespace) > 0 && len(pvcName) > 0 {
 		return deploy.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Delete(context.TODO(), pvcName, metav1.DeleteOptions{})
 	}
-	log.Debugf("Skip deleting PVC - namespace '%s' or name '%s' is empty", namespace, pvcName)
+	log.Debugf("Skip deleting PVC - namespace %s or name %s is empty", namespace, pvcName)
 	return nil
 }
 

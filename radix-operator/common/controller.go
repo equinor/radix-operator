@@ -123,12 +123,12 @@ func (c *Controller) processNextWorkItem() bool {
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
 
-			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
+			return fmt.Errorf("error syncing %s: %s, requeuing", key, err.Error())
 		}
 
 		c.WorkQueue.Forget(obj)
 		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-		c.Log.Infof("Successfully synced '%s'", key)
+		c.Log.Infof("Successfully synced %s", key)
 		return nil
 	}(obj)
 
@@ -202,7 +202,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 			metrics.OperatorError(c.HandlerOf, "handle_object", "error_decoding_object_tombstone")
 			return
 		}
-		c.Log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
+		c.Log.Infof("Recovered deleted object %s from tombstone", object.GetName())
 	}
 	c.Log.Infof("Processing object: %s", object.GetName())
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
@@ -212,7 +212,7 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 
 		obj, err := getOwnerFn(c.RadixClient, object.GetNamespace(), ownerRef.Name)
 		if err != nil {
-			c.Log.Debugf("Ignoring orphaned object '%s' of %s '%s'", object.GetSelfLink(), ownerKind, ownerRef.Name)
+			c.Log.Debugf("Ignoring orphaned object %s of %s %s", object.GetSelfLink(), ownerKind, ownerRef.Name)
 			return
 		}
 

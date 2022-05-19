@@ -25,12 +25,12 @@ func getBuildSecretsAsVariables(kubeclient kubernetes.Interface, ra *v1.RadixApp
 
 		for _, secretName := range ra.Spec.Build.Secrets {
 			if _, ok := buildSecrets.Data[secretName]; !ok {
-				return nil, fmt.Errorf("build secret '%s' has not been set", secretName)
+				return nil, fmt.Errorf("build secret %s has not been set", secretName)
 			}
 
 			secretValue := string(buildSecrets.Data[secretName])
 			if strings.EqualFold(secretValue, defaults.BuildSecretDefaultData) {
-				return nil, fmt.Errorf("build secret '%s' has not been set", secretName)
+				return nil, fmt.Errorf("build secret %s has not been set", secretName)
 			}
 
 			buildSecretName := defaults.BuildSecretPrefix + secretName

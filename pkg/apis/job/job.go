@@ -656,7 +656,7 @@ func (job *Job) maintainHistoryLimit() {
 	if historyLimit != "" {
 		limit, err := strconv.Atoi(historyLimit)
 		if err != nil {
-			log.Warnf("'%s' is not set to a proper number, %s, and cannot be parsed.", defaults.JobsHistoryLimitEnvironmentVariable, historyLimit)
+			log.Warnf("%s is not set to a proper number, %s, and cannot be parsed.", defaults.JobsHistoryLimitEnvironmentVariable, historyLimit)
 			return
 		}
 
