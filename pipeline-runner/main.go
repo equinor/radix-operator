@@ -1,18 +1,17 @@
 package main
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/model/env"
 	"os"
 	"strings"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/model/env"
+	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 // Requirements to run, pipeline must have:

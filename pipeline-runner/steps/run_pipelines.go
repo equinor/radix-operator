@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
@@ -16,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// RunPipelinesStepImplementation Step to run custom pipeline
+// RunPipelinesStepImplementation Step to run Tekton pipelines
 type RunPipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
@@ -36,12 +37,12 @@ func (cli *RunPipelinesStepImplementation) ImplementationForType() pipeline.Step
 
 // SucceededMsg Override of default step method
 func (cli *RunPipelinesStepImplementation) SucceededMsg() string {
-	return fmt.Sprintf("Succeded: pipelines step for application %s", cli.GetAppName())
+	return fmt.Sprintf("Succeded: run pipelines step for application %s", cli.GetAppName())
 }
 
 // ErrorMsg Override of default step method
 func (cli *RunPipelinesStepImplementation) ErrorMsg(err error) string {
-	return fmt.Sprintf("Failed pipelines for the application %s. Error: %v", cli.GetAppName(), err)
+	return fmt.Sprintf("Failed run pipelines for the application %s. Error: %v", cli.GetAppName(), err)
 }
 
 // Run Override of default step method
@@ -103,5 +104,5 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 			Value: cli.GetEnv().GetLogLevel(),
 		},
 	}
-	return pipelineUtils.CreatePipelinesJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
+	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
 }

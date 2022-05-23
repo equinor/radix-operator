@@ -47,17 +47,16 @@ type PipelineInfo struct {
 
 // PipelineArguments Holds arguments for the pipeline
 type PipelineArguments struct {
-	RadixPipelineRun string
-	PipelineType     string
-	JobName          string
-	Branch           string
-	CommitID         string
-	ImageTag         string
-	UseCache         string
-	PushImage        bool
-	DeploymentName   string
-	FromEnvironment  string
-	ToEnvironment    string
+	PipelineType    string
+	JobName         string
+	Branch          string
+	CommitID        string
+	ImageTag        string
+	UseCache        string
+	PushImage       bool
+	DeploymentName  string
+	FromEnvironment string
+	ToEnvironment   string
 
 	RadixConfigFile string
 	// Security context
@@ -140,14 +139,12 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
-	pipelineRun := fmt.Sprintf("radix-pipeline-run-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
 	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
 	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
-	pipelineArguments.RadixPipelineRun = pipelineRun
 
 	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {

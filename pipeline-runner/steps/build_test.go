@@ -1,17 +1,17 @@
 package steps
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/model/env"
-	"github.com/equinor/radix-operator/pipeline-runner/model/mock"
-	"github.com/golang/mock/gomock"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/model/env"
+	"github.com/equinor/radix-operator/pipeline-runner/model/mock"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/golang/mock/gomock"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	kubernetes "k8s.io/client-go/kubernetes/fake"

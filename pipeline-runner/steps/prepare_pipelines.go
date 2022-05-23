@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// PreparePipelinesStepImplementation Step to run custom pipeline
+// PreparePipelinesStepImplementation Step to prepare radixconfig and Tektone pipelines
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
@@ -53,7 +53,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	commitID := pipelineInfo.PipelineArguments.CommitID
 	appName := cli.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Infof("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Infof("Prepare pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
 	job := cli.getPreparePipelinesJobConfig(pipelineInfo)
 
@@ -131,13 +131,13 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		},
 	}
 
-	initContainers := cli.getInitContainers(pipelineInfo)
+	initContainers := cli.getInitContainerCloningRepo(pipelineInfo)
 
-	return pipelineUtils.CreatePipelinesJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
+	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
 }
 
-func (cli *PreparePipelinesStepImplementation) getInitContainers(pipelineInfo *model.PipelineInfo) []corev1.Container {
+func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipelineInfo *model.PipelineInfo) []corev1.Container {
 	registration := cli.GetRegistration()
 	configBranch := applicationconfig.GetConfigBranch(registration)
 	sshURL := registration.Spec.CloneURL

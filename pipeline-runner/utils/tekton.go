@@ -20,8 +20,8 @@ const (
 	podLabelsFileName   = "labels"
 )
 
-//CreatePipelinesJob Create Tekton pipeline job
-func CreatePipelinesJob(containerName string, action string, pipelineInfo *model.PipelineInfo, appName string, initContainers []corev1.Container, envVars *[]corev1.EnvVar) *batchv1.Job {
+//CreateActionPipelineJob Create action pipeline job
+func CreateActionPipelineJob(containerName string, action string, pipelineInfo *model.PipelineInfo, appName string, initContainers []corev1.Container, envVars *[]corev1.EnvVar) *batchv1.Job {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 	timestamp := time.Now().Format("20060102150405")
@@ -34,7 +34,7 @@ func CreatePipelinesJob(containerName string, action string, pipelineInfo *model
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
-				kube.RadixJobTypeLabel:  getPipelineJobTypeLabelByPipelinesAction(action),
+				kube.RadixJobTypeLabel:  getActionPipelineJobTypeLabelByPipelinesAction(action),
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -63,7 +63,7 @@ func CreatePipelinesJob(containerName string, action string, pipelineInfo *model
 	return &job
 }
 
-func getPipelineJobTypeLabelByPipelinesAction(action string) string {
+func getActionPipelineJobTypeLabelByPipelinesAction(action string) string {
 	if action == pipelineDefaults.RadixPipelineActionPrepare {
 		return kube.RadixJobTypePreparePipelines
 	}

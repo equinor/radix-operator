@@ -99,12 +99,12 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 
 	err = app.applyRbacOnRadixTekton()
 	if err != nil {
-		logger.Errorf("Failed to set access permissions needed to copy radix config to configmap: %v", err)
+		logger.Errorf("failed to set access permissions needed to copy radix config to configmap and load Tekton pipelines and tasks: %v", err)
 		return err
 	}
 	err = app.applyRbacOnPipelineRunner()
 	if err != nil {
-		logger.Errorf("Failed to set access permissions needed by pipeline: %v", err)
+		logger.Errorf("failed to set access permissions needed by pipeline: %v", err)
 		return err
 	}
 	err = app.applyRbacOnScanImageRunner()

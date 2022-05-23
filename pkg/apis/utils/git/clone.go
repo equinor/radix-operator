@@ -58,7 +58,7 @@ func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName str
 				branch,
 				"--verbose",
 				"--progress",
-				"/workspace"},
+				"/workspace"}, //git.Workspace
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      BuildContextVolumeName,

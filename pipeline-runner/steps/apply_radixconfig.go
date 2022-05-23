@@ -2,7 +2,6 @@ package steps
 
 import (
 	"fmt"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/errors"
@@ -12,6 +11,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
