@@ -187,7 +187,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	}
 	desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 
-	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode())
+	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode(), appName, componentName)
 	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetPodSpecTolerations(deployComponent.GetNode())
 
 	return nil
