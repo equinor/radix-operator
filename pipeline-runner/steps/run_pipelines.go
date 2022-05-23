@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
@@ -75,7 +76,7 @@ func (cli *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo)
 func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipelineInfo *model.
 	PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
-	action := "run"
+	action := pipelineDefaults.RadixPipelineActionRun
 	envVars := []corev1.EnvVar{
 		{
 			Name:  defaults.RadixPipelineActionEnvironmentVariable,

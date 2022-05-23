@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -63,7 +64,7 @@ func CreatePipelinesJob(containerName string, action string, pipelineInfo *model
 }
 
 func getPipelineJobTypeLabelByPipelinesAction(action string) string {
-	if action == "prepare" {
+	if action == pipelineDefaults.RadixPipelineActionPrepare {
 		return kube.RadixJobTypePreparePipelines
 	}
 	return kube.RadixJobTypeRunPipelines

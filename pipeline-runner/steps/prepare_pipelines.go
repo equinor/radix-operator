@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	pipelineUtils "github.com/equinor/radix-operator/pipeline-runner/utils"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -78,7 +79,7 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
 
-	action := "prepare"
+	action := pipelineDefaults.RadixPipelineActionPrepare
 	envVars := []corev1.EnvVar{
 		{
 			Name:  defaults.RadixPipelineActionEnvironmentVariable,
