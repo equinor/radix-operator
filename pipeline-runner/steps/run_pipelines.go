@@ -100,6 +100,26 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 			Value: pipelineInfo.RadixConfigMapName,
 		},
 		{
+			Name:  defaults.RadixPipelineTypeEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.PipelineType,
+		},
+		{
+			Name:  defaults.RadixImageTagEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.ImageTag,
+		},
+		{
+			Name:  defaults.RadixPromoteDeploymentEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.DeploymentName,
+		},
+		{
+			Name:  defaults.RadixPromoteFromEnvironmentEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.FromEnvironment,
+		},
+		{
+			Name:  defaults.RadixPromoteToEnvironmentEnvironmentVariable,
+			Value: pipelineInfo.PipelineArguments.ToEnvironment,
+		},
+		{
 			Name:  defaults.LogLevel,
 			Value: cli.GetEnv().GetLogLevel(),
 		},
