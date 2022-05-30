@@ -405,8 +405,8 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 
 	for _, jobStep := range jobStepList.Items {
 		jobType := jobStep.GetLabels()[kube.RadixJobTypeLabel]
-		if strings.EqualFold(jobType, kube.RadixJobTypeCloneConfig) {
-			// Clone of radix config represented as an initial step
+		if strings.EqualFold(jobType, kube.RadixJobTypePreparePipelines) {
+			// Prepare pipeline of radix config represented as an initial step
 			continue
 		}
 
