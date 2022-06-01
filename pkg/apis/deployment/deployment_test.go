@@ -2613,7 +2613,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 	t.Run("has node with no gpu", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
-		assert.Nil(t, deployment.Spec.Template.Spec.Affinity)
+		assert.Nil(t, deployment.Spec.Template.Spec.Affinity.NodeAffinity)
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -2622,7 +2622,7 @@ func TestUseGpuNodeOnDeploy(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.Nil(t, affinity)
+		assert.Nil(t, affinity.NodeAffinity)
 
 		tolerations := deployment.Spec.Template.Spec.Tolerations
 		assert.Len(t, tolerations, 0)
@@ -2822,31 +2822,31 @@ func TestUseGpuNodeCountOnDeployment(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName3, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.Nil(t, affinity)
+		assert.Nil(t, affinity.NodeAffinity)
 	})
 	t.Run("has node with gpu-count -1", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName4, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.Nil(t, affinity)
+		assert.Nil(t, affinity.NodeAffinity)
 	})
 	t.Run("has node with invalid value of gpu-count", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName5, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.Nil(t, affinity)
+		assert.Nil(t, affinity.NodeAffinity)
 	})
 	t.Run("has node with no gpu-count", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), componentName6, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.Nil(t, affinity)
+		assert.Nil(t, affinity.NodeAffinity)
 	})
 	t.Run("job has node, but pod template of Job Scheduler does not have it", func(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.Nil(t, affinity)
+		assert.Nil(t, affinity.NodeAffinity)
 	})
 }
 
@@ -2913,7 +2913,7 @@ func TestUseGpuNodeWithGpuCountOnDeployment(t *testing.T) {
 		t.Parallel()
 		deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), jobComponentName, metav1.GetOptions{})
 		affinity := deployment.Spec.Template.Spec.Affinity
-		assert.Nil(t, affinity)
+		assert.Nil(t, affinity.NodeAffinity)
 	})
 }
 
