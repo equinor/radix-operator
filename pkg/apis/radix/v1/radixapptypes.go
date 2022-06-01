@@ -49,7 +49,8 @@ type EnvVarsMap map[string]string
 
 //BuildSpec defines the specification for building the components
 type BuildSpec struct {
-	Secrets []string `json:"secrets" yaml:"secrets"`
+	Secrets   []string   `json:"secrets" yaml:"secrets"`
+	Variables EnvVarsMap `json:"variables" yaml:"variables"`
 }
 
 // EgressPort defines a port in context of EgressRule
@@ -79,7 +80,9 @@ type Environment struct {
 
 // EnvBuild defines build parameters of a specific environment
 type EnvBuild struct {
-	From string `json:"from,omitempty" yaml:"from,omitempty"`
+	From      string     `json:"from,omitempty" yaml:"from,omitempty"`
+	Variables EnvVarsMap `json:"variables,omitempty" yaml:"variables,omitempty"`
+	Secrets   []string   `json:"secrets,omitempty" yaml:"secrets,omitempty"`
 }
 
 // AppAlias defines a URL alias for this application. The URL will be of form <app-name>.apps.radix.equinor.com

@@ -142,7 +142,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		// The Deployment resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix deployment '%s' in work queue no longer exists", name))
+			utilruntime.HandleError(fmt.Errorf("radix deployment %s in work queue no longer exists", name))
 			return nil
 		}
 

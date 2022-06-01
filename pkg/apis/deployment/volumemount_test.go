@@ -124,7 +124,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
+			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
@@ -171,7 +171,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
+			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
 				BuildComponent()
@@ -187,7 +187,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	suite.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
+			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
@@ -226,7 +226,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			for _, testCase := range scenarios {
-				t.Logf("Test case '%s' for component '%s'", testCase.name, factory.GetTargetType())
+				t.Logf("Test case %s for component %s", testCase.name, factory.GetTargetType())
 				component := utils.NewDeployCommonComponentBuilder(factory).
 					WithName("app").
 					WithVolumeMounts([]v1.RadixVolumeMount{
@@ -317,7 +317,7 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
-			t.Logf("Scenario '%s'", scenario.name)
+			t.Logf("Scenario %s", scenario.name)
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
@@ -435,7 +435,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
-			t.Logf("Scenario '%s' for volume mount type '%s', PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
+			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
 			_, _ = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), &scenario.pvc, metav1.CreateOptions{})
 
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
@@ -452,7 +452,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
-			t.Logf("Scenario '%s' for volume mount type '%s', PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
+			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
 
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
@@ -515,7 +515,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 		testEnv := getTestEnv()
 		deployment := getDeployment(testEnv)
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case for component '%s'", factory.GetTargetType())
+			t.Logf("Test case for component %s", factory.GetTargetType())
 
 			deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{})
 			deployComponent := deployment.radixDeployment.Spec.Components[0]
@@ -532,7 +532,7 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 		deployment := getDeployment(testEnv)
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
-				t.Logf("Test case '%s' for component '%s'", scenario.name, factory.GetTargetType())
+				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
 
 				deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{scenario.radixVolumeMount})
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
@@ -605,7 +605,7 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 		testEnv := getTestEnv()
 		deployment := getDeployment(testEnv)
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case for component '%s'", factory.GetTargetType())
+			t.Logf("Test case for component %s", factory.GetTargetType())
 
 			deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{})
 			deployComponent := deployment.radixDeployment.Spec.Components[0]
@@ -622,7 +622,7 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 		deployment := getDeployment(testEnv)
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
-				t.Logf("Test case '%s' for component '%s'", scenario.name, factory.GetTargetType())
+				t.Logf("Test case %s for component %s", scenario.name, factory.GetTargetType())
 
 				deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{scenario.radixVolumeMount})
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
@@ -653,7 +653,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			t.Logf("Test case '%s' for component '%s'", scenarios[0].name, factory.GetTargetType())
+			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
 				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
@@ -836,7 +836,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			for _, scenario := range scenarios {
-				t.Logf("Test case '%s', volume type '%s', component '%s'", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
+				t.Logf("Test case %s, volume type %s, component %s", scenario.name, scenario.props.radixVolumeMountType, factory.GetTargetType())
 				testEnv := getTestEnv()
 				deployment := getDeployment(testEnv)
 				deployment.radixDeployment = buildRd(appName, environment, componentName, scenario.radixVolumeMounts)
@@ -1052,7 +1052,7 @@ func setStorageClassMountOption(sc *storagev1.StorageClass, key, value string) {
 			return
 		}
 	}
-	fmt.Printf("MountOption '%s' not found for the storage class", key)
+	fmt.Printf("MountOption %s not found for the storage class", key)
 }
 
 func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expectedPvcScProperties {

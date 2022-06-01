@@ -359,7 +359,7 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		//save radixconfig env-var value to metadata
 		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
 		envVarMetadataMap[envVarName] = envVarMetadata
-		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
+		log.Debugf("RadixConfig environment variable %s has been set or changed in Radix console", envVarName)
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)

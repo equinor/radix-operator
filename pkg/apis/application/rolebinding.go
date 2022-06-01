@@ -60,8 +60,14 @@ func (app Application) applyPlatformUserRoleToMachineUser(serviceAccount *corev1
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline
-func (app Application) applyRbacOnPipelineRunner(serviceAccount *corev1.ServiceAccount) error {
-	err := app.givePipelineAccessToRR(serviceAccount)
+func (app Application) applyRbacOnPipelineRunner() error {
+	serviceAccount, err := app.applyPipelineServiceAccount()
+	if err != nil {
+		logger.Errorf("Failed to apply service account needed by pipeline. %v", err)
+		return err
+	}
+
+	err = app.givePipelineAccessToRR(serviceAccount, "radix-pipeline-rr")
 	if err != nil {
 		return err
 	}
@@ -74,13 +80,18 @@ func (app Application) applyRbacOnPipelineRunner(serviceAccount *corev1.ServiceA
 	return app.givePipelineAccessToDefaultNamespace(serviceAccount)
 }
 
-func (app Application) applyRbacOnConfigToMapRunner() error {
-	serviceAccount, err := app.applyConfigToMapServiceAccount()
+func (app Application) applyRbacOnRadixTekton() error {
+	serviceAccount, err := app.applyRadixTektonServiceAccount()
 	if err != nil {
 		return err
 	}
 
-	return app.giveConfigToMapRunnerAccessToAppNamespace(serviceAccount)
+	err = app.givePipelineAccessToRR(serviceAccount, "radix-tekton-rr")
+	if err != nil {
+		return err
+	}
+
+	return app.giveRadixTektonAccessToAppNamespace(serviceAccount)
 }
 
 func (app Application) applyRbacOnScanImageRunner() error {
@@ -92,11 +103,11 @@ func (app Application) applyRbacOnScanImageRunner() error {
 	return app.giveScanImageRunnerAccessToAppNamespace(serviceAccount)
 }
 
-func (app Application) givePipelineAccessToRR(serviceAccount *corev1.ServiceAccount) error {
+func (app Application) givePipelineAccessToRR(serviceAccount *corev1.ServiceAccount, clusterRoleNamePrefix string) error {
 	k := app.kubeutil
 
-	clusterrole := app.rrPipelineClusterRole()
-	clusterrolebinding := app.rrPipelineClusterRoleBinding(serviceAccount, clusterrole)
+	clusterrole := app.rrPipelineClusterRole(clusterRoleNamePrefix)
+	clusterrolebinding := app.rrClusterRoleBinding(serviceAccount, clusterrole)
 
 	err := k.ApplyClusterRole(clusterrole)
 	if err != nil {
@@ -120,22 +131,15 @@ func (app Application) givePipelineAccessToAppNamespace(serviceAccount *corev1.S
 	return k.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (app Application) giveConfigToMapRunnerAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
+func (app Application) giveRadixTektonAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
 	k := app.kubeutil
 	registration := app.registration
 
 	namespace := utils.GetAppNamespace(registration.Name)
 
-	// create role
-	role := app.configToMapRunnerRole()
-	err := k.ApplyRole(namespace, role)
-	if err != nil {
-		return err
-	}
-
 	// Create role binding
-	rolebinding := app.configToMapRunnerRoleBinding(serviceAccount)
-	return k.ApplyRoleBinding(namespace, rolebinding)
+	roleBinding := app.radixTektonRoleBinding(serviceAccount)
+	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
 func (app Application) giveScanImageRunnerAccessToAppNamespace(serviceAccount *corev1.ServiceAccount) error {
@@ -188,7 +192,7 @@ func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.Service
 			Name:     defaults.PipelineRunnerRoleName,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -220,7 +224,7 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 			Name:     defaults.PipelineRoleName,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -230,10 +234,10 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 	return rolebinding
 }
 
-func (app Application) configToMapRunnerRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
+func (app Application) radixTektonRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	logger.Debugf("Create rolebinding config %s", defaults.ConfigToMapRunnerRoleName)
+	logger.Debugf("Create rolebinding config %s", defaults.RadixTektonRoleName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
@@ -241,18 +245,18 @@ func (app Application) configToMapRunnerRoleBinding(serviceAccount *corev1.Servi
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.ConfigToMapRunnerRoleName,
+			Name: defaults.RadixTektonRoleName,
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
 			},
 		},
 		RoleRef: auth.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     defaults.ConfigToMapRunnerRoleName,
+			Kind:     "ClusterRole",
+			Name:     defaults.RadixTektonRoleName,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -294,7 +298,7 @@ func (app Application) scanImageRunnerRoleBinding(serviceAccount *corev1.Service
 	return rolebinding
 }
 
-func (app Application) rrPipelineClusterRoleBinding(serviceAccount *corev1.ServiceAccount, clusterrole *auth.ClusterRole) *auth.ClusterRoleBinding {
+func (app Application) rrClusterRoleBinding(serviceAccount *corev1.ServiceAccount, clusterrole *auth.ClusterRole) *auth.ClusterRoleBinding {
 	registration := app.registration
 	appName := registration.Name
 	clusterroleBindingName := clusterrole.Name
@@ -319,7 +323,7 @@ func (app Application) rrPipelineClusterRoleBinding(serviceAccount *corev1.Servi
 			Name:     clusterrole.Name,
 		},
 		Subjects: []auth.Subject{
-			auth.Subject{
+			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccount.Name,
 				Namespace: serviceAccount.Namespace,
@@ -381,7 +385,7 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 
 	ownerReference := app.getOwnerReference()
 
-	subjects := []auth.Subject{auth.Subject{
+	subjects := []auth.Subject{{
 		Kind:      "ServiceAccount",
 		Name:      defaults.GetMachineUserRoleName(registration.Name),
 		Namespace: utils.GetAppNamespace(registration.Name),

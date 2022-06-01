@@ -28,7 +28,7 @@ func EqualStorageClassLists(scList1, scList2 *[]storagev1.StorageClass) (bool, e
 	for scName, sc1 := range scMap1 {
 		sc2, ok := scMap2[scName]
 		if !ok {
-			return false, fmt.Errorf("StorageClass not found by name '%s' in second list", scName)
+			return false, fmt.Errorf("StorageClass not found by name %s in second list", scName)
 		}
 		if equal, err := EqualStorageClasses(sc1, sc2); err != nil || !equal {
 			return false, err
