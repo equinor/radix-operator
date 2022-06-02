@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 	"sync"
 	"time"
 
@@ -37,10 +38,33 @@ func (r *ResourceLocker) ReleaseLock(key string) {
 	r.l.Delete(key)
 }
 
-type KeyFunc func(obj interface{}) (string, error)
+type KeyFunc func(obj interface{}) (string, string, error)
 
-func KeyByNamespace(obj interface{}) (string, error) {
-	return "", nil
+func getStringFromObj(obj interface{}) (string, error) {
+	var key string
+	var ok bool
+	if key, ok = obj.(string); !ok {
+		return "", fmt.Errorf("expected string in workqueue but got %#v", obj)
+	}
+	return key, nil
+}
+
+func KeyByNamespace(obj interface{}) (string, string, error) {
+	objStr, err := getStringFromObj(obj)
+	if err != nil {
+		return "", "", err
+	}
+	namespace, _, err := cache.SplitMetaNamespaceKey(objStr)
+	return namespace, objStr, err
+}
+
+func KeyByName(obj interface{}) (string, string, error) {
+	objStr, err := getStringFromObj(obj)
+	if err != nil {
+		return "", "", err
+	}
+	_, name, err := cache.SplitMetaNamespaceKey(objStr)
+	return name, objStr, err
 }
 
 // GetOwner Function pointer to pass to retrieve owner
@@ -107,16 +131,20 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	c.Log.Info("Starting workers")
 	// Launch workers to process resources
-	go wait.Until(func() { c.runWorker(threadiness) }, time.Second, stopCh)
+	var errorGroup errgroup.Group
+	errorGroup.SetLimit(threadiness)
+	go wait.Until(func() { c.runWorker(&errorGroup) }, time.Second, stopCh)
 
 	c.Log.Info("Started workers")
 	<-stopCh
-	c.Log.Info("Shutting down workers")
+	c.Log.Info("Waiting for workers to finish")
+	_ = errorGroup.Wait()
 
 	return nil
 }
 
-func (c *Controller) runWorker(threadiness int) {
+func (c *Controller) runWorker(errorGroup *errgroup.Group) {
+
 	for {
 		obj, shutdown := c.WorkQueue.Get()
 		if shutdown {
@@ -124,52 +152,41 @@ func (c *Controller) runWorker(threadiness int) {
 		}
 
 		func() {
-			defer c.WorkQueue.Done(obj)
-			key, err := c.KeyFunc(obj)
+			if obj == nil || fmt.Sprint(obj) == "" {
+				return
+			}
+			key, objStr, err := c.KeyFunc(obj)
 			if err != nil {
-				// Log error?
+				c.WorkQueue.Forget(obj)
+				metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
+				utilruntime.HandleError(err)
+				metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
+				c.WorkQueue.Done(obj)
 				return
 			}
 
 			if !c.locker.TryGetLock(key) {
-				c.WorkQueue.Add(obj)
+				c.Log.Infof("lock for %s was busy, requeuing %s", key, objStr)
+				c.WorkQueue.Add(objStr)
+				c.WorkQueue.Done(obj)
 				return
 			}
 
+			c.Log.Infof("acquired lock for %s, processing %s", key, objStr)
 			// Implement Rate limit number of concurrent go routines (errgroup)
-			// Use threasdiness for limit
-			go func(obj interface{}, key string) {
-				defer c.locker.ReleaseLock(key)
-				c.processNextWorkItem(obj)
-			}(obj, key)
+			// Use threadiness for limit
+			errorGroup.Go(func() error {
+				c.processNextWorkItem(obj, objStr)
+				c.WorkQueue.Done(obj)
+				c.locker.ReleaseLock(key)
+				return nil
+			})
 		}()
-
 	}
 }
 
-func (c *Controller) processNextWorkItem(obj interface{}) bool {
-	// obj, shutdown := c.WorkQueue.Get()
-
-	if obj == nil || fmt.Sprint(obj) == "" {
-		return true
-	}
-	// if shutdown {
-	// 	return false
-	// }
-
+func (c *Controller) processNextWorkItem(obj interface{}, key string) {
 	err := func(obj interface{}) error {
-		// defer c.WorkQueue.Done(obj)
-		var key string
-		var ok bool
-
-		if key, ok = obj.(string); !ok {
-			c.WorkQueue.Forget(obj)
-			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
-			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
-			return nil
-		}
-
 		if err := c.syncHandler(key); err != nil {
 			c.WorkQueue.AddRateLimited(key)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
@@ -188,10 +205,7 @@ func (c *Controller) processNextWorkItem(obj interface{}) bool {
 	if err != nil {
 		utilruntime.HandleError(err)
 		metrics.OperatorError(c.HandlerOf, "process_next_work_item", "unhandled")
-		return true
 	}
-
-	return true
 }
 
 func (c *Controller) syncHandler(key string) error {
