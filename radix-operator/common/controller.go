@@ -1,7 +1,9 @@
 package common
 
 import (
+	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -21,6 +23,26 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+type ResourceLocker struct {
+	l sync.Map
+}
+
+func (r *ResourceLocker) TryGetLock(key string) bool {
+	_, loaded := r.l.LoadOrStore(key, true)
+
+	return !loaded
+}
+
+func (r *ResourceLocker) ReleaseLock(key string) {
+	r.l.Delete(key)
+}
+
+type KeyFunc func(obj interface{}) (string, error)
+
+func KeyByNamespace(obj interface{}) (string, error) {
+	return "", nil
+}
+
 // GetOwner Function pointer to pass to retrieve owner
 type GetOwner func(radixclient.Interface, string, string) (interface{}, error)
 
@@ -37,6 +59,8 @@ type Controller struct {
 	Log                   *log.Entry
 	WaitForChildrenToSync bool
 	Recorder              record.EventRecorder
+	locker                ResourceLocker
+	KeyFunc               KeyFunc
 }
 
 // NewEventRecorder Creates an event recorder for controller
@@ -53,6 +77,10 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.WorkQueue.ShutDown()
+
+	if c.KeyFunc == nil {
+		return errors.New("KeyFunc must be set")
+	}
 
 	// Start the informer factories to begin populating the informer caches
 	c.Log.Debugf("Starting %s", c.Name)
@@ -79,9 +107,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	c.Log.Info("Starting workers")
 	// Launch workers to process resources
-	for i := 0; i < threadiness; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
-	}
+	go wait.Until(func() { c.runWorker(threadiness) }, time.Second, stopCh)
 
 	c.Log.Info("Started workers")
 	<-stopCh
@@ -90,22 +116,49 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) runWorker() {
-	for c.processNextWorkItem() {
+func (c *Controller) runWorker(threadiness int) {
+	for {
+		obj, shutdown := c.WorkQueue.Get()
+		if shutdown {
+			return
+		}
+
+		func() {
+			defer c.WorkQueue.Done(obj)
+			key, err := c.KeyFunc(obj)
+			if err != nil {
+				// Log error?
+				return
+			}
+
+			if !c.locker.TryGetLock(key) {
+				c.WorkQueue.Add(obj)
+				return
+			}
+
+			// Implement Rate limit number of concurrent go routines (errgroup)
+			// Use threasdiness for limit
+			go func(obj interface{}, key string) {
+				defer c.locker.ReleaseLock(key)
+				c.processNextWorkItem(obj)
+			}(obj, key)
+		}()
+
 	}
 }
 
-func (c *Controller) processNextWorkItem() bool {
-	obj, shutdown := c.WorkQueue.Get()
+func (c *Controller) processNextWorkItem(obj interface{}) bool {
+	// obj, shutdown := c.WorkQueue.Get()
+
 	if obj == nil || fmt.Sprint(obj) == "" {
 		return true
 	}
-	if shutdown {
-		return false
-	}
+	// if shutdown {
+	// 	return false
+	// }
 
 	err := func(obj interface{}) error {
-		defer c.WorkQueue.Done(obj)
+		// defer c.WorkQueue.Done(obj)
 		var key string
 		var ok bool
 

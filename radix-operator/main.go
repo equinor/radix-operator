@@ -117,7 +117,7 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := registrationController.Run(threadiness, stop); err != nil {
+	if err := registrationController.Run(1, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -154,7 +154,7 @@ func startApplicationController(client kubernetes.Interface, radixClient radixcl
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := applicationController.Run(threadiness, stop); err != nil {
+	if err := applicationController.Run(1, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -192,7 +192,7 @@ func startEnvironmentController(client kubernetes.Interface, radixClient radixcl
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := environmentController.Run(threadiness, stop); err != nil {
+	if err := environmentController.Run(1, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -248,7 +248,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := deployController.Run(threadiness, stop); err != nil {
+	if err := deployController.Run(1, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -285,7 +285,7 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := jobController.Run(threadiness, stop); err != nil {
+	if err := jobController.Run(1, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -322,7 +322,7 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := alertController.Run(threadiness, stop); err != nil {
+	if err := alertController.Run(1, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
