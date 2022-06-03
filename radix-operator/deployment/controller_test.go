@@ -157,6 +157,6 @@ func startDeploymentController(client kubernetes.Interface,
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(1, stop)
+	controller.Run(4, stop)
 
 }

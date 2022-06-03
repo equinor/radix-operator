@@ -167,11 +167,8 @@ func (c *Controller) runWorkers(errorGroup *errgroup.Group) {
 
 			if !c.locker.TryGetLock(lockKey) {
 				c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, workItemString)
-				c.WorkQueue.Add(workItemString)
+				c.WorkQueue.AddRateLimited(workItemString)
 				c.WorkQueue.Done(workItem)
-
-				//TODO: If workQueue is empty except for locked items, all threads in errorGroup will get stuck here in
-				// CPU intensive loop. Either sleep for N seconds if busy lock, or add workItem back as rate limited?
 				return
 			}
 
