@@ -43,9 +43,9 @@ const (
 	ingressConfigurationMap       = "radix-operator-ingress-configmap"
 	alertControllerThreads        = 10
 	applicationControllerThreads  = 10
-	deploymentControllerThreads   = 10
+	deploymentControllerThreads   = 50
 	environmentControllerThreads  = 10
-	jobControllerThreads          = 10
+	jobControllerThreads          = 50
 	registrationControllerThreads = 10
 )
 

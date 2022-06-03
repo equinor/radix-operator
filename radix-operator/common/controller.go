@@ -166,7 +166,7 @@ func (c *Controller) runWorkers(errorGroup *errgroup.Group) {
 			}
 
 			if !c.locker.TryGetLock(lockKey) {
-				c.Log.Debugf("lock for %s was busy, requeuing %s", lockKey, workItemString)
+				c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, workItemString)
 				c.WorkQueue.Add(workItemString)
 				c.WorkQueue.Done(workItem)
 
@@ -175,11 +175,11 @@ func (c *Controller) runWorkers(errorGroup *errgroup.Group) {
 				return
 			}
 
-			c.Log.Debugf("acquired lock for %s, processing %s", lockKey, workItemString)
+			c.Log.Debugf("Acquired lock for %s, processing %s", lockKey, workItemString)
 			errorGroup.Go(func() error {
 				c.processWorkItem(workItem, workItemString)
 				c.locker.ReleaseLock(lockKey)
-				c.Log.Debugf("released lock for %s after processing %s", lockKey, workItemString)
+				c.Log.Debugf("Released lock for %s after processing %s", lockKey, workItemString)
 				return nil
 			})
 		}()
