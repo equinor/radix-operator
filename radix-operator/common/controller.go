@@ -133,7 +133,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	// Launch workers to process resources
 	var errorGroup errgroup.Group
 	errorGroup.SetLimit(threadiness)
-	go wait.Until(func() { c.runWorker(&errorGroup) }, time.Second, stopCh)
+	go wait.Until(func() { c.runWorkers(&errorGroup) }, time.Second, stopCh)
 
 	c.Log.Info("Started workers")
 	<-stopCh
@@ -143,64 +143,66 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) runWorker(errorGroup *errgroup.Group) {
+func (c *Controller) runWorkers(errorGroup *errgroup.Group) {
 
 	for {
-		obj, shutdown := c.WorkQueue.Get()
+		workItem, shutdown := c.WorkQueue.Get()
 		if shutdown {
 			return
 		}
 
 		func() {
-			if obj == nil || fmt.Sprint(obj) == "" {
+			if workItem == nil || fmt.Sprint(workItem) == "" {
 				return
 			}
-			key, objStr, err := c.KeyFunc(obj)
+			lockKey, workItemString, err := c.KeyFunc(workItem)
 			if err != nil {
-				c.WorkQueue.Forget(obj)
+				c.WorkQueue.Forget(workItem)
 				metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 				utilruntime.HandleError(err)
 				metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
-				c.WorkQueue.Done(obj)
+				c.WorkQueue.Done(workItem)
 				return
 			}
 
-			if !c.locker.TryGetLock(key) {
-				c.Log.Infof("lock for %s was busy, requeuing %s", key, objStr)
-				c.WorkQueue.Add(objStr)
-				c.WorkQueue.Done(obj)
+			if !c.locker.TryGetLock(lockKey) {
+				c.Log.Debugf("lock for %s was busy, requeuing %s", lockKey, workItemString)
+				c.WorkQueue.Add(workItemString)
+				c.WorkQueue.Done(workItem)
+
+				//TODO: If workQueue is empty except for locked items, all threads in errorGroup will get stuck here in
+				// CPU intensive loop. Either sleep for N seconds if busy lock, or add workItem back as rate limited?
 				return
 			}
 
-			c.Log.Infof("acquired lock for %s, processing %s", key, objStr)
-			// Implement Rate limit number of concurrent go routines (errgroup)
-			// Use threadiness for limit
+			c.Log.Debugf("acquired lock for %s, processing %s", lockKey, workItemString)
 			errorGroup.Go(func() error {
-				c.processNextWorkItem(obj, objStr)
-				c.WorkQueue.Done(obj)
-				c.locker.ReleaseLock(key)
+				c.processWorkItem(workItem, workItemString)
+				c.locker.ReleaseLock(lockKey)
+				c.Log.Debugf("released lock for %s after processing %s", lockKey, workItemString)
 				return nil
 			})
 		}()
 	}
 }
 
-func (c *Controller) processNextWorkItem(obj interface{}, key string) {
-	err := func(obj interface{}) error {
-		if err := c.syncHandler(key); err != nil {
-			c.WorkQueue.AddRateLimited(key)
+func (c *Controller) processWorkItem(workItem interface{}, workItemString string) {
+	defer c.WorkQueue.Done(workItem)
+	err := func(workItem interface{}) error {
+		if err := c.syncHandler(workItemString); err != nil {
+			c.WorkQueue.AddRateLimited(workItemString)
 			metrics.OperatorError(c.HandlerOf, "work_queue", "requeuing")
 			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
 			metrics.CustomResourceUpdatedAndRequeued(c.HandlerOf)
 
-			return fmt.Errorf("error syncing %s: %s, requeuing", key, err.Error())
+			return fmt.Errorf("error syncing %s: %s, requeuing", workItemString, err.Error())
 		}
 
-		c.WorkQueue.Forget(obj)
+		c.WorkQueue.Forget(workItem)
 		metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-		c.Log.Infof("Successfully synced %s", key)
+		c.Log.Infof("Successfully synced %s", workItemString)
 		return nil
-	}(obj)
+	}(workItem)
 
 	if err != nil {
 		utilruntime.HandleError(err)

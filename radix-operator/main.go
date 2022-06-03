@@ -39,9 +39,14 @@ import (
 )
 
 const (
-	resyncPeriod            = 0
-	threadiness             = 1
-	ingressConfigurationMap = "radix-operator-ingress-configmap"
+	resyncPeriod                  = 0
+	ingressConfigurationMap       = "radix-operator-ingress-configmap"
+	alertControllerThreads        = 10
+	applicationControllerThreads  = 10
+	deploymentControllerThreads   = 10
+	environmentControllerThreads  = 10
+	jobControllerThreads          = 10
+	registrationControllerThreads = 10
 )
 
 var logger *log.Entry
@@ -117,7 +122,7 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := registrationController.Run(10, stop); err != nil {
+	if err := registrationController.Run(registrationControllerThreads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -154,7 +159,7 @@ func startApplicationController(client kubernetes.Interface, radixClient radixcl
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := applicationController.Run(10, stop); err != nil {
+	if err := applicationController.Run(applicationControllerThreads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -192,7 +197,7 @@ func startEnvironmentController(client kubernetes.Interface, radixClient radixcl
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := environmentController.Run(10, stop); err != nil {
+	if err := environmentController.Run(environmentControllerThreads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -248,7 +253,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := deployController.Run(10, stop); err != nil {
+	if err := deployController.Run(deploymentControllerThreads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -285,7 +290,7 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := jobController.Run(10, stop); err != nil {
+	if err := jobController.Run(jobControllerThreads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
@@ -322,7 +327,7 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := alertController.Run(10, stop); err != nil {
+	if err := alertController.Run(alertControllerThreads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
