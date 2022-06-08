@@ -3,9 +3,10 @@ package common
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
@@ -14,7 +15,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -24,21 +24,21 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-type ResourceLocker struct {
+type resourceLocker struct {
 	l sync.Map
 }
 
-func (r *ResourceLocker) TryGetLock(key string) bool {
+func (r *resourceLocker) TryGetLock(key string) bool {
 	_, loaded := r.l.LoadOrStore(key, true)
 
 	return !loaded
 }
 
-func (r *ResourceLocker) ReleaseLock(key string) {
+func (r *resourceLocker) ReleaseLock(key string) {
 	r.l.Delete(key)
 }
 
-type KeyFunc func(obj interface{}) (string, string, error)
+type LockKeyAndIdentifierFunc func(obj interface{}) (lockKey string, identifier string, err error)
 
 func getStringFromObj(obj interface{}) (string, error) {
 	var key string
@@ -49,22 +49,22 @@ func getStringFromObj(obj interface{}) (string, error) {
 	return key, nil
 }
 
-func KeyByNamespace(obj interface{}) (string, string, error) {
-	objStr, err := getStringFromObj(obj)
+func NamespacePartitionKey(obj interface{}) (lockKey string, identifier string, err error) {
+	identifier, err = getStringFromObj(obj)
 	if err != nil {
-		return "", "", err
+		return
 	}
-	namespace, _, err := cache.SplitMetaNamespaceKey(objStr)
-	return namespace, objStr, err
+	lockKey, _, err = cache.SplitMetaNamespaceKey(identifier)
+	return
 }
 
-func KeyByName(obj interface{}) (string, string, error) {
-	objStr, err := getStringFromObj(obj)
+func NamePartitionKey(obj interface{}) (lockKey string, identifier string, err error) {
+	identifier, err = getStringFromObj(obj)
 	if err != nil {
-		return "", "", err
+		return
 	}
-	_, name, err := cache.SplitMetaNamespaceKey(objStr)
-	return name, objStr, err
+	_, lockKey, err = cache.SplitMetaNamespaceKey(identifier)
+	return
 }
 
 // GetOwner Function pointer to pass to retrieve owner
@@ -83,8 +83,8 @@ type Controller struct {
 	Log                   *log.Entry
 	WaitForChildrenToSync bool
 	Recorder              record.EventRecorder
-	locker                ResourceLocker
-	KeyFunc               KeyFunc
+	LockKeyAndIdentifier  LockKeyAndIdentifierFunc
+	locker                resourceLocker
 }
 
 // NewEventRecorder Creates an event recorder for controller
@@ -100,10 +100,9 @@ func NewEventRecorder(controllerAgentName string, events typedcorev1.EventInterf
 // Run starts the shared informer, which will be stopped when stopCh is closed.
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
-	defer c.WorkQueue.ShutDown()
 
-	if c.KeyFunc == nil {
-		return errors.New("KeyFunc must be set")
+	if c.LockKeyAndIdentifier == nil {
+		return errors.New("LockKeyandIdentifier must be set")
 	}
 
 	// Start the informer factories to begin populating the informer caches
@@ -130,61 +129,73 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 
 	c.Log.Info("Starting workers")
-	// Launch workers to process resources
-	var errorGroup errgroup.Group
-	errorGroup.SetLimit(threadiness)
-	go wait.Until(func() { c.runWorkers(&errorGroup) }, time.Second, stopCh)
 
-	c.Log.Info("Started workers")
-	<-stopCh
-	c.Log.Info("Waiting for workers to finish")
-	_ = errorGroup.Wait()
+	// Launch workers to process resources
+	c.run(threadiness, stopCh)
 
 	return nil
 }
 
-func (c *Controller) runWorkers(errorGroup *errgroup.Group) {
+func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
+	var errorGroup errgroup.Group
+	errorGroup.SetLimit(threadiness)
+	defer func() {
+		c.Log.Info("Waiting for workers to complete")
+		errorGroup.Wait()
+		c.Log.Info("Workers completed")
+	}()
 
-	for {
-		workItem, shutdown := c.WorkQueue.Get()
-		if shutdown {
-			return
-		}
-
-		func() {
-			if workItem == nil || fmt.Sprint(workItem) == "" {
-				return
-			}
-			lockKey, workItemString, err := c.KeyFunc(workItem)
-			if err != nil {
-				c.WorkQueue.Forget(workItem)
-				metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
-				utilruntime.HandleError(err)
-				metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
-				c.WorkQueue.Done(workItem)
-				return
-			}
-
-			if !c.locker.TryGetLock(lockKey) {
-				c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, workItemString)
-				c.WorkQueue.AddRateLimited(workItemString)
-				c.WorkQueue.Done(workItem)
-				return
-			}
-
-			c.Log.Debugf("Acquired lock for %s, processing %s", lockKey, workItemString)
-			errorGroup.Go(func() error {
-				c.processWorkItem(workItem, workItemString)
-				c.locker.ReleaseLock(lockKey)
-				c.Log.Debugf("Released lock for %s after processing %s", lockKey, workItemString)
-				return nil
-			})
-		}()
+	for c.processNext(&errorGroup, stopCh) {
 	}
 }
 
+func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}) bool {
+	select {
+	case <-stopCh:
+		return false
+	default:
+	}
+
+	workItem, shutdown := c.WorkQueue.Get()
+	if shutdown || c.WorkQueue.ShuttingDown() {
+		return false
+	}
+
+	errorGroup.Go(func() error {
+		defer c.WorkQueue.Done(workItem)
+
+		if workItem == nil || fmt.Sprint(workItem) == "" {
+			return nil
+		}
+
+		lockKey, identifier, err := c.LockKeyAndIdentifier(workItem)
+		if err != nil {
+			c.WorkQueue.Forget(workItem)
+			metrics.CustomResourceRemovedFromQueue(c.HandlerOf)
+			utilruntime.HandleError(err)
+			metrics.OperatorError(c.HandlerOf, "work_queue", "error_workqueue_type")
+			return nil
+		}
+
+		if !c.locker.TryGetLock(lockKey) {
+			c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, identifier)
+			c.WorkQueue.AddRateLimited(identifier)
+			return nil
+		}
+		defer func() {
+			c.locker.ReleaseLock(lockKey)
+			c.Log.Debugf("Released lock for %s after processing %s", lockKey, identifier)
+		}()
+
+		c.Log.Debugf("Acquired lock for %s, processing %s", lockKey, identifier)
+		c.processWorkItem(workItem, identifier)
+		return nil
+	})
+
+	return true
+}
+
 func (c *Controller) processWorkItem(workItem interface{}, workItemString string) {
-	defer c.WorkQueue.Done(workItem)
 	err := func(workItem interface{}) error {
 		if err := c.syncHandler(workItemString); err != nil {
 			c.WorkQueue.AddRateLimited(workItemString)

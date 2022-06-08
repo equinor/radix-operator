@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/flowcontrol"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
@@ -23,8 +24,16 @@ var (
 	}, []string{"code", "method"})
 )
 
+type KubernetesClientConfigOption func(*rest.Config)
+
+func WithKubernetesClientRateLimiter(rateLimiter flowcontrol.RateLimiter) KubernetesClientConfigOption {
+	return func(c *rest.Config) {
+		c.RateLimiter = rateLimiter
+	}
+}
+
 // GetKubernetesClient Gets clients to talk to the API
-func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface) {
+func GetKubernetesClient(configOptions ...KubernetesClientConfigOption) (kubernetes.Interface, radixclient.Interface, monitoring.Interface, secretProviderClient.Interface) {
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 
@@ -36,6 +45,10 @@ func GetKubernetesClient() (kubernetes.Interface, radixclient.Interface, monitor
 	}
 	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
 		return promhttp.InstrumentRoundTripperDuration(nrRequests, rt)
+	}
+
+	for _, o := range configOptions {
+		o(config)
 	}
 
 	client, err := kubernetes.NewForConfig(config)

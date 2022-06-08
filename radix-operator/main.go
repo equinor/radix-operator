@@ -35,6 +35,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/flowcontrol"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
@@ -43,10 +44,12 @@ const (
 	ingressConfigurationMap       = "radix-operator-ingress-configmap"
 	alertControllerThreads        = 10
 	applicationControllerThreads  = 10
-	deploymentControllerThreads   = 50
+	deploymentControllerThreads   = 10
 	environmentControllerThreads  = 10
-	jobControllerThreads          = 50
+	jobControllerThreads          = 10
 	registrationControllerThreads = 10
+	kubeClientRateLimitQPS        = 500
+	kubeClientRateLimitBurst      = 1
 )
 
 var logger *log.Entry
@@ -61,7 +64,9 @@ func main() {
 	default:
 		logger.Logger.SetLevel(log.InfoLevel)
 	}
-	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient()
+
+	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(kubeClientRateLimitQPS, kubeClientRateLimitBurst))
+	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient(rateLimitConfig)
 
 	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	logger.Printf("Active cluster name: %v", activeclusternameEnvVar)
