@@ -24,17 +24,22 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-type resourceLocker struct {
+type resourceLocker interface {
+	TryGetLock(key string) bool
+	ReleaseLock(key string)
+}
+
+type defaultResourceLocker struct {
 	l sync.Map
 }
 
-func (r *resourceLocker) TryGetLock(key string) bool {
+func (r *defaultResourceLocker) TryGetLock(key string) bool {
 	_, loaded := r.l.LoadOrStore(key, true)
 
 	return !loaded
 }
 
-func (r *resourceLocker) ReleaseLock(key string) {
+func (r *defaultResourceLocker) ReleaseLock(key string) {
 	r.l.Delete(key)
 }
 
@@ -145,11 +150,16 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 		c.Log.Info("Workers completed")
 	}()
 
-	for c.processNext(&errorGroup, stopCh) {
+	locker := c.locker
+	if locker == nil {
+		locker = &defaultResourceLocker{}
+	}
+
+	for c.processNext(&errorGroup, stopCh, locker) {
 	}
 }
 
-func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}) bool {
+func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}, locker resourceLocker) bool {
 	select {
 	case <-stopCh:
 		return false
@@ -162,7 +172,9 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 	}
 
 	errorGroup.Go(func() error {
-		defer c.WorkQueue.Done(workItem)
+		defer func() {
+			c.WorkQueue.Done(workItem)
+		}()
 
 		if workItem == nil || fmt.Sprint(workItem) == "" {
 			return nil
@@ -177,13 +189,13 @@ func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struc
 			return nil
 		}
 
-		if !c.locker.TryGetLock(lockKey) {
+		if !locker.TryGetLock(lockKey) {
 			c.Log.Debugf("Lock for %s was busy, requeuing %s", lockKey, identifier)
 			c.WorkQueue.AddRateLimited(identifier)
 			return nil
 		}
 		defer func() {
-			c.locker.ReleaseLock(lockKey)
+			locker.ReleaseLock(lockKey)
 			c.Log.Debugf("Released lock for %s after processing %s", lockKey, identifier)
 		}()
 
