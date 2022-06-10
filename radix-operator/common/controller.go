@@ -157,6 +157,8 @@ func (c *Controller) run(threadiness int, stopCh <-chan struct{}) {
 
 	for c.processNext(&errorGroup, stopCh, locker) {
 	}
+
+	errorGroup.Wait()
 }
 
 func (c *Controller) processNext(errorGroup *errgroup.Group, stopCh <-chan struct{}, locker resourceLocker) bool {
