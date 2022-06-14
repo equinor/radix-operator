@@ -89,21 +89,14 @@ func main() {
 }
 
 func getInitParams() (int, int, int, int, int, int, int, float32, error) {
-	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(5, 10))
-	client, radixClient, _, secretPrvderClient := utils.GetKubernetesClient(rateLimitConfig)
-	kubeUtil, _ := kube.New(
-		client,
-		radixClient,
-		secretPrvderClient,
-	)
-	registrationControllerThreads, regErr := kubeUtil.GetRegistrationControllerThreads()
-	applicationControllerThreads, appErr := kubeUtil.GetApplicationControllerThreads()
-	environmentControllerThreads, envErr := kubeUtil.GetEnvironmentControllerThreads()
-	deploymentControllerThreads, depErr := kubeUtil.GetDeploymentControllerThreads()
-	jobControllerThreads, jobErr := kubeUtil.GetJobControllerThreads()
-	alertControllerThreads, aleErr := kubeUtil.GetAlertControllerThreads()
-	kubeClientRateLimitBurst, burstErr := kubeUtil.GetKubeClientRateLimitBurst()
-	kubeClientRateLimitQPS, qpsErr := kubeUtil.GetKubeClientRateLimitQPS()
+	registrationControllerThreads, regErr := defaults.GetRegistrationControllerThreads()
+	applicationControllerThreads, appErr := defaults.GetApplicationControllerThreads()
+	environmentControllerThreads, envErr := defaults.GetEnvironmentControllerThreads()
+	deploymentControllerThreads, depErr := defaults.GetDeploymentControllerThreads()
+	jobControllerThreads, jobErr := defaults.GetJobControllerThreads()
+	alertControllerThreads, aleErr := defaults.GetAlertControllerThreads()
+	kubeClientRateLimitBurst, burstErr := defaults.GetKubeClientRateLimitBurst()
+	kubeClientRateLimitQPS, qpsErr := defaults.GetKubeClientRateLimitQps()
 
 	errCat := errorUtils.Concat([]error{regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr})
 	return registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, errCat

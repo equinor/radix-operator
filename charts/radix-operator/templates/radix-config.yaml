@@ -10,11 +10,3 @@ data:
   containerRegistry: {{ .Values.containerRegistry }}
   subscriptionId: {{ .Values.subscriptionId }}
   clusterActiveEgressIps: {{ .Values.clusterActiveEgressIps }}
-  registrationControllerThreads: {{ .Values.registrationControllerThreads }}
-  applicationControllerThreads: {{ .Values.applicationControllerThreads }}
-  environmentControllerThreads: {{ .Values.environmentControllerThreads }}
-  deploymentControllerThreads: {{ .Values.deploymentControllerThreads }}
-  jobControllerThreads: {{ .Values.jobControllerThreads }}
-  alertControllerThreads: {{ .Values.alertControllerThreads }}
-  kubeClientRateLimitBurst: {{ .Values.kubeClientRateLimitBurst }}
-  kubeClientRateLimitQPS: {{ .Values.kubeClientRateLimitQPS }}
