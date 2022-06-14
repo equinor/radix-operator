@@ -1,7 +1,6 @@
 package defaults
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"strconv"
 )
 
@@ -33,42 +32,42 @@ const (
 
 // GetRegistrationControllerThreads returns number of registration controller threads
 func GetRegistrationControllerThreads() (int, error) {
-	return utils.GetIntEnvVar(RegistrationControllerThreadsEnvironmentVariable)
+	return GetIntEnvVar(RegistrationControllerThreadsEnvironmentVariable)
 }
 
 // GetApplicationControllerThreads returns number of application controller threads
 func GetApplicationControllerThreads() (int, error) {
-	return utils.GetIntEnvVar(ApplicationControllerThreadsEnvironmentVariable)
+	return GetIntEnvVar(ApplicationControllerThreadsEnvironmentVariable)
 }
 
 // GetEnvironmentControllerThreads returns number of environment controller threads
 func GetEnvironmentControllerThreads() (int, error) {
-	return utils.GetIntEnvVar(EnvironmentControllerThreadsEnvironmentVariable)
+	return GetIntEnvVar(EnvironmentControllerThreadsEnvironmentVariable)
 }
 
 // GetDeploymentControllerThreads returns number of deployment controller threads
 func GetDeploymentControllerThreads() (int, error) {
-	return utils.GetIntEnvVar(DeploymentControllerThreadsEnvironmentVariable)
+	return GetIntEnvVar(DeploymentControllerThreadsEnvironmentVariable)
 }
 
 // GetJobControllerThreads returns number of job controller threads
 func GetJobControllerThreads() (int, error) {
-	return utils.GetIntEnvVar(JobControllerThreadsEnvironmentVariable)
+	return GetIntEnvVar(JobControllerThreadsEnvironmentVariable)
 }
 
 // GetAlertControllerThreads returns number of alert controller threads
 func GetAlertControllerThreads() (int, error) {
-	return utils.GetIntEnvVar(AlertControllerThreadsEnvironmentVariable)
+	return GetIntEnvVar(AlertControllerThreadsEnvironmentVariable)
 }
 
 // GetKubeClientRateLimitBurst returns rate limit for burst for k8s client
 func GetKubeClientRateLimitBurst() (int, error) {
-	return utils.GetIntEnvVar(KubeClientRateLimitBurstEnvironmentVariable)
+	return GetIntEnvVar(KubeClientRateLimitBurstEnvironmentVariable)
 }
 
 // GetKubeClientRateLimitQps returns rate limit for queries per second for k8s client
 func GetKubeClientRateLimitQps() (float32, error) {
-	envVarStr, err := utils.GetEnvVar(KubeClientRateLimitQpsEnvironmentVariable)
+	envVarStr, err := GetEnvVar(KubeClientRateLimitQpsEnvironmentVariable)
 	envVarFloat64, err := strconv.ParseFloat(envVarStr, 32)
 	if err != nil {
 		return 0, err
