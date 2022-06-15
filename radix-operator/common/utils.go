@@ -32,6 +32,7 @@ func (r *defaultResourceLocker) ReleaseLock(key string) {
 	r.l.Delete(key)
 }
 
+// LockKeyAndIdentifierFunc is a function which is either NamespacePartitionKey or NamePartitionKey
 type LockKeyAndIdentifierFunc func(obj interface{}) (lockKey string, identifier string, err error)
 
 func getStringFromObj(obj interface{}) (string, error) {
@@ -43,6 +44,8 @@ func getStringFromObj(obj interface{}) (string, error) {
 	return key, nil
 }
 
+// NamespacePartitionKey returns a string which serves as a "locking key" for parallel processing of RadixApplications,
+// RadixAlerts, RadixDeployments and RadixJobs
 func NamespacePartitionKey(obj interface{}) (lockKey string, identifier string, err error) {
 	identifier, err = getStringFromObj(obj)
 	if err != nil {
@@ -52,6 +55,8 @@ func NamespacePartitionKey(obj interface{}) (lockKey string, identifier string, 
 	return
 }
 
+// NamePartitionKey returns a string which serves as a "locking key" for parallel processing of RadixEnvironments and
+// RadixRegistrations
 func NamePartitionKey(obj interface{}) (lockKey string, identifier string, err error) {
 	identifier, err = getStringFromObj(obj)
 	if err != nil {
