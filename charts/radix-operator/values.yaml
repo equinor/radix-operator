@@ -5,6 +5,15 @@ clusterName: xx
 activeClusterName: xx
 clusterActiveEgressIps: xx
 
+registrationControllerThreads: 1
+applicationControllerThreads: 1
+environmentControllerThreads: 1
+deploymentControllerThreads: 1
+jobControllerThreads: 1
+alertControllerThreads: 1
+kubeClientRateLimitBurst: 5
+kubeClientRateLimitQPS: 5
+
 configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
 imageScanner: radix-image-scanner:master-latest

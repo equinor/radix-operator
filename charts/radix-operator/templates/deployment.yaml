@@ -103,6 +103,22 @@ spec:
               value: {{ .Values.oauthProxyDefaultIssuerUrl }}
             - name: RADIX_OAUTH_PROXY_IMAGE
               value: {{ .Values.oauthProxyImage }}
+            - name: REGISTRATION_CONTROLLER_THREADS
+              value: {{ .Values.registrationControllerThreads }}
+            - name: APPLICATION_CONTROLLER_THREADS
+              value: {{ .Values.applicationControllerThreads }}
+            - name: ENVIRONMENT_CONTROLLER_THREADS
+              value: {{ .Values.environmentControllerThreads }}
+            - name: DEPLOYMENTCONTROLLERTHREADS
+              value: {{ .Values.deploymentControllerThreads }}
+            - name: JOB_CONTROLLER_THREADS
+              value: {{ .Values.jobControllerThreads }}
+            - name: ALERT_CONTROLLER_THREADS
+              value: {{ .Values.alertControllerThreads }}
+            - name: KUBE_CLIENT_RATE_LIMIT_BURST
+              value: {{ .Values.kubeClientRateLimitBurst }}
+            - name: KUBE_CLIENT_RATE_LIMIT_QPS
+              value: {{ .Values.kubeClientRateLimitQPS }}
           livenessProbe:
             httpGet:
               path: /healthz

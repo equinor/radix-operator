@@ -123,7 +123,7 @@ func startRegistrationController(
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
-	controller.Run(1, stop)
+	controller.Run(5, stop)
 
 }
 
