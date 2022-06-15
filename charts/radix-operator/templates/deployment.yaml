@@ -109,7 +109,7 @@ spec:
               value: {{ .Values.applicationControllerThreads }}
             - name: ENVIRONMENT_CONTROLLER_THREADS
               value: {{ .Values.environmentControllerThreads }}
-            - name: DEPLOYMENTCONTROLLERTHREADS
+            - name: DEPLOYMENT_CONTROLLER_THREADS
               value: {{ .Values.deploymentControllerThreads }}
             - name: JOB_CONTROLLER_THREADS
               value: {{ .Values.jobControllerThreads }}
