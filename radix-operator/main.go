@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -35,12 +36,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/flowcontrol"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 )
 
 const (
 	resyncPeriod            = 0
-	threadiness             = 1
 	ingressConfigurationMap = "radix-operator-ingress-configmap"
 )
 
@@ -48,7 +49,7 @@ var logger *log.Entry
 
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
-	switch os.Getenv("LOG_LEVEL") {
+	switch os.Getenv(defaults.LogLevel) {
 	case "DEBUG":
 		logger.Logger.SetLevel(log.DebugLevel)
 	case "ERROR":
@@ -56,7 +57,13 @@ func main() {
 	default:
 		logger.Logger.SetLevel(log.InfoLevel)
 	}
-	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient()
+
+	registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, err := getInitParams()
+	if err != nil {
+		panic(err)
+	}
+	rateLimitConfig := utils.WithKubernetesClientRateLimiter(flowcontrol.NewTokenBucketRateLimiter(kubeClientRateLimitQPS, kubeClientRateLimitBurst))
+	client, radixClient, prometheusOperatorClient, secretProviderClient := utils.GetKubernetesClient(rateLimitConfig)
 
 	activeclusternameEnvVar := os.Getenv(defaults.ActiveClusternameEnvironmentVariable)
 	logger.Printf("Active cluster name: %v", activeclusternameEnvVar)
@@ -68,12 +75,12 @@ func main() {
 
 	eventRecorder := common.NewEventRecorder("Radix controller", client.CoreV1().Events(""), logger)
 
-	go startRegistrationController(client, radixClient, eventRecorder, stop, secretProviderClient)
-	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient)
-	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient)
-	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient)
-	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient)
-	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient)
+	go startRegistrationController(client, radixClient, eventRecorder, stop, secretProviderClient, registrationControllerThreads)
+	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient, applicationControllerThreads)
+	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient, environmentControllerThreads)
+	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
+	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads)
+	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, alertControllerThreads)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -81,7 +88,21 @@ func main() {
 	<-sigTerm
 }
 
-func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
+func getInitParams() (int, int, int, int, int, int, int, float32, error) {
+	registrationControllerThreads, regErr := defaults.GetRegistrationControllerThreads()
+	applicationControllerThreads, appErr := defaults.GetApplicationControllerThreads()
+	environmentControllerThreads, envErr := defaults.GetEnvironmentControllerThreads()
+	deploymentControllerThreads, depErr := defaults.GetDeploymentControllerThreads()
+	jobControllerThreads, jobErr := defaults.GetJobControllerThreads()
+	alertControllerThreads, aleErr := defaults.GetAlertControllerThreads()
+	kubeClientRateLimitBurst, burstErr := defaults.GetKubeClientRateLimitBurst()
+	kubeClientRateLimitQPS, qpsErr := defaults.GetKubeClientRateLimitQps()
+
+	errCat := errorUtils.Concat([]error{regErr, appErr, envErr, depErr, jobErr, aleErr, burstErr, qpsErr})
+	return registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, errCat
+}
+
+func startRegistrationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -117,12 +138,12 @@ func startRegistrationController(client kubernetes.Interface, radixClient radixc
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := registrationController.Run(threadiness, stop); err != nil {
+	if err := registrationController.Run(threads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
-func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
+func startApplicationController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -154,12 +175,12 @@ func startApplicationController(client kubernetes.Interface, radixClient radixcl
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := applicationController.Run(threadiness, stop); err != nil {
+	if err := applicationController.Run(threads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
-func startEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
+func startEnvironmentController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -192,12 +213,12 @@ func startEnvironmentController(client kubernetes.Interface, radixClient radixcl
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := environmentController.Run(threadiness, stop); err != nil {
+	if err := environmentController.Run(threads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
-func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
+func startDeploymentController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -248,12 +269,12 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := deployController.Run(threadiness, stop); err != nil {
+	if err := deployController.Run(threads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 
 	syncJobStatusMetrics(radixClient)
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
@@ -285,12 +306,12 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := jobController.Run(threadiness, stop); err != nil {
+	if err := jobController.Run(threads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 
-func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface) {
+func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
@@ -322,7 +343,7 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := alertController.Run(threadiness, stop); err != nil {
+	if err := alertController.Run(threads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }

@@ -490,7 +490,7 @@ func (deploy *Deployment) maintainHistoryLimit() {
 
 	limit, err := strconv.Atoi(historyLimit)
 	if err != nil {
-		log.Warnf("'%s' is not set to a proper number, %s, and cannot be parsed.", defaults.DeploymentsHistoryLimitEnvironmentVariable, historyLimit)
+		log.Warnf("%s is not set to a proper number, %s, and cannot be parsed.", defaults.DeploymentsHistoryLimitEnvironmentVariable, historyLimit)
 		return
 	}
 

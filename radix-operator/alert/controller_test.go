@@ -28,7 +28,7 @@ func (s *controllerTestSuite) Test_RadixAlertEvents() {
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
-	go sut.Run(1, s.Stop)
+	go sut.Run(5, s.Stop)
 
 	// Adding a RadixAlert should trigger sync
 	s.Handler.EXPECT().Sync(namespace, alertName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
@@ -57,7 +57,7 @@ func (s *controllerTestSuite) Test_RadixRegistrationEvents() {
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
 	s.KubeInformerFactory.Start(s.Stop)
-	go sut.Run(1, s.Stop)
+	go sut.Run(5, s.Stop)
 
 	hasSynced := cache.WaitForCacheSync(s.Stop, s.RadixInformerFactory.Radix().V1().RadixRegistrations().Informer().HasSynced)
 	s.True(hasSynced)

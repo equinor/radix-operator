@@ -45,6 +45,8 @@ const (
 	RadixJobTypeBuild                  = "build"
 	RadixJobTypeScan                   = "scan"
 	RadixJobTypeCloneConfig            = "clone-config"
+	RadixJobTypePreparePipelines       = "prepare-pipelines"
+	RadixJobTypeRunPipelines           = "run-pipelines"
 	RadixJobTypeJobSchedule            = "job-scheduler"
 	RadixJobTypeBatchSchedule          = "batch-scheduler"
 	RadixAppAliasLabel                 = "radix-app-alias"

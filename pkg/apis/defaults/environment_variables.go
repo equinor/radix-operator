@@ -58,9 +58,6 @@ const (
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 
-	// RadixConfigToMapEnvironmentVariable Points to the utility image for copying config file to map
-	RadixConfigToMapEnvironmentVariable = "RADIX_CONFIG_TO_MAP"
-
 	// RadixImageBuilderEnvironmentVariable Points to the image builder
 	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER"
 
@@ -72,6 +69,15 @@ const (
 
 	// RadixDeploymentEnvironmentVariable Name of Radix Deployment
 	RadixDeploymentEnvironmentVariable = "RADIX_DEPLOYMENT"
+
+	// RadixPromoteDeploymentEnvironmentVariable Name of Radix Deployment for pipeline
+	RadixPromoteDeploymentEnvironmentVariable = "DEPLOYMENT_NAME"
+
+	// RadixPromoteFromEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote from
+	RadixPromoteFromEnvironmentEnvironmentVariable = "FROM_ENVIRONMENT"
+
+	// RadixPromoteToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
+	RadixPromoteToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
 	// RadixDeploymentForceNonRootContainers Controls the non-root configuration for component containers
 	// true: all component containers are force to run as non-root
@@ -87,9 +93,50 @@ const (
 	// RadixOAuthProxyImageEnvironmentVariable specifies the name and tag of the OAuth Proxy image
 	RadixOAuthProxyImageEnvironmentVariable = "RADIX_OAUTH_PROXY_IMAGE"
 
+	// RadixTektonPipelineImageEnvironmentVariable Points to the utility image for preparing radixconfig copying
+	///config/file to/map and preparing Tekton resources
+	RadixTektonPipelineImageEnvironmentVariable = "RADIX_TEKTON_IMAGE"
+
+	// RadixConfigFileEnvironmentVariable Path to a radixconfig.yaml
+	// to be loaded from Radix application config branch
+	RadixConfigFileEnvironmentVariable = "RADIX_FILE_NAME"
+
+	// RadixImageTagEnvironmentVariable Image tag for the built component
+	RadixImageTagEnvironmentVariable = "IMAGE_TAG"
+
+	// RadixPushImageEnvironmentVariable Push an image for the built component to an ACR
+	RadixPushImageEnvironmentVariable = "PUSH_IMAGE"
+
+	// RadixUseCacheEnvironmentVariable Use cache for the built component
+	RadixUseCacheEnvironmentVariable = "USE_CACHE"
+
+	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
+	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
+
+	// RadixConfigConfigMapEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
+	RadixConfigConfigMapEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP"
+
+	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
+	RadixBranchEnvironmentVariable = "BRANCH"
+
+	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
+	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
+
+	// RadixPipelineTypeEnvironmentVariable Pipeline type
+	RadixPipelineTypeEnvironmentVariable = "PIPELINE_TYPE"
+
+	// RadixPipelineTargetEnvironmentsVariable Pipeline target environments
+	RadixPipelineTargetEnvironmentsVariable = "TARGET_ENVIRONMENTS"
+
+	// RadixPipelineActionEnvironmentVariable Pipeline action: prepare, run
+	RadixPipelineActionEnvironmentVariable = "RADIX_PIPELINE_ACTION"
+
 	// OperatorTenantIdEnvironmentVariable Tenant-id of the subscription
 	OperatorTenantIdEnvironmentVariable = "RADIXOPERATOR_TENANT_ID"
 
 	// KubernetesApiPortEnvironmentVariable Port which the K8s API server listens to for HTTPS
 	KubernetesApiPortEnvironmentVariable = "KUBERNETES_SERVICE_PORT"
+
+	// LogLevel Log level: ERROR, INFO (default), DEBUG
+	LogLevel = "LOG_LEVEL"
 )

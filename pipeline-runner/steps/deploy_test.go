@@ -36,7 +36,7 @@ func (watcher FakeNamespaceWatcher) WaitFor(namespace string) error {
 }
 
 func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
-	kubeclient, kubeUtil, radixclient, _ := setupTest()
+	kubeclient, kubeUtil, radixclient, _, env := setupTest(t)
 
 	anyBranch := "master"
 	anyEnvironment := "dev"
@@ -56,7 +56,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 		BuildRA()
 
 	cli := NewDeployStep(FakeNamespaceWatcher{})
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)
@@ -78,7 +78,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 }
 
 func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
-	kubeclient, kubeUtil, radixclient, _ := setupTest()
+	kubeclient, kubeUtil, radixclient, _, env := setupTest(t)
 
 	rr := utils.ARadixRegistration().
 		WithName(anyAppName).
@@ -161,7 +161,7 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	// Prometheus doesn´t contain any fake
 	cli := NewDeployStep(FakeNamespaceWatcher{})
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy("master")

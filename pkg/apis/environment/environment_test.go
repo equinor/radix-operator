@@ -3,14 +3,13 @@ package environment
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"os"
-	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 	"testing"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -18,12 +17,12 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
 const (

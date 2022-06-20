@@ -83,8 +83,8 @@ spec:
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
             - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
               value: {{ .Values.jobsPerAppHistoryLimit | quote }}
-            - name: RADIX_CONFIG_TO_MAP
-              value: {{ .Values.configToMap }}
+            - name: RADIX_TEKTON_IMAGE
+              value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
               value: {{ .Values.imageBuilder }}
             - name: RADIX_IMAGE_SCANNER
@@ -103,6 +103,22 @@ spec:
               value: {{ .Values.oauthProxyDefaultIssuerUrl }}
             - name: RADIX_OAUTH_PROXY_IMAGE
               value: {{ .Values.oauthProxyImage }}
+            - name: REGISTRATION_CONTROLLER_THREADS
+              value: {{ .Values.registrationControllerThreads | quote }}
+            - name: APPLICATION_CONTROLLER_THREADS
+              value: {{ .Values.applicationControllerThreads | quote }}
+            - name: ENVIRONMENT_CONTROLLER_THREADS
+              value: {{ .Values.environmentControllerThreads | quote }}
+            - name: DEPLOYMENT_CONTROLLER_THREADS
+              value: {{ .Values.deploymentControllerThreads | quote }}
+            - name: JOB_CONTROLLER_THREADS
+              value: {{ .Values.jobControllerThreads | quote }}
+            - name: ALERT_CONTROLLER_THREADS
+              value: {{ .Values.alertControllerThreads | quote }}
+            - name: KUBE_CLIENT_RATE_LIMIT_BURST
+              value: {{ .Values.kubeClientRateLimitBurst | quote }}
+            - name: KUBE_CLIENT_RATE_LIMIT_QPS
+              value: {{ .Values.kubeClientRateLimitQPS | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
