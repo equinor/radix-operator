@@ -4,7 +4,8 @@ const (
 	radixApplicationNameLabel = "label_radix_app"
 	radixEnvironmentNameLabel = "label_radix_env"
 	radixComponentNameLabel   = "label_radix_component"
-	radixJobNameLabel         = "label_job_name"
+	radixReplicaNameLabel     = "radix_replica_name"
+	radixJobNameLabel         = "job_name"
 	radixPipelineJobNameLabel = "label_radix_job_name"
 )
 
@@ -26,7 +27,7 @@ var (
 	}
 	defaultAlertConfigs AlertConfigs = AlertConfigs{
 		"RadixAppComponentCrashLooping": {
-			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel},
+			GroupBy:    []string{radixApplicationNameLabel, radixEnvironmentNameLabel, radixComponentNameLabel, radixReplicaNameLabel},
 			Resolvable: true,
 			Scope:      EnvironmentScope,
 		},
