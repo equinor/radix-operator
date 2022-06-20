@@ -520,6 +520,9 @@ func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentNa
 	} else if len(radixVolumeMount.UID) > 0 {
 		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassUidMountOption, radixVolumeMount.UID))
 	}
+	if radixVolumeMount.AccessMode == string(corev1.ReadOnlyMany) {
+		mountOptions = append(mountOptions, "-o ro")
+	}
 	return mountOptions
 }
 
