@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"strings"
 	"testing"
 
@@ -23,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -1168,7 +1168,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-blob-some-component-volume1-storage1",
 		radixVolumeMountType:    v1.MountTypeBlobCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadOnlyMany,
+		volumeAccessMode:        corev1.ReadWriteMany, //default access mode
 		volumeName:              "csi-az-blob-some-component-volume1-storage1",
 		scProvisioner:           v1.ProvisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
@@ -1197,7 +1197,7 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-file-some-component-volume2-storage2",
 		radixVolumeMountType:    v1.MountTypeFileCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadOnlyMany,
+		volumeAccessMode:        corev1.ReadWriteMany, //default access mode
 		volumeName:              "csi-az-file-some-component-volume2-storage2",
 		scProvisioner:           v1.ProvisionerFileCsiAzure,
 		scSecretName:            "some-component-volume2-csiazurecreds",
