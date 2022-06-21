@@ -31,19 +31,19 @@ func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 
 	jobsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
-			job, success := cur.(*batchv1.Job)
-			if success && job.GetName() == job.GetName() && job.GetNamespace() == job.GetNamespace() {
+			currJob, success := cur.(*batchv1.Job)
+			if success && currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
 				switch {
-				case job.Status.Succeeded == 1:
+				case currJob.Status.Succeeded == 1:
 					errChan <- nil
-				case job.Status.Failed == 1:
+				case currJob.Status.Failed == 1:
 					errChan <- fmt.Errorf("job failed. See log for more details")
 				}
 			}
 		},
 		DeleteFunc: func(old interface{}) {
-			job, success := old.(*batchv1.Job)
-			if success && job.GetName() == job.GetName() && job.GetNamespace() == job.GetNamespace() {
+			currJob, success := old.(*batchv1.Job)
+			if success && currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
 				errChan <- errors.New("job failed - Job deleted")
 			}
 		},
