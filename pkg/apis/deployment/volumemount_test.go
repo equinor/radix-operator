@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	"strings"
 	"testing"
 
@@ -23,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
@@ -831,6 +831,104 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 			getScenario(getPropsCsiFileVolume2Storage2(nil)),
 		}
 	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Set readonly volume",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadOnlyMany) }),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createRandomPvc(props, props.namespace, props.componentName),
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
+						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+					}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createRandomStorageClass(props, props.namespace, props.componentName),
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
+						sc.MountOptions = append(sc.MountOptions, "-o ro")
+					}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+			getScenario(getPropsCsiFileVolume2Storage2(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Set ReadWriteOnce volume",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteOnce) }),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createRandomPvc(props, props.namespace, props.componentName),
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
+						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+					}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createRandomStorageClass(props, props.namespace, props.componentName),
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+			getScenario(getPropsCsiFileVolume2Storage2(nil)),
+		}
+	}()...)
+	scenarios = append(scenarios, func() []deploymentVolumesTestScenario {
+		getScenario := func(props expectedPvcScProperties) deploymentVolumesTestScenario {
+			return deploymentVolumesTestScenario{
+				name:  "Set ReadWriteOnce volume",
+				props: props,
+				radixVolumeMounts: []v1.RadixVolumeMount{
+					createRadixVolumeMount(props, func(vm *v1.RadixVolumeMount) { vm.AccessMode = string(corev1.ReadWriteMany) }),
+				},
+				volumes: []corev1.Volume{
+					createVolume(props, func(v *corev1.Volume) {}),
+				},
+				existingPvcsBeforeTestRun: []corev1.PersistentVolumeClaim{
+					createRandomPvc(props, props.namespace, props.componentName),
+				},
+				existingPvcsAfterTestRun: []corev1.PersistentVolumeClaim{
+					createExpectedPvc(props, func(pvc *corev1.PersistentVolumeClaim) {
+						pvc.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+					}),
+				},
+				existingStorageClassesBeforeTestRun: []storagev1.StorageClass{
+					createRandomStorageClass(props, props.namespace, props.componentName),
+				},
+				existingStorageClassesAfterTestRun: []storagev1.StorageClass{
+					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {}),
+				},
+			}
+		}
+		return []deploymentVolumesTestScenario{
+			getScenario(getPropsCsiBlobVolume1Storage1(nil)),
+			getScenario(getPropsCsiFileVolume2Storage2(nil)),
+		}
+	}()...)
 
 	suite.T().Run("CSI Azure volume PVCs and StorageClasses", func(t *testing.T) {
 		t.Parallel()
@@ -1070,7 +1168,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-blob-some-component-volume1-storage1",
 		radixVolumeMountType:    v1.MountTypeBlobCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadOnlyMany,
+		volumeAccessMode:        corev1.ReadWriteMany, //default access mode
 		volumeName:              "csi-az-blob-some-component-volume1-storage1",
 		scProvisioner:           v1.ProvisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
@@ -1099,7 +1197,7 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-file-some-component-volume2-storage2",
 		radixVolumeMountType:    v1.MountTypeFileCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadOnlyMany,
+		volumeAccessMode:        corev1.ReadWriteMany, //default access mode
 		volumeName:              "csi-az-file-some-component-volume2-storage2",
 		scProvisioner:           v1.ProvisionerFileCsiAzure,
 		scSecretName:            "some-component-volume2-csiazurecreds",

@@ -520,6 +520,9 @@ func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentNa
 	} else if len(radixVolumeMount.UID) > 0 {
 		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassUidMountOption, radixVolumeMount.UID))
 	}
+	if radixVolumeMount.AccessMode == string(corev1.ReadOnlyMany) {
+		mountOptions = append(mountOptions, "-o ro")
+	}
 	return mountOptions
 }
 
@@ -755,10 +758,10 @@ func getVolumeAccessMode(modeValue string) v1.PersistentVolumeAccessMode {
 	switch strings.ToLower(modeValue) {
 	case strings.ToLower(string(corev1.ReadWriteOnce)):
 		return corev1.ReadWriteOnce
-	case strings.ToLower(string(corev1.ReadWriteMany)):
-		return corev1.ReadWriteMany
+	case strings.ToLower(string(corev1.ReadOnlyMany)):
+		return corev1.ReadOnlyMany
 	}
-	return corev1.ReadOnlyMany
+	return corev1.ReadWriteMany //default access mode
 }
 
 func sortPvcsByCreatedTimestampDesc(persistentVolumeClaims []v1.PersistentVolumeClaim) []v1.PersistentVolumeClaim {
