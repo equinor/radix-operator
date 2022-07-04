@@ -544,7 +544,7 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 		return fmt.Errorf("failed to create service: %v", err)
 	}
 
-	err = deploy.createPodDisruptionBudget(component)
+	err = deploy.createOrUpdatePodDisruptionBudget(component)
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to create PDB: %v", err)
 		log.Infof(errMsg)
