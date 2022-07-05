@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
+// ListPodDisruptionBudgets lists PodDisruptionBudgets
 func (kubeutil *Kube) ListPodDisruptionBudgets(namespace string) ([]*v12.PodDisruptionBudget, error) {
 	list, err := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{})
 
@@ -22,31 +23,44 @@ func (kubeutil *Kube) ListPodDisruptionBudgets(namespace string) ([]*v12.PodDisr
 	return pdbs, nil
 }
 
-func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v12.PodDisruptionBudget, pdbName string) error {
+// MergePodDisruptionBudgets returns patch bytes between two PDBs
+func MergePodDisruptionBudgets(existingPdb *v12.PodDisruptionBudget, generatedPdb *v12.PodDisruptionBudget) ([]byte, error) {
+	// TODO: function is quite generic. Make type-independent abstraction?
+	newPdb := existingPdb.DeepCopy()
+	newPdb.ObjectMeta.Labels = generatedPdb.ObjectMeta.Labels
+	newPdb.ObjectMeta.Annotations = generatedPdb.ObjectMeta.Annotations
+	newPdb.ObjectMeta.OwnerReferences = generatedPdb.ObjectMeta.OwnerReferences
+	newPdb.Spec = generatedPdb.Spec
+
+	oldPdbJSON, err := json.Marshal(existingPdb)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal old PDB object: %v", err)
+	}
+
+	newPdbJSON, err := json.Marshal(newPdb)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal new PDB object: %v", err)
+	}
+
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldPdbJSON, newPdbJSON, v12.PodDisruptionBudget{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create two way merge PDB objects: %v", err)
+	}
+
+	return patchBytes, nil
+}
+
+// UpdatePodDisruptionBudget will update PodDisruptionBudgets in provided namespace
+func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v12.PodDisruptionBudget) error {
+	pdbName := pdb.Name
 	existingPdb, getPdbErr := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdbName, metav1.GetOptions{})
 	if getPdbErr != nil {
 		return getPdbErr
 	}
 
-	newPdb := existingPdb.DeepCopy()
-	newPdb.ObjectMeta.Labels = pdb.ObjectMeta.Labels
-	newPdb.ObjectMeta.Annotations = pdb.ObjectMeta.Annotations
-	newPdb.ObjectMeta.OwnerReferences = pdb.ObjectMeta.OwnerReferences
-	newPdb.Spec = pdb.Spec
-
-	oldPdbJSON, err := json.Marshal(existingPdb)
+	patchBytes, err := MergePodDisruptionBudgets(existingPdb, pdb)
 	if err != nil {
-		return fmt.Errorf("failed to marshal old PDB object: %v", err)
-	}
-
-	newPdbJSON, err := json.Marshal(newPdb)
-	if err != nil {
-		return fmt.Errorf("failed to marshal new PDB object: %v", err)
-	}
-
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldPdbJSON, newPdbJSON, v12.PodDisruptionBudget{})
-	if err != nil {
-		return fmt.Errorf("failed to create two way merge PDB objects: %v", err)
+		return err
 	}
 
 	if !IsEmptyPatch(patchBytes) {

@@ -29,15 +29,15 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCo
 		return nil
 	}
 
-	pdbName := utils.GetPDBName(componentName)
 	pdb := utils.GetPDBConfig(componentName, namespace)
+	pdbName := pdb.Name
 
 	log.Debugf("creating PodDisruptionBudget object %s in namespace %s", componentName, namespace)
 	_, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Create(context.TODO(), pdb, metav1.CreateOptions{})
 
 	if k8serrors.IsAlreadyExists(err) {
 		log.Infof("PodDisruptionBudget object %s already exists in namespace %s, updating the object now", componentName, namespace)
-		err := deploy.kubeutil.UpdatePodDisruptionBudget(namespace, pdb, pdbName)
+		err := deploy.kubeutil.UpdatePodDisruptionBudget(namespace, pdb)
 		if err != nil {
 			return err
 		}

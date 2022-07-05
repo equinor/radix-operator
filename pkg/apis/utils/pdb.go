@@ -8,10 +8,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// GetPDBName returns the PodDisruptionBudget's name
 func GetPDBName(componentName string) string {
 	return fmt.Sprintf("%s-pdb", componentName)
 }
 
+// GetPDBConfig returns the PodDisruptionBudget's configuration
 func GetPDBConfig(componentName string, namespace string) *v1.PodDisruptionBudget {
 	pdb := &v1.PodDisruptionBudget{
 		TypeMeta: v12.TypeMeta{
