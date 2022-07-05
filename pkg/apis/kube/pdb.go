@@ -6,26 +6,25 @@ import (
 	"fmt"
 	"github.com/equinor/radix-common/utils/slice"
 	log "github.com/sirupsen/logrus"
-	v12 "k8s.io/api/policy/v1"
+	"k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 // ListPodDisruptionBudgets lists PodDisruptionBudgets
-func (kubeutil *Kube) ListPodDisruptionBudgets(namespace string) ([]*v12.PodDisruptionBudget, error) {
+func (kubeutil *Kube) ListPodDisruptionBudgets(namespace string) ([]*v1.PodDisruptionBudget, error) {
 	list, err := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
 	}
-	pdbs := slice.PointersOf(list.Items).([]*v12.PodDisruptionBudget)
+	pdbs := slice.PointersOf(list.Items).([]*v1.PodDisruptionBudget)
 	return pdbs, nil
 }
 
 // MergePodDisruptionBudgets returns patch bytes between two PDBs
-func MergePodDisruptionBudgets(existingPdb *v12.PodDisruptionBudget, generatedPdb *v12.PodDisruptionBudget) ([]byte, error) {
-	// TODO: function is quite generic. Make type-independent abstraction?
+func MergePodDisruptionBudgets(existingPdb *v1.PodDisruptionBudget, generatedPdb *v1.PodDisruptionBudget) ([]byte, error) {
 	newPdb := existingPdb.DeepCopy()
 	newPdb.ObjectMeta.Labels = generatedPdb.ObjectMeta.Labels
 	newPdb.ObjectMeta.Annotations = generatedPdb.ObjectMeta.Annotations
@@ -42,7 +41,7 @@ func MergePodDisruptionBudgets(existingPdb *v12.PodDisruptionBudget, generatedPd
 		return nil, fmt.Errorf("failed to marshal new PDB object: %v", err)
 	}
 
-	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldPdbJSON, newPdbJSON, v12.PodDisruptionBudget{})
+	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldPdbJSON, newPdbJSON, v1.PodDisruptionBudget{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create two way merge PDB objects: %v", err)
 	}
@@ -51,7 +50,7 @@ func MergePodDisruptionBudgets(existingPdb *v12.PodDisruptionBudget, generatedPd
 }
 
 // UpdatePodDisruptionBudget will update PodDisruptionBudgets in provided namespace
-func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v12.PodDisruptionBudget) error {
+func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v1.PodDisruptionBudget) error {
 	pdbName := pdb.Name
 	existingPdb, getPdbErr := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdbName, metav1.GetOptions{})
 	if getPdbErr != nil {
