@@ -1323,10 +1323,11 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 	assert.Equal(t, componentOneName, deployments.Items[0].Name, "app deployment not there")
 
-	//Check PDB is added
+	// Check PDB is added
 	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Remove components
@@ -1422,6 +1423,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Define two components with <2 replicas
@@ -1474,6 +1476,7 @@ func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
 	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 1, len(pdbs.Items))
 	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
 	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Delete component with >1 replicas. Expect PDBs to be removed

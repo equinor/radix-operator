@@ -52,6 +52,8 @@ func MergePodDisruptionBudgets(existingPdb *v12.PodDisruptionBudget, generatedPd
 
 // UpdatePodDisruptionBudget will update PodDisruptionBudgets in provided namespace
 func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v12.PodDisruptionBudget) error {
+	// As of July 2022, this method is only invoked after an update on radix-operator which alters the logic defining PDBs.
+	// Under normal circumstances, PDBs are only created or deleted entirely, never updated.
 	pdbName := pdb.Name
 	existingPdb, getPdbErr := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdbName, metav1.GetOptions{})
 	if getPdbErr != nil {
