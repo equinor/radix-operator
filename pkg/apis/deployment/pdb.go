@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
@@ -14,9 +15,8 @@ import (
 func getNumberOfReplicas(component v1.RadixCommonDeployComponent) int {
 	if component.GetReplicas() != nil {
 		return *component.GetReplicas()
-	} else {
-		return DefaultReplicas // 1
 	}
+	return DefaultReplicas // 1
 
 }
 
@@ -53,22 +53,20 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComp
 	namespace := deploy.radixDeployment.Namespace
 	componentName := component.GetName()
 
+	var errs []error
 	replicas := getNumberOfReplicas(component)
 	if replicas < 2 {
-		_, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), utils.GetPDBName(componentName), metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return nil
+		pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, componentName),
+		})
+		for _, pdb := range pdbs.Items {
+			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
+			if err != nil {
+				errs = append(errs, err)
 			}
-			return err
-		}
-		err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), utils.GetPDBName(componentName), metav1.DeleteOptions{})
-
-		if err != nil {
-			return err
 		}
 	}
-	return nil
+	return errors.Concat(errs)
 }
 
 func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() error {
@@ -93,8 +91,12 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() err
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
 			log.Debugf("PodDisruptionBudget object %s already exists in namespace %s, deleting the object now", componentName, namespace)
+
+		}
+		if err != nil {
 			errs = append(errs, err)
 		}
+
 	}
 	return errors.Concat(errs)
 }
