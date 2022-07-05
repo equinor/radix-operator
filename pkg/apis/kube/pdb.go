@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/equinor/radix-common/utils/slice"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	v12 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,10 +22,7 @@ func (kubeutil *Kube) ListPodDisruptionBudgets(namespace string) ([]*v12.PodDisr
 	return pdbs, nil
 }
 
-func (kubeutil *Kube) UpdatePodDisruptionBudget(componentName string, namespace string) error {
-	pdb := utils.GetPDBConfig(componentName, namespace)
-
-	pdbName := utils.GetPDBName(componentName)
+func (kubeutil *Kube) UpdatePodDisruptionBudget(namespace string, pdb *v12.PodDisruptionBudget, pdbName string) error {
 	existingPdb, getPdbErr := kubeutil.kubeClient.PolicyV1().PodDisruptionBudgets(namespace).Get(context.TODO(), pdbName, metav1.GetOptions{})
 	if getPdbErr != nil {
 		return getPdbErr

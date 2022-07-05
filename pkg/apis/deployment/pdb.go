@@ -29,6 +29,7 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCo
 		return nil
 	}
 
+	pdbName := utils.GetPDBName(componentName)
 	pdb := utils.GetPDBConfig(componentName, namespace)
 
 	log.Debugf("creating PodDisruptionBudget object %s in namespace %s", componentName, namespace)
@@ -36,11 +37,11 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCo
 
 	if k8serrors.IsAlreadyExists(err) {
 		log.Infof("PodDisruptionBudget object %s already exists in namespace %s, updating the object now", componentName, namespace)
-		err := deploy.kubeutil.UpdatePodDisruptionBudget(componentName, namespace)
+		err := deploy.kubeutil.UpdatePodDisruptionBudget(namespace, pdb, pdbName)
 		if err != nil {
 			return err
 		}
-		log.Debugf("patched PDB: %s in namespace %s", utils.GetPDBName(componentName), namespace)
+		log.Debugf("patched PDB: %s in namespace %s", pdbName, namespace)
 	} else {
 		return err
 	}
