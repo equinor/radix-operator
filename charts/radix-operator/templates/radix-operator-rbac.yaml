@@ -67,6 +67,7 @@ rules:
   - storageclasses
   - persistentvolumeclaims
   - persistentvolumes
+  - poddisruptionbudgets
   verbs:
   - get
   - list

@@ -401,6 +401,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectPodDisruptionBudgetsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	err = deploy.garbageCollectSecretsNoLongerInSpec()
 	if err != nil {
 		return err
@@ -537,6 +542,20 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	if err != nil {
 		log.Infof("Failed to create service: %v", err)
 		return fmt.Errorf("failed to create service: %v", err)
+	}
+
+	err = deploy.createOrUpdatePodDisruptionBudget(component)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to create PDB: %v", err)
+		log.Infof(errMsg)
+		return fmt.Errorf(errMsg)
+	}
+
+	err = deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to garbage collect PDB: %v", err)
+		log.Infof(errMsg)
+		return fmt.Errorf(errMsg)
 	}
 
 	if component.IsPublic() {

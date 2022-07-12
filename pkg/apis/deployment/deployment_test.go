@@ -208,9 +208,15 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 				if !componentsExist {
 					assert.Equal(t, int32(4), *getDeploymentByName(componentNameApp, deployments).Spec.Replicas, "number of replicas was unexpected")
+
 				} else {
 					assert.Equal(t, int32(2), *getDeploymentByName(componentNameApp, deployments).Spec.Replicas, "number of replicas was unexpected")
+
 				}
+				pdbs, _ := kubeclient.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+				assert.Equal(t, 1, len(pdbs.Items))
+				assert.Equal(t, "app", pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+				assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 				assert.Equal(t, 13, len(getContainerByName(componentNameApp, getDeploymentByName(componentNameApp, deployments).Spec.Template.Spec.Containers).Env), "number of environment variables was unexpected for component. It should contain default and custom")
 				assert.Equal(t, anyContainerRegistry, getEnvVariableByNameOnDeployment(kubeclient, defaults.ContainerRegistryEnvironmentVariable, componentNameApp, deployments))
@@ -619,7 +625,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service {
 	var result []corev1.Service
 	for _, svc := range *services {
-		if _, ok := svc.Labels["radix-component"]; ok {
+		if _, ok := svc.Labels[kube.RadixComponentLabel]; ok {
 			result = append(result, svc)
 		}
 	}
@@ -629,7 +635,7 @@ func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service 
 func getDeploymentsForRadixComponents(deployments *[]appsv1.Deployment) []appsv1.Deployment {
 	var result []appsv1.Deployment
 	for _, depl := range *deployments {
-		if _, ok := depl.Labels["radix-component"]; ok {
+		if _, ok := depl.Labels[kube.RadixComponentLabel]; ok {
 			result = append(result, depl)
 		}
 	}
@@ -1310,6 +1316,19 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithPublicPort("http")))
 
 	assert.NoError(t, err)
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
+
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+	assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
+	assert.Equal(t, componentOneName, deployments.Items[0].Name, "app deployment not there")
+
+	// Check PDB is added
+	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 1, len(pdbs.Items))
+	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
+	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
 
 	// Remove components
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1325,7 +1344,6 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 				WithSecrets([]string{"a_secret"})))
 
 	assert.NoError(t, err)
-	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1333,6 +1351,10 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
+
+	//Check PDB is removed
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 0, len(pdbs.Items))
 
 	t.Run("validate service", func(t *testing.T) {
 		t.Parallel()
@@ -1365,6 +1387,211 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 		rolebindings, _ := client.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
 	})
+}
+
+func TestObjectSynced_ScalingReplicas_HandlesChange(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentOneName := "componentOneName"
+	componentTwoName := "componentTwoName"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
+
+	// Define one component with >1 replicas and one component with <2 replicas
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true).
+				WithReplicas(test.IntPtr(4)),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublicPort("").
+				WithReplicas(test.IntPtr(0)),
+		))
+
+	assert.NoError(t, err)
+
+	// Check PDB is added
+	pdbs, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 1, len(pdbs.Items))
+	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
+	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
+
+	// Define two components with <2 replicas
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true).
+				WithReplicas(test.IntPtr(1)),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublicPort("").
+				WithReplicas(test.IntPtr(0)),
+		))
+
+	assert.NoError(t, err)
+
+	// Check PDB is removed
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 0, len(pdbs.Items))
+
+	// Define one component with >1 replicas and one component with <2 replicas
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true).
+				WithReplicas(test.IntPtr(10)),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublicPort("").
+				WithReplicas(test.IntPtr(0)),
+		))
+
+	assert.NoError(t, err)
+
+	// Check PDB is added
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 1, len(pdbs.Items))
+	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentOneName, pdbs.Items[0].ObjectMeta.Labels[kube.RadixComponentLabel])
+	assert.Equal(t, int32(1), pdbs.Items[0].Spec.MinAvailable.IntVal)
+
+	// Delete component with >1 replicas. Expect PDBs to be removed
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublicPort("").
+				WithReplicas(test.IntPtr(0)),
+		))
+
+	assert.NoError(t, err)
+
+	// Check PDB is removed
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 0, len(pdbs.Items))
+
+	componentThreeName := "componentThreeName"
+
+	// Set 3 components with >1 replicas. Expect 3 PDBs
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true).
+				WithReplicas(test.IntPtr(4)),
+			utils.NewDeployComponentBuilder().
+				WithName(componentTwoName).
+				WithPort("http", 6379).
+				WithPublicPort("").
+				WithReplicas(test.IntPtr(3)),
+			utils.NewDeployComponentBuilder().
+				WithName(componentThreeName).
+				WithPort("http", 3000).
+				WithPublicPort("http").
+				WithReplicas(test.IntPtr(2))))
+
+	assert.NoError(t, err)
+
+	// Check PDBs are added
+	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
+
+	assert.Equal(t, 3, len(pdbs.Items))
+	assert.Equal(t, componentOneName, pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentThreeName, pdbs.Items[1].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+	assert.Equal(t, componentTwoName, pdbs.Items[2].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+
+}
+
+func TestObjectSynced_UpdatePdb_HandlesChange(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	anyAppName := "anyappname"
+	anyEnvironmentName := "test"
+	componentOneName := "componentOneName"
+	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
+
+	// Define a component with >1 replicas
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true).
+				WithReplicas(test.IntPtr(10)),
+		))
+
+	assert.NoError(t, err)
+
+	existingPdb, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.TODO(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
+	generatedPdb := utils.GetPDBConfig(componentOneName, envNamespace)
+	generatedPdb.ObjectMeta.Labels[kube.RadixComponentLabel] = "wrong"
+	generatedPdb.Spec.Selector.MatchLabels[kube.RadixComponentLabel] = "wrong"
+
+	patchBytes, err := kube.MergePodDisruptionBudgets(existingPdb, generatedPdb)
+	assert.NoError(t, err)
+
+	_, err = client.PolicyV1().PodDisruptionBudgets(envNamespace).Patch(context.TODO(), utils.GetPDBName(componentOneName), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	assert.NoError(t, err)
+
+	pdbWithWrongLabels, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.TODO(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
+	assert.Equal(t, "wrong", pdbWithWrongLabels.ObjectMeta.Labels[kube.RadixComponentLabel])
+	assert.Equal(t, "wrong", pdbWithWrongLabels.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
+
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(anyAppName).
+		WithEnvironment(anyEnvironmentName).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName(componentOneName).
+				WithPort("http", 8080).
+				WithPublicPort("http").
+				WithDNSAppAlias(true).
+				WithReplicas(test.IntPtr(9)),
+		))
+
+	assert.NoError(t, err)
+
+	pdbWithCorrectLabels, _ := client.PolicyV1().PodDisruptionBudgets(envNamespace).Get(context.TODO(), utils.GetPDBName(componentOneName), metav1.GetOptions{})
+	assert.Equal(t, componentOneName, pdbWithCorrectLabels.ObjectMeta.Labels[kube.RadixComponentLabel])
+	assert.Equal(t, componentOneName, pdbWithCorrectLabels.Spec.Selector.MatchLabels[kube.RadixComponentLabel])
 }
 
 func TestObjectSynced_PublicToNonPublic_HandlesChange(t *testing.T) {
@@ -1657,7 +1884,7 @@ func TestObjectSynced_PublicPort_OldPublic(t *testing.T) {
 func getIngressesForRadixComponents(ingresses *[]networkingv1.Ingress) []networkingv1.Ingress {
 	var result []networkingv1.Ingress
 	for _, ing := range *ingresses {
-		if val, ok := ing.Labels["radix-component"]; ok && val != "job" {
+		if val, ok := ing.Labels[kube.RadixComponentLabel]; ok && val != "job" {
 			result = append(result, ing)
 		}
 	}
