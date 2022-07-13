@@ -75,7 +75,7 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 }
 
 func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineInfo *model.PipelineInfo) error {
-	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo) // returns EnvVarsMap type
+	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo)
 
 	if err != nil {
 		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
