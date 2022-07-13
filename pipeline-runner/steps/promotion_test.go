@@ -268,7 +268,9 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.SetApplicationConfig(applicationConfig, gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -389,7 +391,9 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.SetApplicationConfig(applicationConfig, gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -478,7 +482,9 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.SetApplicationConfig(applicationConfig, gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -590,7 +596,9 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.SetApplicationConfig(applicationConfig, gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -647,7 +655,9 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-	pipelineInfo.SetApplicationConfig(applicationConfig)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+	pipelineInfo.SetApplicationConfig(applicationConfig, gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 

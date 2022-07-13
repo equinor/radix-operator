@@ -83,8 +83,9 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
-	components, err := GetRadixComponentsForEnv(config, env, componentImages)
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployment, error) {
+	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
+	components, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars)
 	if err != nil {
 		return v1.RadixDeployment{}, err
 	}

@@ -94,6 +94,10 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: pipelineInfo.RadixConfigMapName,
 		},
 		{
+			Name:  defaults.RadixGitConfigMapEnvironmentVariable,
+			Value: pipelineInfo.GitConfigMapName,
+		},
+		{
 			Name:  defaults.RadixPipelineJobEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.JobName,
 		},

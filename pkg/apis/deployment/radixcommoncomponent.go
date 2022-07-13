@@ -42,6 +42,7 @@ func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environme
 			variables[variableKey] = variableValue
 		}
 	}
+
 	return variables
 }
 

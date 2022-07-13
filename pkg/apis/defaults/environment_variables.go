@@ -55,6 +55,9 @@ const (
 	// RadixCommitHashEnvironmentVariable Contains the commit id of the build
 	RadixCommitHashEnvironmentVariable = "RADIX_GIT_COMMIT_HASH"
 
+	// RadixGitTagsEnvironmentVariable Contains a list of git tags which the RADIX_GIT_COMMIT_HASH points to
+	RadixGitTagsEnvironmentVariable = "RADIX_GIT_TAGS"
+
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 
@@ -115,6 +118,9 @@ const (
 
 	// RadixConfigConfigMapEnvironmentVariable Name of a ConfigMap with loaded radixconfig.yaml
 	RadixConfigConfigMapEnvironmentVariable = "RADIX_CONFIG_CONFIGMAP"
+
+	// RadixGitConfigMapEnvironmentVariable Name of a ConfigMap with git commit hash and git tags
+	RadixGitConfigMapEnvironmentVariable = "GIT_CONFIGMAP"
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"

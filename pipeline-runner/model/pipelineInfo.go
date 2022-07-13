@@ -38,8 +38,11 @@ type PipelineInfo struct {
 
 	// Temporary data
 	RadixConfigMapName string
+	GitConfigMapName   string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
+	GitCommitHash      string
+	GitTags            string
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
@@ -139,6 +142,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
+	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
 	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
 	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
@@ -156,6 +160,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 		PipelineArguments:  pipelineArguments,
 		Steps:              stepImplementationsForType,
 		RadixConfigMapName: radixConfigMapName,
+		GitConfigMapName:   gitConfigFileName,
 	}, nil
 }
 
@@ -188,7 +193,7 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 
 // SetApplicationConfig Set radixconfig to be used later by other steps, as well
 // as deriving info from the config
-func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
+func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig, gitCommitHash string, gitTags string) {
 	ra := applicationConfig.GetRadixApplicationConfig()
 	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 
@@ -212,6 +217,8 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 		ra.Spec.Jobs,
 	)
 	info.ComponentImages = componentImages
+	info.GitCommitHash = gitCommitHash
+	info.GitTags = gitTags
 }
 
 // IsDeployOnlyPipeline Determines if the pipeline is deploy-only

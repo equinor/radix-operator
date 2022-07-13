@@ -104,6 +104,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	subscriptionId := pipelineInfo.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
+
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+
 	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
@@ -176,6 +180,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
 				Value: targetEnvs,
+			},
+			{
+				Name:  defaults.RadixCommitHashEnvironmentVariable,
+				Value: gitCommitHash,
+			},
+			{
+				Name:  defaults.RadixGitTagsEnvironmentVariable,
+				Value: gitTags,
 			},
 		}
 

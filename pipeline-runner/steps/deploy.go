@@ -3,11 +3,12 @@ package steps
 import (
 	"context"
 	"fmt"
-
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,14 +75,20 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 }
 
 func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineInfo *model.PipelineInfo) error {
+	defaultEnvVars, err := getDefaultEnvVars(pipelineInfo) // returns EnvVarsMap type
+
+	if err != nil {
+		return fmt.Errorf("failed to retrieve default env vars for RadixDeployment in app  %s. %v", appName, err)
+	}
+
 	radixDeployment, err := deployment.ConstructForTargetEnvironment(
 		pipelineInfo.RadixApplication,
 		pipelineInfo.PipelineArguments.JobName,
 		pipelineInfo.PipelineArguments.ImageTag,
 		pipelineInfo.PipelineArguments.Branch,
-		pipelineInfo.PipelineArguments.CommitID,
 		pipelineInfo.ComponentImages,
-		env)
+		env,
+		defaultEnvVars)
 
 	if err != nil {
 		return fmt.Errorf("failed to create radix deployments objects for app %s. %v", appName, err)
@@ -99,4 +106,15 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	}
 
 	return nil
+}
+
+func getDefaultEnvVars(pipelineInfo *model.PipelineInfo) (v1.EnvVarsMap, error) {
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
+
+	return envVarsMap, nil
 }
