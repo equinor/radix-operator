@@ -272,7 +272,8 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
 	envVarsMap := make(v1.EnvVarsMap)
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
-	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+	expectedGitTags := "anytag1 anytag2 anytag3"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = expectedGitTags
 
 	ra := utils.ARadixApplication().
 		WithEnvironment("prod", "release").
@@ -306,11 +307,15 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 	assert.Equal(t, 4, len(deployComponentProd[0].EnvironmentVariables))
 	assert.Equal(t, "environment_1", deployComponentProd[0].EnvironmentVariables["ENV_1"])
 	assert.Equal(t, "environment_common_1", deployComponentProd[0].EnvironmentVariables["ENV_COMMON_1"])
+	assert.Equal(t, "anycommit", deployComponentProd[0].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+	assert.Equal(t, expectedGitTags, deployComponentProd[0].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 
 	assert.Equal(t, "comp_2", deployComponentProd[1].Name)
 	assert.Equal(t, 4, len(deployComponentProd[1].EnvironmentVariables))
 	assert.Equal(t, "environment_3", deployComponentProd[1].EnvironmentVariables["ENV_3"])
 	assert.Equal(t, "environment_common_2", deployComponentProd[1].EnvironmentVariables["ENV_COMMON_2"])
+	assert.Equal(t, "anycommit", deployComponentProd[1].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+	assert.Equal(t, expectedGitTags, deployComponentProd[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 
 	deployComponentDev, _ := GetRadixComponentsForEnv(ra, "dev", componentImages, envVarsMap)
 	assert.Equal(t, 2, len(deployComponentDev))
@@ -319,11 +324,15 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_No_Override(t *test
 	assert.Equal(t, 4, len(deployComponentDev[0].EnvironmentVariables))
 	assert.Equal(t, "environment_2", deployComponentDev[0].EnvironmentVariables["ENV_2"])
 	assert.Equal(t, "environment_common_1", deployComponentDev[0].EnvironmentVariables["ENV_COMMON_1"])
+	assert.Equal(t, "anycommit", deployComponentProd[0].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+	assert.Equal(t, expectedGitTags, deployComponentProd[0].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 
 	assert.Equal(t, "comp_2", deployComponentDev[1].Name)
 	assert.Equal(t, 4, len(deployComponentDev[1].EnvironmentVariables))
 	assert.Equal(t, "environment_4", deployComponentDev[1].EnvironmentVariables["ENV_4"])
 	assert.Equal(t, "environment_common_2", deployComponentDev[1].EnvironmentVariables["ENV_COMMON_2"])
+	assert.Equal(t, "anycommit", deployComponentProd[1].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+	assert.Equal(t, expectedGitTags, deployComponentProd[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 }
 
 func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *testing.T) {
@@ -344,12 +353,13 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 					utils.AnEnvironmentConfig().
 						WithEnvironment("prod").
 						WithEnvironmentVariable("ENV_1", "environment_1").
-						WithEnvironmentVariable("ENV_COMMON_1", "environment_common_1_prod_override"),
+						WithEnvironmentVariable("ENV_COMMON_1", "environment_common_1_prod_override").
+						WithEnvironmentVariable(defaults.RadixCommitHashEnvironmentVariable, "should_be_overriden_by_radixoperator").
+						WithEnvironmentVariable(defaults.RadixGitTagsEnvironmentVariable, "should_be_overriden_by_radixoperator"),
 					utils.AnEnvironmentConfig().
 						WithEnvironment("dev").
 						WithEnvironmentVariable("ENV_2", "environment_2").
 						WithEnvironmentVariable("ENV_COMMON_1", "environment_common_1_dev_override")),
-
 			utils.NewApplicationComponentBuilder().
 				WithName("comp_2").
 				WithCommonEnvironmentVariable("ENV_COMMON_2", "environment_common_2").
@@ -370,6 +380,10 @@ func TestGetRadixComponentsForEnv_CommonEnvironmentVariables_With_Override(t *te
 	assert.Equal(t, 4, len(deployComponentProd[0].EnvironmentVariables))
 	assert.Equal(t, "environment_1", deployComponentProd[0].EnvironmentVariables["ENV_1"])
 	assert.Equal(t, "environment_common_1_prod_override", deployComponentProd[0].EnvironmentVariables["ENV_COMMON_1"])
+
+	// these values should be overridden by system defaults
+	assert.Equal(t, "anycommit", deployComponentProd[0].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+	assert.Equal(t, "anytag", deployComponentProd[0].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 
 	assert.Equal(t, "comp_2", deployComponentProd[1].Name)
 	assert.Equal(t, 4, len(deployComponentProd[1].EnvironmentVariables))
