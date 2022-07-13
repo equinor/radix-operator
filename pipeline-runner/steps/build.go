@@ -44,7 +44,6 @@ func (cli *BuildStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
-	commitID := pipelineInfo.GitCommitHash
 
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing
@@ -57,7 +56,7 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 		return nil
 	}
 
-	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, commitID)
+	log.Infof("Building app %s for branch %s and commit %s", cli.GetAppName(), branch, pipelineInfo.GitCommitHash)
 
 	namespace := utils.GetAppNamespace(cli.GetAppName())
 	buildSecrets, err := getBuildSecretsAsVariables(cli.GetKubeclient(), pipelineInfo.RadixApplication, namespace)

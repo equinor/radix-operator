@@ -11,7 +11,7 @@
       "args": [
         "RADIX_APP=radix-oauth2-example",
         "BRANCH=main",
-        "COMMIT_ID=1234",
+        "WEBHOOK_COMMIT_ID=1234",
         "IMAGE_TAG=abcdef",
         "JOB_NAME=radix-pipeline-build-deploy-1",
         "USE_CACHE=0",

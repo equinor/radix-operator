@@ -125,7 +125,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	case v1.BuildDeploy, v1.Build:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.WebhookCommitId))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
 	case v1.Promote:
@@ -154,7 +154,7 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
 		labels[kube.RadixImageTagLabel] = jobSpec.Build.ImageTag
-		labels[kube.RadixCommitLabel] = jobSpec.Build.CommitID
+		labels[kube.RadixCommitLabel] = jobSpec.Build.WebhookCommitId
 	}
 
 	return labels

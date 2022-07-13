@@ -48,10 +48,9 @@ func (cli *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (cli *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
-	commitID := pipelineInfo.GitCommitHash
 	appName := cli.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Infof("Run pipelines app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Infof("Run pipelines app %s for branch %s and commit %s", appName, branch, pipelineInfo.GitCommitHash)
 
 	job := cli.getRunTektonPipelinesJobConfig(pipelineInfo)
 

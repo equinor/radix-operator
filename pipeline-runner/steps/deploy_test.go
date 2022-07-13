@@ -65,10 +65,10 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   anyNoMappedBranch,
-			CommitID: anyCommitID,
+			JobName:         anyJobName,
+			ImageTag:        anyImageTag,
+			Branch:          anyNoMappedBranch,
+			WebhookCommitId: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
 		BranchIsMapped:     branchIsMapped,
@@ -170,10 +170,10 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   "master",
-			CommitID: anyCommitID,
+			JobName:         anyJobName,
+			ImageTag:        anyImageTag,
+			Branch:          "master",
+			WebhookCommitId: anyCommitID,
 		},
 		BranchIsMapped:     branchIsMapped,
 		TargetEnvironments: targetEnvs,

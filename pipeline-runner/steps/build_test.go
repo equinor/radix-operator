@@ -62,10 +62,10 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
-			JobName:  anyJobName,
-			ImageTag: anyImageTag,
-			Branch:   anyNoMappedBranch,
-			CommitID: anyCommitID,
+			JobName:         anyJobName,
+			ImageTag:        anyImageTag,
+			Branch:          anyNoMappedBranch,
+			WebhookCommitId: anyCommitID,
 		},
 		TargetEnvironments: targetEnvs,
 		BranchIsMapped:     branchIsMapped,

@@ -71,11 +71,11 @@ const (
 
 //RadixBuildSpec is the spec for a build job
 type RadixBuildSpec struct {
-	ImageTag      string `json:"imageTag" yaml:"imageTag"`
-	Branch        string `json:"branch" yaml:"branch"`
-	CommitID      string `json:"commitID" yaml:"commitID"`
-	PushImage     bool   `json:"pushImage" yaml:"pushImage"`
-	RadixFileName string `json:"radixFileName" yaml:"radixFileName"`
+	ImageTag        string `json:"imageTag" yaml:"imageTag"`
+	Branch          string `json:"branch" yaml:"branch"`
+	WebhookCommitId string `json:"webhookCommitId" yaml:"webhookCommitId"`
+	PushImage       bool   `json:"pushImage" yaml:"pushImage"`
+	RadixFileName   string `json:"radixFileName" yaml:"radixFileName"`
 }
 
 //RadixPromoteSpec is the spec for a promote job

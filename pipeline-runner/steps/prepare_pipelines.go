@@ -50,10 +50,10 @@ func (cli *PreparePipelinesStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
-	commitID := pipelineInfo.PipelineArguments.CommitID
+	webhookCommitId := pipelineInfo.PipelineArguments.WebhookCommitId
 	appName := cli.GetAppName()
 	namespace := utils.GetAppNamespace(appName)
-	log.Infof("Prepare pipelines app %s for branch %s and commit %s", appName, branch, commitID)
+	log.Infof("Prepare pipelines app %s for branch %s and commit %s", appName, branch, webhookCommitId)
 
 	job := cli.getPreparePipelinesJobConfig(pipelineInfo)
 

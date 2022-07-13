@@ -53,7 +53,7 @@ type PipelineArguments struct {
 	PipelineType    string
 	JobName         string
 	Branch          string
-	CommitID        string
+	WebhookCommitId string
 	ImageTag        string
 	UseCache        string
 	PushImage       bool
@@ -83,7 +83,7 @@ type PipelineArguments struct {
 func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	radixConfigFile := args[defaults.RadixConfigFileEnvironmentVariable]
 	branch := args[defaults.RadixBranchEnvironmentVariable]
-	commitID := args[defaults.RadixCommitIdEnvironmentVariable]
+	webhookCommitId := args[defaults.RadixCommitIdEnvironmentVariable]
 	imageTag := args[defaults.RadixImageTagEnvironmentVariable]
 	jobName := args[defaults.RadixPipelineJobEnvironmentVariable]
 	useCache := args[defaults.RadixUseCacheEnvironmentVariable]
@@ -117,7 +117,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		PipelineType:    pipelineType,
 		JobName:         jobName,
 		Branch:          branch,
-		CommitID:        commitID,
+		WebhookCommitId: webhookCommitId,
 		ImageTag:        imageTag,
 		UseCache:        useCache,
 		PushImage:       pushImageBool,

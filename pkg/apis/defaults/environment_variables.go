@@ -126,7 +126,7 @@ const (
 	RadixBranchEnvironmentVariable = "BRANCH"
 
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
-	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
+	RadixCommitIdEnvironmentVariable = "WEBHOOK_COMMIT_ID"
 
 	// RadixPipelineTypeEnvironmentVariable Pipeline type
 	RadixPipelineTypeEnvironmentVariable = "PIPELINE_TYPE"

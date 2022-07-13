@@ -84,13 +84,13 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
 func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployment, error) {
-	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
+	gitCommitHash := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	components, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars)
 	if err != nil {
 		return v1.RadixDeployment{}, err
 	}
 	jobs := NewJobComponentsBuilder(config, env, componentImages).JobComponents()
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, components, jobs)
+	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, gitCommitHash, components, jobs)
 	return radixDeployment, nil
 }
 
@@ -439,7 +439,7 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 	return nil
 }
 
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, gitCommitHash string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
@@ -454,7 +454,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 			Labels: map[string]string{
 				kube.RadixAppLabel:     appName,
 				kube.RadixEnvLabel:     env,
-				kube.RadixCommitLabel:  commitID,
+				kube.RadixCommitLabel:  gitCommitHash,
 				kube.RadixJobNameLabel: jobName,
 			},
 			Annotations: map[string]string{
