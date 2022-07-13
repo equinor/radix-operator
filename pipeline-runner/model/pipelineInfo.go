@@ -193,7 +193,7 @@ func getStepImplementationForStepType(stepType pipeline.StepType, allStepImpleme
 
 // SetApplicationConfig Set radixconfig to be used later by other steps, as well
 // as deriving info from the config
-func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig, gitCommitHash string, gitTags string) {
+func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.ApplicationConfig) {
 	ra := applicationConfig.GetRadixApplicationConfig()
 	info.RadixApplication = applicationConfig.GetRadixApplicationConfig()
 
@@ -217,6 +217,10 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 		ra.Spec.Jobs,
 	)
 	info.ComponentImages = componentImages
+}
+
+// SetGitAttributes Set git attributes to be used later by other steps
+func (info *PipelineInfo) SetGitAttributes(gitCommitHash string, gitTags string) {
 	info.GitCommitHash = gitCommitHash
 	info.GitTags = gitTags
 }

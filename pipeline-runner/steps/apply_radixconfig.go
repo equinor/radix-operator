@@ -76,6 +76,9 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
+	// Set back to pipeline
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+
 	gitConfigMap, configMapErr := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
@@ -83,9 +86,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	if err != nil {
 		return fmt.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
 	}
-
-	// Set back to pipeline
-	pipelineInfo.SetApplicationConfig(applicationConfig, gitCommitHash, gitTags)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 
 	return nil
 }

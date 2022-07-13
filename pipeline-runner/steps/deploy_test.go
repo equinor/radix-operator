@@ -184,7 +184,8 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
 
-	pipelineInfo.SetApplicationConfig(applicationConfig, gitCommitHash, gitTags)
+	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(context.TODO(), metav1.ListOptions{})
 
