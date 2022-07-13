@@ -26,7 +26,6 @@ const (
 	persistentVolumeClaimKind = "PersistentVolumeClaim"
 
 	blobfuseDriver      = "azure/blobfuse"
-	defaultData         = "xx"
 	defaultMountOptions = "--file-cache-timeout-in-seconds=120"
 
 	blobFuseVolumeNameTemplate          = "blobfuse-%s-%s"         // blobfuse-<componentname>-<radixvolumename>
@@ -48,11 +47,6 @@ const (
 	csiStorageClassGidMountOption                      = "gid"                                             //Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
 	csiStorageClassUidMountOption                      = "uid"                                             //Volume mount owner UserID. Used instead of GroupID
 
-	csiSecretProviderClassParameterKeyVaultName      = "keyvaultName"
-	csiSecretProviderClassParameterUsePodIdentity    = "usePodIdentity"
-	csiSecretProviderClassParameterTenantId          = "tenantId"
-	csiSecretProviderClassParameterCloudName         = "cloudName"
-	csiSecretProviderClassParameterObjects           = "objects"
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
 	csiAzureKeyVaultSecretMountPathTemplate          = "/mnt/azure-key-vault/%s"
@@ -118,14 +112,14 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      volumeMountName,
 				ReadOnly:  true,
-				MountPath: getCsiAzureKeyVaultSecretMountPath(deployComponent.GetName(), azureKeyVault),
+				MountPath: getCsiAzureKeyVaultSecretMountPath(azureKeyVault),
 			})
 		}
 	}
 	return volumeMounts, nil
 }
 
-func getCsiAzureKeyVaultSecretMountPath(componentName string, azureKeyVault radixv1.RadixAzureKeyVault) string {
+func getCsiAzureKeyVaultSecretMountPath(azureKeyVault radixv1.RadixAzureKeyVault) string {
 	if azureKeyVault.Path == nil || *(azureKeyVault.Path) == "" {
 		return fmt.Sprintf(csiAzureKeyVaultSecretMountPathTemplate, azureKeyVault.Name)
 	}
@@ -175,7 +169,7 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 	}
 	volumes = append(volumes, blobVolumes...)
 
-	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName, environment)
+	storageRefsVolumes, err := getStorageRefsVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -184,9 +178,9 @@ func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace 
 	return volumes, nil
 }
 
-func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName, environment string) ([]v1.Volume, error) {
+func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
 	var volumes []v1.Volume
-	azureKeyVaultVolumes, err := getStorageRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent, radixDeploymentName, environment)
+	azureKeyVaultVolumes, err := getStorageRefsAzureKeyVaultVolumes(kubeutil, namespace, deployComponent, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +188,7 @@ func getStorageRefsVolumes(kubeutil *kube.Kube, namespace string, deployComponen
 	return volumes, nil
 }
 
-func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName, environment string) ([]v1.Volume, error) {
+func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]v1.Volume, error) {
 	secretRef := deployComponent.GetSecretRefs()
 	var volumes []v1.Volume
 	for _, azureKeyVault := range secretRef.AzureKeyVaults {
@@ -210,7 +204,7 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 			provider := string(secretProviderClass.Spec.Provider)
 			switch provider {
 			case "azure":
-				azKeyVaultName, azKeyVaultNameExists := secretProviderClass.Spec.Parameters[csiSecretProviderClassParameterKeyVaultName]
+				azKeyVaultName, azKeyVaultNameExists := secretProviderClass.Spec.Parameters[defaults.CsiSecretProviderClassParameterKeyVaultName]
 				if !azKeyVaultNameExists {
 					return nil, fmt.Errorf("missing Azure Key vault name in the secret provider class %s", secretProviderClass.Name)
 				}
