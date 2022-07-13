@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -208,6 +209,8 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, 4, len(rdDev.Spec.Components[1].EnvironmentVariables))
 		assert.Equal(t, "db-dev", rdDev.Spec.Components[1].EnvironmentVariables["DB_HOST"])
 		assert.Equal(t, "1234", rdDev.Spec.Components[1].EnvironmentVariables["DB_PORT"])
+		assert.Equal(t, anyCommitID, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, anyGitTags, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 		assert.NotEmpty(t, rdDev.Annotations[kube.RadixBranchAnnotation])
 		assert.NotEmpty(t, rdDev.Labels[kube.RadixCommitLabel])
 		assert.NotEmpty(t, rdDev.Labels["radix-job-name"])
