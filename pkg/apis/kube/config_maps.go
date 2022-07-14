@@ -34,6 +34,13 @@ func (kubeutil *Kube) UpdateConfigMap(namespace string, configMaps ...*corev1.Co
 	return nil
 }
 
+//DeleteConfigMap Deletes config-maps
+func (kubeutil *Kube) DeleteConfigMap(namespace string, name string) error {
+	return kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(),
+		name,
+		metav1.DeleteOptions{})
+}
+
 //ApplyConfigMap Patch changes of environment-variables to config-map if any
 func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desiredConfigMap *corev1.ConfigMap) error {
 	currentConfigMapJSON, err := json.Marshal(currentConfigMap)

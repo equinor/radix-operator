@@ -2,6 +2,8 @@ package steps
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/equinor/radix-common/utils/errors"
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -15,7 +17,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
-	"strings"
 )
 
 // ApplyConfigStepImplementation Step to apply RA
@@ -79,12 +80,17 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
-	gitConfigMap, configMapErr := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
+	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
+	if err != nil {
+		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		return nil
+	}
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
-	err = errorUtils.Concat([]error{commitErr, tagsErr, configMapErr})
+	err = errorUtils.Concat([]error{commitErr, tagsErr})
 	if err != nil {
-		return fmt.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		return nil
 	}
 	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 

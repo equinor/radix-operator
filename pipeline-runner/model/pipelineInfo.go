@@ -220,7 +220,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 }
 
 // SetGitAttributes Set git attributes to be used later by other steps
-func (info *PipelineInfo) SetGitAttributes(gitCommitHash string, gitTags string) {
+func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
 	info.GitCommitHash = gitCommitHash
 	info.GitTags = gitTags
 }

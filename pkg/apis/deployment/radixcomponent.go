@@ -5,7 +5,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/imdario/mergo"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -44,14 +43,11 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			return nil, err
 		}
 
-		radixConfigEnvVars := getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig)
-		envVars := appendEnvVars(radixConfigEnvVars, defaultEnvVars)
-
 		componentImage := componentImages[componentName]
 		deployComponent.Image = getImagePath(&componentImage, environmentSpecificConfig)
 		deployComponent.Node = getRadixCommonComponentNode(&radixComponent, environmentSpecificConfig)
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
-		deployComponent.EnvironmentVariables = envVars
+		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig, defaultEnvVars)
 		deployComponent.AlwaysPullImageOnDeploy = getRadixComponentAlwaysPullImageOnDeployFlag(&radixComponent, environmentSpecificConfig)
 		deployComponent.DNSExternalAlias = GetExternalDNSAliasForComponentEnvironment(radixApplication, componentName, env)
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
@@ -62,17 +58,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 	}
 
 	return components, nil
-}
-
-func appendEnvVars(radixConfigEnvVars v1.EnvVarsMap, defaultEnvVars v1.EnvVarsMap) v1.EnvVarsMap {
-	for key, value := range defaultEnvVars {
-		_, ok := radixConfigEnvVars[key]
-		if ok {
-			log.Errorf("restricted key %s already exists in user defined environment variables, overwriting with system defined value %s", key, value)
-		}
-		radixConfigEnvVars[key] = value
-	}
-	return radixConfigEnvVars
 }
 
 func getRadixComponentAuthentication(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) (*v1.Authentication, error) {
