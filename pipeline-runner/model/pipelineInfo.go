@@ -41,8 +41,10 @@ type PipelineInfo struct {
 	GitConfigMapName   string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
-	GitCommitHash      string
-	GitTags            string
+	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
+	// not to be confused with PipelineInfo.PipelineArguments.CommitID
+	GitCommitHash string
+	GitTags       string
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
@@ -50,9 +52,10 @@ type PipelineInfo struct {
 
 // PipelineArguments Holds arguments for the pipeline
 type PipelineArguments struct {
-	PipelineType    string
-	JobName         string
-	Branch          string
+	PipelineType string
+	JobName      string
+	Branch       string
+	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID        string
 	ImageTag        string
 	UseCache        string
