@@ -94,6 +94,10 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: pipelineInfo.RadixConfigMapName,
 		},
 		{
+			Name:  defaults.RadixGitConfigMapEnvironmentVariable,
+			Value: pipelineInfo.GitConfigMapName,
+		},
+		{
 			Name:  defaults.RadixPipelineJobEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.JobName,
 		},
@@ -142,5 +146,5 @@ func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipel
 	configBranch := applicationconfig.GetConfigBranch(registration)
 	sshURL := registration.Spec.CloneURL
 	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName,
-		pipelineInfo.PipelineArguments.ContainerSecurityContext)
+		pipelineInfo.PipelineArguments.ContainerSecurityContext, pipelineInfo.PipelineArguments.CommitID)
 }

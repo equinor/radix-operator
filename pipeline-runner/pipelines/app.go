@@ -97,10 +97,15 @@ func (cli *PipelineRunner) Run() error {
 // TearDown performs any needed cleanup
 func (cli *PipelineRunner) TearDown() {
 	namespace := utils.GetAppNamespace(cli.appName)
-	configMapName := cli.pipelineInfo.RadixConfigMapName
-	err := cli.kubeclient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), configMapName, metav1.DeleteOptions{})
+
+	err := cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.RadixConfigMapName)
 	if err != nil {
-		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", configMapName, namespace, err)
+		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.RadixConfigMapName, namespace, err)
+	}
+
+	err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
+	if err != nil {
+		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.GitConfigMapName, namespace, err)
 	}
 }
 

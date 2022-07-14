@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
@@ -83,17 +84,24 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 				),
 		).BuildRA()
 
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
 	cfg := jobComponentsBuilder{
 		ra:              ra,
 		env:             "env1",
 		componentImages: make(map[string]pipeline.ComponentImage),
+		defaultEnvVars:  envVarsMap,
 	}
 	jobComponent := cfg.JobComponents()[0]
 
-	assert.Len(t, jobComponent.EnvironmentVariables, 3)
+	assert.Len(t, jobComponent.EnvironmentVariables, 5)
 	assert.Equal(t, "override1", jobComponent.EnvironmentVariables["COMMON1"])
 	assert.Equal(t, "common2", jobComponent.EnvironmentVariables["COMMON2"])
 	assert.Equal(t, "job1", jobComponent.EnvironmentVariables["JOB1"])
+	assert.Equal(t, "anycommit", jobComponent.EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+	assert.Equal(t, "anytag", jobComponent.EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 }
 
 func Test_GetRadixJobComponents_Monitoring(t *testing.T) {

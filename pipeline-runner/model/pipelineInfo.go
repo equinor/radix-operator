@@ -38,8 +38,13 @@ type PipelineInfo struct {
 
 	// Temporary data
 	RadixConfigMapName string
+	GitConfigMapName   string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
+	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
+	// not to be confused with PipelineInfo.PipelineArguments.CommitID
+	GitCommitHash string
+	GitTags       string
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
@@ -47,9 +52,10 @@ type PipelineInfo struct {
 
 // PipelineArguments Holds arguments for the pipeline
 type PipelineArguments struct {
-	PipelineType    string
-	JobName         string
-	Branch          string
+	PipelineType string
+	JobName      string
+	Branch       string
+	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID        string
 	ImageTag        string
 	UseCache        string
@@ -139,6 +145,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
+	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
 	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
 	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
@@ -156,6 +163,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 		PipelineArguments:  pipelineArguments,
 		Steps:              stepImplementationsForType,
 		RadixConfigMapName: radixConfigMapName,
+		GitConfigMapName:   gitConfigFileName,
 	}, nil
 }
 
@@ -212,6 +220,12 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 		ra.Spec.Jobs,
 	)
 	info.ComponentImages = componentImages
+}
+
+// SetGitAttributes Set git attributes to be used later by other steps
+func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
+	info.GitCommitHash = gitCommitHash
+	info.GitTags = gitTags
 }
 
 // IsDeployOnlyPipeline Determines if the pipeline is deploy-only

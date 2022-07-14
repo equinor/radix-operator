@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -23,6 +24,7 @@ const (
 	anyJobName           = "any-job-name"
 	anyImageTag          = "anytag"
 	anyCommitID          = "4faca8595c5283a9d0f17a623b9255a0d9866a2e"
+	anyGitTags           = "some tags go here"
 	egressIps            = "0.0.0.0"
 )
 
@@ -175,9 +177,15 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		},
 		BranchIsMapped:     branchIsMapped,
 		TargetEnvironments: targetEnvs,
+		GitCommitHash:      anyCommitID,
+		GitTags:            anyGitTags,
 	}
 
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	rds, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").List(context.TODO(), metav1.ListOptions{})
 
@@ -199,9 +207,11 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 	t.Run("validate deployment environment variables", func(t *testing.T) {
 		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
 		assert.Equal(t, 2, len(rdDev.Spec.Components))
-		assert.Equal(t, 2, len(rdDev.Spec.Components[1].EnvironmentVariables))
+		assert.Equal(t, 4, len(rdDev.Spec.Components[1].EnvironmentVariables))
 		assert.Equal(t, "db-dev", rdDev.Spec.Components[1].EnvironmentVariables["DB_HOST"])
 		assert.Equal(t, "1234", rdDev.Spec.Components[1].EnvironmentVariables["DB_PORT"])
+		assert.Equal(t, anyCommitID, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+		assert.Equal(t, anyGitTags, rdDev.Spec.Components[1].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 		assert.NotEmpty(t, rdDev.Annotations[kube.RadixBranchAnnotation])
 		assert.NotEmpty(t, rdDev.Labels[kube.RadixCommitLabel])
 		assert.NotEmpty(t, rdDev.Labels["radix-job-name"])
