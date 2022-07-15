@@ -18,6 +18,8 @@ import (
 // Radix Annotations
 const (
 	RadixBranchAnnotation          = "radix-branch"
+	RadixGitTagsAnnotation         = "radix.equinor.com/radix-git-tags"
+	RadixCommitAnnotation          = "radix.equinor.com/radix-commit"
 	RadixComponentImagesAnnotation = "radix-component-images"
 	RadixContainerOutputAnnotation = "radix-container-output"
 	RadixDeploymentNameAnnotation  = "radix-deployment-name"
