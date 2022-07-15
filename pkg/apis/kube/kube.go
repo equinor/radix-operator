@@ -18,6 +18,8 @@ import (
 // Radix Annotations
 const (
 	RadixBranchAnnotation          = "radix-branch"
+	RadixGitTagsAnnotation         = "radix-git-tags"
+	RadixCommitAnnotation          = "radix-commit"
 	RadixComponentImagesAnnotation = "radix-component-images"
 	RadixContainerOutputAnnotation = "radix-container-output"
 	RadixDeploymentNameAnnotation  = "radix-deployment-name"
@@ -39,7 +41,6 @@ const (
 	RadixAuxiliaryComponentTypeLabel   = "radix-aux-component-type"
 	RadixBuildLabel                    = "radix-build"
 	RadixCommitLabel                   = "radix-commit"
-	RadixGitTagsLabel                  = "radix-git-tags"
 	RadixImageTagLabel                 = "radix-image-tag"
 	RadixJobTypeLabel                  = "radix-job-type"
 	RadixJobTypeJob                    = "job" // Outer job

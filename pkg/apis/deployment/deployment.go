@@ -456,11 +456,12 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 				kube.RadixAppLabel:     appName,
 				kube.RadixEnvLabel:     env,
 				kube.RadixCommitLabel:  commitID,
-				kube.RadixGitTagsLabel: gitTags,
 				kube.RadixJobNameLabel: jobName,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: branch,
+				kube.RadixBranchAnnotation:  branch,
+				kube.RadixGitTagsAnnotation: gitTags,
+				kube.RadixCommitAnnotation:  commitID,
 			},
 		},
 		Spec: v1.RadixDeploymentSpec{

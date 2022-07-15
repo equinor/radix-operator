@@ -140,7 +140,7 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 }
 
 func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName, componentName string) error {
-	branch, commitID, gitTags := deploy.getRadixBranchCommitIdAndGitTags()
+	branch, commitID := deploy.getRadixBranchAndCommitId()
 
 	desiredDeployment.ObjectMeta.Name = componentName
 	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
@@ -157,9 +157,6 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixCommitLabel] = commitID
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixGitTagsLabel] = gitTags
-
 	if string(deployComponent.GetType()) == string(v1.RadixComponentTypeJobScheduler) {
 		desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixPodIsJobSchedulerLabel] = "true"
 	}
@@ -196,20 +193,17 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	return nil
 }
 
-func (deploy *Deployment) getRadixBranchCommitIdAndGitTags() (string, string, string) {
-	// 	const branchKey, commitIDKey = "radix-branch", "radix-commit"
+func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
+	const branchKey, commitIDKey = "radix-branch", "radix-commit"
 	rdLabels := deploy.radixDeployment.Labels
-	var branch, commitID, gitTags string
-	if branchVal, exists := rdLabels[kube.RadixBranchAnnotation]; exists {
+	var branch, commitID string
+	if branchVal, exists := rdLabels[branchKey]; exists {
 		branch = branchVal
 	}
-	if commitIDVal, exists := rdLabels[kube.RadixCommitLabel]; exists {
+	if commitIDVal, exists := rdLabels[commitIDKey]; exists {
 		commitID = commitIDVal
 	}
-	if gitTagsVal, exists := rdLabels[kube.RadixGitTagsLabel]; exists {
-		gitTags = gitTagsVal
-	}
-	return branch, commitID, gitTags
+	return branch, commitID
 }
 
 func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName string) (*appsv1.Deployment, error) {
