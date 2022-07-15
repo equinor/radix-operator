@@ -39,6 +39,7 @@ const (
 	RadixAuxiliaryComponentTypeLabel   = "radix-aux-component-type"
 	RadixBuildLabel                    = "radix-build"
 	RadixCommitLabel                   = "radix-commit"
+	RadixGitTagsLabel                  = "radix-git-tags"
 	RadixImageTagLabel                 = "radix-image-tag"
 	RadixJobTypeLabel                  = "radix-job-type"
 	RadixJobTypeJob                    = "job" // Outer job
