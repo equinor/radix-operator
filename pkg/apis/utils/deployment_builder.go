@@ -32,12 +32,14 @@ type DeploymentBuilder interface {
 	WithComponents(...DeployComponentBuilder) DeploymentBuilder
 	WithJobComponent(DeployJobComponentBuilder) DeploymentBuilder
 	WithJobComponents(...DeployJobComponentBuilder) DeploymentBuilder
+	WithAnnotations(map[string]string) DeploymentBuilder
 	GetApplicationBuilder() ApplicationBuilder
 	BuildRD() *v1.RadixDeployment
 }
 
 // DeploymentBuilderStruct Holds instance variables
 type DeploymentBuilderStruct struct {
+	annotations        map[string]string
 	applicationBuilder ApplicationBuilder
 	DeploymentName     string
 	AppName            string
@@ -53,6 +55,11 @@ type DeploymentBuilderStruct struct {
 	UID                types.UID
 	components         []DeployComponentBuilder
 	jobComponents      []DeployJobComponentBuilder
+}
+
+func (db *DeploymentBuilderStruct) WithAnnotations(annotations map[string]string) DeploymentBuilder {
+	db.annotations = annotations
+	return db
 }
 
 // WithDeploymentName Sets name of the deployment
@@ -236,6 +243,7 @@ func (db *DeploymentBuilderStruct) BuildRD() *v1.RadixDeployment {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              deployName,
+			Annotations:       db.annotations,
 			Namespace:         GetEnvironmentNamespace(db.AppName, db.Environment),
 			Labels:            db.Labels,
 			CreationTimestamp: metav1.Time{Time: db.Created},
