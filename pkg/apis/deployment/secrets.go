@@ -17,13 +17,8 @@ import (
 )
 
 const (
-	secretDefaultData          = "xx"
-	azureSecureStorageProvider = "azure"
+	secretDefaultData = "xx"
 )
-
-type stringArray struct {
-	Array []string `json:"array" yaml:"array"`
-}
 
 func (deploy *Deployment) createOrUpdateSecrets() error {
 	envName := deploy.radixDeployment.Spec.Environment
