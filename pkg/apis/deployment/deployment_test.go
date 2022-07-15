@@ -1717,10 +1717,12 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 		expectedMemoryRequest        string
 		expectedCPURequest           string
 		expectedNumberOfVolumeMounts int
+		expectedGitCommitHash        string
+		expectedGitTags              string
 		alwaysPullImageOnDeploy      bool
 	}{
-		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m", 0, true},
-		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", 2, true},
+		{"prod", 4, "db-prod", "1234", "128Mi", "500m", "64Mi", "250m", 0, "jfkewki8273", "tag1 tag2 tag3", true},
+		{"dev", 3, "db-dev", "9876", "64Mi", "250m", "32Mi", "125m", 2, "plksmfnwi2309", "v1 v2 v1.1", true},
 	}
 
 	componentImages := make(map[string]pipeline.ComponentImage)
@@ -1729,11 +1731,17 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 	for _, testcase := range testScenarios {
 		t.Run(testcase.environment, func(t *testing.T) {
 
-			rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, testcase.environment)
+			envVarsMap := make(v1.EnvVarsMap)
+			envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = testcase.expectedGitCommitHash
+			envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = testcase.expectedGitTags
+
+			rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, testcase.environment, envVarsMap)
 
 			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
 			assert.Equal(t, testcase.expectedDbHost, rd.Spec.Components[0].EnvironmentVariables["DB_HOST"])
 			assert.Equal(t, testcase.expectedDbPort, rd.Spec.Components[0].EnvironmentVariables["DB_PORT"])
+			assert.Equal(t, testcase.expectedGitCommitHash, rd.Spec.Components[0].EnvironmentVariables[defaults.RadixCommitHashEnvironmentVariable])
+			assert.Equal(t, testcase.expectedGitTags, rd.Spec.Components[0].EnvironmentVariables[defaults.RadixGitTagsEnvironmentVariable])
 			assert.Equal(t, testcase.expectedMemoryLimit, rd.Spec.Components[0].Resources.Limits["memory"])
 			assert.Equal(t, testcase.expectedCPULimit, rd.Spec.Components[0].Resources.Limits["cpu"])
 			assert.Equal(t, testcase.expectedMemoryRequest, rd.Spec.Components[0].Resources.Requests["memory"])
@@ -1786,7 +1794,11 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	componentImages := make(map[string]pipeline.ComponentImage)
 	componentImages["app"] = pipeline.ComponentImage{ImageName: "anyImage", ImagePath: "anyImagePath"}
 
-	rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "dev")
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap)
 
 	t.Log(rd.Spec.Components[0].Name)
 	assert.True(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
@@ -1795,7 +1807,7 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	t.Log(rd.Spec.Components[2].Name)
 	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
 
-	rd, _ = ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", "anycommit", componentImages, "prod")
+	rd, _ = ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "prod", envVarsMap)
 
 	t.Log(rd.Spec.Components[0].Name)
 	assert.False(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
