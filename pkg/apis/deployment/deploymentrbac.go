@@ -1,11 +1,12 @@
 package deployment
 
 import (
+	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,8 +47,7 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
 		if err != nil {
-			log.Warnf("Error creating Service account for radix api. %v", err)
-			return err
+			return fmt.Errorf("Error creating Service account for radix api. %v", err)
 		}
 		return deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-api", serviceAccount, ownerReference)
 	}
@@ -66,8 +66,7 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
 		if err != nil {
-			log.Warnf("Service account for running radix github webhook not made. %v", err)
-			return err
+			return fmt.Errorf("Service account for running radix github webhook not made. %v", err)
 		}
 		return deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-webhook", serviceAccount, ownerReference)
 	}
@@ -87,8 +86,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
 		if err != nil {
-			log.Warnf("Error creating Service account for radix job scheduler. %v", err)
-			return err
+			return fmt.Errorf("Error creating Service account for radix job scheduler. %v", err)
 		}
 		subjects := []auth.Subject{
 			{
