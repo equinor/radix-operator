@@ -215,7 +215,9 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("failed to perform auxiliary resource garbage collection: %v", err)
 	}
 
-	deploy.configureRbac()
+	if err := deploy.configureRbac(); err != nil {
+		return err
+	}
 
 	err = deploy.createOrUpdateSecrets()
 	if err != nil {
@@ -266,11 +268,14 @@ func (deploy *Deployment) syncAuxiliaryResources() error {
 	return nil
 }
 
-func (deploy *Deployment) configureRbac() {
+func (deploy *Deployment) configureRbac() error {
 	rbacFunc := GetDeploymentRbacConfigurators(deploy)
 	for _, rbac := range rbacFunc {
-		rbac()
+		if err := rbac(); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (deploy *Deployment) updateStatusOnActiveDeployment() error {
