@@ -125,7 +125,6 @@ rules:
   - 'secrets-store.csi.x-k8s.io'
   resources:
   - secretproviderclasses
-  - secretproviderclasspodstatuses
   verbs:
   - get
   - list
@@ -133,6 +132,13 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - 'secrets-store.csi.x-k8s.io'
+  resources:
+  - secretproviderclasspodstatuses
+  verbs:
+  - get
+  - list
 - apiGroups:
     - tekton.dev
   resources:
