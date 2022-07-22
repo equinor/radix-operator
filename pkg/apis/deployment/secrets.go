@@ -99,7 +99,6 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 	}
 
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
-	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
 	if err != nil {
 		return err
 	}
