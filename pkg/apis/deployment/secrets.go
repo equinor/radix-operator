@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	secretDefaultData = "xx"
+	secretDefaultData                  = "xx"
+	secretUsedBySecretStoreDriverLabel = "secrets-store.csi.k8s.io/used"
 )
 
 func (deploy *Deployment) createOrUpdateSecrets() error {
@@ -373,7 +374,7 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 				kube.RadixComponentLabel:           componentName,
 				kube.RadixSecretRefTypeLabel:       string(radixv1.RadixSecretRefTypeAzureKeyVault),
 				kube.RadixSecretRefNameLabel:       strings.ToLower(azKeyVaultName),
-				"secrets-store.csi.k8s.io/managed": "true", //used by CSI Azure Key vault driver for secret rotation
+				secretUsedBySecretStoreDriverLabel: "true", //used by CSI Azure Key vault secret store driver for secret rotation
 			},
 		},
 	}
