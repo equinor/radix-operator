@@ -369,10 +369,11 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:           appName,
-				kube.RadixComponentLabel:     componentName,
-				kube.RadixSecretRefTypeLabel: string(radixv1.RadixSecretRefTypeAzureKeyVault),
-				kube.RadixSecretRefNameLabel: strings.ToLower(azKeyVaultName),
+				kube.RadixAppLabel:                 appName,
+				kube.RadixComponentLabel:           componentName,
+				kube.RadixSecretRefTypeLabel:       string(radixv1.RadixSecretRefTypeAzureKeyVault),
+				kube.RadixSecretRefNameLabel:       strings.ToLower(azKeyVaultName),
+				"secrets-store.csi.k8s.io/managed": "true", //used by CSI Azure Key vault driver for secret rotation
 			},
 		},
 	}
