@@ -1,11 +1,11 @@
-FROM golang:1.17.6-alpine3.15 as builder
+FROM golang:1.18.5-alpine3.16 as builder
 
 ENV GO111MODULE=on
 
 RUN apk update && \
     apk add git ca-certificates curl && \
     apk add --no-cache gcc musl-dev && \
-    go get -u golang.org/x/lint/golint github.com/frapposelli/wwhrd@v0.2.4
+    go install honnef.co/go/tools/cmd/staticcheck@latest
 
 WORKDIR /go/src/github.com/equinor/radix-operator/
 
@@ -13,16 +13,12 @@ WORKDIR /go/src/github.com/equinor/radix-operator/
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Check dependency licenses using https://github.com/frapposelli/wwhrd
-COPY .wwhrd.yml ./
-RUN wwhrd -q check
-
 # Copy project code
 COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
 
 # Run tests
-RUN golint `go list ./... | grep -v "pkg/client"` && \
+RUN staticcheck `go list ./... | grep -v "pkg/client"` && \
     go vet `go list ./... | grep -v "pkg/client"` && \
     CGO_ENABLED=0 GOOS=linux go test `go list ./... | grep -v "pkg/client"`
 

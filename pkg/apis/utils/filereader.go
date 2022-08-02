@@ -6,7 +6,7 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // GetRadixApplicationFromFile Reads radix config from file
