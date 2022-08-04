@@ -5,7 +5,7 @@ ENV GO111MODULE=on
 RUN apk update && \
     apk add git ca-certificates curl && \
     apk add --no-cache gcc musl-dev && \
-    go install honnef.co/go/tools/cmd/staticcheck@latest
+    go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
 
 WORKDIR /go/src/github.com/equinor/radix-operator/
 

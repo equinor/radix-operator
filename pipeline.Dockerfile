@@ -3,7 +3,7 @@ FROM golang:1.18.5-alpine3.16 as builder
 RUN apk update && \
     apk add ca-certificates curl git  && \
     apk add --no-cache gcc musl-dev && \
-    go install honnef.co/go/tools/cmd/staticcheck@latest
+    go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
 
 WORKDIR /go/src/github.com/equinor/radix-operator/
 
