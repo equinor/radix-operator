@@ -36,7 +36,7 @@ func EqualPvcLists(pvcList1, pvcList2 *[]corev1.PersistentVolumeClaim, ignoreRan
 	for pvcName, pvc1 := range pvcMap1 {
 		pvc2, ok := pvcMap2[pvcName]
 		if !ok {
-			return false, fmt.Errorf("PVS not found by name '%s' in second list", pvcName)
+			return false, fmt.Errorf("PVS not found by name %s in second list", pvcName)
 		}
 		if equal, err := EqualPvcs(pvc1, pvc2, ignoreRandomPostfixInName); err != nil || !equal {
 			return false, err

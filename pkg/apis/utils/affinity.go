@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
 
@@ -11,23 +12,46 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func GetPodSpecAffinity(node *v1.RadixNode) *corev1.Affinity {
-	if node == nil {
-		return nil
-	}
+func GetPodSpecAffinity(node *v1.RadixNode, appName string, componentName string) *corev1.Affinity {
 
 	affinity := &corev1.Affinity{
-		NodeAffinity: &corev1.NodeAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				{
+					Weight: 1,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      kube.RadixAppLabel,
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{appName},
+								},
+								{
+									Key:      kube.RadixComponentLabel,
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{componentName},
+								},
+							},
+						},
+						TopologyKey: corev1.LabelHostname,
+					},
+				},
+			},
 		},
 	}
 
-	addGpuNodeSelectorTerms(node, affinity.NodeAffinity)
-
-	if len(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
-		return affinity
+	if node != nil {
+		nodeAffinity := &corev1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{NodeSelectorTerms: []corev1.NodeSelectorTerm{}},
+		}
+		addGpuNodeSelectorTerms(node, nodeAffinity)
+		if len(nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) > 0 {
+			affinity.NodeAffinity = nodeAffinity
+		}
 	}
-	return nil
+
+	return affinity
 }
 
 func addGpuNodeSelectorTerms(node *v1.RadixNode, nodeAffinity *corev1.NodeAffinity) {

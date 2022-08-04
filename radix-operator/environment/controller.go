@@ -58,6 +58,7 @@ func NewController(client kubernetes.Interface,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
 		Recorder:              recorder,
+		LockKeyAndIdentifier:  common.NamePartitionKey,
 	}
 
 	logger.Info("Setting up event handlers")

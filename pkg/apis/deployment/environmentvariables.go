@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -29,23 +28,23 @@ type radixOperatorEnvironmentVariablesSourceDecorator struct {
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
-	return getEnvVar(defaults.ClusternameEnvironmentVariable)
+	return defaults.GetEnvVar(defaults.ClusternameEnvironmentVariable)
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getContainerRegistry() (string, error) {
-	return getEnvVar(defaults.ContainerRegistryEnvironmentVariable)
+	return defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getDnsZone() (string, error) {
-	return getEnvVar(defaults.RadixDNSZoneEnvironmentVariable)
+	return defaults.GetEnvVar(defaults.RadixDNSZoneEnvironmentVariable)
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
-	return getEnvVar(defaults.RadixClusterTypeEnvironmentVariable)
+	return defaults.GetEnvVar(defaults.RadixClusterTypeEnvironmentVariable)
 }
 
 func (envVarsSource *radixApplicationEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps() (string, error) {
-	return getEnvVar(defaults.RadixActiveClusterEgressIpsEnvironmentVariable)
+	return defaults.GetEnvVar(defaults.RadixActiveClusterEgressIpsEnvironmentVariable)
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterName() (string, error) {
@@ -65,11 +64,11 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContai
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getDnsZone() (string, error) {
-	return getEnvVar(defaults.OperatorDNSZoneEnvironmentVariable)
+	return defaults.GetEnvVar(defaults.OperatorDNSZoneEnvironmentVariable)
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterType() (string, error) {
-	return getEnvVar(defaults.OperatorClusterTypeEnvironmentVariable)
+	return defaults.GetEnvVar(defaults.OperatorClusterTypeEnvironmentVariable)
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getClusterActiveEgressIps() (string, error) {
@@ -295,14 +294,6 @@ func getPortNumbersAndNamesString(ports []v1.ComponentPort) (string, string) {
 	return portNumbers, portNames
 }
 
-func getEnvVar(name string) (string, error) {
-	envVar := os.Getenv(name)
-	if len(envVar) > 0 {
-		return envVar, nil
-	}
-	return "", fmt.Errorf("not set environment variable %s", name)
-}
-
 func (deploy *Deployment) createOrUpdateEnvironmentVariableConfigMaps(deployComponent v1.RadixCommonDeployComponent) error {
 	currentEnvVarsConfigMap, envVarsMetadataConfigMap,
 		err := deploy.kubeutil.GetOrCreateEnvVarsConfigMapAndMetadataMap(deploy.radixDeployment.GetNamespace(),
@@ -359,7 +350,7 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		//save radixconfig env-var value to metadata
 		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
 		envVarMetadataMap[envVarName] = envVarMetadata
-		log.Debugf("RadixConfig environment variable '%s' has been set or changed in Radix console", envVarName)
+		log.Debugf("RadixConfig environment variable %s has been set or changed in Radix console", envVarName)
 	}
 	removeFromConfigMapEnvVarsNotExistingInRadixconfig(radixConfigEnvVars, envVarConfigMap)
 	removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfigMap, envVarMetadataMap)

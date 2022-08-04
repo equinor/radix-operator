@@ -1,7 +1,4 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
@@ -23,6 +20,7 @@
         "RADIX_CONFIG_TO_MAP=radix-config-2-map:master-latest",
         "RADIX_IMAGE_BUILDER=radix-image-builder:master-latest",
         "RADIX_IMAGE_SCANNER=radix-image-scanner:master-latest",
+        "RADIX_TEKTON_IMAGE=radix-tekton:main-latest",
         "RADIX_CLUSTER_TYPE=development",
         "RADIX_CLUSTERNAME=weekly-04",
         "RADIX_FILE_NAME=/workspace/radixconfig.yaml",
@@ -74,13 +72,22 @@
         "RADIX_CONFIG_TO_MAP": "radix-config-2-map:master-latest",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
         "RADIX_IMAGE_SCANNER": "radix-image-scanner:master-latest",
+        "RADIX_TEKTON_IMAGE": "radix-tekton:main-latest",
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler-server:main-latest",
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
         "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER": "true",
         "RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL": "https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0",
         "RADIX_OAUTH_PROXY_IMAGE": "quay.io/oauth2-proxy/oauth2-proxy:v7.2.0",
         "RADIXOPERATOR_TENANT_ID": "3aa4a235-b6e2-48d5-9195-7fcf05b459b0",
-        "KUBERNETES_SERVICE_PORT": 443
+        "KUBERNETES_SERVICE_PORT": "443",
+        "REGISTRATION_CONTROLLER_THREADS": "10",
+        "APPLICATION_CONTROLLER_THREADS": "10",
+        "ENVIRONMENT_CONTROLLER_THREADS": "10",
+        "DEPLOYMENT_CONTROLLER_THREADS": "10",
+        "JOB_CONTROLLER_THREADS": "10",
+        "ALERT_CONTROLLER_THREADS": "10",
+        "KUBE_CLIENT_RATE_LIMIT_QPS": "500",
+        "KUBE_CLIENT_RATE_LIMIT_BURST": "5"
       },
       "args": ["--useOutClusterClient=false"]
     },

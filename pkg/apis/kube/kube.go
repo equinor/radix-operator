@@ -18,6 +18,8 @@ import (
 // Radix Annotations
 const (
 	RadixBranchAnnotation          = "radix-branch"
+	RadixGitTagsAnnotation         = "radix.equinor.com/radix-git-tags"
+	RadixCommitAnnotation          = "radix.equinor.com/radix-commit"
 	RadixComponentImagesAnnotation = "radix-component-images"
 	RadixContainerOutputAnnotation = "radix-container-output"
 	RadixDeploymentNameAnnotation  = "radix-deployment-name"
@@ -45,6 +47,8 @@ const (
 	RadixJobTypeBuild                  = "build"
 	RadixJobTypeScan                   = "scan"
 	RadixJobTypeCloneConfig            = "clone-config"
+	RadixJobTypePreparePipelines       = "prepare-pipelines"
+	RadixJobTypeRunPipelines           = "run-pipelines"
 	RadixJobTypeJobSchedule            = "job-scheduler"
 	RadixJobTypeBatchSchedule          = "batch-scheduler"
 	RadixAppAliasLabel                 = "radix-app-alias"

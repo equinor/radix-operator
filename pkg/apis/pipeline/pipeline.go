@@ -15,10 +15,30 @@ type Definition struct {
 // GetSupportedPipelines Lists supported pipelines
 func GetSupportedPipelines() []Definition {
 	return []Definition{
-		Definition{v1.BuildDeploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep, DeployStep, ScanImageStep}},
-		Definition{v1.Build, []StepType{CopyConfigToMapStep, ApplyConfigStep, BuildStep, ScanImageStep}},
-		Definition{v1.Promote, []StepType{PromoteStep}},
-		Definition{v1.Deploy, []StepType{CopyConfigToMapStep, ApplyConfigStep, DeployStep}}}
+		Definition{v1.BuildDeploy, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep,
+			BuildStep,
+			RunPipelinesStep,
+			DeployStep,
+			ScanImageStep,
+		}},
+		Definition{v1.Build, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep,
+			BuildStep,
+			RunPipelinesStep,
+			ScanImageStep,
+		}},
+		Definition{v1.Promote, []StepType{
+			PreparePipelinesStep,
+			RunPipelinesStep,
+			PromoteStep}},
+		Definition{v1.Deploy, []StepType{
+			PreparePipelinesStep,
+			ApplyConfigStep,
+			RunPipelinesStep,
+			DeployStep}}}
 }
 
 // GetPipelineFromName Gets pipeline from string

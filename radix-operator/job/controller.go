@@ -34,7 +34,7 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
 }
 
-// NewController creates a new controller that handles RadixDeployments
+// NewController creates a new controller that handles RadixJobs
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -58,6 +58,7 @@ func NewController(client kubernetes.Interface,
 		Log:                   logger,
 		WaitForChildrenToSync: waitForChildrenToSync,
 		Recorder:              recorder,
+		LockKeyAndIdentifier:  common.NamespacePartitionKey,
 	}
 
 	logger.Info("Setting up event handlers")

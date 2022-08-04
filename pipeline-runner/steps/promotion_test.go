@@ -38,7 +38,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	nonExistingJobComponent := "non-existing-job"
 
 	// Setup
-	kubeclient, kube, radixclient, commonTestUtils := setupTest()
+	kubeclient, kube, radixclient, commonTestUtils, env := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
@@ -110,7 +110,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), scenario.appName, metav1.GetOptions{})
 
 			cli := NewPromoteStep()
-			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
+			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, env)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -145,7 +145,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	prodNode := v1.RadixNode{Gpu: "prod-gpu", GpuCount: "2"}
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+	kubeclient, kubeUtil, radixclient, commonTestUtils, env := setupTest(t)
 
 	secretType := v1.RadixAzureKeyVaultObjectTypeSecret
 	keyType := v1.RadixAzureKeyVaultObjectTypeKey
@@ -254,7 +254,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -268,7 +268,10 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -328,7 +331,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+	kubeclient, kubeUtil, radixclient, commonTestUtils, env := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
@@ -375,7 +378,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -389,7 +392,10 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -419,7 +425,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+	kubeclient, kubeUtil, radixclient, commonTestUtils, dev := setupTest(t)
 
 	verification := v1.VerificationTypeOptional
 	commonTestUtils.ApplyDeployment(
@@ -464,7 +470,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, dev)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -478,7 +484,10 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -506,7 +515,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+	kubeclient, kubeUtil, radixclient, commonTestUtils, dev := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
@@ -576,7 +585,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, dev)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -590,7 +599,10 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 
@@ -619,7 +631,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest()
+	kubeclient, kubeUtil, radixclient, commonTestUtils, dev := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
@@ -633,7 +645,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, dev)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -647,7 +659,10 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	}
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
 	pipelineInfo.SetApplicationConfig(applicationConfig)
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	err := cli.Run(pipelineInfo)
 	assert.NoError(t, err)
 

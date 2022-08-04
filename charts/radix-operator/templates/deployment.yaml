@@ -1,25 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "radix-operator"
+  name: {{ template "radix-operator.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
-    app: "radix-operator"
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "radix-operator.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: "radix-operator"
-      release: {{ .Release.Name }}
+      {{- include "radix-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: "radix-operator"
-        release: {{ .Release.Name }}
+        {{- include "radix-operator.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccount: "radix-operator"
+      serviceAccount: {{ include "radix-operator.serviceAccountName" . }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -28,7 +24,7 @@ spec:
         supplementalGroups:
           - 1000
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ template "radix-operator.fullname" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
@@ -87,8 +83,8 @@ spec:
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
             - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
               value: {{ .Values.jobsPerAppHistoryLimit | quote }}
-            - name: RADIX_CONFIG_TO_MAP
-              value: {{ .Values.configToMap }}
+            - name: RADIX_TEKTON_IMAGE
+              value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
               value: {{ .Values.imageBuilder }}
             - name: RADIX_IMAGE_SCANNER
@@ -107,6 +103,22 @@ spec:
               value: {{ .Values.oauthProxyDefaultIssuerUrl }}
             - name: RADIX_OAUTH_PROXY_IMAGE
               value: {{ .Values.oauthProxyImage }}
+            - name: REGISTRATION_CONTROLLER_THREADS
+              value: {{ .Values.registrationControllerThreads | quote }}
+            - name: APPLICATION_CONTROLLER_THREADS
+              value: {{ .Values.applicationControllerThreads | quote }}
+            - name: ENVIRONMENT_CONTROLLER_THREADS
+              value: {{ .Values.environmentControllerThreads | quote }}
+            - name: DEPLOYMENT_CONTROLLER_THREADS
+              value: {{ .Values.deploymentControllerThreads | quote }}
+            - name: JOB_CONTROLLER_THREADS
+              value: {{ .Values.jobControllerThreads | quote }}
+            - name: ALERT_CONTROLLER_THREADS
+              value: {{ .Values.alertControllerThreads | quote }}
+            - name: KUBE_CLIENT_RATE_LIMIT_BURST
+              value: {{ .Values.kubeClientRateLimitBurst | quote }}
+            - name: KUBE_CLIENT_RATE_LIMIT_QPS
+              value: {{ .Values.kubeClientRateLimitQPS | quote }}
           livenessProbe:
             httpGet:
               path: /healthz

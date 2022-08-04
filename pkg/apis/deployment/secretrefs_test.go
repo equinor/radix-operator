@@ -216,7 +216,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 					secretObjectItemMap[item.Key] = item
 				}
 				for _, keyVaultItem := range azureKeyVault.Items {
-					dataItem, exists := secretObjectItemMap[getSecretRefAzureKeyVaultItemDataKey(&keyVaultItem)]
+					dataItem, exists := secretObjectItemMap[kube.GetSecretRefAzureKeyVaultItemDataKey(&keyVaultItem)]
 					if !exists {
 						assert.Fail(t, "missing data item for EnvVar or Alias")
 					}

@@ -498,15 +498,17 @@ func (o *oauthProxyResourceManager) mergeAuxComponentResourceLabels(object metav
 
 func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommonDeployComponent) error {
 	secretName := utils.GetAuxiliaryComponentSecretName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
+	deploymentName := utils.GetAuxiliaryComponentDeploymentName(component.GetName(), defaults.OAuthProxyAuxiliaryComponentSuffix)
 	roleName := o.getRoleAndRoleBindingName(component.GetName())
 	namespace := o.rd.Namespace
 
 	// create role
-	role := kube.CreateManageSecretRole(
+	role := kube.CreateAppRole(
 		o.rd.Spec.AppName,
 		roleName,
-		[]string{secretName},
 		o.getLabelsForAuxComponent(component),
+		kube.ManageSecretsRule([]string{secretName}),
+		kube.UpdateDeploymentsRule([]string{deploymentName}),
 	)
 
 	err := o.kubeutil.ApplyRole(namespace, role)

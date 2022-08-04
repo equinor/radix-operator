@@ -5,14 +5,18 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-common/utils/errors"
+	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // ApplyConfigStepImplementation Step to apply RA
@@ -52,26 +56,13 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	ra := &v1.RadixApplication{}
-	if err := yaml.Unmarshal([]byte(configMap.Data["content"]), ra); err != nil {
+	configFileContent, ok := configMap.Data["content"]
+	if !ok {
+		return fmt.Errorf("failed load RadixApplication from ConfigMap")
+	}
+	ra, err := CreateRadixApplication(cli.GetRadixclient(), configFileContent)
+	if err != nil {
 		return err
-	}
-
-	// Validate RA
-	if validate.RAContainsOldPublic(ra) {
-		log.Warnf("component.public is deprecated, please use component.publicPort instead")
-	}
-
-	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
-	if !isAppNameLowercase {
-		log.Warnf("%s Converting name to lowercase", err.Error())
-		ra.Name = strings.ToLower(ra.Name)
-	}
-
-	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(cli.GetRadixclient(), ra)
-	if !isRAValid {
-		log.Errorf("Radix config not valid.")
-		return errors.Concat(errs)
 	}
 
 	// Apply RA to cluster
@@ -89,5 +80,55 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
+	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
+	if err != nil {
+		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		return nil
+	}
+	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
+	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
+	err = errorUtils.Concat([]error{commitErr, tagsErr})
+	if err != nil {
+		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		return nil
+	}
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+
 	return nil
+}
+
+//CreateRadixApplication Create RadixApplication from radixconfig.yaml content
+func CreateRadixApplication(radixClient radixclient.Interface,
+	configFileContent string) (*v1.RadixApplication, error) {
+	ra := &v1.RadixApplication{}
+	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
+		return nil, err
+	}
+
+	// Validate RA
+	if validate.RAContainsOldPublic(ra) {
+		log.Warnf("component.public is deprecated, please use component.publicPort instead")
+	}
+
+	isAppNameLowercase, err := validate.IsApplicationNameLowercase(ra.Name)
+	if !isAppNameLowercase {
+		log.Warnf("%s Converting name to lowercase", err.Error())
+		ra.Name = strings.ToLower(ra.Name)
+	}
+
+	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(radixClient, ra)
+	if !isRAValid {
+		log.Errorf("Radix config not valid.")
+		return nil, errors.Concat(errs)
+	}
+	return ra, nil
+}
+
+func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {
+
+	value, ok := configMap.Data[key]
+	if !ok {
+		return "", fmt.Errorf("failed to get %s from configMap %s", key, configMap.Name)
+	}
+	return value, nil
 }

@@ -6,8 +6,8 @@ import "fmt"
 type StepType int
 
 const (
-	// CopyConfigToMapStep Step type to copy cloned radix config to configmap
-	CopyConfigToMapStep StepType = iota
+	// PreparePipelinesStep Step to prepare pipelines
+	PreparePipelinesStep StepType = iota
 
 	// ApplyConfigStep Step type to apply radix config
 	ApplyConfigStep
@@ -24,6 +24,9 @@ const (
 	// PromoteStep Will promote a deployment from one environment to another,
 	// or an older deployment to an active
 	PromoteStep
+
+	// RunPipelinesStep Step to run pipelines
+	RunPipelinesStep
 
 	// end marker of the enum
 	numSteps

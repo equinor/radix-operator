@@ -266,13 +266,41 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxySecretAndRbacCr
 	s.Equal(expectedSecretName, actualSecrets.Items[0].Name)
 	s.Equal(expectedLabels, actualSecrets.Items[0].Labels)
 	s.NotEmpty(actualSecrets.Items[0].Data[defaults.OAuthCookieSecretKeyName])
+}
+
+func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
+	appName, envName, componentName := "anyapp", "qa", "server"
+	envNs := utils.GetEnvironmentNamespace(appName, envName)
+	s.oauth2Config.EXPECT().MergeWith(gomock.Any()).Times(1).Return(&v1.OAuth2{}, nil)
+
+	rr := utils.NewRegistrationBuilder().WithName(appName).WithAdGroups([]string{"ad1", "ad2"}).WithMachineUser(true).BuildRR()
+	rd := utils.NewDeploymentBuilder().
+		WithAppName(appName).
+		WithEnvironment(envName).
+		WithComponent(utils.NewDeployComponentBuilder().WithName(componentName).WithPublicPort("http").WithAuthentication(&v1.Authentication{OAuth2: &v1.OAuth2{}})).
+		BuildRD()
+	sut := &oauthProxyResourceManager{rd, rr, s.kubeUtil, []IngressAnnotationProvider{}, s.oauth2Config, ""}
+	err := sut.Sync()
+	s.Nil(err)
+
+	expectedLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixAuxiliaryComponentLabel: componentName, kube.RadixAuxiliaryComponentTypeLabel: defaults.OAuthProxyAuxiliaryComponentType}
+	expectedSecretName := utils.GetAuxiliaryComponentSecretName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
+	expectedDeploymentName := utils.GetAuxiliaryComponentDeploymentName(componentName, defaults.OAuthProxyAuxiliaryComponentSuffix)
 
 	actualRoles, _ := s.kubeClient.RbacV1().Roles(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoles.Items, 1)
 	s.Equal(sut.getRoleAndRoleBindingName(componentName), actualRoles.Items[0].Name)
 	s.Equal(expectedLabels, actualRoles.Items[0].Labels)
-	s.Len(actualRoles.Items[0].Rules, 1)
+	s.Len(actualRoles.Items[0].Rules, 2)
+	s.ElementsMatch([]string{""}, actualRoles.Items[0].Rules[0].APIGroups)
+	s.ElementsMatch([]string{"secrets"}, actualRoles.Items[0].Rules[0].Resources)
 	s.ElementsMatch([]string{expectedSecretName}, actualRoles.Items[0].Rules[0].ResourceNames)
+	s.ElementsMatch([]string{"get", "list", "watch", "update", "patch", "delete"}, actualRoles.Items[0].Rules[0].Verbs)
+
+	s.ElementsMatch([]string{"apps"}, actualRoles.Items[0].Rules[1].APIGroups)
+	s.ElementsMatch([]string{"deployments"}, actualRoles.Items[0].Rules[1].Resources)
+	s.ElementsMatch([]string{expectedDeploymentName}, actualRoles.Items[0].Rules[1].ResourceNames)
+	s.ElementsMatch([]string{"update"}, actualRoles.Items[0].Rules[1].Verbs)
 
 	actualRoleBindings, _ := s.kubeClient.RbacV1().RoleBindings(envNs).List(context.Background(), metav1.ListOptions{})
 	s.Len(actualRoleBindings.Items, 1)

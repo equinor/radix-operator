@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pipeline-runner/model/env"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -19,26 +20,28 @@ import (
 
 // PipelineRunner Instance variables
 type PipelineRunner struct {
-	definfition              *pipeline.Definition
+	definition               *pipeline.Definition
 	kubeclient               kubernetes.Interface
 	kubeUtil                 *kube.Kube
 	radixclient              radixclient.Interface
 	prometheusOperatorClient monitoring.Interface
 	appName                  string
 	pipelineInfo             *model.PipelineInfo
+	env                      env.Env
 }
 
 // InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
+func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string, environment env.Env) PipelineRunner {
 
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
-		definfition:              definition,
+		definition:               definition,
 		kubeclient:               kubeclient,
 		kubeUtil:                 kubeUtil,
 		radixclient:              radixclient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		appName:                  appName,
+		env:                      environment,
 	}
 
 	return handler
@@ -52,9 +55,9 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 		return err
 	}
 
-	stepImplementations := initStepImplementations(cli.kubeclient, cli.kubeUtil, cli.radixclient, cli.prometheusOperatorClient, radixRegistration)
+	stepImplementations := cli.initStepImplementations(radixRegistration)
 	cli.pipelineInfo, err = model.InitPipeline(
-		cli.definfition,
+		cli.definition,
 		pipelineArgs,
 		stepImplementations...)
 
@@ -94,31 +97,31 @@ func (cli *PipelineRunner) Run() error {
 // TearDown performs any needed cleanup
 func (cli *PipelineRunner) TearDown() {
 	namespace := utils.GetAppNamespace(cli.appName)
-	configMapName := cli.pipelineInfo.RadixConfigMapName
-	err := cli.kubeclient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), configMapName, metav1.DeleteOptions{})
+
+	err := cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.RadixConfigMapName)
 	if err != nil {
-		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", configMapName, namespace, err)
+		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.RadixConfigMapName, namespace, err)
+	}
+
+	err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
+	if err != nil {
+		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.GitConfigMapName, namespace, err)
 	}
 }
 
-func initStepImplementations(
-	kubeclient kubernetes.Interface,
-	kubeUtil *kube.Kube,
-	radixclient radixclient.Interface,
-	prometheusOperatorClient monitoring.Interface,
-	registration *v1.RadixRegistration) []model.Step {
-
+func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistration) []model.Step {
 	stepImplementations := make([]model.Step, 0)
-	stepImplementations = append(stepImplementations, steps.NewCopyConfigToMapStep())
+	stepImplementations = append(stepImplementations, steps.NewPreparePipelinesStep())
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
+	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep())
 	stepImplementations = append(stepImplementations, steps.NewScanImageStep())
-	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(kubeclient)))
+	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(kubeclient, radixclient, kubeUtil, prometheusOperatorClient, registration)
+			Init(cli.kubeclient, cli.radixclient, cli.kubeUtil, cli.prometheusOperatorClient, registration, cli.env)
 	}
 
 	return stepImplementations

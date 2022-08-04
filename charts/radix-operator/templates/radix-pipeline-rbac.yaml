@@ -5,10 +5,7 @@ kind: ClusterRole
 metadata:
   name: radix-pipeline
   labels:
-    app: "radix-operator"
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - radix.equinor.com
@@ -47,8 +44,16 @@ rules:
   resources:
     - secretproviderclasses
   verbs:
-    - get
-    - list
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
 ---
 # used to grant pipeline access to create new namespaces and deployments
 apiVersion: rbac.authorization.k8s.io/v1
@@ -56,10 +61,7 @@ kind: ClusterRole
 metadata:
   name: radix-pipeline-runner
   labels:
-    app: "radix-operator"
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
-    release: "{{ .Release.Name }}"
-    heritage: "{{ .Release.Service }}"
+    {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - ""

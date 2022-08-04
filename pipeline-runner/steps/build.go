@@ -44,7 +44,7 @@ func (cli *BuildStepImplementation) ErrorMsg(err error) string {
 // Run Override of default step method
 func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
 	branch := pipelineInfo.PipelineArguments.Branch
-	commitID := pipelineInfo.PipelineArguments.CommitID
+	commitID := pipelineInfo.GitCommitHash
 
 	if !pipelineInfo.BranchIsMapped {
 		// Do nothing

@@ -27,7 +27,7 @@ func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) 
 	}
 }
 
-func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.EnvVarsMap {
+func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) v1.EnvVarsMap {
 	var variables v1.EnvVarsMap
 	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
 		variables = environmentSpecificConfig.GetVariables()
@@ -42,6 +42,12 @@ func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environme
 			variables[variableKey] = variableValue
 		}
 	}
+
+	// Append system default environment variables
+	for key, value := range defaultEnvVars {
+		variables[key] = value
+	}
+
 	return variables
 }
 

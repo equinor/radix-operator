@@ -18,10 +18,10 @@ func (app Application) rrUserClusterRole() *auth.ClusterRole {
 	return app.rrClusterrole(clusterroleName, []string{"get", "list", "watch", "update", "patch", "delete"})
 }
 
-func (app Application) rrPipelineClusterRole() *auth.ClusterRole {
+func (app Application) rrPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
 	registration := app.registration
 	appName := registration.Name
-	clusterroleName := fmt.Sprintf("radix-pipeline-rr-%s", appName)
+	clusterroleName := fmt.Sprintf("%s-%s", roleNamePrefix, appName)
 	return app.rrClusterrole(clusterroleName, []string{"get"})
 }
 
@@ -57,28 +57,6 @@ func (app Application) rrClusterrole(clusterroleName string, verbs []string) *au
 	logger.Debugf("Done - creating clusterrole config %s", clusterroleName)
 
 	return clusterrole
-}
-
-func (app Application) configToMapRunnerRole() *auth.Role {
-	return &auth.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.ConfigToMapRunnerRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: app.registration.Name,
-			},
-		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"configmaps"},
-				Verbs:     []string{"create"},
-			},
-		},
-	}
 }
 
 func (app Application) scanImageRunnerRole() *auth.Role {

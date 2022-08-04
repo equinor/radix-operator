@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -116,8 +117,31 @@ func (kubeutil *Kube) ApplyClusterRole(clusterrole *rbacv1.ClusterRole) error {
 	return nil
 }
 
-// CreateManageSecretRole creates a role that can manage a secret with predefined set of verbs
-func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels map[string]string) *rbacv1.Role {
+type RuleBuilder func() rbacv1.PolicyRule
+
+func ManageSecretsRule(secretNames []string) RuleBuilder {
+	return func() rbacv1.PolicyRule {
+		return rbacv1.PolicyRule{
+			APIGroups:     []string{""},
+			Resources:     []string{"secrets"},
+			ResourceNames: secretNames,
+			Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
+		}
+	}
+}
+
+func UpdateDeploymentsRule(deployments []string) RuleBuilder {
+	return func() rbacv1.PolicyRule {
+		return rbacv1.PolicyRule{
+			APIGroups:     []string{"apps"},
+			Resources:     []string{"deployments"},
+			ResourceNames: deployments,
+			Verbs:         []string{"update"},
+		}
+	}
+}
+
+func CreateAppRole(appName, roleName string, customLabels map[string]string, ruleBuilders ...RuleBuilder) *rbacv1.Role {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -129,14 +153,10 @@ func CreateManageSecretRole(appName, roleName string, secretNames []string, cust
 				RadixAppLabel: appName,
 			},
 		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"secrets"},
-				ResourceNames: secretNames,
-				Verbs:         []string{"get", "list", "watch", "update", "patch", "delete"},
-			},
-		},
+	}
+
+	for _, rb := range ruleBuilders {
+		role.Rules = append(role.Rules, rb())
 	}
 
 	for key, value := range customLabels {
@@ -144,6 +164,11 @@ func CreateManageSecretRole(appName, roleName string, secretNames []string, cust
 	}
 
 	return role
+}
+
+// CreateManageSecretRole creates a role that can manage a secret with predefined set of verbs
+func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels map[string]string) *rbacv1.Role {
+	return CreateAppRole(appName, roleName, customLabels, ManageSecretsRule(secretNames))
 }
 
 // ListRoles List roles

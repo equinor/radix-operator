@@ -8,11 +8,10 @@ import (
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +27,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 
-	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
+	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext, pipelineInfo.PipelineArguments.CommitID)
 	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -105,6 +104,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	subscriptionId := pipelineInfo.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
+
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+
 	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
@@ -171,12 +174,20 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Value: clusterNameImage,
 			},
 			{
-				Name:  "BRANCH",
+				Name:  defaults.RadixBranchEnvironmentVariable,
 				Value: branch,
 			},
 			{
-				Name:  "TARGET_ENVIRONMENTS",
+				Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
 				Value: targetEnvs,
+			},
+			{
+				Name:  defaults.RadixCommitHashEnvironmentVariable,
+				Value: gitCommitHash,
+			},
+			{
+				Name:  defaults.RadixGitTagsEnvironmentVariable,
+				Value: gitTags,
 			},
 		}
 

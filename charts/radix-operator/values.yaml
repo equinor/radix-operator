@@ -1,19 +1,30 @@
 # Default values for radix-operator.
-
+nameOverride: ""
+fullnameOverride: ""
 clusterName: xx
 activeClusterName: xx
 clusterActiveEgressIps: xx
+
+registrationControllerThreads: 1
+applicationControllerThreads: 1
+environmentControllerThreads: 1
+deploymentControllerThreads: 1
+jobControllerThreads: 1
+alertControllerThreads: 1
+kubeClientRateLimitBurst: 5
+kubeClientRateLimitQPS: 5
 
 configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
 imageScanner: radix-image-scanner:master-latest
 jobScheduler: radix-job-scheduler-server:main-latest
+radixTekton: radix-tekton:main-latest
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
 containerRegistry: radixdev.azurecr.io
-tenantId:
-subscriptionId:
+tenantId: xx
+subscriptionId: xx
 
 app:
   # Limit range on app namespace
@@ -53,6 +64,11 @@ service:
   # annotations: {}
   type: ClusterIP
   internalPort: 9000
+
+serviceAccount:
+  # The name of the service account to use.
+  # If not set, a name is generated using the fullname template
+  name: ""
 
 resources: 
   limits:

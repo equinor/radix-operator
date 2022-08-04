@@ -38,8 +38,13 @@ type PipelineInfo struct {
 
 	// Temporary data
 	RadixConfigMapName string
+	GitConfigMapName   string
 	TargetEnvironments map[string]bool
 	BranchIsMapped     bool
+	// GitCommitHash is derived by inspecting HEAD commit after cloning user repository in prepare-pipelines step.
+	// not to be confused with PipelineInfo.PipelineArguments.CommitID
+	GitCommitHash string
+	GitTags       string
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
@@ -47,9 +52,10 @@ type PipelineInfo struct {
 
 // PipelineArguments Holds arguments for the pipeline
 type PipelineArguments struct {
-	PipelineType    string
-	JobName         string
-	Branch          string
+	PipelineType string
+	JobName      string
+	Branch       string
+	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID        string
 	ImageTag        string
 	UseCache        string
@@ -57,41 +63,42 @@ type PipelineArguments struct {
 	DeploymentName  string
 	FromEnvironment string
 	ToEnvironment   string
+
 	RadixConfigFile string
-
 	// Security context
-	PodSecurityContext       corev1.PodSecurityContext
-	ContainerSecurityContext corev1.SecurityContext
+	PodSecurityContext corev1.PodSecurityContext
 
+	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building/scanning
-	ConfigToMap  string
+	TektonPipeline string
+
 	ImageBuilder string
 	ImageScanner string
 
-	// Used for tagging metainformation
+	// Used for tagging meta-information
 	Clustertype string
 	Clustername string
-
 	// Used to indicate debugging session
 	Debug bool
 }
 
 // GetPipelineArgsFromArguments Gets pipeline arguments from arg string
 func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
-	radixConfigFile := args["RADIX_FILE_NAME"]
-	branch := args["BRANCH"]
-	commitID := args["COMMIT_ID"]
-	imageTag := args["IMAGE_TAG"]
-	jobName := args["JOB_NAME"]
-	useCache := args["USE_CACHE"]
-	pipelineType := args["PIPELINE_TYPE"] // string(model.Build)
-	pushImage := args["PUSH_IMAGE"]       // "0"
+	radixConfigFile := args[defaults.RadixConfigFileEnvironmentVariable]
+	branch := args[defaults.RadixBranchEnvironmentVariable]
+	commitID := args[defaults.RadixCommitIdEnvironmentVariable]
+	imageTag := args[defaults.RadixImageTagEnvironmentVariable]
+	jobName := args[defaults.RadixPipelineJobEnvironmentVariable]
+	useCache := args[defaults.RadixUseCacheEnvironmentVariable]
+	pipelineType := args[defaults.RadixPipelineTypeEnvironmentVariable] // string(model.Build)
+	pushImage := args[defaults.RadixPushImageEnvironmentVariable]       // "0"
 
-	deploymentName := args["DEPLOYMENT_NAME"]   // For promotion pipeline
-	fromEnvironment := args["FROM_ENVIRONMENT"] // For promotion pipeline
-	toEnvironment := args["TO_ENVIRONMENT"]     // For promotion and deploy pipeline
+	// promote pipeline
+	deploymentName := args[defaults.RadixPromoteDeploymentEnvironmentVariable]       // For promotion pipeline
+	fromEnvironment := args[defaults.RadixPromoteFromEnvironmentEnvironmentVariable] // For promotion
+	toEnvironment := args[defaults.RadixPromoteToEnvironmentEnvironmentVariable]     // For promotion and deploy
 
-	configToMap := args[defaults.RadixConfigToMapEnvironmentVariable]
+	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
 	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
@@ -107,7 +114,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		useCache = "true"
 	}
 
-	pushImagebool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
+	pushImageBool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
 
 	return PipelineArguments{
 		PipelineType:    pipelineType,
@@ -116,11 +123,11 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		CommitID:        commitID,
 		ImageTag:        imageTag,
 		UseCache:        useCache,
-		PushImage:       pushImagebool,
+		PushImage:       pushImageBool,
 		DeploymentName:  deploymentName,
 		FromEnvironment: fromEnvironment,
 		ToEnvironment:   toEnvironment,
-		ConfigToMap:     configToMap,
+		TektonPipeline:  tektonPipeline,
 		ImageBuilder:    imageBuilder,
 		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
@@ -138,6 +145,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	timestamp := time.Now().Format("20060102150405")
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineArguments.JobName))
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
+	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
 	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
 	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
@@ -145,7 +153,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
 
-	stepImplementationsForType, err := getStepstepImplementationsFromType(pipelineType, stepImplementations...)
+	stepImplementationsForType, err := getStepStepImplementationsFromType(pipelineType, stepImplementations...)
 	if err != nil {
 		return nil, err
 	}
@@ -155,16 +163,17 @@ func InitPipeline(pipelineType *pipeline.Definition,
 		PipelineArguments:  pipelineArguments,
 		Steps:              stepImplementationsForType,
 		RadixConfigMapName: radixConfigMapName,
+		GitConfigMapName:   gitConfigFileName,
 	}, nil
 }
 
-func getStepstepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) ([]Step, error) {
+func getStepStepImplementationsFromType(pipelineType *pipeline.Definition, allStepImplementations ...Step) ([]Step, error) {
 	stepImplementations := make([]Step, 0)
 
 	for _, step := range pipelineType.Steps {
 		stepImplementation := getStepImplementationForStepType(step, allStepImplementations)
 		if stepImplementation == nil {
-			return nil, fmt.Errorf("No step implementation found by type %s", stepImplementation)
+			return nil, fmt.Errorf("no step implementation found by type %s", stepImplementation)
 		}
 
 		stepImplementations = append(stepImplementations, stepImplementation)
@@ -211,6 +220,12 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 		ra.Spec.Jobs,
 	)
 	info.ComponentImages = componentImages
+}
+
+// SetGitAttributes Set git attributes to be used later by other steps
+func (info *PipelineInfo) SetGitAttributes(gitCommitHash, gitTags string) {
+	info.GitCommitHash = gitCommitHash
+	info.GitTags = gitTags
 }
 
 // IsDeployOnlyPipeline Determines if the pipeline is deploy-only
