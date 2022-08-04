@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils"
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -59,7 +58,7 @@ func (kubeutil *Kube) CreateSecretProviderClass(namespace string, secretProvider
 func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployComponentName string, radixSecretRefType radixv1.RadixSecretRefType, secretRefName string) string {
 	// include a hash so that users cannot get access to a secret-ref they should not get
 	// by naming component the same as secret-ref object
-	hash := strings.ToLower(utils.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s",
+	hash := strings.ToLower(commonUtils.RandStringStrSeed(5, strings.ToLower(fmt.Sprintf("%s-%s-%s-%s",
 		radixDeployComponentName, radixDeploymentName, radixSecretRefType, secretRefName))))
 	return strings.ToLower(fmt.Sprintf("%s-%s-%s-%s", radixDeployComponentName, radixSecretRefType, secretRefName,
 		hash))

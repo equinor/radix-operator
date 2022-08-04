@@ -44,7 +44,7 @@ func GetRadixEnvironmentFromFile(filename string) (*v1.RadixEnvironment, error) 
 func getFromFile(filename string, objRef interface{}) error {
 	raw, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("Failed to read file %v Error: %v ", filename, err)
+		return fmt.Errorf("failed to read file %v Error: %v ", filename, err)
 	}
 	return yaml.Unmarshal(raw, objRef)
 }

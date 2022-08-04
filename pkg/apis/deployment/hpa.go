@@ -40,13 +40,13 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 		log.Debugf("HorizontalPodAutoscaler object %s already exists in namespace %s, updating the object now", componentName, namespace)
 		updatedHPA, err := deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to update HorizontalPodAutoscaler object: %v", err)
+			return fmt.Errorf("failed to update HorizontalPodAutoscaler object: %v", err)
 		}
 		log.Debugf("Updated HorizontalPodAutoscaler: %s in namespace %s", updatedHPA.Name, namespace)
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to create HorizontalPodAutoscaler object: %v", err)
+		return fmt.Errorf("failed to create HorizontalPodAutoscaler object: %v", err)
 	}
 	log.Debugf("Created HorizontalPodAutoscaler: %s in namespace %s", createdHPA.Name, namespace)
 	return nil
@@ -115,11 +115,11 @@ func (deploy *Deployment) deleteHPAIfExists(componentName string) error {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to get hpa: %v", err)
+		return fmt.Errorf("failed to get hpa: %v", err)
 	}
 	err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), componentName, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to delete existing hpa: %v", err)
+		return fmt.Errorf("failed to delete existing hpa: %v", err)
 	}
 
 	return nil
