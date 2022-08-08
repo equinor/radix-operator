@@ -163,6 +163,9 @@ func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
 	radixclient radixclient.Interface, registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	rr, err := tu.ApplyRegistration(registrationBuilder)
+	if err != nil {
+		return nil, err
+	}
 
 	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
 	err = application.OnSyncWithGranterToMachineUserToken(mockedGranter)
@@ -171,22 +174,6 @@ func applyRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	return rr, nil
-}
-
-func updateRegistrationWithSync(tu test.Utils, client kubernetes.Interface, kubeUtil *kube.Kube,
-	radixclient radixclient.Interface, rr *v1.RadixRegistration) error {
-	_, err := radixclient.RadixV1().RadixRegistrations().Update(context.TODO(), rr, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-
-	application, _ := NewApplication(client, kubeUtil, radixclient, rr)
-	err = application.OnSyncWithGranterToMachineUserToken(mockedGranter)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // This is created because the granting to token functionality doesn't work in this context
@@ -205,12 +192,7 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 }
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
-	roleBinding := getRoleBindingByName(name, roleBindings)
-	if roleBinding != nil {
-		return true
-	}
-
-	return false
+	return getRoleBindingByName(name, roleBindings) != nil
 }
 
 func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) *rbacv1.ClusterRoleBinding {
@@ -224,12 +206,7 @@ func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.Cluste
 }
 
 func clusterRoleBindingByNameExists(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) bool {
-	clusterRoleBinding := getClusterRoleBindingByName(name, clusterRoleBindings)
-	if clusterRoleBinding != nil {
-		return true
-	}
-
-	return false
+	return getClusterRoleBindingByName(name, clusterRoleBindings) != nil
 }
 
 func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {
@@ -243,10 +220,5 @@ func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccount
 }
 
 func serviceAccountByNameExists(name string, serviceAccounts *corev1.ServiceAccountList) bool {
-	serviceAccount := getServiceAccountByName(name, serviceAccounts)
-	if serviceAccount != nil {
-		return true
-	}
-
-	return false
+	return getServiceAccountByName(name, serviceAccounts) != nil
 }

@@ -109,7 +109,7 @@ func (app Application) removeAppAdminAccessToMachineUserToken() error {
 // GrantAppAdminAccessToMachineUserToken Granter function to grant access to service account token
 func GrantAppAdminAccessToMachineUserToken(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error {
 	if len(serviceAccount.Secrets) == 0 {
-		return fmt.Errorf("Service account %s currently has no secrets associated with it", serviceAccount.Name)
+		return fmt.Errorf("service account %s currently has no secrets associated with it", serviceAccount.Name)
 	}
 
 	role := roleAppAdminMachineUserToken(app.Name, serviceAccount)

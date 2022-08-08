@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	invalidSeq = regexp.MustCompile("([\\?\\s\\\\\\^~:\\*\\[[:cntrl:]])|([\\./]{2,})|(@\\{)|(/\\.)|^@$|^/|/$|\\.lock$|(\\.lock/)|^$")
+	invalidSeq = regexp.MustCompile(`([\?\s\\\^~:\*\[[:cntrl:]])|([\./]{2,})|(@\{)|(/\.)|^@$|^/|/$|\.lock$|(\.lock/)|^$`)
 )
 
 // IsValidName Checks if a branch name is valid

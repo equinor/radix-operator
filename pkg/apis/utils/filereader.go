@@ -6,7 +6,7 @@ import (
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // GetRadixApplicationFromFile Reads radix config from file
@@ -44,7 +44,7 @@ func GetRadixEnvironmentFromFile(filename string) (*v1.RadixEnvironment, error) 
 func getFromFile(filename string, objRef interface{}) error {
 	raw, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("Failed to read file %v Error: %v ", filename, err)
+		return fmt.Errorf("failed to read file %v Error: %v ", filename, err)
 	}
 	return yaml.Unmarshal(raw, objRef)
 }

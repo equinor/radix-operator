@@ -2,29 +2,21 @@ package kube
 
 import (
 	"context"
+	"strings"
+	"testing"
+
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radixfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretProviderClient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
-	"strings"
-	"testing"
 )
-
-type EnvironmentVariablesSuite struct {
-	suite.Suite
-}
-
-func TestEnvironmentVariablesSuite(t *testing.T) {
-	suite.Run(t, new(EnvironmentVariablesSuite))
-}
 
 type EnvironmentVariablesTestEnv struct {
 	kubeclient           kubernetes.Interface
@@ -34,8 +26,8 @@ type EnvironmentVariablesTestEnv struct {
 	kubeUtil             *Kube
 }
 
-func getEnvironmentVariablesTestEnv() ConfigMapTestEnv {
-	testEnv := ConfigMapTestEnv{
+func getEnvironmentVariablesTestEnv() EnvironmentVariablesTestEnv {
+	testEnv := EnvironmentVariablesTestEnv{
 		kubeclient:           kubefake.NewSimpleClientset(),
 		radixclient:          radixfake.NewSimpleClientset(),
 		secretproviderclient: secretproviderfake.NewSimpleClientset(),
@@ -107,7 +99,7 @@ func Test_GetEnvVarsMetadataFromConfigMap(t *testing.T) {
 func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 	namespace := "some-namespace"
 	componentName := "comp1"
-	createEnvVarConfigMapFunc := func(testEnv ConfigMapTestEnv) {
+	createEnvVarConfigMapFunc := func(testEnv EnvironmentVariablesTestEnv) {
 		createConfigMap(testEnv.kubeUtil, namespace, &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "env-vars-" + componentName,
@@ -120,7 +112,7 @@ func Test_GetEnvVarsMetadataConfigMapAndMap(t *testing.T) {
 			},
 		})
 	}
-	createEnvVarMetadataConfigMapFunc := func(testEnv ConfigMapTestEnv) {
+	createEnvVarMetadataConfigMapFunc := func(testEnv EnvironmentVariablesTestEnv) {
 		createConfigMap(
 			testEnv.kubeUtil,
 			namespace,

@@ -49,5 +49,5 @@ func GetStepFromName(name string) (StepType, error) {
 		}
 	}
 
-	return numSteps, fmt.Errorf("No step found by name %s", name)
+	return numSteps, fmt.Errorf("no step found by name %s", name)
 }

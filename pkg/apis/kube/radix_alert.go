@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// GetRadixDeployment Gets deployment using lister if present
+// GetRadixDeployment Gets radix alert using lister if present
 func (kubeutil *Kube) GetRadixAlert(namespace, name string) (*v1.RadixAlert, error) {
 	var alert *v1.RadixAlert
 	var err error
@@ -30,24 +30,20 @@ func (kubeutil *Kube) GetRadixAlert(namespace, name string) (*v1.RadixAlert, err
 	return alert, nil
 }
 
-// ListRadixDeployments Gets deployments using lister if present
-func (kubeutil *Kube) ListRadixAlert(namespace string) ([]*v1.RadixDeployment, error) {
-	var allRDs []*v1.RadixDeployment
-	var err error
-
-	if kubeutil.RdLister != nil {
-		allRDs, err = kubeutil.RdLister.RadixDeployments(namespace).List(labels.NewSelector())
+// ListRadixAlert Gets radix alerts using lister if present
+func (kubeutil *Kube) ListRadixAlert(namespace string) ([]*v1.RadixAlert, error) {
+	if kubeutil.RadixAlertLister != nil {
+		alerts, err := kubeutil.RadixAlertLister.RadixAlerts(namespace).List(labels.NewSelector())
 		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+			return nil, fmt.Errorf("failed to get all RadixAlerts. Error was %v", err)
 		}
-	} else {
-		rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-		}
-
-		allRDs = slice.PointersOf(rds.Items).([]*v1.RadixDeployment)
+		return alerts, nil
 	}
 
-	return allRDs, err
+	rds, err := kubeutil.radixclient.RadixV1().RadixAlerts(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all RadixAlerts. Error was %v", err)
+	}
+
+	return slice.PointersOf(rds.Items).([]*v1.RadixAlert), nil
 }

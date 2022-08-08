@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/equinor/radix-common/utils/errors"
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -15,7 +14,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -125,7 +124,7 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 	isRAValid, errs := validate.CanRadixApplicationBeInsertedErrors(radixClient, ra)
 	if !isRAValid {
 		log.Errorf("Radix config not valid.")
-		return nil, errors.Concat(errs)
+		return nil, errorUtils.Concat(errs)
 	}
 	return ra, nil
 }

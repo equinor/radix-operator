@@ -15,7 +15,7 @@ type Definition struct {
 // GetSupportedPipelines Lists supported pipelines
 func GetSupportedPipelines() []Definition {
 	return []Definition{
-		Definition{v1.BuildDeploy, []StepType{
+		{v1.BuildDeploy, []StepType{
 			PreparePipelinesStep,
 			ApplyConfigStep,
 			BuildStep,
@@ -23,18 +23,18 @@ func GetSupportedPipelines() []Definition {
 			DeployStep,
 			ScanImageStep,
 		}},
-		Definition{v1.Build, []StepType{
+		{v1.Build, []StepType{
 			PreparePipelinesStep,
 			ApplyConfigStep,
 			BuildStep,
 			RunPipelinesStep,
 			ScanImageStep,
 		}},
-		Definition{v1.Promote, []StepType{
+		{v1.Promote, []StepType{
 			PreparePipelinesStep,
 			RunPipelinesStep,
 			PromoteStep}},
-		Definition{v1.Deploy, []StepType{
+		{v1.Deploy, []StepType{
 			PreparePipelinesStep,
 			ApplyConfigStep,
 			RunPipelinesStep,
@@ -54,5 +54,5 @@ func GetPipelineFromName(name string) (*Definition, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("No pipeline found by name %s", name)
+	return nil, fmt.Errorf("no pipeline found by name %s", name)
 }

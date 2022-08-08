@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -53,19 +54,26 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComp
 	namespace := deploy.radixDeployment.Namespace
 	componentName := component.GetName()
 
-	var errs []error
 	replicas := getNumberOfReplicas(component)
-	if replicas < 2 {
-		pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, componentName),
-		})
-		for _, pdb := range pdbs.Items {
-			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
-			if err != nil {
-				errs = append(errs, err)
-			}
+	if replicas > 1 {
+		return nil
+	}
+
+	pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, componentName),
+	})
+	if err != nil {
+		return err
+	}
+
+	var errs []error
+	for _, pdb := range pdbs.Items {
+		err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+
 	return errors.Concat(errs)
 }
 

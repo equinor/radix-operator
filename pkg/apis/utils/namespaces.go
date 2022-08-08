@@ -22,5 +22,5 @@ func GetEnvironmentNamespace(appName, environment string) string {
 func GetAppAndTagPairFromName(name string) (string, string) {
 	runes := []rune(name)
 	lastIndex := strings.LastIndex(name, "-")
-	return string(runes[0:lastIndex]), string(runes[(lastIndex + 1):len(runes)])
+	return string(runes[0:lastIndex]), string(runes[(lastIndex + 1):])
 }

@@ -43,23 +43,23 @@ func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, owne
 
 	oldNamespaceJSON, err := json.Marshal(oldNamespace)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal old namespace object: %v", err)
+		return fmt.Errorf("failed to marshal old namespace object: %v", err)
 	}
 
 	newNamespaceJSON, err := json.Marshal(newNamespace)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal new namespace object: %v", err)
+		return fmt.Errorf("failed to marshal new namespace object: %v", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldNamespaceJSON, newNamespaceJSON, corev1.Namespace{})
 	if err != nil {
-		return fmt.Errorf("Failed to create two way merge patch namespace objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch namespace objects: %v", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedNamespace, err := kubeutil.kubeClient.CoreV1().Namespaces().Patch(context.TODO(), name, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to patch namespace object: %v", err)
+			return fmt.Errorf("failed to patch namespace object: %v", err)
 		}
 
 		log.Debugf("Patched namespace: %s ", patchedNamespace.Name)
@@ -146,7 +146,7 @@ func waitForNamespace(client kubernetes.Interface, namespace string) error {
 		case err := <-errorCh:
 			return err
 		case <-timer.C:
-			return errors.New("Timed out waiting for namespace")
+			return errors.New("timed out waiting for namespace")
 		}
 	}
 }
