@@ -64,6 +64,9 @@ const (
 
 	// CsiAzureKeyVaultCredsClientSecretPart Client secret part of secret data for Azure Key Vault
 	CsiAzureKeyVaultCredsClientSecretPart = "clientsecret"
+
+	//CsiSecretProviderClassParameterKeyVaultName Azure Key vault parameter name for a CSI SecretProviderClass
+	CsiSecretProviderClassParameterKeyVaultName = "keyvaultName"
 )
 
 // GetBlobFuseCredsSecretName Helper method

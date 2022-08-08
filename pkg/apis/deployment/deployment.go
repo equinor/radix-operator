@@ -83,13 +83,15 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName, imageTag, branch, commitID string, componentImages map[string]pipeline.ComponentImage, env string) (v1.RadixDeployment, error) {
-	components, err := GetRadixComponentsForEnv(config, env, componentImages)
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployment, error) {
+	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
+	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
+	components, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars)
 	if err != nil {
 		return v1.RadixDeployment{}, err
 	}
-	jobs := NewJobComponentsBuilder(config, env, componentImages).JobComponents()
-	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, components, jobs)
+	jobs := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, components, jobs)
 	return radixDeployment, nil
 }
 
@@ -213,7 +215,9 @@ func (deploy *Deployment) syncDeployment() error {
 		return fmt.Errorf("failed to perform auxiliary resource garbage collection: %v", err)
 	}
 
-	deploy.configureRbac()
+	if err := deploy.configureRbac(); err != nil {
+		return err
+	}
 
 	err = deploy.createOrUpdateSecrets()
 	if err != nil {
@@ -264,11 +268,14 @@ func (deploy *Deployment) syncAuxiliaryResources() error {
 	return nil
 }
 
-func (deploy *Deployment) configureRbac() {
+func (deploy *Deployment) configureRbac() error {
 	rbacFunc := GetDeploymentRbacConfigurators(deploy)
 	for _, rbac := range rbacFunc {
-		rbac()
+		if err := rbac(); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (deploy *Deployment) updateStatusOnActiveDeployment() error {
@@ -438,7 +445,7 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 	return nil
 }
 
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
@@ -457,7 +464,9 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 				kube.RadixJobNameLabel: jobName,
 			},
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: branch,
+				kube.RadixBranchAnnotation:  branch,
+				kube.RadixGitTagsAnnotation: gitTags,
+				kube.RadixCommitAnnotation:  commitID,
 			},
 		},
 		Spec: v1.RadixDeploymentSpec{

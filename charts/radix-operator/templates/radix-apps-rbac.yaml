@@ -123,7 +123,14 @@ rules:
     - 'secrets-store.csi.x-k8s.io'
   resources:
     - secretproviderclasses
+    - secretproviderclasspodstatuses
   verbs:
     - get
+    - list
+- apiGroups:
+    - '*'
+  resources:
+    - secrets
+  verbs:
     - list
 ---

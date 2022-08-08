@@ -16,14 +16,16 @@ type jobComponentsBuilder struct {
 	ra              *v1.RadixApplication
 	env             string
 	componentImages map[string]pipeline.ComponentImage
+	defaultEnvVars  v1.EnvVarsMap
 }
 
 // NewJobComponentsBuilder constructor for JobComponentsBuilder
-func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage) JobComponentsBuilder {
+func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImages map[string]pipeline.ComponentImage, defaultEnvVars v1.EnvVarsMap) JobComponentsBuilder {
 	return &jobComponentsBuilder{
 		ra:              ra,
 		env:             env,
 		componentImages: componentImages,
+		defaultEnvVars:  defaultEnvVars,
 	}
 }
 
@@ -31,7 +33,7 @@ func (c *jobComponentsBuilder) JobComponents() []v1.RadixDeployJobComponent {
 	var jobs []v1.RadixDeployJobComponent
 
 	for _, appJob := range c.ra.Spec.Jobs {
-		deployJob := c.buildJobComponent(appJob)
+		deployJob := c.buildJobComponent(appJob, c.defaultEnvVars)
 		jobs = append(jobs, deployJob)
 	}
 
@@ -51,7 +53,7 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 	return nil
 }
 
-func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent) v1.RadixDeployJobComponent {
+func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, defaultEnvVars v1.EnvVarsMap) v1.RadixDeployJobComponent {
 	componentName := radixJobComponent.Name
 	deployJob := v1.RadixDeployJobComponent{
 		Name:             componentName,
@@ -82,7 +84,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 
 	componentImage := c.componentImages[componentName]
 	deployJob.Image = getImagePath(&componentImage, environmentSpecificConfig)
-	deployJob.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig)
+	deployJob.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars)
 	deployJob.Resources = getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig)
 	deployJob.Node = getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig)
 	deployJob.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig)

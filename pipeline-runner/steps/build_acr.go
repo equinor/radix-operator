@@ -27,7 +27,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 
-	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
+	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext, pipelineInfo.PipelineArguments.CommitID)
 	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -104,6 +104,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	subscriptionId := pipelineInfo.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
+
+	gitCommitHash := pipelineInfo.GitCommitHash
+	gitTags := pipelineInfo.GitTags
+
 	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
@@ -176,6 +180,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixPipelineTargetEnvironmentsVariable,
 				Value: targetEnvs,
+			},
+			{
+				Name:  defaults.RadixCommitHashEnvironmentVariable,
+				Value: gitCommitHash,
+			},
+			{
+				Name:  defaults.RadixGitTagsEnvironmentVariable,
+				Value: gitTags,
 			},
 		}
 

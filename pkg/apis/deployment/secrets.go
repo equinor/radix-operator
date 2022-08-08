@@ -17,13 +17,9 @@ import (
 )
 
 const (
-	secretDefaultData          = "xx"
-	azureSecureStorageProvider = "azure"
+	secretDefaultData                  = "xx"
+	secretUsedBySecretStoreDriverLabel = "secrets-store.csi.k8s.io/used"
 )
-
-type stringArray struct {
-	Array []string `json:"array" yaml:"array"`
-}
 
 func (deploy *Deployment) createOrUpdateSecrets() error {
 	envName := deploy.radixDeployment.Spec.Environment
@@ -103,7 +99,6 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 		return err
 	}
 
-	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
 	err = deploy.grantAppAdminAccessToRuntimeSecrets(deploy.radixDeployment.Namespace, deploy.registration, component, secretsToManage)
 	if err != nil {
 		return err
@@ -375,10 +370,11 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secretName,
 			Labels: map[string]string{
-				kube.RadixAppLabel:           appName,
-				kube.RadixComponentLabel:     componentName,
-				kube.RadixSecretRefTypeLabel: string(radixv1.RadixSecretRefTypeAzureKeyVault),
-				kube.RadixSecretRefNameLabel: strings.ToLower(azKeyVaultName),
+				kube.RadixAppLabel:                 appName,
+				kube.RadixComponentLabel:           componentName,
+				kube.RadixSecretRefTypeLabel:       string(radixv1.RadixSecretRefTypeAzureKeyVault),
+				kube.RadixSecretRefNameLabel:       strings.ToLower(azKeyVaultName),
+				secretUsedBySecretStoreDriverLabel: "true", //used by CSI Azure Key vault secret store driver for secret rotation
 			},
 		},
 	}

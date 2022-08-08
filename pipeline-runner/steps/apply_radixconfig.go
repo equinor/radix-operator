@@ -5,8 +5,10 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-common/utils/errors"
+	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	validate "github.com/equinor/radix-operator/pkg/apis/radixvalidators"
@@ -14,6 +16,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // ApplyConfigStepImplementation Step to apply RA
@@ -77,6 +80,20 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
+	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
+	if err != nil {
+		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		return nil
+	}
+	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
+	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
+	err = errorUtils.Concat([]error{commitErr, tagsErr})
+	if err != nil {
+		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
+		return nil
+	}
+	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+
 	return nil
 }
 
@@ -105,4 +122,13 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 		return nil, errors.Concat(errs)
 	}
 	return ra, nil
+}
+
+func getValueFromConfigMap(key string, configMap *corev1.ConfigMap) (string, error) {
+
+	value, ok := configMap.Data[key]
+	if !ok {
+		return "", fmt.Errorf("failed to get %s from configMap %s", key, configMap.Name)
+	}
+	return value, nil
 }
