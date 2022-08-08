@@ -84,7 +84,13 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
 		return nil
 	}
+
+	//lint:ignore SA4006 temporary fix
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
+
+	// TODO: Remove this line once radix-tekton writes the correct commitId to the configmap in the line above
+	gitCommitHash = pipelineInfo.PipelineArguments.CommitID
+
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
 	err = errorUtils.Concat([]error{commitErr, tagsErr})
 	if err != nil {
