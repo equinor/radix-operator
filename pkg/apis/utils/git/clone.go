@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -32,12 +31,14 @@ const (
 
 func getGitCloneCommand(sshURL, branch, webhookCommitId string) string {
 	gitClone := fmt.Sprintf("git clone --recurse-submodules %s --single-branch -b %s --verbose --progress %s", sshURL, branch, Workspace)
-	if webhookCommitId == "" {
-		return gitClone
-	}
-	log.Debugf("webhookCommitId was non-empty, checking out commit %s in initContainer for prepare-pipelines step", webhookCommitId)
-	gitCloneAndCheckout := fmt.Sprintf("%s && git --git-dir %s/.git --work-tree %s checkout %s", gitClone, Workspace, Workspace, webhookCommitId)
-	return gitCloneAndCheckout
+	return gitClone
+	// TODO: Decide how/if we shall handle commitId for radixconfig
+	// if webhookCommitId == "" {
+	// 	return gitClone
+	// }
+	// log.Debugf("webhookCommitId was non-empty, checking out commit %s in initContainer for prepare-pipelines step", webhookCommitId)
+	// gitCloneAndCheckout := fmt.Sprintf("%s && git --git-dir %s/.git --work-tree %s checkout %s", gitClone, Workspace, Workspace, webhookCommitId)
+	// return gitCloneAndCheckout
 }
 
 // CloneInitContainers The sidecars for cloning repo
