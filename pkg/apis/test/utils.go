@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	builders "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -43,7 +42,7 @@ func (tu *Utils) GetKubeUtil() *kube.Kube {
 }
 
 // ApplyRegistration Will help persist an application registration
-func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuilder) (*v1.RadixRegistration, error) {
+func (tu *Utils) ApplyRegistration(registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
 
 	_, err := tu.radixclient.RadixV1().RadixRegistrations().Create(context.TODO(), rr, metav1.CreateOptions{})
@@ -58,7 +57,7 @@ func (tu *Utils) ApplyRegistration(registrationBuilder builders.RegistrationBuil
 }
 
 // ApplyRegistrationUpdate Will help update a registration
-func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder builders.RegistrationBuilder) (*v1.RadixRegistration, error) {
+func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder utils.RegistrationBuilder) (*v1.RadixRegistration, error) {
 	rr := registrationBuilder.BuildRR()
 
 	rrPrev, err := tu.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
@@ -76,7 +75,7 @@ func (tu *Utils) ApplyRegistrationUpdate(registrationBuilder builders.Registrati
 }
 
 // ApplyApplication Will help persist an application
-func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder) (*v1.RadixApplication, error) {
+func (tu *Utils) ApplyApplication(applicationBuilder utils.ApplicationBuilder) (*v1.RadixApplication, error) {
 	regBuilder := applicationBuilder.GetRegistrationBuilder()
 	var rr *v1.RadixRegistration
 
@@ -97,7 +96,7 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(builders.NewEnvironmentBuilder().
+		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
@@ -109,9 +108,9 @@ func (tu *Utils) ApplyApplication(applicationBuilder builders.ApplicationBuilder
 }
 
 // ApplyApplicationUpdate Will help update an application
-func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationBuilder) (*v1.RadixApplication, error) {
+func (tu *Utils) ApplyApplicationUpdate(applicationBuilder utils.ApplicationBuilder) (*v1.RadixApplication, error) {
 	ra := applicationBuilder.BuildRA()
-	appNamespace := builders.GetAppNamespace(ra.GetName())
+	appNamespace := utils.GetAppNamespace(ra.GetName())
 
 	_, err := tu.radixclient.RadixV1().RadixApplications(appNamespace).Update(context.TODO(), ra, metav1.UpdateOptions{})
 	if err != nil {
@@ -131,7 +130,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationB
 
 	// Note: rr may be nil if not found but that is fine
 	for _, env := range ra.Spec.Environments {
-		tu.ApplyEnvironment(builders.NewEnvironmentBuilder().
+		tu.ApplyEnvironment(utils.NewEnvironmentBuilder().
 			WithAppName(ra.GetName()).
 			WithAppLabel().
 			WithEnvironmentName(env.Name).
@@ -142,7 +141,7 @@ func (tu *Utils) ApplyApplicationUpdate(applicationBuilder builders.ApplicationB
 }
 
 // ApplyDeployment Will help persist a deployment
-func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (*v1.RadixDeployment, error) {
+func (tu *Utils) ApplyDeployment(deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
 	if deploymentBuilder.GetApplicationBuilder() != nil {
 		tu.ApplyApplication(deploymentBuilder.GetApplicationBuilder())
 	}
@@ -161,9 +160,9 @@ func (tu *Utils) ApplyDeployment(deploymentBuilder builders.DeploymentBuilder) (
 }
 
 // ApplyDeploymentUpdate Will help update a deployment
-func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuilder) (*v1.RadixDeployment, error) {
+func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder utils.DeploymentBuilder) (*v1.RadixDeployment, error) {
 	rd := deploymentBuilder.BuildRD()
-	envNamespace := builders.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
+	envNamespace := utils.GetEnvironmentNamespace(rd.Spec.AppName, rd.Spec.Environment)
 
 	rdPrev, err := tu.radixclient.RadixV1().RadixDeployments(envNamespace).Get(context.TODO(), rd.GetName(), metav1.GetOptions{})
 	if err != nil {
@@ -180,7 +179,7 @@ func (tu *Utils) ApplyDeploymentUpdate(deploymentBuilder builders.DeploymentBuil
 }
 
 // ApplyJob Will help persist a radixjob
-func (tu *Utils) ApplyJob(jobBuilder builders.JobBuilder) (*v1.RadixJob, error) {
+func (tu *Utils) ApplyJob(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
 	if jobBuilder.GetApplicationBuilder() != nil {
 		tu.ApplyApplication(jobBuilder.GetApplicationBuilder())
 	}
@@ -197,7 +196,7 @@ func (tu *Utils) ApplyJob(jobBuilder builders.JobBuilder) (*v1.RadixJob, error) 
 }
 
 // ApplyJobUpdate Will help update a radixjob
-func (tu *Utils) ApplyJobUpdate(jobBuilder builders.JobBuilder) (*v1.RadixJob, error) {
+func (tu *Utils) ApplyJobUpdate(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
 	rj := jobBuilder.BuildRJ()
 
 	appNamespace := CreateAppNamespace(tu.client, rj.Spec.AppName)
@@ -217,7 +216,7 @@ func (tu *Utils) ApplyJobUpdate(jobBuilder builders.JobBuilder) (*v1.RadixJob, e
 }
 
 // ApplyEnvironment Will help persist a RadixEnvironment
-func (tu *Utils) ApplyEnvironment(environmentBuilder builders.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
+func (tu *Utils) ApplyEnvironment(environmentBuilder utils.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
 	re := environmentBuilder.BuildRE()
 	log.Debugf("%s", re.GetObjectMeta().GetCreationTimestamp())
 
@@ -233,7 +232,7 @@ func (tu *Utils) ApplyEnvironment(environmentBuilder builders.EnvironmentBuilder
 }
 
 // ApplyEnvironmentUpdate Will help update a RadixEnvironment
-func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder builders.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
+func (tu *Utils) ApplyEnvironmentUpdate(environmentBuilder utils.EnvironmentBuilder) (*v1.RadixEnvironment, error) {
 	re := environmentBuilder.BuildRE()
 
 	rePrev, err := tu.radixclient.RadixV1().RadixEnvironments().Get(context.TODO(), re.GetName(), metav1.GetOptions{})
@@ -303,14 +302,14 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry, egre
 
 // CreateAppNamespace Helper method to creat app namespace
 func CreateAppNamespace(kubeclient kubernetes.Interface, appName string) string {
-	ns := builders.GetAppNamespace(appName)
+	ns := utils.GetAppNamespace(appName)
 	createNamespace(kubeclient, appName, "app", ns)
 	return ns
 }
 
 // CreateEnvNamespace Helper method to creat env namespace
 func CreateEnvNamespace(kubeclient kubernetes.Interface, appName, environment string) string {
-	ns := builders.GetEnvironmentNamespace(appName, environment)
+	ns := utils.GetEnvironmentNamespace(appName, environment)
 	createNamespace(kubeclient, appName, environment, ns)
 	return ns
 }

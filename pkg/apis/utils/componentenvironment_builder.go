@@ -24,7 +24,6 @@ type radixEnvironmentConfigBuilder struct {
 	environment             string
 	variables               v1.EnvVarsMap
 	replicas                *int
-	secrets                 []string
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
 	volumeMounts            []v1.RadixVolumeMount

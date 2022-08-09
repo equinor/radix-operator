@@ -32,24 +32,22 @@ func (kubeutil *Kube) GetRadixDeployment(namespace, name string) (*v1.RadixDeplo
 
 // ListRadixDeployments Gets deployments using lister if present
 func (kubeutil *Kube) ListRadixDeployments(namespace string) ([]*v1.RadixDeployment, error) {
-	var allRDs []*v1.RadixDeployment
-	var err error
 
 	if kubeutil.RdLister != nil {
-		allRDs, err = kubeutil.RdLister.RadixDeployments(namespace).List(labels.NewSelector())
+		rds, err := kubeutil.RdLister.RadixDeployments(namespace).List(labels.NewSelector())
 		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+			return nil, fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
 		}
-	} else {
-		rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			err = fmt.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-		}
-
-		allRDs = slice.PointersOf(rds.Items).([]*v1.RadixDeployment)
+		return rds, nil
 	}
 
-	return allRDs, err
+	rds, err := kubeutil.radixclient.RadixV1().RadixDeployments(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all RadixDeployments. Error was %v", err)
+	}
+
+	return slice.PointersOf(rds.Items).([]*v1.RadixDeployment), nil
+
 }
 
 //GetActiveDeployment Get active RadixDeployment for the namespace

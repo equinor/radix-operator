@@ -14,7 +14,7 @@ func (app Application) getOwnerReference() []metav1.OwnerReference {
 func GetOwnerReferenceOfRegistration(registration *v1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
-		metav1.OwnerReference{
+		{
 			APIVersion: "radix.equinor.com/v1",
 			Kind:       "RadixRegistration",
 			Name:       registration.Name,

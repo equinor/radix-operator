@@ -57,7 +57,7 @@ func (app Application) OnSync() error {
 // OnSyncWithGranterToMachineUserToken OnSync where handler is passed in, as the granter function cannot be tested and has to be mocked
 func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGranter GranterFunction) error {
 	radixRegistration := app.registration
-	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
+	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName()})
 
 	err := app.createAppNamespace()
 	if err != nil {

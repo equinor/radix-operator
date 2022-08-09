@@ -17,17 +17,17 @@ func (kubeutil *Kube) ApplyServiceAccount(serviceAccount corev1.ServiceAccount) 
 	if err != nil && errors.IsNotFound(err) {
 		_, err := kubeutil.kubeClient.CoreV1().ServiceAccounts(serviceAccount.Namespace).Create(context.TODO(), &serviceAccount, metav1.CreateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create ServiceAccount object: %v", err)
+			return nil, fmt.Errorf("failed to create ServiceAccount object: %v", err)
 		}
 		time.Sleep(time.Millisecond * 200) //Wait while a secret Can be returned with the ServiceAccount
 		createdServiceAccount, err := kubeutil.getServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())
-		if createdServiceAccount == nil {
-			return nil, fmt.Errorf("Cannot get created ServiceAccount: %s in namespace %s", serviceAccount.GetName(), serviceAccount.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get created ServiceAccount: %s in namespace %s: %v", serviceAccount.GetName(), serviceAccount.Namespace, err)
 		}
 		log.Debugf("Created ServiceAccount: %s in namespace %s", createdServiceAccount.Name, serviceAccount.Namespace)
 		return createdServiceAccount, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("Failed to get service account object: %v", err)
+		return nil, fmt.Errorf("failed to get service account object: %v", err)
 
 	}
 
@@ -41,11 +41,11 @@ func (kubeutil *Kube) DeleteServiceAccount(namespace, name string) error {
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to get service account object: %v", err)
+		return fmt.Errorf("failed to get service account object: %v", err)
 	}
 	err = kubeutil.kubeClient.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to delete ServiceAccount object: %v", err)
+		return fmt.Errorf("failed to delete ServiceAccount object: %v", err)
 	}
 	return nil
 }

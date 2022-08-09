@@ -223,15 +223,11 @@ func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
 	// Check if all values are false
 	falseCount := 0
 	for _, value := range targetEnvs {
-		if value == false {
+		if !value {
 			falseCount++
 		}
 	}
-	if falseCount == len(targetEnvs) {
-		return true
-	}
-
-	return false
+	return falseCount == len(targetEnvs)
 }
 
 // applyEnvironment creates an environment or applies changes if it exists
@@ -248,12 +244,12 @@ func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error
 
 		newRe, err = repository.Create(context.TODO(), newRe, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to create RadixEnvironment object: %v", err)
+			return fmt.Errorf("failed to create RadixEnvironment object: %v", err)
 		}
 		logger.Debugf("Created RadixEnvironment: %s", newRe.Name)
 
 	} else if err != nil {
-		return fmt.Errorf("Failed to get RadixEnvironment object: %v", err)
+		return fmt.Errorf("failed to get RadixEnvironment object: %v", err)
 
 	} else {
 		// Environment already exists
@@ -278,21 +274,24 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.
 
 	oldReJSON, err := json.Marshal(oldRe)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal old RadixEnvironment object: %v", err)
+		return fmt.Errorf("failed to marshal old RadixEnvironment object: %v", err)
 	}
 
 	radixEnvironmentJSON, err := json.Marshal(radixEnvironment)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal new RadixEnvironment object: %v", err)
+		return fmt.Errorf("failed to marshal new RadixEnvironment object: %v", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, v1.RadixEnvironment{})
+	if err != nil {
+		return fmt.Errorf("failed to create patch document for RadixEnvironment object: %v", err)
+	}
 
 	if !isEmptyPatch(patchBytes) {
 		// Will perform update as patching does not seem to work for this custom resource
 		patchedEnvironment, err := repository.Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to patch RadixEnvironment object: %v", err)
+			return fmt.Errorf("failed to patch RadixEnvironment object: %v", err)
 		}
 		logger.Debugf("Patched RadixEnvironment: %s", patchedEnvironment.Name)
 	} else {
