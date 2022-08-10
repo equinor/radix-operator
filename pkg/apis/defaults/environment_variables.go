@@ -82,6 +82,9 @@ const (
 	// RadixPromoteToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
 	RadixPromoteToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
+	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
+	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
+
 	// RadixDeploymentForceNonRootContainers Controls the non-root configuration for component containers
 	// true: all component containers are force to run as non-root
 	// false: non-root for a component container is controlled by runAsNonRoot from radixconfig
