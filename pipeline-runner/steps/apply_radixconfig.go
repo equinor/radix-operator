@@ -79,24 +79,31 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
+	if pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
+		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
+		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+	}
+
+	return nil
+}
+
+func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipelineInfo *model.PipelineInfo) (string, string) {
 	gitConfigMap, err := cli.GetKubeutil().GetConfigMap(namespace, pipelineInfo.GitConfigMapName)
 	if err != nil {
 		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
-		return nil
+		return "", ""
 	}
 	gitCommitHash, commitErr := getValueFromConfigMap(defaults.RadixGitCommitHashKey, gitConfigMap)
 	gitTags, tagsErr := getValueFromConfigMap(defaults.RadixGitTagsKey, gitConfigMap)
 	err = errorUtils.Concat([]error{commitErr, tagsErr})
 	if err != nil {
 		log.Errorf("could not retrieve git values from temporary configmap %s, %v", pipelineInfo.GitConfigMapName, err)
-		return nil
+		return "", ""
 	}
-	pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
-
-	return nil
+	return gitCommitHash, gitTags
 }
 
-//CreateRadixApplication Create RadixApplication from radixconfig.yaml content
+// CreateRadixApplication Create RadixApplication from radixconfig.yaml content
 func CreateRadixApplication(radixClient radixclient.Interface,
 	configFileContent string) (*v1.RadixApplication, error) {
 	ra := &v1.RadixApplication{}
