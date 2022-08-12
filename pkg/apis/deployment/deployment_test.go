@@ -939,6 +939,59 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 	assert.Equal(t, 1, len(ingresses.Items), "Number of ingresses was not according to public components")
 }
 
+func TestConfigMap_IsGarbageCollected(t *testing.T) {
+	// Setup
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	anyEnvironment := "test"
+
+	// Test
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("somecomponentname").
+				WithEnvironmentVariables(nil).
+				WithSecrets(nil),
+			utils.NewDeployComponentBuilder().
+				WithName(componentName).
+				WithEnvironmentVariables(nil).
+				WithSecrets(nil)),
+	)
+	assert.NoError(t, err)
+
+	// check that config maps with env vars and env vars metadata was created
+	envVarCm, err := kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsConfigMapName(componentName))
+	assert.NoError(t, err)
+	envVarMetadataCm, err := kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsMetadataConfigMapName(componentName))
+	assert.NoError(t, err)
+	assert.NotNil(t, envVarCm)
+	assert.NotNil(t, envVarMetadataCm)
+
+	// delete 2nd component
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents().
+		WithComponents(
+			utils.NewDeployComponentBuilder().
+				WithName("somecomponentname").
+				WithEnvironmentVariables(nil).
+				WithSecrets(nil)),
+	)
+	assert.NoError(t, err)
+
+	// check that config maps with env vars and env vars metadata were garbage collected
+	envVarCm, err = kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsConfigMapName(componentName))
+	assert.Error(t, err)
+	envVarMetadataCm, err = kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsMetadataConfigMapName(componentName))
+	assert.Error(t, err)
+	assert.Nil(t, envVarCm)
+	assert.Nil(t, envVarMetadataCm)
+}
+
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
