@@ -963,7 +963,7 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	// check that config maps with env vars and env vars metadata was created
+	// check that config maps with env vars and env vars metadata were created
 	envVarCm, err := kubeUtil.GetConfigMap(namespace, kube.GetEnvVarsConfigMapName(componentName))
 	assert.NoError(t, err)
 	envVarMetadataCm, err := kubeUtil.GetConfigMap(namespace, kube.GetEnvVarsMetadataConfigMapName(componentName))
