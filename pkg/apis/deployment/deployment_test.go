@@ -944,6 +944,7 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	anyEnvironment := "test"
+	namespace := utils.GetEnvironmentNamespace(appName, anyEnvironment)
 
 	// Test
 	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -963,12 +964,16 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	assert.NoError(t, err)
 
 	// check that config maps with env vars and env vars metadata was created
-	envVarCm, err := kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsConfigMapName(componentName))
+	envVarCm, err := kubeUtil.GetConfigMap(namespace, kube.GetEnvVarsConfigMapName(componentName))
 	assert.NoError(t, err)
-	envVarMetadataCm, err := kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsMetadataConfigMapName(componentName))
+	envVarMetadataCm, err := kubeUtil.GetConfigMap(namespace, kube.GetEnvVarsMetadataConfigMapName(componentName))
 	assert.NoError(t, err)
 	assert.NotNil(t, envVarCm)
 	assert.NotNil(t, envVarMetadataCm)
+	envVarCms, err := kubeUtil.ListEnvVarsConfigMaps(namespace)
+	assert.Len(t, envVarCms, 2)
+	envVarMetadataCms, err := kubeUtil.ListEnvVarsMetadataConfigMaps(namespace)
+	assert.Len(t, envVarMetadataCms, 2)
 
 	// delete 2nd component
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -984,12 +989,16 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	assert.NoError(t, err)
 
 	// check that config maps were garbage collected for the component we just deleted
-	envVarCm, err = kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsConfigMapName(componentName))
+	envVarCm, err = kubeUtil.GetConfigMap(namespace, kube.GetEnvVarsConfigMapName(componentName))
 	assert.Error(t, err)
-	envVarMetadataCm, err = kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsMetadataConfigMapName(componentName))
+	envVarMetadataCm, err = kubeUtil.GetConfigMap(namespace, kube.GetEnvVarsMetadataConfigMapName(componentName))
 	assert.Error(t, err)
 	assert.Nil(t, envVarCm)
 	assert.Nil(t, envVarMetadataCm)
+	envVarCms, err = kubeUtil.ListEnvVarsConfigMaps(namespace)
+	assert.Len(t, envVarCms, 1)
+	envVarMetadataCms, err = kubeUtil.ListEnvVarsMetadataConfigMaps(namespace)
+	assert.Len(t, envVarMetadataCms, 1)
 }
 
 func TestObjectSynced_NoEnvAndNoSecrets_ContainsDefaultEnvVariables(t *testing.T) {
