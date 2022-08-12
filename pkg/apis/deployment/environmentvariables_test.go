@@ -134,21 +134,24 @@ func Test_RemoveFromConfigMapEnvVarsNotExistingInRadixDeployment(t *testing.T) {
 	testEnv := setupTestEnv()
 	defer teardownTest()
 	t.Run("Remove obsolete env-vars from config-maps", func(t *testing.T) {
-		//goland:noinspection GoUnhandledErrorResult
-		testEnv.kubeUtil.CreateConfigMap(namespace, &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsConfigMapName(componentName)}, Data: map[string]string{
+		config_map := kube.BuildRadixConfigEnvVarsConfigMap(appName, componentName)
+		config_map.Data = map[string]string{
 			"VAR1":          "val1",
 			"OUTDATED_VAR1": "val1z",
-		}})
-		existingEnvVarsMetadataConfigMap := corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: kube.GetEnvVarsMetadataConfigMapName(componentName)}}
+		}
 		//goland:noinspection GoUnhandledErrorResult
-		kube.SetEnvVarsMetadataMapToConfigMap(&existingEnvVarsMetadataConfigMap,
+		testEnv.kubeUtil.CreateConfigMap(namespace, config_map)
+
+		existingEnvVarsMetadataConfigMap := kube.BuildRadixConfigEnvVarsMetadataConfigMap(appName, componentName)
+		//goland:noinspection GoUnhandledErrorResult
+		kube.SetEnvVarsMetadataMapToConfigMap(existingEnvVarsMetadataConfigMap,
 			map[string]kube.EnvVarMetadata{
 				"VAR1":          {RadixConfigValue: "orig-val1"},
 				"OUTDATED_VAR1": {RadixConfigValue: "orig-val1a"},
 				"OUTDATED_VAR2": {RadixConfigValue: "orig-val2a"},
 			})
 		//goland:noinspection GoUnhandledErrorResult
-		testEnv.kubeUtil.CreateConfigMap(namespace, &existingEnvVarsMetadataConfigMap)
+		testEnv.kubeUtil.CreateConfigMap(namespace, existingEnvVarsMetadataConfigMap)
 
 		rd := testEnv.applyRd(t, appName, envName, componentName, func(componentBuilder *utils.DeployComponentBuilder) {
 			(*componentBuilder).WithEnvironmentVariables(map[string]string{
