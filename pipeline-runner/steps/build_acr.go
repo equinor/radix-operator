@@ -117,7 +117,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	}
 
 	distinctBuildContainers := make(map[string]void)
-	for _, componentImage := range pipelineInfo.ComponentImages {
+	for componentName, componentImage := range pipelineInfo.ComponentImages {
 		if !componentImage.Build {
 			// Nothing to build
 			continue
@@ -188,6 +188,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixGitTagsEnvironmentVariable,
 				Value: gitTags,
+			},
+			{
+				Name:  defaults.RadixComponentEnvironmentVariable,
+				Value: componentName,
 			},
 		}
 
