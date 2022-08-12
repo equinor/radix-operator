@@ -971,8 +971,10 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	assert.NotNil(t, envVarCm)
 	assert.NotNil(t, envVarMetadataCm)
 	envVarCms, err := kubeUtil.ListEnvVarsConfigMaps(namespace)
+	assert.NoError(t, err)
 	assert.Len(t, envVarCms, 2)
 	envVarMetadataCms, err := kubeUtil.ListEnvVarsMetadataConfigMaps(namespace)
+	assert.NoError(t, err)
 	assert.Len(t, envVarMetadataCms, 2)
 
 	// delete 2nd component
@@ -996,8 +998,10 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	assert.Nil(t, envVarCm)
 	assert.Nil(t, envVarMetadataCm)
 	envVarCms, err = kubeUtil.ListEnvVarsConfigMaps(namespace)
+	assert.NoError(t, err)
 	assert.Len(t, envVarCms, 1)
 	envVarMetadataCms, err = kubeUtil.ListEnvVarsMetadataConfigMaps(namespace)
+	assert.NoError(t, err)
 	assert.Len(t, envVarMetadataCms, 1)
 }
 
