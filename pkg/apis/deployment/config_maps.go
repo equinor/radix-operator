@@ -9,14 +9,19 @@ import (
 func (deploy *Deployment) garbageCollectConfigMapsNoLongerInSpec() error {
 	namespace := deploy.radixDeployment.Namespace
 
-	// List configmaps
+	// List env var config maps
 	envVarConfigMaps, err := deploy.kubeutil.ListEnvVarsConfigMaps(namespace)
-	envVarMetadataConfigMaps, err := deploy.kubeutil.ListEnvVarsMetadataConfigMaps(namespace)
-	cms := append(envVarConfigMaps, envVarMetadataConfigMaps...)
-
 	if err != nil {
 		return err
 	}
+
+	// List env var metadata config maps
+	envVarMetadataConfigMaps, err := deploy.kubeutil.ListEnvVarsMetadataConfigMaps(namespace)
+	if err != nil {
+		return err
+	}
+
+	cms := append(envVarConfigMaps, envVarMetadataConfigMaps...)
 
 	var errs []error
 
