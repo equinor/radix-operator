@@ -983,7 +983,7 @@ func TestConfigMap_IsGarbageCollected(t *testing.T) {
 	)
 	assert.NoError(t, err)
 
-	// check that config maps with env vars and env vars metadata were garbage collected
+	// check that config maps were garbage collected for the component we just deleted
 	envVarCm, err = kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsConfigMapName(componentName))
 	assert.Error(t, err)
 	envVarMetadataCm, err = kubeUtil.GetConfigMap(utils.GetEnvironmentNamespace(appName, anyEnvironment), kube.GetEnvVarsMetadataConfigMapName(componentName))
