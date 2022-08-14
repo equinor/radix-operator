@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
@@ -42,7 +42,7 @@ func GetRadixEnvironmentFromFile(filename string) (*v1.RadixEnvironment, error) 
 }
 
 func getFromFile(filename string, objRef interface{}) error {
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
 		return fmt.Errorf("failed to read file %v Error: %v ", filename, err)
 	}

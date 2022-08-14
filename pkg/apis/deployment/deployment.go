@@ -32,7 +32,7 @@ const (
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
 
-//DeploymentSyncer defines interface for syncing a RadixDeployment
+// DeploymentSyncer defines interface for syncing a RadixDeployment
 type DeploymentSyncer interface {
 	OnSync() error
 }
@@ -429,6 +429,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 	}
 
 	err = deploy.garbageCollectScheduledJobsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectConfigMapsNoLongerInSpec()
 	if err != nil {
 		return err
 	}

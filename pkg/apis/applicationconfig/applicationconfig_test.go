@@ -3,7 +3,7 @@ package applicationconfig
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"testing"
 
@@ -32,7 +32,7 @@ const (
 )
 
 func init() {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 }
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
