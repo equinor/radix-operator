@@ -133,6 +133,10 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Name:  defaults.LogLevel,
 			Value: cli.GetEnv().GetLogLevel(),
 		},
+		{
+			Name:  defaults.RadixGithubWebhookCommitId,
+			Value: pipelineInfo.PipelineArguments.CommitID,
+		},
 	}
 
 	initContainers := cli.getInitContainerCloningRepo(pipelineInfo)
@@ -146,5 +150,5 @@ func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipel
 	configBranch := applicationconfig.GetConfigBranch(registration)
 	sshURL := registration.Spec.CloneURL
 	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName,
-		pipelineInfo.PipelineArguments.ContainerSecurityContext, pipelineInfo.PipelineArguments.CommitID)
+		pipelineInfo.PipelineArguments.ContainerSecurityContext)
 }

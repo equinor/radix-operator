@@ -47,7 +47,7 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
 		if err != nil {
-			return fmt.Errorf("Error creating Service account for radix api. %v", err)
+			return fmt.Errorf("error creating Service account for radix api. %v", err)
 		}
 		return deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-api", serviceAccount, ownerReference)
 	}
@@ -66,7 +66,7 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
 		if err != nil {
-			return fmt.Errorf("Service account for running radix github webhook not made. %v", err)
+			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
 		}
 		return deploy.kubeutil.ApplyClusterRoleToServiceAccount("radix-webhook", serviceAccount, ownerReference)
 	}
@@ -86,7 +86,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 
 		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
 		if err != nil {
-			return fmt.Errorf("Error creating Service account for radix job scheduler. %v", err)
+			return fmt.Errorf("error creating Service account for radix job scheduler. %v", err)
 		}
 		subjects := []auth.Subject{
 			{

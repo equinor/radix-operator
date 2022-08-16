@@ -3,7 +3,7 @@ package applicationconfig
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"testing"
 
@@ -32,7 +32,7 @@ const (
 )
 
 func init() {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 }
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
@@ -577,7 +577,7 @@ func Test_IsConfigBranch(t *testing.T) {
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
-		metav1.OwnerReference{
+		{
 			APIVersion: "radix.equinor.com/v1",
 			Kind:       "RadixRegistration",
 			Name:       rr.Name,
@@ -622,6 +622,9 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	applicationconfig, err := NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, ra)
+	if err != nil {
+		return err
+	}
 
 	err = applicationconfig.OnSync()
 	if err != nil {
@@ -642,12 +645,7 @@ func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
 }
 
 func secretByNameExists(name string, secrets *corev1.SecretList) bool {
-	secret := getSecretByName(name, secrets)
-	if secret != nil {
-		return true
-	}
-
-	return false
+	return getSecretByName(name, secrets) != nil
 }
 
 func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
@@ -661,12 +659,7 @@ func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
 }
 
 func roleByNameExists(name string, roles *rbacv1.RoleList) bool {
-	role := getRoleByName(name, roles)
-	if role != nil {
-		return true
-	}
-
-	return false
+	return getRoleByName(name, roles) != nil
 }
 
 func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rbacv1.RoleBinding {
@@ -680,10 +673,5 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 }
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
-	role := getRoleBindingByName(name, roleBindings)
-	if role != nil {
-		return true
-	}
-
-	return false
+	return getRoleBindingByName(name, roleBindings) != nil
 }

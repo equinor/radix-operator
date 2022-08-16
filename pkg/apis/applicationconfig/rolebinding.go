@@ -9,30 +9,6 @@ import (
 	auth "k8s.io/api/rbac/v1"
 )
 
-// grantAppAdminAccessToNs Grant access to environment namespace
-func (app *ApplicationConfig) grantAppAdminAccessToNs(namespace string) error {
-	registration := app.registration
-
-	adGroups, err := application.GetAdGroups(registration)
-	if err != nil {
-		return err
-	}
-
-	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	// Add machine user to subjects
-	if app.registration.Spec.MachineUser {
-		subjects = append(subjects, auth.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(app.config.Name),
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		})
-	}
-
-	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(app.config.Name, defaults.AppAdminEnvironmentRoleName, subjects)
-	return app.kubeutil.ApplyRoleBinding(namespace, roleBinding)
-}
-
 func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := application.GetAdGroups(registration)
 

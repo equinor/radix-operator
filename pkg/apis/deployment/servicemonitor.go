@@ -124,13 +124,13 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 	if err != nil && errors.IsNotFound(err) {
 		createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(context.TODO(), serviceMonitor, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
+			return fmt.Errorf("failed to create ServiceMonitor object: %v", err)
 		}
 
 		log.Debugf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to get ServiceMonitor object: %v", err)
+		return fmt.Errorf("failed to get ServiceMonitor object: %v", err)
 	}
 
 	newServiceMonitor := oldServiceMonitor.DeepCopy()
@@ -141,7 +141,7 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 
 	_, err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(context.TODO(), newServiceMonitor, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
+		return fmt.Errorf("failed to update ServiceMonitor object: %v", err)
 	}
 
 	return nil

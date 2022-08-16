@@ -19,9 +19,14 @@ func GetEnvVar(name string) (string, error) {
 // set, or if the value is not a valid integer.
 func GetIntEnvVar(name string) (int, error) {
 	envVarStr, err := GetEnvVar(name)
+	if err != nil {
+		return 0, err
+	}
+
 	envVarInt, err := strconv.Atoi(envVarStr)
 	if err != nil {
 		return 0, err
 	}
+
 	return envVarInt, nil
 }

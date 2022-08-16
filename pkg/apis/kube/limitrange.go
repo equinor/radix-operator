@@ -24,13 +24,13 @@ func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.Limit
 	if err != nil && errors.IsNotFound(err) {
 		createdLimitRange, err := kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Create(context.TODO(), limitRange, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to create LimitRange object: %v", err)
+			return fmt.Errorf("failed to create LimitRange object: %v", err)
 		}
 
 		log.Debugf("Created LimitRange: %s in namespace %s", createdLimitRange.Name, namespace)
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to get limit range object: %v", err)
+		return fmt.Errorf("failed to get limit range object: %v", err)
 	}
 
 	log.Debugf("LimitRange object %s already exists in namespace %s, updating the object now", limitRange.GetName(), namespace)
@@ -41,23 +41,23 @@ func (kubeutil *Kube) ApplyLimitRange(namespace string, limitRange *corev1.Limit
 
 	oldLimitRangeJSON, err := json.Marshal(oldLimitRange)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal old limitRange object: %v", err)
+		return fmt.Errorf("failed to marshal old limitRange object: %v", err)
 	}
 
 	newLimitRangeJSON, err := json.Marshal(newLimitRange)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal new limitRange object: %v", err)
+		return fmt.Errorf("failed to marshal new limitRange object: %v", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldLimitRangeJSON, newLimitRangeJSON, corev1.LimitRange{})
 	if err != nil {
-		return fmt.Errorf("Failed to create two way merge patch limitRange objects: %v", err)
+		return fmt.Errorf("failed to create two way merge patch limitRange objects: %v", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		patchedLimitRange, err := kubeutil.kubeClient.CoreV1().LimitRanges(namespace).Patch(context.TODO(), limitRange.GetName(), types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to patch limitRange object: %v", err)
+			return fmt.Errorf("failed to patch limitRange object: %v", err)
 		}
 		log.Debugf("Patched limitRange: %s in namespace %s", patchedLimitRange.Name, namespace)
 	} else {
@@ -93,7 +93,7 @@ func (kubeutil *Kube) BuildLimitRange(namespace, name, appName string,
 		},
 		Spec: corev1.LimitRangeSpec{
 			Limits: []corev1.LimitRangeItem{
-				corev1.LimitRangeItem{
+				{
 					Type:           corev1.LimitTypeContainer,
 					Default:        defaultResources,
 					DefaultRequest: defaultRequest,
