@@ -59,22 +59,21 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 	if err != nil {
 		return nil, err
 	}
+	volumeMounts = append(volumeMounts, externalVolumeMounts...)
 	secretRefsVolumeMounts, err := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName, radixDeploymentName)
 	if err != nil {
 		return nil, err
 	}
-	volumeMounts = append(volumeMounts, externalVolumeMounts...)
 	volumeMounts = append(volumeMounts, secretRefsVolumeMounts...)
 	return volumeMounts, nil
 }
 
 func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName string) ([]corev1.VolumeMount, error) {
-	radixVolumeMounts := deployComponent.GetVolumeMounts()
-	if len(radixVolumeMounts) <= 0 {
+	if deployComponent.GetType() == radixv1.RadixComponentTypeJobScheduler { //JobScheduler does not need external volumeMounts
 		return nil, nil
 	}
 	var volumeMounts []corev1.VolumeMount
-	for _, radixVolumeMount := range radixVolumeMounts {
+	for _, radixVolumeMount := range deployComponent.GetVolumeMounts() {
 		switch radixVolumeMount.Type {
 		case radixv1.MountTypeBlob:
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
