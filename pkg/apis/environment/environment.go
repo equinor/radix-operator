@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	"k8s.io/client-go/util/retry"
 
@@ -16,6 +17,7 @@ import (
 
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -118,7 +120,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 
 	// get key to use for namespace annotation to pick up private image hubs
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
-	labels := map[string]string{
+	nsLabels := labels.Set{
 		"sync":                         "cluster-wildcard-tls-cert",
 		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
 		"app-wildcard-sync":            "app-wildcard-tls-cert",
@@ -127,8 +129,8 @@ func (env *Environment) ApplyNamespace(name string) error {
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
-
-	return env.kubeutil.ApplyNamespace(name, labels, env.AsOwnerReference())
+	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewPodSecurityStandardFromEnv().Labels()))
+	return env.kubeutil.ApplyNamespace(name, nsLabels, env.AsOwnerReference())
 }
 
 // ApplyAdGroupRoleBinding grants access to environment namespace

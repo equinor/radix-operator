@@ -119,6 +119,30 @@ spec:
               value: {{ .Values.kubeClientRateLimitBurst | quote }}
             - name: KUBE_CLIENT_RATE_LIMIT_QPS
               value: {{ .Values.kubeClientRateLimitQPS | quote }}
+            {{- if .Values.podSecurityStandard.enforce.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL
+              value: {{ .Values.podSecurityStandard.enforce.level }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.enforce.version }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION
+              value: {{ .Values.podSecurityStandard.enforce.version }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.audit.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_LEVEL
+              value: {{ .Values.podSecurityStandard.audit.level }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.audit.version }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION
+              value: {{ .Values.podSecurityStandard.audit.version }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.warn.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL
+              value: {{ .Values.podSecurityStandard.warn.level }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.warn.version }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION
+              value: {{ .Values.podSecurityStandard.warn.version }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
