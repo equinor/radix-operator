@@ -3,7 +3,7 @@ package v1
 import (
 	"strings"
 
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // DynamicTagNameInEnvironmentConfig Pattern to indicate that the
@@ -16,9 +16,9 @@ const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 
 // RadixApplication describe an application
 type RadixApplication struct {
-	meta_v1.TypeMeta   `json:",inline" yaml:",inline"`
-	meta_v1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec               RadixApplicationSpec `json:"spec" yaml:"spec"`
+	metav1.TypeMeta   `json:",inline" yaml:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Spec              RadixApplicationSpec `json:"spec" yaml:"spec"`
 }
 
 //RadixApplicationSpec is the spec for an application
@@ -36,9 +36,9 @@ type RadixApplicationSpec struct {
 
 //RadixApplicationList is a list of Radix applications
 type RadixApplicationList struct {
-	meta_v1.TypeMeta `json:",inline" yaml:",inline"`
-	meta_v1.ListMeta `json:"metadata" yaml:"metadata"`
-	Items            []RadixApplication `json:"items" yaml:"items"`
+	metav1.TypeMeta `json:",inline" yaml:",inline"`
+	metav1.ListMeta `json:"metadata" yaml:"metadata"`
+	Items           []RadixApplication `json:"items" yaml:"items"`
 }
 
 //SecretsMap is a map of secrets (weird)
@@ -297,7 +297,7 @@ type RadixNode struct {
 	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
 }
 
-// Monitoring configuration
+// MonitoringConfig Monitoring configuration
 type MonitoringConfig struct {
 	// Port name
 	PortName string `json:"portName" yaml:"portName"`
@@ -519,7 +519,7 @@ type RadixCommonComponent interface {
 	GetNode() *RadixNode
 	//GetVariables Gets component environment variables
 	GetVariables() EnvVarsMap
-	//GetMonitoringConfig Gets component ports
+	//GetPorts Gets component ports
 	GetPorts() []ComponentPort
 	//GetMonitoringConfig Gets component monitoring configuration
 	GetMonitoringConfig() MonitoringConfig
