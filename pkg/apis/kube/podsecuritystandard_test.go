@@ -82,7 +82,8 @@ func Test_PodSecurityStandard_Enforce(t *testing.T) {
 
 	for _, s := range scenarios {
 		sut := PodSecurityStandard{}
-		actual := sut.Enforce(s.profile, version).Labels()
+		sut.Enforce(s.profile, version)
+		actual := sut.Labels()
 		expected := map[string]string{
 			"pod-security.kubernetes.io/enforce":         s.expected,
 			"pod-security.kubernetes.io/enforce-version": version,
@@ -101,7 +102,8 @@ func Test_PodSecurityStandard_Audit(t *testing.T) {
 
 	for _, s := range scenarios {
 		sut := PodSecurityStandard{}
-		actual := sut.Audit(s.profile, version).Labels()
+		sut.Audit(s.profile, version)
+		actual := sut.Labels()
 		expected := map[string]string{
 			"pod-security.kubernetes.io/audit":         s.expected,
 			"pod-security.kubernetes.io/audit-version": version,
@@ -120,7 +122,8 @@ func Test_PodSecurityStandard_Warn(t *testing.T) {
 
 	for _, s := range scenarios {
 		sut := PodSecurityStandard{}
-		actual := sut.Warn(s.profile, version).Labels()
+		sut.Warn(s.profile, version)
+		actual := sut.Labels()
 		expected := map[string]string{
 			"pod-security.kubernetes.io/warn":         s.expected,
 			"pod-security.kubernetes.io/warn-version": version,
@@ -129,16 +132,19 @@ func Test_PodSecurityStandard_Warn(t *testing.T) {
 	}
 }
 
-func Test_PodSecurityStandard_MultipleModesAndEmptyVersion(t *testing.T) {
+func Test_PodSecurityStandard_MultipleModes(t *testing.T) {
 	sut := PodSecurityStandard{}
-	actual := sut.Enforce(BaselineLevel, "").Audit(RestrictedLevel, "").Warn(PrivilegedLevel, "").Labels()
+	sut.Enforce(BaselineLevel, "v1")
+	sut.Audit(RestrictedLevel, "v2")
+	sut.Warn(PrivilegedLevel, "v3")
+	actual := sut.Labels()
 	expected := map[string]string{
 		"pod-security.kubernetes.io/enforce":         "baseline",
-		"pod-security.kubernetes.io/enforce-version": "latest",
+		"pod-security.kubernetes.io/enforce-version": "v1",
 		"pod-security.kubernetes.io/audit":           "restricted",
-		"pod-security.kubernetes.io/audit-version":   "latest",
+		"pod-security.kubernetes.io/audit-version":   "v2",
 		"pod-security.kubernetes.io/warn":            "privileged",
-		"pod-security.kubernetes.io/warn-version":    "latest",
+		"pod-security.kubernetes.io/warn-version":    "v3",
 	}
 	assert.Equal(t, expected, actual)
 }

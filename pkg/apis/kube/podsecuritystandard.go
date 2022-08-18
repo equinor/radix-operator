@@ -2,7 +2,6 @@ package kube
 
 import (
 	"os"
-	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 )
@@ -59,35 +58,27 @@ type PodSecurityStandard struct {
 
 // Enforce policy
 // Policy violations will cause the pod to be rejected.
-func (pss *PodSecurityStandard) Enforce(level PodSecurityLevel, version string) *PodSecurityStandard {
+func (pss *PodSecurityStandard) Enforce(level PodSecurityLevel, version string) {
 	pss.setMode(modeEnforce, level, version)
-	return pss
 }
 
 // Audit pod policy violations.
 // Policy violations will trigger the addition of an audit annotation to the event recorded in the audit log, but are otherwise allowed.
-func (pss *PodSecurityStandard) Audit(level PodSecurityLevel, version string) *PodSecurityStandard {
+func (pss *PodSecurityStandard) Audit(level PodSecurityLevel, version string) {
 	pss.setMode(modeAudit, level, version)
-	return pss
 }
 
 // Warn triggers a user-facing warning (e.g. kubectl) when a pod violates the policy
-func (pss *PodSecurityStandard) Warn(level PodSecurityLevel, version string) *PodSecurityStandard {
+func (pss *PodSecurityStandard) Warn(level PodSecurityLevel, version string) {
 	pss.setMode(modeWarn, level, version)
-	return pss
 }
 
 // Labels returns labels that will enforce pod security standard when applied on a namespace
 func (pss *PodSecurityStandard) Labels() map[string]string {
 	labels := make(map[string]string)
 	for mode, spec := range pss.mode {
-		version := spec.version
-		if len(strings.TrimSpace(version)) == 0 {
-			version = "latest"
-		}
-
 		labels[podSecurityStandardLabelPrefix+string(mode)] = string(spec.level)
-		labels[podSecurityStandardLabelPrefix+string(mode)+"-version"] = version
+		labels[podSecurityStandardLabelPrefix+string(mode)+"-version"] = spec.version
 	}
 	return labels
 }
