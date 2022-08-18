@@ -120,7 +120,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 
 	// get key to use for namespace annotation to pick up private image hubs
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
-	naLabels := labels.Set{
+	nsLabels := labels.Set{
 		"sync":                         "cluster-wildcard-tls-cert",
 		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
 		"app-wildcard-sync":            "app-wildcard-tls-cert",
@@ -129,8 +129,8 @@ func (env *Environment) ApplyNamespace(name string) error {
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
-	naLabels = labels.Merge(naLabels, labels.Set(kube.NewPodSecurityStandardFromEnv().Labels()))
-	return env.kubeutil.ApplyNamespace(name, naLabels, env.AsOwnerReference())
+	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewPodSecurityStandardFromEnv().Labels()))
+	return env.kubeutil.ApplyNamespace(name, nsLabels, env.AsOwnerReference())
 }
 
 // ApplyAdGroupRoleBinding grants access to environment namespace
