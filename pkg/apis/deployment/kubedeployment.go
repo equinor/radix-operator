@@ -157,7 +157,7 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
-	if string(deployComponent.GetType()) == string(v1.RadixComponentTypeJobScheduler) {
+	if deployComponent.GetType() == v1.RadixComponentTypeJobScheduler {
 		desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixPodIsJobSchedulerLabel] = "true"
 	}
 

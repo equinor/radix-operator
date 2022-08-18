@@ -133,6 +133,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		// For extra meta information about an image
 		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterType, imageTag))
 		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
+		containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
 
 		envVars := []corev1.EnvVar{
 			{
@@ -188,6 +189,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixGitTagsEnvironmentVariable,
 				Value: gitTags,
+			},
+			{
+				Name:  "REPOSITORY_NAME",
+				Value: containerImageRepositoryName,
 			},
 		}
 

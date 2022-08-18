@@ -108,39 +108,9 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 	)
 	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent, radixDeploymentLabels)
-	envVars = appendEnvVarsFromSecrets(envVars, deployComponent.GetSecrets(), utils.GetComponentSecretName(deployComponent.GetName()))
-	envVars = appendEnvVarsFromSecretRefs(envVars, deployComponent, radixDeployment.GetName())
-	return envVars
-}
-
-func appendEnvVarsFromSecretRefs(envVars []corev1.EnvVar, deployComponent v1.RadixCommonDeployComponent, radixDeploymentName string) []corev1.EnvVar {
-	return append(envVars, getAzureKeyVaultSecretRefsAsEnvVars(deployComponent, radixDeploymentName)...)
-}
-
-func getAzureKeyVaultSecretRefsAsEnvVars(deployComponent v1.RadixCommonDeployComponent, radixDeploymentName string) []corev1.EnvVar {
-	var envVars []corev1.EnvVar
-	for _, azureKeyVault := range deployComponent.GetSecretRefs().AzureKeyVaults {
-		for _, keyVaultItem := range azureKeyVault.Items {
-			if len(keyVaultItem.EnvVar) == 0 {
-				continue //Do not add cert,secret or key as environment variable - it will exist only as s file
-			}
-			kubeSecretType := kube.GetSecretTypeForRadixAzureKeyVault(keyVaultItem.K8sSecretType)
-			secretName := kube.GetAzureKeyVaultSecretRefSecretName(deployComponent.GetName(), radixDeploymentName, azureKeyVault.Name, kubeSecretType)
-			secretEnvVar := createEnvVarWithSecretRef(secretName, keyVaultItem.EnvVar)
-			envVars = append(envVars, secretEnvVar)
-		}
-	}
-	return envVars
-}
-
-func appendEnvVarsFromSecrets(envVars []corev1.EnvVar, radixSecretNames []string, componentSecretName string) []corev1.EnvVar {
-	if len(radixSecretNames) > 0 {
-		for _, secretName := range radixSecretNames {
-			secretEnvVar := createEnvVarWithSecretRef(componentSecretName, secretName)
-			envVars = append(envVars, secretEnvVar)
-		}
-	} else {
-		log.Debugf("No secret is set for this RadixDeployment")
+	if deployComponent.GetType() != v1.RadixComponentTypeJobScheduler { //JobScheduler does not need env-vars for secrets and secret-refs
+		envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
+		envVars = append(envVars, utils.GetEnvVarsFromAzureKeyVaultSecretRefs(radixDeployment.GetName(), deployComponent.GetName(), deployComponent.GetSecretRefs())...)
 	}
 	return envVars
 }
@@ -185,20 +155,6 @@ func removeFromConfigMapEnvVarsMetadataNotExistingInEnvVarsConfigMap(envVarConfi
 		if _, ok := envVarConfigMap.Data[envVarName]; !ok {
 			delete(envVarMetadataMap, envVarName)
 		}
-	}
-}
-
-func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
-	return corev1.EnvVar{
-		Name: envVarName,
-		ValueFrom: &corev1.EnvVarSource{
-			SecretKeyRef: &corev1.SecretKeySelector{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: secretName,
-				},
-				Key: envVarName,
-			},
-		},
 	}
 }
 
