@@ -111,11 +111,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
-	noPushFlag := "--no-push"
+	var push string
 	if pushImage {
-		noPushFlag = ""
+		push = "--push"
 	}
-
+	var useCache string
+	if !pipelineInfo.PipelineArguments.UseCache {
+		useCache = "--no-cache"
+	}
 	distinctBuildContainers := make(map[string]void)
 	for _, componentImage := range pipelineInfo.ComponentImages {
 		if !componentImage.Build {
@@ -135,6 +138,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
 		containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
 
+		cacheToOptions := fmt.Sprintf("--cache-to=type=registry,ref=%s/%s:%s-%s,mode=max", containerRegistry, containerImageRepositoryName, defaults.RadixCacheLayerNamePrefix, branch)
+
 		envVars := []corev1.EnvVar{
 			{
 				Name:  "DOCKER_FILE_NAME",
@@ -153,8 +158,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Value: componentImage.Context,
 			},
 			{
-				Name:  "NO_PUSH",
-				Value: noPushFlag,
+				Name:  "PUSH",
+				Value: push,
 			},
 			{
 				Name:  "AZURE_CREDENTIALS",
@@ -164,8 +169,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "SUBSCRIPTION_ID",
 				Value: subscriptionId,
 			},
-
-			// Extra meta information
 			{
 				Name:  "CLUSTERTYPE_IMAGE",
 				Value: clusterTypeImage,
@@ -174,6 +177,19 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "CLUSTERNAME_IMAGE",
 				Value: clusterNameImage,
 			},
+			{
+				Name:  "REPOSITORY_NAME",
+				Value: containerImageRepositoryName,
+			},
+			{
+				Name:  "CACHE",
+				Value: useCache,
+			},
+			{
+				Name:  "CACHE_TO_OPTIONS",
+				Value: cacheToOptions,
+			},
+			// Extra meta information
 			{
 				Name:  defaults.RadixBranchEnvironmentVariable,
 				Value: branch,
@@ -189,10 +205,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixGitTagsEnvironmentVariable,
 				Value: gitTags,
-			},
-			{
-				Name:  "REPOSITORY_NAME",
-				Value: containerImageRepositoryName,
 			},
 		}
 

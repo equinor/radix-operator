@@ -58,7 +58,7 @@ type PipelineArguments struct {
 	// CommitID is sent from GitHub webhook. not to be confused with PipelineInfo.GitCommitHash
 	CommitID        string
 	ImageTag        string
-	UseCache        string
+	UseCache        bool
 	PushImage       bool
 	DeploymentName  string
 	FromEnvironment string
@@ -89,7 +89,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	commitID := args[defaults.RadixCommitIdEnvironmentVariable]
 	imageTag := args[defaults.RadixImageTagEnvironmentVariable]
 	jobName := args[defaults.RadixPipelineJobEnvironmentVariable]
-	useCache := args[defaults.RadixUseCacheEnvironmentVariable]
+	useCache, _ := strconv.ParseBool(args[defaults.RadixUseCacheEnvironmentVariable])
 	pipelineType := args[defaults.RadixPipelineTypeEnvironmentVariable] // string(model.Build)
 	pushImage := args[defaults.RadixPushImageEnvironmentVariable]       // "0"
 
@@ -109,9 +109,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 
 	if imageTag == "" {
 		imageTag = "latest"
-	}
-	if useCache == "" {
-		useCache = "true"
 	}
 
 	pushImageBool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
