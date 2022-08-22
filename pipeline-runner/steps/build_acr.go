@@ -138,8 +138,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
 		containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
 
-		cacheToOptions := fmt.Sprintf("--cache-to=type=registry,ref=%s/%s:%s-%s,mode=max", containerRegistry, containerImageRepositoryName, defaults.RadixCacheLayerNamePrefix, branch)
-
 		envVars := []corev1.EnvVar{
 			{
 				Name:  "DOCKER_FILE_NAME",
@@ -184,10 +182,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  "CACHE",
 				Value: useCache,
-			},
-			{
-				Name:  "CACHE_TO_OPTIONS",
-				Value: cacheToOptions,
 			},
 			// Extra meta information
 			{
