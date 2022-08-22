@@ -148,4 +148,22 @@ const (
 
 	// LogLevel Log level: ERROR, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
+
+	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app and environment namespaces
+	PodSecurityStandardEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL"
+
+	// PodSecurityStandardEnforceVersionEnvironmentVariable Pod Security Standard enforce version for app and environment namespaces
+	PodSecurityStandardEnforceVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION"
+
+	// PodSecurityStandardAuditLevelEnvironmentVariable Pod Security Standard audit level for app and environment namespaces
+	PodSecurityStandardAuditLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_LEVEL"
+
+	// PodSecurityStandardAuditVersionEnvironmentVariable Pod Security Standard audit version for app and environment namespaces
+	PodSecurityStandardAuditVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION"
+
+	// PodSecurityStandardWarnLevelEnvironmentVariable Pod Security Standard warn level for app and environment namespaces
+	PodSecurityStandardWarnLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL"
+
+	// PodSecurityStandardWarnVersionEnvironmentVariable Pod Security Standard warn version for app and environment namespaces
+	PodSecurityStandardWarnVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION"
 )

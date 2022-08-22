@@ -42,18 +42,85 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
+	defer os.Clearenv()
 
 	// Test
+	appName := "any-app"
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
-		WithName("any-app").
+		WithName(appName).
 		WithMachineUser(true))
 
 	clusterRolebindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRolebindings))
 
-	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace("any-app"), metav1.GetOptions{})
+	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, ns)
+	expected := map[string]string{
+		kube.RadixAppLabel:          appName,
+		kube.RadixEnvLabel:          utils.AppNamespaceEnvName,
+		"snyk-service-account-sync": "radix-snyk-service-account",
+	}
+	assert.Equal(t, expected, ns.GetLabels())
+
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 4, len(rolebindings.Items))
+	assert.True(t, roleBindingByNameExists(defaults.RadixTektonRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.ScanImageRunnerRoleName, rolebindings))
+
+	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, rolebindings)
+	assert.Equal(t, 2, len(appAdminRoleBinding.Subjects))
+	assert.Equal(t, "any-app-machine-user", appAdminRoleBinding.Subjects[1].Name)
+
+	secrets, _ := client.CoreV1().Secrets("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 1, len(secrets.Items))
+	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
+
+	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 4, len(serviceAccounts.Items))
+	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonRoleName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
+	assert.True(t, serviceAccountByNameExists(defaults.ScanImageRunnerRoleName, serviceAccounts))
+}
+
+func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
+	// Setup
+	tu, client, kubeUtil, radixClient := setupTest()
+	defer os.Clearenv()
+	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
+	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
+	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
+	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "auditVer")
+	os.Setenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable, "warnLvl")
+	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "warnVer")
+
+	// Test
+	appName := "any-app"
+	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+		WithName(appName).
+		WithMachineUser(true))
+
+	clusterRolebindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRolebindings))
+
+	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, ns)
+	expected := map[string]string{
+		kube.RadixAppLabel:                           appName,
+		kube.RadixEnvLabel:                           utils.AppNamespaceEnvName,
+		"snyk-service-account-sync":                  "radix-snyk-service-account",
+		"pod-security.kubernetes.io/enforce":         "enforceLvl",
+		"pod-security.kubernetes.io/enforce-version": "enforceVer",
+		"pod-security.kubernetes.io/audit":           "auditLvl",
+		"pod-security.kubernetes.io/audit-version":   "auditVer",
+		"pod-security.kubernetes.io/warn":            "warnLvl",
+		"pod-security.kubernetes.io/warn-version":    "warnVer",
+	}
+	assert.Equal(t, expected, ns.GetLabels())
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 4, len(rolebindings.Items))
@@ -81,6 +148,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
+	defer os.Clearenv()
 
 	// Create namespaces manually
 	client.CoreV1().Namespaces().Create(
@@ -107,6 +175,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
+	defer os.Clearenv()
 	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
 
 	// Test
@@ -127,7 +196,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
-
+	defer os.Clearenv()
 	os.Setenv(defaults.OperatorAppLimitDefaultCPUEnvironmentVariable, "0.5")
 	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "300M")
 	os.Setenv(defaults.OperatorAppLimitDefaultReqestCPUEnvironmentVariable, "0.25")
@@ -146,6 +215,7 @@ func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
 func TestOnSync_NoLimitsDefined_NoLimitsSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
+	defer os.Clearenv()
 	os.Setenv(defaults.OperatorAppLimitDefaultCPUEnvironmentVariable, "")
 	os.Setenv(defaults.OperatorAppLimitDefaultMemoryEnvironmentVariable, "")
 	os.Setenv(defaults.OperatorAppLimitDefaultReqestCPUEnvironmentVariable, "")
