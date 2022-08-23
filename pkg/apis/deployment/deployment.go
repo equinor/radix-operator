@@ -72,11 +72,21 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 	}
 }
 
-// GetDeploymentComponent Gets the index  of and the component given name
+// GetDeploymentComponent Gets the index of and the component given name
 func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
 	for index, component := range rd.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
 			return index, &component
+		}
+	}
+	return -1, nil
+}
+
+// GetDeploymentJobComponent Gets the index of and the job component given name
+func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployJobComponent) {
+	for index, job := range rd.Spec.Jobs {
+		if strings.EqualFold(job.Name, name) {
+			return index, &job
 		}
 	}
 	return -1, nil

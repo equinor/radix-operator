@@ -199,6 +199,10 @@ func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolum
 	deployComponent.VolumeMounts = mounts
 }
 
+func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
+	deployComponent.EnvironmentVariables = envVars
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
@@ -304,6 +308,10 @@ func (deployJobComponent *RadixDeployJobComponent) SetVolumeMounts(mounts []Radi
 	deployJobComponent.VolumeMounts = mounts
 }
 
+func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
+	deployJobComponent.EnvironmentVariables = envVars
+}
+
 // GetNrOfReplicas gets number of replicas component will run
 func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 	replicas := int32(1)
@@ -351,6 +359,7 @@ type RadixCommonDeployComponent interface {
 	GetImage() string
 	GetPorts() []ComponentPort
 	GetEnvironmentVariables() EnvVarsMap
+	SetEnvironmentVariables(envVars EnvVarsMap)
 	GetSecrets() []string
 	GetSecretRefs() RadixSecretRefs
 	GetMonitoring() bool
