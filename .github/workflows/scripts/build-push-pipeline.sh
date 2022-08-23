@@ -5,11 +5,11 @@ az acr task run \
     --name radix-image-builder-internal \
     --registry ${ACR_NAME} \
     --context ${GITHUB_WORKSPACE} \
-    --file ${GITHUB_WORKSPACE}/Dockerfile \
+    --file "${GITHUB_WORKSPACE}/pipeline.Dockerfile" \
     --set DOCKER_REGISTRY=${ACR_NAME} \
     --set BRANCH=${GITHUB_REF_NAME} \
     --set TAGS="--tag ${image_tag}" \
-    --set DOCKER_FILE_NAME=Dockerfile \
+    --set DOCKER_FILE_NAME="pipeline.Dockerfile" \
     --set PUSH="--push" \
     --set REPOSITORY_NAME=${PIPELINE_IMAGE_NAME} \
     --set CACHE="" \
