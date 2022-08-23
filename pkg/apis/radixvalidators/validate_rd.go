@@ -2,6 +2,7 @@ package radixvalidators
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-common/utils/errors"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -15,9 +16,29 @@ const (
 	MaxReplica = 64
 )
 
+func removeCharacters(input string, characters string) string {
+	filter := func(r rune) rune {
+		if !strings.ContainsRune(characters, r) {
+			return r
+		}
+		return -1
+	}
+	return strings.Map(filter, input)
+}
+
 // InvalidNumberOfReplicaError Invalid number of replica
 func InvalidNumberOfReplicaError(replica int) error {
 	return fmt.Errorf("replicas %v must be between %v and %v", replica, minReplica, MaxReplica)
+}
+
+// GitTagsContainIllegalChars Git tags contain illegal characters
+func GitTagsContainIllegalChars(gitTags string) error {
+	illegalChars := "\"'$"
+	strippedGitTags := removeCharacters(gitTags, illegalChars)
+	if gitTags != strippedGitTags {
+		return fmt.Errorf("git tags %s contained one or more illegal characters %s", gitTags, illegalChars)
+	}
+	return nil
 }
 
 // CanRadixDeploymentBeInserted Checks if RD is valid
