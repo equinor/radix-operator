@@ -16,6 +16,6 @@ az acr task run \
     --set TAGS="--tag ${image_tag}" \
     --set DOCKER_FILE_NAME=Dockerfile \
     --set PUSH="--push" \
-    --set REPOSITORY_NAME=${IMAGE_NAME} \
+    --set REPOSITORY_NAME=${OPERATOR_IMAGE_NAME} \
     --set CACHE="" \
-    --set CACHE_TO_OPTIONS="--cache-to=type=registry,ref=${ACR_NAME}.azurecr.io/${IMAGE_NAME}:radix-cache-${GITHUB_REF_NAME},mode=max"
+    --set CACHE_TO_OPTIONS="--cache-to=type=registry,ref=${ACR_NAME}.azurecr.io/${OPERATOR_IMAGE_NAME}:radix-cache-${GITHUB_REF_NAME},mode=max"
