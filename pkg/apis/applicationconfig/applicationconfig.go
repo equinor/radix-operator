@@ -59,33 +59,36 @@ func (app *ApplicationConfig) GetRadixRegistration() *v1.RadixRegistration {
 }
 
 // GetComponent Gets the component for a provided name
-func GetComponent(ra *v1.RadixApplication, name string) *v1.RadixComponent {
+func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent {
 	for _, component := range ra.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
 			return &component
 		}
 	}
-
+	for _, jobComponent := range ra.Spec.Jobs {
+		if strings.EqualFold(jobComponent.Name, name) {
+			return &jobComponent
+		}
+	}
 	return nil
 }
 
 // GetComponentEnvironmentConfig Gets environment config of component
-func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) *v1.RadixEnvironmentConfig {
+func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) v1.RadixCommonEnvironmentConfig {
 	return GetEnvironment(GetComponent(ra, componentName), envName)
 }
 
 // GetEnvironment Gets environment config of component
-func GetEnvironment(component *v1.RadixComponent, envName string) *v1.RadixEnvironmentConfig {
+func GetEnvironment(component v1.RadixCommonComponent, envName string) v1.RadixCommonEnvironmentConfig {
 	if component == nil {
 		return nil
 	}
 
-	for _, environment := range component.EnvironmentConfig {
-		if strings.EqualFold(environment.Environment, envName) {
-			return &environment
+	for _, environment := range component.GetEnvironmentConfig() {
+		if strings.EqualFold(environment.GetEnvironment(), envName) {
+			return environment
 		}
 	}
-
 	return nil
 }
 
