@@ -37,9 +37,8 @@ func GitTagsContainIllegalChars(gitTags string) error {
 	strippedGitTags := removeCharacters(gitTags, illegalChars)
 	if gitTags == strippedGitTags {
 		return nil
-	} else {
-		return fmt.Errorf("git tags %s contained one or more illegal characters %s", gitTags, illegalChars)
 	}
+	return fmt.Errorf("git tags %s contained one or more illegal characters %s", gitTags, illegalChars)
 }
 
 // CanRadixDeploymentBeInserted Checks if RD is valid
