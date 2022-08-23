@@ -35,10 +35,10 @@ func InvalidNumberOfReplicaError(replica int) error {
 func GitTagsContainIllegalChars(gitTags string) error {
 	illegalChars := "\"'$"
 	strippedGitTags := removeCharacters(gitTags, illegalChars)
-	if gitTags == strippedGitTags {
-		return nil
+	if gitTags != strippedGitTags {
+		return fmt.Errorf("git tags %s contained one or more illegal characters %s", gitTags, illegalChars)
 	}
-	return fmt.Errorf("git tags %s contained one or more illegal characters %s", gitTags, illegalChars)
+	return nil
 }
 
 // CanRadixDeploymentBeInserted Checks if RD is valid
