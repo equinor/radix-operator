@@ -87,8 +87,6 @@ spec:
               value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
               value: {{ .Values.imageBuilder }}
-            - name: RADIX_IMAGE_SCANNER
-              value: {{ .Values.imageScanner }}
             - name: RADIXOPERATOR_JOB_SCHEDULER
               value: {{ .Values.jobScheduler }}
             - name: LOG_LEVEL

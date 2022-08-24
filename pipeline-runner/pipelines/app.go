@@ -117,7 +117,6 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
 	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep())
-	stepImplementations = append(stepImplementations, steps.NewScanImageStep())
 	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 

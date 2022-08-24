@@ -101,41 +101,10 @@ type RadixJobList struct {
 
 //RadixJobStep holds status for a single step
 type RadixJobStep struct {
-	Name       string              `json:"name" yaml:"name"`
-	Condition  RadixJobCondition   `json:"condition" yaml:"condition"`
-	Started    *meta_v1.Time       `json:"started" yaml:"started"`
-	Ended      *meta_v1.Time       `json:"ended" yaml:"ended"`
-	PodName    string              `json:"podName" yaml:"podName"`
-	Components []string            `json:"components,omitempty" yaml:"components,omitempty"`
-	Output     *RadixJobStepOutput `json:"output,omitempty" yaml:"output,omitempty"`
+	Name       string            `json:"name" yaml:"name"`
+	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
+	Started    *meta_v1.Time     `json:"started" yaml:"started"`
+	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
+	PodName    string            `json:"podName" yaml:"podName"`
+	Components []string          `json:"components,omitempty" yaml:"components,omitempty"`
 }
-
-// RadixJobStepOutput holds information about output from a single step
-type RadixJobStepOutput struct {
-	Scan *RadixJobStepScanOutput `json:"scan,omitempty" yaml:"scan,omitempty"`
-}
-
-// RadixJobStepScanOutput holds information about output from a single scan step
-type RadixJobStepScanOutput struct {
-	// Status of scan results
-	Status ScanStatus `json:"status" yaml:"status"`
-	// Reason for the status
-	Reason string `json:"reason,omitempty" yaml:"reason,omitempty"`
-	// Vulnerabilities is a map of severity level and number of vulnerabilities found
-	Vulnerabilities VulnerabilityMap `json:"vulnerabilities,omitempty" yaml:"vulnerabilities,omitempty"`
-	// VulnerabilityListConfigMap defines the name of the ConfigMap with list of information about vulnerabilities found during scan
-	// the ConfigMap must be in the same namespace as the RadixJob
-	VulnerabilityListConfigMap string `json:"vulnerabilityListConfigMap,omitempty" yaml:"vulnerabilityListConfigMap,omitempty"`
-	// VulnerabilityListKey defines the key in VulnerabilityListConfigMap where vulnerability details are stored
-	VulnerabilityListKey string `json:"vulnerabilityListKey,omitempty" yaml:"vulnerabilityListKey,omitempty"`
-}
-
-type VulnerabilityMap map[string]uint
-
-// ScanStatus defines the statuys of the vulnerability scanning
-type ScanStatus string
-
-const (
-	ScanSuccess ScanStatus = "Success" // Scan completed successfully
-	ScanMissing ScanStatus = "Missing" // Scan results are missing
-)

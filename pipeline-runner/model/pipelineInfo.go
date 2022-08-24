@@ -69,11 +69,10 @@ type PipelineArguments struct {
 	PodSecurityContext corev1.PodSecurityContext
 
 	ContainerSecurityContext corev1.SecurityContext
-	// Images used for copying radix config/building/scanning
+	// Images used for copying radix config/building
 	TektonPipeline string
 
 	ImageBuilder string
-	ImageScanner string
 
 	// Used for tagging meta-information
 	Clustertype string
@@ -100,7 +99,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 
 	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
-	imageScanner := args[defaults.RadixImageScannerEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
 
@@ -126,7 +124,6 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		ToEnvironment:   toEnvironment,
 		TektonPipeline:  tektonPipeline,
 		ImageBuilder:    imageBuilder,
-		ImageScanner:    imageScanner,
 		Clustertype:     clusterType,
 		Clustername:     clusterName,
 		RadixConfigFile: radixConfigFile,
@@ -292,7 +289,7 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 	// Gather pre-built or public images
 	for _, c := range componentSource {
 		if c.Image != "" {
-			componentImages[c.Name] = pipeline.ComponentImage{Build: false, Scan: false, ImageName: c.Image, ImagePath: c.Image}
+			componentImages[c.Name] = pipeline.ComponentImage{Build: false, ImageName: c.Image, ImagePath: c.Image}
 		}
 	}
 
@@ -332,7 +329,6 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 				ImageName:     imageName,
 				ImagePath:     utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
 				Build:         true,
-				Scan:          true,
 			}
 		}
 	}

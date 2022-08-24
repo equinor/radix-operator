@@ -117,7 +117,7 @@ func (c *FakeRadixJobs) UpdateStatus(ctx context.Context, radixJob *radixv1.Radi
 // Delete takes name of the radixJob and deletes it. Returns an error if one occurs.
 func (c *FakeRadixJobs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(radixjobsResource, c.ns, name), &radixv1.RadixJob{})
+		Invokes(testing.NewDeleteActionWithOptions(radixjobsResource, c.ns, name, opts), &radixv1.RadixJob{})
 
 	return err
 }

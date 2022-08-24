@@ -110,7 +110,7 @@ func (c *FakeRadixRegistrations) UpdateStatus(ctx context.Context, radixRegistra
 // Delete takes name of the radixRegistration and deletes it. Returns an error if one occurs.
 func (c *FakeRadixRegistrations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(radixregistrationsResource, name), &radixv1.RadixRegistration{})
+		Invokes(testing.NewRootDeleteActionWithOptions(radixregistrationsResource, name, opts), &radixv1.RadixRegistration{})
 	return err
 }
 
