@@ -3,7 +3,6 @@ package application
 import (
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
@@ -57,28 +56,6 @@ func (app Application) rrClusterrole(clusterroleName string, verbs []string) *au
 	logger.Debugf("Done - creating clusterrole config %s", clusterroleName)
 
 	return clusterrole
-}
-
-func (app Application) scanImageRunnerRole() *auth.Role {
-	return &auth.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.ScanImageRunnerRoleName,
-			Labels: map[string]string{
-				kube.RadixAppLabel: app.registration.Name,
-			},
-		},
-		Rules: []auth.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"configmaps"},
-				Verbs:     []string{"create"},
-			},
-		},
-	}
 }
 
 func roleAppAdminMachineUserToken(appName string, serviceAccount *corev1.ServiceAccount) *auth.Role {

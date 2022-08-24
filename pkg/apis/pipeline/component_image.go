@@ -8,5 +8,4 @@ type ComponentImage struct {
 	ImageName     string
 	ImagePath     string
 	Build         bool
-	Scan          bool
 }

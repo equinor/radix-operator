@@ -103,11 +103,6 @@ func (job *Job) restoreStatus() {
 				log.Error("Unable to restore status", err)
 				return
 			}
-			// OwnerReference for pipeline step output configmaps are not restored by velero, and must be re-applied
-			if err := job.setJobStepOutputOwnerReference(); err != nil {
-				log.Error("Unable to set ownerReference on step output", err)
-				return
-			}
 		}
 	}
 }
@@ -436,16 +431,9 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			return nil, err
 		}
 
-		containerOutputNames := make(pipeline.ContainerOutputName)
-		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixContainerOutputAnnotation, &containerOutputNames); err != nil {
-			return nil, err
-		}
-
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
-			containerOutputName := containerOutputNames[containerStatus.Name]
-			jobStepOutput := getJobStepOutput(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)
-			step := getJobStep(pod.GetName(), &containerStatus, components, jobStepOutput)
+			step := getJobStep(pod.GetName(), &containerStatus, components)
 			if _, ok := foundPrepareStepNames[step.Name]; ok {
 				continue
 			}
@@ -497,7 +485,7 @@ func (job *Job) getPipelinePod() (*corev1.Pod, error) {
 
 func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
 	var components []string
-	return getJobStep(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0], components, nil)
+	return getJobStep(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0], components)
 }
 
 func (job *Job) getCloneConfigApplyConfigAndPreparePipelineStep() (*v1.RadixJobStep, *v1.RadixJobStep) {
@@ -541,14 +529,14 @@ func getContainerStatusByName(name string, containerStatuses []corev1.ContainerS
 }
 
 func getJobStepWithNoComponents(podName string, containerStatus *corev1.ContainerStatus) v1.RadixJobStep {
-	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, nil, nil)
+	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, nil)
 }
 
-func getJobStep(podName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutput *v1.RadixJobStepOutput) v1.RadixJobStep {
-	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, components, jobStepOutput)
+func getJobStep(podName string, containerStatus *corev1.ContainerStatus, components []string) v1.RadixJobStep {
+	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, components)
 }
 
-func getJobStepWithContainerName(podName, containerName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutput *v1.RadixJobStepOutput) v1.RadixJobStep {
+func getJobStepWithContainerName(podName, containerName string, containerStatus *corev1.ContainerStatus, components []string) v1.RadixJobStep {
 	var startedAt *metav1.Time
 	var finishedAt *metav1.Time
 
@@ -581,7 +569,6 @@ func getJobStepWithContainerName(podName, containerName string, containerStatus 
 		Condition:  status,
 		PodName:    podName,
 		Components: components,
-		Output:     jobStepOutput,
 	}
 }
 
@@ -610,10 +597,6 @@ func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, ori
 
 	if originalRadixJobCondition != job.radixJob.Status.Condition {
 		metrics.RadixJobStatusChanged(job.radixJob)
-
-		if job.radixJob.Status.Condition == v1.JobSucceeded {
-			metrics.RadixJobVulnerabilityScan(job.radixJob)
-		}
 	}
 
 	return nil
@@ -670,48 +653,4 @@ func (job *Job) maintainHistoryLimit() {
 			}
 		}
 	}
-}
-
-func (job *Job) setJobStepOutputOwnerReference() error {
-	for _, step := range job.radixJob.Status.Steps {
-		if output := step.Output; output != nil {
-			switch {
-			case output.Scan != nil:
-				if err := job.setScanStepOutputOwnerReference(output.Scan); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (job *Job) setScanStepOutputOwnerReference(scanOutput *v1.RadixJobStepScanOutput) error {
-	if scanOutput == nil {
-		return nil
-	}
-
-	configMapName := strings.TrimSpace(scanOutput.VulnerabilityListConfigMap)
-	if configMapName == "" {
-		return nil
-	}
-
-	namespace := job.radixJob.Namespace
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		cm, err := job.kubeutil.GetConfigMap(namespace, configMapName)
-		if err != nil && k8serrors.IsNotFound(err) {
-			log.Debugf("ConfigMap %s not found", configMapName)
-			return nil
-		}
-
-		// Skip ownerReference update if already set
-		if len(cm.OwnerReferences) > 0 {
-			return nil
-		}
-
-		cm.OwnerReferences = GetOwnerReference(job.radixJob)
-		_, err = job.kubeclient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
-		return err
-	})
 }

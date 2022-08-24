@@ -117,7 +117,7 @@ func (c *FakeRadixAlerts) UpdateStatus(ctx context.Context, radixAlert *radixv1.
 // Delete takes name of the radixAlert and deletes it. Returns an error if one occurs.
 func (c *FakeRadixAlerts) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(radixalertsResource, c.ns, name), &radixv1.RadixAlert{})
+		Invokes(testing.NewDeleteActionWithOptions(radixalertsResource, c.ns, name, opts), &radixv1.RadixAlert{})
 
 	return err
 }

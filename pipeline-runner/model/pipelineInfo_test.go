@@ -14,7 +14,6 @@ import (
 var (
 	applyConfigStep           = &DefaultStepImplementation{StepType: pipeline.ApplyConfigStep, SuccessMessage: "config applied"}
 	buildStep                 = &DefaultStepImplementation{StepType: pipeline.BuildStep, SuccessMessage: "built"}
-	scanImageStep             = &DefaultStepImplementation{StepType: pipeline.ScanImageStep, SuccessMessage: "image scanned"}
 	deployStep                = &DefaultStepImplementation{StepType: pipeline.DeployStep, SuccessMessage: "deployed"}
 	prepareTektonPipelineStep = &DefaultStepImplementation{StepType: pipeline.PreparePipelinesStep,
 		SuccessMessage: "pipelines prepared"}
@@ -24,45 +23,42 @@ var (
 
 func Test_DefaultPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName("")
-	p, _ := InitPipeline(pipelineType, PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
-	assert.Equal(t, 6, len(p.Steps))
+	assert.Equal(t, 5, len(p.Steps))
 	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
 	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[5].SucceededMsg())
 }
 
 func Test_BuildDeployPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	p, _ := InitPipeline(pipelineType, PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
-	assert.Equal(t, 6, len(p.Steps))
+	assert.Equal(t, 5, len(p.Steps))
 	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
 	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[5].SucceededMsg())
 }
 
 func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
 	pipelineArgs := GetPipelineArgsFromArguments(make(map[string]string))
-	p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
-	assert.Equal(t, 5, len(p.Steps))
+	assert.Equal(t, 4, len(p.Steps))
 	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
 	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_BuildOnlyPipeline(t *testing.T) {
@@ -72,15 +68,14 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 		PushImage: false,
 	}
 
-	p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.False(t, p.PipelineArguments.PushImage)
-	assert.Equal(t, 5, len(p.Steps))
+	assert.Equal(t, 4, len(p.Steps))
 	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
 	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_BuildAndPushOnlyPipeline(t *testing.T) {
@@ -90,15 +85,14 @@ func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 		PushImage: true,
 	}
 
-	p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, scanImageStep, deployStep)
+	p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
 	assert.True(t, p.PipelineArguments.PushImage)
-	assert.Equal(t, 5, len(p.Steps))
+	assert.Equal(t, 4, len(p.Steps))
 	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
 	assert.Equal(t, "built", p.Steps[2].SucceededMsg())
 	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
-	assert.Equal(t, "image scanned", p.Steps[4].SucceededMsg())
 }
 
 func Test_DeployOnlyPipeline(t *testing.T) {
@@ -215,7 +209,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-multi-component", componentImages["client-component-1"].ContainerName)
 	assert.True(t, componentImages["client-component-1"].Build)
-	assert.True(t, componentImages["client-component-1"].Scan)
 	assert.Equal(t, "/workspace/client/", componentImages["client-component-1"].Context)
 	assert.Equal(t, "client.Dockerfile", componentImages["client-component-1"].Dockerfile)
 	assert.Equal(t, "multi-component", componentImages["client-component-1"].ImageName)
@@ -223,7 +216,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-multi-component", componentImages["client-component-2"].ContainerName)
 	assert.True(t, componentImages["client-component-2"].Build)
-	assert.True(t, componentImages["client-component-2"].Scan)
 	assert.Equal(t, "/workspace/client/", componentImages["client-component-2"].Context)
 	assert.Equal(t, "client.Dockerfile", componentImages["client-component-2"].Dockerfile)
 	assert.Equal(t, "multi-component", componentImages["client-component-2"].ImageName)
@@ -231,7 +223,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-multi-component-1", componentImages["server-component-1"].ContainerName)
 	assert.True(t, componentImages["server-component-1"].Build)
-	assert.True(t, componentImages["server-component-1"].Scan)
 	assert.Equal(t, "/workspace/server/", componentImages["server-component-1"].Context)
 	assert.Equal(t, "server.Dockerfile", componentImages["server-component-1"].Dockerfile)
 	assert.Equal(t, "multi-component-1", componentImages["server-component-1"].ImageName)
@@ -239,7 +230,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-multi-component-1", componentImages["server-component-2"].ContainerName)
 	assert.True(t, componentImages["server-component-2"].Build)
-	assert.True(t, componentImages["server-component-2"].Scan)
 	assert.Equal(t, "/workspace/server/", componentImages["server-component-2"].Context)
 	assert.Equal(t, "server.Dockerfile", componentImages["server-component-2"].Dockerfile)
 	assert.Equal(t, "multi-component-1", componentImages["server-component-2"].ImageName)
@@ -247,7 +237,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-single-component", componentImages["single-component"].ContainerName)
 	assert.True(t, componentImages["single-component"].Build)
-	assert.True(t, componentImages["single-component"].Scan)
 	assert.Equal(t, "/workspace/", componentImages["single-component"].Context)
 	assert.Equal(t, "Dockerfile", componentImages["single-component"].Dockerfile)
 	assert.Equal(t, "single-component", componentImages["single-component"].ImageName)
@@ -255,19 +244,16 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "", componentImages["public-image-component"].ContainerName)
 	assert.False(t, componentImages["public-image-component"].Build)
-	assert.False(t, componentImages["public-image-component"].Scan)
 	assert.Equal(t, "swaggerapi/swagger-ui", componentImages["public-image-component"].ImageName)
 	assert.Equal(t, "swaggerapi/swagger-ui", componentImages["public-image-component"].ImagePath)
 
 	assert.Equal(t, "", componentImages["private-hub-component"].ContainerName)
 	assert.False(t, componentImages["private-hub-component"].Build)
-	assert.False(t, componentImages["private-hub-component"].Scan)
 	assert.Equal(t, "radixcanary.azurecr.io/nginx:latest", componentImages["private-hub-component"].ImageName)
 	assert.Equal(t, "radixcanary.azurecr.io/nginx:latest", componentImages["private-hub-component"].ImagePath)
 
 	assert.Equal(t, "build-multi-component-2", componentImages["compute-shared-1"].ContainerName)
 	assert.True(t, componentImages["compute-shared-1"].Build)
-	assert.True(t, componentImages["compute-shared-1"].Scan)
 	assert.Equal(t, "/workspace/compute/", componentImages["compute-shared-1"].Context)
 	assert.Equal(t, "compute.Dockerfile", componentImages["compute-shared-1"].Dockerfile)
 	assert.Equal(t, "multi-component-2", componentImages["compute-shared-1"].ImageName)
@@ -276,7 +262,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	componentWithSharedSourceAndDiffDockerFile1 := componentImages["compute-shared-with-different-dockerfile-1"]
 	assert.Equal(t, "build-compute-shared-with-different-dockerfile-1", componentWithSharedSourceAndDiffDockerFile1.ContainerName)
 	assert.True(t, componentWithSharedSourceAndDiffDockerFile1.Build)
-	assert.True(t, componentWithSharedSourceAndDiffDockerFile1.Scan)
 	assert.Equal(t, "/workspace/compute-with-different-dockerfile/", componentWithSharedSourceAndDiffDockerFile1.Context)
 	assert.Equal(t, "compute-custom1.Dockerfile", componentWithSharedSourceAndDiffDockerFile1.Dockerfile)
 	assert.Equal(t, "compute-shared-with-different-dockerfile-1", componentWithSharedSourceAndDiffDockerFile1.ImageName)
@@ -285,7 +270,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	componentWithSharedSourceAndDiffDockerFile2 := componentImages["compute-shared-with-different-dockerfile-2"]
 	assert.Equal(t, "build-compute-shared-with-different-dockerfile-2", componentWithSharedSourceAndDiffDockerFile2.ContainerName)
 	assert.True(t, componentWithSharedSourceAndDiffDockerFile2.Build)
-	assert.True(t, componentWithSharedSourceAndDiffDockerFile2.Scan)
 	assert.Equal(t, "/workspace/compute-with-different-dockerfile/", componentWithSharedSourceAndDiffDockerFile2.Context)
 	assert.Equal(t, "compute-custom2.Dockerfile", componentWithSharedSourceAndDiffDockerFile2.Dockerfile)
 	assert.Equal(t, "compute-shared-with-different-dockerfile-2", componentWithSharedSourceAndDiffDockerFile2.ImageName)
@@ -294,7 +278,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	componentWithSharedSourceAndDiffDockerFile3 := componentImages["compute-shared-with-different-dockerfile-3"]
 	assert.Equal(t, "build-compute-shared-with-different-dockerfile-3", componentWithSharedSourceAndDiffDockerFile3.ContainerName)
 	assert.True(t, componentWithSharedSourceAndDiffDockerFile3.Build)
-	assert.True(t, componentWithSharedSourceAndDiffDockerFile3.Scan)
 	assert.Equal(t, "/workspace/compute-with-different-dockerfile/", componentWithSharedSourceAndDiffDockerFile3.Context)
 	assert.Equal(t, "compute-custom3.Dockerfile", componentWithSharedSourceAndDiffDockerFile3.Dockerfile)
 	assert.Equal(t, "compute-shared-with-different-dockerfile-3", componentWithSharedSourceAndDiffDockerFile3.ImageName)
@@ -302,7 +285,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-multi-component-2", componentImages["compute-shared-2"].ContainerName)
 	assert.True(t, componentImages["compute-shared-2"].Build)
-	assert.True(t, componentImages["compute-shared-2"].Scan)
 	assert.Equal(t, "/workspace/compute/", componentImages["compute-shared-2"].Context)
 	assert.Equal(t, "compute.Dockerfile", componentImages["compute-shared-2"].Dockerfile)
 	assert.Equal(t, "multi-component-2", componentImages["compute-shared-2"].ImageName)
@@ -310,7 +292,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-single-job", componentImages["single-job"].ContainerName)
 	assert.True(t, componentImages["single-job"].Build)
-	assert.True(t, componentImages["single-job"].Scan)
 	assert.Equal(t, "/workspace/job/", componentImages["single-job"].Context)
 	assert.Equal(t, "job.Dockerfile", componentImages["single-job"].Dockerfile)
 	assert.Equal(t, "single-job", componentImages["single-job"].ImageName)
@@ -318,7 +299,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-multi-component-3", componentImages["calc-1"].ContainerName)
 	assert.True(t, componentImages["calc-1"].Build)
-	assert.True(t, componentImages["calc-1"].Scan)
 	assert.Equal(t, "/workspace/calc/", componentImages["calc-1"].Context)
 	assert.Equal(t, "calc.Dockerfile", componentImages["calc-1"].Dockerfile)
 	assert.Equal(t, "multi-component-3", componentImages["calc-1"].ImageName)
@@ -326,7 +306,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "build-multi-component-3", componentImages["calc-2"].ContainerName)
 	assert.True(t, componentImages["calc-2"].Build)
-	assert.True(t, componentImages["calc-2"].Scan)
 	assert.Equal(t, "/workspace/calc/", componentImages["calc-2"].Context)
 	assert.Equal(t, "calc.Dockerfile", componentImages["calc-2"].Dockerfile)
 	assert.Equal(t, "multi-component-3", componentImages["calc-2"].ImageName)
@@ -334,7 +313,6 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 
 	assert.Equal(t, "", componentImages["public-job-component"].ContainerName)
 	assert.False(t, componentImages["public-job-component"].Build)
-	assert.False(t, componentImages["public-job-component"].Scan)
 	assert.Equal(t, "job/job:latest", componentImages["public-job-component"].ImageName)
 	assert.Equal(t, "job/job:latest", componentImages["public-job-component"].ImagePath)
 }
