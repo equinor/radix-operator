@@ -81,6 +81,10 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 
 	if pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
+		err = validate.GitTagsContainIllegalChars(gitTags)
+		if err != nil {
+			return err
+		}
 		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
 	}
 
