@@ -20,8 +20,8 @@ jobs:
           configs=$(ls $GITHUB_WORKSPACE/.github/workflows/config/${GITHUB_REF_NAME} | jq -Rsc '. / "\n" - [""]')
           echo ::set-output name=target_configs::${configs}
 
-  build-deploy-operator:
-    name: Build & push operator
+  build-deploy-pipeline-and-operator:
+    name: Build & push pipeline and operator
     runs-on: ubuntu-20.04
     needs:
       - get-target-configs
@@ -29,6 +29,7 @@ jobs:
       fail-fast: false
       matrix: 
         config: ${{ fromJson(needs.get-target-configs.outputs.target_configs) }}
+        script: [build-push-operator.sh, build-push-pipeline.sh]
     steps:
     - uses: actions/checkout@v2
     - name: Persist environment from ${{ matrix.config }} across steps
@@ -43,29 +44,4 @@ jobs:
     
     - name: Build and push image
       run: |
-        $GITHUB_WORKSPACE/.github/workflows/scripts/build-push-operator.sh
-
-  build-deploy-pipeline:
-    name: Build & push pipeline
-    runs-on: ubuntu-20.04
-    needs:
-      - get-target-configs
-    strategy:
-      fail-fast: false
-      matrix: 
-        config: ${{ fromJson(needs.get-target-configs.outputs.target_configs) }}
-    steps:
-    - uses: actions/checkout@v2
-    - name: Persist environment from ${{ matrix.config }} across steps
-      run: |
-        $GITHUB_WORKSPACE/.github/workflows/scripts/persist-env.sh ${{ matrix.config }}
-
-    - uses: azure/login@v1
-      with:
-        client-id: ${{ env.AZURE_CLIENT_ID }}
-        tenant-id: ${{ env.AZURE_TENANT_ID }}
-        subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-    
-    - name: Build and push image
-      run: |
-        $GITHUB_WORKSPACE/.github/workflows/scripts/build-push-pipeline.sh
+        $GITHUB_WORKSPACE/.github/workflows/scripts/${{ matrix.script }}
