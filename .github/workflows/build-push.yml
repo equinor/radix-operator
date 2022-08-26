@@ -21,7 +21,7 @@ jobs:
           echo ::set-output name=target_configs::${configs}
 
   build-deploy-pipeline-and-operator:
-    name: Build & push pipeline and operator
+    name: " "
     runs-on: ubuntu-20.04
     needs:
       - get-target-configs
