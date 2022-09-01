@@ -21,14 +21,12 @@ func GetSupportedPipelines() []Definition {
 			BuildStep,
 			RunPipelinesStep,
 			DeployStep,
-			ScanImageStep,
 		}},
 		{v1.Build, []StepType{
 			PreparePipelinesStep,
 			ApplyConfigStep,
 			BuildStep,
 			RunPipelinesStep,
-			ScanImageStep,
 		}},
 		{v1.Promote, []StepType{
 			PreparePipelinesStep,

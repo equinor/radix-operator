@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -44,7 +43,6 @@ type getJobStepWithContainerNameScenario struct {
 	containerName   string
 	containerStatus *corev1.ContainerStatus
 	components      []string
-	jobStepOutput   *v1.RadixJobStepOutput
 	expected        v1.RadixJobStep
 }
 
@@ -55,7 +53,6 @@ func TestRadixJobStepTestSuite(t *testing.T) {
 func (s *RadixJobStepTestSuite) TestIt() {
 	startedAt := metav1.NewTime(time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local))
 	finishedAt := metav1.NewTime(time.Date(2020, 1, 1, 1, 1, 0, 0, time.Local))
-	testStepOutput := v1.RadixJobStepOutput{}
 
 	scenarios := []getJobStepWithContainerNameScenario{
 		{name: "test status waiting when containerStatus is nil", expected: v1.RadixJobStep{Condition: v1.JobWaiting}},
@@ -90,19 +87,10 @@ func (s *RadixJobStepTestSuite) TestIt() {
 			components:    []string{"comp1", "comp2"},
 			expected:      v1.RadixJobStep{Condition: v1.JobWaiting, Name: "a_container", PodName: "a_pod", Components: []string{"comp1", "comp2"}},
 		},
-		{
-			name:          "test jobStepOutputFunc called correctly",
-			jobStepOutput: &testStepOutput,
-			expected:      v1.RadixJobStep{Condition: v1.JobWaiting, Output: &testStepOutput},
-		},
 	}
 
 	for _, scenario := range scenarios {
-		var output *v1.RadixJobStepOutput
-		if scenario.jobStepOutput != nil {
-			output = scenario.jobStepOutput
-		}
-		actual := getJobStepWithContainerName(scenario.podName, scenario.containerName, scenario.containerStatus, scenario.components, output)
+		actual := getJobStepWithContainerName(scenario.podName, scenario.containerName, scenario.containerStatus, scenario.components)
 		assert.Equal(s.T(), scenario.expected, actual, scenario.name)
 	}
 }
@@ -276,262 +264,6 @@ func (s *RadixJobStepTestSuite) Test_StatusSteps_InitContainers() {
 	s.testSetStatusOfJobTestScenario(&scenario)
 }
 
-func (s *RadixJobStepTestSuite) Test_StatusSteps_ScanStepsSteps() {
-	startedAt, finishedAt := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 1, 1, 0, 0, 0, time.Local))
-	vulnerabilityMap := v1.VulnerabilityMap{"critical": 2, "medium": 3}
-
-	scenarios := []setStatusOfJobTestScenario{
-		{
-			name:     "scan steps component info correctly set",
-			radixjob: s.getBuildDeployJob("job-1", "app-1").BuildRJ(),
-			jobs: []*batchv1.Job{
-				s.getPipelineJob("job-1", "app-1", "a_tag"),
-				s.getPreparePipelineJob("prepare-pipeline-1", "job-1", "app-1", "a_tag"),
-				s.getScanJob("scan-job-1", "job-1", "app-1", "a_tag",
-					map[string]pipeline.ComponentImage{
-						"single": {ContainerName: "single-container"},
-						"multi1": {ContainerName: "multi-container"},
-						"multi2": {ContainerName: "multi-container"},
-					}, pipeline.ContainerOutputName{}),
-				s.getRunPipelineJob("run-pipeline-1", "job-1", "app-1", "a_tag"),
-			},
-			pods: []*corev1.Pod{
-				s.appendJobPodContainerStatus(
-					s.getJobPod("pipeline-pod-1", "job-1", utils.GetAppNamespace("app-1")),
-					s.getWaitingContainerStatus("radix-pipeline")),
-				s.appendJobPodInitContainerStatus(
-					s.appendJobPodContainerStatus(
-						s.getJobPod("prepare-pipeline-pod-1", "prepare-pipeline-1", utils.GetAppNamespace("app-1")),
-						s.getWaitingContainerStatus("prepare-pipeline")),
-					s.getWaitingContainerStatus("clone-config")),
-				s.appendJobPodContainerStatus(
-					s.getJobPod("scan-pod-1", "scan-job-1", utils.GetAppNamespace("app-1")),
-					s.getWaitingContainerStatus("single-container"),
-					s.getWaitingContainerStatus("multi-container"),
-				),
-				s.appendJobPodContainerStatus(
-					s.getJobPod("run-pipeline-pod-1", "run-pipeline-1", utils.GetAppNamespace("app-1")),
-					s.getWaitingContainerStatus("run-pipeline")),
-			},
-			expected: setStatusOfJobTestScenarioExpected{
-				steps: []v1.RadixJobStep{
-					{Condition: v1.JobWaiting, Name: "clone-config", PodName: "prepare-pipeline-pod-1"},
-					{Condition: v1.JobWaiting, Name: "prepare-pipeline", PodName: "prepare-pipeline-pod-1"},
-					{Condition: v1.JobWaiting, Name: "radix-pipeline", PodName: "pipeline-pod-1"},
-					{Condition: v1.JobWaiting, Name: "single-container", PodName: "scan-pod-1", Components: []string{"single"}},
-					{Condition: v1.JobWaiting, Name: "multi-container", PodName: "scan-pod-1", Components: []string{"multi1", "multi2"}},
-					{Condition: v1.JobWaiting, Name: "run-pipeline", PodName: "run-pipeline-pod-1", Components: []string{}},
-				},
-			},
-		},
-		{
-			name:     "only read scan results for terminated scan steps",
-			radixjob: s.getBuildDeployJob("job-2", "app-2").BuildRJ(),
-			jobs: []*batchv1.Job{
-				s.getPipelineJob("job-2", "app-2", "a_tag"),
-				s.getPreparePipelineJob("prepare-pipeline-2", "job-2", "app-2", "a_tag"),
-				s.getScanJob("scan-job-2", "job-2", "app-2", "a_tag",
-					map[string]pipeline.ComponentImage{},
-					pipeline.ContainerOutputName{
-						"scan-waiting":           "cm-2-scan",
-						"scan-running":           "cm-2-scan",
-						"scan-terminated":        "cm-2-scan",
-						"scan-terminated-failed": "cm-2-scan",
-					}),
-				s.getRunPipelineJob("run-pipeline-2", "job-2", "app-2", "a_tag"),
-			},
-			configMaps: []*corev1.ConfigMap{
-				s.getScanConfigMapOutput(
-					"cm-2-scan",
-					utils.GetAppNamespace("app-2"),
-					defaults.RadixPipelineScanStepVulnerabilityCountKey,
-					vulnerabilityMap,
-				),
-			},
-			pods: []*corev1.Pod{
-				s.appendJobPodContainerStatus(
-					s.getJobPod("pipeline-pod-2", "job-2", utils.GetAppNamespace("app-2")),
-					s.getWaitingContainerStatus("radix-pipeline")),
-				s.appendJobPodInitContainerStatus(
-					s.appendJobPodContainerStatus(
-						s.getJobPod("prepare-pipeline-pod-2", "prepare-pipeline-2", utils.GetAppNamespace("app-2")),
-						s.getWaitingContainerStatus("prepare-pipeline")),
-					s.getWaitingContainerStatus("clone-config")),
-				s.appendJobPodContainerStatus(
-					s.getJobPod("scan-pod-2", "scan-job-2", utils.GetAppNamespace("app-2")),
-					s.getWaitingContainerStatus("scan-waiting"),
-					s.getRunningContainerStatus("scan-running", startedAt),
-					s.getTerminatedContainerStatus("scan-terminated", startedAt, finishedAt, 0),
-					s.getTerminatedContainerStatus("scan-terminated-failed", startedAt, finishedAt, 1),
-				),
-				s.appendJobPodContainerStatus(
-					s.getJobPod("run-pipeline-pod-2", "run-pipeline-2", utils.GetAppNamespace("app-2")),
-					s.getWaitingContainerStatus("run-pipeline")),
-			},
-			expected: setStatusOfJobTestScenarioExpected{
-				steps: []v1.RadixJobStep{
-					{Condition: v1.JobWaiting, Name: "clone-config", PodName: "prepare-pipeline-pod-2"},
-					{Condition: v1.JobWaiting, Name: "prepare-pipeline", PodName: "prepare-pipeline-pod-2"},
-					{Condition: v1.JobWaiting, Name: "radix-pipeline", PodName: "pipeline-pod-2"},
-					{Condition: v1.JobWaiting, Name: "scan-waiting", PodName: "scan-pod-2", Components: []string{}},
-					{Condition: v1.JobRunning, Name: "scan-running", PodName: "scan-pod-2", Started: &startedAt, Components: []string{}},
-					{Condition: v1.JobWaiting, Name: "run-pipeline", PodName: "run-pipeline-pod-2", Components: []string{}},
-					{
-						Condition:  v1.JobSucceeded,
-						Name:       "scan-terminated",
-						PodName:    "scan-pod-2",
-						Started:    &startedAt,
-						Ended:      &finishedAt,
-						Components: []string{},
-						Output: &v1.RadixJobStepOutput{
-							Scan: &v1.RadixJobStepScanOutput{
-								Status:                     v1.ScanSuccess,
-								Vulnerabilities:            vulnerabilityMap,
-								VulnerabilityListConfigMap: "cm-2-scan",
-								VulnerabilityListKey:       defaults.RadixPipelineScanStepVulnerabilityListKey,
-							},
-						},
-					},
-					{
-						Condition:  v1.JobFailed,
-						Name:       "scan-terminated-failed",
-						PodName:    "scan-pod-2",
-						Started:    &startedAt,
-						Ended:      &finishedAt,
-						Components: []string{},
-						Output: &v1.RadixJobStepOutput{
-							Scan: &v1.RadixJobStepScanOutput{
-								Status:                     v1.ScanSuccess,
-								Vulnerabilities:            vulnerabilityMap,
-								VulnerabilityListConfigMap: "cm-2-scan",
-								VulnerabilityListKey:       defaults.RadixPipelineScanStepVulnerabilityListKey,
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:     "handle missing output configmap and incorrect/missing key in cm",
-			radixjob: s.getBuildDeployJob("job-3", "app-3").BuildRJ(),
-			jobs: []*batchv1.Job{
-				s.getPipelineJob("job-3", "app-3", "a_tag"),
-				s.getPreparePipelineJob("prepare-pipeline-3", "job-3", "app-3", "a_tag"),
-				s.getScanJob("scan-job-3", "job-3", "app-3", "a_tag",
-					map[string]pipeline.ComponentImage{},
-					pipeline.ContainerOutputName{
-						"scan-missing-cm":      "cm-3-missing",
-						"scan-missing-cm-key":  "cm-3-missing-key",
-						"scan-cm-invalid-data": "cm-3-invalid-data",
-					}),
-				s.getRunPipelineJob("run-pipeline-3", "job-3", "app-3", "a_tag"),
-			},
-			configMaps: []*corev1.ConfigMap{
-				s.getScanConfigMapOutput(
-					"cm-3-missing-key",
-					utils.GetAppNamespace("app-3"),
-					"incorrect-key",
-					vulnerabilityMap,
-				),
-				s.getScanConfigMapOutput(
-					"cm-3-invalid-data",
-					utils.GetAppNamespace("app-3"),
-					defaults.RadixPipelineScanStepVulnerabilityCountKey,
-					"invalid-data",
-				),
-			},
-			pods: []*corev1.Pod{
-				s.appendJobPodContainerStatus(
-					s.getJobPod("pipeline-pod-3", "job-3", utils.GetAppNamespace("app-3")),
-					s.getWaitingContainerStatus("radix-pipeline")),
-				s.appendJobPodInitContainerStatus(
-					s.appendJobPodContainerStatus(
-						s.getJobPod("prepare-pipeline-pod-3", "prepare-pipeline-3", utils.GetAppNamespace("app-3")),
-						s.getWaitingContainerStatus("prepare-pipeline")),
-					s.getWaitingContainerStatus("clone-config")),
-				s.appendJobPodContainerStatus(
-					s.getJobPod("scan-pod-3", "scan-job-3", utils.GetAppNamespace("app-3")),
-					s.getTerminatedContainerStatus("scan-missing-annotation", startedAt, finishedAt, 0),
-					s.getTerminatedContainerStatus("scan-missing-cm", startedAt, finishedAt, 0),
-					s.getTerminatedContainerStatus("scan-missing-cm-key", startedAt, finishedAt, 0),
-					s.getTerminatedContainerStatus("scan-cm-invalid-data", startedAt, finishedAt, 0),
-				),
-				s.appendJobPodContainerStatus(
-					s.getJobPod("run-pipeline-pod-3", "run-pipeline-3", utils.GetAppNamespace("app-3")),
-					s.getWaitingContainerStatus("run-pipeline")),
-			},
-			expected: setStatusOfJobTestScenarioExpected{
-				steps: []v1.RadixJobStep{
-					{Condition: v1.JobWaiting, Name: "clone-config", PodName: "prepare-pipeline-pod-3"},
-					{Condition: v1.JobWaiting, Name: "prepare-pipeline", PodName: "prepare-pipeline-pod-3"},
-					{Condition: v1.JobWaiting, Name: "radix-pipeline", PodName: "pipeline-pod-3"},
-					{
-						Condition:  v1.JobSucceeded,
-						Name:       "scan-missing-annotation",
-						PodName:    "scan-pod-3",
-						Components: []string{},
-						Started:    &startedAt,
-						Ended:      &finishedAt,
-						Output: &v1.RadixJobStepOutput{
-							Scan: &v1.RadixJobStepScanOutput{
-								Status: v1.ScanMissing,
-								Reason: ScanStatusReasonNotRequested,
-							},
-						},
-					},
-					{
-						Condition:  v1.JobSucceeded,
-						Name:       "scan-missing-cm",
-						PodName:    "scan-pod-3",
-						Components: []string{},
-						Started:    &startedAt,
-						Ended:      &finishedAt,
-						Output: &v1.RadixJobStepOutput{
-							Scan: &v1.RadixJobStepScanOutput{
-								Status: v1.ScanMissing,
-								Reason: ScanStatusReasonOutputDeleted,
-							},
-						},
-					},
-					{
-						Condition:  v1.JobSucceeded,
-						Name:       "scan-missing-cm-key",
-						PodName:    "scan-pod-3",
-						Components: []string{},
-						Started:    &startedAt,
-						Ended:      &finishedAt,
-						Output: &v1.RadixJobStepOutput{
-							Scan: &v1.RadixJobStepScanOutput{
-								Status: v1.ScanMissing,
-								Reason: ScanStatusReasonResultMissing,
-							},
-						},
-					},
-					{
-						Condition:  v1.JobSucceeded,
-						Name:       "scan-cm-invalid-data",
-						PodName:    "scan-pod-3",
-						Components: []string{},
-						Started:    &startedAt,
-						Ended:      &finishedAt,
-						Output: &v1.RadixJobStepOutput{
-							Scan: &v1.RadixJobStepScanOutput{
-								Status: v1.ScanMissing,
-								Reason: ScanStatusReasonResultParseError,
-							},
-						},
-					},
-					{Condition: v1.JobWaiting, Name: "run-pipeline", PodName: "run-pipeline-pod-3", Components: []string{}},
-				},
-			},
-		},
-	}
-
-	for _, scenario := range scenarios {
-		s.testSetStatusOfJobTestScenario(&scenario)
-	}
-}
-
 func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStatusOfJobTestScenario) {
 	if err := s.initScenario(scenario); err != nil {
 		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
@@ -645,43 +377,6 @@ func (s *RadixJobStepTestSuite) getBuildJob(name, radixJobName, appName, imageTa
 	}
 }
 
-func (s *RadixJobStepTestSuite) getScanJob(name, radixJobName, appName, imageTag string, componentImages map[string]pipeline.ComponentImage, containerOutput pipeline.ContainerOutputName) *batchv1.Job {
-	componentImageAnnotation, _ := json.Marshal(&componentImages)
-	containerOutputAnnotation, _ := json.Marshal(&containerOutput)
-	return &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: utils.GetAppNamespace(appName),
-			Labels: map[string]string{
-				kube.RadixJobNameLabel:  radixJobName,
-				kube.RadixAppLabel:      appName,
-				kube.RadixImageTagLabel: imageTag,
-				kube.RadixJobTypeLabel:  kube.RadixJobTypeScan,
-			},
-			Annotations: map[string]string{
-				kube.RadixComponentImagesAnnotation: string(componentImageAnnotation),
-				kube.RadixContainerOutputAnnotation: string(containerOutputAnnotation),
-			},
-		},
-	}
-}
-
-func (s *RadixJobStepTestSuite) getScanConfigMapOutput(name, namespace, vulnerabilityKey string, vulnerabilities interface{}) *corev1.ConfigMap {
-	vulnerabilityBytes, _ := json.Marshal(&vulnerabilities)
-
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: map[string]string{
-			vulnerabilityKey: string(vulnerabilityBytes),
-		},
-	}
-
-	return &cm
-}
-
 func (s *RadixJobStepTestSuite) getJobPod(podName, jobName, namespace string) *corev1.Pod {
 	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -719,16 +414,6 @@ func (s *RadixJobStepTestSuite) getBuildDeployJob(jobName, appName string) utils
 
 func (s *RadixJobStepTestSuite) getWaitingContainerStatus(containerName string) corev1.ContainerStatus {
 	return s.getContainerStatus(containerName, corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{}})
-}
-
-func (s *RadixJobStepTestSuite) getRunningContainerStatus(containerName string, startedAt metav1.Time) corev1.ContainerStatus {
-	return s.getContainerStatus(containerName, corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: startedAt}})
-}
-
-func (s *RadixJobStepTestSuite) getTerminatedContainerStatus(containerName string, startedAt, finishedAt metav1.Time, exitCode int32) corev1.ContainerStatus {
-	return s.getContainerStatus(containerName, corev1.ContainerState{
-		Terminated: &corev1.ContainerStateTerminated{StartedAt: startedAt, FinishedAt: finishedAt, ExitCode: exitCode},
-	})
 }
 
 func (s *RadixJobStepTestSuite) getContainerStatus(containerName string, state corev1.ContainerState) corev1.ContainerStatus {

@@ -3,7 +3,7 @@ module github.com/equinor/radix-operator
 go 1.18
 
 require (
-	github.com/equinor/radix-common v1.2.0
+	github.com/equinor/radix-common v1.2.1
 	github.com/golang/mock v1.6.0
 	github.com/imdario/mergo v0.3.13
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.54.0

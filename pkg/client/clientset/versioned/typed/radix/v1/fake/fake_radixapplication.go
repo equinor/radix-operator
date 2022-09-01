@@ -105,7 +105,7 @@ func (c *FakeRadixApplications) Update(ctx context.Context, radixApplication *ra
 // Delete takes name of the radixApplication and deletes it. Returns an error if one occurs.
 func (c *FakeRadixApplications) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(radixapplicationsResource, c.ns, name), &radixv1.RadixApplication{})
+		Invokes(testing.NewDeleteActionWithOptions(radixapplicationsResource, c.ns, name, opts), &radixv1.RadixApplication{})
 
 	return err
 }

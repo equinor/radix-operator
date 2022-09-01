@@ -83,6 +83,20 @@ func Test_invalid_rd_returns_false(t *testing.T) {
 	}
 }
 
+func Test_invalid_git_tags_returns_error(t *testing.T) {
+	validGitTags := "v1.12 v1.13"
+	err := radixvalidators.GitTagsContainIllegalChars(validGitTags)
+	assert.NoError(t, err)
+
+	invalidGitTags := "v1.12\" v1.13"
+	err = radixvalidators.GitTagsContainIllegalChars(invalidGitTags)
+	assert.Error(t, err)
+
+	invalidGitTags2 := "v1.12' v1.13"
+	err = radixvalidators.GitTagsContainIllegalChars(invalidGitTags2)
+	assert.Error(t, err)
+}
+
 func createValidRD() *v1.RadixDeployment {
 	validRD, _ := utils.GetRadixDeployFromFile("testdata/radixdeploy.yaml")
 

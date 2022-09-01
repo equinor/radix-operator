@@ -64,11 +64,10 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.Equal(t, expected, ns.GetLabels())
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(rolebindings.Items))
+	assert.Equal(t, 3, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.RadixTektonRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.ScanImageRunnerRoleName, rolebindings))
 
 	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, rolebindings)
 	assert.Equal(t, 2, len(appAdminRoleBinding.Subjects))
@@ -79,11 +78,10 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(serviceAccounts.Items))
+	assert.Equal(t, 3, len(serviceAccounts.Items))
 	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonRoleName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
-	assert.True(t, serviceAccountByNameExists(defaults.ScanImageRunnerRoleName, serviceAccounts))
 }
 
 func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
@@ -123,11 +121,10 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	assert.Equal(t, expected, ns.GetLabels())
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(rolebindings.Items))
+	assert.Equal(t, 3, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.RadixTektonRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.ScanImageRunnerRoleName, rolebindings))
 
 	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, rolebindings)
 	assert.Equal(t, 2, len(appAdminRoleBinding.Subjects))
@@ -138,11 +135,10 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	assert.Equal(t, "git-ssh-keys", secrets.Items[0].Name)
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(serviceAccounts.Items))
+	assert.Equal(t, 3, len(serviceAccounts.Items))
 	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonRoleName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
-	assert.True(t, serviceAccountByNameExists(defaults.ScanImageRunnerRoleName, serviceAccounts))
 }
 
 func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
@@ -184,11 +180,10 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 		WithAdGroups([]string{}))
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(rolebindings.Items))
+	assert.Equal(t, 3, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.RadixTektonRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.ScanImageRunnerRoleName, rolebindings))
 	assert.Equal(t, "9876-54321-09876", getRoleBindingByName(defaults.AppAdminRoleName, rolebindings).Subjects[0].Name)
 
 }

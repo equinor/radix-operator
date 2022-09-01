@@ -16,8 +16,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
@@ -276,8 +274,6 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 }
 
 func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-
-	syncJobStatusMetrics(radixClient)
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
@@ -361,33 +357,6 @@ func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfigu
 		return config, err
 	}
 	return config, nil
-}
-
-func syncJobStatusMetrics(radixClient radixclient.Interface) error {
-	logger.Info("Restore vulnerability scan metrics from build job.")
-	radixJobs, err := radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
-	radixJobMap := make(map[string]v1.RadixJob)
-	for _, radixJob := range radixJobs.Items {
-		if radixJob.Status.Condition != v1.JobSucceeded {
-			continue
-		}
-		for _, env := range radixJob.Status.TargetEnvs {
-			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
-			cachedRadixJob, found := radixJobMap[appEnvKey]
-			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
-				radixJobMap[appEnvKey] = radixJob
-			}
-		}
-	}
-	for _, radixJob := range radixJobMap {
-		metrics.RadixJobVulnerabilityScan(&radixJob)
-	}
-	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
-	return nil
 }
 
 func startMetricsServer(stop <-chan struct{}) {

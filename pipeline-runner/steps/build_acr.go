@@ -111,11 +111,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
-	noPushFlag := "--no-push"
+	var push string
 	if pushImage {
-		noPushFlag = ""
+		push = "--push"
 	}
-
+	var useCache string
+	if !pipelineInfo.PipelineArguments.UseCache {
+		useCache = "--no-cache"
+	}
 	distinctBuildContainers := make(map[string]void)
 	for _, componentImage := range pipelineInfo.ComponentImages {
 		if !componentImage.Build {
@@ -153,8 +156,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Value: componentImage.Context,
 			},
 			{
-				Name:  "NO_PUSH",
-				Value: noPushFlag,
+				Name:  "PUSH",
+				Value: push,
 			},
 			{
 				Name:  "AZURE_CREDENTIALS",
@@ -164,8 +167,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "SUBSCRIPTION_ID",
 				Value: subscriptionId,
 			},
-
-			// Extra meta information
 			{
 				Name:  "CLUSTERTYPE_IMAGE",
 				Value: clusterTypeImage,
@@ -174,6 +175,15 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "CLUSTERNAME_IMAGE",
 				Value: clusterNameImage,
 			},
+			{
+				Name:  "REPOSITORY_NAME",
+				Value: containerImageRepositoryName,
+			},
+			{
+				Name:  "CACHE",
+				Value: useCache,
+			},
+			// Extra meta information
 			{
 				Name:  defaults.RadixBranchEnvironmentVariable,
 				Value: branch,
@@ -189,10 +199,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixGitTagsEnvironmentVariable,
 				Value: gitTags,
-			},
-			{
-				Name:  "REPOSITORY_NAME",
-				Value: containerImageRepositoryName,
 			},
 		}
 

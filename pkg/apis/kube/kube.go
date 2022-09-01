@@ -21,7 +21,6 @@ const (
 	RadixGitTagsAnnotation         = "radix.equinor.com/radix-git-tags"
 	RadixCommitAnnotation          = "radix.equinor.com/radix-commit"
 	RadixComponentImagesAnnotation = "radix-component-images"
-	RadixContainerOutputAnnotation = "radix-container-output"
 	RadixDeploymentNameAnnotation  = "radix-deployment-name"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -45,7 +44,6 @@ const (
 	RadixJobTypeLabel                  = "radix-job-type"
 	RadixJobTypeJob                    = "job" // Outer job
 	RadixJobTypeBuild                  = "build"
-	RadixJobTypeScan                   = "scan"
 	RadixJobTypeCloneConfig            = "clone-config"
 	RadixJobTypePreparePipelines       = "prepare-pipelines"
 	RadixJobTypeRunPipelines           = "run-pipelines"

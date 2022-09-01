@@ -117,7 +117,7 @@ func (c *FakeRadixDeployments) UpdateStatus(ctx context.Context, radixDeployment
 // Delete takes name of the radixDeployment and deletes it. Returns an error if one occurs.
 func (c *FakeRadixDeployments) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(radixdeploymentsResource, c.ns, name), &radixv1.RadixDeployment{})
+		Invokes(testing.NewDeleteActionWithOptions(radixdeploymentsResource, c.ns, name, opts), &radixv1.RadixDeployment{})
 
 	return err
 }

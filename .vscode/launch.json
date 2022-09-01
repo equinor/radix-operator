@@ -9,7 +9,7 @@
       "program": "${workspaceFolder}/pipeline-runner/main.go",
       "env": {},
       "args": [
-        "RADIX_APP=radix-oauth2-example",
+        "RADIX_APP=radix-app-satr",
         "BRANCH=main",
         "COMMIT_ID=1234",
         "IMAGE_TAG=abcdef",
@@ -17,12 +17,10 @@
         "USE_CACHE=0",
         "PIPELINE_TYPE=build-deploy",
         "PUSH_IMAGE=0",
-        "RADIX_CONFIG_TO_MAP=radix-config-2-map:master-latest",
         "RADIX_IMAGE_BUILDER=radix-image-builder:master-latest",
-        "RADIX_IMAGE_SCANNER=radix-image-scanner:master-latest",
         "RADIX_TEKTON_IMAGE=radix-tekton:main-latest",
         "RADIX_CLUSTER_TYPE=development",
-        "RADIX_CLUSTERNAME=weekly-04",
+        "RADIX_CLUSTERNAME=weekly-33",
         "RADIX_FILE_NAME=/workspace/radixconfig.yaml",
         "DEBUG=true"
       ]
@@ -69,9 +67,7 @@
         "RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS": "5",
         "RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS": "10",
         "RADIX_ACTIVE_CLUSTERNAME": "weekly-33",
-        "RADIX_CONFIG_TO_MAP": "radix-config-2-map:master-latest",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
-        "RADIX_IMAGE_SCANNER": "radix-image-scanner:master-latest",
         "RADIX_TEKTON_IMAGE": "radix-tekton:main-latest",
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler-server:main-latest",
         "RADIX_CONTAINER_REGISTRY": "radixdev.azurecr.io",
