@@ -20,7 +20,7 @@ type DeployComponentBuilder interface {
 	WithReplicas(*int) DeployComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployComponentBuilder
-	WithVolumeMounts([]v1.RadixVolumeMount) DeployComponentBuilder
+	WithVolumeMounts(...v1.RadixVolumeMount) DeployComponentBuilder
 	WithNodeGpu(gpu string) DeployComponentBuilder
 	WithNodeGpuCount(gpuCount string) DeployComponentBuilder
 	WithIngressConfiguration(...string) DeployComponentBuilder
@@ -58,7 +58,7 @@ type deployComponentBuilder struct {
 	authentication          *v1.Authentication
 }
 
-func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployComponentBuilder {
+func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
 	dcb.volumeMounts = volumeMounts
 	return dcb
 }
