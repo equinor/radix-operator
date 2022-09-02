@@ -49,6 +49,8 @@ const (
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
 	csiAzureKeyVaultSecretMountPathTemplate          = "/mnt/azure-key-vault/%s"
+
+	volumeNameMaxLength = 63
 )
 
 //GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
@@ -106,7 +108,7 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 			}
 		}
 		for kubeSecretType := range k8sSecretTypeMap {
-			volumeMountName := kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType)
+			volumeMountName := trimVolumeNameToValidLength(kube.GetAzureKeyVaultSecretRefSecretName(componentName, radixDeploymentName, azureKeyVault.Name, kubeSecretType))
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
 				Name:      volumeMountName,
 				ReadOnly:  true,
@@ -125,7 +127,7 @@ func getCsiAzureKeyVaultSecretMountPath(azureKeyVault radixv1.RadixAzureKeyVault
 }
 
 func getBlobFuseVolumeMountName(volumeMount radixv1.RadixVolumeMount, componentName string) string {
-	return fmt.Sprintf(blobFuseVolumeNameTemplate, componentName, volumeMount.Name)
+	return trimVolumeNameToValidLength(fmt.Sprintf(blobFuseVolumeNameTemplate, componentName, volumeMount.Name))
 }
 
 func getCsiAzureVolumeMountName(componentName string, radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
@@ -139,7 +141,7 @@ func getCsiAzureVolumeMountName(componentName string, radixVolumeMount *radixv1.
 	if len(radixVolumeMount.Path) == 0 {
 		return "", fmt.Errorf("path is empty for volume mount %s in the component %s", radixVolumeMount.Name, componentName)
 	}
-	return fmt.Sprintf(csiVolumeNameTemplate, csiVolumeType, componentName, radixVolumeMount.Name, radixVolumeMount.Storage), nil
+	return trimVolumeNameToValidLength(fmt.Sprintf(csiVolumeNameTemplate, csiVolumeType, componentName, radixVolumeMount.Name, radixVolumeMount.Storage)), nil
 }
 
 func getRadixVolumeTypeIdForName(radixVolumeMountType radixv1.MountType) string {
@@ -196,8 +198,9 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 			return nil, err
 		}
 		for _, secretObject := range secretProviderClass.Spec.SecretObjects {
+			volumeName := trimVolumeNameToValidLength(secretObject.SecretName)
 			volume := corev1.Volume{
-				Name: secretObject.SecretName,
+				Name: volumeName,
 			}
 			provider := string(secretProviderClass.Spec.Provider)
 			switch provider {
@@ -761,4 +764,14 @@ func sortPvcsByCreatedTimestampDesc(persistentVolumeClaims []corev1.PersistentVo
 		return (persistentVolumeClaims)[j].ObjectMeta.CreationTimestamp.Before(&(persistentVolumeClaims)[i].ObjectMeta.CreationTimestamp)
 	})
 	return persistentVolumeClaims
+}
+
+func trimVolumeNameToValidLength(volumeName string) string {
+	const randSize = 5
+	if len(volumeName) <= volumeNameMaxLength {
+		return volumeName
+	}
+
+	randString := strings.ToLower(commonUtils.RandStringStrSeed(randSize, volumeName))
+	return fmt.Sprintf("%s-%s", volumeName[:63-randSize-1], randString)
 }
