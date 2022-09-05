@@ -5,7 +5,7 @@ import v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 // DeployCommonComponentBuilder Handles construction of v1.RadixCommonDeployComponent builder
 type DeployCommonComponentBuilder interface {
 	WithName(string) DeployCommonComponentBuilder
-	WithVolumeMounts([]v1.RadixVolumeMount) DeployCommonComponentBuilder
+	WithVolumeMounts(...v1.RadixVolumeMount) DeployCommonComponentBuilder
 	BuildComponent() v1.RadixCommonDeployComponent
 }
 
@@ -20,7 +20,7 @@ func (dcb *deployCommonComponentBuilder) WithName(name string) DeployCommonCompo
 	return dcb
 }
 
-func (dcb *deployCommonComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployCommonComponentBuilder {
+func (dcb *deployCommonComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployCommonComponentBuilder {
 	dcb.volumeMounts = volumeMounts
 	return dcb
 }

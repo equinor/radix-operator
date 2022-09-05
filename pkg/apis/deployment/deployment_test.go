@@ -175,21 +175,21 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 							WithName(componentNameRadixQuote).
 							WithPort("http", 3000).
 							WithPublicPort("http").
-							WithVolumeMounts([]v1.RadixVolumeMount{
-								{
+							WithVolumeMounts(
+								v1.RadixVolumeMount{
 									Type:      v1.MountTypeBlob,
 									Name:      blobVolumeName,
 									Container: "some-container",
 									Path:      "some-path",
 								},
-								{
+								v1.RadixVolumeMount{
 									Type:    v1.MountTypeBlobCsiAzure,
 									Name:    blobCsiAzureVolumeName,
 									Storage: "some-storage",
 									Path:    "some-path2",
 									GID:     "1000",
 								},
-							}).
+							).
 							WithSecrets([]string{outdatedSecret, remainingSecret}))
 
 				// Test
