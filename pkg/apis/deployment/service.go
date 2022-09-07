@@ -12,7 +12,7 @@ import (
 
 func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	service := getServiceConfig(deployComponent.GetName(), deploy.radixDeployment, deployComponent.GetPorts())
+	service := getServiceConfig(deployComponent, deploy.radixDeployment, deployComponent.GetPorts())
 	return deploy.kubeutil.ApplyService(namespace, service)
 }
 
@@ -48,27 +48,30 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	return nil
 }
 
-func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
+func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(radixDeployment),
 	}
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: componentName,
+			Name: component.GetName(),
 			Labels: map[string]string{
 				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
-				kube.RadixComponentLabel: componentName,
+				kube.RadixComponentLabel: component.GetName(),
 			},
 			OwnerReferences: ownerReference,
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
-			Selector: map[string]string{
-				kube.RadixComponentLabel: componentName,
-			},
 		},
 	}
+
+	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
+	if component.GetType() == v1.RadixComponentTypeJobScheduler {
+		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
+	}
+	service.Spec.Selector = selector
 
 	ports := buildServicePorts(componentPorts)
 	service.Spec.Ports = ports

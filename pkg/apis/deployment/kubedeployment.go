@@ -155,19 +155,21 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixAppLabel] = appName
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
 	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
 	if deployComponent.GetType() == v1.RadixComponentTypeJobScheduler {
 		desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixPodIsJobSchedulerLabel] = "true"
 	}
 
-	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
-	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
-	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.securityContextBuilder.BuildContainerSecurityContext(deployComponent)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = deploy.securityContextBuilder.BuildPodSecurityContext(deployComponent)
+
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
+	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.securityContextBuilder.BuildContainerSecurityContext(deployComponent)
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {
