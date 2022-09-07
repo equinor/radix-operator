@@ -13,7 +13,7 @@ import (
 	radixutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	kube "github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
@@ -213,6 +213,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.Equal(t, int32(2), *getDeploymentByName(componentNameApp, deployments).Spec.Replicas, "number of replicas was unexpected")
 
 				}
+
 				pdbs, _ := kubeclient.PolicyV1().PodDisruptionBudgets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 1, len(pdbs.Items))
 				assert.Equal(t, "app", pdbs.Items[0].Spec.Selector.MatchLabels[kube.RadixComponentLabel])
@@ -303,6 +304,11 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 					assert.False(t, volumesExist, "unexpected existing volumes")
 					assert.False(t, volumeMountsExist, "unexpected existing volume mounts")
 				}
+
+				for _, componentName := range []string{componentNameApp, componentNameRedis, componentNameRadixQuote} {
+					deploy := getDeploymentByName(componentName, deployments)
+					assert.Equal(t, componentName, deploy.Spec.Template.Labels[kube.RadixComponentLabel], "invalid/missing value for label component-name")
+				}
 			})
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
@@ -316,9 +322,12 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				services, _ := kubeclient.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedServices := getServicesForRadixComponents(&services.Items)
 				assert.Equal(t, 3, len(expectedServices), "Number of services wasn't as expected")
-				assert.True(t, serviceByNameExists(componentNameApp, services), "app service not there")
-				assert.True(t, serviceByNameExists(componentNameRedis, services), "redis service not there")
-				assert.True(t, serviceByNameExists(componentNameRadixQuote, services), "radixquote service not there")
+
+				for _, component := range []string{componentNameApp, componentNameRedis, componentNameRadixQuote} {
+					svc := getServiceByName(component, services)
+					assert.NotNil(t, svc, "component service does not exist")
+					assert.Equal(t, map[string]string{kube.RadixComponentLabel: component}, svc.Spec.Selector)
+				}
 			})
 
 			t.Run(fmt.Sprintf("%s: validate secrets", testScenario), func(t *testing.T) {
@@ -542,6 +551,19 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				} else {
 					assert.Equal(t, "deploy-create", getEnvVariableByNameOnDeployment(kubeclient, defaults.RadixDeploymentEnvironmentVariable, jobName, deployments))
 				}
+
+				var jobNames []string
+				if jobsExist {
+					jobNames = []string{jobName}
+				} else {
+					jobNames = []string{jobName, jobName2}
+				}
+
+				for _, job := range jobNames {
+					deploy := getDeploymentByName(job, deployments)
+					assert.Equal(t, job, deploy.Spec.Template.Labels[kube.RadixComponentLabel], "invalid/missing value for label component-name")
+					assert.Equal(t, "true", deploy.Spec.Template.Labels[kube.RadixPodIsJobSchedulerLabel], "invalid/missing value for label is-job-scheduler-pod")
+				}
 			})
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
@@ -554,14 +576,21 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				t.Parallel()
 				services, _ := kubeclient.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedServices := getServicesForRadixComponents(&services.Items)
+				var jobNames []string
 
 				if jobsExist {
+					jobNames = []string{jobName}
 					assert.Equal(t, 1, len(expectedServices), "Number of services wasn't as expected")
 				} else {
+					jobNames = []string{jobName, jobName2}
 					assert.Equal(t, 2, len(expectedServices), "Number of services wasn't as expected")
 				}
 
-				assert.True(t, serviceByNameExists(jobName, services), "app service not there")
+				for _, job := range jobNames {
+					svc := getServiceByName(job, services)
+					assert.NotNil(t, svc, "job service does not exist")
+					assert.Equal(t, map[string]string{kube.RadixComponentLabel: job, kube.RadixPodIsJobSchedulerLabel: "true"}, svc.Spec.Selector)
+				}
 			})
 
 			t.Run(fmt.Sprintf("%s: validate secrets", testScenario), func(t *testing.T) {
@@ -3827,14 +3856,14 @@ func getServiceMonitorByName(name string, serviceMonitors *monitoringv1.ServiceM
 	return nil
 }
 
-func serviceByNameExists(name string, services *corev1.ServiceList) bool {
+func getServiceByName(name string, services *corev1.ServiceList) *corev1.Service {
 	for _, service := range services.Items {
 		if service.Name == name {
-			return true
+			return &service
 		}
 	}
 
-	return false
+	return nil
 }
 
 func getIngressByName(name string, ingresses *networkingv1.IngressList) *networkingv1.Ingress {
