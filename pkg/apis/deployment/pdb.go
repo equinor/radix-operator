@@ -3,7 +3,6 @@ package deployment
 import (
 	"context"
 	"fmt"
-
 	"github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -21,15 +20,30 @@ func getNumberOfReplicas(component v1.RadixCommonDeployComponent) int {
 
 }
 
-func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCommonDeployComponent) error {
-	namespace := deploy.radixDeployment.Namespace
-	componentName := component.GetName()
-
+func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
+	horizontalScaling := component.GetHorizontalScaling()
+	if horizontalScaling != nil {
+		if horizontalScaling.MinReplicas == nil {
+			return false
+		}
+		if *horizontalScaling.MinReplicas < 2 {
+			return false
+		}
+		return true
+	}
 	replicas := getNumberOfReplicas(component)
 	if replicas < 2 {
+		return false
+	}
+	return true
+}
+
+func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCommonDeployComponent) error {
+	if !componentShallHavePdb(component) {
 		return nil
 	}
-
+	namespace := deploy.radixDeployment.Namespace
+	componentName := component.GetName()
 	pdb := utils.GetPDBConfig(componentName, namespace)
 	pdbName := pdb.Name
 
@@ -50,14 +64,11 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCo
 }
 
 func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
-	// Check if replicas for component is < 2. If yes, delete PDB
-	namespace := deploy.radixDeployment.Namespace
-	componentName := component.GetName()
-
-	replicas := getNumberOfReplicas(component)
-	if replicas > 1 {
+	if componentShallHavePdb(component) {
 		return nil
 	}
+	namespace := deploy.radixDeployment.Namespace
+	componentName := component.GetName()
 
 	pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, componentName),
