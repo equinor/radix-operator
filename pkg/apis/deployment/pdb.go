@@ -32,10 +32,7 @@ func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
 		return true
 	}
 	replicas := getNumberOfReplicas(component)
-	if replicas < 2 {
-		return false
-	}
-	return true
+	return replicas >= 2
 }
 
 func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCommonDeployComponent) error {
