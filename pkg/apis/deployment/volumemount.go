@@ -228,9 +228,9 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 }
 
 func getExternalVolumes(kubeclient kubernetes.Interface, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
-	if isDeployComponentJobSchedulerDeployment(deployComponent) {
-		return nil, nil
-	}
+	// if isDeployComponentJobSchedulerDeployment(deployComponent) {
+	// 	return nil, nil
+	// }
 
 	var volumes []corev1.Volume
 	for _, volumeMount := range deployComponent.GetVolumeMounts() {

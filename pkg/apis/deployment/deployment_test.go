@@ -3767,7 +3767,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
 	deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	require.NotNil(t, deployment)
-	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 0, "incorrect number of volumes")
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 0, "incorrect number of volumemounts")
 }
 
