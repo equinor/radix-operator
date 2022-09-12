@@ -141,10 +141,6 @@ func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.Env
 	//add env-vars, not existing in config-map
 	for envVarName, envVarValue := range deployComponentEnvVars {
 		if _, ok := usedConfigMapEnvVarNames[envVarName]; !ok {
-			if envVarConfigMap.Namespace == "oauth-demo-dev" {
-				log.Infof("filterme-%s:%v", envVarConfigMap.Name, envVarName)
-			}
-
 			resultEnvVars = append(resultEnvVars, corev1.EnvVar{
 				Name:  envVarName,
 				Value: envVarValue,
@@ -152,9 +148,6 @@ func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.Env
 		}
 	}
 
-	if envVarConfigMap.Namespace == "oauth-demo-dev" {
-		log.Infof("filterme-%s:%v", envVarConfigMap.Name, resultEnvVars)
-	}
 	return resultEnvVars
 }
 
