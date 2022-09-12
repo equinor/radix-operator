@@ -71,9 +71,10 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 }
 
 func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName string) ([]corev1.VolumeMount, error) {
-	if deployComponent.GetType() == radixv1.RadixComponentTypeJobScheduler { //JobScheduler does not need external volumeMounts
+	if isDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil, nil
 	}
+
 	var volumeMounts []corev1.VolumeMount
 	for _, radixVolumeMount := range deployComponent.GetVolumeMounts() {
 		switch radixVolumeMount.Type {
@@ -227,6 +228,10 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 }
 
 func getExternalVolumes(kubeclient kubernetes.Interface, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
+	if isDeployComponentJobSchedulerDeployment(deployComponent) {
+		return nil, nil
+	}
+
 	var volumes []corev1.Volume
 	for _, volumeMount := range deployComponent.GetVolumeMounts() {
 		switch volumeMount.Type {

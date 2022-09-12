@@ -231,7 +231,6 @@ func (deploy *Deployment) syncDeployment() error {
 
 	err = deploy.createOrUpdateSecrets()
 	if err != nil {
-		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("failed to provision secrets: %v", err)
 	}
 

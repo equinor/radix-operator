@@ -80,3 +80,8 @@ func (js *jobSchedulerComponent) GetNode() *v1.RadixNode {
 	//"node" section settings should not be applied to the JobScheduler component itself
 	return nil
 }
+
+func isDeployComponentJobSchedulerDeployment(deployComponent v1.RadixCommonDeployComponent) bool {
+	_, isJobScheduler := interface{}(deployComponent).(*jobSchedulerComponent)
+	return isJobScheduler
+}

@@ -128,10 +128,6 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 		},
 	}
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
-		expectedVolumeCount := map[v1.RadixComponentType]int{
-			v1.RadixComponentTypeComponent:    1,
-			v1.RadixComponentTypeJobScheduler: 0,
-		}
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
@@ -142,7 +138,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
-			assert.Equal(t, expectedVolumeCount[component.GetType()], len(volumeMounts))
+			assert.Equal(t, 1, len(volumeMounts))
 			if len(volumeMounts) > 0 {
 				mount := volumeMounts[0]
 				assert.Less(t, len(mount.Name), 64)
@@ -152,10 +148,6 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 		}
 	})
 	suite.T().Run("Multiple File CSI Azure volume mount", func(t *testing.T) {
-		expectedVolumeCount := map[v1.RadixComponentType]int{
-			v1.RadixComponentTypeComponent:    3,
-			v1.RadixComponentTypeJobScheduler: 0,
-		}
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			builder := utils.NewDeployCommonComponentBuilder(factory).
@@ -166,7 +158,7 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
-			assert.Equal(t, expectedVolumeCount[component.GetType()], len(volumeMounts))
+			assert.Equal(t, 3, len(volumeMounts))
 			for idx, testCase := range scenarios {
 				if len(volumeMounts) > 0 {
 					assert.Less(t, len(volumeMounts[idx].Name), 64)
@@ -199,10 +191,6 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 		},
 	}
 	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
-		expectedVolumeCount := map[v1.RadixComponentType]int{
-			v1.RadixComponentTypeComponent:    1,
-			v1.RadixComponentTypeJobScheduler: 0,
-		}
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
@@ -212,7 +200,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
-			assert.Equal(t, expectedVolumeCount[component.GetType()], len(volumeMounts))
+			assert.Equal(t, 1, len(volumeMounts))
 			if len(volumeMounts) > 0 {
 				mount := volumeMounts[0]
 				assert.Less(t, len(volumeMounts[0].Name), 64)
@@ -222,10 +210,6 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 		}
 	})
 	suite.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
-		expectedVolumeCount := map[v1.RadixComponentType]int{
-			v1.RadixComponentTypeComponent:    3,
-			v1.RadixComponentTypeJobScheduler: 0,
-		}
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
@@ -235,7 +219,7 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 				BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
-			assert.Equal(t, expectedVolumeCount[component.GetType()], len(volumeMounts))
+			assert.Equal(t, 3, len(volumeMounts))
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
 				if len(volumeMounts) > 0 {
@@ -271,10 +255,6 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 		},
 	}
 	suite.T().Run("Failing Blob CSI Azure volume mount", func(t *testing.T) {
-		expectedError := map[v1.RadixComponentType]bool{
-			v1.RadixComponentTypeComponent:    true,
-			v1.RadixComponentTypeJobScheduler: false,
-		}
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			for _, testCase := range scenarios {
@@ -285,12 +265,8 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 					BuildComponent()
 
 				_, err := GetRadixDeployComponentVolumeMounts(component, "")
-				if expectedError[component.GetType()] {
-					assert.NotNil(t, err)
-					assert.Equal(t, testCase.expectedError, err.Error())
-				} else {
-					assert.Nil(t, err)
-				}
+				assert.NotNil(t, err)
+				assert.Equal(t, testCase.expectedError, err.Error())
 			}
 		}
 	})
@@ -753,10 +729,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 		},
 	}
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
-		expectedVolumeCount := map[v1.RadixComponentType]int{
-			v1.RadixComponentTypeComponent:    1,
-			v1.RadixComponentTypeJobScheduler: 0,
-		}
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
@@ -767,7 +739,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
-			assert.Equal(t, expectedVolumeCount[component.GetType()], len(volumeMounts))
+			assert.Equal(t, 1, len(volumeMounts))
 			if len(volumeMounts) > 0 {
 				mount := volumeMounts[0]
 				assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
@@ -776,10 +748,6 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 		}
 	})
 	suite.T().Run("Multiple File CSI Azure volume mount", func(t *testing.T) {
-		expectedVolumeCount := map[v1.RadixComponentType]int{
-			v1.RadixComponentTypeComponent:    3,
-			v1.RadixComponentTypeJobScheduler: 0,
-		}
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			component := utils.NewDeployCommonComponentBuilder(factory).
@@ -789,7 +757,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
-			assert.Equal(t, expectedVolumeCount[component.GetType()], len(volumeMounts))
+			assert.Equal(t, 3, len(volumeMounts))
 			for idx, testCase := range scenarios {
 				if len(volumeMounts) > 0 {
 					assert.Less(t, len(volumeMounts[idx].Name), 64)
