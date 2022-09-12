@@ -90,6 +90,7 @@
         "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION": "v1.23",
         "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL": "restricted",
         "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION": "v1.23",
+        // "LOG_LEVEL": "DEBUG",
       },
       "args": ["--useOutClusterClient=false"]
     },

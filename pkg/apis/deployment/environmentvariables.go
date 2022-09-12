@@ -106,12 +106,20 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 		currentEnvironment    = radixDeployment.Spec.Environment
 		radixDeploymentLabels = radixDeployment.Labels
 	)
+
 	var envVars = getEnvVars(envVarConfigMap, deployComponent.GetEnvironmentVariables())
+
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent, radixDeploymentLabels)
-	if deployComponent.GetType() != v1.RadixComponentTypeJobScheduler { //JobScheduler does not need env-vars for secrets and secret-refs
+
+	if !isDeployComponentJobSchedulerDeployment(deployComponent) { //JobScheduler does not need env-vars for secrets and secret-refs
 		envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
 		envVars = append(envVars, utils.GetEnvVarsFromAzureKeyVaultSecretRefs(radixDeployment.GetName(), deployComponent.GetName(), deployComponent.GetSecretRefs())...)
 	}
+
+	// Sorting envVars to prevent unneccessary restart of deployment due to change in the order of envvars
+	// range over maps are not guaranteed to be the same from one iteration to the next. https://go.dev/ref/spec#For_statements
+	sort.Slice(envVars, func(i, j int) bool { return envVars[i].Name < envVars[j].Name })
+
 	return envVars
 }
 
@@ -129,14 +137,23 @@ func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.Env
 		resultEnvVars = append(resultEnvVars, createEnvVarWithConfigMapRef(envVarConfigMapName, envVarName))
 		usedConfigMapEnvVarNames[envVarName] = true
 	}
+
 	//add env-vars, not existing in config-map
 	for envVarName, envVarValue := range deployComponentEnvVars {
 		if _, ok := usedConfigMapEnvVarNames[envVarName]; !ok {
+			if envVarConfigMap.Namespace == "oauth-demo-dev" {
+				log.Infof("filterme-%s:%v", envVarConfigMap.Name, envVarName)
+			}
+
 			resultEnvVars = append(resultEnvVars, corev1.EnvVar{
 				Name:  envVarName,
 				Value: envVarValue,
 			})
 		}
+	}
+
+	if envVarConfigMap.Namespace == "oauth-demo-dev" {
+		log.Infof("filterme-%s:%v", envVarConfigMap.Name, resultEnvVars)
 	}
 	return resultEnvVars
 }
