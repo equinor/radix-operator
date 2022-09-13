@@ -26,6 +26,7 @@ import (
 	prometheusclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -481,20 +482,19 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 								"memory": "129Mi",
 								"cpu":    "501m",
 							}).
-							WithVolumeMounts([]v1.RadixVolumeMount{
-								{
+							WithVolumeMounts(
+								v1.RadixVolumeMount{
 									Type:      v1.MountTypeBlob,
 									Name:      blobVolumeName,
 									Container: "some-container",
 									Path:      "some-path",
 								},
-								{
+								v1.RadixVolumeMount{
 									Type:    v1.MountTypeBlobCsiAzure,
 									Name:    blobCsiAzureVolumeName,
 									Storage: "some-storage",
 									Path:    "some-path",
-								},
-							}).
+								}).
 							WithSchedulerPort(&schedulerPortCreate).
 							WithPayloadPath(&payloadPath).
 							WithSecrets([]string{outdatedSecret, remainingSecret}).
@@ -3699,6 +3699,155 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 
 	err := syncer.OnSync()
 	assert.Contains(t, err.Error(), auxErr.Error())
+}
+
+func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
+	appName, environment, compName := "app", "dev", "comp"
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	// Setup
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithAppName(appName).
+					WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName)),
+			).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithComponent(
+				utils.NewDeployComponentBuilder().
+					WithName(compName).
+					WithVolumeMounts(
+						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+					),
+			),
+	)
+	require.NoError(t, err)
+
+	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+	deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), compName, metav1.GetOptions{})
+	require.NotNil(t, deployment)
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 3, "incorrect number of volumemounts")
+}
+
+func Test_JobSynced_VolumeAndMounts(t *testing.T) {
+	appName, environment, jobName := "app", "dev", "job"
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	// Setup
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(
+				utils.ARadixApplication().
+					WithAppName(appName).
+					WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName)),
+			).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithJobComponent(
+				utils.NewDeployJobComponentBuilder().
+					WithName(jobName).
+					WithVolumeMounts(
+						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+					),
+			),
+	)
+	require.NoError(t, err)
+
+	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+	deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobName, metav1.GetOptions{})
+	require.NotNil(t, deployment)
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")
+	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 0, "incorrect number of volumemounts")
+}
+
+func Test_ComponentSynced_SecretRefs(t *testing.T) {
+	appName, environment, compName := "app", "dev", "comp"
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	// Setup
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithAppName(appName).
+					WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName)),
+			).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithComponent(
+				utils.NewDeployComponentBuilder().
+					WithName(compName).
+					WithSecretRefs(
+						v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET1"}}},
+							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret", EnvVar: "SECRET2"}}},
+						}},
+					),
+			),
+	)
+	require.NoError(t, err)
+
+	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
+	require.NotNil(t, deployments)
+	require.Len(t, deployments.Items, 1)
+	require.Equal(t, compName, deployments.Items[0].Name)
+	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Volumes, 2, "incorrect number of volumes")
+	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 2, "incorrect number of volumemounts")
+	assert.True(t, envVariableByNameExistOnDeployment("SECRET1", compName, deployments), "SECRET1 does not exist")
+	assert.True(t, envVariableByNameExistOnDeployment("SECRET2", compName, deployments), "SECRET2 does not exist")
+}
+
+func Test_JobSynced_SecretRefs(t *testing.T) {
+	appName, environment, jobName := "app", "dev", "job"
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	// Setup
+	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
+
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
+		utils.NewDeploymentBuilder().
+			WithRadixApplication(
+				utils.NewRadixApplicationBuilder().
+					WithAppName(appName).
+					WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName)),
+			).
+			WithAppName(appName).
+			WithEnvironment(environment).
+			WithJobComponent(
+				utils.NewDeployJobComponentBuilder().
+					WithName(jobName).
+					WithSecretRefs(
+						v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{
+							{Name: "kv1", Path: radixutils.StringPtr("/mnt/kv1"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+							{Name: "kv2", Path: radixutils.StringPtr("/mnt/kv2"), Items: []v1.RadixAzureKeyVaultItem{{Name: "secret"}}},
+						}},
+					),
+			),
+	)
+	require.NoError(t, err)
+
+	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
+	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
+	require.NotNil(t, deployments)
+	require.Equal(t, jobName, deployments.Items[0].Name)
+	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Volumes, 2, "number of volumes")
+	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 2, "number of volumemounts")
+	assert.False(t, envVariableByNameExistOnDeployment("SECRET1", jobName, deployments), "SECRET1 exist")
+	assert.False(t, envVariableByNameExistOnDeployment("SECRET2", jobName, deployments), "SECRET2 exist")
 }
 
 func parseQuantity(value string) resource.Quantity {
