@@ -16,26 +16,17 @@ import (
 )
 
 // CanRadixRegistrationBeInserted Validates RR
-func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
+func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) error {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
 	errUniqueAppName := validateDoesNameAlreadyExist(client, radixRegistration.Name)
 
-	isValid, err := CanRadixRegistrationBeUpdated(client, radixRegistration)
-	if isValid && errUniqueAppName == nil {
-		return true, nil
-	}
-	if isValid && errUniqueAppName != nil {
-		return false, errUniqueAppName
-	}
-	if !isValid && errUniqueAppName == nil {
-		return false, err
-	}
-	return false, errorUtils.Concat([]error{errUniqueAppName, err})
+	err := CanRadixRegistrationBeUpdated(radixRegistration)
+	return errorUtils.Concat([]error{errUniqueAppName, err})
 }
 
 // CanRadixRegistrationBeUpdated Validates update of RR
-func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistration *v1.RadixRegistration) (bool, error) {
-	errs := []error{}
+func CanRadixRegistrationBeUpdated(radixRegistration *v1.RadixRegistration) error {
+	var errs []error
 
 	if err := validateAppName(radixRegistration.Name); err != nil {
 		errs = append(errs, err)
@@ -61,18 +52,21 @@ func CanRadixRegistrationBeUpdated(client radixclient.Interface, radixRegistrati
 		errs = append(errs, err)
 	}
 
-	if err := validateNoDuplicateGitRepo(client, radixRegistration.Name, radixRegistration.Spec.CloneURL); err != nil {
-		errs = append(errs, err)
-	}
-
 	if err := validateConfigBranch(radixRegistration.Spec.ConfigBranch); err != nil {
 		errs = append(errs, err)
 	}
 
-	if len(errs) <= 0 {
-		return true, nil
-	}
-	return false, errorUtils.Concat(errs)
+	return errorUtils.Concat(errs)
+}
+
+// GetRadixRegistrationBeInsertedWarnings Get warnings for inserting RadixRegistration
+func GetRadixRegistrationBeInsertedWarnings(client radixclient.Interface, radixRegistration *v1.RadixRegistration) ([]string, error) {
+	return appendNoDuplicateGitRepoWarning(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
+}
+
+// GetRadixRegistrationBeUpdatedWarnings Get warnings for updating RadixRegistration
+func GetRadixRegistrationBeUpdatedWarnings(client radixclient.Interface, radixRegistration *v1.RadixRegistration) ([]string, error) {
+	return appendNoDuplicateGitRepoWarning(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
 }
 
 func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
@@ -172,22 +166,22 @@ func validateGitSSHUrl(sshURL string) error {
 	return fmt.Errorf("ssh url not valid %s. Must match regex %s", sshURL, re.String())
 }
 
-func validateNoDuplicateGitRepo(client radixclient.Interface, appName, sshURL string) error {
+func appendNoDuplicateGitRepoWarning(client radixclient.Interface, appName, sshURL string) ([]string, error) {
 	if sshURL == "" {
-		return nil
+		return nil, nil
 	}
 
 	registrations, err := client.RadixV1().RadixRegistrations().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, reg := range registrations.Items {
 		if reg.Spec.CloneURL == sshURL && !strings.EqualFold(reg.Name, appName) {
-			return fmt.Errorf("repository is in use by %s", reg.Name)
+			return []string{fmt.Sprintf("Repository is in use by %s", reg.Name)}, err
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func validateSSHKey(deployKey string) error {
