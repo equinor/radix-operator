@@ -93,6 +93,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 
 		assert.Nil(t, err)
 		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(client, validRR)
+		assert.Nil(t, err)
 		assert.NotEmpty(t, warnings)
 		assert.Equal(t, fmt.Sprintf("Repository is in use by %s", existingAppName), warnings[0])
 	})
@@ -157,6 +158,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 
 		assert.Nil(t, err)
 		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(client, validRR)
+		assert.Nil(t, err)
 		assert.NotEmpty(t, warnings)
 		assert.Equal(t, fmt.Sprintf("Repository is in use by %s", existingAppName), warnings[0])
 	})
