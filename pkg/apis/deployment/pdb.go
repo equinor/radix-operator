@@ -21,6 +21,10 @@ func getNumberOfReplicas(component v1.RadixCommonDeployComponent) int {
 }
 
 func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
+	replicas := getNumberOfReplicas(component)
+	if replicas == 0 {
+		return false
+	}
 	horizontalScaling := component.GetHorizontalScaling()
 	if horizontalScaling != nil {
 		if horizontalScaling.MinReplicas == nil {
@@ -31,7 +35,6 @@ func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
 		}
 		return true
 	}
-	replicas := getNumberOfReplicas(component)
 	return replicas >= 2
 }
 
