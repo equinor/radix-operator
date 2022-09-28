@@ -71,9 +71,10 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 }
 
 func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName string) ([]corev1.VolumeMount, error) {
-	if deployComponent.GetType() == radixv1.RadixComponentTypeJobScheduler { //JobScheduler does not need external volumeMounts
+	if isDeployComponentJobSchedulerDeployment(deployComponent) {
 		return nil, nil
 	}
+
 	var volumeMounts []corev1.VolumeMount
 	for _, radixVolumeMount := range deployComponent.GetVolumeMounts() {
 		switch radixVolumeMount.Type {

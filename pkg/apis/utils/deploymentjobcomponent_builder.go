@@ -17,7 +17,7 @@ type DeployJobComponentBuilder interface {
 	WithAlwaysPullImageOnDeploy(bool) DeployJobComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployJobComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
-	WithVolumeMounts([]v1.RadixVolumeMount) DeployJobComponentBuilder
+	WithVolumeMounts(...v1.RadixVolumeMount) DeployJobComponentBuilder
 	WithNodeGpu(gpu string) DeployJobComponentBuilder
 	WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
@@ -48,7 +48,7 @@ type deployJobComponentBuilder struct {
 	timeLimitSeconds        *int64
 }
 
-func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
+func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployJobComponentBuilder {
 	dcb.volumeMounts = volumeMounts
 	return dcb
 }
