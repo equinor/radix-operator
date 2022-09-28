@@ -86,7 +86,7 @@ func TestHorizontalScalerChangePDB(t *testing.T) {
 	assert.Equal(t, 0, len(pdbs.Items))
 }
 
-func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
+func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	anyAppName := "anyappname"
