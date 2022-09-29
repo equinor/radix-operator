@@ -178,7 +178,7 @@ func appendNoDuplicateGitRepoWarning(client radixclient.Interface, appName, sshU
 
 	for _, reg := range registrations.Items {
 		if reg.Spec.CloneURL == sshURL && !strings.EqualFold(reg.Name, appName) {
-			return []string{fmt.Sprintf("Repository is in use by %s", reg.Name)}, err
+			return []string{fmt.Sprintf("Repository is used in other application(s)")}, err
 		}
 	}
 	return nil, nil
