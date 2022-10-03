@@ -1,7 +1,6 @@
 package radixvalidators_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -85,7 +84,6 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 
 	t.Run("repo already used by other app", func(t *testing.T) {
 		validRR := createValidRR()
-		existingAppName := validRR.GetName()
 		client = radixfake.NewSimpleClientset(validRR)
 		validRR = createValidRR()
 		validRR.Name = "new-app"
@@ -95,7 +93,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(client, validRR)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, warnings)
-		assert.Equal(t, fmt.Sprintf("Repository is in use by %s", existingAppName), warnings[0])
+		assert.Equal(t, "Repository is used in other application(s)", warnings[0])
 	})
 }
 
@@ -150,7 +148,6 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 
 	t.Run("repo already used by other app", func(t *testing.T) {
 		validRR := createValidRR()
-		existingAppName := validRR.GetName()
 		client = radixfake.NewSimpleClientset(validRR)
 		validRR = createValidRR()
 		validRR.Name = "new-app"
@@ -160,7 +157,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		warnings, err := radixvalidators.GetRadixRegistrationBeInsertedWarnings(client, validRR)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, warnings)
-		assert.Equal(t, fmt.Sprintf("Repository is in use by %s", existingAppName), warnings[0])
+		assert.Equal(t, "Repository is used in other application(s)", warnings[0])
 	})
 }
 

@@ -156,5 +156,5 @@ code-gen:
 
 
 .HONY: check
-check:
+staticcheck:
 	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`
