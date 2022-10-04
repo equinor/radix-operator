@@ -101,6 +101,7 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 
 func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
+	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
 
 	// Operator will never have an issue with getting clustername
 	clusterName, _ := job.kubeutil.GetClusterName()
@@ -117,6 +118,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 
 		// Used for tagging source of image
 		fmt.Sprintf("%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
+		fmt.Sprintf("%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
 		fmt.Sprintf("%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
 	}
 
