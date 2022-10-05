@@ -27,15 +27,10 @@ func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
 	}
 	horizontalScaling := component.GetHorizontalScaling()
 	if horizontalScaling != nil {
-		if horizontalScaling.MinReplicas == nil {
-			return false
-		}
-		if *horizontalScaling.MinReplicas < 2 {
-			return false
-		}
-		return true
+		return horizontalScaling.MinReplicas != nil &&
+			*horizontalScaling.MinReplicas > 1
 	}
-	return replicas >= 2
+	return replicas > 1
 }
 
 func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCommonDeployComponent) error {
