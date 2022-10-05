@@ -26,6 +26,7 @@ type RegistrationBuilder interface {
 	WithWBS(string) RegistrationBuilder
 	WithConfigBranch(string) RegistrationBuilder
 	WithRadixConfigFullName(string) RegistrationBuilder
+	WithConfigurationItem(string) RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
@@ -47,6 +48,7 @@ type RegistrationBuilderStruct struct {
 	wbs                 string
 	configBranch        string
 	radixConfigFullName string
+	configurationItem   string
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -62,6 +64,7 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithMachineUser(radixRegistration.Spec.MachineUser)
 	rb.WithWBS(radixRegistration.Spec.WBS)
 	rb.WithRadixConfigFullName(radixRegistration.Spec.RadixConfigFullName)
+	rb.WithConfigurationItem(radixRegistration.Spec.ConfigurationItem)
 	return rb
 }
 
@@ -155,6 +158,12 @@ func (rb *RegistrationBuilderStruct) WithRadixConfigFullName(fullName string) Re
 	return rb
 }
 
+// WithConfigBranch Sets ApplicationId
+func (rb *RegistrationBuilderStruct) WithConfigurationItem(ci string) RegistrationBuilder {
+	rb.configurationItem = ci
+	return rb
+}
+
 // BuildRR Builds the radix registration
 func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 	cloneURL := rb.cloneURL
@@ -190,6 +199,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			WBS:                 rb.wbs,
 			ConfigBranch:        rb.configBranch,
 			RadixConfigFullName: rb.radixConfigFullName,
+			ConfigurationItem: rb.configurationItem,
 		},
 		Status: status,
 	}
