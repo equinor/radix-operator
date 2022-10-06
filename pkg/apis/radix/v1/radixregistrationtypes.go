@@ -33,6 +33,10 @@ type RadixRegistrationSpec struct {
 	MachineUser     bool     `json:"machineUser" yaml:"machineUser"`
 	WBS             string   `json:"wbs" yaml:"wbs"`
 	ConfigBranch    string   `json:"configBranch" yaml:"configBranch"`
+	// ConfigurationItem is and identifier for an entity in a configuration management solution such as a CMDB.
+	// ITIL defines a CI as any component that needs to be managed in order to deliver an IT Service
+	// Ref: https://en.wikipedia.org/wiki/Configuration_item
+	ConfigurationItem string `json:"configurationItem" yaml:"configurationItem"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
