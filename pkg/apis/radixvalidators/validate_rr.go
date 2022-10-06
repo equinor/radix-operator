@@ -16,9 +16,7 @@ import (
 )
 
 const (
-	fileExtensionYaml                      = ".yaml"
-	fileExtensionYml                       = ".yml"
-	radixConfigFullNamePattern             = "^(\\/*[a-zA-Z0-9_\\.\\-]+)+$"
+	radixConfigFullNamePattern             = "^(\\/*[a-zA-Z0-9_\\.\\-]+)+((\\.yaml)|(\\.yml))$"
 	invalidRadixConfigFullNameErrorMessage = "invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information"
 )
 
@@ -219,10 +217,6 @@ func validateConfigBranch(name string) error {
 
 // ValidateRadixConfigFullName Validates the radixconfig file name and path
 func ValidateRadixConfigFullName(radixConfigFullName string) error {
-	if !strings.HasSuffix(radixConfigFullName, fileExtensionYaml) &&
-		!strings.HasSuffix(radixConfigFullName, fileExtensionYml) {
-		return errors.New(invalidRadixConfigFullNameErrorMessage)
-	}
 	matched, err := regexp.Match(radixConfigFullNamePattern, []byte(radixConfigFullName))
 	if err != nil {
 		return err
