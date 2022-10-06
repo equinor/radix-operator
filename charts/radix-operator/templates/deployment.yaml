@@ -91,6 +91,8 @@ spec:
               value: {{ .Values.imageBuilder }}
             - name: RADIXOPERATOR_JOB_SCHEDULER
               value: {{ .Values.jobScheduler }}
+            - name: USE_CACHE
+              value: {{ .Values.useImageBuilderCache }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: RADIX_CONTAINER_REGISTRY

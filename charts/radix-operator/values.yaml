@@ -18,6 +18,7 @@ configToMap: radix-config-2-map:master-latest
 imageBuilder: radix-image-builder:master-latest
 jobScheduler: radix-job-scheduler-server:main-latest
 radixTekton: radix-tekton:main-latest
+useImageBuilderCache: xx
 
 appAliasBaseURL: app.dev.radix.equinor.com
 dnsZone: dev.radix.equinor.com
