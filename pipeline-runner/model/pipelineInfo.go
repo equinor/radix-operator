@@ -76,6 +76,7 @@ type PipelineArguments struct {
 
 	// Used for tagging meta-information
 	Clustertype string
+	RadixZone   string
 	Clustername string
 	// Used to indicate debugging session
 	Debug bool
@@ -101,6 +102,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
+	radixZone := args[defaults.RadixZoneEnvironmentVariable]
 
 	// Indicates that we are debugging the application
 	debug, _ := strconv.ParseBool(args["DEBUG"])
@@ -126,6 +128,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		ImageBuilder:    imageBuilder,
 		Clustertype:     clusterType,
 		Clustername:     clusterName,
+		RadixZone:       radixZone,
 		RadixConfigFile: radixConfigFile,
 		Debug:           debug,
 	}
