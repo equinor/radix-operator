@@ -217,6 +217,9 @@ func validateConfigBranch(name string) error {
 
 // ValidateRadixConfigFullName Validates the radixconfig file name and path
 func ValidateRadixConfigFullName(radixConfigFullName string) error {
+	if len(radixConfigFullName) == 0 {
+		return nil //for empty radixConfigFullName it is used default radixconfig.yaml file name
+	}
 	matched, err := regexp.Match(radixConfigFullNamePattern, []byte(radixConfigFullName))
 	if err != nil {
 		return err
