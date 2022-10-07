@@ -9,7 +9,7 @@ const RadixPipelineJobPreparePipelinesContainerName = "prepare-pipelines"
 // RadixPipelineJobRunPipelinesContainerName The container name of the pipeline job, running the Sub-pipleine, if it is configured
 const RadixPipelineJobRunPipelinesContainerName = "run-pipelines"
 
-// RadixCacheLayerNamePrefix The name of the cache container image
+// RadixCacheLayerNamePrefix The name of the cache artifact
 const RadixCacheLayerNamePrefix = "radix-cache"
 
 // DefaultRadixConfigFileName Default name for the radix configuration file
