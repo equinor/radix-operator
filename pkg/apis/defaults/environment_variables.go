@@ -46,6 +46,9 @@ const (
 	// RadixDNSZoneEnvironmentVariable The environment variable on a radix app giving the dns zone. Will be equal to OperatorDNSZoneEnvironmentVariable
 	RadixDNSZoneEnvironmentVariable = "RADIX_DNS_ZONE"
 
+	// RadixZoneEnvironmentVariable The environment variable on a radix app giving the radix zone.
+	RadixZoneEnvironmentVariable = "RADIX_ZONE"
+
 	// RadixClusterTypeEnvironmentVariable The type of cluster dev|playground|prod. Will be equal to OperatorClusterTypeEnvironmentVariable
 	RadixClusterTypeEnvironmentVariable = "RADIX_CLUSTER_TYPE"
 
