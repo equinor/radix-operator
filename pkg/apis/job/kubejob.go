@@ -18,7 +18,6 @@ import (
 )
 
 const (
-	defaultRadixConfigPath     = "/workspace/radixconfig.yaml"
 	workerImage                = "radix-pipeline"
 	PRIVILEGED_CONTAINER       = false
 	ALLOW_PRIVILEGE_ESCALATION = false
@@ -130,15 +129,15 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, jobSpec.RadixConfigFullName))
 	case v1.Promote:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, jobSpec.RadixConfigFullName))
 	case v1.Deploy:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, jobSpec.RadixConfigFullName))
 	}
 
 	return args

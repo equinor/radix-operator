@@ -1,6 +1,8 @@
 package radixvalidators_test
 
 import (
+	"fmt"
+	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 
@@ -159,6 +161,64 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		assert.NotEmpty(t, warnings)
 		assert.Equal(t, "Repository is used in other application(s)", warnings[0])
 	})
+}
+
+func TestCreateApplication_WithRadixConfigFullName(t *testing.T) {
+	scenarios := []struct {
+		radixConfigFullName string
+		expectedError       bool
+	}{
+		{radixConfigFullName: "", expectedError: false},
+		{radixConfigFullName: "radixconfig.yaml", expectedError: false},
+		{radixConfigFullName: "a.yaml", expectedError: false},
+		{radixConfigFullName: "abc/a.yaml", expectedError: false},
+		{radixConfigFullName: "/abc/a.yaml", expectedError: false},
+		{radixConfigFullName: " /abc/a.yaml ", expectedError: true},
+		{radixConfigFullName: "/abc/de.f/a.yaml", expectedError: false},
+		{radixConfigFullName: "abc\\de.f\\a.yaml", expectedError: true},
+		{radixConfigFullName: "abc/d-e_f/radixconfig.yaml", expectedError: false},
+		{radixConfigFullName: "abc/12.3abc/radixconfig.yaml", expectedError: false},
+		{radixConfigFullName: ".yaml", expectedError: true},
+		{radixConfigFullName: "radixconfig.yml", expectedError: false},
+		{radixConfigFullName: "abc", expectedError: true},
+		{radixConfigFullName: "ac", expectedError: true},
+		{radixConfigFullName: "a", expectedError: true},
+		{radixConfigFullName: "#radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "$radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "%radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "^radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "&radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "*radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "(radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: ")radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "+radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "=radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "'radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "]radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "[radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "{radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "}radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: ",radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "§radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "±radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "*radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "~radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "`radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: ">radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "<radixconfig.yaml", expectedError: true},
+		{radixConfigFullName: "@radixconfig.yaml", expectedError: true},
+	}
+	for _, scenario := range scenarios {
+		t.Run(fmt.Sprintf("Test for radixConfigFullName: '%s'", scenario.radixConfigFullName), func(t *testing.T) {
+			err := radixvalidators.ValidateRadixConfigFullName(scenario.radixConfigFullName)
+			if !scenario.expectedError {
+				require.Nil(t, err)
+				return
+			}
+			require.NotNil(t, err)
+			assert.Equal(t, "invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information", err.Error())
+		})
+	}
 }
 
 func createValidRR() *v1.RadixRegistration {
