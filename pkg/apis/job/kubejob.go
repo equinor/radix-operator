@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -124,7 +125,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 
 	radixConfigFullName := jobSpec.RadixConfigFullName
 	if len(radixConfigFullName) == 0 {
-		radixConfigFullName = "/workspace/radixconfig.yaml"
+		radixConfigFullName = fmt.Sprintf("%s/%s", git.Workspace, defaults.DefaultRadixConfigFileName)
 	}
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
