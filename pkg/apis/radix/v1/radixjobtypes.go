@@ -46,16 +46,17 @@ const (
 
 //RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	AppName        string            `json:"appName" yaml:"appName"`
-	CloneURL       string            `json:"cloneURL" yaml:"cloneURL"`
-	PipeLineType   RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
-	DockerRegistry string            `json:"dockerRegistry" yaml:"dockerRegistry"`
-	PipelineImage  string            `json:"pipelineImage" yaml:"pipelineImage"`
-	Build          RadixBuildSpec    `json:"build" yaml:"build"`
-	Promote        RadixPromoteSpec  `json:"promote" yaml:"promote"`
-	Deploy         RadixDeploySpec   `json:"deploy" yaml:"deploy"`
-	Stop           bool              `json:"stop" yaml:"stop"`
-	TriggeredBy    string            `json:"triggeredBy" yaml:"triggeredBy"`
+	AppName             string            `json:"appName" yaml:"appName"`
+	CloneURL            string            `json:"cloneURL" yaml:"cloneURL"`
+	PipeLineType        RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
+	DockerRegistry      string            `json:"dockerRegistry" yaml:"dockerRegistry"`
+	PipelineImage       string            `json:"pipelineImage" yaml:"pipelineImage"`
+	Build               RadixBuildSpec    `json:"build" yaml:"build"`
+	Promote             RadixPromoteSpec  `json:"promote" yaml:"promote"`
+	Deploy              RadixDeploySpec   `json:"deploy" yaml:"deploy"`
+	Stop                bool              `json:"stop" yaml:"stop"`
+	TriggeredBy         string            `json:"triggeredBy" yaml:"triggeredBy"`
+	RadixConfigFullName string            `json:"radixConfigFullName" yaml:"radixConfigFullName"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
@@ -71,11 +72,10 @@ const (
 
 //RadixBuildSpec is the spec for a build job
 type RadixBuildSpec struct {
-	ImageTag      string `json:"imageTag" yaml:"imageTag"`
-	Branch        string `json:"branch" yaml:"branch"`
-	CommitID      string `json:"commitID" yaml:"commitID"`
-	PushImage     bool   `json:"pushImage" yaml:"pushImage"`
-	RadixFileName string `json:"radixFileName" yaml:"radixFileName"`
+	ImageTag  string `json:"imageTag" yaml:"imageTag"`
+	Branch    string `json:"branch" yaml:"branch"`
+	CommitID  string `json:"commitID" yaml:"commitID"`
+	PushImage bool   `json:"pushImage" yaml:"pushImage"`
 }
 
 //RadixPromoteSpec is the spec for a promote job

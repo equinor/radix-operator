@@ -25,6 +25,7 @@ type RegistrationBuilder interface {
 	WithMachineUser(bool) RegistrationBuilder
 	WithWBS(string) RegistrationBuilder
 	WithConfigBranch(string) RegistrationBuilder
+	WithRadixConfigFullName(string) RegistrationBuilder
 	WithConfigurationItem(string) RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
@@ -32,21 +33,22 @@ type RegistrationBuilder interface {
 
 // RegistrationBuilderStruct Instance variables
 type RegistrationBuilderStruct struct {
-	uid               types.UID
-	name              string
-	repository        string
-	sharedSecret      string
-	adGroups          []string
-	publicKey         string
-	privateKey        string
-	cloneURL          string
-	owner             string
-	creator           string
-	emptyStatus       bool
-	machineUser       bool
-	wbs               string
-	configBranch      string
-	configurationItem string
+	uid                 types.UID
+	name                string
+	repository          string
+	sharedSecret        string
+	adGroups            []string
+	publicKey           string
+	privateKey          string
+	cloneURL            string
+	owner               string
+	creator             string
+	emptyStatus         bool
+	machineUser         bool
+	wbs                 string
+	configBranch        string
+	radixConfigFullName string
+	configurationItem   string
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -61,6 +63,7 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithCreator(radixRegistration.Spec.Creator)
 	rb.WithMachineUser(radixRegistration.Spec.MachineUser)
 	rb.WithWBS(radixRegistration.Spec.WBS)
+	rb.WithRadixConfigFullName(radixRegistration.Spec.RadixConfigFullName)
 	rb.WithConfigurationItem(radixRegistration.Spec.ConfigurationItem)
 	return rb
 }
@@ -149,6 +152,12 @@ func (rb *RegistrationBuilderStruct) WithConfigBranch(configBranch string) Regis
 	return rb
 }
 
+// WithRadixConfigFullName Sets RadixConfigFullName
+func (rb *RegistrationBuilderStruct) WithRadixConfigFullName(fullName string) RegistrationBuilder {
+	rb.radixConfigFullName = fullName
+	return rb
+}
+
 // WithConfigBranch Sets ApplicationId
 func (rb *RegistrationBuilderStruct) WithConfigurationItem(ci string) RegistrationBuilder {
 	rb.configurationItem = ci
@@ -179,16 +188,17 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			UID:  rb.uid,
 		},
 		Spec: v1.RadixRegistrationSpec{
-			CloneURL:          cloneURL,
-			SharedSecret:      rb.sharedSecret,
-			DeployKey:         rb.privateKey,
-			DeployKeyPublic:   rb.publicKey,
-			AdGroups:          rb.adGroups,
-			Owner:             rb.owner,
-			Creator:           rb.creator,
-			MachineUser:       rb.machineUser,
-			WBS:               rb.wbs,
-			ConfigBranch:      rb.configBranch,
+			CloneURL:            cloneURL,
+			SharedSecret:        rb.sharedSecret,
+			DeployKey:           rb.privateKey,
+			DeployKeyPublic:     rb.publicKey,
+			AdGroups:            rb.adGroups,
+			Owner:               rb.owner,
+			Creator:             rb.creator,
+			MachineUser:         rb.machineUser,
+			WBS:                 rb.wbs,
+			ConfigBranch:        rb.configBranch,
+			RadixConfigFullName: rb.radixConfigFullName,
 			ConfigurationItem: rb.configurationItem,
 		},
 		Status: status,

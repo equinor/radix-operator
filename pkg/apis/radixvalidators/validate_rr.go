@@ -15,6 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	radixConfigFullNamePattern             = "^(\\/*[a-zA-Z0-9_\\.\\-]+)+((\\.yaml)|(\\.yml))$"
+	invalidRadixConfigFullNameErrorMessage = "invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information"
+)
+
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) error {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
@@ -207,5 +212,20 @@ func validateConfigBranch(name string) error {
 		return InvalidConfigBranchName(name)
 	}
 
+	return nil
+}
+
+// ValidateRadixConfigFullName Validates the radixconfig file name and path
+func ValidateRadixConfigFullName(radixConfigFullName string) error {
+	if len(radixConfigFullName) == 0 {
+		return nil //for empty radixConfigFullName it is used default radixconfig.yaml file name
+	}
+	matched, err := regexp.Match(radixConfigFullNamePattern, []byte(radixConfigFullName))
+	if err != nil {
+		return err
+	}
+	if !matched {
+		return errors.New(invalidRadixConfigFullNameErrorMessage)
+	}
 	return nil
 }
