@@ -155,6 +155,6 @@ code-gen:
 	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.23.9/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.23.9/hack/boilerplate.go.txt
 
 
-.HONY: check
+.HONY: staticcheck
 staticcheck:
 	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`

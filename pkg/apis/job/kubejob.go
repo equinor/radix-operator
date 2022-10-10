@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -18,7 +19,6 @@ import (
 )
 
 const (
-	defaultRadixConfigPath     = "/workspace/radixconfig.yaml"
 	workerImage                = "radix-pipeline"
 	PRIVILEGED_CONTAINER       = false
 	ALLOW_PRIVILEGE_ESCALATION = false
@@ -101,6 +101,8 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 
 func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
+	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
+	useImageBuilderCache := os.Getenv(defaults.RadixUseCacheEnvironmentVariable)
 
 	// Operator will never have an issue with getting clustername
 	clusterName, _ := job.kubeutil.GetClusterName()
@@ -117,24 +119,30 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 
 		// Used for tagging source of image
 		fmt.Sprintf("%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
+		fmt.Sprintf("%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
 		fmt.Sprintf("%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
 	}
 
+	radixConfigFullName := jobSpec.RadixConfigFullName
+	if len(radixConfigFullName) == 0 {
+		radixConfigFullName = fmt.Sprintf("%s/%s", git.Workspace, defaults.DefaultRadixConfigFileName)
+	}
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	case v1.Promote:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	case v1.Deploy:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	}
 
 	return args

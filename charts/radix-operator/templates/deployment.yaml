@@ -36,6 +36,8 @@ spec:
               value: {{ .Values.prometheusName }}
             - name: DNS_ZONE
               value: {{ .Values.dnsZone }}
+            - name: RADIX_ZONE
+              value: {{ .Values.radixZone }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
@@ -89,6 +91,8 @@ spec:
               value: {{ .Values.imageBuilder }}
             - name: RADIXOPERATOR_JOB_SCHEDULER
               value: {{ .Values.jobScheduler }}
+            - name: USE_CACHE
+              value: {{ .Values.useImageBuilderCache | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: RADIX_CONTAINER_REGISTRY

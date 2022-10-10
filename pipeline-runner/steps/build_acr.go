@@ -183,6 +183,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "CACHE",
 				Value: useCache,
 			},
+			{
+				Name:  defaults.RadixZoneEnvironmentVariable,
+				Value: pipelineInfo.PipelineArguments.RadixZone,
+			},
 			// Extra meta information
 			{
 				Name:  defaults.RadixBranchEnvironmentVariable,
