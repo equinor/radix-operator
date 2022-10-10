@@ -2,9 +2,10 @@ package radixvalidators_test
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/radixvalidators"
@@ -45,14 +46,8 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		}},
 		{"invalid app name", func(rr *v1.RadixRegistration) { rr.Name = "invalid,char.appname" }},
 		{"empty app name", func(rr *v1.RadixRegistration) { rr.Name = "" }},
-		{"empty WBS", func(rr *v1.RadixRegistration) { rr.Spec.WBS = "" }},
-		{"empty WBS", func(rr *v1.RadixRegistration) { rr.Spec.WBS = " " }},
-		{"WBS is too short", func(rr *v1.RadixRegistration) { rr.Spec.WBS = strings.Repeat("a", 4) }},
-		{"WBS is too long", func(rr *v1.RadixRegistration) { rr.Spec.WBS = strings.Repeat("a", 101) }},
-		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radix@equinor_com" }},
-		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radixatequinor.com" }},
-		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "adfasd" }},
-		{"require owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "" }},
+		{"empty ConfigurationItem", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }},
+		{"ConfigurationItem is too long", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = strings.Repeat("a", 101) }},
 		{"invalid ssh url ending", func(rr *v1.RadixRegistration) { rr.Spec.CloneURL = "git@github.com:auser/go-roman.gitblabla" }},
 		{"invalid ssh url start", func(rr *v1.RadixRegistration) { rr.Spec.CloneURL = "asdfasdgit@github.com:auser/go-roman.git" }},
 		{"invalid ssh url https", func(rr *v1.RadixRegistration) { rr.Spec.CloneURL = "https://github.com/auser/go-roman" }},
@@ -109,14 +104,8 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		}},
 		{"invalid app name", func(rr *v1.RadixRegistration) { rr.Name = "invalid,char.appname" }},
 		{"empty app name", func(rr *v1.RadixRegistration) { rr.Name = "" }},
-		{"empty WBS", func(rr *v1.RadixRegistration) { rr.Spec.WBS = "" }},
-		{"empty WBS", func(rr *v1.RadixRegistration) { rr.Spec.WBS = " " }},
-		{"WBS is too short", func(rr *v1.RadixRegistration) { rr.Spec.WBS = strings.Repeat("a", 4) }},
-		{"WBS is too long", func(rr *v1.RadixRegistration) { rr.Spec.WBS = strings.Repeat("a", 101) }},
-		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radix@equinor_com" }},
-		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "radixatequinor.com" }},
-		{"invalid owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "adfasd" }},
-		{"require owner email", func(rr *v1.RadixRegistration) { rr.Spec.Owner = "" }},
+		{"empty ConfigurationItem", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }},
+		{"ConfigurationItem is too long", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = strings.Repeat("a", 101) }},
 		{"invalid ssh url ending", func(rr *v1.RadixRegistration) { rr.Spec.CloneURL = "git@github.com:auser/go-roman.gitblabla" }},
 		{"invalid ssh url start", func(rr *v1.RadixRegistration) { rr.Spec.CloneURL = "asdfasdgit@github.com:auser/go-roman.git" }},
 		{"invalid ssh url https", func(rr *v1.RadixRegistration) { rr.Spec.CloneURL = "https://github.com/auser/go-roman" }},

@@ -20,47 +20,40 @@ const (
 	invalidRadixConfigFullNameErrorMessage = "invalid file name for radixconfig. See https://www.radix.equinor.com/references/reference-radix-config/ for more information"
 )
 
+var (
+	requiredRadixRegistrationValidators []radixRegistrationValidatorFunc = []radixRegistrationValidatorFunc{
+		validateRadixRegistrationAppName,
+		validateRadixRegistrationGitSSHUrl,
+		validateRadixRegistrationSSHKey,
+		validateRadixRegistrationAdGroups,
+		validateRadixRegistrationConfigBranch,
+		validateRadixRegistrationConfigurationItem,
+	}
+)
+
+type radixRegistrationValidatorFunc func(radixRegistration *v1.RadixRegistration) error
+
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) error {
+	validators := requiredRadixRegistrationValidators[:]
 	// cannot be used from admission control - returns the same radix reg that we try to validate
-	errUniqueAppName := validateDoesNameAlreadyExist(client, radixRegistration.Name)
-
-	err := CanRadixRegistrationBeUpdated(radixRegistration)
-	return errorUtils.Concat([]error{errUniqueAppName, err})
+	validators = append(validators, validateRadixRegistrationAppNameAvailableFactory(client))
+	return validateRadixRegistration(radixRegistration, validators...)
 }
 
 // CanRadixRegistrationBeUpdated Validates update of RR
 func CanRadixRegistrationBeUpdated(radixRegistration *v1.RadixRegistration) error {
+	validators := requiredRadixRegistrationValidators[:]
+	return validateRadixRegistration(radixRegistration, validators...)
+}
+
+func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validators ...radixRegistrationValidatorFunc) error {
 	var errs []error
-
-	if err := validateAppName(radixRegistration.Name); err != nil {
-		errs = append(errs, err)
+	for _, v := range validators {
+		if err := v(radixRegistration); err != nil {
+			errs = append(errs, err)
+		}
 	}
-
-	if err := validateEmail("owner", radixRegistration.Spec.Owner); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateWbs(radixRegistration.Spec.WBS); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateGitSSHUrl(radixRegistration.Spec.CloneURL); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateSSHKey(radixRegistration.Spec.DeployKey); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateAdGroups(radixRegistration.Spec.AdGroups); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := validateConfigBranch(radixRegistration.Spec.ConfigBranch); err != nil {
-		errs = append(errs, err)
-	}
-
 	return errorUtils.Concat(errs)
 }
 
@@ -74,6 +67,12 @@ func GetRadixRegistrationBeUpdatedWarnings(client radixclient.Interface, radixRe
 	return appendNoDuplicateGitRepoWarning(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
 }
 
+func validateRadixRegistrationAppNameAvailableFactory(client radixclient.Interface) radixRegistrationValidatorFunc {
+	return func(radixRegistration *v1.RadixRegistration) error {
+		return validateDoesNameAlreadyExist(client, radixRegistration.Name)
+	}
+}
+
 func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) error {
 	rr, _ := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
 	if rr != nil && rr.Name != "" {
@@ -82,41 +81,26 @@ func validateDoesNameAlreadyExist(client radixclient.Interface, appName string) 
 	return nil
 }
 
-func validateEmail(resourceName, email string) error {
-	// re := regexp.MustCompile("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21\\x23-\\x5b\\x5d-\\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*\")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x21-\\x5a\\x53-\\x7f]|\\[\\x01-\\x09\\x0b\\x0c\\x0e-\\x7f])+)\\])")
-	re := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-
-	isValid := re.MatchString(email)
-	if isValid {
-		return nil
-	}
-	return InvalidEmailError(resourceName, email)
+func validateRadixRegistrationAppName(rr *v1.RadixRegistration) error {
+	return validateAppName(rr.Name)
 }
 
 func validateAppName(appName string) error {
 	return validateRequiredResourceName("app name", appName)
 }
 
-func validateWbs(wbs string) error {
-	value := strings.Trim(wbs, " ")
+func validateRadixRegistrationConfigurationItem(rr *v1.RadixRegistration) error {
+	return validateConfigurationItem(rr.Spec.ConfigurationItem)
+}
+
+func validateConfigurationItem(value string) error {
 	if len(value) == 0 {
-		return ResourceNameCannotBeEmptyError("WBS")
-	}
-	if len(value) < 5 {
-		return InvalidStringValueMinLengthError("WBS", value, 5)
+		return ResourceNameCannotBeEmptyError("configuration item")
 	}
 	if len(value) > 100 {
-		return InvalidStringValueMaxLengthError("WBS", value, 100)
+		return InvalidStringValueMaxLengthError("configuration item", value, 100)
 	}
-
-	re := regexp.MustCompile(`^(([\w\d][\w\d\.]*)?[\w\d])?$`)
-
-	isValid := re.MatchString(wbs)
-	if isValid {
-		return nil
-	}
-
-	return errors.New("WBS can only consist of alphanumeric characters and '.'")
+	return nil
 }
 
 func validateRequiredResourceName(resourceName, value string) error {
@@ -138,6 +122,10 @@ func validateRequiredResourceName(resourceName, value string) error {
 	return nil
 }
 
+func validateRadixRegistrationAdGroups(rr *v1.RadixRegistration) error {
+	return validateAdGroups(rr.Spec.AdGroups)
+}
+
 func validateAdGroups(groups []string) error {
 	re := regexp.MustCompile("^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$")
 
@@ -154,6 +142,10 @@ func validateAdGroups(groups []string) error {
 		}
 	}
 	return nil
+}
+
+func validateRadixRegistrationGitSSHUrl(rr *v1.RadixRegistration) error {
+	return validateGitSSHUrl(rr.Spec.CloneURL)
 }
 
 func validateGitSSHUrl(sshURL string) error {
@@ -189,6 +181,10 @@ func appendNoDuplicateGitRepoWarning(client radixclient.Interface, appName, sshU
 	return nil, nil
 }
 
+func validateRadixRegistrationSSHKey(rr *v1.RadixRegistration) error {
+	return validateSSHKey(rr.Spec.DeployKey)
+}
+
 func validateSSHKey(deployKey string) error {
 	// todo - how can this be validated..e.g. checked that the key isn't protected by a password
 	return nil
@@ -201,6 +197,10 @@ func validateDoesRRExist(client radixclient.Interface, appName string) error {
 		return NoRegistrationExistsForApplicationError(appName)
 	}
 	return nil
+}
+
+func validateRadixRegistrationConfigBranch(rr *v1.RadixRegistration) error {
+	return validateConfigBranch(rr.Spec.ConfigBranch)
 }
 
 func validateConfigBranch(name string) error {
