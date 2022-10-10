@@ -5,10 +5,9 @@ metadata:
 spec:
   cloneURL: "git@github.com:equinor/testapp.git"
   sharedSecret: "NotSoSecret"
-  owner: "radix@equinor.com"
   adGroups:
   - "a6a3b81b-34gd-sfsf-saf2-7986371ea35f"
   secrets:
     test: test
-  wbs: "T.O123A.AZ.45678"
+  configurationItem: "2b0781a7db131784551ea1ea4b9619c9"
   configBranch: "main"
