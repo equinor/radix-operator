@@ -19,12 +19,11 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 		}
 
 		jobType, ok := NewRadixJobTypeFromObjectLabels(job)
-		if !ok {
+		if !ok || !jobType.IsJobScheduler() {
 			continue
 		}
 
-		// Delete job if it originates from job-scheduler and is no longed defined in RD jobs section
-		if jobType.IsJobScheduler() && !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
+		if deploy.isEligibleForGarbageCollectScheduledJobsForComponent(componentName) {
 			propagationPolicy := metav1.DeletePropagationBackground
 			err = deploy.kubeclient.BatchV1().Jobs(deploy.radixDeployment.GetNamespace()).Delete(
 				context.TODO(),
@@ -39,4 +38,10 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectScheduledJobsForComponent(componentName RadixComponentName) bool {
+	// Delete job if it originates from job-scheduler and is no longed defined in RD jobs section
+	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
+	return (commonComponent != nil && !commonComponent.GetEnabled()) || !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
 }

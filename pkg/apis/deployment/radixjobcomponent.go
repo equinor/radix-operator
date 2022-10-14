@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	radixUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -72,6 +73,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
+		deployJob.Enabled = environmentSpecificConfig.Enabled
 	}
 
 	if deployJob.TimeLimitSeconds == nil {
@@ -88,5 +90,9 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 	deployJob.Resources = getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig)
 	deployJob.Node = getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig)
 	deployJob.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig)
+	if deployJob.Enabled == nil {
+		deployJob.Enabled = radixUtils.BoolPtr(true)
+	}
+
 	return deployJob
 }

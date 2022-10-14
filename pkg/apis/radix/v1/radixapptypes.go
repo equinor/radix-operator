@@ -157,6 +157,7 @@ type RadixEnvironmentConfig struct {
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
 	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	Enabled                 *bool                   `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -177,6 +178,7 @@ type RadixJobComponent struct {
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds  *int64                               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Enabled           *bool                                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -192,6 +194,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
 	SecretRefs       RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server

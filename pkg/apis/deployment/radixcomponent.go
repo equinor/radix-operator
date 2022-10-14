@@ -4,6 +4,7 @@ import (
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/imdario/mergo"
 )
 
@@ -36,6 +37,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
 			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
 			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
+			deployComponent.Enabled = environmentSpecificConfig.Enabled
 		}
 
 		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
@@ -53,6 +55,9 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 		deployComponent.Authentication = auth
+		if deployComponent.Enabled == nil {
+			deployComponent.Enabled = utils.BoolPtr(true)
+		}
 
 		components = append(components, deployComponent)
 	}

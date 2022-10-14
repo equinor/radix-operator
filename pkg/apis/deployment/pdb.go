@@ -102,7 +102,7 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() err
 			return fmt.Errorf("could not determine component name from labels in pdb %s", utils.GetPDBName(string(componentName)))
 		}
 
-		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
+		if deploy.isEligibleForGarbageCollectPodDisruptionBudgetsForComponent(componentName) {
 			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
 			log.Debugf("PodDisruptionBudget object %s already exists in namespace %s, deleting the object now", componentName, namespace)
 
@@ -113,4 +113,9 @@ func (deploy *Deployment) garbageCollectPodDisruptionBudgetsNoLongerInSpec() err
 
 	}
 	return errors.Concat(errs)
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectPodDisruptionBudgetsForComponent(componentName RadixComponentName) bool {
+	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
+	return (commonComponent != nil && !commonComponent.GetEnabled()) || !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment)
 }

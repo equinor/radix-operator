@@ -63,6 +63,9 @@ func (o *oauthProxyResourceManager) Sync() error {
 }
 
 func (o *oauthProxyResourceManager) syncComponent(component *v1.RadixDeployComponent) error {
+	if !component.GetEnabled() {
+		return nil
+	}
 	if auth := component.GetAuthentication(); component.IsPublic() && auth != nil && auth.OAuth2 != nil {
 		componentWithOAuthDefaults := component.DeepCopy()
 		oauth, err := o.oauth2DefaultConfig.MergeWith(componentWithOAuthDefaults.Authentication.OAuth2)
@@ -222,11 +225,12 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != defaults.OAuthProxyAuxiliaryComponentType {
 		return false
 	}
-	auxName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
+	auxTargetComponentName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
 	if !nameExist {
 		return false
 	}
-	return !auxName.ExistInDeploymentSpec(o.rd)
+	auxTargetComponent := auxTargetComponentName.GetCommonDeployComponent(o.rd)
+	return (auxTargetComponent != nil && !auxTargetComponent.GetEnabled()) || !auxTargetComponentName.ExistInDeploymentSpec(o.rd)
 }
 
 func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {

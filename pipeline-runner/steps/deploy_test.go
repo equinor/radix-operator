@@ -79,7 +79,7 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 }
 
-func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
+func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, _, env := setupTest(t)
 
 	rr := utils.ARadixRegistration().

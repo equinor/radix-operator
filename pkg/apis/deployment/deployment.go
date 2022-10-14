@@ -544,6 +544,10 @@ func (deploy *Deployment) maintainHistoryLimit() {
 }
 
 func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixCommonDeployComponent) error {
+	if !component.GetEnabled() {
+		log.Debugf("skip deployment for the disabled component %s", component.GetName())
+		return nil
+	}
 	err := deploy.createOrUpdateEnvironmentVariableConfigMaps(component)
 	if err != nil {
 		return err

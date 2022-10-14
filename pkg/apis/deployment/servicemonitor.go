@@ -54,20 +54,11 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		// Handle servicemonitors with prometheus=radix_stage1 label only for backward compatibility
-		// Code can be removed when all servicemonitors has radix-component label
-		garbageCollectBackwardCompatibility := false
-		labelValue, ok := serviceMonitor.Labels["prometheus"]
-		if ok && labelValue == os.Getenv(prometheusInstanceLabel) && len(serviceMonitor.Labels) == 1 {
-			garbageCollectBackwardCompatibility = true
-		}
-
 		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
 		if !ok {
 			continue
 		}
-
-		if garbageCollectBackwardCompatibility || !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(ok, serviceMonitor, componentName) {
 			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceMonitor.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -76,6 +67,20 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(ok bool, serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
+	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
+	if commonComponent != nil && !commonComponent.GetEnabled() {
+		return true
+	}
+	// Handle servicemonitors with prometheus=radix_stage1 label only for backward compatibility
+	// Code can be removed when all servicemonitors has radix-component label
+	labelValue, ok := serviceMonitor.Labels["prometheus"]
+	if ok && labelValue == os.Getenv(prometheusInstanceLabel) && len(serviceMonitor.Labels) == 1 {
+		return true
+	}
+	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }
 
 func getServiceMonitorConfig(componentName, namespace string, monitoringConfig v1.MonitoringConfig) *monitoringv1.ServiceMonitor {
