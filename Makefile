@@ -152,7 +152,7 @@ CUSTOM_RESOURCE_VERSION=v1
 
 .PHONY: code-gen
 code-gen: 
-	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.23.9/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.23.9/hack/boilerplate.go.txt
+	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.23.9/hack/boilerplate.go.txt
 
 
 .HONY: staticcheck

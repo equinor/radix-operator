@@ -140,6 +140,7 @@ type RadixComponent struct {
 	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication          `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	Enabled                 *bool                    `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication

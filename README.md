@@ -99,11 +99,11 @@ In order for these objects to work with the SDK, they need to implement certain 
 Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by setting up following way:
 * Install `code-generator`. The particular version is specified in the `Makefile`  
 ```
-go install k8s.io/code-generator@v0.23.9
+go install k8s.io/code-generator@v0.25.3
 ```
 Make `generate-groups.sh` executable:
 ```
-chmod +x $GOPATH/pkg/mod/k8s.io/code-generator@v0.23.9/generate-groups.sh
+chmod +x $GOPATH/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh
 ```
 
 ```
