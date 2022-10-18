@@ -70,10 +70,6 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 }
 
 func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(ok bool, serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	if commonComponent != nil && !commonComponent.GetEnabled() {
-		return true
-	}
 	// Handle servicemonitors with prometheus=radix_stage1 label only for backward compatibility
 	// Code can be removed when all servicemonitors has radix-component label
 	labelValue, ok := serviceMonitor.Labels["prometheus"]

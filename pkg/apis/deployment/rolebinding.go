@@ -69,7 +69,7 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 			continue
 		}
 
-		if deploy.isEligibleForGarbageCollectRoleBindingsForComponent(componentName) {
+		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 			err = deploy.kubeclient.RbacV1().RoleBindings(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), roleBinding.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -80,15 +80,9 @@ func (deploy *Deployment) garbageCollectRoleBindingsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) isEligibleForGarbageCollectRoleBindingsForComponent(componentName RadixComponentName) bool {
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	return (commonComponent != nil && !commonComponent.GetEnabled()) || !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
-}
-
 func rolebindingAppAdminSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := application.GetAdGroups(registration)
 	roleName := role.ObjectMeta.Name
-
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
 	// Add machine user to subjects

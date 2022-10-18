@@ -39,10 +39,6 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 }
 
 func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service *corev1.Service, componentName RadixComponentName) bool {
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	if commonComponent != nil && !commonComponent.GetEnabled() {
-		return true
-	}
 	// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
 	if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
 		return !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)

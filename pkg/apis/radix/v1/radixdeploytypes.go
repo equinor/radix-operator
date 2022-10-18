@@ -97,7 +97,6 @@ type RadixDeployComponent struct {
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
-	Enabled                 *bool                   `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -186,10 +185,6 @@ func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 
 func (deployComponent *RadixDeployComponent) GetTimeLimitSeconds() *int64 {
 	return nil
-}
-
-func (deployComponent *RadixDeployComponent) GetEnabled() bool {
-	return deployComponent.Enabled == nil || *deployComponent.Enabled
 }
 
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
@@ -301,10 +296,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetTimeLimitSeconds() *int64 
 	return deployJobComponent.TimeLimitSeconds
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetEnabled() bool {
-	return deployJobComponent.Enabled == nil || *deployJobComponent.Enabled
-}
-
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
 	return nil
 }
@@ -352,7 +343,6 @@ type RadixDeployJobComponent struct {
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
-	Enabled                 *bool                     `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 type RadixComponentType string
@@ -390,7 +380,6 @@ type RadixCommonDeployComponent interface {
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
 	GetTimeLimitSeconds() *int64
-	GetEnabled() bool
 }
 
 // RadixCommonDeployComponentFactory defines a common component factory

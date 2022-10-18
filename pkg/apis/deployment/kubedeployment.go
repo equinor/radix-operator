@@ -310,11 +310,6 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 	if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
 		return true
 	}
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	if commonComponent != nil && !commonComponent.GetEnabled() {
-		return true
-	}
-
 	var componentType v1.RadixComponentType
 	// If component type label is not set on the deployment, we default to "component"
 	if componentTypeString, ok := deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
@@ -323,6 +318,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 		componentType = v1.RadixComponentType(componentTypeString)
 	}
 
+	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
 	// Garbage collect if component type has changed.
 	if componentType != commonComponent.GetType() {
 		return true

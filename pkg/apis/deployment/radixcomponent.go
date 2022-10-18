@@ -4,7 +4,6 @@ import (
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/imdario/mergo"
 )
 
@@ -17,6 +16,13 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 	var components []v1.RadixDeployComponent
 
 	for _, radixComponent := range radixApplication.Spec.Components {
+		if !radixComponent.GetEnabled() {
+			continue
+		}
+		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
+		if environmentSpecificConfig != nil && !environmentSpecificConfig.GetEnabled() {
+			continue
+		}
 		componentName := radixComponent.Name
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
@@ -29,15 +35,12 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			Monitoring:           false,
 			RunAsNonRoot:         false,
 		}
-
-		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
 		if environmentSpecificConfig != nil {
 			deployComponent.Replicas = environmentSpecificConfig.Replicas
 			deployComponent.Monitoring = environmentSpecificConfig.Monitoring
 			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
 			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
 			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
-			deployComponent.Enabled = environmentSpecificConfig.Enabled
 		}
 
 		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)
@@ -55,9 +58,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 		deployComponent.Authentication = auth
-		if deployComponent.Enabled == nil {
-			deployComponent.Enabled = utils.BoolPtr(true)
-		}
 
 		components = append(components, deployComponent)
 	}

@@ -535,6 +535,8 @@ type RadixCommonComponent interface {
 	GetResources() ResourceRequirements
 	//GetEnvironmentConfig Gets component environment configuration
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
+	//GetEnabled Gets the component status if it is enabled in the application
+	GetEnabled() bool
 }
 
 func (component *RadixComponent) GetName() string {
@@ -567,6 +569,10 @@ func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
 
 func (component *RadixComponent) GetResources() ResourceRequirements {
 	return component.Resources
+}
+
+func (component *RadixComponent) GetEnabled() bool {
+	return component.Enabled == nil || *component.Enabled
 }
 
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
@@ -607,6 +613,10 @@ func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
 
 func (component *RadixJobComponent) GetResources() ResourceRequirements {
 	return component.Resources
+}
+
+func (component *RadixJobComponent) GetEnabled() bool {
+	return component.Enabled == nil || *component.Enabled
 }
 
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {

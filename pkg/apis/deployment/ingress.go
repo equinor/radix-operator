@@ -145,7 +145,7 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 			continue
 		}
 
-		if deploy.isEligibleForGarbageCollectIngressesForComponent(componentName) {
+		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), ingress.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -154,12 +154,6 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 	}
 
 	return nil
-}
-
-func (deploy *Deployment) isEligibleForGarbageCollectIngressesForComponent(componentName RadixComponentName) bool {
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	// Ingresses should only exist for enabled items in component list.
-	return (commonComponent != nil && !commonComponent.GetEnabled()) || !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment)
 }
 
 func (deploy *Deployment) garbageCollectAppAliasIngressNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {

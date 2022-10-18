@@ -65,7 +65,7 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 		if !ok {
 			continue
 		}
-		if deploy.isEligibleForGarbageCollectHPAForComponent(componentName) {
+		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), hpa.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -75,11 +75,6 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	}
 
 	return nil
-}
-
-func (deploy *Deployment) isEligibleForGarbageCollectHPAForComponent(componentName RadixComponentName) bool {
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	return (commonComponent != nil && !commonComponent.GetEnabled()) || !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment)
 }
 
 func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32) *autoscalingv1.HorizontalPodAutoscaler {

@@ -42,10 +42,6 @@ func (deploy *Deployment) createOrUpdateSecrets() error {
 }
 
 func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.RadixCommonDeployComponent, namespace string) error {
-	if !component.GetEnabled() {
-		log.Debugf("skip applying secrets for the disabled component %s", component.GetName())
-		return nil
-	}
 	secretsToManage := make([]string, 0)
 
 	if len(component.GetSecrets()) > 0 {
@@ -223,10 +219,6 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 }
 
 func (deploy *Deployment) isEligibleForGarbageCollectSecretsForComponent(existingSecret *v1.Secret, componentName RadixComponentName) bool {
-	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-	if commonComponent != nil && !commonComponent.GetEnabled() {
-		return true
-	}
 	// Garbage collect if secret is labelled radix-job-type=job-scheduler and not defined in RD jobs
 	if jobType, ok := NewRadixJobTypeFromObjectLabels(existingSecret); ok && jobType.IsJobScheduler() {
 		return !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)

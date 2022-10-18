@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	radixUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -33,8 +32,15 @@ func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImage
 func (c *jobComponentsBuilder) JobComponents() []v1.RadixDeployJobComponent {
 	var jobs []v1.RadixDeployJobComponent
 
-	for _, appJob := range c.ra.Spec.Jobs {
-		deployJob := c.buildJobComponent(appJob, c.defaultEnvVars)
+	for _, radixJobComponent := range c.ra.Spec.Jobs {
+		if !radixJobComponent.GetEnabled() {
+			continue
+		}
+		environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
+		if environmentSpecificConfig != nil && !environmentSpecificConfig.GetEnabled() {
+			continue
+		}
+		deployJob := c.buildJobComponent(radixJobComponent, environmentSpecificConfig, c.defaultEnvVars)
 		jobs = append(jobs, deployJob)
 	}
 
@@ -54,7 +60,7 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 	return nil
 }
 
-func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, defaultEnvVars v1.EnvVarsMap) v1.RadixDeployJobComponent {
+func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) v1.RadixDeployJobComponent {
 	componentName := radixJobComponent.Name
 	deployJob := v1.RadixDeployJobComponent{
 		Name:             componentName,
@@ -67,13 +73,11 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		SchedulerPort:    radixJobComponent.SchedulerPort,
 	}
 
-	environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
 	if environmentSpecificConfig != nil {
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
-		deployJob.Enabled = environmentSpecificConfig.Enabled
 	}
 
 	if deployJob.TimeLimitSeconds == nil {
@@ -90,9 +94,6 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 	deployJob.Resources = getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig)
 	deployJob.Node = getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig)
 	deployJob.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig)
-	if deployJob.Enabled == nil {
-		deployJob.Enabled = radixUtils.BoolPtr(true)
-	}
 
 	return deployJob
 }
