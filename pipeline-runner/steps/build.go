@@ -90,14 +90,20 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 }
 
 func noBuildComponents(ra *v1.RadixApplication) bool {
-	for _, c := range ra.Spec.Components {
-		if c.Image == "" {
+	for _, component := range ra.Spec.Components {
+		if !component.GetEnabled() {
+			continue
+		}
+		if component.Image == "" {
 			return false
 		}
 	}
 
-	for _, c := range ra.Spec.Jobs {
-		if c.Image == "" {
+	for _, job := range ra.Spec.Jobs {
+		if !job.GetEnabled() {
+			continue
+		}
+		if job.Image == "" {
 			return false
 		}
 	}

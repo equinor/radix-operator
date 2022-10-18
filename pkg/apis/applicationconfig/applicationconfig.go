@@ -61,11 +61,17 @@ func (app *ApplicationConfig) GetRadixRegistration() *v1.RadixRegistration {
 // GetComponent Gets the component for a provided name
 func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent {
 	for _, component := range ra.Spec.Components {
+		if !component.GetEnabled() {
+			continue
+		}
 		if strings.EqualFold(component.Name, name) {
 			return &component
 		}
 	}
 	for _, jobComponent := range ra.Spec.Jobs {
+		if !jobComponent.GetEnabled() {
+			continue
+		}
 		if strings.EqualFold(jobComponent.Name, name) {
 			return &jobComponent
 		}

@@ -233,9 +233,12 @@ func (info *PipelineInfo) IsDeployOnlyPipeline() bool {
 func getRadixComponentImageSources(components []v1.RadixComponent) []pipeline.ComponentImageSource {
 	imageSources := make([]pipeline.ComponentImageSource, 0)
 
-	for _, c := range components {
+	for _, component := range components {
+		if !component.GetEnabled() {
+			continue
+		}
 		s := pipeline.NewComponentImageSourceBuilder().
-			WithSourceFunc(pipeline.RadixComponentSource(c)).
+			WithSourceFunc(pipeline.RadixComponentSource(component)).
 			Build()
 		imageSources = append(imageSources, s)
 	}
@@ -246,9 +249,12 @@ func getRadixComponentImageSources(components []v1.RadixComponent) []pipeline.Co
 func getRadixJobComponentImageSources(components []v1.RadixJobComponent) []pipeline.ComponentImageSource {
 	imageSources := make([]pipeline.ComponentImageSource, 0)
 
-	for _, c := range components {
+	for _, component := range components {
+		if !component.GetEnabled() {
+			continue
+		}
 		s := pipeline.NewComponentImageSourceBuilder().
-			WithSourceFunc(pipeline.RadixJobComponentSource(c)).
+			WithSourceFunc(pipeline.RadixJobComponentSource(component)).
 			Build()
 		imageSources = append(imageSources, s)
 	}
