@@ -58,7 +58,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 		if !ok {
 			continue
 		}
-		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(ok, serviceMonitor, componentName) {
+		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor, componentName) {
 			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceMonitor.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -69,7 +69,7 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(ok bool, serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
+func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
 	// Handle servicemonitors with prometheus=radix_stage1 label only for backward compatibility
 	// Code can be removed when all servicemonitors has radix-component label
 	labelValue, ok := serviceMonitor.Labels["prometheus"]

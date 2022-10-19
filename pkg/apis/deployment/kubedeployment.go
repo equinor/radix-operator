@@ -320,11 +320,7 @@ func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName Rad
 
 	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
 	// Garbage collect if component type has changed.
-	if componentType != commonComponent.GetType() {
-		return true
-	}
-
-	return false
+	return componentType != commonComponent.GetType()
 }
 
 func getReadinessProbeForComponent(component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {
