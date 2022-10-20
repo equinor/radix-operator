@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -315,6 +316,90 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	assert.False(t, componentImages["public-job-component"].Build)
 	assert.Equal(t, "job/job:latest", componentImages["public-job-component"].ImageName)
 	assert.Equal(t, "job/job:latest", componentImages["public-job-component"].ImagePath)
+}
+
+func TestGetComponentImages_ReturnsOnlyForNotDisabledComponents(t *testing.T) {
+	applicationComponents := []v1.RadixComponent{
+		utils.AnApplicationComponent().
+			WithName("client-component-1").
+			WithSourceFolder("./client/").
+			WithDockerfileName("client.Dockerfile").
+			BuildComponent(),
+		utils.AnApplicationComponent().
+			WithName("client-component-2").
+			WithSourceFolder("./client/").
+			WithDockerfileName("client.Dockerfile").
+			WithEnabled(true).
+			BuildComponent(),
+		utils.AnApplicationComponent().
+			WithName("client-component-3").
+			WithSourceFolder("./client/").
+			WithDockerfileName("client.Dockerfile").
+			WithEnabled(false).
+			BuildComponent(),
+	}
+
+	jobComponents := []v1.RadixJobComponent{
+		utils.AnApplicationJobComponent().
+			WithName("calc-1").
+			WithDockerfileName("calc.Dockerfile").
+			WithSourceFolder("./calc/").
+			BuildJobComponent(),
+		utils.AnApplicationJobComponent().
+			WithName("calc-2").
+			WithDockerfileName("calc.Dockerfile").
+			WithSourceFolder("./calc/").
+			WithEnabled(true).
+			BuildJobComponent(),
+		utils.AnApplicationJobComponent().
+			WithName("calc-3").
+			WithDockerfileName("calc.Dockerfile").
+			WithEnabled(false).
+			WithSourceFolder("./calc/").
+			BuildJobComponent(),
+	}
+
+	anyAppName := "any-app"
+	anyContainerRegistry := "any-reg"
+	anyImageTag := "any-tag"
+
+	componentImages := getComponentImages(anyAppName, anyContainerRegistry, anyImageTag, applicationComponents, jobComponents)
+
+	require.NotEmpty(t, componentImages["client-component-1"])
+	assert.Equal(t, "build-multi-component", componentImages["client-component-1"].ContainerName)
+	assert.True(t, componentImages["client-component-1"].Build)
+	assert.Equal(t, "/workspace/client/", componentImages["client-component-1"].Context)
+	assert.Equal(t, "client.Dockerfile", componentImages["client-component-1"].Dockerfile)
+	assert.Equal(t, "multi-component", componentImages["client-component-1"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component", anyImageTag), componentImages["client-component-1"].ImagePath)
+
+	require.NotEmpty(t, componentImages["client-component-2"])
+	assert.Equal(t, "build-multi-component", componentImages["client-component-2"].ContainerName)
+	assert.True(t, componentImages["client-component-2"].Build)
+	assert.Equal(t, "/workspace/client/", componentImages["client-component-2"].Context)
+	assert.Equal(t, "client.Dockerfile", componentImages["client-component-2"].Dockerfile)
+	assert.Equal(t, "multi-component", componentImages["client-component-2"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component", anyImageTag), componentImages["client-component-2"].ImagePath)
+
+	require.Empty(t, componentImages["client-component-3"])
+
+	require.NotEmpty(t, componentImages["calc-1"])
+	assert.Equal(t, "build-multi-component-1", componentImages["calc-1"].ContainerName)
+	assert.True(t, componentImages["calc-1"].Build)
+	assert.Equal(t, "/workspace/calc/", componentImages["calc-1"].Context)
+	assert.Equal(t, "calc.Dockerfile", componentImages["calc-1"].Dockerfile)
+	assert.Equal(t, "multi-component-1", componentImages["calc-1"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component-1", anyImageTag), componentImages["calc-1"].ImagePath)
+
+	require.NotEmpty(t, componentImages["calc-2"])
+	assert.Equal(t, "build-multi-component-1", componentImages["calc-2"].ContainerName)
+	assert.True(t, componentImages["calc-2"].Build)
+	assert.Equal(t, "/workspace/calc/", componentImages["calc-2"].Context)
+	assert.Equal(t, "calc.Dockerfile", componentImages["calc-2"].Dockerfile)
+	assert.Equal(t, "multi-component-1", componentImages["calc-2"].ImageName)
+	assert.Equal(t, utils.GetImagePath(anyContainerRegistry, anyAppName, "multi-component-1", anyImageTag), componentImages["calc-2"].ImagePath)
+
+	require.Empty(t, componentImages["calc-3"])
 }
 
 func Test_dockerfile_from_build_folder(t *testing.T) {

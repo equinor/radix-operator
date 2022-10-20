@@ -145,6 +145,7 @@ func (deploy *Deployment) garbageCollectIngressesNoLongerInSpec() error {
 			continue
 		}
 
+		// Ingresses should only exist for items in component list.
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.NetworkingV1().Ingresses(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), ingress.Name, metav1.DeleteOptions{})
 			if err != nil {

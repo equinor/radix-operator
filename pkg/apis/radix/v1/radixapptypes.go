@@ -537,6 +537,10 @@ type RadixCommonComponent interface {
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 	//GetEnabled Gets the component status if it is enabled in the application
 	GetEnabled() bool
+	//GetEnabledForEnv Gets the component status if it is enabled in the application for an environment
+	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
+	//RadixCommonEnvironmentConfig  Gets component environment configuration by its name
+	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
 }
 
 func (component *RadixComponent) GetName() string {
@@ -575,12 +579,23 @@ func (component *RadixComponent) GetEnabled() bool {
 	return component.Enabled == nil || *component.Enabled
 }
 
+func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+	if component.Enabled == nil || envConfig != nil {
+		return envConfig.GetEnabled()
+	}
+	return component.GetEnabled()
+}
+
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
 		environmentConfigs = append(environmentConfigs, environmentConfig)
 	}
 	return environmentConfigs
+}
+
+func (component *RadixComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
 }
 
 func (component *RadixJobComponent) GetName() string {
@@ -619,6 +634,13 @@ func (component *RadixJobComponent) GetEnabled() bool {
 	return component.Enabled == nil || *component.Enabled
 }
 
+func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+	if component.Enabled == nil || envConfig != nil {
+		return envConfig.GetEnabled()
+	}
+	return component.GetEnabled()
+}
+
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
@@ -631,6 +653,18 @@ func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []
 	for _, envConfig := range component.EnvironmentConfig {
 		if strings.EqualFold(env, envConfig.Environment) {
 			return envConfig.VolumeMounts
+		}
+	}
+	return nil
+}
+func (component *RadixJobComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
+}
+
+func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
+	for _, environmentConfig := range environmentConfigs {
+		if strings.EqualFold(environment, environmentConfig.GetEnvironment()) {
+			return environmentConfig
 		}
 	}
 	return nil

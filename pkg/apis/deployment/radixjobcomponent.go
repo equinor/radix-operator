@@ -33,11 +33,8 @@ func (c *jobComponentsBuilder) JobComponents() []v1.RadixDeployJobComponent {
 	var jobs []v1.RadixDeployJobComponent
 
 	for _, radixJobComponent := range c.ra.Spec.Jobs {
-		if !radixJobComponent.GetEnabled() {
-			continue
-		}
 		environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
-		if environmentSpecificConfig != nil && !environmentSpecificConfig.GetEnabled() {
+		if !radixJobComponent.GetEnabledForEnv(environmentSpecificConfig) {
 			continue
 		}
 		deployJob := c.buildJobComponent(radixJobComponent, environmentSpecificConfig, c.defaultEnvVars)

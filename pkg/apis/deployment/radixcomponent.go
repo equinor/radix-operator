@@ -16,11 +16,8 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 	var components []v1.RadixDeployComponent
 
 	for _, radixComponent := range radixApplication.Spec.Components {
-		if !radixComponent.GetEnabled() {
-			continue
-		}
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
-		if environmentSpecificConfig != nil && !environmentSpecificConfig.GetEnabled() {
+		if !radixComponent.GetEnabledForEnv(environmentSpecificConfig) {
 			continue
 		}
 		componentName := radixComponent.Name

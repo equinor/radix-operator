@@ -177,7 +177,7 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	if !doesEnvExist(app, alias.Environment) {
 		errs = append(errs, EnvForDNSAppAliasNotDefinedError(alias.Environment))
 	}
-	if !doesComponentExist(app, alias.Component) {
+	if !doesComponentExist(app, alias.Component, "") {
 		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Component))
 	}
 	return errs
@@ -202,7 +202,7 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 		if !doesEnvExist(app, externalAlias.Environment) {
 			errs = append(errs, EnvForDNSExternalAliasNotDefinedError(externalAlias.Environment))
 		}
-		if !doesComponentExist(app, externalAlias.Component) {
+		if !doesComponentExist(app, externalAlias.Component, externalAlias.Environment) {
 			errs = append(errs, ComponentForDNSExternalAliasNotDefinedError(externalAlias.Component))
 		} else {
 			if !doesComponentHaveAPublicPort(app, externalAlias.Component) {
@@ -1233,10 +1233,11 @@ type volumeMountConfigMaps struct {
 	path  map[string]bool
 }
 
-func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
+func doesComponentExist(app *radixv1.RadixApplication, name string, environment string) bool {
 	for _, component := range app.Spec.Components {
 		if component.Name == name {
-			return component.GetEnabled()
+			environmentConfig := component.GetEnvironmentConfigByName(environment)
+			return component.GetEnabledForEnv(environmentConfig)
 		}
 	}
 	return false

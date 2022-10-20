@@ -65,12 +65,12 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 		if !ok {
 			continue
 		}
+
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
 			err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), hpa.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
-			continue
 		}
 	}
 
