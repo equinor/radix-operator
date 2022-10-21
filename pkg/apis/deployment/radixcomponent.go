@@ -35,7 +35,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			deployComponent.Monitoring = environmentSpecificConfig.Monitoring
 			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
 			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
-			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		}
 
 		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)

@@ -107,7 +107,6 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		SecretRefs:              ceb.secretRefs,
 		Monitoring:              ceb.monitoring,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
-		RunAsNonRoot:            ceb.runAsNonRoot,
 		Authentication:          ceb.authentication,
 	}
 }

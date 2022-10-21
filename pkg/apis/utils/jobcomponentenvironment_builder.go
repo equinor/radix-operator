@@ -96,7 +96,6 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		Monitoring:       ceb.monitoring,
 		ImageTagName:     ceb.imageTagName,
 		Node:             ceb.node,
-		RunAsNonRoot:     ceb.runAsNonRoot,
 		SecretRefs:       ceb.secretRefs,
 		TimeLimitSeconds: ceb.timeLimitSeconds,
 	}

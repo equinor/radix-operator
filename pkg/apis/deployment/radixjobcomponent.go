@@ -70,7 +70,6 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 	if environmentSpecificConfig != nil {
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
-		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
 	}
 
