@@ -205,7 +205,7 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 		if !doesComponentExist(app, externalAlias.Component, externalAlias.Environment) {
 			errs = append(errs, ComponentForDNSExternalAliasNotDefinedError(externalAlias.Component))
 		} else {
-			if !doesComponentHaveAPublicPort(app, externalAlias.Component) {
+			if doesComponentMissingExpectedPublicPort(app, externalAlias.Component) {
 				errs = append(errs, ComponentForDNSExternalAliasIsNotMarkedAsPublicError(externalAlias.Component))
 			}
 		}
@@ -1261,11 +1261,19 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 	return nil
 }
 
-func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
+func doesComponentMissingExpectedPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
-		if component.Name == name {
-			return component.Public || component.PublicPort != ""
+		if component.Name != name {
+			continue
 		}
+		for _, environment := range app.Spec.Environments {
+			environmentConfig := component.GetEnvironmentConfigByName(environment.Name)
+			//component
+			if component.GetEnabledForEnv(environmentConfig) && !component.Public && component.PublicPort == "" {
+				return true
+			}
+		}
+		return false
 	}
 	return false
 }
