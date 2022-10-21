@@ -336,10 +336,10 @@ func createDeploymentStrategy() *appsv1.DeploymentStrategy {
 
 type noopSecurityContextBuilder struct{}
 
-func (s *noopSecurityContextBuilder) BuildContainerSecurityContext(component v1.RadixCommonDeployComponent) *corev1.SecurityContext {
+func (s *noopSecurityContextBuilder) BuildContainerSecurityContext() *corev1.SecurityContext {
 	return nil
 }
-func (s *noopSecurityContextBuilder) BuildPodSecurityContext(component v1.RadixCommonDeployComponent) *corev1.PodSecurityContext {
+func (s *noopSecurityContextBuilder) BuildPodSecurityContext() *corev1.PodSecurityContext {
 	return nil
 }
 

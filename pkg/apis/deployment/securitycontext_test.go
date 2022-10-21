@@ -12,11 +12,8 @@ import (
 )
 
 func Test_NewSecurityContextBuilder(t *testing.T) {
-	sut := NewSecurityContextBuilder(true)
+	sut := NewSecurityContextBuilder()
 	assert.True(t, sut.forceRunAsNonRoot)
-
-	sut = NewSecurityContextBuilder(false)
-	assert.False(t, sut.forceRunAsNonRoot)
 }
 
 type securityContextTestScenario struct {
@@ -32,7 +29,7 @@ type SecurityContextTestSuite struct {
 
 func (s *SecurityContextTestSuite) SetupSuite() {
 	s.scenarios = []securityContextTestScenario{
-		{forceRunAsNonRoot: false, componentRunAsNonRoot: false, expected: false},
+		{forceRunAsNonRoot: false, componentRunAsNonRoot: false, expected: true},
 		{forceRunAsNonRoot: false, componentRunAsNonRoot: true, expected: true},
 		{forceRunAsNonRoot: true, componentRunAsNonRoot: false, expected: true},
 		{forceRunAsNonRoot: true, componentRunAsNonRoot: true, expected: true},
@@ -47,11 +44,9 @@ func (s *SecurityContextTestSuite) TestBuildPodSecurityContext() {
 			func() {
 				sut := securityContextBuilder{forceRunAsNonRoot: scenario.forceRunAsNonRoot}
 				expected := corev1.PodSecurityContext{RunAsNonRoot: &scenario.expected}
-				component := s.getTestComponent(scenario.componentRunAsNonRoot)
-				actual := sut.BuildPodSecurityContext(component)
+				actual := sut.BuildPodSecurityContext()
 				s.Equal(expected, *actual)
-				job := s.getTestJobComponent(scenario.componentRunAsNonRoot)
-				actual = sut.BuildPodSecurityContext(job)
+				actual = sut.BuildPodSecurityContext()
 				s.Equal(expected, *actual)
 			},
 		)
@@ -70,27 +65,21 @@ func (s *SecurityContextTestSuite) TestBuildContainerSecurityContext() {
 					AllowPrivilegeEscalation: utils.BoolPtr(false),
 					Privileged:               utils.BoolPtr(false),
 				}
-				component := s.getTestComponent(scenario.componentRunAsNonRoot)
-				actual := sut.BuildContainerSecurityContext(component)
+				actual := sut.BuildContainerSecurityContext()
 				s.Equal(expected, *actual)
-				job := s.getTestJobComponent(scenario.componentRunAsNonRoot)
-				actual = sut.BuildContainerSecurityContext(job)
+				actual = sut.BuildContainerSecurityContext()
 				s.Equal(expected, *actual)
 			},
 		)
 	}
 }
 
-func (s *SecurityContextTestSuite) getTestComponent(runAsNonRoot bool) *v1.RadixDeployComponent {
-	return &v1.RadixDeployComponent{
-		RunAsNonRoot: runAsNonRoot,
-	}
+func (s *SecurityContextTestSuite) getTestComponent() *v1.RadixDeployComponent {
+	return &v1.RadixDeployComponent{}
 }
 
-func (s *SecurityContextTestSuite) getTestJobComponent(runAsNonRoot bool) *v1.RadixDeployJobComponent {
-	return &v1.RadixDeployJobComponent{
-		RunAsNonRoot: runAsNonRoot,
-	}
+func (s *SecurityContextTestSuite) getTestJobComponent() *v1.RadixDeployJobComponent {
+	return &v1.RadixDeployJobComponent{}
 }
 
 func Test_Run_SecurityContextTestSuite(t *testing.T) {

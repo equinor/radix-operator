@@ -64,7 +64,7 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 		prometheusperatorclient:    prometheusperatorclient,
 		registration:               registration,
 		radixDeployment:            radixDeployment,
-		securityContextBuilder:     NewSecurityContextBuilder(forceRunAsNonRoot),
+		securityContextBuilder:     NewSecurityContextBuilder(),
 		auxResourceManagers:        auxResourceManagers,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		tenantId:                   tenantId,

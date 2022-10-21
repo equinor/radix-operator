@@ -7,7 +7,6 @@ package deployment
 import (
 	reflect "reflect"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
 	v10 "k8s.io/api/core/v1"
 )
@@ -36,29 +35,29 @@ func (m *MockSecurityContextBuilder) EXPECT() *MockSecurityContextBuilderMockRec
 }
 
 // BuildContainerSecurityContext mocks base method.
-func (m *MockSecurityContextBuilder) BuildContainerSecurityContext(arg0 v1.RadixCommonDeployComponent) *v10.SecurityContext {
+func (m *MockSecurityContextBuilder) BuildContainerSecurityContext() *v10.SecurityContext {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildContainerSecurityContext", arg0)
+	ret := m.ctrl.Call(m, "BuildContainerSecurityContext")
 	ret0, _ := ret[0].(*v10.SecurityContext)
 	return ret0
 }
 
 // BuildContainerSecurityContext indicates an expected call of BuildContainerSecurityContext.
-func (mr *MockSecurityContextBuilderMockRecorder) BuildContainerSecurityContext(arg0 interface{}) *gomock.Call {
+func (mr *MockSecurityContextBuilderMockRecorder) BuildContainerSecurityContext() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildContainerSecurityContext", reflect.TypeOf((*MockSecurityContextBuilder)(nil).BuildContainerSecurityContext), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildContainerSecurityContext", reflect.TypeOf((*MockSecurityContextBuilder)(nil).BuildContainerSecurityContext))
 }
 
 // BuildPodSecurityContext mocks base method.
-func (m *MockSecurityContextBuilder) BuildPodSecurityContext(arg0 v1.RadixCommonDeployComponent) *v10.PodSecurityContext {
+func (m *MockSecurityContextBuilder) BuildPodSecurityContext() *v10.PodSecurityContext {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildPodSecurityContext", arg0)
+	ret := m.ctrl.Call(m, "BuildPodSecurityContext")
 	ret0, _ := ret[0].(*v10.PodSecurityContext)
 	return ret0
 }
 
 // BuildPodSecurityContext indicates an expected call of BuildPodSecurityContext.
-func (mr *MockSecurityContextBuilderMockRecorder) BuildPodSecurityContext(arg0 interface{}) *gomock.Call {
+func (mr *MockSecurityContextBuilderMockRecorder) BuildPodSecurityContext() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPodSecurityContext", reflect.TypeOf((*MockSecurityContextBuilder)(nil).BuildPodSecurityContext), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPodSecurityContext", reflect.TypeOf((*MockSecurityContextBuilder)(nil).BuildPodSecurityContext))
 }

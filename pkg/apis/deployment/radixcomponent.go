@@ -26,7 +26,6 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			Secrets:              radixComponent.Secrets,
 			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
 			Monitoring:           false,
-			RunAsNonRoot:         false,
 		}
 
 		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)

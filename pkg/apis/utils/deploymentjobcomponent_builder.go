@@ -184,7 +184,6 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		Payload:                 payload,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 		Node:                    dcb.node,
-		RunAsNonRoot:            dcb.runAsNonRoot,
 		TimeLimitSeconds:        dcb.timeLimitSeconds,
 	}
 }

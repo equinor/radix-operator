@@ -3270,8 +3270,6 @@ func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
 
 	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false, testTenantId, testKubernetesApiPort, nil, nil).(*Deployment)
 	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
-	actual = deployment.securityContextBuilder.(*securityContextBuilder)
-	assert.False(t, actual.forceRunAsNonRoot)
 }
 
 func Test_SecurityPolicy(t *testing.T) {
@@ -3283,7 +3281,7 @@ func Test_SecurityPolicy(t *testing.T) {
 	}
 
 	testScenarios := []scenarioDef{
-		{forceRunAsNonRoot: false, componentRunAsNonRoot: false, expected: false},
+		{forceRunAsNonRoot: false, componentRunAsNonRoot: false, expected: true},
 		{forceRunAsNonRoot: false, componentRunAsNonRoot: true, expected: true},
 		{forceRunAsNonRoot: true, componentRunAsNonRoot: false, expected: true},
 		{forceRunAsNonRoot: true, componentRunAsNonRoot: true, expected: true},
@@ -3299,11 +3297,11 @@ func Test_SecurityPolicy(t *testing.T) {
 				ctrl := gomock.NewController(t)
 				defer ctrl.Finish()
 				securityContextBuilder := NewMockSecurityContextBuilder(ctrl)
-				expectedComponent := v1.RadixDeployComponent{RunAsNonRoot: scenario.componentRunAsNonRoot, Name: "comp"}
+				expectedComponent := v1.RadixDeployComponent{Name: "comp"}
 				expectedPodSecurityContext := &corev1.PodSecurityContext{RunAsNonRoot: &scenario.expected}
 				expectedSecurityContext := &corev1.SecurityContext{RunAsNonRoot: &scenario.expected}
-				securityContextBuilder.EXPECT().BuildContainerSecurityContext(&expectedComponent).Return(expectedSecurityContext).Times(1)
-				securityContextBuilder.EXPECT().BuildPodSecurityContext(&expectedComponent).Return(expectedPodSecurityContext).Times(1)
+				securityContextBuilder.EXPECT().BuildContainerSecurityContext().Return(expectedSecurityContext).Times(1)
+				securityContextBuilder.EXPECT().BuildPodSecurityContext().Return(expectedPodSecurityContext).Times(1)
 				_, kubeclient, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 				radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
 				rd := &v1.RadixDeployment{
@@ -3357,7 +3355,7 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 		kubeutil:                   kubeUtil,
 		registration:               rr,
 		radixDeployment:            rd,
-		securityContextBuilder:     NewSecurityContextBuilder(true),
+		securityContextBuilder:     NewSecurityContextBuilder(),
 		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1, annotations2},
 	}
 
@@ -3391,7 +3389,7 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 		kubeutil:                   kubeUtil,
 		registration:               rr,
 		radixDeployment:            rd,
-		securityContextBuilder:     NewSecurityContextBuilder(true),
+		securityContextBuilder:     NewSecurityContextBuilder(),
 		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1},
 	}
 
@@ -3419,7 +3417,7 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 		kubeutil:                kubeUtil,
 		registration:            rr,
 		radixDeployment:         rd,
-		securityContextBuilder:  NewSecurityContextBuilder(true),
+		securityContextBuilder:  NewSecurityContextBuilder(),
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
@@ -3448,7 +3446,7 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 		kubeutil:                kubeUtil,
 		registration:            rr,
 		radixDeployment:         rd,
-		securityContextBuilder:  NewSecurityContextBuilder(true),
+		securityContextBuilder:  NewSecurityContextBuilder(),
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
@@ -3477,7 +3475,7 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 		kubeutil:                kubeUtil,
 		registration:            rr,
 		radixDeployment:         rd,
-		securityContextBuilder:  NewSecurityContextBuilder(true),
+		securityContextBuilder:  NewSecurityContextBuilder(),
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 

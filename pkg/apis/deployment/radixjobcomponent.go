@@ -61,7 +61,6 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Secrets:          radixJobComponent.Secrets,
 		Monitoring:       false,
 		MonitoringConfig: radixJobComponent.MonitoringConfig,
-		RunAsNonRoot:     false,
 		Payload:          radixJobComponent.Payload,
 		SchedulerPort:    radixJobComponent.SchedulerPort,
 	}
