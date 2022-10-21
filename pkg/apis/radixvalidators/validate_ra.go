@@ -177,7 +177,7 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	if !doesEnvExist(app, alias.Environment) {
 		errs = append(errs, EnvForDNSAppAliasNotDefinedError(alias.Environment))
 	}
-	if !doesComponentExist(app, alias.Component, "") {
+	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
 		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Component))
 	}
 	return errs
@@ -202,12 +202,12 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 		if !doesEnvExist(app, externalAlias.Environment) {
 			errs = append(errs, EnvForDNSExternalAliasNotDefinedError(externalAlias.Environment))
 		}
-		if !doesComponentExist(app, externalAlias.Component, externalAlias.Environment) {
+		if !doesComponentExistInEnvironment(app, externalAlias.Component, externalAlias.Environment) {
 			errs = append(errs, ComponentForDNSExternalAliasNotDefinedError(externalAlias.Component))
-		} else {
-			if doesComponentMissingExpectedPublicPort(app, externalAlias.Component) {
-				errs = append(errs, ComponentForDNSExternalAliasIsNotMarkedAsPublicError(externalAlias.Component))
-			}
+		}
+
+		if !doesComponentHaveAPublicPort(app, externalAlias.Component) {
+			errs = append(errs, ComponentForDNSExternalAliasIsNotMarkedAsPublicError(externalAlias.Component))
 		}
 	}
 
@@ -221,15 +221,9 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
 	names := make(map[string]int)
 	for _, component := range app.Spec.Components {
-		if !component.GetEnabled() {
-			continue
-		}
 		names[component.Name]++
 	}
 	for _, job := range app.Spec.Jobs {
-		if !job.GetEnabled() {
-			continue
-		}
 		names[job.Name]++
 	}
 
@@ -248,9 +242,6 @@ func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) erro
 func validateComponents(app *radixv1.RadixApplication) []error {
 	var errs []error
 	for _, component := range app.Spec.Components {
-		if !component.GetEnabled() || disabledInAllEnvironments(app.Spec.Environments, &component) {
-			continue
-		}
 		if component.Image != "" &&
 			(component.SourceFolder != "" || component.DockerfileName != "") {
 			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(component.Name))
@@ -261,9 +252,6 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(component.Name))
 			} else {
 				for _, environment := range component.EnvironmentConfig {
-					if !environment.GetEnabled() {
-						continue
-					}
 					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
 						errs = append(errs,
 							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(component.Name, environment.Environment))
@@ -301,9 +289,6 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
 		for _, environment := range component.EnvironmentConfig {
-			if !environment.GetEnabled() {
-				continue
-			}
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, component.Name)
 				errs = append(errs, err)
@@ -332,9 +317,6 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 func validateJobComponents(app *radixv1.RadixApplication) []error {
 	var errs []error
 	for _, job := range app.Spec.Jobs {
-		if !job.GetEnabled() || disabledInAllEnvironments(app.Spec.Environments, &job) {
-			continue
-		}
 		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
 			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(job.Name))
 		}
@@ -344,9 +326,6 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 				errs = append(errs, ComponentWithDynamicTagRequiresTagInEnvironmentConfig(job.Name))
 			} else {
 				for _, environment := range job.EnvironmentConfig {
-					if !environment.GetEnabled() {
-						continue
-					}
 					if doesEnvExistAndIsMappedToBranch(app, environment.Environment) && environment.ImageTagName == "" {
 						errs = append(errs,
 							ComponentWithDynamicTagRequiresTagInEnvironmentConfigForEnvironment(job.Name, environment.Environment))
@@ -387,9 +366,6 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 		}
 
 		for _, environment := range job.EnvironmentConfig {
-			if !environment.GetEnabled() {
-				continue
-			}
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, job.Name)
 				errs = append(errs, err)
@@ -410,25 +386,8 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 	return errs
 }
 
-func disabledInAllEnvironments(environments []radixv1.Environment, component radixv1.RadixCommonComponent) bool {
-	enabledInEnvironmentMap := make(map[string]bool)
-	for _, environmentConfig := range component.GetEnvironmentConfig() {
-		enabledInEnvironmentMap[environmentConfig.GetEnvironment()] = environmentConfig.GetEnabled()
-	}
-	for _, environment := range environments {
-		if enabled, ok := enabledInEnvironmentMap[environment.Name]; !ok || enabled {
-			return false
-		}
-	}
-	return true
-}
-
 func validateAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment) []error {
 	componentAuth := component.Authentication
-	if !component.GetEnabled() || componentAuth == nil {
-		return nil
-	}
-
 	envAuthConfigGetter := func(name string) *radixv1.Authentication {
 		for _, envConfig := range component.EnvironmentConfig {
 			if envConfig.Environment == name {
@@ -762,18 +721,12 @@ func validateSecrets(app *radixv1.RadixApplication) error {
 }
 
 func validateRadixComponentSecrets(component radixv1.RadixCommonComponent) error {
-	if !component.GetEnabled() {
-		return nil
-	}
 	if err := validateSecretNames("secret name", component.GetSecrets()); err != nil {
 		return err
 	}
 
 	envsEnvVarsMap := make(map[string]map[string]bool)
 	for _, env := range component.GetEnvironmentConfig() {
-		if !env.GetEnabled() {
-			continue
-		}
 		envsEnvVarsMap[env.GetEnvironment()] = getEnvVarNameMap(component.GetVariables(), env.GetVariables())
 	}
 
@@ -781,9 +734,6 @@ func validateRadixComponentSecrets(component radixv1.RadixCommonComponent) error
 		return err
 	}
 	for _, env := range component.GetEnvironmentConfig() {
-		if !env.GetEnabled() {
-			continue
-		}
 		envsEnvVarsWithSecretsMap := envsEnvVarsMap[env.GetEnvironment()]
 		for _, secret := range component.GetSecrets() {
 			envsEnvVarsWithSecretsMap[secret] = true
@@ -928,17 +878,11 @@ func validateVariables(app *radixv1.RadixApplication) error {
 }
 
 func validateRadixComponentVariables(component radixv1.RadixCommonComponent) error {
-	if !component.GetEnabled() {
-		return nil
-	}
 	if err := validateVariableNames("environment variable name", component.GetVariables()); err != nil {
 		return err
 	}
 
 	for _, envConfig := range component.GetEnvironmentConfig() {
-		if !envConfig.GetEnabled() {
-			continue
-		}
 		if err := validateVariableNames("environment variable name", envConfig.GetVariables()); err != nil {
 			return err
 		}
@@ -1129,13 +1073,7 @@ func validateResourceWithRegexp(resourceName, value, regexpExpression string) er
 
 func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
-		if !component.GetEnabled() {
-			continue
-		}
 		for _, envConfig := range component.EnvironmentConfig {
-			if !envConfig.GetEnabled() {
-				continue
-			}
 			componentName := component.Name
 			environment := envConfig.Environment
 			if envConfig.HorizontalScaling == nil {
@@ -1157,13 +1095,7 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 
 func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	for _, component := range app.Spec.Components {
-		if !component.GetEnabled() {
-			continue
-		}
 		for _, envConfig := range component.EnvironmentConfig {
-			if !envConfig.GetEnabled() {
-				continue
-			}
 			if err := validateVolumeMounts(component.Name, envConfig.Environment, envConfig.VolumeMounts); err != nil {
 				return err
 			}
@@ -1171,13 +1103,7 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	}
 
 	for _, job := range app.Spec.Jobs {
-		if !job.GetEnabled() {
-			continue
-		}
 		for _, envConfig := range job.EnvironmentConfig {
-			if !envConfig.GetEnabled() {
-				continue
-			}
 			if err := validateVolumeMounts(job.Name, envConfig.Environment, envConfig.VolumeMounts); err != nil {
 				return err
 			}
@@ -1233,9 +1159,9 @@ type volumeMountConfigMaps struct {
 	path  map[string]bool
 }
 
-func doesComponentExist(app *radixv1.RadixApplication, name string, environment string) bool {
+func doesComponentExistInEnvironment(app *radixv1.RadixApplication, componentName string, environment string) bool {
 	for _, component := range app.Spec.Components {
-		if component.Name == name {
+		if component.Name == componentName {
 			environmentConfig := component.GetEnvironmentConfigByName(environment)
 			return component.GetEnabledForEnv(environmentConfig)
 		}
@@ -1261,19 +1187,11 @@ func getEnv(app *radixv1.RadixApplication, name string) *radixv1.Environment {
 	return nil
 }
 
-func doesComponentMissingExpectedPublicPort(app *radixv1.RadixApplication, name string) bool {
+func doesComponentHaveAPublicPort(app *radixv1.RadixApplication, name string) bool {
 	for _, component := range app.Spec.Components {
-		if component.Name != name {
-			continue
+		if component.Name == name {
+			return component.Public || component.PublicPort != ""
 		}
-		for _, environment := range app.Spec.Environments {
-			environmentConfig := component.GetEnvironmentConfigByName(environment.Name)
-			//component
-			if component.GetEnabledForEnv(environmentConfig) && !component.Public && component.PublicPort == "" {
-				return true
-			}
-		}
-		return false
 	}
 	return false
 }
