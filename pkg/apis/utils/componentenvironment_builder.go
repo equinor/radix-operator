@@ -14,7 +14,6 @@ type RadixEnvironmentConfigBuilder interface {
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
 	WithMonitoring(bool) RadixEnvironmentConfigBuilder
-	WithRunAsNonRoot(bool) RadixEnvironmentConfigBuilder
 	WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder
 	WithAuthentication(authentication *v1.Authentication) RadixEnvironmentConfigBuilder
 	WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixEnvironmentConfigBuilder
@@ -27,7 +26,6 @@ type radixEnvironmentConfigBuilder struct {
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
 	volumeMounts            []v1.RadixVolumeMount
-	runAsNonRoot            bool
 	monitoring              bool
 	node                    v1.RadixNode
 	secretRefs              v1.RadixSecretRefs
@@ -73,11 +71,6 @@ func (ceb *radixEnvironmentConfigBuilder) WithAlwaysPullImageOnDeploy(val bool) 
 
 func (ceb *radixEnvironmentConfigBuilder) WithMonitoring(monitoring bool) RadixEnvironmentConfigBuilder {
 	ceb.monitoring = monitoring
-	return ceb
-}
-
-func (ceb *radixEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonRoot bool) RadixEnvironmentConfigBuilder {
-	ceb.runAsNonRoot = runAsNonRoot
 	return ceb
 }
 

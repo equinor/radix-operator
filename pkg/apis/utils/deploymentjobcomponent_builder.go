@@ -24,7 +24,6 @@ type DeployJobComponentBuilder interface {
 	WithSecretRefs(v1.RadixSecretRefs) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
-	WithRunAsNonRoot(bool) DeployJobComponentBuilder
 	WithTimeLimitSeconds(*int64) DeployJobComponentBuilder
 	BuildJobComponent() v1.RadixDeployJobComponent
 }
@@ -44,7 +43,6 @@ type deployJobComponentBuilder struct {
 	schedulerPort           *int32
 	payloadPath             *string
 	node                    v1.RadixNode
-	runAsNonRoot            bool
 	timeLimitSeconds        *int64
 }
 
@@ -150,11 +148,6 @@ func (dcb *deployJobComponentBuilder) WithSchedulerPort(port *int32) DeployJobCo
 
 func (dcb *deployJobComponentBuilder) WithPayloadPath(path *string) DeployJobComponentBuilder {
 	dcb.payloadPath = path
-	return dcb
-}
-
-func (dcb *deployJobComponentBuilder) WithRunAsNonRoot(runAsNonRoot bool) DeployJobComponentBuilder {
-	dcb.runAsNonRoot = runAsNonRoot
 	return dcb
 }
 

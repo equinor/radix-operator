@@ -32,7 +32,3 @@ func (s *securityContextBuilder) BuildContainerSecurityContext() *corev1.Securit
 		RunAsNonRoot:             commonUtils.BoolPtr(true),
 	}
 }
-
-func (s *securityContextBuilder) runAsNonRoot() bool {
-	return s.forceRunAsNonRoot
-}

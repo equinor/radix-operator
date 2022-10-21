@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -17,9 +16,8 @@ func Test_NewSecurityContextBuilder(t *testing.T) {
 }
 
 type securityContextTestScenario struct {
-	forceRunAsNonRoot     bool
-	componentRunAsNonRoot bool
-	expected              bool
+	forceRunAsNonRoot bool
+	expected          bool
 }
 
 type SecurityContextTestSuite struct {
@@ -29,10 +27,8 @@ type SecurityContextTestSuite struct {
 
 func (s *SecurityContextTestSuite) SetupSuite() {
 	s.scenarios = []securityContextTestScenario{
-		{forceRunAsNonRoot: false, componentRunAsNonRoot: false, expected: true},
-		{forceRunAsNonRoot: false, componentRunAsNonRoot: true, expected: true},
-		{forceRunAsNonRoot: true, componentRunAsNonRoot: false, expected: true},
-		{forceRunAsNonRoot: true, componentRunAsNonRoot: true, expected: true},
+		{forceRunAsNonRoot: false, expected: true},
+		{forceRunAsNonRoot: true, expected: true},
 	}
 }
 
@@ -40,7 +36,7 @@ func (s *SecurityContextTestSuite) TestBuildPodSecurityContext() {
 	s.T().Parallel()
 	for _, scenario := range s.scenarios {
 		s.Run(
-			fmt.Sprintf("test with forceRunAsNonRoot=%v and componentRunAsNonRoot=%v", scenario.forceRunAsNonRoot, scenario.componentRunAsNonRoot),
+			fmt.Sprintf("test with forceRunAsNonRoot=%v", scenario.forceRunAsNonRoot),
 			func() {
 				sut := securityContextBuilder{forceRunAsNonRoot: scenario.forceRunAsNonRoot}
 				expected := corev1.PodSecurityContext{RunAsNonRoot: &scenario.expected}
@@ -57,7 +53,7 @@ func (s *SecurityContextTestSuite) TestBuildContainerSecurityContext() {
 	s.T().Parallel()
 	for _, scenario := range s.scenarios {
 		s.Run(
-			fmt.Sprintf("test with forceRunAsNonRoot=%v and componentRunAsNonRoot=%v", scenario.forceRunAsNonRoot, scenario.componentRunAsNonRoot),
+			fmt.Sprintf("test with forceRunAsNonRoot=%v", scenario.forceRunAsNonRoot),
 			func() {
 				sut := securityContextBuilder{forceRunAsNonRoot: scenario.forceRunAsNonRoot}
 				expected := corev1.SecurityContext{
@@ -72,14 +68,6 @@ func (s *SecurityContextTestSuite) TestBuildContainerSecurityContext() {
 			},
 		)
 	}
-}
-
-func (s *SecurityContextTestSuite) getTestComponent() *v1.RadixDeployComponent {
-	return &v1.RadixDeployComponent{}
-}
-
-func (s *SecurityContextTestSuite) getTestJobComponent() *v1.RadixDeployJobComponent {
-	return &v1.RadixDeployJobComponent{}
 }
 
 func Test_Run_SecurityContextTestSuite(t *testing.T) {
