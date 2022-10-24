@@ -116,6 +116,9 @@ const (
 	// RadixUseCacheEnvironmentVariable Use cache for the built component
 	RadixUseCacheEnvironmentVariable = "USE_CACHE"
 
+	// UseBuildKitEnvironmentVariable Use Docker BuildKit in radix-image-builder
+	UseBuildKitEnvironmentVariable = "DOCKER_BUILDKIT"
+
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
 

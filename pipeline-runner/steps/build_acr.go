@@ -112,12 +112,16 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
 	var push string
+	var useCache string
+	var useBuildKit string
 	if pushImage {
 		push = "--push"
 	}
-	var useCache string
 	if !pipelineInfo.PipelineArguments.UseCache {
 		useCache = "--no-cache"
+	}
+	if pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit {
+		useBuildKit = "1"
 	}
 	distinctBuildContainers := make(map[string]void)
 	for _, componentImage := range pipelineInfo.ComponentImages {
@@ -186,6 +190,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			{
 				Name:  defaults.RadixZoneEnvironmentVariable,
 				Value: pipelineInfo.PipelineArguments.RadixZone,
+			},
+			{
+				Name:  defaults.UseBuildKitEnvironmentVariable,
+				Value: useBuildKit,
 			},
 			// Extra meta information
 			{
