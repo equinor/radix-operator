@@ -607,7 +607,6 @@ func Test_GetRadixComponents_NodeName(t *testing.T) {
 }
 
 func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledComponents(t *testing.T) {
-	t.Skip()
 	componentImages := make(map[string]pipeline.ComponentImage)
 	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
 	envVarsMap := make(v1.EnvVarsMap)

@@ -13,7 +13,7 @@ type RadixCommonEnvironmentConfig interface {
 	GetImageTagName() string
 	GetHorizontalScaling() *RadixHorizontalScaling
 	GetReplicas() *int
-	GetEnabled() bool
+	getEnabled() *bool
 }
 
 func (config RadixEnvironmentConfig) GetEnvironment() string {
@@ -48,8 +48,8 @@ func (config RadixEnvironmentConfig) GetReplicas() *int {
 	return config.Replicas
 }
 
-func (config RadixEnvironmentConfig) GetEnabled() bool {
-	return config.Enabled == nil || *config.Enabled
+func (config RadixEnvironmentConfig) getEnabled() *bool {
+	return config.Enabled
 }
 
 func (config RadixJobComponentEnvironmentConfig) GetEnvironment() string {
@@ -84,6 +84,6 @@ func (config RadixJobComponentEnvironmentConfig) GetReplicas() *int {
 	return numbers.IntPtr(1)
 }
 
-func (config RadixJobComponentEnvironmentConfig) GetEnabled() bool {
-	return config.Enabled == nil || *config.Enabled
+func (config RadixJobComponentEnvironmentConfig) getEnabled() *bool {
+	return config.Enabled
 }

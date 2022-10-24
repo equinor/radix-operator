@@ -32,7 +32,7 @@ func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environme
 		return make(v1.EnvVarsMap)
 	}
 	var variables v1.EnvVarsMap
-	if !reflect.ValueOf(environmentSpecificConfig).IsNil() && environmentSpecificConfig.GetEnabled() {
+	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
 		variables = environmentSpecificConfig.GetVariables()
 	}
 	if variables == nil {

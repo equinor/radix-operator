@@ -574,28 +574,6 @@ func Test_IsConfigBranch(t *testing.T) {
 	})
 }
 
-func Test_GetComponent_ReturnsOnlyEnabledComponents(t *testing.T) {
-	ra := utils.ARadixApplication().
-		WithAppName("any-app").
-		WithEnvironment("dev", "qa").
-		WithComponents(
-			utils.AnApplicationComponent().WithName("comp1"),
-			utils.AnApplicationComponent().WithName("comp2").WithEnabled(true),
-			utils.AnApplicationComponent().WithName("comp3").WithEnabled(false)).
-		WithJobComponents(
-			utils.AnApplicationJobComponent().WithName("job1"),
-			utils.AnApplicationJobComponent().WithName("job2").WithEnabled(true),
-			utils.AnApplicationJobComponent().WithName("job3").WithEnabled(false)).
-		BuildRA()
-
-	assert.NotNil(t, GetComponent(ra, "comp1"))
-	assert.NotNil(t, GetComponent(ra, "comp2"))
-	assert.Nil(t, GetComponent(ra, "comp3"))
-	assert.NotNil(t, GetComponent(ra, "job1"))
-	assert.NotNil(t, GetComponent(ra, "job2"))
-	assert.Nil(t, GetComponent(ra, "job3"))
-}
-
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{

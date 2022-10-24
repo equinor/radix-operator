@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -206,7 +207,13 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 	anyContainerRegistry := "any-reg"
 	anyImageTag := "any-tag"
 
-	componentImages := getComponentImages(anyAppName, anyContainerRegistry, anyImageTag, applicationComponents, jobComponents)
+	componentImages := getComponentImages(&v1.RadixApplication{
+		ObjectMeta: metav1.ObjectMeta{Name: anyAppName},
+		Spec: v1.RadixApplicationSpec{
+			Components: applicationComponents,
+			Jobs:       jobComponents,
+		},
+	}, anyContainerRegistry, anyImageTag, nil)
 
 	assert.Equal(t, "build-multi-component", componentImages["client-component-1"].ContainerName)
 	assert.True(t, componentImages["client-component-1"].Build)
@@ -363,7 +370,14 @@ func TestGetComponentImages_ReturnsOnlyForNotDisabledComponents(t *testing.T) {
 	anyContainerRegistry := "any-reg"
 	anyImageTag := "any-tag"
 
-	componentImages := getComponentImages(anyAppName, anyContainerRegistry, anyImageTag, applicationComponents, jobComponents)
+	componentImages := getComponentImages(&v1.RadixApplication{
+		ObjectMeta: metav1.ObjectMeta{Name: anyAppName},
+		Spec: v1.RadixApplicationSpec{
+			Environments: []v1.Environment{{Name: "dev"}},
+			Components:   applicationComponents,
+			Jobs:         jobComponents,
+		},
+	}, anyContainerRegistry, anyImageTag, nil)
 
 	require.NotEmpty(t, componentImages["client-component-1"])
 	assert.Equal(t, "build-multi-component", componentImages["client-component-1"].ContainerName)
