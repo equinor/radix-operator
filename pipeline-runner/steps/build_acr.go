@@ -120,7 +120,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	if !pipelineInfo.PipelineArguments.UseCache {
 		useCache = "--no-cache"
 	}
-	if pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit {
+	if pipelineInfo.RadixApplication.Spec.Build != nil && pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit {
 		useBuildKit = "1"
 	}
 	distinctBuildContainers := make(map[string]void)
