@@ -11,6 +11,7 @@ type ApplicationBuilder interface {
 	WithRadixRegistration(RegistrationBuilder) ApplicationBuilder
 	WithAppName(string) ApplicationBuilder
 	WithBuildSecrets(...string) ApplicationBuilder
+	WithBuildKit(*bool) ApplicationBuilder
 	WithEnvironment(string, string) ApplicationBuilder
 	WithEnvironmentNoBranch(string) ApplicationBuilder
 	WithComponent(RadixApplicationComponentBuilder) ApplicationBuilder
@@ -29,12 +30,18 @@ type ApplicationBuilderStruct struct {
 	registrationBuilder RegistrationBuilder
 	appName             string
 	buildSecrets        []string
+	useBuildKit         *bool
 	environments        []v1.Environment
 	components          []RadixApplicationComponentBuilder
 	jobComponents       []RadixApplicationJobComponentBuilder
 	dnsAppAlias         v1.AppAlias
 	externalAppAlias    []v1.ExternalAlias
 	privateImageHubs    v1.PrivateImageHubEntries
+}
+
+func (ap *ApplicationBuilderStruct) WithBuildKit(useBuildKit *bool) ApplicationBuilder {
+	ap.useBuildKit = useBuildKit
+	return ap
 }
 
 // WithPrivateImageRegistry adds a private image hub to application
@@ -102,7 +109,7 @@ func (ap *ApplicationBuilderStruct) WithDNSAppAlias(env string, component string
 	return ap
 }
 
-// WithDNSExternalAlias Sets env + component to the the external alias
+// WithDNSExternalAlias Sets env + component to the external alias
 func (ap *ApplicationBuilderStruct) WithDNSExternalAlias(alias, env, component string) ApplicationBuilder {
 	if ap.externalAppAlias == nil {
 		ap.externalAppAlias = make([]v1.ExternalAlias, 0)
@@ -174,7 +181,8 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 		},
 		Spec: v1.RadixApplicationSpec{
 			Build: &v1.BuildSpec{
-				Secrets: ap.buildSecrets,
+				Secrets:     ap.buildSecrets,
+				UseBuildKit: ap.useBuildKit,
 			},
 			Components:       components,
 			Jobs:             jobComponents,
