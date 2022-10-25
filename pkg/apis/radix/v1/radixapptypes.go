@@ -704,7 +704,7 @@ func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCo
 
 func getEnabledForAnyEnvironment(component RadixCommonComponent, environments []string) bool {
 	environmentConfigsMap := component.GetEnvironmentConfigsMap()
-	if len(environments) == 0 {
+	if len(environmentConfigsMap) == 0 {
 		return component.getEnabled()
 	}
 	for _, envName := range environments {
