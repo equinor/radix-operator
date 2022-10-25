@@ -75,6 +75,7 @@ func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent 
 
 // GetComponentEnvironmentConfig Gets environment config of component
 func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) v1.RadixCommonEnvironmentConfig {
+	// TODO: Add interface for RA + EnvConfig
 	return GetEnvironment(GetComponent(ra, componentName), envName)
 }
 

@@ -207,16 +207,7 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 			continue
 		}
 
-		// Garbage collect if secret is labelled radix-job-type=job-scheduler and not defined in RD jobs
-		garbageCollect := false
-		if jobType, ok := NewRadixJobTypeFromObjectLabels(existingSecret); ok && jobType.IsJobScheduler() {
-			garbageCollect = !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
-		} else {
-			// Garbage collect secret if not defined in RD components or jobs
-			garbageCollect = !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
-		}
-
-		if garbageCollect {
+		if deploy.isEligibleForGarbageCollectSecretsForComponent(existingSecret, componentName) {
 			err := deploy.deleteSecret(existingSecret)
 			if err != nil {
 				return err
@@ -225,6 +216,15 @@ func (deploy *Deployment) garbageCollectSecretsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectSecretsForComponent(existingSecret *v1.Secret, componentName RadixComponentName) bool {
+	// Garbage collect if secret is labelled radix-job-type=job-scheduler and not defined in RD jobs
+	if jobType, ok := NewRadixJobTypeFromObjectLabels(existingSecret); ok && jobType.IsJobScheduler() {
+		return !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
+	}
+	// Garbage collect secret if not defined in RD components or jobs
+	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }
 
 func (deploy *Deployment) garbageCollectSecretsNoLongerInSpecForComponent(component radixv1.RadixCommonDeployComponent) error {

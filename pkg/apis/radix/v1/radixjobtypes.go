@@ -33,7 +33,7 @@ const (
 	// JobQueued When another job is running with the same
 	// condition app + branch, the job is queued
 	JobQueued RadixJobCondition = "Queued"
-	// JobQueued When operator hasn't picked up the radix job
+	// JobWaiting When operator hasn't picked up the radix job
 	// the API will show the job as waiting. Also when the
 	// kubernetes jobs (steps) are in waiting the step will be
 	// in JobWaiting

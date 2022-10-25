@@ -605,3 +605,156 @@ func Test_GetRadixComponents_NodeName(t *testing.T) {
 		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
 	})
 }
+
+func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledComponents(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1"),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_2").WithEnabled(true),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_3").WithEnabled(false),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_4").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_5").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_6").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_7").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_8").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false)),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_9").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_10").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false))).
+		BuildRA()
+
+	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages, envVarsMap)
+	nameSet := convertRadixDeployComponentToNameSet(deployComponentProd)
+	assert.NotEmpty(t, nameSet["comp_1"])
+	assert.NotEmpty(t, nameSet["comp_2"])
+	assert.Empty(t, nameSet["comp_3"])
+	assert.NotEmpty(t, nameSet["comp_4"])
+	assert.NotEmpty(t, nameSet["comp_5"])
+	assert.Empty(t, nameSet["comp_6"])
+	assert.NotEmpty(t, nameSet["comp_7"])
+	assert.Empty(t, nameSet["comp_8"])
+	assert.NotEmpty(t, nameSet["comp_9"])
+	assert.Empty(t, nameSet["comp_10"])
+}
+
+func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledJobComponents(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_1"),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_2").WithEnabled(true),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_3").WithEnabled(false),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_4").
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_5").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_6").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_7").
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_8").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false)),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_9").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_10").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false))).
+		BuildRA()
+
+	builder := NewJobComponentsBuilder(ra, "prod", componentImages, envVarsMap)
+	deployComponentProd := builder.JobComponents()
+	nameSet := convertRadixDeployJobComponentsToNameSet(deployComponentProd)
+	assert.NotEmpty(t, nameSet["job_1"])
+	assert.NotEmpty(t, nameSet["job_2"])
+	assert.Empty(t, nameSet["job_3"])
+	assert.NotEmpty(t, nameSet["job_4"])
+	assert.NotEmpty(t, nameSet["job_5"])
+	assert.Empty(t, nameSet["job_6"])
+	assert.NotEmpty(t, nameSet["job_7"])
+	assert.Empty(t, nameSet["job_8"])
+	assert.NotEmpty(t, nameSet["job_9"])
+	assert.Empty(t, nameSet["job_10"])
+}
+
+func convertRadixDeployComponentToNameSet(deployComponents []v1.RadixDeployComponent) map[string]bool {
+	set := make(map[string]bool)
+	for _, deployComponent := range deployComponents {
+		set[deployComponent.Name] = true
+	}
+	return set
+}
+
+func convertRadixDeployJobComponentsToNameSet(deployComponents []v1.RadixDeployJobComponent) map[string]bool {
+	set := make(map[string]bool)
+	for _, deployComponent := range deployComponents {
+		set[deployComponent.Name] = true
+	}
+	return set
+}

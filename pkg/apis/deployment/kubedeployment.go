@@ -291,28 +291,7 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 			continue
 		}
 
-		garbageCollect := false
-
-		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
-			garbageCollect = true
-		} else {
-			var componentType v1.RadixComponentType
-			commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
-
-			// If component type label is not set on the deployment, we default to "component"
-			if componentTypeString, ok := deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
-				componentType = v1.RadixComponentTypeComponent
-			} else {
-				componentType = v1.RadixComponentType(componentTypeString)
-			}
-
-			// Garbage collect if component type has changed.
-			if componentType != commonComponent.GetType() {
-				garbageCollect = true
-			}
-		}
-
-		if garbageCollect {
+		if deploy.isEligibleForGarbageCollectComponent(componentName, deployment) {
 			propagationPolicy := metav1.DeletePropagationForeground
 			deleteOption := metav1.DeleteOptions{
 				PropagationPolicy: &propagationPolicy,
@@ -325,6 +304,23 @@ func (deploy *Deployment) garbageCollectDeploymentsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectComponent(componentName RadixComponentName, deployment *appsv1.Deployment) bool {
+	if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+		return true
+	}
+	var componentType v1.RadixComponentType
+	// If component type label is not set on the deployment, we default to "component"
+	if componentTypeString, ok := deployment.Labels[kube.RadixComponentTypeLabel]; !ok {
+		componentType = v1.RadixComponentTypeComponent
+	} else {
+		componentType = v1.RadixComponentType(componentTypeString)
+	}
+
+	commonComponent := componentName.GetCommonDeployComponent(deploy.radixDeployment)
+	// Garbage collect if component type has changed.
+	return componentType != commonComponent.GetType()
 }
 
 func getReadinessProbeForComponent(component v1.RadixCommonDeployComponent) (*corev1.Probe, error) {

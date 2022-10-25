@@ -3,6 +3,7 @@ package v1
 import (
 	"strings"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -141,6 +142,7 @@ type RadixComponent struct {
 	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication          `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	Enabled                 *bool                    `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
@@ -158,6 +160,7 @@ type RadixEnvironmentConfig struct {
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
 	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	Enabled                 *bool                   `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -178,6 +181,7 @@ type RadixJobComponent struct {
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds  *int64                               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Enabled           *bool                                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -193,6 +197,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
 	SecretRefs       RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
@@ -532,6 +537,15 @@ type RadixCommonComponent interface {
 	GetResources() ResourceRequirements
 	//GetEnvironmentConfig Gets component environment configuration
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
+	//GetEnvironmentConfigsMap Get component environment configuration as map by names
+	GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig
+	//getEnabled Gets the component status if it is enabled in the application
+	getEnabled() bool
+	//GetEnabledForEnv Gets the component status if it is enabled in the application for an environment
+	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
+	//GetEnvironmentConfigByName  Gets component environment configuration by its name
+	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
+	GetEnabledForAnyEnvironment(environments []string) bool
 }
 
 func (component *RadixComponent) GetName() string {
@@ -566,12 +580,52 @@ func (component *RadixComponent) GetResources() ResourceRequirements {
 	return component.Resources
 }
 
+func (component *RadixComponent) getEnabled() bool {
+	return component.Enabled == nil || *component.Enabled
+}
+
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
 		environmentConfigs = append(environmentConfigs, environmentConfig)
 	}
 	return environmentConfigs
+}
+
+func (component *RadixComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigMap(component)
+}
+
+func getEnvironmentConfigMap(component RadixCommonComponent) map[string]RadixCommonEnvironmentConfig {
+	environmentConfigsMap := make(map[string]RadixCommonEnvironmentConfig)
+	for _, environmentConfig := range component.GetEnvironmentConfig() {
+		config := environmentConfig
+		environmentConfigsMap[environmentConfig.GetEnvironment()] = config
+	}
+	return environmentConfigsMap
+}
+
+func (component *RadixComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
+}
+
+func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+	return getEnabled(component, envConfig)
+}
+
+func (component *RadixComponent) GetEnabledForAnyEnvironment(environments []string) bool {
+	return getEnabledForAnyEnvironment(component, environments)
+}
+
+func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+	return getEnabled(component, envConfig)
+}
+
+func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) bool {
+	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil {
+		return component.getEnabled()
+	}
+	return *envConfig.getEnabled()
 }
 
 func (component *RadixJobComponent) GetName() string {
@@ -606,12 +660,20 @@ func (component *RadixJobComponent) GetResources() ResourceRequirements {
 	return component.Resources
 }
 
+func (component *RadixJobComponent) getEnabled() bool {
+	return component.Enabled == nil || *component.Enabled
+}
+
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
 		environmentConfigs = append(environmentConfigs, environmentConfig)
 	}
 	return environmentConfigs
+}
+
+func (component *RadixJobComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigMap(component)
 }
 
 func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
@@ -621,4 +683,34 @@ func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []
 		}
 	}
 	return nil
+}
+
+func (component *RadixJobComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
+}
+
+func (component *RadixJobComponent) GetEnabledForAnyEnvironment(environments []string) bool {
+	return getEnabledForAnyEnvironment(component, environments)
+}
+
+func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
+	for _, environmentConfig := range environmentConfigs {
+		if strings.EqualFold(environment, environmentConfig.GetEnvironment()) {
+			return environmentConfig
+		}
+	}
+	return nil
+}
+
+func getEnabledForAnyEnvironment(component RadixCommonComponent, environments []string) bool {
+	environmentConfigsMap := component.GetEnvironmentConfigsMap()
+	if len(environmentConfigsMap) == 0 {
+		return component.getEnabled()
+	}
+	for _, envName := range environments {
+		if component.GetEnabledForEnv(environmentConfigsMap[envName]) {
+			return true
+		}
+	}
+	return false
 }

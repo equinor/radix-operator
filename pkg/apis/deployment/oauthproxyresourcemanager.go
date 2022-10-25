@@ -222,11 +222,11 @@ func (o *oauthProxyResourceManager) isEligibleForGarbageCollection(object metav1
 	if auxType := object.GetLabels()[kube.RadixAuxiliaryComponentTypeLabel]; auxType != defaults.OAuthProxyAuxiliaryComponentType {
 		return false
 	}
-	auxName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
+	auxTargetComponentName, nameExist := RadixComponentNameFromAuxComponentLabel(object)
 	if !nameExist {
 		return false
 	}
-	return !auxName.ExistInDeploymentSpec(o.rd)
+	return !auxTargetComponentName.ExistInDeploymentSpec(o.rd)
 }
 
 func (o *oauthProxyResourceManager) install(component v1.RadixCommonDeployComponent) error {
