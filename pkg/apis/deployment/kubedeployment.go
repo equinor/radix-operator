@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/numbers"
@@ -17,11 +18,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	PRIVILEGED_CONTAINER       = false
-	ALLOW_PRIVILEGE_ESCALATION = false
 )
 
 func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent) error {
@@ -164,12 +160,12 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-	desiredDeployment.Spec.Template.Spec.SecurityContext = deploy.securityContextBuilder.BuildPodSecurityContext()
+	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.PodSecurityContext()
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploy.securityContextBuilder.BuildContainerSecurityContext()
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.ContainerSecurityContext()
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {

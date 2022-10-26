@@ -3257,81 +3257,6 @@ func Test_JobScheduler_ObjectsGarbageCollected(t *testing.T) {
 	})
 }
 
-func Test_NewDeployment_SecurityContextBuilder(t *testing.T) {
-	kubeclient := kubefake.NewSimpleClientset()
-	radixclient := radix.NewSimpleClientset()
-	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeutil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
-	rd := v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Namespace: ""}}
-	deployment := NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, true, testTenantId, testKubernetesApiPort, nil, nil).(*Deployment)
-	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
-	actual := deployment.securityContextBuilder.(*securityContextBuilder)
-	assert.True(t, actual.forceRunAsNonRoot)
-
-	deployment = NewDeployment(kubeclient, kubeutil, radixclient, nil, nil, &rd, false, testTenantId, testKubernetesApiPort, nil, nil).(*Deployment)
-	assert.IsType(t, &securityContextBuilder{}, deployment.securityContextBuilder)
-}
-
-func Test_SecurityPolicy(t *testing.T) {
-	defer teardownTest()
-	type scenarioDef struct {
-		forceRunAsNonRoot     bool
-		componentRunAsNonRoot bool
-		expected              bool
-	}
-
-	testScenarios := []scenarioDef{
-		{forceRunAsNonRoot: false, componentRunAsNonRoot: false, expected: true},
-		{forceRunAsNonRoot: false, componentRunAsNonRoot: true, expected: true},
-		{forceRunAsNonRoot: true, componentRunAsNonRoot: false, expected: true},
-		{forceRunAsNonRoot: true, componentRunAsNonRoot: true, expected: true},
-	}
-
-	rr := &v1.RadixRegistration{ObjectMeta: metav1.ObjectMeta{Name: "app"}}
-
-	for _, scenario := range testScenarios {
-		t.Run(
-			fmt.Sprintf("test with forceRunAsNonRoot=%v and componentRunAsNonRoot=%v", scenario.forceRunAsNonRoot, scenario.componentRunAsNonRoot),
-			func(t *testing.T) {
-				t.Parallel()
-				ctrl := gomock.NewController(t)
-				defer ctrl.Finish()
-				securityContextBuilder := NewMockSecurityContextBuilder(ctrl)
-				expectedComponent := v1.RadixDeployComponent{Name: "comp"}
-				expectedPodSecurityContext := &corev1.PodSecurityContext{RunAsNonRoot: &scenario.expected}
-				expectedSecurityContext := &corev1.SecurityContext{RunAsNonRoot: &scenario.expected}
-				securityContextBuilder.EXPECT().BuildContainerSecurityContext().Return(expectedSecurityContext).Times(1)
-				securityContextBuilder.EXPECT().BuildPodSecurityContext().Return(expectedPodSecurityContext).Times(1)
-				_, kubeclient, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-				radixclient.RadixV1().RadixRegistrations().Create(context.Background(), rr, metav1.CreateOptions{})
-				rd := &v1.RadixDeployment{
-					ObjectMeta: metav1.ObjectMeta{Name: "rd", Namespace: "app-env"},
-					Spec: v1.RadixDeploymentSpec{
-						AppName:     "app",
-						Environment: "env",
-						Components:  []v1.RadixDeployComponent{expectedComponent},
-					},
-				}
-				radixclient.RadixV1().RadixDeployments("app-env").Create(context.Background(), rd, metav1.CreateOptions{})
-				deploysync := Deployment{
-					kubeclient:              kubeclient,
-					radixclient:             radixclient,
-					kubeutil:                kubeUtil,
-					prometheusperatorclient: prometheusclient,
-					registration:            rr,
-					radixDeployment:         rd,
-					securityContextBuilder:  securityContextBuilder,
-				}
-				err := deploysync.OnSync()
-				assert.Nil(t, err)
-				deployment, _ := kubeclient.AppsV1().Deployments("app-env").Get(context.Background(), "comp", metav1.GetOptions{})
-				assert.Equal(t, expectedPodSecurityContext, deployment.Spec.Template.Spec.SecurityContext)
-				assert.Equal(t, expectedSecurityContext, deployment.Spec.Template.Spec.Containers[0].SecurityContext)
-			},
-		)
-	}
-}
-
 func Test_IngressAnnotations_Called(t *testing.T) {
 	_, kubeclient, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
@@ -3355,7 +3280,6 @@ func Test_IngressAnnotations_Called(t *testing.T) {
 		kubeutil:                   kubeUtil,
 		registration:               rr,
 		radixDeployment:            rd,
-		securityContextBuilder:     NewSecurityContextBuilder(),
 		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1, annotations2},
 	}
 
@@ -3389,7 +3313,6 @@ func Test_IngressAnnotations_ReturnError(t *testing.T) {
 		kubeutil:                   kubeUtil,
 		registration:               rr,
 		radixDeployment:            rd,
-		securityContextBuilder:     NewSecurityContextBuilder(),
 		ingressAnnotationProviders: []IngressAnnotationProvider{annotations1},
 	}
 
@@ -3417,7 +3340,6 @@ func Test_AuxiliaryResourceManagers_Called(t *testing.T) {
 		kubeutil:                kubeUtil,
 		registration:            rr,
 		radixDeployment:         rd,
-		securityContextBuilder:  NewSecurityContextBuilder(),
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
@@ -3446,7 +3368,6 @@ func Test_AuxiliaryResourceManagers_Sync_ReturnErr(t *testing.T) {
 		kubeutil:                kubeUtil,
 		registration:            rr,
 		radixDeployment:         rd,
-		securityContextBuilder:  NewSecurityContextBuilder(),
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
@@ -3475,7 +3396,6 @@ func Test_AuxiliaryResourceManagers_GarbageCollect_ReturnErr(t *testing.T) {
 		kubeutil:                kubeUtil,
 		registration:            rr,
 		radixDeployment:         rd,
-		securityContextBuilder:  NewSecurityContextBuilder(),
 		auxResourceManagers:     []AuxiliaryResourceManager{auxResource},
 	}
 
@@ -3653,7 +3573,7 @@ func applyDeploymentWithSync(tu *test.Utils, kubeclient kubernetes.Interface, ku
 		return nil, err
 	}
 
-	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, testTenantId, testKubernetesApiPort, nil, nil)
+	deployment := NewDeployment(kubeclient, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, nil, nil)
 	err = deployment.OnSync()
 	if err != nil {
 		return nil, err
@@ -3675,7 +3595,7 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 		return err
 	}
 
-	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, false, testTenantId, testKubernetesApiPort, nil, nil)
+	deployment := NewDeployment(client, kubeUtil, radixclient, prometheusclient, radixRegistration, rd, testTenantId, testKubernetesApiPort, nil, nil)
 	err = deployment.OnSync()
 	if err != nil {
 		return err

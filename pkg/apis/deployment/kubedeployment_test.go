@@ -12,7 +12,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -334,15 +333,6 @@ func createDeploymentStrategy() *appsv1.DeploymentStrategy {
 	return &deploymentStrategy
 }
 
-type noopSecurityContextBuilder struct{}
-
-func (s *noopSecurityContextBuilder) BuildContainerSecurityContext() *corev1.SecurityContext {
-	return nil
-}
-func (s *noopSecurityContextBuilder) BuildPodSecurityContext() *corev1.PodSecurityContext {
-	return nil
-}
-
 func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[string]string) Deployment {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	rd, _ := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient,
@@ -352,5 +342,5 @@ func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[
 				WithResource(origRequests, origLimits)).
 			WithAppName("any-app").
 			WithEnvironment("test"))
-	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd, securityContextBuilder: &noopSecurityContextBuilder{}}
+	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
 }
