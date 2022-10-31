@@ -131,6 +131,9 @@ const (
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
 
+	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
+	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
+
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
 	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
 
