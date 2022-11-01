@@ -3,7 +3,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: radix-tekton
+  name: radix-tekton-app
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
@@ -34,4 +34,21 @@ rules:
       - list
       - watch
       - update
+---
+# used to grant tekton access to get app environment namespace information
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: radix-tekton-env
+  labels:
+    {{- include "radix-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - radix.equinor.com
+    resources:
+      - radixdeployments
+      - radixjobs
+    verbs:
+      - get
+      - list
 

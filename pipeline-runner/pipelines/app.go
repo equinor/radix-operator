@@ -64,18 +64,6 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	if err != nil {
 		return err
 	}
-
-	containerRegistry, err := cli.kubeUtil.GetContainerRegistry()
-	if err != nil {
-		return err
-	}
-	subscriptionId, err := cli.kubeUtil.GetSubscriptionId()
-	if err != nil {
-		return err
-	}
-
-	cli.pipelineInfo.ContainerRegistry = containerRegistry
-	cli.pipelineInfo.SubscriptionId = subscriptionId
 	return nil
 }
 

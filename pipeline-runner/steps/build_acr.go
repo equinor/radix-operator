@@ -100,8 +100,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
-	containerRegistry := pipelineInfo.ContainerRegistry
-	subscriptionId := pipelineInfo.SubscriptionId
+	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
+	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
 

@@ -65,8 +65,8 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(rolebindings.Items))
-	assert.True(t, roleBindingByNameExists(defaults.RadixTektonRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
 
 	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, rolebindings)
@@ -79,8 +79,8 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(serviceAccounts.Items))
-	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonRoleName, serviceAccounts))
-	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonServiceAccountName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists(defaults.PipelineServiceAccountName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
 }
 
@@ -122,8 +122,8 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(rolebindings.Items))
-	assert.True(t, roleBindingByNameExists(defaults.RadixTektonRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
 
 	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, rolebindings)
@@ -136,8 +136,8 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 
 	serviceAccounts, _ := client.CoreV1().ServiceAccounts("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(serviceAccounts.Items))
-	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonRoleName, serviceAccounts))
-	assert.True(t, serviceAccountByNameExists(defaults.PipelineRoleName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists(defaults.RadixTektonServiceAccountName, serviceAccounts))
+	assert.True(t, serviceAccountByNameExists(defaults.PipelineServiceAccountName, serviceAccounts))
 	assert.True(t, serviceAccountByNameExists("any-app-machine-user", serviceAccounts))
 }
 
@@ -182,8 +182,8 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 3, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.PipelineRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.RadixTektonRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
+	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))
 	assert.Equal(t, "9876-54321-09876", getRoleBindingByName(defaults.AppAdminRoleName, rolebindings).Subjects[0].Name)
 
 }
