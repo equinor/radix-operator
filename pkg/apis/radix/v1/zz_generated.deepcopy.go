@@ -99,6 +99,11 @@ func (in *BuildSpec) DeepCopyInto(out *BuildSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.UseBuildKit != nil {
+		in, out := &in.UseBuildKit, &out.UseBuildKit
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -847,6 +852,11 @@ func (in *RadixComponent) DeepCopyInto(out *RadixComponent) {
 		*out = new(Authentication)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Enabled != nil {
+		in, out := &in.Enabled, &out.Enabled
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -1213,6 +1223,11 @@ func (in *RadixEnvironmentConfig) DeepCopyInto(out *RadixEnvironmentConfig) {
 		(*in).DeepCopyInto(*out)
 	}
 	in.SecretRefs.DeepCopyInto(&out.SecretRefs)
+	if in.Enabled != nil {
+		in, out := &in.Enabled, &out.Enabled
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -1388,6 +1403,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.Enabled != nil {
+		in, out := &in.Enabled, &out.Enabled
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -1422,6 +1442,11 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 	if in.TimeLimitSeconds != nil {
 		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
 		*out = new(int64)
+		**out = **in
+	}
+	if in.Enabled != nil {
+		in, out := &in.Enabled, &out.Enabled
+		*out = new(bool)
 		**out = **in
 	}
 	return
