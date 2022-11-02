@@ -45,7 +45,6 @@ type Deployment struct {
 	prometheusperatorclient    monitoring.Interface
 	registration               *v1.RadixRegistration
 	radixDeployment            *v1.RadixDeployment
-	securityContextBuilder     SecurityContextBuilder
 	auxResourceManagers        []AuxiliaryResourceManager
 	ingressAnnotationProviders []IngressAnnotationProvider
 	tenantId                   string
@@ -56,7 +55,7 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeployment)
 
 // NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, forceRunAsNonRoot bool, tenantId string, kubernetesApiPort int32, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
+func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
@@ -64,7 +63,6 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 		prometheusperatorclient:    prometheusperatorclient,
 		registration:               registration,
 		radixDeployment:            radixDeployment,
-		securityContextBuilder:     NewSecurityContextBuilder(forceRunAsNonRoot),
 		auxResourceManagers:        auxResourceManagers,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		tenantId:                   tenantId,

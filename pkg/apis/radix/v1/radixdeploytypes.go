@@ -77,7 +77,6 @@ type RadixDeploymentList struct {
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
 	Name                    string                  `json:"name" yaml:"name"`
-	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Image                   string                  `json:"image" yaml:"image"`
 	Ports                   []ComponentPort         `json:"ports" yaml:"ports"`
 	Replicas                *int                    `json:"replicas" yaml:"replicas"`
@@ -173,10 +172,6 @@ func (deployComponent *RadixDeployComponent) IsDNSAppAlias() bool {
 
 func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string {
 	return deployComponent.IngressConfiguration
-}
-
-func (deployComponent *RadixDeployComponent) GetRunAsNonRoot() bool {
-	return deployComponent.RunAsNonRoot
 }
 
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
@@ -284,10 +279,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []s
 	return nil
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetRunAsNonRoot() bool {
-	return deployJobComponent.RunAsNonRoot
-}
-
 func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
@@ -339,7 +330,6 @@ type RadixDeployJobComponent struct {
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	SchedulerPort           *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
-	RunAsNonRoot            bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
@@ -374,7 +364,6 @@ type RadixCommonDeployComponent interface {
 	GetDNSExternalAlias() []string
 	IsDNSAppAlias() bool
 	GetIngressConfiguration() []string
-	GetRunAsNonRoot() bool
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
 	SetName(name string)

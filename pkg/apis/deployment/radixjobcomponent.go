@@ -65,7 +65,6 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Secrets:          radixJobComponent.Secrets,
 		Monitoring:       false,
 		MonitoringConfig: radixJobComponent.MonitoringConfig,
-		RunAsNonRoot:     false,
 		Payload:          radixJobComponent.Payload,
 		SchedulerPort:    radixJobComponent.SchedulerPort,
 	}
@@ -73,7 +72,6 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 	if environmentSpecificConfig != nil {
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
-		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
 	}
 
