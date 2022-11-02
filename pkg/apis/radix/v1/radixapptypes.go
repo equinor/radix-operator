@@ -148,7 +148,6 @@ type RadixComponent struct {
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
 type RadixEnvironmentConfig struct {
 	Environment             string                  `json:"environment" yaml:"environment"`
-	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Replicas                *int                    `json:"replicas" yaml:"replicas"`
 	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
 	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
@@ -188,7 +187,6 @@ type RadixJobComponent struct {
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
 	Environment      string               `json:"environment" yaml:"environment"`
-	RunAsNonRoot     bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Monitoring       bool                 `json:"monitoring" yaml:"monitoring"`
 	Resources        ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Variables        EnvVarsMap           `json:"variables" yaml:"variables"`

@@ -88,11 +88,6 @@ const (
 	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
 	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
 
-	// RadixDeploymentForceNonRootContainers Controls the non-root configuration for component containers
-	// true: all component containers are force to run as non-root
-	// false: non-root for a component container is controlled by runAsNonRoot from radixconfig
-	RadixDeploymentForceNonRootContainers = "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER"
-
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
 

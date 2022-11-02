@@ -247,7 +247,6 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		kubeUtil,
 		radixClient,
 		prometheusOperatorClient,
-		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
 		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
 		deployment.WithKubernetesApiPortFromEnvVar(defaults.KubernetesApiPortEnvironmentVariable),
 		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
