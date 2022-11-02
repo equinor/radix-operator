@@ -3,7 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/model"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 
@@ -64,7 +64,7 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					SecurityContext:    model.GetPodSecurityContext(model.RUN_AS_NON_ROOT, model.FS_GROUP),
+					SecurityContext:    securitycontext.GetRadixPipelinePodSecurityContext(securitycontext.RUN_AS_NON_ROOT, securitycontext.FS_GROUP),
 					ServiceAccountName: defaults.PipelineRoleName,
 					Containers: []corev1.Container{
 						{
@@ -72,7 +72,7 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
-							SecurityContext: model.GetContainerSecurityContext(model.PRIVILEGED_CONTAINER, model.ALLOW_PRIVILEGE_ESCALATION, model.RUN_AS_GROUP, model.RUN_AS_USER, model.SECCOMP_PROFILE_TYPE),
+							SecurityContext: securitycontext.GetRadixPipelineContainerSecurityContext(securitycontext.PRIVILEGED_CONTAINER, securitycontext.ALLOW_PRIVILEGE_ESCALATION, securitycontext.RUN_AS_GROUP, securitycontext.RUN_AS_USER, securitycontext.SECCOMP_PROFILE_TYPE),
 						},
 					},
 					RestartPolicy: "Never",
