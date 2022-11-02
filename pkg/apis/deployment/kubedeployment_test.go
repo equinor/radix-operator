@@ -316,7 +316,6 @@ func TestSetDeploymentStrategy_Custom(t *testing.T) {
 
 	teardownRollingUpdate()
 }
-
 func createDeploymentStrategy() *appsv1.DeploymentStrategy {
 	deploymentStrategy := appsv1.DeploymentStrategy{
 		RollingUpdate: &appsv1.RollingUpdateDeployment{
