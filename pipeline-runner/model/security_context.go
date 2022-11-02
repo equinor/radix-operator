@@ -12,17 +12,30 @@ const (
 	RUN_AS_USER                = 1000
 	RUN_AS_GROUP               = 1000
 	FS_GROUP                   = 1000
+	SECCOMP_PROFILE_TYPE       = "RuntimeDefault"
 )
 
-func GetContainerSecurityContext(privilegedContainer, allowPrivEsc bool, runAsGroup, runAsUser int64) *corev1.SecurityContext {
+// GetContainerSecurityContext returns default security context for containers running in steps of radix-pipeline jobs
+func GetContainerSecurityContext(privilegedContainer, allowPrivEsc bool, runAsGroup, runAsUser int64, seccompProfileType string) *corev1.SecurityContext {
 	return &corev1.SecurityContext{
 		Privileged:               &privilegedContainer,
 		AllowPrivilegeEscalation: &allowPrivEsc,
 		RunAsUser:                &runAsUser,
 		RunAsGroup:               &runAsGroup,
+		SeccompProfile: &corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileType(seccompProfileType),
+			LocalhostProfile: nil,
+		},
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+			Add: nil,
+		},
 	}
 }
 
+// GetPodSecurityContext returns default security context for pods running in steps of radix-pipeline jobs
 func GetPodSecurityContext(runAsNonRoot bool, fsgroup int64) *corev1.PodSecurityContext {
 
 	return &corev1.PodSecurityContext{

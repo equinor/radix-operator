@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 
@@ -10,8 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
-	numberUtils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,13 +18,7 @@ import (
 )
 
 const (
-	workerImage                = "radix-pipeline"
-	PRIVILEGED_CONTAINER       = false
-	ALLOW_PRIVILEGE_ESCALATION = false
-	RUN_AS_NON_ROOT            = true
-	RUN_AS_USER                = 1000
-	RUN_AS_GROUP               = 1000
-	FS_GROUP                   = 1000
+	workerImage = "radix-pipeline"
 )
 
 func (job *Job) createPipelineJob() error {
@@ -71,10 +64,7 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: conditionUtils.BoolPtr(RUN_AS_NON_ROOT),
-						FSGroup:      numberUtils.Int64Ptr(FS_GROUP),
-					},
+					SecurityContext:    model.GetPodSecurityContext(model.RUN_AS_NON_ROOT, model.FS_GROUP),
 					ServiceAccountName: defaults.PipelineRoleName,
 					Containers: []corev1.Container{
 						{
@@ -82,12 +72,7 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
-							SecurityContext: &corev1.SecurityContext{
-								Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
-								AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
-								RunAsUser:                numberUtils.Int64Ptr(RUN_AS_USER),
-								RunAsGroup:               numberUtils.Int64Ptr(RUN_AS_GROUP),
-							},
+							SecurityContext: model.GetContainerSecurityContext(model.PRIVILEGED_CONTAINER, model.ALLOW_PRIVILEGE_ESCALATION, model.RUN_AS_GROUP, model.RUN_AS_USER, model.SECCOMP_PROFILE_TYPE),
 						},
 					},
 					RestartPolicy: "Never",
