@@ -44,6 +44,8 @@ type PipelineInfo struct {
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
+	// Prepare pipeline job build context
+	PrepareBuildContext *PrepareBuildContext
 }
 
 // PipelineArguments Holds arguments for the pipeline
