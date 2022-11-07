@@ -34,6 +34,13 @@ rules:
       - list
       - watch
       - update
+  - apiGroups:
+      - radix.equinor.com
+    resources:
+      - radixjobs
+    verbs:
+      - get
+      - list
 ---
 # used to grant tekton access to get app environment namespace information
 apiVersion: rbac.authorization.k8s.io/v1
@@ -47,7 +54,6 @@ rules:
       - radix.equinor.com
     resources:
       - radixdeployments
-      - radixjobs
     verbs:
       - get
       - list

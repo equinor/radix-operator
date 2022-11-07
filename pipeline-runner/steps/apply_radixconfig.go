@@ -111,7 +111,7 @@ func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {
 		log.Infoln("Radix config file was changed in the repository")
 	}
 	if len(prepareBuildContext.EnvironmentsToBuild) > 0 {
-		log.Infoln("Environments to build:")
+		log.Infoln("Components to build in environments:")
 		for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
 			if len(environmentToBuild.Components) == 0 {
 				log.Infof(" - %s: no components or jobs with changed source", environmentToBuild.Environment)
