@@ -121,9 +121,9 @@ func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {
 		}
 	}
 	if len(prepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
-		log.Infoln("No sub-pipeline to run")
+		log.Infoln("No sub-pipelines to run")
 	} else {
-		log.Infoln("Sub-pipeline(s) to run")
+		log.Infoln("Sub-pipelines to run")
 		for _, envSubPipeline := range prepareBuildContext.EnvironmentSubPipelinesToRun {
 			log.Infof(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
 		}
