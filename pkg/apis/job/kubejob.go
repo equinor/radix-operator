@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -11,6 +10,7 @@ import (
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	numberUtils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
@@ -26,6 +26,8 @@ const (
 	RUN_AS_USER                = 1000
 	RUN_AS_GROUP               = 1000
 	FS_GROUP                   = 1000
+	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
+	ResultContent = "ResultContent"
 )
 
 func (job *Job) createPipelineJob() error {
@@ -191,7 +193,7 @@ func getPushImageTag(pushImage bool) string {
 	return "0"
 }
 
-func getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) v1.RadixJobCondition {
+func getJobConditionFromJobStatus(jobStatus batchv1.JobStatus, jobResult *v1.RadixJobResult) v1.RadixJobCondition {
 	var status v1.RadixJobCondition
 
 	if jobStatus.Failed > 0 {
@@ -201,9 +203,35 @@ func getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) v1.RadixJobCondit
 		status = v1.JobRunning
 
 	} else if jobStatus.Succeeded > 0 {
-		status = v1.JobSucceeded
-
+		if jobResult.Result == v1.RadixJobResultStoppedNoChanges {
+			status = v1.JobStoppedNoChanges
+		} else {
+			status = v1.JobSucceeded
+		}
 	}
 
 	return status
+}
+
+func (job *Job) getRadixJobResult() (*v1.RadixJobResult, error) {
+	jobResult := &v1.RadixJobResult{}
+	//TODO
+	//resultConfigMap, err := job.kubeutil.GetConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
+	//if err != nil {
+	//	if errors.IsNotFound(err) {
+	//		return jobResult, nil
+	//	}
+	//	return nil, err
+	//}
+	//if resultContent, ok := resultConfigMap.Data[ResultContent]; ok && len(resultContent) > 0 {
+	//	err = yaml.Unmarshal([]byte(resultContent), jobResult)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
+	//err = job.kubeutil.DeleteConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
+	//if err != nil {
+	//	return nil, err
+	//}
+	return jobResult, nil
 }

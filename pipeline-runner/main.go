@@ -37,6 +37,10 @@ func main() {
 	if err != nil {
 		os.Exit(2)
 	}
+	err = runner.CreateResultConfigMap()
+	if err != nil {
+		os.Exit(3)
+	}
 
 	os.Exit(0)
 }

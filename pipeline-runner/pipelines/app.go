@@ -2,6 +2,9 @@ package onpush
 
 import (
 	"context"
+	jobs "github.com/equinor/radix-operator/pkg/apis/job"
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/env"
@@ -118,4 +121,24 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 	}
 
 	return stepImplementations
+}
+
+func (cli *PipelineRunner) CreateResultConfigMap() error {
+	result := v1.RadixJobResult{}
+	if cli.pipelineInfo.StopPipeline {
+		result.Result = v1.RadixJobResultStoppedNoChanges
+		result.Message = cli.pipelineInfo.StopPipelineMessage
+	}
+	resultContent, err := yaml.Marshal(&result)
+	if err != nil {
+		return err
+	}
+	configMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cli.pipelineInfo.PipelineArguments.JobName,
+		},
+		Data: map[string]string{jobs.ResultContent: string(resultContent)},
+	}
+	_, err = cli.kubeUtil.CreateConfigMap(utils.GetAppNamespace(cli.appName), &configMap)
+	return err
 }
