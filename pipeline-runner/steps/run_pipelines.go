@@ -47,6 +47,10 @@ func (cli *RunPipelinesStepImplementation) ErrorMsg(err error) string {
 
 // Run Override of default step method
 func (cli *RunPipelinesStepImplementation) Run(pipelineInfo *model.PipelineInfo) error {
+	if pipelineInfo.PrepareBuildContext != nil && len(pipelineInfo.PrepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
+		log.Infof("There is no configured sub-pipelines. Skip the step.")
+		return nil
+	}
 	branch := pipelineInfo.PipelineArguments.Branch
 	commitID := pipelineInfo.GitCommitHash
 	appName := cli.GetAppName()

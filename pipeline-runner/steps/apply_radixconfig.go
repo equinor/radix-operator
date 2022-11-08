@@ -101,9 +101,24 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 			return err
 		}
 		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
 	}
 
 	return nil
+}
+
+func getPipelineShouldBeStopped(prepareBuildContext *model.PrepareBuildContext) (bool, string) {
+	if prepareBuildContext == nil || prepareBuildContext.ChangedRadixConfig || len(prepareBuildContext.EnvironmentsToBuild) == 0 {
+		return false, ""
+	}
+	for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
+		if len(environmentToBuild.Components) > 0 {
+			return false, ""
+		}
+	}
+	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
+	log.Info(message)
+	return true, message
 }
 
 func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {

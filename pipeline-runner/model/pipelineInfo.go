@@ -46,6 +46,8 @@ type PipelineInfo struct {
 	ComponentImages map[string]pipeline.ComponentImage
 	// Prepare pipeline job build context
 	PrepareBuildContext *PrepareBuildContext
+	StopPipeline        bool
+	StopPipelineMessage string
 }
 
 // PipelineArguments Holds arguments for the pipeline

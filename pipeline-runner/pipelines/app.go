@@ -78,6 +78,10 @@ func (cli *PipelineRunner) Run() error {
 			return err
 		}
 		log.Infof(step.SucceededMsg())
+		if cli.pipelineInfo.StopPipeline {
+			log.Infof("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
+			break
+		}
 	}
 	return nil
 }
