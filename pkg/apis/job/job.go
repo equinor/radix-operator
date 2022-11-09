@@ -221,11 +221,10 @@ func (job *Job) setStatusOfJob() error {
 	if err != nil {
 		return err
 	}
-	jobResult, err := job.getRadixJobResult()
+	jobStatusCondition, err := job.getJobConditionFromJobStatus(pipelineJob.Status)
 	if err != nil {
 		return err
 	}
-	jobStatusCondition := getJobConditionFromJobStatus(pipelineJob.Status, jobResult)
 
 	err = job.updateRadixJobStatusWithMetrics(job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
 		currStatus.Steps = steps

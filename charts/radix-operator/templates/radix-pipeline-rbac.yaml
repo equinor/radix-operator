@@ -40,6 +40,7 @@ rules:
   - get
   - update
   - delete
+  - create
 - apiGroups:
     - 'secrets-store.csi.x-k8s.io'
   resources:

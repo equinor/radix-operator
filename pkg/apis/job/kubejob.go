@@ -13,8 +13,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	numberUtils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -193,45 +195,45 @@ func getPushImageTag(pushImage bool) string {
 	return "0"
 }
 
-func getJobConditionFromJobStatus(jobStatus batchv1.JobStatus, jobResult *v1.RadixJobResult) v1.RadixJobCondition {
-	var status v1.RadixJobCondition
-
+func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (v1.RadixJobCondition, error) {
 	if jobStatus.Failed > 0 {
-		status = v1.JobFailed
-
-	} else if jobStatus.Active > 0 {
-		status = v1.JobRunning
-
-	} else if jobStatus.Succeeded > 0 {
-		if jobResult.Result == v1.RadixJobResultStoppedNoChanges {
-			status = v1.JobStoppedNoChanges
-		} else {
-			status = v1.JobSucceeded
-		}
+		return v1.JobFailed, nil
 	}
+	if jobStatus.Active > 0 {
+		return v1.JobRunning, nil
 
-	return status
+	}
+	if jobStatus.Succeeded > 0 {
+		jobResult, err := job.getRadixJobResult()
+		if err != nil {
+			return v1.JobSucceeded, err
+		}
+		if jobResult.Result == v1.RadixJobResultStoppedNoChanges {
+			return v1.JobStoppedNoChanges, nil
+		}
+		return v1.JobSucceeded, nil
+	}
+	return v1.JobWaiting, nil
 }
 
 func (job *Job) getRadixJobResult() (*v1.RadixJobResult, error) {
 	jobResult := &v1.RadixJobResult{}
-	//TODO
-	//resultConfigMap, err := job.kubeutil.GetConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
-	//if err != nil {
-	//	if errors.IsNotFound(err) {
-	//		return jobResult, nil
-	//	}
-	//	return nil, err
-	//}
-	//if resultContent, ok := resultConfigMap.Data[ResultContent]; ok && len(resultContent) > 0 {
-	//	err = yaml.Unmarshal([]byte(resultContent), jobResult)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//}
-	//err = job.kubeutil.DeleteConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
-	//if err != nil {
-	//	return nil, err
-	//}
+	resultConfigMap, err := job.kubeutil.GetConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return jobResult, nil
+		}
+		return nil, err
+	}
+	if resultContent, ok := resultConfigMap.Data[ResultContent]; ok && len(resultContent) > 0 {
+		err = yaml.Unmarshal([]byte(resultContent), jobResult)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = job.kubeutil.DeleteConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
+	if err != nil {
+		return nil, err
+	}
 	return jobResult, nil
 }
