@@ -17,7 +17,6 @@ type DeploymentSyncerFactoryFunc func(
 	prometheusperatorclient monitoring.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
-	forceRunAsNonRoot bool,
 	tenantId string,
 	kubernetesApiPort int32,
 	ingressAnnotationProviders []IngressAnnotationProvider,
@@ -31,13 +30,12 @@ func (f DeploymentSyncerFactoryFunc) CreateDeploymentSyncer(
 	prometheusperatorclient monitoring.Interface,
 	registration *v1.RadixRegistration,
 	radixDeployment *v1.RadixDeployment,
-	forceRunAsNonRoot bool,
 	tenantId string,
 	kubernetesApiPort int32,
 	ingressAnnotationProviders []IngressAnnotationProvider,
 	auxResourceManagers []AuxiliaryResourceManager,
 ) DeploymentSyncer {
-	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, forceRunAsNonRoot, tenantId, kubernetesApiPort, ingressAnnotationProviders, auxResourceManagers)
+	return f(kubeclient, kubeutil, radixclient, prometheusperatorclient, registration, radixDeployment, tenantId, kubernetesApiPort, ingressAnnotationProviders, auxResourceManagers)
 }
 
 //DeploymentSyncerFactory defines a factory to create a DeploymentSyncer
@@ -49,7 +47,6 @@ type DeploymentSyncerFactory interface {
 		prometheusperatorclient monitoring.Interface,
 		registration *v1.RadixRegistration,
 		radixDeployment *v1.RadixDeployment,
-		forceRunAsNonRoot bool,
 		tenantId string,
 		kubernetesApiPort int32,
 		ingressAnnotationProviders []IngressAnnotationProvider,

@@ -209,7 +209,6 @@ func (dcb *deployComponentBuilder) WithAuthentication(authentication *v1.Authent
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	return v1.RadixDeployComponent{
 		Image:                   dcb.image,
-		RunAsNonRoot:            dcb.runAsNonRoot,
 		Name:                    dcb.name,
 		Ports:                   dcb.ports,
 		Public:                  dcb.public,
