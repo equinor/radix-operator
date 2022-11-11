@@ -108,7 +108,9 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 }
 
 func getPipelineShouldBeStopped(prepareBuildContext *model.PrepareBuildContext) (bool, string) {
-	if prepareBuildContext == nil || prepareBuildContext.ChangedRadixConfig || len(prepareBuildContext.EnvironmentsToBuild) == 0 {
+	if prepareBuildContext == nil || prepareBuildContext.ChangedRadixConfig ||
+		len(prepareBuildContext.EnvironmentsToBuild) == 0 ||
+		len(prepareBuildContext.EnvironmentSubPipelinesToRun) > 0 {
 		return false, ""
 	}
 	for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
