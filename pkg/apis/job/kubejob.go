@@ -208,7 +208,7 @@ func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (v1.Ra
 		if err != nil {
 			return v1.JobSucceeded, err
 		}
-		if jobResult.Result == v1.RadixJobResultStoppedNoChanges {
+		if jobResult.Result == v1.RadixJobResultStoppedNoChanges || job.radixJob.Status.Condition == v1.JobStoppedNoChanges {
 			return v1.JobStoppedNoChanges, nil
 		}
 		return v1.JobSucceeded, nil
@@ -230,10 +230,6 @@ func (job *Job) getRadixJobResult() (*v1.RadixJobResult, error) {
 		if err != nil {
 			return nil, err
 		}
-	}
-	err = job.kubeutil.DeleteConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
-	if err != nil {
-		return nil, err
 	}
 	return jobResult, nil
 }

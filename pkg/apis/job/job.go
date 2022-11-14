@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/util/retry"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -25,6 +23,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
 // Job Instance variables
@@ -74,11 +73,14 @@ func (job *Job) OnSync() error {
 
 	if k8serrors.IsNotFound(err) {
 		err = job.createPipelineJob()
+		if err != nil {
+			return err
+		}
 	}
 
 	job.maintainHistoryLimit()
 
-	return err
+	return nil
 }
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -200,7 +202,7 @@ func (job *Job) getTargetEnv(rj *v1.RadixJob) *[]string {
 
 // IsRadixJobDone Checks if job is done
 func IsRadixJobDone(rj *v1.RadixJob) bool {
-	return rj == nil || rj.Status.Condition == v1.JobFailed || rj.Status.Condition == v1.JobSucceeded || rj.Status.Condition == v1.JobStopped
+	return rj == nil || isJobConditionDone(rj.Status.Condition)
 }
 
 func (job *Job) setStatusOfJob() error {
@@ -241,11 +243,27 @@ func (job *Job) setStatusOfJob() error {
 	if err != nil {
 		return err
 	}
-
-	if jobStatusCondition == v1.JobSucceeded || jobStatusCondition == v1.JobFailed {
-		err = job.setNextJobToRunning()
+	err = job.deleteResultConfigMap()
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return err
 	}
-	return err
+
+	if isJobConditionDone(jobStatusCondition) {
+		err = job.setNextJobToRunning()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isJobConditionDone(jobStatusCondition v1.RadixJobCondition) bool {
+	return jobStatusCondition == v1.JobSucceeded || jobStatusCondition == v1.JobFailed ||
+		jobStatusCondition == v1.JobStopped || jobStatusCondition == v1.JobStoppedNoChanges
+}
+
+func (job *Job) deleteResultConfigMap() error {
+	return job.kubeutil.DeleteConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
 }
 
 func (job *Job) stopJob() error {
