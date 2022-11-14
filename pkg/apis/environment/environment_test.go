@@ -159,7 +159,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
 
-	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-app-admin-envs")
+	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env")
 
 	adGroupName := rr.Spec.AdGroups[0]
 	t.Run("It contains the correct AD groups", func(t *testing.T) {
@@ -245,23 +245,27 @@ func sync(t *testing.T, env *Environment) {
 }
 
 // commonAsserts runs a generic set of assertions about resource creation
-func commonAsserts(t *testing.T, env Environment, resources []meta.Object, name string) {
+func commonAsserts(t *testing.T, env Environment, resources []meta.Object, names ...string) {
 	t.Run("It creates a single resource", func(t *testing.T) {
-		assert.Len(t, resources, 1)
+		assert.Len(t, resources, len(names))
 	})
 
 	t.Run("Resource has a correct name", func(t *testing.T) {
-		assert.Equal(t, name, resources[0].GetName())
+		for _, resource := range resources {
+			assert.Contains(t, names, resource.GetName())
+		}
 	})
 
 	t.Run("Resource has a correct owner", func(t *testing.T) {
-		assert.Equal(t, env.AsOwnerReference(), resources[0].GetOwnerReferences())
+		for _, resource := range resources {
+			assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences())
+		}
 	})
 
 	t.Run("Creation is idempotent", func(t *testing.T) {
 		err := env.OnSync(meta.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
-		assert.Len(t, resources, 1)
+		assert.Len(t, resources, len(names))
 	})
 }
 
@@ -271,6 +275,7 @@ func commonAsserts(t *testing.T, env Environment, resources []meta.Object, name 
 func namespacesAsMeta(items []core.Namespace) []meta.Object {
 	var slice []meta.Object
 	for _, w := range items {
+		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -278,6 +283,7 @@ func namespacesAsMeta(items []core.Namespace) []meta.Object {
 func roleBindingsAsMeta(items []rbac.RoleBinding) []meta.Object {
 	var slice []meta.Object
 	for _, w := range items {
+		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -285,6 +291,7 @@ func roleBindingsAsMeta(items []rbac.RoleBinding) []meta.Object {
 func limitRangesAsMeta(items []core.LimitRange) []meta.Object {
 	var slice []meta.Object
 	for _, w := range items {
+		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice

@@ -2,6 +2,9 @@ package onpush
 
 import (
 	"context"
+	jobs "github.com/equinor/radix-operator/pkg/apis/job"
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/env"
@@ -64,18 +67,6 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	if err != nil {
 		return err
 	}
-
-	containerRegistry, err := cli.kubeUtil.GetContainerRegistry()
-	if err != nil {
-		return err
-	}
-	subscriptionId, err := cli.kubeUtil.GetSubscriptionId()
-	if err != nil {
-		return err
-	}
-
-	cli.pipelineInfo.ContainerRegistry = containerRegistry
-	cli.pipelineInfo.SubscriptionId = subscriptionId
 	return nil
 }
 
@@ -90,6 +81,10 @@ func (cli *PipelineRunner) Run() error {
 			return err
 		}
 		log.Infof(step.SucceededMsg())
+		if cli.pipelineInfo.StopPipeline {
+			log.Infof("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
+			break
+		}
 	}
 	return nil
 }
@@ -126,4 +121,24 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 	}
 
 	return stepImplementations
+}
+
+func (cli *PipelineRunner) CreateResultConfigMap() error {
+	result := v1.RadixJobResult{}
+	if cli.pipelineInfo.StopPipeline {
+		result.Result = v1.RadixJobResultStoppedNoChanges
+		result.Message = cli.pipelineInfo.StopPipelineMessage
+	}
+	resultContent, err := yaml.Marshal(&result)
+	if err != nil {
+		return err
+	}
+	configMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cli.pipelineInfo.PipelineArguments.JobName,
+		},
+		Data: map[string]string{jobs.ResultContent: string(resultContent)},
+	}
+	_, err = cli.kubeUtil.CreateConfigMap(utils.GetAppNamespace(cli.appName), &configMap)
+	return err
 }
