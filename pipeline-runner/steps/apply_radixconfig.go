@@ -109,7 +109,7 @@ func getPrepareBuildContextContent(configMap *corev1.ConfigMap) (*model.PrepareB
 	if err != nil {
 		return nil, err
 	}
-	if prepareBuildContext != nil {
+	if prepareBuildContext == nil {
 		return nil, nil
 	}
 	printPrepareBuildContext(prepareBuildContext)
