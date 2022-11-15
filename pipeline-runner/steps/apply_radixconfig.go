@@ -80,18 +80,9 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
-	prepareBuildContextContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapBuildContext]
-	if !ok {
-		return fmt.Errorf("failed load Prepare Build Context from ConfigMap")
-	}
-	prepareBuildContext := &model.PrepareBuildContext{}
-	err = yaml.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
+	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContextContent(configMap)
 	if err != nil {
 		return err
-	}
-	if prepareBuildContext != nil {
-		pipelineInfo.PrepareBuildContext = prepareBuildContext
-		printPrepareBuildContext(prepareBuildContext)
 	}
 
 	if pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
@@ -105,6 +96,24 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	}
 
 	return nil
+}
+
+func getPrepareBuildContextContent(configMap *corev1.ConfigMap) (*model.PrepareBuildContext, error) {
+	prepareBuildContextContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapBuildContext]
+	if !ok {
+		log.Debug("Prepare Build Context does not exist in the ConfigMap")
+		return nil, nil
+	}
+	prepareBuildContext := &model.PrepareBuildContext{}
+	err := yaml.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
+	if err != nil {
+		return nil, err
+	}
+	if prepareBuildContext != nil {
+		return nil, nil
+	}
+	printPrepareBuildContext(prepareBuildContext)
+	return prepareBuildContext, nil
 }
 
 func getPipelineShouldBeStopped(prepareBuildContext *model.PrepareBuildContext) (bool, string) {
