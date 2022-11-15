@@ -73,3 +73,10 @@ rules:
   - get
   - list
   - create
+- apiGroups:
+    - ""
+  resources:
+    - namespaces
+  verbs:
+    - get
+
