@@ -223,11 +223,21 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 
 func getDefaultEnvVarsFromRadixDeployment(radixDeployment *v1.RadixDeployment) v1.EnvVarsMap {
 	envVarsMap := make(v1.EnvVarsMap)
-	if gitCommitHash, ok := radixDeployment.Annotations[kube.RadixCommitAnnotation]; ok {
-		envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
-	}
+	gitCommitHash := getGitCommitHashFromDeployment(radixDeployment)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
 	if gitTags, ok := radixDeployment.Annotations[kube.RadixGitTagsAnnotation]; ok {
 		envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
 	}
 	return envVarsMap
+}
+
+func getGitCommitHashFromDeployment(radixDeployment *v1.RadixDeployment) string {
+	if gitCommitHash, ok := radixDeployment.Annotations[kube.RadixCommitAnnotation]; ok {
+		return gitCommitHash
+	} else {
+		if gitCommitHash, ok := radixDeployment.Labels[kube.RadixCommitLabel]; ok {
+			return gitCommitHash
+		}
+	}
+	return ""
 }

@@ -120,6 +120,10 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 			Value: pipelineInfo.PipelineArguments.ToEnvironment,
 		},
 		{
+			Name:  defaults.RadixCommitHashEnvironmentVariable,
+			Value: pipelineInfo.GitCommitHash,
+		},
+		{
 			Name:  defaults.LogLevel,
 			Value: cli.GetEnv().GetLogLevel(),
 		},

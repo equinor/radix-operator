@@ -49,6 +49,10 @@ type PipelineInfo struct {
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
+
+	// Promotion job git info
+	SourceDeploymentGitCommitHash string
+	SourceDeploymentGitBranch     string
 }
 
 // PipelineArguments Holds arguments for the pipeline
