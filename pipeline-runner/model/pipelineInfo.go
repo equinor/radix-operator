@@ -32,11 +32,6 @@ type PipelineInfo struct {
 	PipelineArguments PipelineArguments
 	Steps             []Step
 
-	// Container registry to build with
-	ContainerRegistry string
-	//Subscription ID to build with
-	SubscriptionId string
-
 	// Temporary data
 	RadixConfigMapName string
 	GitConfigMapName   string
@@ -49,6 +44,10 @@ type PipelineInfo struct {
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
+	// Prepare pipeline job build context
+	PrepareBuildContext *PrepareBuildContext
+	StopPipeline        bool
+	StopPipelineMessage string
 
 	// Promotion job git info
 	SourceDeploymentGitCommitHash string
@@ -76,13 +75,18 @@ type PipelineArguments struct {
 	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building
 	TektonPipeline string
-
+	// ImageBuilder Points to the image builder
 	ImageBuilder string
-
 	// Used for tagging meta-information
 	Clustertype string
-	RadixZone   string
+	// RadixZone  The radix zone.
+	RadixZone string
+	// Clustername The name of the cluster
 	Clustername string
+	// ContainerRegistry The name of the container registry
+	ContainerRegistry string
+	// SubscriptionId Azure subscription ID
+	SubscriptionId string
 	// Used to indicate debugging session
 	Debug bool
 }
@@ -107,6 +111,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
+	containerRegistry := args[defaults.ContainerRegistryEnvironmentVariable]
+	subscriptionId := args[defaults.AzureSubscriptionIdEnvironmentVariable]
 	radixZone := args[defaults.RadixZoneEnvironmentVariable]
 
 	// Indicates that we are debugging the application
@@ -119,23 +125,25 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	pushImageBool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
 
 	return PipelineArguments{
-		PipelineType:    pipelineType,
-		JobName:         jobName,
-		Branch:          branch,
-		CommitID:        commitID,
-		ImageTag:        imageTag,
-		UseCache:        useCache,
-		PushImage:       pushImageBool,
-		DeploymentName:  deploymentName,
-		FromEnvironment: fromEnvironment,
-		ToEnvironment:   toEnvironment,
-		TektonPipeline:  tektonPipeline,
-		ImageBuilder:    imageBuilder,
-		Clustertype:     clusterType,
-		Clustername:     clusterName,
-		RadixZone:       radixZone,
-		RadixConfigFile: radixConfigFile,
-		Debug:           debug,
+		PipelineType:      pipelineType,
+		JobName:           jobName,
+		Branch:            branch,
+		CommitID:          commitID,
+		ImageTag:          imageTag,
+		UseCache:          useCache,
+		PushImage:         pushImageBool,
+		DeploymentName:    deploymentName,
+		FromEnvironment:   fromEnvironment,
+		ToEnvironment:     toEnvironment,
+		TektonPipeline:    tektonPipeline,
+		ImageBuilder:      imageBuilder,
+		Clustertype:       clusterType,
+		Clustername:       clusterName,
+		ContainerRegistry: containerRegistry,
+		SubscriptionId:    subscriptionId,
+		RadixZone:         radixZone,
+		RadixConfigFile:   radixConfigFile,
+		Debug:             debug,
 	}
 }
 
@@ -216,7 +224,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 
 	componentImages := getComponentImages(
 		ra,
-		info.ContainerRegistry,
+		info.PipelineArguments.ContainerRegistry,
 		info.PipelineArguments.ImageTag,
 		maps.GetKeysFromMap(targetEnvironments),
 	)

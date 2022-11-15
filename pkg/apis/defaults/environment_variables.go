@@ -22,6 +22,9 @@ const (
 	// ContainerRegistryEnvironmentVariable The name of the container registry
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 
+	// AzureSubscriptionIdEnvironmentVariable The Azure subscription ID
+	AzureSubscriptionIdEnvironmentVariable = "AZURE_SUBSCRIPTION_ID"
+
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 
@@ -131,6 +134,9 @@ const (
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
+
+	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
+	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
 
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
 	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
