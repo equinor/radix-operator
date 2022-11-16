@@ -128,7 +128,7 @@ func waitForNamespace(client kubernetes.Interface, namespace string) error {
 	for {
 		go func() {
 			ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
-			if !k8errs.IsNotFound(err) {
+			if !k8errs.IsNotFound(err) && !k8errs.IsForbidden(err) {
 				errorCh <- err
 			}
 
