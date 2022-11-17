@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	requiredRadixRegistrationValidators []radixRegistrationValidatorFunc = []radixRegistrationValidatorFunc{
+	requiredRadixRegistrationValidators []RadixRegistrationValidator = []RadixRegistrationValidator{
 		validateRadixRegistrationAppName,
 		validateRadixRegistrationGitSSHUrl,
 		validateRadixRegistrationSSHKey,
@@ -31,23 +31,35 @@ var (
 	}
 )
 
-type radixRegistrationValidatorFunc func(radixRegistration *v1.RadixRegistration) error
+// RadixRegistrationValidator defines a validator function for a RadixRegistration
+type RadixRegistrationValidator func(radixRegistration *v1.RadixRegistration) error
+
+// RequireConfigurationItem validates that ConfigurationItem for a RadixRegistration set
+func RequireConfigurationItem(rr *v1.RadixRegistration) error {
+	if len(strings.TrimSpace(rr.Spec.ConfigurationItem)) == 0 {
+		return ResourceNameCannotBeEmptyError("configuration item")
+	}
+
+	return nil
+}
 
 // CanRadixRegistrationBeInserted Validates RR
-func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration) error {
+func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
 	validators := requiredRadixRegistrationValidators[:]
 	// cannot be used from admission control - returns the same radix reg that we try to validate
 	validators = append(validators, validateRadixRegistrationAppNameAvailableFactory(client))
+	validators = append(validators, additionalValidators...)
 	return validateRadixRegistration(radixRegistration, validators...)
 }
 
 // CanRadixRegistrationBeUpdated Validates update of RR
-func CanRadixRegistrationBeUpdated(radixRegistration *v1.RadixRegistration) error {
+func CanRadixRegistrationBeUpdated(radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
 	validators := requiredRadixRegistrationValidators[:]
+	validators = append(validators, additionalValidators...)
 	return validateRadixRegistration(radixRegistration, validators...)
 }
 
-func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validators ...radixRegistrationValidatorFunc) error {
+func validateRadixRegistration(radixRegistration *v1.RadixRegistration, validators ...RadixRegistrationValidator) error {
 	var errs []error
 	for _, v := range validators {
 		if err := v(radixRegistration); err != nil {
@@ -67,7 +79,7 @@ func GetRadixRegistrationBeUpdatedWarnings(client radixclient.Interface, radixRe
 	return appendNoDuplicateGitRepoWarning(client, radixRegistration.Name, radixRegistration.Spec.CloneURL)
 }
 
-func validateRadixRegistrationAppNameAvailableFactory(client radixclient.Interface) radixRegistrationValidatorFunc {
+func validateRadixRegistrationAppNameAvailableFactory(client radixclient.Interface) RadixRegistrationValidator {
 	return func(radixRegistration *v1.RadixRegistration) error {
 		return validateDoesNameAlreadyExist(client, radixRegistration.Name)
 	}
@@ -94,9 +106,6 @@ func validateRadixRegistrationConfigurationItem(rr *v1.RadixRegistration) error 
 }
 
 func validateConfigurationItem(value string) error {
-	if len(value) == 0 {
-		return ResourceNameCannotBeEmptyError("configuration item")
-	}
 	if len(value) > 100 {
 		return InvalidStringValueMaxLengthError("configuration item", value, 100)
 	}
