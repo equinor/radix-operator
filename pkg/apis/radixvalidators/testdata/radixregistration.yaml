@@ -7,7 +7,4 @@ spec:
   sharedSecret: "NotSoSecret"
   adGroups:
   - "a6a3b81b-34gd-sfsf-saf2-7986371ea35f"
-  secrets:
-    test: test
-  configurationItem: "2b0781a7db131784551ea1ea4b9619c9"
   configBranch: "main"
