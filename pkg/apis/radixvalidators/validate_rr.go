@@ -45,17 +45,15 @@ func RequireConfigurationItem(rr *v1.RadixRegistration) error {
 
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
-	validators := requiredRadixRegistrationValidators[:]
 	// cannot be used from admission control - returns the same radix reg that we try to validate
-	validators = append(validators, validateRadixRegistrationAppNameAvailableFactory(client))
+	validators := append(requiredRadixRegistrationValidators, validateRadixRegistrationAppNameAvailableFactory(client))
 	validators = append(validators, additionalValidators...)
 	return validateRadixRegistration(radixRegistration, validators...)
 }
 
 // CanRadixRegistrationBeUpdated Validates update of RR
 func CanRadixRegistrationBeUpdated(radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
-	validators := requiredRadixRegistrationValidators[:]
-	validators = append(validators, additionalValidators...)
+	validators := append(requiredRadixRegistrationValidators, additionalValidators...)
 	return validateRadixRegistration(radixRegistration, validators...)
 }
 
