@@ -3,7 +3,6 @@ package kube
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -13,12 +12,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
 const waitTimeout = 15 * time.Second
 
-// ApplyNamespace Creates a new namespace, if not exists allready
+// ApplyNamespace Creates a new namespace, if not exists already
 func (kubeutil *Kube) ApplyNamespace(name string, labels map[string]string, ownerRefs []metav1.OwnerReference) error {
 	log.Debugf("Create namespace: %s", name)
 
@@ -120,33 +120,20 @@ func (watcher NamespaceWatcherImpl) WaitFor(namespace string) error {
 }
 
 func waitForNamespace(client kubernetes.Interface, namespace string) error {
-	checkDone := make(chan bool, 1)
-	errorCh := make(chan error, 1)
-	timer := time.NewTimer(waitTimeout)
-	defer timer.Stop()
+	timoutContext, cancel := context.WithTimeout(context.Background(), waitTimeout)
+	defer cancel()
 
-	for {
-		go func() {
-			ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
-			if !k8errs.IsNotFound(err) {
-				errorCh <- err
+	return wait.PollImmediateUntilWithContext(timoutContext, time.Second, func(ctx context.Context) (done bool, err error) {
+		ns, err := client.CoreV1().Namespaces().Get(context.TODO(), namespace, metav1.GetOptions{})
+		if err != nil {
+			if k8errs.IsNotFound(err) || k8errs.IsForbidden(err) {
+				return false, nil //the environment namespace or the rolebinding for the cluster-role radix-pipeline-env are not yet created
 			}
-
-			if ns != nil && ns.Status.Phase == corev1.NamespaceActive {
-				errorCh <- nil
-			}
-
-			time.Sleep(time.Second)
-			checkDone <- true
-		}()
-
-		select {
-		case <-checkDone:
-			log.Debugf("Namespace %s still doesn't exists", namespace)
-		case err := <-errorCh:
-			return err
-		case <-timer.C:
-			return errors.New("timed out waiting for namespace")
+			return false, err
 		}
-	}
+		if ns != nil && ns.Status.Phase == corev1.NamespaceActive {
+			return true, nil
+		}
+		return false, nil
+	})
 }
