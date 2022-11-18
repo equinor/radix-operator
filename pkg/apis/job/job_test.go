@@ -176,6 +176,40 @@ func (s *RadixJobTestSuite) TestHistoryLimit_IsBroken_FixedAmountOfJobs() {
 	assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
 }
 
+func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
+	anyLimit := 3
+
+	// Current cluster is active cluster
+	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
+
+	firstJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
+
+	jobs, _ := s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+
+	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("SecondJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
+
+	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
+
+	jobs, _ = s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+
+	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
+	assert.False(s.T(), s.radixJobByNameExists("SecondJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
+	assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
+}
+
 func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"))
 

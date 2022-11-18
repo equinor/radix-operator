@@ -11,7 +11,6 @@ import (
 	"time"
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
-
 	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -23,6 +22,7 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
+	"github.com/equinor/radix-operator/radix-operator/env"
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
@@ -48,14 +48,8 @@ var logger *log.Entry
 
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
-	switch os.Getenv(defaults.LogLevel) {
-	case "DEBUG":
-		logger.Logger.SetLevel(log.DebugLevel)
-	case "ERROR":
-		logger.Logger.SetLevel(log.ErrorLevel)
-	default:
-		logger.Logger.SetLevel(log.InfoLevel)
-	}
+	environment := env.NewEnvironment()
+	setLogLevel(environment)
 
 	registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, err := getInitParams()
 	if err != nil {
@@ -78,7 +72,7 @@ func main() {
 	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient, applicationControllerThreads)
 	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient, environmentControllerThreads)
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
-	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads)
+	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads, environment)
 	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, alertControllerThreads)
 
 	sigTerm := make(chan os.Signal, 1)
@@ -272,7 +266,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	}
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int, environment env.Env) {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
@@ -297,7 +291,8 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 		kubeInformerFactory,
 		radixInformerFactory,
 		waitForChildrenToSync,
-		recorder)
+		recorder,
+		environment)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
@@ -395,4 +390,15 @@ func Healthz(writer http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(writer, "%s", response)
+}
+
+func setLogLevel(environment env.Env) {
+	switch environment.GetLogLevel() {
+	case string(env.LogLevelDebug):
+		log.SetLevel(log.DebugLevel)
+	case string(env.LogLevelError):
+		log.SetLevel(log.ErrorLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 }

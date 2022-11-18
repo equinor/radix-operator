@@ -5,18 +5,17 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-
-	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	kubeinformers "k8s.io/client-go/informers"
-
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/env"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -35,12 +34,7 @@ func init() {
 }
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(client kubernetes.Interface,
-	radixClient radixclient.Interface, handler common.Handler,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
-	waitForChildrenToSync bool,
-	recorder record.EventRecorder) *common.Controller {
+func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder, environment env.Env) *common.Controller {
 
 	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
