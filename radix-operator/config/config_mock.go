@@ -33,6 +33,48 @@ func (m *MockConfig) EXPECT() *MockConfigMockRecorder {
 	return m.recorder
 }
 
+// GetDeploymentsHistoryLimitPerEnvironment mocks base method.
+func (m *MockConfig) GetDeploymentsHistoryLimitPerEnvironment() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDeploymentsHistoryLimitPerEnvironment")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetDeploymentsHistoryLimitPerEnvironment indicates an expected call of GetDeploymentsHistoryLimitPerEnvironment.
+func (mr *MockConfigMockRecorder) GetDeploymentsHistoryLimitPerEnvironment() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeploymentsHistoryLimitPerEnvironment", reflect.TypeOf((*MockConfig)(nil).GetDeploymentsHistoryLimitPerEnvironment))
+}
+
+// GetJobsHistoryLimitOutOfEnvironment mocks base method.
+func (m *MockConfig) GetJobsHistoryLimitOutOfEnvironment() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetJobsHistoryLimitOutOfEnvironment")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetJobsHistoryLimitOutOfEnvironment indicates an expected call of GetJobsHistoryLimitOutOfEnvironment.
+func (mr *MockConfigMockRecorder) GetJobsHistoryLimitOutOfEnvironment() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJobsHistoryLimitOutOfEnvironment", reflect.TypeOf((*MockConfig)(nil).GetJobsHistoryLimitOutOfEnvironment))
+}
+
+// GetJobsHistoryLimitPerEnvironment mocks base method.
+func (m *MockConfig) GetJobsHistoryLimitPerEnvironment() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetJobsHistoryLimitPerEnvironment")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetJobsHistoryLimitPerEnvironment indicates an expected call of GetJobsHistoryLimitPerEnvironment.
+func (mr *MockConfigMockRecorder) GetJobsHistoryLimitPerEnvironment() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJobsHistoryLimitPerEnvironment", reflect.TypeOf((*MockConfig)(nil).GetJobsHistoryLimitPerEnvironment))
+}
+
 // GetLogLevel mocks base method.
 func (m *MockConfig) GetLogLevel() string {
 	m.ctrl.T.Helper()

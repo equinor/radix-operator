@@ -5,7 +5,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/golang/mock/gomock"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -48,13 +47,13 @@ func (s *RadixJobTestSuiteBase) TearDownTest() {
 
 func (s *RadixJobTestSuiteBase) setupTest() {
 	// Setup
-	kubeclient := kubernetes.NewSimpleClientset()
-	radixclient := radix.NewSimpleClientset()
+	kubeClient := kubernetes.NewSimpleClientset()
+	radixClient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	kubeUtil, _ := kubeUtils.New(kubeClient, radixClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
-	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeclient, kubeUtil, radixclient
+	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 	s.mockCtrl = gomock.NewController(s.T())
 	s.config = config.NewMockConfig(s.mockCtrl)
 }
@@ -66,7 +65,6 @@ func (s *RadixJobTestSuiteBase) teardownTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
-	os.Unsetenv(defaults.JobsHistoryLimitEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
@@ -104,6 +102,9 @@ type RadixJobTestSuite struct {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
+	anyLimit := 3
+	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+
 	appName := "anyapp"
 	completedJobStatus := utils.ACompletedJobStatus()
 
@@ -121,6 +122,9 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
+	anyLimit := 3
+	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+
 	// Setup
 	firstJob, _ := s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
 
@@ -139,6 +143,8 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning() {
+	anyLimit := 3
+	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
 	// Setup
 	s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
 
@@ -150,9 +156,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJ
 
 func (s *RadixJobTestSuite) TestHistoryLimit_IsBroken_FixedAmountOfJobs() {
 	anyLimit := 3
-
-	// Current cluster is active cluster
-	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
+	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
 
 	firstJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
 
@@ -184,9 +188,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_IsBroken_FixedAmountOfJobs() {
 
 func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 	anyLimit := 3
-
-	// Current cluster is active cluster
-	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
+	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
 
 	firstJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
 
@@ -217,6 +219,9 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 }
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {
+	anyLimit := 3
+	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"))
 
 	expectedEnvs := []string{"test"}

@@ -5,13 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/equinor/radix-operator/radix-operator/config"
-	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -646,33 +643,24 @@ func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(curr
 }
 
 func (job *Job) maintainHistoryLimit() {
-	historyLimit := os.Getenv(defaults.JobsHistoryLimitEnvironmentVariable)
-	if historyLimit != "" {
-		limit, err := strconv.Atoi(historyLimit)
-		if err != nil {
-			log.Warnf("%s is not set to a proper number, %s, and cannot be parsed.", defaults.JobsHistoryLimitEnvironmentVariable, historyLimit)
+	historyLimit := job.config.GetJobsHistoryLimitPerEnvironment()
+	allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
+		return
+	}
+	if len(allRJs.Items) > historyLimit {
+		jobs := allRJs.Items
+		numToDelete := len(jobs) - historyLimit
+		if numToDelete <= 0 {
 			return
 		}
 
-		allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-			return
-		}
-
-		if len(allRJs.Items) > limit {
-			jobs := allRJs.Items
-			numToDelete := len(jobs) - limit
-			if numToDelete <= 0 {
-				return
-			}
-
-			jobs = sortJobsByActiveFromTimestampAsc(jobs)
-			for i := 0; i < numToDelete; i++ {
-				log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
-				//goland:noinspection GoUnhandledErrorResult - do not fail on error
-				job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(context.TODO(), jobs[i].Name, metav1.DeleteOptions{})
-			}
+		jobs = sortJobsByActiveFromTimestampAsc(jobs)
+		for i := 0; i < numToDelete; i++ {
+			log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
+			//goland:noinspection GoUnhandledErrorResult - do not fail on error
+			job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(context.TODO(), jobs[i].Name, metav1.DeleteOptions{})
 		}
 	}
 }
