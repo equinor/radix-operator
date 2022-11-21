@@ -224,7 +224,9 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 func getDefaultEnvVarsFromRadixDeployment(radixDeployment *v1.RadixDeployment) v1.EnvVarsMap {
 	envVarsMap := make(v1.EnvVarsMap)
 	gitCommitHash := getGitCommitHashFromDeployment(radixDeployment)
-	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
+	if gitCommitHash != "" {
+		envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
+	}
 	if gitTags, ok := radixDeployment.Annotations[kube.RadixGitTagsAnnotation]; ok {
 		envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
 	}
