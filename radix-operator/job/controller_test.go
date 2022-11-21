@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	"os"
 	"testing"
 
@@ -13,7 +14,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	"github.com/equinor/radix-operator/radix-operator/env"
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
@@ -38,7 +38,7 @@ type jobTestSuite struct {
 	kubeUtil   *kube.Kube
 	tu         test.Utils
 	mockCtrl   *gomock.Controller
-	env        *env.MockEnv
+	config     *config.MockConfig
 }
 
 func TestJobTestSuite(t *testing.T) {
@@ -56,7 +56,7 @@ func (s *jobTestSuite) SetupTest() {
 	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), secretProviderClient)
 	s.tu.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
 	s.mockCtrl = gomock.NewController(s.T())
-	s.env = env.NewMockEnv(s.mockCtrl)
+	s.config = config.NewMockConfig(s.mockCtrl)
 }
 
 func (s *jobTestSuite) TearDownTest() {
@@ -84,11 +84,12 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 		s.kubeUtil.KubeClient(),
 		s.kubeUtil,
 		s.kubeUtil.RadixClient(),
+		s.config,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop, s.env)
+	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop, s.config)
 
 	// Test
 
@@ -127,12 +128,12 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	s.True(op)
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}, environment env.Env) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}, config config.Config) {
 
 	eventRecorder := &record.FakeRecorder{}
 
 	waitForChildrenToSync := false
-	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder, environment)
+	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)

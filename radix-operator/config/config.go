@@ -1,11 +1,11 @@
-package env
+package config
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/spf13/viper"
 )
 
-type env struct {
+type config struct {
 }
 
 type LogLevel string
@@ -19,7 +19,7 @@ const (
 var logLevels = map[string]bool{string(LogLevelInfo): true, string(LogLevelDebug): true, string(LogLevelError): true}
 
 //GetLogLevel Gets log level
-func (e *env) GetLogLevel() string {
+func (e *config) GetLogLevel() string {
 	logLevel := viper.GetString(defaults.LogLevel)
 	if _, ok := logLevels[logLevel]; ok {
 		return logLevel
@@ -27,13 +27,13 @@ func (e *env) GetLogLevel() string {
 	return string(LogLevelInfo)
 }
 
-//Env Environment from environment variables
-type Env interface {
+//Config Config from environment variables
+type Config interface {
 	GetLogLevel() string
 }
 
-//NewEnvironment New instance of Env
-func NewEnvironment() Env {
+//NewConfig New instance of Config
+func NewConfig() Config {
 	viper.AutomaticEnv()
-	return &env{}
+	return &config{}
 }

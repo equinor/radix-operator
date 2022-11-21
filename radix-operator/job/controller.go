@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -10,7 +9,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
-	"github.com/equinor/radix-operator/radix-operator/env"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +32,7 @@ func init() {
 }
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder, environment env.Env) *common.Controller {
+func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
 
 	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()

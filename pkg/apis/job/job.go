@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	"os"
 	"sort"
 	"strconv"
@@ -20,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -33,20 +34,20 @@ type Job struct {
 	kubeutil                  *kube.Kube
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
+	config                    config.Config
 }
 
 // NewJob Constructor
-func NewJob(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	radixJob *v1.RadixJob) Job {
+func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, radixJob *v1.RadixJob, config config.Config) Job {
 	originalRadixJobStatus := radixJob.Status.Condition
 
 	return Job{
-		kubeclient,
-		radixclient,
-		kubeutil, radixJob, originalRadixJobStatus}
+		kubeclient:                kubeclient,
+		radixclient:               radixclient,
+		kubeutil:                  kubeutil,
+		radixJob:                  radixJob,
+		originalRadixJobCondition: originalRadixJobStatus,
+		config:                    config}
 }
 
 // OnSync compares the actual state with the desired, and attempts to
@@ -71,7 +72,7 @@ func (job *Job) OnSync() error {
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
 
-	if k8serrors.IsNotFound(err) {
+	if k8sErrors.IsNotFound(err) {
 		err = job.createPipelineJob()
 		if err != nil {
 			return err
@@ -207,7 +208,7 @@ func IsRadixJobDone(rj *v1.RadixJob) bool {
 
 func (job *Job) setStatusOfJob() error {
 	pipelineJob, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-	if k8serrors.IsNotFound(err) {
+	if k8sErrors.IsNotFound(err) {
 		// No kubernetes job created yet, so nothing to sync
 		return nil
 	}
@@ -244,7 +245,7 @@ func (job *Job) setStatusOfJob() error {
 		return err
 	}
 	err = job.deleteResultConfigMap()
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && !k8sErrors.IsNotFound(err) {
 		return err
 	}
 
@@ -294,7 +295,7 @@ func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
 	}
 	// Delete pipeline job
 	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), job.radixJob.Name, metav1.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && !k8sErrors.IsNotFound(err) {
 		return nil, err
 	}
 

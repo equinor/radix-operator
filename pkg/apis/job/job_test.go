@@ -2,6 +2,8 @@ package job
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/radix-operator/config"
+	"github.com/golang/mock/gomock"
 	"os"
 	"strconv"
 	"testing"
@@ -32,6 +34,8 @@ type RadixJobTestSuiteBase struct {
 	kubeClient  kube.Interface
 	kubeUtils   *kubeUtils.Kube
 	radixClient radixclient.Interface
+	mockCtrl    *gomock.Controller
+	config      *config.MockConfig
 }
 
 func (s *RadixJobTestSuiteBase) SetupTest() {
@@ -51,6 +55,8 @@ func (s *RadixJobTestSuiteBase) setupTest() {
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
 	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeclient, kubeUtil, radixclient
+	s.mockCtrl = gomock.NewController(s.T())
+	s.config = config.NewMockConfig(s.mockCtrl)
 }
 
 func (s *RadixJobTestSuiteBase) teardownTest() {
@@ -80,7 +86,7 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder) (*
 }
 
 func (s *RadixJobTestSuiteBase) runSync(rj *v1.RadixJob) error {
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj, s.config)
 	err := job.OnSync()
 	if err != nil {
 		return err
