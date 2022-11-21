@@ -3,6 +3,8 @@ package steps
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -55,6 +57,14 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 	namespace := utils.GetAppNamespace(appName)
 	log.Infof("Prepare pipelines app %s for branch %s and commit %s", appName, branch, commitID)
 
+	if v1.RadixPipelineType(pipelineInfo.PipelineArguments.PipelineType) == v1.Promote {
+		sourceDeploymentGitCommitHash, sourceDeploymentGitBranch, err := cli.getSourceDeploymentGitInfo(appName, pipelineInfo.PipelineArguments.FromEnvironment, pipelineInfo.PipelineArguments.DeploymentName)
+		if err != nil {
+			return err
+		}
+		pipelineInfo.SourceDeploymentGitCommitHash = sourceDeploymentGitCommitHash
+		pipelineInfo.SourceDeploymentGitBranch = sourceDeploymentGitBranch
+	}
 	job := cli.getPreparePipelinesJobConfig(pipelineInfo)
 
 	// When debugging pipeline there will be no RJ
@@ -136,6 +146,14 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: pipelineInfo.PipelineArguments.ToEnvironment,
 		},
 		{
+			Name:  defaults.RadixPromoteSourceDeploymentCommitHashEnvironmentVariable,
+			Value: pipelineInfo.SourceDeploymentGitCommitHash,
+		},
+		{
+			Name:  defaults.RadixPromoteSourceDeploymentBranchEnvironmentVariable,
+			Value: pipelineInfo.SourceDeploymentGitBranch,
+		},
+		{
 			Name:  defaults.LogLevel,
 			Value: cli.GetEnv().GetLogLevel(),
 		},
@@ -154,4 +172,15 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipelineInfo *model.PipelineInfo, configBranch, sshURL string) []corev1.Container {
 	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName,
 		pipelineInfo.PipelineArguments.ContainerSecurityContext)
+}
+
+func (cli *PreparePipelinesStepImplementation) getSourceDeploymentGitInfo(appName, sourceEnvName, sourceDeploymentName string) (string, string, error) {
+	ns := utils.GetEnvironmentNamespace(appName, sourceEnvName)
+	rd, err := cli.GetKubeutil().GetRadixDeployment(ns, sourceDeploymentName)
+	if err != nil {
+		return "", "", err
+	}
+	gitHash := getGitCommitHashFromDeployment(rd)
+	gitBranch := rd.Annotations[kube.RadixBranchAnnotation]
+	return gitHash, gitBranch, err
 }

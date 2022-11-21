@@ -48,6 +48,10 @@ type PipelineInfo struct {
 	PrepareBuildContext *PrepareBuildContext
 	StopPipeline        bool
 	StopPipelineMessage string
+
+	// Promotion job git info
+	SourceDeploymentGitCommitHash string
+	SourceDeploymentGitBranch     string
 }
 
 // PipelineArguments Holds arguments for the pipeline
