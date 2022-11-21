@@ -21,14 +21,23 @@ const (
 	// AppAdminEnvironmentRoleName Name of role which grants access to manage their running Radix applications
 	AppAdminEnvironmentRoleName = "radix-app-admin-envs"
 
-	// PipelineRoleName Role to update the radix config from repo and execute the outer pipeline
-	PipelineRoleName = "radix-pipeline"
+	// PipelineServiceAccountName Service account name for the pipeline
+	PipelineServiceAccountName = "radix-pipeline"
 
-	// PipelineRunnerRoleName Give radix-pipeline service account inside app namespace access to creating namespaces and make deployments through radix-pipeline-runner clusterrole
-	PipelineRunnerRoleName = "radix-pipeline-runner"
+	// PipelineAppRoleName Role to update the radix config from repo and execute the outer pipeline
+	PipelineAppRoleName = "radix-pipeline-app"
 
-	// RadixTektonRoleName Role (service account name) of user to apply radixconfig to configmap and process Tekton objects
-	RadixTektonRoleName = "radix-tekton"
+	// PipelineEnvRoleName Give radix-pipeline service account inside app namespace access to make deployments through radix-pipeline-runner clusterrole
+	PipelineEnvRoleName = "radix-pipeline-env"
+
+	// RadixTektonServiceAccountName Service account name for radix-tekton jobs
+	RadixTektonServiceAccountName = "radix-tekton"
+
+	// RadixTektonAppRoleName Role of user to apply radixconfig to configmap and process Tekton objects
+	RadixTektonAppRoleName = "radix-tekton-app"
+
+	// RadixTektonEnvRoleName Role of user to get app environment data for prepare pipeline job
+	RadixTektonEnvRoleName = "radix-tekton-env"
 
 	// MachineUserPostfix Role (service account) of machine user will be <appName--machine-user> in default namespace
 	MachineUserPostfix = "machine-user"

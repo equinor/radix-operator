@@ -177,7 +177,7 @@ func validateDNSAppAlias(app *radixv1.RadixApplication) []error {
 	if !doesEnvExist(app, alias.Environment) {
 		errs = append(errs, EnvForDNSAppAliasNotDefinedError(alias.Environment))
 	}
-	if !doesComponentExist(app, alias.Component) {
+	if !doesComponentExistInEnvironment(app, alias.Component, alias.Environment) {
 		errs = append(errs, ComponentForDNSAppAliasNotDefinedError(alias.Component))
 	}
 	return errs
@@ -202,7 +202,7 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 		if !doesEnvExist(app, externalAlias.Environment) {
 			errs = append(errs, EnvForDNSExternalAliasNotDefinedError(externalAlias.Environment))
 		}
-		if !doesComponentExist(app, externalAlias.Component) {
+		if !doesComponentExistInEnvironment(app, externalAlias.Component, externalAlias.Environment) {
 			errs = append(errs, ComponentForDNSExternalAliasNotDefinedError(externalAlias.Component))
 		}
 
@@ -220,8 +220,8 @@ func validateDNSExternalAlias(app *radixv1.RadixApplication) []error {
 
 func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) error {
 	names := make(map[string]int)
-	for _, comp := range app.Spec.Components {
-		names[comp.Name]++
+	for _, component := range app.Spec.Components {
+		names[component.Name]++
 	}
 	for _, job := range app.Spec.Jobs {
 		names[job.Name]++
@@ -240,7 +240,7 @@ func validateNoDuplicateComponentAndJobNames(app *radixv1.RadixApplication) erro
 }
 
 func validateComponents(app *radixv1.RadixApplication) []error {
-	errs := []error{}
+	var errs []error
 	for _, component := range app.Spec.Components {
 		if component.Image != "" &&
 			(component.SourceFolder != "" || component.DockerfileName != "") {
@@ -315,7 +315,7 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 }
 
 func validateJobComponents(app *radixv1.RadixApplication) []error {
-	errs := []error{}
+	var errs []error
 	for _, job := range app.Spec.Jobs {
 		if job.Image != "" && (job.SourceFolder != "" || job.DockerfileName != "") {
 			errs = append(errs, PublicImageComponentCannotHaveSourceOrDockerfileSet(job.Name))
@@ -387,12 +387,7 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 }
 
 func validateAuthentication(component *radixv1.RadixComponent, environments []radixv1.Environment) []error {
-	var errors []error
 	componentAuth := component.Authentication
-	if componentAuth == nil {
-		return nil
-	}
-
 	envAuthConfigGetter := func(name string) *radixv1.Authentication {
 		for _, envConfig := range component.EnvironmentConfig {
 			if envConfig.Environment == name {
@@ -402,6 +397,7 @@ func validateAuthentication(component *radixv1.RadixComponent, environments []ra
 		return nil
 	}
 
+	var errors []error
 	for _, environment := range environments {
 		environmentAuth := envAuthConfigGetter(environment.Name)
 		if componentAuth == nil && environmentAuth == nil {
@@ -1163,10 +1159,11 @@ type volumeMountConfigMaps struct {
 	path  map[string]bool
 }
 
-func doesComponentExist(app *radixv1.RadixApplication, name string) bool {
+func doesComponentExistInEnvironment(app *radixv1.RadixApplication, componentName string, environment string) bool {
 	for _, component := range app.Spec.Components {
-		if component.Name == name {
-			return true
+		if component.Name == componentName {
+			environmentConfig := component.GetEnvironmentConfigByName(environment)
+			return component.GetEnabledForEnv(environmentConfig)
 		}
 	}
 	return false

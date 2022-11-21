@@ -22,6 +22,9 @@ const (
 	// ContainerRegistryEnvironmentVariable The name of the container registry
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 
+	// AzureSubscriptionIdEnvironmentVariable The Azure subscription ID
+	AzureSubscriptionIdEnvironmentVariable = "AZURE_SUBSCRIPTION_ID"
+
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 
@@ -85,11 +88,6 @@ const (
 	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
 	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
 
-	// RadixDeploymentForceNonRootContainers Controls the non-root configuration for component containers
-	// true: all component containers are force to run as non-root
-	// false: non-root for a component container is controlled by runAsNonRoot from radixconfig
-	RadixDeploymentForceNonRootContainers = "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER"
-
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
 
@@ -116,6 +114,9 @@ const (
 	// RadixUseCacheEnvironmentVariable Use cache for the built component
 	RadixUseCacheEnvironmentVariable = "USE_CACHE"
 
+	// UseBuildKitEnvironmentVariable Use Docker BuildKit in radix-image-builder
+	UseBuildKitEnvironmentVariable = "DOCKER_BUILDKIT"
+
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
 
@@ -127,6 +128,9 @@ const (
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
+
+	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
+	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
 
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
 	RadixCommitIdEnvironmentVariable = "COMMIT_ID"

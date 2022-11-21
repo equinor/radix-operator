@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/maps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -31,11 +32,6 @@ type PipelineInfo struct {
 	PipelineArguments PipelineArguments
 	Steps             []Step
 
-	// Container registry to build with
-	ContainerRegistry string
-	//Subscription ID to build with
-	SubscriptionId string
-
 	// Temporary data
 	RadixConfigMapName string
 	GitConfigMapName   string
@@ -48,6 +44,10 @@ type PipelineInfo struct {
 
 	// Holds information on the images referred to by their respective components
 	ComponentImages map[string]pipeline.ComponentImage
+	// Prepare pipeline job build context
+	PrepareBuildContext *PrepareBuildContext
+	StopPipeline        bool
+	StopPipelineMessage string
 }
 
 // PipelineArguments Holds arguments for the pipeline
@@ -71,13 +71,18 @@ type PipelineArguments struct {
 	ContainerSecurityContext corev1.SecurityContext
 	// Images used for copying radix config/building
 	TektonPipeline string
-
+	// ImageBuilder Points to the image builder
 	ImageBuilder string
-
 	// Used for tagging meta-information
 	Clustertype string
-	RadixZone   string
+	// RadixZone  The radix zone.
+	RadixZone string
+	// Clustername The name of the cluster
 	Clustername string
+	// ContainerRegistry The name of the container registry
+	ContainerRegistry string
+	// SubscriptionId Azure subscription ID
+	SubscriptionId string
 	// Used to indicate debugging session
 	Debug bool
 }
@@ -102,6 +107,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
 	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
 	clusterName := args[defaults.ClusternameEnvironmentVariable]
+	containerRegistry := args[defaults.ContainerRegistryEnvironmentVariable]
+	subscriptionId := args[defaults.AzureSubscriptionIdEnvironmentVariable]
 	radixZone := args[defaults.RadixZoneEnvironmentVariable]
 
 	// Indicates that we are debugging the application
@@ -114,23 +121,25 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	pushImageBool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
 
 	return PipelineArguments{
-		PipelineType:    pipelineType,
-		JobName:         jobName,
-		Branch:          branch,
-		CommitID:        commitID,
-		ImageTag:        imageTag,
-		UseCache:        useCache,
-		PushImage:       pushImageBool,
-		DeploymentName:  deploymentName,
-		FromEnvironment: fromEnvironment,
-		ToEnvironment:   toEnvironment,
-		TektonPipeline:  tektonPipeline,
-		ImageBuilder:    imageBuilder,
-		Clustertype:     clusterType,
-		Clustername:     clusterName,
-		RadixZone:       radixZone,
-		RadixConfigFile: radixConfigFile,
-		Debug:           debug,
+		PipelineType:      pipelineType,
+		JobName:           jobName,
+		Branch:            branch,
+		CommitID:          commitID,
+		ImageTag:          imageTag,
+		UseCache:          useCache,
+		PushImage:         pushImageBool,
+		DeploymentName:    deploymentName,
+		FromEnvironment:   fromEnvironment,
+		ToEnvironment:     toEnvironment,
+		TektonPipeline:    tektonPipeline,
+		ImageBuilder:      imageBuilder,
+		Clustertype:       clusterType,
+		Clustername:       clusterName,
+		ContainerRegistry: containerRegistry,
+		SubscriptionId:    subscriptionId,
+		RadixZone:         radixZone,
+		RadixConfigFile:   radixConfigFile,
+		Debug:             debug,
 	}
 }
 
@@ -210,11 +219,10 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.TargetEnvironments = targetEnvironments
 
 	componentImages := getComponentImages(
-		ra.GetName(),
-		info.ContainerRegistry,
+		ra,
+		info.PipelineArguments.ContainerRegistry,
 		info.PipelineArguments.ImageTag,
-		ra.Spec.Components,
-		ra.Spec.Jobs,
+		maps.GetKeysFromMap(targetEnvironments),
 	)
 	info.ComponentImages = componentImages
 }
@@ -230,38 +238,43 @@ func (info *PipelineInfo) IsDeployOnlyPipeline() bool {
 	return info.PipelineArguments.ToEnvironment != "" && info.PipelineArguments.FromEnvironment == ""
 }
 
-func getRadixComponentImageSources(components []v1.RadixComponent) []pipeline.ComponentImageSource {
+func getRadixComponentImageSources(ra *v1.RadixApplication, environments []string) []pipeline.ComponentImageSource {
 	imageSources := make([]pipeline.ComponentImageSource, 0)
 
-	for _, c := range components {
-		s := pipeline.NewComponentImageSourceBuilder().
-			WithSourceFunc(pipeline.RadixComponentSource(c)).
+	for _, component := range ra.Spec.Components {
+		if !component.GetEnabledForAnyEnvironment(environments) {
+			continue
+		}
+		imageSource := pipeline.NewComponentImageSourceBuilder().
+			WithSourceFunc(pipeline.RadixComponentSource(component)).
 			Build()
-		imageSources = append(imageSources, s)
+		imageSources = append(imageSources, imageSource)
 	}
 
 	return imageSources
 }
 
-func getRadixJobComponentImageSources(components []v1.RadixJobComponent) []pipeline.ComponentImageSource {
+func getRadixJobComponentImageSources(ra *v1.RadixApplication, environments []string) []pipeline.ComponentImageSource {
 	imageSources := make([]pipeline.ComponentImageSource, 0)
 
-	for _, c := range components {
-		s := pipeline.NewComponentImageSourceBuilder().
-			WithSourceFunc(pipeline.RadixJobComponentSource(c)).
+	for _, jobComponent := range ra.Spec.Jobs {
+		if !jobComponent.GetEnabledForAnyEnvironment(environments) {
+			continue
+		}
+		imageSource := pipeline.NewComponentImageSourceBuilder().
+			WithSourceFunc(pipeline.RadixJobComponentSource(jobComponent)).
 			Build()
-		imageSources = append(imageSources, s)
+		imageSources = append(imageSources, imageSource)
 	}
 
 	return imageSources
 }
 
-func getComponentImages(appName, containerRegistry, imageTag string, components []v1.RadixComponent, jobComponents []v1.RadixJobComponent) map[string]pipeline.ComponentImage {
+func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag string, environments []string) map[string]pipeline.ComponentImage {
 	// Combine components and jobComponents
-
 	componentSource := make([]pipeline.ComponentImageSource, 0)
-	componentSource = append(componentSource, getRadixComponentImageSources(components)...)
-	componentSource = append(componentSource, getRadixJobComponentImageSources(jobComponents)...)
+	componentSource = append(componentSource, getRadixComponentImageSources(ra, environments)...)
+	componentSource = append(componentSource, getRadixJobComponentImageSources(ra, environments)...)
 
 	// First check if there are multiple components pointing to the same build context
 	buildContextComponents := make(map[string][]componentType)
@@ -330,7 +343,7 @@ func getComponentImages(appName, containerRegistry, imageTag string, components 
 				Context:       context,
 				Dockerfile:    dockerFile,
 				ImageName:     imageName,
-				ImagePath:     utils.GetImagePath(containerRegistry, appName, imageName, imageTag),
+				ImagePath:     utils.GetImagePath(containerRegistry, ra.GetName(), imageName, imageTag),
 				Build:         true,
 			}
 		}

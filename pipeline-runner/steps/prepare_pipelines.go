@@ -78,6 +78,8 @@ func (cli *PreparePipelinesStepImplementation) Run(pipelineInfo *model.PipelineI
 
 func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipelineInfo *model.PipelineInfo) *batchv1.Job {
 	appName := cli.GetAppName()
+	registration := cli.GetRegistration()
+	configBranch := applicationconfig.GetConfigBranch(registration)
 
 	action := pipelineDefaults.RadixPipelineActionPrepare
 	envVars := []corev1.EnvVar{
@@ -110,6 +112,10 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: pipelineInfo.PipelineArguments.Branch,
 		},
 		{
+			Name:  defaults.RadixConfigBranchEnvironmentVariable,
+			Value: configBranch,
+		},
+		{
 			Name:  defaults.RadixPipelineTypeEnvironmentVariable,
 			Value: pipelineInfo.PipelineArguments.PipelineType,
 		},
@@ -138,17 +144,14 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 			Value: pipelineInfo.PipelineArguments.CommitID,
 		},
 	}
-
-	initContainers := cli.getInitContainerCloningRepo(pipelineInfo)
+	sshURL := registration.Spec.CloneURL
+	initContainers := cli.getInitContainerCloningRepo(pipelineInfo, configBranch, sshURL)
 
 	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobPreparePipelinesContainerName, action, pipelineInfo, appName, initContainers, &envVars)
 
 }
 
-func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipelineInfo *model.PipelineInfo) []corev1.Container {
-	registration := cli.GetRegistration()
-	configBranch := applicationconfig.GetConfigBranch(registration)
-	sshURL := registration.Spec.CloneURL
+func (cli *PreparePipelinesStepImplementation) getInitContainerCloningRepo(pipelineInfo *model.PipelineInfo, configBranch, sshURL string) []corev1.Container {
 	return git.CloneInitContainersWithContainerName(sshURL, configBranch, git.CloneConfigContainerName,
 		pipelineInfo.PipelineArguments.ContainerSecurityContext)
 }

@@ -3,7 +3,7 @@ module github.com/equinor/radix-operator
 go 1.18
 
 require (
-	github.com/equinor/radix-common v1.2.1
+	github.com/equinor/radix-common v1.2.3
 	github.com/golang/mock v1.6.0
 	github.com/imdario/mergo v0.3.13
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.54.0
@@ -82,4 +82,11 @@ require (
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
+)
+
+retract (
+	v1.99.999 //dev version
+	v1.90.5 //dev version
+	v1.90.4 //dev version
+	v1.90.3 //dev version
 )

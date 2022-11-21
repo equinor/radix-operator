@@ -17,7 +17,6 @@ import (
 // Requirements to run, pipeline must have:
 // - access to create Jobs in "app" namespace it runs under
 // - access to create RD in all namespaces
-// - access to create new namespaces
 // - a secret git-ssh-keys containing deployment key to git repo provided in RR
 // - a secret radix-sp-acr-azure with credentials to access our private ACR
 // - a secret radix-snyk-service-account with access token to SNYK service account
@@ -37,6 +36,10 @@ func main() {
 
 	if err != nil {
 		os.Exit(2)
+	}
+	err = runner.CreateResultConfigMap()
+	if err != nil {
+		os.Exit(3)
 	}
 
 	os.Exit(0)

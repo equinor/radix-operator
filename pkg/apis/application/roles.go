@@ -3,10 +3,10 @@ package application
 import (
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,8 +34,8 @@ func (app Application) rrClusterrole(clusterroleName string, verbs []string) *au
 
 	clusterrole := &auth.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindClusterRole,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleName,

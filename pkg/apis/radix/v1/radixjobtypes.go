@@ -33,15 +33,16 @@ const (
 	// JobQueued When another job is running with the same
 	// condition app + branch, the job is queued
 	JobQueued RadixJobCondition = "Queued"
-	// JobQueued When operator hasn't picked up the radix job
+	// JobWaiting When operator hasn't picked up the radix job
 	// the API will show the job as waiting. Also when the
 	// kubernetes jobs (steps) are in waiting the step will be
 	// in JobWaiting
-	JobWaiting   RadixJobCondition = "Waiting"
-	JobRunning   RadixJobCondition = "Running"
-	JobSucceeded RadixJobCondition = "Succeeded"
-	JobFailed    RadixJobCondition = "Failed"
-	JobStopped   RadixJobCondition = "Stopped"
+	JobWaiting          RadixJobCondition = "Waiting"
+	JobRunning          RadixJobCondition = "Running"
+	JobSucceeded        RadixJobCondition = "Succeeded"
+	JobFailed           RadixJobCondition = "Failed"
+	JobStopped          RadixJobCondition = "Stopped"
+	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
 //RadixJobSpec is the spec for a job
@@ -107,4 +108,18 @@ type RadixJobStep struct {
 	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
 	PodName    string            `json:"podName" yaml:"podName"`
 	Components []string          `json:"components,omitempty" yaml:"components,omitempty"`
+}
+
+// RadixJobResultType Type of the Radix pipeline job result
+type RadixJobResultType string
+
+const (
+	// RadixJobResultStoppedNoChanges The Radix build-deploy pipeline job was stopped due to there were no changes in component source code
+	RadixJobResultStoppedNoChanges RadixJobResultType = "stoppedNoChanges"
+)
+
+//RadixJobResult is returned by Radix pipeline jobs via ConfigMap
+type RadixJobResult struct {
+	Result  RadixJobResultType `json:"result" yaml:"result"`
+	Message string             `json:"message" yaml:"message"`
 }

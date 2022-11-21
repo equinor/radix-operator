@@ -16,6 +16,10 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 	var components []v1.RadixDeployComponent
 
 	for _, radixComponent := range radixApplication.Spec.Components {
+		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
+		if !radixComponent.GetEnabledForEnv(environmentSpecificConfig) {
+			continue
+		}
 		componentName := radixComponent.Name
 		deployComponent := v1.RadixDeployComponent{
 			Name:                 componentName,
@@ -26,16 +30,12 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			Secrets:              radixComponent.Secrets,
 			DNSAppAlias:          IsDNSAppAlias(env, componentName, dnsAppAlias),
 			Monitoring:           false,
-			RunAsNonRoot:         false,
 		}
-
-		environmentSpecificConfig := getEnvironmentSpecificConfigForComponent(radixComponent, env)
 		if environmentSpecificConfig != nil {
 			deployComponent.Replicas = environmentSpecificConfig.Replicas
 			deployComponent.Monitoring = environmentSpecificConfig.Monitoring
 			deployComponent.HorizontalScaling = environmentSpecificConfig.HorizontalScaling
 			deployComponent.VolumeMounts = environmentSpecificConfig.VolumeMounts
-			deployComponent.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		}
 
 		auth, err := getRadixComponentAuthentication(&radixComponent, environmentSpecificConfig)

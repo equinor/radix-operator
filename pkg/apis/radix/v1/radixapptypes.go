@@ -3,6 +3,7 @@ package v1
 import (
 	"strings"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,7 +22,7 @@ type RadixApplication struct {
 	Spec              RadixApplicationSpec `json:"spec" yaml:"spec"`
 }
 
-//RadixApplicationSpec is the spec for an application
+// RadixApplicationSpec is the spec for an application
 type RadixApplicationSpec struct {
 	Build            *BuildSpec             `json:"build" yaml:"build"`
 	Environments     []Environment          `json:"environments" yaml:"environments"`
@@ -34,23 +35,24 @@ type RadixApplicationSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-//RadixApplicationList is a list of Radix applications
+// RadixApplicationList is a list of Radix applications
 type RadixApplicationList struct {
 	metav1.TypeMeta `json:",inline" yaml:",inline"`
 	metav1.ListMeta `json:"metadata" yaml:"metadata"`
 	Items           []RadixApplication `json:"items" yaml:"items"`
 }
 
-//SecretsMap is a map of secrets (weird)
+// SecretsMap is a map of secrets (weird)
 type SecretsMap map[string]string
 
 // EnvVarsMap maps environment variable keys to their values
 type EnvVarsMap map[string]string
 
-//BuildSpec defines the specification for building the components
+// BuildSpec defines the specification for building the components
 type BuildSpec struct {
-	Secrets   []string   `json:"secrets" yaml:"secrets"`
-	Variables EnvVarsMap `json:"variables" yaml:"variables"`
+	Secrets     []string   `json:"secrets" yaml:"secrets"`
+	Variables   EnvVarsMap `json:"variables" yaml:"variables"`
+	UseBuildKit *bool      `json:"useBuildKit,omitempty" yaml:"useBuildKit,omitempty"`
 }
 
 // EgressPort defines a port in context of EgressRule
@@ -71,7 +73,7 @@ type EgressConfig struct {
 	Rules      []EgressRule `json:"rules,omitempty" yaml:"rules,omitempty"`
 }
 
-//Environment defines a Radix application environment
+// Environment defines a Radix application environment
 type Environment struct {
 	Name   string       `json:"name" yaml:"name"`
 	Build  EnvBuild     `json:"build,omitempty" yaml:"build,omitempty"`
@@ -140,12 +142,12 @@ type RadixComponent struct {
 	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication          `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	Enabled                 *bool                    `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
 type RadixEnvironmentConfig struct {
 	Environment             string                  `json:"environment" yaml:"environment"`
-	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Replicas                *int                    `json:"replicas" yaml:"replicas"`
 	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
 	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
@@ -157,6 +159,7 @@ type RadixEnvironmentConfig struct {
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
 	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	Enabled                 *bool                   `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -177,13 +180,13 @@ type RadixJobComponent struct {
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds  *int64                               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Enabled           *bool                                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
 	Environment      string               `json:"environment" yaml:"environment"`
-	RunAsNonRoot     bool                 `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Monitoring       bool                 `json:"monitoring" yaml:"monitoring"`
 	Resources        ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Variables        EnvVarsMap           `json:"variables" yaml:"variables"`
@@ -192,6 +195,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
 	SecretRefs       RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
@@ -253,7 +257,7 @@ const (
 	ProvisionerFileCsiAzure string = "file.csi.azure.com"
 )
 
-//GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
+// GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
 func GetStorageClassProvisionerByVolumeMountType(volumeMountType MountType) (string, bool) {
 	switch volumeMountType {
 	case MountTypeBlobCsiAzure:
@@ -264,18 +268,18 @@ func GetStorageClassProvisionerByVolumeMountType(volumeMountType MountType) (str
 	return "", false
 }
 
-//GetCsiAzureStorageClassProvisioners CSI Azure provisioners
+// GetCsiAzureStorageClassProvisioners CSI Azure provisioners
 func GetCsiAzureStorageClassProvisioners() []string {
 	return []string{ProvisionerBlobCsiAzure, ProvisionerFileCsiAzure}
 }
 
-//IsKnownVolumeMount Gets if volume mount is supported
+// IsKnownVolumeMount Gets if volume mount is supported
 func IsKnownVolumeMount(volumeMount string) bool {
 	return IsKnownBlobFlexVolumeMount(volumeMount) ||
 		IsKnownCsiAzureVolumeMount(volumeMount)
 }
 
-//IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
+// IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
 func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
 	case string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
@@ -284,7 +288,7 @@ func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	return false
 }
 
-//IsKnownBlobFlexVolumeMount Supported volume mount type Azure Blobfuse
+// IsKnownBlobFlexVolumeMount Supported volume mount type Azure Blobfuse
 func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 	return volumeMount == string(MountTypeBlob)
 }
@@ -305,7 +309,7 @@ type MonitoringConfig struct {
 	Path string `json:"path,omitempty" yaml:"path,omitempty"`
 }
 
-//RadixSecretRefType Radix secret-ref of type
+// RadixSecretRefType Radix secret-ref of type
 type RadixSecretRefType string
 
 const (
@@ -329,7 +333,7 @@ type RadixAzureKeyVault struct {
 	Items []RadixAzureKeyVaultItem `json:"items" yaml:"items"`
 }
 
-//RadixAzureKeyVaultObjectType Azure Key Vault item type
+// RadixAzureKeyVaultObjectType Azure Key Vault item type
 type RadixAzureKeyVaultObjectType string
 
 const (
@@ -341,7 +345,7 @@ const (
 	RadixAzureKeyVaultObjectTypeCert RadixAzureKeyVaultObjectType = "cert"
 )
 
-//RadixAzureKeyVaultK8sSecretType Azure Key Vault secret item Kubernetes type
+// RadixAzureKeyVaultK8sSecretType Azure Key Vault secret item Kubernetes type
 type RadixAzureKeyVaultK8sSecretType string
 
 const (
@@ -372,14 +376,14 @@ type RadixAzureKeyVaultItem struct {
 	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty" yaml:"k8sSecretType,omitempty"`
 }
 
-//Authentication Radix authentication settings
+// Authentication Radix authentication settings
 type Authentication struct {
 	//ClientCertificate Authentication client certificate
 	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
 	OAuth2            *OAuth2            `json:"oauth2,omitempty" yaml:"oauth2,omitempty"`
 }
 
-//ClientCertificate Authentication client certificate parameters
+// ClientCertificate Authentication client certificate parameters
 type ClientCertificate struct {
 	//Verification Client certificate verification type
 	Verification *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
@@ -397,7 +401,7 @@ const (
 	SessionStoreRedis SessionStoreType = "redis"
 )
 
-//VerificationType Certificate verification type
+// VerificationType Certificate verification type
 type VerificationType string
 
 const (
@@ -511,10 +515,14 @@ type OAuth2CookieStore struct {
 	Minimal *bool `json:"minimal,omitempty" yaml:"minimal,omitempty"`
 }
 
-//RadixCommonComponent defines a common component interface for Radix components
+// RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
 	//GetName Gets component name
 	GetName() string
+	//GetSourceFolder Gets component source folder
+	GetSourceFolder() string
+	//GetImage Gets component image
+	GetImage() string
 	//GetNode Gets component node parameters
 	GetNode() *RadixNode
 	//GetVariables Gets component environment variables
@@ -531,10 +539,27 @@ type RadixCommonComponent interface {
 	GetResources() ResourceRequirements
 	//GetEnvironmentConfig Gets component environment configuration
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
+	//GetEnvironmentConfigsMap Get component environment configuration as map by names
+	GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig
+	//getEnabled Gets the component status if it is enabled in the application
+	getEnabled() bool
+	//GetEnabledForEnv Gets the component status if it is enabled in the application for an environment
+	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
+	//GetEnvironmentConfigByName  Gets component environment configuration by its name
+	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
+	GetEnabledForAnyEnvironment(environments []string) bool
 }
 
 func (component *RadixComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixComponent) GetSourceFolder() string {
+	return component.SourceFolder
+}
+
+func (component *RadixComponent) GetImage() string {
+	return component.Image
 }
 
 func (component *RadixComponent) GetNode() *RadixNode {
@@ -565,6 +590,10 @@ func (component *RadixComponent) GetResources() ResourceRequirements {
 	return component.Resources
 }
 
+func (component *RadixComponent) getEnabled() bool {
+	return component.Enabled == nil || *component.Enabled
+}
+
 func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
@@ -573,8 +602,52 @@ func (component *RadixComponent) GetEnvironmentConfig() []RadixCommonEnvironment
 	return environmentConfigs
 }
 
+func (component *RadixComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigMap(component)
+}
+
+func getEnvironmentConfigMap(component RadixCommonComponent) map[string]RadixCommonEnvironmentConfig {
+	environmentConfigsMap := make(map[string]RadixCommonEnvironmentConfig)
+	for _, environmentConfig := range component.GetEnvironmentConfig() {
+		config := environmentConfig
+		environmentConfigsMap[environmentConfig.GetEnvironment()] = config
+	}
+	return environmentConfigsMap
+}
+
+func (component *RadixComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
+}
+
+func (component *RadixComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+	return getEnabled(component, envConfig)
+}
+
+func (component *RadixComponent) GetEnabledForAnyEnvironment(environments []string) bool {
+	return getEnabledForAnyEnvironment(component, environments)
+}
+
+func (component *RadixJobComponent) GetEnabledForEnv(envConfig RadixCommonEnvironmentConfig) bool {
+	return getEnabled(component, envConfig)
+}
+
+func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironmentConfig) bool {
+	if commonUtils.IsNil(envConfig) || envConfig.getEnabled() == nil {
+		return component.getEnabled()
+	}
+	return *envConfig.getEnabled()
+}
+
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixJobComponent) GetSourceFolder() string {
+	return component.SourceFolder
+}
+
+func (component *RadixJobComponent) GetImage() string {
+	return component.Image
 }
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
@@ -605,12 +678,20 @@ func (component *RadixJobComponent) GetResources() ResourceRequirements {
 	return component.Resources
 }
 
+func (component *RadixJobComponent) getEnabled() bool {
+	return component.Enabled == nil || *component.Enabled
+}
+
 func (component *RadixJobComponent) GetEnvironmentConfig() []RadixCommonEnvironmentConfig {
 	var environmentConfigs []RadixCommonEnvironmentConfig
 	for _, environmentConfig := range component.EnvironmentConfig {
 		environmentConfigs = append(environmentConfigs, environmentConfig)
 	}
 	return environmentConfigs
+}
+
+func (component *RadixJobComponent) GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigMap(component)
 }
 
 func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []RadixVolumeMount {
@@ -620,4 +701,34 @@ func (component *RadixJobComponent) GetVolumeMountsForEnvironment(env string) []
 		}
 	}
 	return nil
+}
+
+func (component *RadixJobComponent) GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig {
+	return getEnvironmentConfigByName(environment, component.GetEnvironmentConfig())
+}
+
+func (component *RadixJobComponent) GetEnabledForAnyEnvironment(environments []string) bool {
+	return getEnabledForAnyEnvironment(component, environments)
+}
+
+func getEnvironmentConfigByName(environment string, environmentConfigs []RadixCommonEnvironmentConfig) RadixCommonEnvironmentConfig {
+	for _, environmentConfig := range environmentConfigs {
+		if strings.EqualFold(environment, environmentConfig.GetEnvironment()) {
+			return environmentConfig
+		}
+	}
+	return nil
+}
+
+func getEnabledForAnyEnvironment(component RadixCommonComponent, environments []string) bool {
+	environmentConfigsMap := component.GetEnvironmentConfigsMap()
+	if len(environmentConfigsMap) == 0 {
+		return component.getEnabled()
+	}
+	for _, envName := range environments {
+		if component.GetEnabledForEnv(environmentConfigsMap[envName]) {
+			return true
+		}
+	}
+	return false
 }

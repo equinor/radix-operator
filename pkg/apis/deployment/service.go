@@ -27,17 +27,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 		if !ok {
 			continue
 		}
-
-		// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
-		garbageCollect := false
-		if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
-			garbageCollect = !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
-		} else {
-			// Garbage collect service if not defined in RD components or jobs
-			garbageCollect = !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
-		}
-
-		if garbageCollect {
+		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
 			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -46,6 +36,15 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service *corev1.Service, componentName RadixComponentName) bool {
+	// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
+	if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
+		return !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
+	}
+	// Garbage collect service if not defined in RD components or jobs
+	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }
 
 func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {

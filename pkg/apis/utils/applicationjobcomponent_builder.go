@@ -21,6 +21,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
 	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder
 	WithTimeLimitSeconds(*int64) RadixApplicationJobComponentBuilder
+	WithEnabled(bool) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -41,6 +42,7 @@ type radixApplicationJobComponentBuilder struct {
 	node              v1.RadixNode
 	volumes           []v1.RadixVolumeMount
 	timeLimitSeconds  *int64
+	enabled           *bool
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -146,6 +148,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithVolumeMounts(volumeMounts []
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithEnabled(enabled bool) RadixApplicationJobComponentBuilder {
+	rcb.enabled = &enabled
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -173,6 +180,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Payload:           payload,
 		Node:              rcb.node,
 		TimeLimitSeconds:  rcb.timeLimitSeconds,
+		Enabled:           rcb.enabled,
 	}
 }
 
