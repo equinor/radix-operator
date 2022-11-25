@@ -105,14 +105,14 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 	anyLimit := 3
 	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
 
-	appName := "anyapp"
+	appName := "anyApp"
 	completedJobStatus := utils.ACompletedJobStatus()
 
 	// Test
 	job, err := s.applyJobWithSync(utils.NewJobBuilder().
 		WithStatusOnAnnotation(completedJobStatus).
 		WithAppName(appName).
-		WithJobName("anyjob"))
+		WithJobName("anyJob"))
 
 	assert.NoError(s.T(), err)
 
@@ -186,36 +186,98 @@ func (s *RadixJobTestSuite) TestHistoryLimit_IsBroken_FixedAmountOfJobs() {
 	assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
 }
 
+type jobScenario struct {
+	// name Scenario name
+	name string
+	// existingRadixDeploymentJobs List of RadixDeployments and its RadixJobs, setup before test
+	existingRadixDeploymentJobs []radixDeploymentJob
+	// testingRadixDeploymentJob RadixDeployments and its RadixJobs under test
+	testingRadixDeploymentJob radixDeploymentJob
+	// jobsHistoryLimitPerEnvironment Limit, defined in the env-var RADIX_JOBS_PER_APP_HISTORY_LIMIT
+	jobsHistoryLimitPerEnvironment int
+}
+
+type radixDeploymentJob struct {
+	// jobName Radix pipeline job
+	jobName string
+	// rdName RadixDeployment name
+	rdName string
+	// branch of environments, where RadixDeployments are deployed
+	branch    string
+	jobStatus v1.RadixJobCondition
+}
+
 func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
-	anyLimit := 3
-	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+	appName := "anyApp"
+	appNamespace := utils.GetAppNamespace(appName)
+	const envDev = "dev"
+	const envQa = "qa"
+	const envProd = "prod"
+	const branchDevQa = "main"
+	const branchProd = "release"
+	raBuilder := utils.ARadixApplication().WithAppName(appName).
+		WithEnvironment(envDev, branchDevQa).
+		WithEnvironment(envQa, branchDevQa).
+		WithEnvironment(envProd, branchProd)
 
-	firstJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
+	scenarios := []jobScenario{
+		{
+			name:                           "All successful jobs, connected to RadixDeployments exist independent of JobsHistoryLimitPerEnvironment",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", branch: branchDevQa, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", branch: branchDevQa, jobStatus: v1.JobSucceeded},
+				{jobName: "j3", rdName: "rd3", branch: branchDevQa, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{jobName: "j4", rdName: "rd4", branch: branchDevQa, jobStatus: v1.JobRunning},
+		},
+	}
 
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
+	for _, scenario := range scenarios {
+		s.T().Run(scenario.name, func(t *testing.T) {
+			s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(scenario.jobsHistoryLimitPerEnvironment).AnyTimes()
+			for _, rdJob := range scenario.existingRadixDeploymentJobs {
+				s.applyJobWithSyncFor(raBuilder, appName, rdJob)
+			}
+			s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob)
 
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
+		})
 
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
+		jobs, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+		s.NoError(err)
+		s.Equal(len(scenario.existingRadixDeploymentJobs), len(jobs.Items))
+		//assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+	}
+	//jobs, _ := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	//assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+	//
+	//assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
+	//assert.True(s.T(), s.radixJobByNameExists("SecondJob", jobs))
+	//assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
+	//assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
+	//
+	//s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
+	//
+	//jobs, _ = s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+	//assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+	//
+	//assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
+	//assert.False(s.T(), s.radixJobByNameExists("SecondJob", jobs))
+	//assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
+	//assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
+	//assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
+}
 
-	jobs, _ := s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
-
-	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("SecondJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
-
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
-
-	jobs, _ = s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
-
-	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
-	assert.False(s.T(), s.radixJobByNameExists("SecondJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
+func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob) {
+	_, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().
+		WithRadixApplication(raBuilder).
+		WithAppName(appName).
+		WithJobName(rdJob.jobName).
+		WithDeploymentName(rdJob.rdName).
+		WithBranch(rdJob.branch).
+		WithStatus(utils.NewJobStatusBuilder().
+			WithCondition(rdJob.jobStatus)))
+	s.NoError(err)
 }
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {

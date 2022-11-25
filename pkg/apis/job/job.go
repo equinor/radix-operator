@@ -340,7 +340,7 @@ func (job *Job) setNextJobToRunning() error {
 		return err
 	}
 
-	rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
+	rjs := sortJobsByActiveFromAsc(rjList.Items)
 	for _, otherRj := range rjs {
 		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued { // previous status for this otherRj was Queued
 			return job.updateRadixJobStatusWithMetrics(&otherRj, v1.JobQueued, func(currStatus *v1.RadixJobStatus) {
@@ -349,20 +349,6 @@ func (job *Job) setNextJobToRunning() error {
 		}
 	}
 	return nil
-}
-
-func sortJobsByActiveFromTimestampAsc(rjs []v1.RadixJob) []v1.RadixJob {
-	sort.Slice(rjs, func(i, j int) bool {
-		return isRJ1ActiveAfterRJ2(&rjs[j], &rjs[i])
-	})
-	return rjs
-}
-
-func isRJ1ActiveAfterRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
-	rj1ActiveFrom := rj1.CreationTimestamp
-	rj2ActiveFrom := rj2.CreationTimestamp
-
-	return rj2ActiveFrom.Before(&rj1ActiveFrom)
 }
 
 func (job *Job) queueJob() error {
@@ -613,11 +599,9 @@ func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, ori
 	if err := job.updateRadixJobStatus(savingRadixJob, changeStatusFunc); err != nil {
 		return err
 	}
-
 	if originalRadixJobCondition != job.radixJob.Status.Condition {
 		metrics.RadixJobStatusChanged(job.radixJob)
 	}
-
 	return nil
 }
 
@@ -642,25 +626,15 @@ func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(curr
 	return err
 }
 
-func (job *Job) maintainHistoryLimit() {
-	historyLimit := job.config.GetJobsHistoryLimitPerEnvironment()
-	allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-		return
-	}
-	if len(allRJs.Items) > historyLimit {
-		jobs := allRJs.Items
-		numToDelete := len(jobs) - historyLimit
-		if numToDelete <= 0 {
-			return
+func (job *Job) getJobsToGarbageCollectByJobConditionAndBranche(jobsForConditions radixJobsForConditions) []v1.RadixJob {
+	jobHistoryLimit := job.config.GetJobsHistoryLimit()
+	var deletingJobs []v1.RadixJob
+	for jobCondition, jobsForBranches := range radixJobsForConditions {
+		//TODO
+		for jobBranch, jobs := range jobsForBranches {
+			radixJobsForConditions[jobCondition][jobBranch] = sortJobsByActiveFromDesc(jobs)
 		}
+	}
+	return deletingJobs
 
-		jobs = sortJobsByActiveFromTimestampAsc(jobs)
-		for i := 0; i < numToDelete; i++ {
-			log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
-			//goland:noinspection GoUnhandledErrorResult - do not fail on error
-			job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(context.TODO(), jobs[i].Name, metav1.DeleteOptions{})
-		}
-	}
 }
