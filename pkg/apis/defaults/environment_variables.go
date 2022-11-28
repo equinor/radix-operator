@@ -85,6 +85,12 @@ const (
 	// RadixPromoteToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
 	RadixPromoteToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
+	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
+	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"
+
+	// RadixPromoteSourceDeploymentBranchEnvironmentVariable Git branch of source deployment in promote jobs
+	RadixPromoteSourceDeploymentBranchEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_BRANCH"
+
 	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
 	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
 
