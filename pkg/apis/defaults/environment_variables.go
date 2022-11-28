@@ -22,6 +22,9 @@ const (
 	// ContainerRegistryEnvironmentVariable The name of the container registry
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
 
+	// AzureSubscriptionIdEnvironmentVariable The Azure subscription ID
+	AzureSubscriptionIdEnvironmentVariable = "AZURE_SUBSCRIPTION_ID"
+
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
 
@@ -82,6 +85,12 @@ const (
 	// RadixPromoteToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
 	RadixPromoteToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
+	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
+	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"
+
+	// RadixPromoteSourceDeploymentBranchEnvironmentVariable Git branch of source deployment in promote jobs
+	RadixPromoteSourceDeploymentBranchEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_BRANCH"
+
 	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
 	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
 
@@ -125,6 +134,9 @@ const (
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
+
+	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
+	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
 
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
 	RadixCommitIdEnvironmentVariable = "COMMIT_ID"

@@ -11,6 +11,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CreateServiceAccount create a service account
+func (kubeutil *Kube) CreateServiceAccount(namespace, name string) (*corev1.ServiceAccount, error) {
+	serviceAccount := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	return kubeutil.ApplyServiceAccount(serviceAccount)
+}
+
 // ApplyServiceAccount Creates or updates service account
 func (kubeutil *Kube) ApplyServiceAccount(serviceAccount corev1.ServiceAccount) (*corev1.ServiceAccount, error) {
 	oldServiceAccount, err := kubeutil.getServiceAccount(serviceAccount.Namespace, serviceAccount.GetName())

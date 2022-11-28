@@ -6,6 +6,7 @@ import (
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -55,7 +56,7 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 		return err
 	}
 
-	configFileContent, ok := configMap.Data["content"]
+	configFileContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapContent]
 	if !ok {
 		return fmt.Errorf("failed load RadixApplication from ConfigMap")
 	}
@@ -79,6 +80,11 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 	// Set back to pipeline
 	pipelineInfo.SetApplicationConfig(applicationConfig)
 
+	pipelineInfo.PrepareBuildContext, err = getPrepareBuildContextContent(configMap)
+	if err != nil {
+		return err
+	}
+
 	if pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
 		gitCommitHash, gitTags := cli.getHashAndTags(namespace, pipelineInfo)
 		err = validate.GitTagsContainIllegalChars(gitTags)
@@ -86,9 +92,68 @@ func (cli *ApplyConfigStepImplementation) Run(pipelineInfo *model.PipelineInfo) 
 			return err
 		}
 		pipelineInfo.SetGitAttributes(gitCommitHash, gitTags)
+		pipelineInfo.StopPipeline, pipelineInfo.StopPipelineMessage = getPipelineShouldBeStopped(pipelineInfo.PrepareBuildContext)
 	}
 
 	return nil
+}
+
+func getPrepareBuildContextContent(configMap *corev1.ConfigMap) (*model.PrepareBuildContext, error) {
+	prepareBuildContextContent, ok := configMap.Data[pipelineDefaults.PipelineConfigMapBuildContext]
+	if !ok {
+		log.Debug("Prepare Build Context does not exist in the ConfigMap")
+		return nil, nil
+	}
+	prepareBuildContext := &model.PrepareBuildContext{}
+	err := yaml.Unmarshal([]byte(prepareBuildContextContent), &prepareBuildContext)
+	if err != nil {
+		return nil, err
+	}
+	if prepareBuildContext == nil {
+		return nil, nil
+	}
+	printPrepareBuildContext(prepareBuildContext)
+	return prepareBuildContext, nil
+}
+
+func getPipelineShouldBeStopped(prepareBuildContext *model.PrepareBuildContext) (bool, string) {
+	if prepareBuildContext == nil || prepareBuildContext.ChangedRadixConfig ||
+		len(prepareBuildContext.EnvironmentsToBuild) == 0 ||
+		len(prepareBuildContext.EnvironmentSubPipelinesToRun) > 0 {
+		return false, ""
+	}
+	for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
+		if len(environmentToBuild.Components) > 0 {
+			return false, ""
+		}
+	}
+	message := "No components with changed source code and the Radix config file was not changed. The pipeline will not proceed."
+	log.Info(message)
+	return true, message
+}
+
+func printPrepareBuildContext(prepareBuildContext *model.PrepareBuildContext) {
+	if prepareBuildContext.ChangedRadixConfig {
+		log.Infoln("Radix config file was changed in the repository")
+	}
+	if len(prepareBuildContext.EnvironmentsToBuild) > 0 {
+		log.Infoln("Components to build in environments:")
+		for _, environmentToBuild := range prepareBuildContext.EnvironmentsToBuild {
+			if len(environmentToBuild.Components) == 0 {
+				log.Infof(" - %s: no components or jobs with changed source", environmentToBuild.Environment)
+			} else {
+				log.Infof(" - %s: %s", environmentToBuild.Environment, strings.Join(environmentToBuild.Components, ","))
+			}
+		}
+	}
+	if len(prepareBuildContext.EnvironmentSubPipelinesToRun) == 0 {
+		log.Infoln("No sub-pipelines to run")
+	} else {
+		log.Infoln("Sub-pipelines to run")
+		for _, envSubPipeline := range prepareBuildContext.EnvironmentSubPipelinesToRun {
+			log.Infof(" - %s: %s", envSubPipeline.Environment, envSubPipeline.PipelineFile)
+		}
+	}
 }
 
 func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipelineInfo *model.PipelineInfo) (string, string) {

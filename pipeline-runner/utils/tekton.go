@@ -41,13 +41,13 @@ func CreateActionPipelineJob(containerName string, action string, pipelineInfo *
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					ServiceAccountName: defaults.RadixTektonRoleName,
+					ServiceAccountName: defaults.RadixTektonServiceAccountName,
 					SecurityContext:    &pipelineInfo.PipelineArguments.PodSecurityContext,
 					InitContainers:     initContainers,
 					Containers: []corev1.Container{
 						{
 							Name:            containerName,
-							Image:           fmt.Sprintf("%s/%s", pipelineInfo.ContainerRegistry, pipelineInfo.PipelineArguments.TektonPipeline),
+							Image:           fmt.Sprintf("%s/%s", pipelineInfo.PipelineArguments.ContainerRegistry, pipelineInfo.PipelineArguments.TektonPipeline),
 							ImagePullPolicy: corev1.PullAlways,
 							VolumeMounts:    getJobContainerVolumeMounts(),
 							SecurityContext: &pipelineInfo.PipelineArguments.ContainerSecurityContext,

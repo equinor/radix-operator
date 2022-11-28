@@ -1,9 +1,8 @@
 package application
 
 import (
-	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -72,16 +71,11 @@ func (app Application) applyRbacOnPipelineRunner() error {
 		return err
 	}
 
-	err = app.givePipelineAccessToAppNamespace(serviceAccount)
-	if err != nil {
-		return err
-	}
-
-	return app.givePipelineAccessToDefaultNamespace(serviceAccount)
+	return app.givePipelineAccessToAppNamespace(serviceAccount)
 }
 
 func (app Application) applyRbacOnRadixTekton() error {
-	serviceAccount, err := app.applyRadixTektonServiceAccount()
+	serviceAccount, err := app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.RadixTektonServiceAccountName)
 	if err != nil {
 		return err
 	}
@@ -133,68 +127,26 @@ func (app Application) giveRadixTektonAccessToAppNamespace(serviceAccount *corev
 	return k.ApplyRoleBinding(namespace, roleBinding)
 }
 
-func (app Application) givePipelineAccessToDefaultNamespace(serviceAccount *corev1.ServiceAccount) error {
-	k := app.kubeutil
-
-	rolebinding := app.pipelineClusterRolebinding(serviceAccount)
-
-	return k.ApplyClusterRoleBinding(rolebinding)
-}
-
-func (app Application) pipelineClusterRolebinding(serviceAccount *corev1.ServiceAccount) *auth.ClusterRoleBinding {
-	registration := app.registration
-	appName := registration.Name
-	ownerReference := app.getOwnerReference()
-	logger.Debugf("Create cluster rolebinding config %s", defaults.PipelineRunnerRoleName)
-
-	rolebinding := &auth.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", defaults.PipelineRunnerRoleName, appName),
-			Labels: map[string]string{
-				kube.RadixAppLabel: appName,
-			},
-			OwnerReferences: ownerReference,
-		},
-		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     defaults.PipelineRunnerRoleName,
-		},
-		Subjects: []auth.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccount.Name,
-				Namespace: serviceAccount.Namespace,
-			},
-		},
-	}
-	return rolebinding
-}
-
 func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	logger.Debugf("Create rolebinding config %s", defaults.PipelineRoleName)
+	logger.Debugf("Create rolebinding config %s", defaults.PipelineAppRoleName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
+			APIVersion: k8s.RbacApiVersion,
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.PipelineRoleName,
+			Name: defaults.PipelineAppRoleName,
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
 			},
 		},
 		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     defaults.PipelineRoleName,
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     k8s.KindClusterRole,
+			Name:     defaults.PipelineAppRoleName,
 		},
 		Subjects: []auth.Subject{
 			{
@@ -210,23 +162,23 @@ func (app Application) pipelineRoleBinding(serviceAccount *corev1.ServiceAccount
 func (app Application) radixTektonRoleBinding(serviceAccount *corev1.ServiceAccount) *auth.RoleBinding {
 	registration := app.registration
 	appName := registration.Name
-	logger.Debugf("Create rolebinding config %s", defaults.RadixTektonRoleName)
+	logger.Debugf("Create rolebinding config %s", defaults.RadixTektonAppRoleName)
 
 	rolebinding := &auth.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
+			APIVersion: k8s.RbacApiVersion,
 			Kind:       "RoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: defaults.RadixTektonRoleName,
+			Name: defaults.RadixTektonAppRoleName,
 			Labels: map[string]string{
 				kube.RadixAppLabel: appName,
 			},
 		},
 		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     defaults.RadixTektonRoleName,
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     k8s.KindClusterRole,
+			Name:     defaults.RadixTektonAppRoleName,
 		},
 		Subjects: []auth.Subject{
 			{
@@ -248,8 +200,8 @@ func (app Application) rrClusterRoleBinding(serviceAccount *corev1.ServiceAccoun
 
 	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindClusterRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleBindingName,
@@ -259,8 +211,8 @@ func (app Application) rrClusterRoleBinding(serviceAccount *corev1.ServiceAccoun
 			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     k8s.KindClusterRole,
 			Name:     clusterrole.Name,
 		},
 		Subjects: []auth.Subject{
@@ -295,8 +247,8 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 
 	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindClusterRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleBindingName,
@@ -306,8 +258,8 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     k8s.KindClusterRole,
 			Name:     clusterrole.Name,
 		},
 		Subjects: subjects,
@@ -336,8 +288,8 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 
 	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindClusterRoleBinding,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterroleBindingName,
@@ -347,8 +299,8 @@ func (app Application) machineUserBinding(serviceAccount *corev1.ServiceAccount)
 			OwnerReferences: ownerReference,
 		},
 		RoleRef: auth.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     k8s.KindClusterRole,
 			Name:     defaults.PlatformUserRoleName,
 		},
 		Subjects: subjects,

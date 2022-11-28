@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	log "github.com/sirupsen/logrus"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -144,8 +145,8 @@ func UpdateDeploymentsRule(deployments []string) RuleBuilder {
 func CreateAppRole(appName, roleName string, customLabels map[string]string, ruleBuilders ...RuleBuilder) *rbacv1.Role {
 	role := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindRole,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
