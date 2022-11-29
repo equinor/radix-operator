@@ -361,7 +361,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6"},
 		},
 		{
-			name:                           "Stopped job out of the limit - old stopped deleted",
+			name:                           "Failed job out of the limit - old falsed deleted",
 			jobsHistoryLimitPerEnvironment: 2,
 			existingRadixDeploymentJobs: []radixDeploymentJob{
 				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
@@ -376,7 +376,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 			expectedJobNames: []string{"j1", "j2", "j4", "j5", "j6"},
 		},
 		{
-			name:                           "StoppedNoChanges job out of the limit - old stopped deleted",
+			name:                           "StoppedNoChanges job out of the limit - old stopped-no-changes deleted",
 			jobsHistoryLimitPerEnvironment: 2,
 			existingRadixDeploymentJobs: []radixDeploymentJob{
 				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
@@ -389,6 +389,105 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStoppedNoChanges,
 			},
 			expectedJobNames: []string{"j1", "j2", "j3", "j5", "j6"},
+		},
+		{
+			name:                           "Failed job is within the limit on branch - not deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobFailed},
+				{jobName: "j6", rdName: "rd6", env: envProd, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j7", rdName: "rd7", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5", "j6", "j7"},
+		},
+		{
+			name:                           "Failed job out of the limit on branch - old failed deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobFailed},
+				{jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j7", rdName: "rd7", env: envProd, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j8", rdName: "rd8", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6", "j7", "j8"},
+		},
+		{
+			name:                           "Stopped job is within the limit on branch - not deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStopped},
+				{jobName: "j6", rdName: "rd6", env: envProd, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j7", rdName: "rd7", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5", "j6", "j7"},
+		},
+		{
+			name:                           "Stopped job out of the limit on branch - old stopped deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStopped},
+				{jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j7", rdName: "rd7", env: envProd, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j8", rdName: "rd8", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6", "j7", "j8"},
+		},
+		{
+			name:                           "StoppedNoChanges job is within the limit on branch - not deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j6", rdName: "rd6", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j7", rdName: "rd7", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5", "j6", "j7"},
+		},
+		{
+			name:                           "StoppedNoChanges job out of the limit on branch - old StoppedNoChanges deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j7", rdName: "rd7", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j8", rdName: "rd8", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6", "j7", "j8"},
 		},
 	}
 
