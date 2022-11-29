@@ -103,7 +103,7 @@ type RadixJobTestSuite struct {
 
 func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
 	anyLimit := 3
-	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+	s.config.EXPECT().GetJobsHistoryLimit().Return(anyLimit).AnyTimes()
 
 	appName := "anyApp"
 	completedJobStatus := utils.ACompletedJobStatus()
@@ -123,7 +123,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation(
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
 	anyLimit := 3
-	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+	s.config.EXPECT().GetJobsHistoryLimit().Return(anyLimit).AnyTimes()
 
 	// Setup
 	firstJob, _ := s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
@@ -144,7 +144,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning() {
 	anyLimit := 3
-	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+	s.config.EXPECT().GetJobsHistoryLimit().Return(anyLimit).AnyTimes()
 	// Setup
 	s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
 
@@ -156,7 +156,7 @@ func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJ
 
 func (s *RadixJobTestSuite) TestHistoryLimit_IsBroken_FixedAmountOfJobs() {
 	anyLimit := 3
-	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+	s.config.EXPECT().GetJobsHistoryLimit().Return(anyLimit).AnyTimes()
 
 	firstJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
 
@@ -495,7 +495,7 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 		s.T().Run(scenario.name, func(t *testing.T) {
 			defer s.teardownTest()
 			s.setupTest()
-			s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(scenario.jobsHistoryLimitPerEnvironment).AnyTimes()
+			s.config.EXPECT().GetJobsHistoryLimit().Return(scenario.jobsHistoryLimitPerEnvironment).AnyTimes()
 			testTime := time.Now().Add(time.Hour * -100)
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -545,7 +545,7 @@ func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuild
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {
 	anyLimit := 3
-	s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(anyLimit).AnyTimes()
+	s.config.EXPECT().GetJobsHistoryLimit().Return(anyLimit).AnyTimes()
 
 	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"))
 

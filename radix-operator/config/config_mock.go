@@ -47,21 +47,7 @@ func (mr *MockConfigMockRecorder) GetDeploymentsHistoryLimitPerEnvironment() *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeploymentsHistoryLimitPerEnvironment", reflect.TypeOf((*MockConfig)(nil).GetDeploymentsHistoryLimitPerEnvironment))
 }
 
-// GetJobsHistoryLimitOutOfEnvironment mocks base method.
-func (m *MockConfig) GetJobsHistoryLimitOutOfEnvironment() int {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetJobsHistoryLimitOutOfEnvironment")
-	ret0, _ := ret[0].(int)
-	return ret0
-}
-
-// GetJobsHistoryLimitOutOfEnvironment indicates an expected call of GetJobsHistoryLimitOutOfEnvironment.
-func (mr *MockConfigMockRecorder) GetJobsHistoryLimitOutOfEnvironment() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJobsHistoryLimitOutOfEnvironment", reflect.TypeOf((*MockConfig)(nil).GetJobsHistoryLimitOutOfEnvironment))
-}
-
-// GetJobsHistoryLimitPerEnvironment mocks base method.
+// GetJobsHistoryLimit mocks base method.
 func (m *MockConfig) GetJobsHistoryLimit() int {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetJobsHistoryLimit")
@@ -69,8 +55,8 @@ func (m *MockConfig) GetJobsHistoryLimit() int {
 	return ret0
 }
 
-// GetJobsHistoryLimitPerEnvironment indicates an expected call of GetJobsHistoryLimitPerEnvironment.
-func (mr *MockConfigMockRecorder) GetJobsHistoryLimitPerEnvironment() *gomock.Call {
+// GetJobsHistoryLimit indicates an expected call of GetJobsHistoryLimit.
+func (mr *MockConfigMockRecorder) GetJobsHistoryLimit() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJobsHistoryLimit", reflect.TypeOf((*MockConfig)(nil).GetJobsHistoryLimit))
 }
