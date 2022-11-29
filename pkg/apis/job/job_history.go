@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -17,14 +18,30 @@ type radixJobsForConditions map[v1.RadixJobCondition]radixJobsForBranches
 func (job *Job) maintainHistoryLimit() {
 	radixJobs, err := job.getAllRadixJobs()
 	if err != nil {
+		log.Errorf("failed to get Radix jobs in maintain job history. Error: %v", err)
 		return
 	}
-	rdRadixJobs := job.getRadixJobsWithDeployments(err)
-	if len(rdRadixJobs) == 0 {
+	if err != nil || len(radixJobs) == 0 {
+		return
+	}
+	rdRadixJobs, err := job.getRadixJobsWithDeployments()
+	if err != nil {
+		log.Errorf("failed to get Radix jobs with deployments in maintain job history. Error: %v", err)
 		return
 	}
 	deletingJobs, radixJobsForConditions := job.groupSortedRadixJobs(radixJobs, rdRadixJobs)
-	deletingJobs = append(deletingJobs, job.getJobsToGarbageCollectByJobConditionAndBranche(radixJobsForConditions)...)
+	jobHistoryLimit := job.config.GetJobsHistoryLimit()
+	log.Infof("Delete history jobs for limit %d", jobHistoryLimit)
+	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(radixJobsForConditions, jobHistoryLimit)
+
+	deletingJobs = append(deletingJobs, jobsByConditionAndBranch...)
+
+	if len(deletingJobs) > 0 {
+		log.Infof("jobs to delete: %d", len(deletingJobs))
+	} else {
+		log.Infof("there is no jobs to delete")
+	}
+
 	job.garbageCollectJobs(deletingJobs)
 }
 
@@ -33,7 +50,7 @@ func (job *Job) garbageCollectJobs(deletingJobs []v1.RadixJob) {
 		log.Infof("Removing job %s from %s", deletingJob.GetName(), deletingJob.GetNamespace())
 		err := job.radixclient.RadixV1().RadixJobs(deletingJob.GetNamespace()).Delete(context.TODO(), deletingJob.GetName(), metav1.DeleteOptions{})
 		if err != nil {
-			log.Errorf("error deleting the RadixJob %s from %s", jobName, namespace)
+			log.Errorf("error deleting the RadixJob %s from %s: %v", deletingJob.GetName(), deletingJob.GetNamespace(), err)
 		}
 	}
 }
@@ -47,6 +64,7 @@ func (job *Job) groupSortedRadixJobs(radixJobs []v1.RadixJob, rdRadixJobs radixJ
 		switch jobCondition {
 		case v1.JobSucceeded:
 			if _, ok := rdRadixJobs[rj.GetName()]; !ok {
+				log.Debugf("- delete job %s", rj.GetName())
 				deletingJobs = append(deletingJobs, rj)
 			}
 		case v1.JobRunning:
@@ -71,20 +89,30 @@ func sortRadixJobGroupsByActiveFromDesc(radixJobsForConditions radixJobsForCondi
 	return radixJobsForConditions
 }
 
-func (job *Job) getRadixJobsWithDeployments(err error) radixJobsWithRadixDeployments {
-	allRDs, err := job.radixclient.RadixV1().RadixDeployments(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
+func (job *Job) getRadixJobsWithDeployments() (radixJobsWithRadixDeployments, error) {
+	appName, ok := job.radixJob.GetLabels()[kube.RadixAppLabel]
+	if !ok || len(appName) == 0 {
+		return nil, fmt.Errorf("missing label %s in the RadixJob", kube.RadixAppLabel)
+	}
+	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.Namespace).Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Failed to get all RadixDeployments. Error: %v", err)
-		return nil
+		return nil, err
 	}
 	rdRadixJobs := make(radixJobsWithRadixDeployments)
-	for _, rd := range allRDs.Items {
-		rd := rd
-		if jobName, ok := rd.GetLabels()[kube.RadixJobNameLabel]; ok {
-			rdRadixJobs[jobName] = rd
+	for _, env := range ra.Spec.Environments {
+		envNamespace := utils.GetEnvironmentNamespace(appName, env.Name)
+		envRdList, err := job.radixclient.RadixV1().RadixDeployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get RadixDeployments from the environment %s. Error: %w", env.Name, err)
+		}
+		for _, rd := range envRdList.Items {
+			rd := rd
+			if jobName, ok := rd.GetLabels()[kube.RadixJobNameLabel]; ok {
+				rdRadixJobs[jobName] = rd
+			}
 		}
 	}
-	return rdRadixJobs
+	return rdRadixJobs, nil
 }
 
 func getRadixJobBranch(rj v1.RadixJob) string {

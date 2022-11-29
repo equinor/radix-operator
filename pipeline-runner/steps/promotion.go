@@ -236,10 +236,9 @@ func getDefaultEnvVarsFromRadixDeployment(radixDeployment *v1.RadixDeployment) v
 func getGitCommitHashFromDeployment(radixDeployment *v1.RadixDeployment) string {
 	if gitCommitHash, ok := radixDeployment.Annotations[kube.RadixCommitAnnotation]; ok {
 		return gitCommitHash
-	} else {
-		if gitCommitHash, ok := radixDeployment.Labels[kube.RadixCommitLabel]; ok {
-			return gitCommitHash
-		}
+	}
+	if gitCommitHash, ok := radixDeployment.Labels[kube.RadixCommitLabel]; ok {
+		return gitCommitHash
 	}
 	return ""
 }

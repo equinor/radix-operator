@@ -626,15 +626,16 @@ func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(curr
 	return err
 }
 
-func (job *Job) getJobsToGarbageCollectByJobConditionAndBranche(jobsForConditions radixJobsForConditions) []v1.RadixJob {
-	jobHistoryLimit := job.config.GetJobsHistoryLimit()
+func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(jobsForConditions radixJobsForConditions, jobHistoryLimit int) []v1.RadixJob {
 	var deletingJobs []v1.RadixJob
-	for jobCondition, jobsForBranches := range radixJobsForConditions {
-		//TODO
+	for jobCondition, jobsForBranches := range jobsForConditions {
 		for jobBranch, jobs := range jobsForBranches {
-			radixJobsForConditions[jobCondition][jobBranch] = sortJobsByActiveFromDesc(jobs)
+			jobs := sortJobsByActiveFromDesc(jobs)
+			for i := jobHistoryLimit; i < len(jobs); i++ {
+				log.Debugf("- delete job %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
+				deletingJobs = append(deletingJobs, jobs[i])
+			}
 		}
 	}
 	return deletingJobs
-
 }
