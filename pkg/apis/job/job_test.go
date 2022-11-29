@@ -270,6 +270,126 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 			},
 			expectedJobNames: []string{"j1", "j2"},
 		},
+		{
+			name:                           "Stopped job out of the limit - old deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4"},
+		},
+		{
+			name:                           "Failed job within the limit - not deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j2"},
+		},
+		{
+			name:                           "Failed job out of the limit - old deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4"},
+		},
+		{
+			name:                           "StoppedNoChanges job within the limit - not deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j2"},
+		},
+		{
+			name:                           "StoppedNoChanges job out of the limit - old deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4"},
+		},
+		{
+			name:                           "Stopped and failed jobs within the limit - not deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5"},
+		},
+		{
+			name:                           "Stopped job out of the limit - old stopped deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6"},
+		},
+		{
+			name:                           "Stopped job out of the limit - old stopped deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j2", "j4", "j5", "j6"},
+		},
+		{
+			name:                           "StoppedNoChanges job out of the limit - old stopped deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j5", "j6"},
+		},
 	}
 
 	for _, scenario := range scenarios {
@@ -277,14 +397,20 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 			defer s.teardownTest()
 			s.setupTest()
 			s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(scenario.jobsHistoryLimitPerEnvironment).AnyTimes()
+			testTime := time.Now().Add(time.Hour * -100)
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
-					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName))
+					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
+					WithActiveFrom(testTime))
 				s.NoError(err)
 				s.applyJobWithSyncFor(raBuilder, appName, rdJob)
+				testTime = testTime.Add(time.Hour)
 			}
 
-			_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().WithAppName(appName).WithDeploymentName(scenario.testingRadixDeploymentJob.rdName).WithEnvironment(scenario.testingRadixDeploymentJob.env))
+			_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+				WithAppName(appName).WithDeploymentName(scenario.testingRadixDeploymentJob.rdName).
+				WithEnvironment(scenario.testingRadixDeploymentJob.env).
+				WithActiveFrom(testTime))
 			s.NoError(err)
 			s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob)
 
@@ -293,24 +419,6 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 			s.assertExistRadixJobsWithNames(radixJobList, scenario)
 		})
 	}
-	//jobs, _ := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
-	//assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
-	//
-	//assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
-	//assert.True(s.T(), s.radixJobByNameExists("SecondJob", jobs))
-	//assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
-	//assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
-	//
-	//s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
-	//
-	//jobs, _ = s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
-	//assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
-	//
-	//assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
-	//assert.False(s.T(), s.radixJobByNameExists("SecondJob", jobs))
-	//assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
-	//assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
-	//assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
 }
 
 func (s *RadixJobTestSuite) assertExistRadixJobsWithNames(radixJobList *v1.RadixJobList, scenario jobScenario) {
