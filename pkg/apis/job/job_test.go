@@ -2,8 +2,6 @@ package job
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/radix-operator/config"
-	"github.com/golang/mock/gomock"
 	"os"
 	"testing"
 	"time"
@@ -15,6 +13,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
+	"github.com/equinor/radix-operator/radix-operator/config"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -224,22 +224,58 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 
 	scenarios := []jobScenario{
 		{
-			name:                           "All successful jobs, connected to RadixDeployments exist independent of JobsHistoryLimitPerEnvironment",
+			name:                           "All jobs are successful and running - no deleted job",
 			jobsHistoryLimitPerEnvironment: 2,
 			existingRadixDeploymentJobs: []radixDeploymentJob{
 				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
 				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobSucceeded},
-				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobSucceeded},
 			},
 			testingRadixDeploymentJob: radixDeploymentJob{
-				jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobRunning,
+				jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobRunning,
 			},
-			expectedJobNames: []string{"j1", "j2", "j3", "j4"},
+			expectedJobNames: []string{"j1", "j2", "j3"},
+		},
+		{
+			name:                           "All jobs are successful and queued - no deleted job",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobQueued,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3"},
+		},
+		{
+			name:                           "All jobs are successful and waiting - no deleted job",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobWaiting,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3"},
+		},
+		{
+			name:                           "Stopped job within the limit - not deleted",
+			jobsHistoryLimitPerEnvironment: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j2"},
 		},
 	}
 
 	for _, scenario := range scenarios {
 		s.T().Run(scenario.name, func(t *testing.T) {
+			defer s.teardownTest()
+			s.setupTest()
 			s.config.EXPECT().GetJobsHistoryLimitPerEnvironment().Return(scenario.jobsHistoryLimitPerEnvironment).AnyTimes()
 			for _, rdJob := range scenario.existingRadixDeploymentJobs {
 				_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
@@ -247,16 +283,15 @@ func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
 				s.NoError(err)
 				s.applyJobWithSyncFor(raBuilder, appName, rdJob)
 			}
+
 			_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().WithAppName(appName).WithDeploymentName(scenario.testingRadixDeploymentJob.rdName).WithEnvironment(scenario.testingRadixDeploymentJob.env))
 			s.NoError(err)
 			s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob)
+
+			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+			s.NoError(err)
+			s.assertExistRadixJobsWithNames(radixJobList, scenario)
 		})
-
-		radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
-		s.NoError(err)
-		s.assertExistRadixJobsWithNames(radixJobList, scenario)
-
-		//assert.Equal(s.T(), anyLimit, len(radixJobList.Items), "Number of radixJobList should match limit")
 	}
 	//jobs, _ := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
 	//assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
