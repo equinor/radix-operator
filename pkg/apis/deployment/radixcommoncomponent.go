@@ -8,6 +8,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -159,4 +160,40 @@ func getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(commonAzureKeyVa
 		}
 	}
 	return keyVaultItems
+}
+
+func getRadixCommonComponentIdentity(radixComponent v1.RadixCommonComponent, environmentConfig v1.RadixCommonEnvironmentConfig) (identity *v1.Identity, err error) {
+	// mergo uses the reflect package, and reflect use panic() when errors are detected
+	// We handle panics to prevent process termination even if the RD will be re-queued forever (until a new RD is built)
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
+	identity = &v1.Identity{}
+
+	if !reflect.ValueOf(radixComponent).IsNil() {
+		if componentIdentity := radixComponent.GetIdentity(); componentIdentity != nil {
+			componentIdentity.DeepCopyInto(identity)
+		}
+	}
+
+	if !reflect.ValueOf(environmentConfig).IsNil() {
+		if environmentIdentity := environmentConfig.GetIdentity(); environmentIdentity != nil {
+			if err := mergo.Merge(identity, environmentIdentity, mergo.WithOverride); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if reflect.DeepEqual(identity, &v1.Identity{}) {
+		return nil, nil
+	}
+
+	return identity, nil
 }

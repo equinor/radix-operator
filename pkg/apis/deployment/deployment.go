@@ -98,7 +98,10 @@ func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, 
 	if err != nil {
 		return v1.RadixDeployment{}, err
 	}
-	jobs := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	jobs, err := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	if err != nil {
+		return v1.RadixDeployment{}, err
+	}
 	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, components, jobs)
 	return radixDeployment, nil
 }

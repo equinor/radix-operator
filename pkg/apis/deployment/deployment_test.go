@@ -3552,6 +3552,64 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 	assert.False(t, envVariableByNameExistOnDeployment("SECRET2", jobName, deployments), "SECRET2 exist")
 }
 
+func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
+	type scenarioSpec struct {
+		common               *v1.Identity
+		configureEnvironment bool
+		environment          *v1.Identity
+		expected             *v1.Identity
+	}
+
+	scenarios := []scenarioSpec{
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: nil, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: nil, expected: nil},
+		{common: nil, configureEnvironment: false, environment: nil, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: false, environment: nil, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+	}
+
+	componentTest := func(scenarioTitle string, scenario scenarioSpec) {
+		const envName = "anyenv"
+		component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.common)
+		if scenario.configureEnvironment {
+			component = component.WithEnvironmentConfigs(
+				utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environment),
+			)
+		}
+		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
+		sut := ConstructForTargetEnvironment
+		rd, err := sut(ra, "anyjob", "anyimage", "anybranch", make(map[string]pipeline.ComponentImage), envName, make(v1.EnvVarsMap))
+		require.NoError(t, err, scenarioTitle, "component")
+		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity, "%s - %s", scenarioTitle, "component")
+	}
+	jobTest := func(scenarioTitle string, scenario scenarioSpec) {
+		const envName = "anyenv"
+		job := utils.AnApplicationJobComponent().WithName("anyjob").WithIdentity(scenario.common)
+		if scenario.configureEnvironment {
+			job = job.WithEnvironmentConfigs(
+				utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environment),
+			)
+		}
+		ra := utils.ARadixApplication().WithJobComponents(job).BuildRA()
+		sut := ConstructForTargetEnvironment
+		rd, err := sut(ra, "anyjob", "anyimage", "anybranch", make(map[string]pipeline.ComponentImage), envName, make(v1.EnvVarsMap))
+		require.NoError(t, err, scenarioTitle, "job")
+		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity, "%s - %s", scenarioTitle, "job")
+	}
+
+	for i, scenario := range scenarios {
+		scenarioTitle := fmt.Sprintf("scenario #%d", i+1)
+		componentTest(scenarioTitle, scenario)
+		jobTest(scenarioTitle, scenario)
+	}
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q

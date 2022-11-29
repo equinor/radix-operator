@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -173,10 +174,12 @@ func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment
 }
 
 func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap) error {
-	newEnvJobs := deployment.
+	newEnvJobs, err := deployment.
 		NewJobComponentsBuilder(radixConfig, environment, make(map[string]pipeline.ComponentImage), defaultEnvVars).
 		JobComponents()
-
+	if err != nil {
+		return err
+	}
 	newEnvJobsMap := make(map[string]v1.RadixDeployJobComponent)
 	for _, job := range newEnvJobs {
 		newEnvJobsMap[job.Name] = job

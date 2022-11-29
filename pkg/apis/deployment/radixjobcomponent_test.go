@@ -1,8 +1,10 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"fmt"
 	"testing"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 
@@ -10,6 +12,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
@@ -28,8 +31,8 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 		env:             "any",
 		componentImages: make(map[string]pipeline.ComponentImage),
 	}
-	jobs := cfg.JobComponents()
-
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, "job1", jobs[0].Name)
 	assert.Equal(t, int32Ptr(8888), jobs[0].SchedulerPort)
@@ -58,8 +61,8 @@ func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
 		env:             "any",
 		componentImages: make(map[string]pipeline.ComponentImage),
 	}
-	jobs := cfg.JobComponents()
-
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, gpu, jobs[0].Node.Gpu)
 	assert.Equal(t, gpuCount, jobs[0].Node.GpuCount)
@@ -94,8 +97,9 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 		componentImages: make(map[string]pipeline.ComponentImage),
 		defaultEnvVars:  envVarsMap,
 	}
-	jobComponent := cfg.JobComponents()[0]
-
+	jobComponents, err := cfg.JobComponents()
+	require.NoError(t, err)
+	jobComponent := jobComponents[0]
 	assert.Len(t, jobComponent.EnvironmentVariables, 5)
 	assert.Equal(t, "override1", jobComponent.EnvironmentVariables["COMMON1"])
 	assert.Equal(t, "common2", jobComponent.EnvironmentVariables["COMMON2"])
@@ -134,28 +138,75 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	job := cfg.JobComponents()[0]
+	jobComponents, err := cfg.JobComponents()
+	require.NoError(t, err)
+	job := jobComponents[0]
 	assert.True(t, job.Monitoring)
 	assert.Empty(t, job.MonitoringConfig.PortName)
 	assert.Empty(t, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	job = cfg.JobComponents()[0]
+	jobComponents, err = cfg.JobComponents()
+	require.NoError(t, err)
+	job = jobComponents[0]
 	assert.False(t, job.Monitoring)
 	assert.Empty(t, job.MonitoringConfig.PortName)
 	assert.Empty(t, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	job = cfg.JobComponents()[1]
+	jobComponents, err = cfg.JobComponents()
+	require.NoError(t, err)
+	job = jobComponents[1]
 	assert.True(t, job.Monitoring)
 	assert.Equal(t, monitoringConfig.PortName, job.MonitoringConfig.PortName)
 	assert.Equal(t, monitoringConfig.Path, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	job = cfg.JobComponents()[1]
+	jobComponents, err = cfg.JobComponents()
+	require.NoError(t, err)
+	job = jobComponents[1]
 	assert.False(t, job.Monitoring)
 	assert.Equal(t, monitoringConfig.PortName, job.MonitoringConfig.PortName)
 	assert.Equal(t, monitoringConfig.Path, job.MonitoringConfig.Path)
+}
+
+func Test_GetRadixJobComponents_Identity(t *testing.T) {
+	type scenarioSpec struct {
+		common               *v1.Identity
+		configureEnvironment bool
+		environment          *v1.Identity
+		expected             *v1.Identity
+	}
+
+	scenarios := []scenarioSpec{
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: nil, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: nil, expected: nil},
+		{common: nil, configureEnvironment: false, environment: nil, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: false, environment: nil, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+	}
+
+	for i, scenario := range scenarios {
+		scenarioTitle := fmt.Sprintf("scenario #%d", i)
+		const envName = "anyenv"
+		jobComponent := utils.AnApplicationJobComponent().WithName("anyjob").WithIdentity(scenario.common)
+		if scenario.configureEnvironment {
+			jobComponent = jobComponent.WithEnvironmentConfigs(
+				utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environment),
+			)
+		}
+		ra := utils.ARadixApplication().WithJobComponents(jobComponent).BuildRA()
+		sut := jobComponentsBuilder{ra: ra, env: envName, componentImages: make(map[string]pipeline.ComponentImage)}
+		jobs, err := sut.JobComponents()
+		require.NoError(t, err, scenarioTitle)
+		assert.Equal(t, scenario.expected, jobs[0].Identity, scenarioTitle)
+	}
 }
 
 func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
@@ -180,7 +231,8 @@ func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env2", componentImages: componentImages}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, "img:release", jobs[0].Image)
 	assert.Equal(t, "job2:tag", jobs[1].Image)
 }
@@ -215,28 +267,32 @@ func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 	t.Run("override job gpu and gpu-count with environment gpu and gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env1"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, envGpu1, jobs[0].Node.Gpu)
 		assert.Equal(t, envGpuCount1, jobs[0].Node.GpuCount)
 	})
 	t.Run("override job gpu-count with environment gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env2"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
 		assert.Equal(t, envGpuCount2, jobs[0].Node.GpuCount)
 	})
 	t.Run("override job gpu with environment gpu", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env3"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, envGpu3, jobs[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
 	})
 	t.Run("do not override job gpu or gpu-count with environment gpu or gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env4"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
 	})
@@ -270,7 +326,8 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, "1100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "1150m", jobs[0].Resources.Requests["cpu"])
 	assert.Equal(t, "1200Mi", jobs[0].Resources.Limits["memory"])
@@ -278,7 +335,8 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 	assert.Empty(t, jobs[1].Resources)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs = cfg.JobComponents()
+	jobs, err = cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, "100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "150m", jobs[0].Resources.Requests["cpu"])
 	assert.Equal(t, "200Mi", jobs[0].Resources.Limits["memory"])
@@ -297,7 +355,8 @@ func Test_GetRadixJobComponents_Ports(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs[0].Ports, 2)
 	portMap := make(map[string]v1.ComponentPort)
 	for _, p := range jobs[0].Ports {
@@ -319,7 +378,8 @@ func Test_GetRadixJobComponents_Secrets(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs[0].Secrets, 2)
 	assert.ElementsMatch(t, []string{"SECRET1", "SECRET2"}, jobs[0].Secrets)
 
@@ -345,8 +405,10 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 
 	cfgEnv1 := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
 	cfgEnv2 := jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	env1Job := cfgEnv1.JobComponents()
-	env2Job := cfgEnv2.JobComponents()
+	env1Job, err := cfgEnv1.JobComponents()
+	require.NoError(t, err)
+	env2Job, err := cfgEnv2.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, numbers.Int64Ptr(100), env1Job[0].TimeLimitSeconds)
 	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
 }

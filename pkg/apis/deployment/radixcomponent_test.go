@@ -1,14 +1,17 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"fmt"
 	"testing"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -729,7 +732,8 @@ func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledJobComponents(t *testing
 		BuildRA()
 
 	builder := NewJobComponentsBuilder(ra, "prod", componentImages, envVarsMap)
-	deployComponentProd := builder.JobComponents()
+	deployComponentProd, err := builder.JobComponents()
+	require.NoError(t, err)
 	nameSet := convertRadixDeployJobComponentsToNameSet(deployComponentProd)
 	assert.NotEmpty(t, nameSet["job_1"])
 	assert.NotEmpty(t, nameSet["job_2"])
@@ -741,6 +745,45 @@ func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledJobComponents(t *testing
 	assert.Empty(t, nameSet["job_8"])
 	assert.NotEmpty(t, nameSet["job_9"])
 	assert.Empty(t, nameSet["job_10"])
+}
+
+func Test_GetRadixComponentsForEnv_Identity(t *testing.T) {
+	type scenarioSpec struct {
+		common               *v1.Identity
+		configureEnvironment bool
+		environment          *v1.Identity
+		expected             *v1.Identity
+	}
+
+	scenarios := []scenarioSpec{
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: nil, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: nil, expected: nil},
+		{common: nil, configureEnvironment: false, environment: nil, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: false, environment: nil, expected: nil},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{common: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+	}
+
+	for i, scenario := range scenarios {
+		scenarioTitle := fmt.Sprintf("scenario #%d", i+1)
+		const envName = "anyenv"
+		component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.common)
+		if scenario.configureEnvironment {
+			component = component.WithEnvironmentConfigs(
+				utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environment),
+			)
+		}
+		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
+		sut := GetRadixComponentsForEnv
+		components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+		require.NoError(t, err, scenarioTitle)
+		assert.Equal(t, scenario.expected, components[0].Identity, scenarioTitle)
+	}
 }
 
 func convertRadixDeployComponentToNameSet(deployComponents []v1.RadixDeployComponent) map[string]bool {

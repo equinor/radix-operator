@@ -142,6 +142,7 @@ type RadixComponent struct {
 	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication          `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	Identity                *Identity                `json:"identity,omitempty" yaml:"identity,omitempty"`
 	Enabled                 *bool                    `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
@@ -159,6 +160,7 @@ type RadixEnvironmentConfig struct {
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
 	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
+	Identity                *Identity               `json:"identity,omitempty" yaml:"identity,omitempty"`
 	Enabled                 *bool                   `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
@@ -180,6 +182,7 @@ type RadixJobComponent struct {
 	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
 	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds  *int64                               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Identity          *Identity                            `json:"identity,omitempty" yaml:"identity,omitempty"`
 	Enabled           *bool                                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
@@ -195,6 +198,7 @@ type RadixJobComponentEnvironmentConfig struct {
 	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
 	SecretRefs       RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
 	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Identity         *Identity            `json:"identity,omitempty" yaml:"identity,omitempty"`
 	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 }
 
@@ -515,6 +519,17 @@ type OAuth2CookieStore struct {
 	Minimal *bool `json:"minimal,omitempty" yaml:"minimal,omitempty"`
 }
 
+// Identity configuration for federation with external identity providers
+type Identity struct {
+	// Azure identity configuration
+	Azure *AzureIdentity `json:"azure,omitempty" yaml:"azure,omitempty"`
+}
+
+// AzureIdentity properties for Azure AD Workload Identity
+type AzureIdentity struct {
+	ClientId string `json:"clientId" yaml:"clientId"`
+}
+
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
 	//GetName Gets component name
@@ -537,6 +552,8 @@ type RadixCommonComponent interface {
 	GetSecretRefs() RadixSecretRefs
 	//GetResources Gets component resources
 	GetResources() ResourceRequirements
+	//GetIdentity Get component identity
+	GetIdentity() *Identity
 	//GetEnvironmentConfig Gets component environment configuration
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
 	//GetEnvironmentConfigsMap Get component environment configuration as map by names
@@ -588,6 +605,10 @@ func (component *RadixComponent) GetSecretRefs() RadixSecretRefs {
 
 func (component *RadixComponent) GetResources() ResourceRequirements {
 	return component.Resources
+}
+
+func (component *RadixComponent) GetIdentity() *Identity {
+	return component.Identity
 }
 
 func (component *RadixComponent) getEnabled() bool {
@@ -676,6 +697,10 @@ func (component *RadixJobComponent) GetSecretRefs() RadixSecretRefs {
 
 func (component *RadixJobComponent) GetResources() ResourceRequirements {
 	return component.Resources
+}
+
+func (component *RadixJobComponent) GetIdentity() *Identity {
+	return component.Identity
 }
 
 func (component *RadixJobComponent) getEnabled() bool {
