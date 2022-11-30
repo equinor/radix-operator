@@ -526,20 +526,6 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {
 	assert.Equal(s.T(), expectedEnvs, job.Status.TargetEnvs)
 }
 
-func (s *RadixJobTestSuite) radixJobByNameExists(name string, jobs *v1.RadixJobList) bool {
-	return s.getRadixJobByName(name, jobs) != nil
-}
-
-func (s *RadixJobTestSuite) getRadixJobByName(name string, jobs *v1.RadixJobList) *v1.RadixJob {
-	for _, job := range jobs.Items {
-		if job.Name == name {
-			return &job
-		}
-	}
-
-	return nil
-}
-
 func assertStatusEqual(t *testing.T, expectedStatus, actualStatus v1.RadixJobStatus) {
 	getTimestamp := func(t time.Time) string {
 		return t.Format(time.RFC3339)

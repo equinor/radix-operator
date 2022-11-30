@@ -29,7 +29,6 @@ type singleScenario struct {
 type listScenario struct {
 	name                   string
 	jobs                   []v1.RadixJob
-	want                   bool
 	expectedJobNamesInList []string
 }
 
