@@ -2,11 +2,12 @@ package job
 
 import (
 	"fmt"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/stretchr/testify/suite"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
+
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/stretchr/testify/suite"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type testSuite struct {
@@ -122,7 +123,7 @@ func (s *testSuite) Test_sortJobsByCreatedAsc() {
 	}
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			result := sortJobsByCreatedAsc(tt.jobs)
+			result := sortRadixJobsByCreatedAsc(tt.jobs)
 			for i := 0; i < len(result); i++ {
 				s.Equalf(tt.expectedJobNamesInList[i], result[i].GetName(), "result index %d: %s != %s", i, tt.expectedJobNamesInList[i], result[i].GetName())
 			}
@@ -166,7 +167,7 @@ func (s *testSuite) Test_sortJobsByCreatedDesc() {
 	}
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
-			result := sortJobsByCreatedDesc(tt.jobs)
+			result := sortRadixJobsByCreatedDesc(tt.jobs)
 			for i := 0; i < len(result); i++ {
 				s.Equalf(tt.expectedJobNamesInList[i], result[i].GetName(), "result index %d: %s != %s", i, tt.expectedJobNamesInList[i], result[i].GetName())
 			}

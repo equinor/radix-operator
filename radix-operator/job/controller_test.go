@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/radix-operator/config"
 	"os"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"

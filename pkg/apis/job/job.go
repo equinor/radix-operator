@@ -340,7 +340,7 @@ func (job *Job) setNextJobToRunning() error {
 		return err
 	}
 
-	rjs := sortJobsByCreatedAsc(rjList.Items)
+	rjs := sortRadixJobsByCreatedAsc(rjList.Items)
 	for _, otherRj := range rjs {
 		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued { // previous status for this otherRj was Queued
 			return job.updateRadixJobStatusWithMetrics(&otherRj, v1.JobQueued, func(currStatus *v1.RadixJobStatus) {

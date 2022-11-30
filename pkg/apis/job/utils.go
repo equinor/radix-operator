@@ -6,18 +6,18 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func sortJobsByCreatedAsc(rjs []v1.RadixJob) []v1.RadixJob {
-	sort.Slice(rjs, func(i, j int) bool {
-		return isCreatedAfter(&rjs[j], &rjs[i])
+func sortRadixJobsByCreatedAsc(radixJobs []v1.RadixJob) []v1.RadixJob {
+	sort.Slice(radixJobs, func(i, j int) bool {
+		return isCreatedAfter(&radixJobs[j], &radixJobs[i])
 	})
-	return rjs
+	return radixJobs
 }
 
-func sortJobsByCreatedDesc(rjs []v1.RadixJob) []v1.RadixJob {
-	sort.Slice(rjs, func(i, j int) bool {
-		return isCreatedBefore(&rjs[j], &rjs[i])
+func sortRadixJobsByCreatedDesc(radixJobs []v1.RadixJob) []v1.RadixJob {
+	sort.Slice(radixJobs, func(i, j int) bool {
+		return isCreatedBefore(&radixJobs[j], &radixJobs[i])
 	})
-	return rjs
+	return radixJobs
 }
 
 func isCreatedAfter(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
