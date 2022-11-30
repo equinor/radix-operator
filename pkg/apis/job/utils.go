@@ -3,33 +3,33 @@ package job
 import (
 	"sort"
 
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 )
 
-func sortJobsByActiveFromAsc(rjs []v1.RadixJob) []v1.RadixJob {
+func sortJobsByCreatedAsc(rjs []v1.RadixJob) []v1.RadixJob {
 	sort.Slice(rjs, func(i, j int) bool {
-		return isRJ1ActiveAfterRJ2(&rjs[j], &rjs[i])
+		return isCreatedAfter(&rjs[j], &rjs[i])
 	})
 	return rjs
 }
 
-func sortJobsByActiveFromDesc(rjs []v1.RadixJob) []v1.RadixJob {
+func sortJobsByCreatedDesc(rjs []v1.RadixJob) []v1.RadixJob {
 	sort.Slice(rjs, func(i, j int) bool {
-		return isRJ1ActiveBeforeRJ2(&rjs[j], &rjs[i])
+		return isCreatedBefore(&rjs[j], &rjs[i])
 	})
 	return rjs
 }
 
-func isRJ1ActiveAfterRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
-	rj1ActiveFrom := rj1.CreationTimestamp
-	rj2ActiveFrom := rj2.CreationTimestamp
+func isCreatedAfter(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
+	rj1Created := rj1.Status.Created
+	rj2Created := rj2.Status.Created
 
-	return rj2ActiveFrom.Before(&rj1ActiveFrom)
+	return rj1Created.After(rj2Created.Time)
 }
 
-func isRJ1ActiveBeforeRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
-	rj1ActiveFrom := rj1.CreationTimestamp
-	rj2ActiveFrom := rj2.CreationTimestamp
+func isCreatedBefore(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
+	rj1Created := rj1.Status.Created
+	rj2Created := rj2.Status.Created
 
-	return rj1ActiveFrom.Before(&rj2ActiveFrom)
+	return rj1Created.Before(rj2Created)
 }

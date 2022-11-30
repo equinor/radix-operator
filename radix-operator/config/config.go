@@ -28,9 +28,9 @@ func (e *config) GetLogLevel() string {
 	return string(LogLevelInfo)
 }
 
-// GetJobsHistoryLimit Gets pipeline job history limit per each list, grouped by pipeline job status.
-func (e *config) GetJobsHistoryLimit() int {
-	return getIntFromEnvVar(defaults.JobsHistoryLimitEnvironmentVariable, 0)
+// GetPipelineJobsHistoryLimit Gets pipeline job history limit per each list, grouped by pipeline branch and job status
+func (e *config) GetPipelineJobsHistoryLimit() int {
+	return getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
 }
 
 // GetDeploymentsHistoryLimitPerEnvironment Gets radix deployment history limit per application environment
@@ -49,7 +49,7 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 // Config Config from environment variables
 type Config interface {
 	GetLogLevel() string
-	GetJobsHistoryLimit() int
+	GetPipelineJobsHistoryLimit() int
 	GetDeploymentsHistoryLimitPerEnvironment() int
 }
 

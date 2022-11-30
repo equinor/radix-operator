@@ -47,20 +47,6 @@ func (mr *MockConfigMockRecorder) GetDeploymentsHistoryLimitPerEnvironment() *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDeploymentsHistoryLimitPerEnvironment", reflect.TypeOf((*MockConfig)(nil).GetDeploymentsHistoryLimitPerEnvironment))
 }
 
-// GetJobsHistoryLimit mocks base method.
-func (m *MockConfig) GetJobsHistoryLimit() int {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetJobsHistoryLimit")
-	ret0, _ := ret[0].(int)
-	return ret0
-}
-
-// GetJobsHistoryLimit indicates an expected call of GetJobsHistoryLimit.
-func (mr *MockConfigMockRecorder) GetJobsHistoryLimit() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetJobsHistoryLimit", reflect.TypeOf((*MockConfig)(nil).GetJobsHistoryLimit))
-}
-
 // GetLogLevel mocks base method.
 func (m *MockConfig) GetLogLevel() string {
 	m.ctrl.T.Helper()
@@ -73,4 +59,18 @@ func (m *MockConfig) GetLogLevel() string {
 func (mr *MockConfigMockRecorder) GetLogLevel() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogLevel", reflect.TypeOf((*MockConfig)(nil).GetLogLevel))
+}
+
+// GetPipelineJobsHistoryLimit mocks base method.
+func (m *MockConfig) GetPipelineJobsHistoryLimit() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPipelineJobsHistoryLimit")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetPipelineJobsHistoryLimit indicates an expected call of GetPipelineJobsHistoryLimit.
+func (mr *MockConfigMockRecorder) GetPipelineJobsHistoryLimit() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPipelineJobsHistoryLimit", reflect.TypeOf((*MockConfig)(nil).GetPipelineJobsHistoryLimit))
 }

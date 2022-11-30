@@ -3,10 +3,10 @@ package job
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,7 +30,7 @@ func (job *Job) maintainHistoryLimit() {
 		return
 	}
 	deletingJobs, radixJobsForConditions := job.groupSortedRadixJobs(radixJobs, rdRadixJobs)
-	jobHistoryLimit := job.config.GetJobsHistoryLimit()
+	jobHistoryLimit := job.config.GetPipelineJobsHistoryLimit()
 	log.Infof("Delete history jobs for limit %d", jobHistoryLimit)
 	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(radixJobsForConditions, jobHistoryLimit)
 
@@ -77,13 +77,13 @@ func (job *Job) groupSortedRadixJobs(radixJobs []v1.RadixJob, rdRadixJobs radixJ
 			radixJobsForConditions[jobCondition][jobBranch] = append(radixJobsForConditions[jobCondition][jobBranch], rj)
 		}
 	}
-	return sortJobsByActiveFromDesc(deletingJobs), sortRadixJobGroupsByActiveFromDesc(radixJobsForConditions)
+	return sortJobsByCreatedDesc(deletingJobs), sortRadixJobGroupsByActiveFromDesc(radixJobsForConditions)
 }
 
 func sortRadixJobGroupsByActiveFromDesc(radixJobsForConditions radixJobsForConditions) radixJobsForConditions {
 	for jobCondition, jobsForBranches := range radixJobsForConditions {
 		for jobBranch, jobs := range jobsForBranches {
-			radixJobsForConditions[jobCondition][jobBranch] = sortJobsByActiveFromDesc(jobs)
+			radixJobsForConditions[jobCondition][jobBranch] = sortJobsByCreatedDesc(jobs)
 		}
 	}
 	return radixJobsForConditions
@@ -131,4 +131,18 @@ func (job *Job) getAllRadixJobs() ([]v1.RadixJob, error) {
 		return nil, fmt.Errorf("failed to get all RadixJobs. Error: %w", err)
 	}
 	return allRJs.Items, err
+}
+
+func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(jobsForConditions radixJobsForConditions, jobHistoryLimit int) []v1.RadixJob {
+	var deletingJobs []v1.RadixJob
+	for jobCondition, jobsForBranches := range jobsForConditions {
+		for jobBranch, jobs := range jobsForBranches {
+			jobs := sortJobsByCreatedDesc(jobs)
+			for i := jobHistoryLimit; i < len(jobs); i++ {
+				log.Debugf("- delete job %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
+				deletingJobs = append(deletingJobs, jobs[i])
+			}
+		}
+	}
+	return deletingJobs
 }

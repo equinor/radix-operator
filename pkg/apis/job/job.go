@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/equinor/radix-operator/radix-operator/config"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -340,7 +340,7 @@ func (job *Job) setNextJobToRunning() error {
 		return err
 	}
 
-	rjs := sortJobsByActiveFromAsc(rjList.Items)
+	rjs := sortJobsByCreatedAsc(rjList.Items)
 	for _, otherRj := range rjs {
 		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued { // previous status for this otherRj was Queued
 			return job.updateRadixJobStatusWithMetrics(&otherRj, v1.JobQueued, func(currStatus *v1.RadixJobStatus) {
@@ -624,18 +624,4 @@ func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(curr
 		return err
 	})
 	return err
-}
-
-func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(jobsForConditions radixJobsForConditions, jobHistoryLimit int) []v1.RadixJob {
-	var deletingJobs []v1.RadixJob
-	for jobCondition, jobsForBranches := range jobsForConditions {
-		for jobBranch, jobs := range jobsForBranches {
-			jobs := sortJobsByActiveFromDesc(jobs)
-			for i := jobHistoryLimit; i < len(jobs); i++ {
-				log.Debugf("- delete job %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
-				deletingJobs = append(deletingJobs, jobs[i])
-			}
-		}
-	}
-	return deletingJobs
 }

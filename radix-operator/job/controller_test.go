@@ -70,6 +70,8 @@ func (s *jobTestSuite) TearDownTest() {
 
 func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	anyAppName := "test-app"
+	anyLimit := 3
+	s.config.EXPECT().GetPipelineJobsHistoryLimit().Return(anyLimit).AnyTimes()
 
 	stop := make(chan struct{})
 	synced := make(chan bool)

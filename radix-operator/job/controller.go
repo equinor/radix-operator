@@ -99,7 +99,11 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			controller.HandleObject(cur, "RadixJob", getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
-			job := obj.(*batchv1.Job)
+			job, converted := obj.(*batchv1.Job)
+			if !converted {
+				logger.Errorf("RadixJob object cast failed during deleted event received.")
+				return
+			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
 			// take this into account. The running job will get restarted
 			controller.HandleObject(job, "RadixJob", getObject)
