@@ -240,12 +240,12 @@ func (job *Job) setStatusOfJob() error {
 	if err != nil {
 		return err
 	}
-	err = job.deleteResultConfigMap()
-	if err != nil && !k8sErrors.IsNotFound(err) {
-		return err
-	}
-
 	if isJobConditionDone(jobStatusCondition) {
+		err = job.setJobOwnerReferenceToResultConfigMap()
+		if err != nil && !k8sErrors.IsNotFound(err) {
+			return err
+		}
+
 		err = job.setNextJobToRunning()
 		if err != nil {
 			return err
@@ -259,8 +259,13 @@ func isJobConditionDone(jobStatusCondition v1.RadixJobCondition) bool {
 		jobStatusCondition == v1.JobStopped || jobStatusCondition == v1.JobStoppedNoChanges
 }
 
-func (job *Job) deleteResultConfigMap() error {
-	return job.kubeutil.DeleteConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
+func (job *Job) setJobOwnerReferenceToResultConfigMap() error {
+	configMap, err := job.kubeutil.GetConfigMap(job.radixJob.GetNamespace(), job.radixJob.GetName())
+	if err != nil {
+		return err
+	}
+	configMap.ObjectMeta.OwnerReferences = append(configMap.ObjectMeta.OwnerReferences, GetOwnerReference(job.radixJob)...)
+	return job.kubeutil.UpdateConfigMap(job.radixJob.GetNamespace(), configMap)
 }
 
 func (job *Job) stopJob() error {
