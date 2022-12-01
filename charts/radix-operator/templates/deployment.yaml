@@ -83,8 +83,8 @@ spec:
             # Maximum custom resources
             - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
-            - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
-              value: {{ .Values.jobsPerAppHistoryLimit | quote }}
+            - name: RADIX_PIPELINE_JOBS_HISTORY_LIMIT
+              value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_TEKTON_IMAGE
               value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
