@@ -1,13 +1,12 @@
 package config
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/spf13/viper"
-	strconv "strconv"
-)
+	"strconv"
 
-type config struct {
-}
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/job"
+	"github.com/spf13/viper"
+)
 
 type LogLevel string
 
@@ -19,8 +18,7 @@ const (
 
 var logLevels = map[string]bool{string(LogLevelInfo): true, string(LogLevelDebug): true, string(LogLevelError): true}
 
-// GetLogLevel Gets log level
-func (e *config) GetLogLevel() string {
+func getLogLevel() string {
 	logLevel := viper.GetString(defaults.LogLevel)
 	if _, ok := logLevels[logLevel]; ok {
 		return logLevel
@@ -28,13 +26,13 @@ func (e *config) GetLogLevel() string {
 	return string(LogLevelInfo)
 }
 
-// GetPipelineJobsHistoryLimit Gets pipeline job history limit per each list, grouped by pipeline branch and job status
-func (e *config) GetPipelineJobsHistoryLimit() int {
+// Gets pipeline job history limit per each list, grouped by pipeline branch and job status
+func getPipelineJobsHistoryLimit() int {
 	return getIntFromEnvVar(defaults.PipelineJobsHistoryLimitEnvironmentVariable, 0)
 }
 
-// GetDeploymentsHistoryLimitPerEnvironment Gets radix deployment history limit per application environment
-func (e *config) GetDeploymentsHistoryLimitPerEnvironment() int {
+// Gets radix deployment history limit per application environment
+func getDeploymentsHistoryLimitPerEnvironment() int {
 	return getIntFromEnvVar(defaults.DeploymentsHistoryLimitEnvironmentVariable, 0)
 }
 
@@ -46,15 +44,20 @@ func getIntFromEnvVar(envVarName string, defaultValue int) int {
 	return val
 }
 
-// Config Config from environment variables
-type Config interface {
-	GetLogLevel() string
-	GetPipelineJobsHistoryLimit() int
-	GetDeploymentsHistoryLimitPerEnvironment() int
+// Config from environment variables
+type Config struct {
+	LogLevel          string
+	PipelineJobConfig *job.Config
 }
 
 // NewConfig New instance of the Config
-func NewConfig() Config {
+func NewConfig() *Config {
 	viper.AutomaticEnv()
-	return &config{}
+	return &Config{
+		LogLevel: getLogLevel(),
+		PipelineJobConfig: &job.Config{
+			PipelineJobsHistoryLimit:              getPipelineJobsHistoryLimit(),
+			DeploymentsHistoryLimitPerEnvironment: getDeploymentsHistoryLimitPerEnvironment(),
+		},
+	}
 }

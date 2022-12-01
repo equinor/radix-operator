@@ -13,8 +13,6 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	"github.com/equinor/radix-operator/radix-operator/config"
-	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
@@ -37,8 +35,6 @@ type jobTestSuite struct {
 	promClient *prometheusfake.Clientset
 	kubeUtil   *kube.Kube
 	tu         test.Utils
-	mockCtrl   *gomock.Controller
-	config     *config.MockConfig
 }
 
 func TestJobTestSuite(t *testing.T) {
@@ -55,23 +51,17 @@ func (s *jobTestSuite) SetupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), secretProviderClient)
 	s.tu.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
-	s.mockCtrl = gomock.NewController(s.T())
-	s.config = config.NewMockConfig(s.mockCtrl)
 }
 
 func (s *jobTestSuite) TearDownTest() {
-	s.mockCtrl.Finish()
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
-
 }
 
 func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	anyAppName := "test-app"
-	anyLimit := 3
-	s.config.EXPECT().GetPipelineJobsHistoryLimit().Return(anyLimit).AnyTimes()
 
 	stop := make(chan struct{})
 	synced := make(chan bool)
@@ -82,16 +72,20 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
 	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
 
+	pipelineJobConfig := &jobs.Config{
+		PipelineJobsHistoryLimit: 3,
+	}
+
 	jobHandler := NewHandler(
 		s.kubeUtil.KubeClient(),
 		s.kubeUtil,
 		s.kubeUtil.RadixClient(),
-		s.config,
+		pipelineJobConfig,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop, s.config)
+	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
 
 	// Test
 
@@ -130,7 +124,7 @@ func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	s.True(op)
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}, config config.Config) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) {
 
 	eventRecorder := &record.FakeRecorder{}
 

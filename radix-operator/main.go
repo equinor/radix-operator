@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"net/http"
 	"os"
 	"os/signal"
@@ -49,7 +50,7 @@ var logger *log.Entry
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
 	cfg := config.NewConfig()
-	setLogLevel(cfg)
+	setLogLevel(cfg.LogLevel)
 
 	registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, err := getInitParams()
 	if err != nil {
@@ -72,7 +73,7 @@ func main() {
 	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient, applicationControllerThreads)
 	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient, environmentControllerThreads)
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
-	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads, cfg)
+	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads, cfg.PipelineJobConfig)
 	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, alertControllerThreads)
 
 	sigTerm := make(chan os.Signal, 1)
@@ -266,7 +267,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	}
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int, config config.Config) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int, config *jobUtil.Config) {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
@@ -381,8 +382,8 @@ func Healthz(writer http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(writer, "%s", response)
 }
 
-func setLogLevel(cfg config.Config) {
-	switch cfg.GetLogLevel() {
+func setLogLevel(logLevel string) {
+	switch logLevel {
 	case string(config.LogLevelDebug):
 		log.SetLevel(log.DebugLevel)
 	case string(config.LogLevelError):

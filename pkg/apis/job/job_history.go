@@ -30,7 +30,7 @@ func (job *Job) maintainHistoryLimit() {
 		return
 	}
 	deletingJobs, radixJobsForConditions := job.groupSortedRadixJobs(radixJobs, radixJobsWithRDs)
-	jobHistoryLimit := job.config.GetPipelineJobsHistoryLimit()
+	jobHistoryLimit := job.config.PipelineJobsHistoryLimit
 	log.Infof("Delete history RadixJob for limit %d", jobHistoryLimit)
 	jobsByConditionAndBranch := job.getJobsToGarbageCollectByJobConditionAndBranch(radixJobsForConditions, jobHistoryLimit)
 

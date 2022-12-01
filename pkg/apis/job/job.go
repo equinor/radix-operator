@@ -14,7 +14,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-operator/radix-operator/config"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,11 +30,11 @@ type Job struct {
 	kubeutil                  *kube.Kube
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
-	config                    config.Config
+	config                    *Config
 }
 
 // NewJob Constructor
-func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, radixJob *v1.RadixJob, config config.Config) Job {
+func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, radixJob *v1.RadixJob, config *Config) Job {
 	originalRadixJobStatus := radixJob.Status.Condition
 
 	return Job{
