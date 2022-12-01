@@ -3,12 +3,12 @@ package job
 import (
 	"context"
 	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 type radixJobsWithRadixDeployments map[string]v1.RadixDeployment
@@ -43,8 +43,10 @@ func (job *Job) garbageCollectRadixJobs(radixJobs []v1.RadixJob) {
 		log.Infof("There is no RadixJobs to delete")
 		return
 	}
-	log.Infof("RadixJobs to delete: %d", len(radixJobs))
 	for _, rj := range radixJobs {
+		if strings.EqualFold(rj.GetName(), job.radixJob.GetName()) {
+			continue //do not remove current job
+		}
 		log.Infof("- delete RadixJob %s from %s", rj.GetName(), rj.GetNamespace())
 		err := job.radixclient.RadixV1().RadixJobs(rj.GetNamespace()).Delete(context.TODO(), rj.GetName(), metav1.DeleteOptions{})
 		if err != nil {
