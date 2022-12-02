@@ -19,7 +19,7 @@ func (deploy *Deployment) createOrUpdateServiceAccount(component radixv1.RadixCo
 		return nil
 	}
 
-	if !isServiceAccountForComponentRequired(component) {
+	if !componentRequiresServiceAccount(component) {
 		return nil
 	}
 
@@ -78,7 +78,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 		return nil
 	}
 
-	if isServiceAccountForComponentRequired(component) {
+	if componentRequiresServiceAccount(component) {
 		return nil
 	}
 
@@ -128,12 +128,14 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec() error {
 	return nil
 }
 
+// Is this a component/deployment where the service account is handled elsewhere,
+// e.g. radix-api and radix-github-webhook
 func (deploy *Deployment) isServiceAccountForComponentPreinstalled(component radixv1.RadixCommonDeployComponent) bool {
 	isComponent := component.GetType() == radixv1.RadixComponentTypeComponent
 	return isComponent && (isRadixAPI(deploy.radixDeployment) || isRadixWebHook(deploy.radixDeployment))
 }
 
-func isServiceAccountForComponentRequired(component radixv1.RadixCommonDeployComponent) bool {
+func componentRequiresServiceAccount(component radixv1.RadixCommonDeployComponent) bool {
 	identity := component.GetIdentity()
 	return identity != nil && identity.Azure != nil
 }

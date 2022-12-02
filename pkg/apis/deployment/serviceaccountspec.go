@@ -51,7 +51,7 @@ type radixComponentServiceAccountSpec struct {
 }
 
 func (spec *radixComponentServiceAccountSpec) ServiceAccountName() string {
-	if isServiceAccountForComponentRequired(spec.component) {
+	if componentRequiresServiceAccount(spec.component) {
 		return utils.GetComponentServiceAccountName(spec.component.GetName())
 	}
 	return "default"
