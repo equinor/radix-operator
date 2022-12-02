@@ -73,14 +73,20 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.PipelineServiceAccountName,
-					SecurityContext:    securitycontext.GetRadixPipelinePodSecurityContext(securitycontext.RUN_AS_NON_ROOT, securitycontext.FS_GROUP),
+					SecurityContext: securitycontext.Pod(
+						securitycontext.WithPodFSGroup(securitycontext.FS_GROUP),
+						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					Containers: []corev1.Container{
 						{
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            containerArguments,
-							SecurityContext: securitycontext.GetRadixPipelineContainerSecurityContext(securitycontext.PRIVILEGED_CONTAINER, securitycontext.ALLOW_PRIVILEGE_ESCALATION, securitycontext.RUN_AS_GROUP, securitycontext.RUN_AS_USER, securitycontext.SECCOMP_PROFILE_TYPE),
+							SecurityContext: securitycontext.Container(
+								securitycontext.WithContainerDropAllCapabilities(),
+								securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+								securitycontext.WithContainerRunAsGroup(securitycontext.RUN_AS_GROUP),
+								securitycontext.WithContainerRunAsUser(securitycontext.RUN_AS_USER)),
 						},
 					},
 					RestartPolicy: "Never",

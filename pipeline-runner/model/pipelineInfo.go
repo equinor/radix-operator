@@ -158,8 +158,12 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
-	podSecContext := securitycontext.GetRadixPipelinePodSecurityContext(securitycontext.RUN_AS_NON_ROOT, securitycontext.FS_GROUP)
-	containerSecContext := securitycontext.GetRadixPipelineContainerSecurityContext(securitycontext.PRIVILEGED_CONTAINER, securitycontext.ALLOW_PRIVILEGE_ESCALATION, securitycontext.RUN_AS_GROUP, securitycontext.RUN_AS_USER, securitycontext.SECCOMP_PROFILE_TYPE)
+	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(securitycontext.FS_GROUP),
+		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
+	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
+		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithContainerRunAsGroup(securitycontext.RUN_AS_GROUP),
+		securitycontext.WithContainerRunAsUser(securitycontext.RUN_AS_USER))
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
