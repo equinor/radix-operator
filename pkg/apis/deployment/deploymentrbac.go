@@ -15,7 +15,7 @@ import (
 // ConfigureDeploymentRbacFunc defines a function that configures RBAC
 type ConfigureDeploymentRbacFunc func() error
 
-//GetDeploymentRbacConfigurators returns an array of RBAC configuration functions
+// GetDeploymentRbacConfigurators returns an array of RBAC configuration functions
 func GetDeploymentRbacConfigurators(deploy *Deployment) []ConfigureDeploymentRbacFunc {
 	var rbac []ConfigureDeploymentRbacFunc
 
@@ -45,7 +45,7 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 			},
 		}
 
-		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
+		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(&newServiceAccount)
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix api. %v", err)
 		}
@@ -64,7 +64,7 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 			},
 		}
 
-		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
+		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(&newServiceAccount)
 		if err != nil {
 			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
 		}
@@ -84,7 +84,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 			},
 		}
 
-		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
+		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(&newServiceAccount)
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix job scheduler. %v", err)
 		}

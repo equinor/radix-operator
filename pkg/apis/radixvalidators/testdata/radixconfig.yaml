@@ -26,6 +26,9 @@ spec:
         requests:
           memory: "64Mi"
           cpu: "100m"
+      identity:
+        azure:
+          clientId: 11111111-2222-3333-4444-555555555555
       environmentConfig:
         - environment: prod
           replicas: 4
@@ -50,6 +53,9 @@ spec:
             requests:
               memory: "128Mi"
               cpu: "250m"
+          identity:
+            azure:
+              clientId: 11111111-2222-3333-4444-555555555555
           volumeMounts:
             - type: blob
               name: blobvol
@@ -96,6 +102,9 @@ spec:
         requests:
           memory: "64Mi"
           cpu: "100m"
+      identity:
+        azure:
+          clientId: 11111111-2222-3333-4444-555555555555
       environmentConfig:
         - environment: dev
           variables:
@@ -107,6 +116,9 @@ spec:
             requests:
               memory: "128Mi"
               cpu: "250m"
+          identity:
+            azure:
+              clientId: 11111111-2222-3333-4444-555555555555
           volumeMounts:
             - type: blob
               name: blobvol

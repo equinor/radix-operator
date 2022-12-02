@@ -448,6 +448,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectServiceAccountNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -549,64 +554,63 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	if err != nil {
 		return err
 	}
-	// Deploy to current radixDeploy object's namespace
+
+	err = deploy.createOrUpdateServiceAccount(component)
+	if err != nil {
+		return fmt.Errorf("failed to create service account: %w", err)
+	}
+
 	err = deploy.createOrUpdateDeployment(component)
 	if err != nil {
-		log.Infof("Failed to create deployment: %v", err)
-		return fmt.Errorf("failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	err = deploy.createOrUpdateHPA(component)
 	if err != nil {
-		log.Infof("Failed to create horizontal pod autoscaler: %v", err)
-		return fmt.Errorf("failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	err = deploy.createOrUpdateService(component)
 	if err != nil {
-		log.Infof("Failed to create service: %v", err)
-		return fmt.Errorf("failed to create service: %v", err)
+		return fmt.Errorf("failed to create service: %w", err)
 	}
 
 	err = deploy.createOrUpdatePodDisruptionBudget(component)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to create PDB: %v", err)
-		log.Infof(errMsg)
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("failed to create PDB: %w", err)
 	}
 
 	err = deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to garbage collect PDB: %v", err)
-		log.Infof(errMsg)
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("failed to garbage collect PDB: %w", err)
+	}
+
+	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(component)
+	if err != nil {
+		return fmt.Errorf("failed to garbage collect service account: %w", err)
 	}
 
 	if component.IsPublic() {
 		err = deploy.createOrUpdateIngress(component)
 		if err != nil {
-			log.Infof("Failed to create ingress: %v", err)
-			return fmt.Errorf("failed to create ingress: %v", err)
+			return fmt.Errorf("failed to create ingress: %w", err)
 		}
 	} else {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(component)
 		if err != nil {
-			log.Infof("Failed to delete ingress: %v", err)
-			return fmt.Errorf("failed to delete ingress: %v", err)
+			return fmt.Errorf("failed to delete ingress: %w", err)
 		}
 	}
 
 	if component.GetMonitoring() {
 		err = deploy.createOrUpdateServiceMonitor(component)
 		if err != nil {
-			log.Infof("Failed to create service monitor: %v", err)
-			return fmt.Errorf("failed to create service monitor: %v", err)
+			return fmt.Errorf("failed to create service monitor: %w", err)
 		}
 	} else {
 		err = deploy.deleteServiceMonitorForComponent(component)
 		if err != nil {
-			log.Infof("Failed to delete servicemonitor: %v", err)
-			return fmt.Errorf("failed to delete servicemonitor: %v", err)
+			return fmt.Errorf("failed to delete servicemonitor: %w", err)
 		}
 	}
 

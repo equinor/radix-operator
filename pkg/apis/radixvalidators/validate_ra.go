@@ -288,6 +288,11 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 
 		errs = append(errs, validateAuthentication(&component, app.Spec.Environments)...)
 
+		err = validateIdentity(component.Identity)
+		if err != nil {
+			errs = append(errs, err)
+		}
+
 		for _, environment := range component.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, component.Name)
@@ -307,6 +312,11 @@ func validateComponents(app *radixv1.RadixApplication) []error {
 			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, component.Image) {
 				errs = append(errs,
 					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(component.Name, environment.Environment))
+			}
+
+			err = validateIdentity(environment.Identity)
+			if err != nil {
+				errs = append(errs, err)
 			}
 		}
 	}
@@ -365,6 +375,11 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 			errs = append(errs, err)
 		}
 
+		err = validateIdentity(job.Identity)
+		if err != nil {
+			errs = append(errs, err)
+		}
+
 		for _, environment := range job.EnvironmentConfig {
 			if !doesEnvExist(app, environment.Environment) {
 				err = EnvironmentReferencedByComponentDoesNotExistError(environment.Environment, job.Name)
@@ -379,6 +394,11 @@ func validateJobComponents(app *radixv1.RadixApplication) []error {
 			if environmentHasDynamicTaggingButImageLacksTag(environment.ImageTagName, job.Image) {
 				errs = append(errs,
 					ComponentWithTagInEnvironmentConfigForEnvironmentRequiresDynamicTag(job.Name, environment.Environment))
+			}
+
+			err = validateIdentity(environment.Identity)
+			if err != nil {
+				errs = append(errs, err)
 			}
 		}
 	}
@@ -1149,6 +1169,26 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 		default:
 			return unknownVolumeMountTypeError(volumeMountType, componentName, environment)
 		}
+	}
+
+	return nil
+}
+
+func validateIdentity(identity *radixv1.Identity) error {
+	if identity == nil {
+		return nil
+	}
+
+	return validateAzureIdentity(identity.Azure)
+}
+
+func validateAzureIdentity(azureIdentity *radixv1.AzureIdentity) error {
+	if azureIdentity == nil {
+		return nil
+	}
+
+	if len(strings.TrimSpace(azureIdentity.ClientId)) == 0 {
+		return ResourceNameCannotBeEmptyError("identity.azure.clientId")
 	}
 
 	return nil

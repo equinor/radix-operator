@@ -20,7 +20,7 @@ func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, er
 		},
 	}
 
-	return app.kubeutil.ApplyServiceAccount(serviceAccount)
+	return app.kubeutil.ApplyServiceAccount(&serviceAccount)
 }
 
 func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (*corev1.ServiceAccount, error) {
@@ -31,7 +31,7 @@ func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (
 		},
 	}
 
-	serviceAccount, err := app.kubeutil.ApplyServiceAccount(newServiceAccount)
+	serviceAccount, err := app.kubeutil.ApplyServiceAccount(&newServiceAccount)
 	if err != nil {
 		return nil, err
 	}

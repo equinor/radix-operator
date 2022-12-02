@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,13 +17,22 @@ func Test_ServiceAccountSpec(t *testing.T) {
 			WithRadixApplication(utils.ARadixApplication()).
 			WithAppName("app").
 			WithEnvironment("test").
-			WithComponent(utils.NewDeployComponentBuilder().WithName("app")).
+			WithComponents(
+				utils.NewDeployComponentBuilder().WithName("app"),
+				utils.NewDeployComponentBuilder().
+					WithName("app-with-identity").
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "123"}}),
+			).
 			WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job")).
 			BuildRD()
 
 		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
-		assert.Equal(t, "", spec.ServiceAccountName())
+		assert.Equal(t, "default", spec.ServiceAccountName())
+
+		spec = NewServiceAccountSpec(rd, &rd.Spec.Components[1])
+		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Components[1].Name), spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())

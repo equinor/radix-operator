@@ -831,10 +831,192 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
-	t.Run("app with job use custom SA", func(t *testing.T) {
+	t.Run("app with component using identity use custom SA", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId, newClientId := "any-app", "any-env", "any-component", "any-client-id", "new-client-id"
+
+		// Deploy component with Azure identity must create custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		sa := serviceAccounts.Items[0]
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
+		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, "azure.workload.identity/use": "true"}, sa.Labels)
+
+		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
+
+		// Deploy component with new Azure identity must update SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: newClientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		sa = serviceAccounts.Items[0]
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
+		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": newClientId}, sa.Annotations)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, "azure.workload.identity/use": "true"}, sa.Labels)
+
+		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
+		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
+
+		// Redploy component without Azure identity should delete custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(utils.NewDeployComponentBuilder().WithName(componentName)).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+
+		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
+		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		_, hasLabel := expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"]
+		assert.False(t, hasLabel)
+	})
+
+	t.Run("app with component using identity fails if SA exist with incorrect labels", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
+		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
+			context.Background(),
+			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName)}},
+			metav1.CreateOptions{})
+
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		assert.Error(t, err)
+	})
+
+	t.Run("app with component named default using identity succeeds", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, clientId := "any-app", "any-env", "any-client-id"
+		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
+			context.Background(),
+			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
+			metav1.CreateOptions{})
+
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName("default").
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		require.NoError(t, err)
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		sa := serviceAccounts.Items[0]
+		assert.Equal(t, utils.GetComponentServiceAccountName("default"), sa.Name)
+		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: "default", "azure.workload.identity/use": "true"}, sa.Labels)
+	})
+
+	t.Run("app with component using identity success if SA exist with correct labels", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
+		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
+			context.Background(),
+			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}}},
+			metav1.CreateOptions{})
+
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		require.NoError(t, err)
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		sa := serviceAccounts.Items[0]
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
+		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, "azure.workload.identity/use": "true"}, sa.Labels)
+	})
+
+	t.Run("component removed, custom SA is garbage collected", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
+
+		// Deploy component with Azure identity must create custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+				utils.NewDeployComponentBuilder().
+					WithName("any-other-component").
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 2, len(serviceAccounts.Items), "Number of service accounts was not expected")
+
+		// Redploy component without Azure identity should delete custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), serviceAccounts.Items[0].GetName())
+	})
+
+	t.Run("app with job use radix-job-scheduler-server SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents().
@@ -867,7 +1049,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// Change app to be a job
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -899,10 +1081,10 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
-	t.Run("webhook runs custom SA", func(t *testing.T) {
+	t.Run("webhook runs as radix-github-webhook SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithJobComponents().
@@ -918,7 +1100,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 	})
 
-	t.Run("radix-api runs custom SA", func(t *testing.T) {
+	t.Run("radix-api runs as radix-api SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithJobComponents().
