@@ -13,8 +13,8 @@ const (
 	// DeploymentsHistoryLimitEnvironmentVariable Controls the number of RDs we can have in a environment
 	DeploymentsHistoryLimitEnvironmentVariable = "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT"
 
-	// JobsHistoryLimitEnvironmentVariable Controls the number of RJs we can have in a app namespace
-	JobsHistoryLimitEnvironmentVariable = "RADIX_JOBS_PER_APP_HISTORY_LIMIT"
+	// PipelineJobsHistoryLimitEnvironmentVariable Controls the number of RJs we can have in an app namespace, per groups by branch and status
+	PipelineJobsHistoryLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_LIMIT"
 
 	// ClusternameEnvironmentVariable The name of the cluster
 	ClusternameEnvironmentVariable = "RADIX_CLUSTERNAME"

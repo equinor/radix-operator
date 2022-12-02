@@ -13,7 +13,8 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	"github.com/stretchr/testify/assert"
+	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
+	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
@@ -29,66 +30,82 @@ const (
 	egressIps         = "0.0.0.0"
 )
 
-func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
-	client := fake.NewSimpleClientset()
-	radixClient := fakeradix.NewSimpleClientset()
-	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
-	return &handlerTestUtils, client, kubeUtil, radixClient
+type jobTestSuite struct {
+	suite.Suite
+	promClient *prometheusfake.Clientset
+	kubeUtil   *kube.Kube
+	tu         test.Utils
 }
 
-func teardownTest() {
+func TestJobTestSuite(t *testing.T) {
+	suite.Run(t, new(jobTestSuite))
+}
+
+func (s *jobTestSuite) SetupSuite() {
+	test.SetRequiredEnvironmentVariables()
+}
+
+func (s *jobTestSuite) SetupTest() {
+	secretProviderClient := secretproviderfake.NewSimpleClientset()
+	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), secretProviderClient)
+	s.promClient = prometheusfake.NewSimpleClientset()
+	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), secretProviderClient)
+	s.tu.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
+}
+
+func (s *jobTestSuite) TearDownTest() {
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
 	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 }
 
-func Test_Controller_Calls_Handler(t *testing.T) {
+func (s *jobTestSuite) Test_Controller_Calls_Handler() {
 	anyAppName := "test-app"
 
-	// Setup
-	tu, client, kubeUtil, radixClient := setupTest()
 	stop := make(chan struct{})
 	synced := make(chan bool)
 
 	defer close(stop)
 	defer close(synced)
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, 0)
-	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, 0)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(s.kubeUtil.KubeClient(), 0)
+	radixInformerFactory := informers.NewSharedInformerFactory(s.kubeUtil.RadixClient(), 0)
+
+	pipelineJobConfig := &jobs.Config{
+		PipelineJobsHistoryLimit: 3,
+	}
 
 	jobHandler := NewHandler(
-		client,
-		kubeUtil,
-		radixClient,
+		s.kubeUtil.KubeClient(),
+		s.kubeUtil,
+		s.kubeUtil.RadixClient(),
+		pipelineJobConfig,
 		func(syncedOk bool) {
 			synced <- syncedOk
 		},
 	)
-	go startJobController(client, radixClient, radixInformerFactory, kubeInformerFactory, jobHandler, stop)
+	go startJobController(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), radixInformerFactory, kubeInformerFactory, jobHandler, stop)
 
 	// Test
 
 	// Create job should sync
-	rj, _ := tu.ApplyJob(
+	rj, _ := s.tu.ApplyJob(
 		utils.ARadixBuildDeployJob().
 			WithAppName(anyAppName))
 
 	op, ok := <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	s.True(ok)
+	s.True(op)
 
 	// Update  radix job should sync. Controller will skip if an update
 	// changes nothing, except for spec or metadata, labels or annotations
 	rj.Spec.Stop = true
-	radixClient.RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
+	s.kubeUtil.RadixClient().RadixV1().RadixJobs(rj.ObjectMeta.Namespace).Update(context.TODO(), rj, metav1.UpdateOptions{})
 
 	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
+	s.True(ok)
+	s.True(op)
 
 	// Child job should sync
 	childJob := batchv1.Job{
@@ -98,33 +115,21 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	}
 
 	// Only update of Kubernetes Job is something that the job-controller handles
-	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
+	s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Create(context.TODO(), &childJob, metav1.CreateOptions{})
 	childJob.ObjectMeta.ResourceVersion = "1234"
-	client.BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
+	s.kubeUtil.KubeClient().BatchV1().Jobs(rj.ObjectMeta.Namespace).Update(context.TODO(), &childJob, metav1.UpdateOptions{})
 
 	op, ok = <-synced
-	assert.True(t, ok)
-	assert.True(t, op)
-
-	teardownTest()
+	s.True(ok)
+	s.True(op)
 }
 
-func startJobController(
-	client kubernetes.Interface,
-	radixClient radixclient.Interface,
-	radixInformerFactory informers.SharedInformerFactory,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	handler Handler, stop chan struct{}) {
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, radixInformerFactory informers.SharedInformerFactory, kubeInformerFactory kubeinformers.SharedInformerFactory, handler Handler, stop chan struct{}) {
 
 	eventRecorder := &record.FakeRecorder{}
 
 	waitForChildrenToSync := false
-	controller := NewController(
-		client, radixClient, &handler,
-		kubeInformerFactory,
-		radixInformerFactory,
-		waitForChildrenToSync,
-		eventRecorder)
+	controller := NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, eventRecorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
