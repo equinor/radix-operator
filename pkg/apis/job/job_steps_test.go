@@ -269,7 +269,7 @@ func (s *RadixJobStepTestSuite) testSetStatusOfJobTestScenario(scenario *setStat
 		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
 	}
 
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixjob)
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, scenario.radixjob, nil)
 	if err := job.setStatusOfJob(); err != nil {
 		assert.FailNowf(s.T(), err.Error(), "scenario %s", scenario.name)
 	}

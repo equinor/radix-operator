@@ -3,7 +3,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: radix-pipeline
+  name: radix-pipeline-app
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
@@ -39,6 +39,8 @@ rules:
   verbs:
   - get
   - update
+  - delete
+  - create
 - apiGroups:
     - 'secrets-store.csi.x-k8s.io'
   resources:
@@ -59,18 +61,10 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: radix-pipeline-runner
+  name: radix-pipeline-env
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - radix.equinor.com
   resources:
@@ -80,10 +74,9 @@ rules:
   - list
   - create
 - apiGroups:
-  - "*"
+    - ""
   resources:
-  - configmaps
+    - namespaces
   verbs:
-  - get
-  - list
-  - delete
+    - get
+

@@ -9,6 +9,7 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -309,9 +310,9 @@ func (s *OAuthProxyResourceManagerTestSuite) Test_Sync_OAuthProxyRbacCreated() {
 	s.Equal(actualRoles.Items[0].Name, actualRoleBindings.Items[0].RoleRef.Name)
 	s.Len(actualRoleBindings.Items[0].Subjects, 3)
 	expectedSubjects := []rbacv1.Subject{
-		{Kind: "ServiceAccount", Name: fmt.Sprintf("%s-machine-user", appName), Namespace: utils.GetAppNamespace(appName)},
-		{Kind: "Group", APIGroup: "rbac.authorization.k8s.io", Name: "ad1"},
-		{Kind: "Group", APIGroup: "rbac.authorization.k8s.io", Name: "ad2"},
+		{Kind: k8s.KindServiceAccount, Name: fmt.Sprintf("%s-machine-user", appName), Namespace: utils.GetAppNamespace(appName)},
+		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "ad1"},
+		{Kind: k8s.KindGroup, APIGroup: k8s.RbacApiGroup, Name: "ad2"},
 	}
 	s.ElementsMatch(expectedSubjects, actualRoleBindings.Items[0].Subjects)
 }

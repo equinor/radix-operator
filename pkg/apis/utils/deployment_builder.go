@@ -22,6 +22,7 @@ type DeploymentBuilder interface {
 	WithAppName(string) DeploymentBuilder
 	WithLabel(label, value string) DeploymentBuilder
 	WithEnvironment(string) DeploymentBuilder
+	WithJobName(string) DeploymentBuilder
 	WithCreated(time.Time) DeploymentBuilder
 	WithUID(types.UID) DeploymentBuilder
 	WithCondition(v1.RadixDeployCondition) DeploymentBuilder
@@ -87,6 +88,7 @@ func (db *DeploymentBuilderStruct) WithRadixDeployment(radixDeployment *v1.Radix
 	db.WithImageTag(imageTag)
 	db.WithAppName(radixDeployment.Spec.AppName)
 	db.WithEnvironment(radixDeployment.Spec.Environment)
+	db.WithJobName(radixDeployment.GetLabels()[kube.RadixJobNameLabel])
 	db.WithCreated(radixDeployment.CreationTimestamp.Time)
 	return db
 }
@@ -125,6 +127,12 @@ func (db *DeploymentBuilderStruct) WithEnvironment(environment string) Deploymen
 		db.applicationBuilder = db.applicationBuilder.WithEnvironmentNoBranch(environment)
 	}
 
+	return db
+}
+
+// WithJobName Sets RadixJob name
+func (db *DeploymentBuilderStruct) WithJobName(name string) DeploymentBuilder {
+	db.Labels[kube.RadixJobNameLabel] = name
 	return db
 }
 

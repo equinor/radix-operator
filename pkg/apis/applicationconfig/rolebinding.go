@@ -31,7 +31,7 @@ func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, 
 func rolebindingPipelineToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	roleName := role.ObjectMeta.Name
 
-	return kube.GetRolebindingToRoleForServiceAccountWithLabels(roleName, defaults.PipelineRoleName, role.Namespace, role.Labels)
+	return kube.GetRolebindingToRoleForServiceAccountWithLabels(roleName, defaults.PipelineServiceAccountName, role.Namespace, role.Labels)
 }
 
 func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {

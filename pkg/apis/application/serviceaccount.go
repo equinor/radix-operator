@@ -15,19 +15,7 @@ import (
 func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, error) {
 	serviceAccount := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.PipelineRoleName,
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		},
-	}
-
-	return app.kubeutil.ApplyServiceAccount(serviceAccount)
-}
-
-// applyRadixTektonServiceAccount create service account needed by radix-tekton
-func (app Application) applyRadixTektonServiceAccount() (*corev1.ServiceAccount, error) {
-	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.RadixTektonRoleName,
+			Name:      defaults.PipelineServiceAccountName,
 			Namespace: utils.GetAppNamespace(app.registration.Name),
 		},
 	}

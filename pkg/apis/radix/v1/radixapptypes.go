@@ -519,6 +519,10 @@ type OAuth2CookieStore struct {
 type RadixCommonComponent interface {
 	//GetName Gets component name
 	GetName() string
+	//GetSourceFolder Gets component source folder
+	GetSourceFolder() string
+	//GetImage Gets component image
+	GetImage() string
 	//GetNode Gets component node parameters
 	GetNode() *RadixNode
 	//GetVariables Gets component environment variables
@@ -548,6 +552,14 @@ type RadixCommonComponent interface {
 
 func (component *RadixComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixComponent) GetSourceFolder() string {
+	return component.SourceFolder
+}
+
+func (component *RadixComponent) GetImage() string {
+	return component.Image
 }
 
 func (component *RadixComponent) GetNode() *RadixNode {
@@ -628,6 +640,14 @@ func getEnabled(component RadixCommonComponent, envConfig RadixCommonEnvironment
 
 func (component *RadixJobComponent) GetName() string {
 	return component.Name
+}
+
+func (component *RadixJobComponent) GetSourceFolder() string {
+	return component.SourceFolder
+}
+
+func (component *RadixJobComponent) GetImage() string {
+	return component.Image
 }
 
 func (component *RadixJobComponent) GetNode() *RadixNode {
