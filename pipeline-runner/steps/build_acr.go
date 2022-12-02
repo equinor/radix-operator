@@ -41,7 +41,6 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s-%s", appName, imageTag, hash),
-				"radix-app-name":        appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
