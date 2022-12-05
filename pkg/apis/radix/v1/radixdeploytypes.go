@@ -208,7 +208,7 @@ func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetType() RadixComponentType {
-	return RadixComponentTypeJobScheduler
+	return RadixComponentTypeJob
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
@@ -348,8 +348,8 @@ type RadixDeployJobComponent struct {
 type RadixComponentType string
 
 const (
-	RadixComponentTypeComponent    RadixComponentType = "component"
-	RadixComponentTypeJobScheduler RadixComponentType = "job"
+	RadixComponentTypeComponent RadixComponentType = "component"
+	RadixComponentTypeJob       RadixComponentType = "job"
 )
 
 // RadixCommonDeployComponent defines a common component interface a RadixDeployment

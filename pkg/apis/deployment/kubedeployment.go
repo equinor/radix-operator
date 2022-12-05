@@ -147,7 +147,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
 	)
 
-	if deployComponent.GetType() == v1.RadixComponentTypeJobScheduler {
+	if isDeployComponentJobSchedulerDeployment(deployComponent) {
 		labels = radixlabels.Merge(labels, radixlabels.ForPodIsJobScheduler())
 	}
 
