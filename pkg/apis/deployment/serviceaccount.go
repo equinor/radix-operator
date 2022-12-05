@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -43,11 +44,6 @@ func (deploy *Deployment) verifyServiceAccountForComponentCanBeApplied(sa *corev
 		return err
 	}
 
-	// The "default" account always exist, and we can safely update it
-	if existingSa.GetName() == "default" {
-		return nil
-	}
-
 	// Allow new service account to be applied if existing service account has label radix-component matching the component name
 	componentNameLabel, _ := RadixComponentNameFromComponentLabel(existingSa)
 	if string(componentNameLabel) == component.GetName() {
@@ -82,28 +78,18 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 		return nil
 	}
 
-	sa, err := deploy.kubeutil.GetServiceAccount(deploy.radixDeployment.Namespace, utils.GetComponentServiceAccountName(component.GetName()))
+	serviceAccountList, err := deploy.kubeutil.ListServiceAccountsWithSelector(deploy.radixDeployment.Namespace, getComponentServiceAccountIdentifier(component).AsSelector().String())
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
 		return err
 	}
 
-	// Fail deletion if service account is not labelled as belonging to the componenet
-	if _, ok := RadixComponentNameFromComponentLabel(sa); !ok {
-		// Ignore missing labels for "default" server account
-		// This should only happen if component is named "default"
-		// After initial deletion of correctly labeled "default" service account, Kubernetes
-		// will automatically recreate it. A new sync of RD must therefore ignore the "default"
-		// service account if it is missing expected labels
-		if sa.GetName() == "default" {
-			return nil
+	for _, sa := range serviceAccountList {
+		if err := deploy.kubeutil.DeleteServiceAccount(sa.Namespace, sa.Name); err != nil {
+			return err
 		}
-		return fmt.Errorf("service account %s cannot be deleted because ot does not belong to component %s", sa.GetName(), component.GetName())
 	}
 
-	return deploy.kubeutil.DeleteServiceAccount(sa.Namespace, sa.Name)
+	return nil
 }
 
 func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec() error {
@@ -113,6 +99,11 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec() error {
 	}
 
 	for _, serviceAccount := range serviceAccounts {
+		// Skip garbage collect if service account is not labelled as a component/job service account
+		if _, ok := serviceAccount.Labels[kube.IsServiceAccountForComponent]; !ok {
+			continue
+		}
+
 		componentName, ok := RadixComponentNameFromComponentLabel(serviceAccount)
 		if !ok {
 			continue
@@ -142,8 +133,15 @@ func componentRequiresServiceAccount(component radixv1.RadixCommonDeployComponen
 
 func getComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
 	return radixlabels.Merge(
-		radixlabels.ForComponentName(component.GetName()),
+		getComponentServiceAccountIdentifier(component),
 		radixlabels.ForServiceAccountWithRadixIdentity(component.GetIdentity()),
+	)
+}
+
+func getComponentServiceAccountIdentifier(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+	return radixlabels.Merge(
+		radixlabels.ForComponentName(component.GetName()),
+		radixlabels.ForServiceAccountIsForComponent(),
 	)
 }
 

@@ -45,6 +45,13 @@ func ForPodIsJobScheduler() kubelabels.Set {
 	}
 }
 
+// ForServiceAccountIsForComponent returns labels indicating that a service account is used by a component or job
+func ForServiceAccountIsForComponent() kubelabels.Set {
+	return kubelabels.Set{
+		kube.IsServiceAccountForComponent: "true",
+	}
+}
+
 // ForServiceAccountWithRadixIdentity returns labels for configuring a ServiceAccount with external identities,
 // e.g. for Azure Workload Identity: "azure.workload.identity/use": "true"
 func ForServiceAccountWithRadixIdentity(identity *v1.Identity) kubelabels.Set {

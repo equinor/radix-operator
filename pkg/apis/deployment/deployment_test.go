@@ -854,7 +854,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		sa := serviceAccounts.Items[0]
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
 		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
-		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, "azure.workload.identity/use": "true"}, sa.Labels)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
 
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
@@ -878,7 +878,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		sa = serviceAccounts.Items[0]
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
 		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": newClientId}, sa.Annotations)
-		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, "azure.workload.identity/use": "true"}, sa.Labels)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
@@ -925,33 +925,6 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("app with component named default using identity succeeds", func(t *testing.T) {
-		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-		appName, envName, clientId := "any-app", "any-env", "any-client-id"
-		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
-			context.Background(),
-			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
-			metav1.CreateOptions{})
-
-		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-			WithComponents(
-				utils.NewDeployComponentBuilder().
-					WithName("default").
-					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
-			).
-			WithJobComponents().
-			WithAppName(appName).
-			WithEnvironment(envName))
-
-		require.NoError(t, err)
-		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		sa := serviceAccounts.Items[0]
-		assert.Equal(t, utils.GetComponentServiceAccountName("default"), sa.Name)
-		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
-		assert.Equal(t, map[string]string{kube.RadixComponentLabel: "default", "azure.workload.identity/use": "true"}, sa.Labels)
-	})
-
 	t.Run("app with component using identity success if SA exist with correct labels", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
@@ -976,12 +949,18 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		sa := serviceAccounts.Items[0]
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
 		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
-		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, "azure.workload.identity/use": "true"}, sa.Labels)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
 	})
 
 	t.Run("component removed, custom SA is garbage collected", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
+		appName, envName, componentName, clientId, anyOtherServiceAccountName := "any-app", "any-env", "any-component", "any-client-id", "any-other-serviceaccount"
+
+		// A service account that must not be deleted
+		client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).Create(
+			context.Background(),
+			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}}},
+			metav1.CreateOptions{})
 
 		// Deploy component with Azure identity must create custom SA
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -998,7 +977,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithEnvironment(envName))
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 2, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		assert.Equal(t, 3, len(serviceAccounts.Items), "Number of service accounts was not expected")
 
 		// Redploy component without Azure identity should delete custom SA
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1012,8 +991,9 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 			WithEnvironment(envName))
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
-		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), serviceAccounts.Items[0].GetName())
+		assert.Equal(t, 2, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		assert.NotNil(t, getServiceAccountByName(utils.GetComponentServiceAccountName(componentName), serviceAccounts))
+		assert.NotNil(t, getServiceAccountByName(anyOtherServiceAccountName, serviceAccounts))
 	})
 
 	t.Run("app with job use radix-job-scheduler-server SA", func(t *testing.T) {
@@ -3951,6 +3931,16 @@ func getServiceByName(name string, services *corev1.ServiceList) *corev1.Service
 	for _, service := range services.Items {
 		if service.Name == name {
 			return &service
+		}
+	}
+
+	return nil
+}
+
+func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {
+	for _, serviceAccount := range serviceAccounts.Items {
+		if serviceAccount.Name == name {
+			return &serviceAccount
 		}
 	}
 
