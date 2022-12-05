@@ -75,8 +75,10 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	}
 
 	err := cli.Run(pipelineInfo)
-	assert.Error(t, err)
-
+	assert.NoError(t, err)
+	radixJobList, err := radixclient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Empty(t, radixJobList.Items)
 }
 
 func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t *testing.T) {

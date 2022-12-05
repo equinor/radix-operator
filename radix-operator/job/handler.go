@@ -8,7 +8,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,18 +31,18 @@ type Handler struct {
 	radixclient radixclient.Interface
 	kubeutil    *kube.Kube
 	hasSynced   common.HasSynced
+	config      *job.Config
 }
 
 // NewHandler Constructor
-func NewHandler(kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface, hasSynced common.HasSynced) Handler {
+func NewHandler(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, config *job.Config, hasSynced common.HasSynced) Handler {
 
 	handler := Handler{
 		kubeclient:  kubeclient,
 		radixclient: radixclient,
 		kubeutil:    kubeutil,
 		hasSynced:   hasSynced,
+		config:      config,
 	}
 
 	return handler
@@ -66,7 +65,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncJob := radixJob.DeepCopy()
 	logger.Debugf("Sync job %s", syncJob.Name)
 
-	job := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob)
+	job := job.NewJob(t.kubeclient, t.kubeutil, t.radixclient, syncJob, t.config)
 	err = job.OnSync()
 	if err != nil {
 		// Put back on queue

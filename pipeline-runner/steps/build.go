@@ -46,12 +46,11 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	commitID := pipelineInfo.GitCommitHash
 
 	if !pipelineInfo.BranchIsMapped {
-		// Do nothing
-		return fmt.Errorf("skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Infof("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		return nil
 	}
 
 	if !needToBuildComponents(pipelineInfo.ComponentImages) {
-		// Do nothing and no error
 		log.Infof("No component in app %s requires building", cli.GetAppName())
 		return nil
 	}
