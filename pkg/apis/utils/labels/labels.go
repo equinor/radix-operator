@@ -46,7 +46,7 @@ func ForCommitId(commitId string) kubelabels.Set {
 	}
 }
 
-// ForCommitId returns labels indicating that a pod is a job scheduler,
+// ForPodIsJobScheduler returns labels indicating that a pod is a job scheduler,
 func ForPodIsJobScheduler() kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixPodIsJobSchedulerLabel: "true",
