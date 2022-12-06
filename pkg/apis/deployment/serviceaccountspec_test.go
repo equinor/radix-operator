@@ -33,7 +33,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
-		assert.Equal(t, "default", spec.ServiceAccountName())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Components[1])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
@@ -45,7 +45,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
-		assert.Equal(t, "default", spec.ServiceAccountName())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
@@ -76,7 +76,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
-		assert.Equal(t, "default", spec.ServiceAccountName())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 	})
 
@@ -100,7 +100,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
-		assert.Equal(t, "default", spec.ServiceAccountName())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
 	})
 }

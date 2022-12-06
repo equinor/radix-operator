@@ -831,7 +831,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
 	t.Run("app with component using identity use custom SA", func(t *testing.T) {
@@ -899,7 +899,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		_, hasLabel := expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"]
 		assert.False(t, hasLabel)
 	})
@@ -1029,7 +1029,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// Change app to be a job
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1061,7 +1061,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "default", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
 	t.Run("webhook runs as radix-github-webhook SA", func(t *testing.T) {

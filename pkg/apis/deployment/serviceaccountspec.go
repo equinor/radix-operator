@@ -6,6 +6,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 )
 
+const defaultServiceAccountName = "default"
+
 // ServiceAccountSpec defines methods for getting service account spec for a deployment pod
 type ServiceAccountSpec interface {
 	ServiceAccountName() string
@@ -54,7 +56,7 @@ func (spec *radixComponentServiceAccountSpec) ServiceAccountName() string {
 	if componentRequiresServiceAccount(spec.component) {
 		return utils.GetComponentServiceAccountName(spec.component.GetName())
 	}
-	return "default"
+	return defaultServiceAccountName
 }
 
 func (spec *radixComponentServiceAccountSpec) AutomountServiceAccountToken() *bool {
