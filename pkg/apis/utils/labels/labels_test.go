@@ -50,7 +50,7 @@ func Test_ForServiceAccountWithRadixIdentity(t *testing.T) {
 	assert.Equal(t, kubelabels.Set(nil), actual)
 
 	actual = ForServiceAccountWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any"}})
-	expected := kubelabels.Set{azureWorkloadIdentityUseLabel: "true"}
+	expected := kubelabels.Set{"azure.workload.identity/use": "true"}
 	assert.Equal(t, expected, actual)
 }
 
