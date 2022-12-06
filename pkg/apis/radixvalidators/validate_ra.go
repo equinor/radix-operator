@@ -5,6 +5,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/google/uuid"
 
 	"net"
 	"regexp"
@@ -32,6 +33,7 @@ const (
 	minimumPortNumber          = 1024
 	maximumPortNumber          = 65535
 	cpuRegex                   = "^[0-9]+m$"
+	azureClientIdResourceName  = "identity.azure.clientId"
 )
 
 var (
@@ -56,6 +58,7 @@ func IsApplicationNameLowercase(appName string) (bool, error) {
 			return false, ApplicationNameNotLowercaseError(appName)
 		}
 	}
+
 	return true, nil
 }
 
@@ -1183,12 +1186,17 @@ func validateIdentity(identity *radixv1.Identity) error {
 }
 
 func validateAzureIdentity(azureIdentity *radixv1.AzureIdentity) error {
+
 	if azureIdentity == nil {
 		return nil
 	}
 
 	if len(strings.TrimSpace(azureIdentity.ClientId)) == 0 {
-		return ResourceNameCannotBeEmptyError("identity.azure.clientId")
+		return ResourceNameCannotBeEmptyError(azureClientIdResourceName)
+	}
+
+	if _, err := uuid.Parse(azureIdentity.ClientId); err != nil {
+		return InvalidUUIDError(azureClientIdResourceName, azureIdentity.ClientId)
 	}
 
 	return nil

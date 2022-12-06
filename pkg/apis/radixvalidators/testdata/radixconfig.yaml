@@ -28,7 +28,7 @@ spec:
           cpu: "100m"
       identity:
         azure:
-          clientId: 11111111-2222-3333-4444-555555555555
+          clientId: 11111111-2222-BBBB-cccc-555555555555
       environmentConfig:
         - environment: prod
           replicas: 4

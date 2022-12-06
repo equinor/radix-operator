@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/equinor/radix-common v1.2.4
 	github.com/golang/mock v1.6.0
+	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.54.0
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.54.0
@@ -41,7 +42,6 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
