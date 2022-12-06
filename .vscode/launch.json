@@ -22,7 +22,8 @@
         "RADIX_CLUSTER_TYPE=development",
         "RADIX_CLUSTERNAME=weekly-33",
         "RADIX_FILE_NAME=/workspace/radixconfig.yaml",
-        "DEBUG=true"
+        "DEBUG=true",
+        "RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io"
       ]
     },
     { 
@@ -40,7 +41,8 @@
         "FROM_ENVIRONMENT=qa",
         "TO_ENVIRONMENT=prod",
         "DEPLOYMENT_NAME=qa-etxkt-ac6rxchq",
-        "DEBUG=true"
+        "DEBUG=true",
+        "RADIX_CONTAINER_REGISTRY=radixdev.azurecr.io"
       ]
     },
     {

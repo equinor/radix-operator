@@ -56,8 +56,8 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 	log.Infof("Deploying app %s", appName)
 
 	if !pipelineInfo.BranchIsMapped {
-		// Do nothing
-		return fmt.Errorf("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Infof("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		return nil
 	}
 
 	for env, shouldDeploy := range pipelineInfo.TargetEnvironments {
