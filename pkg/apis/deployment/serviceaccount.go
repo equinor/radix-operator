@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
@@ -44,13 +43,11 @@ func (deploy *Deployment) verifyServiceAccountForComponentCanBeApplied(sa *corev
 		return err
 	}
 
-	// Allow new service account to be applied if existing service account has label radix-component matching the component name
-	componentNameLabel, _ := RadixComponentNameFromComponentLabel(existingSa)
-	if string(componentNameLabel) == component.GetName() {
-		return nil
+	if !isServiceAccountForComponent(existingSa, component.GetName()) {
+		return fmt.Errorf("existing service account does not belong to component %s", component.GetName())
 	}
 
-	return fmt.Errorf("existing service account does not belong to component %s", component.GetName())
+	return nil
 }
 
 func (deploy *Deployment) buildServiceAccountForComponent(component radixv1.RadixCommonDeployComponent) *corev1.ServiceAccount {
@@ -78,7 +75,7 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpecForComponent
 		return nil
 	}
 
-	serviceAccountList, err := deploy.kubeutil.ListServiceAccountsWithSelector(deploy.radixDeployment.Namespace, getComponentServiceAccountIdentifier(component).AsSelector().String())
+	serviceAccountList, err := deploy.kubeutil.ListServiceAccountsWithSelector(deploy.radixDeployment.Namespace, getComponentServiceAccountIdentifier(component.GetName()).AsSelector().String())
 	if err != nil {
 		return err
 	}
@@ -99,17 +96,17 @@ func (deploy *Deployment) garbageCollectServiceAccountNoLongerInSpec() error {
 	}
 
 	for _, serviceAccount := range serviceAccounts {
-		// Skip garbage collect if service account is not labelled as a component/job service account
-		if _, ok := serviceAccount.Labels[kube.IsServiceAccountForComponent]; !ok {
-			continue
-		}
-
 		componentName, ok := RadixComponentNameFromComponentLabel(serviceAccount)
 		if !ok {
 			continue
 		}
 
 		if !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+			// Skip garbage collect if service account is not labelled as a component/job service account
+			if !isServiceAccountForComponent(serviceAccount, string(componentName)) {
+				continue
+			}
+
 			if err := deploy.kubeclient.CoreV1().ServiceAccounts(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceAccount.GetName(), v1.DeleteOptions{}); err != nil {
 				return err
 			}
@@ -133,18 +130,23 @@ func componentRequiresServiceAccount(component radixv1.RadixCommonDeployComponen
 
 func getComponentServiceAccountLabels(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
 	return radixlabels.Merge(
-		getComponentServiceAccountIdentifier(component),
+		getComponentServiceAccountIdentifier(component.GetName()),
 		radixlabels.ForServiceAccountWithRadixIdentity(component.GetIdentity()),
 	)
 }
 
-func getComponentServiceAccountIdentifier(component radixv1.RadixCommonDeployComponent) kubelabels.Set {
+func getComponentServiceAccountIdentifier(componentName string) kubelabels.Set {
 	return radixlabels.Merge(
-		radixlabels.ForComponentName(component.GetName()),
+		radixlabels.ForComponentName(componentName),
 		radixlabels.ForServiceAccountIsForComponent(),
 	)
 }
 
 func getComponentServiceAccountAnnotations(component radixv1.RadixCommonDeployComponent) map[string]string {
 	return radixannotations.ForServiceAccountWithRadixIdentity(component.GetIdentity())
+}
+
+// isServiceAccountForComponent checks if service account has labels matching labels returned by getComponentServiceAccountIdentifier
+func isServiceAccountForComponent(sa *corev1.ServiceAccount, componentName string) bool {
+	return getComponentServiceAccountIdentifier(componentName).AsSelector().Matches(kubelabels.Set(sa.Labels))
 }
