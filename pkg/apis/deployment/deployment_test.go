@@ -3716,59 +3716,60 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 
 func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
 	type scenarioSpec struct {
-		common               *v1.Identity
+		name                 string
+		commonConfig         *v1.Identity
 		configureEnvironment bool
-		environment          *v1.Identity
+		environmentConfig    *v1.Identity
 		expected             *v1.Identity
 	}
 
 	scenarios := []scenarioSpec{
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: nil, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: nil, expected: nil},
-		{common: nil, configureEnvironment: false, environment: nil, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: false, environment: nil, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
 	}
 
-	componentTest := func(scenarioTitle string, scenario scenarioSpec) {
+	componentTest := func(scenario scenarioSpec, t *testing.T) {
 		const envName = "anyenv"
-		component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.common)
+		component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.commonConfig)
 		if scenario.configureEnvironment {
 			component = component.WithEnvironmentConfigs(
-				utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environment),
+				utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environmentConfig),
 			)
 		}
 		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
 		sut := ConstructForTargetEnvironment
 		rd, err := sut(ra, "anyjob", "anyimage", "anybranch", make(map[string]pipeline.ComponentImage), envName, make(v1.EnvVarsMap))
-		require.NoError(t, err, scenarioTitle, "component")
-		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity, "%s - %s", scenarioTitle, "component")
+		require.NoError(t, err)
+		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity)
 	}
-	jobTest := func(scenarioTitle string, scenario scenarioSpec) {
+	jobTest := func(scenario scenarioSpec, t *testing.T) {
 		const envName = "anyenv"
-		job := utils.AnApplicationJobComponent().WithName("anyjob").WithIdentity(scenario.common)
+		job := utils.AnApplicationJobComponent().WithName("anyjob").WithIdentity(scenario.commonConfig)
 		if scenario.configureEnvironment {
 			job = job.WithEnvironmentConfigs(
-				utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environment),
+				utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environmentConfig),
 			)
 		}
 		ra := utils.ARadixApplication().WithJobComponents(job).BuildRA()
 		sut := ConstructForTargetEnvironment
 		rd, err := sut(ra, "anyjob", "anyimage", "anybranch", make(map[string]pipeline.ComponentImage), envName, make(v1.EnvVarsMap))
-		require.NoError(t, err, scenarioTitle, "job")
-		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity, "%s - %s", scenarioTitle, "job")
+		require.NoError(t, err)
+		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity)
 	}
 
-	for i, scenario := range scenarios {
-		scenarioTitle := fmt.Sprintf("scenario #%d", i+1)
-		componentTest(scenarioTitle, scenario)
-		jobTest(scenarioTitle, scenario)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			componentTest(scenario, t)
+			jobTest(scenario, t)
+		})
 	}
 }
 
