@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -39,12 +38,15 @@ func TestGetAuthenticationForComponent(t *testing.T) {
 		{name: "should return environment when component is nil", env: &v1.Authentication{}, expected: &v1.Authentication{}},
 	}
 
-	for i, scenario := range scenarios {
-		comp, _ := scenario.comp.(*v1.Authentication)
-		env, _ := scenario.env.(*v1.Authentication)
-		expected, _ := scenario.expected.(*v1.Authentication)
-		actual, _ := GetAuthenticationForComponent(comp, env)
-		assert.Equal(t, expected, actual, "%v: %v", i+1, scenario.name)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			comp, _ := scenario.comp.(*v1.Authentication)
+			env, _ := scenario.env.(*v1.Authentication)
+			expected, _ := scenario.expected.(*v1.Authentication)
+			actual, _ := GetAuthenticationForComponent(comp, env)
+			assert.Equal(t, expected, actual)
+		})
+
 	}
 }
 
@@ -124,12 +126,15 @@ func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
 		},
 	}
 
-	for i, scenario := range scenarios {
-		comp, _ := scenario.comp.(*v1.ClientCertificate)
-		env, _ := scenario.env.(*v1.ClientCertificate)
-		expected, _ := scenario.expected.(*v1.ClientCertificate)
-		actual, _ := GetAuthenticationForComponent(&v1.Authentication{ClientCertificate: comp}, &v1.Authentication{ClientCertificate: env})
-		assert.Equal(t, expected, actual.ClientCertificate, "%v: %v", i+1, scenario.name)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			comp, _ := scenario.comp.(*v1.ClientCertificate)
+			env, _ := scenario.env.(*v1.ClientCertificate)
+			expected, _ := scenario.expected.(*v1.ClientCertificate)
+			actual, _ := GetAuthenticationForComponent(&v1.Authentication{ClientCertificate: comp}, &v1.Authentication{ClientCertificate: env})
+			assert.Equal(t, expected, actual.ClientCertificate)
+		})
+
 	}
 }
 
@@ -164,12 +169,14 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		},
 	}
 
-	for i, scenario := range scenarios {
-		comp, _ := scenario.comp.(*v1.OAuth2)
-		env, _ := scenario.env.(*v1.OAuth2)
-		expected, _ := scenario.expected.(*v1.OAuth2)
-		actual, _ := GetAuthenticationForComponent(&v1.Authentication{OAuth2: comp}, &v1.Authentication{OAuth2: env})
-		assert.Equal(t, expected, actual.OAuth2, "%v: %v", i+1, scenario.name)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			comp, _ := scenario.comp.(*v1.OAuth2)
+			env, _ := scenario.env.(*v1.OAuth2)
+			expected, _ := scenario.expected.(*v1.OAuth2)
+			actual, _ := GetAuthenticationForComponent(&v1.Authentication{OAuth2: comp}, &v1.Authentication{OAuth2: env})
+			assert.Equal(t, expected, actual.OAuth2)
+		})
 	}
 }
 
@@ -749,40 +756,41 @@ func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledJobComponents(t *testing
 
 func Test_GetRadixComponentsForEnv_Identity(t *testing.T) {
 	type scenarioSpec struct {
-		common               *v1.Identity
+		name                 string
+		commonConfig         *v1.Identity
 		configureEnvironment bool
-		environment          *v1.Identity
+		environmentConfig    *v1.Identity
 		expected             *v1.Identity
 	}
 
 	scenarios := []scenarioSpec{
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: nil, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: nil, expected: nil},
-		{common: nil, configureEnvironment: false, environment: nil, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: false, environment: nil, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
 	}
 
-	for i, scenario := range scenarios {
-		scenarioTitle := fmt.Sprintf("scenario #%d", i+1)
-		const envName = "anyenv"
-		component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.common)
-		if scenario.configureEnvironment {
-			component = component.WithEnvironmentConfigs(
-				utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environment),
-			)
-		}
-		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
-		sut := GetRadixComponentsForEnv
-		components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
-		require.NoError(t, err, scenarioTitle)
-		assert.Equal(t, scenario.expected, components[0].Identity, scenarioTitle)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			const envName = "anyenv"
+			component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.commonConfig)
+			if scenario.configureEnvironment {
+				component = component.WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environmentConfig),
+				)
+			}
+			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
+			sut := GetRadixComponentsForEnv
+			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+			require.NoError(t, err)
+			assert.Equal(t, scenario.expected, components[0].Identity)
+		})
 	}
 }
 

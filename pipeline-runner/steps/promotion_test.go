@@ -682,105 +682,107 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 	currentRdIdentity := &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any-current-identity-123"}}
 
 	type scenarioSpec struct {
-		common               *v1.Identity
+		name                 string
+		commonConfig         *v1.Identity
 		configureEnvironment bool
-		environment          *v1.Identity
+		environmentConfig    *v1.Identity
 		expected             *v1.Identity
 	}
 
 	scenarios := []scenarioSpec{
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: nil, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: nil, expected: nil},
-		{common: nil, configureEnvironment: false, environment: nil, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: false, environment: nil, expected: nil},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{}, expected: nil},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
-		{common: &v1.Identity{}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
-		{common: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environment: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "common123"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "env123"}}},
 	}
 
-	for i, scenario := range scenarios {
-		scenarioTitle := fmt.Sprintf("scenario #%d", i+1)
-		kubeclient, kubeUtil, radixclient, commonTestUtils, env := setupTest(t)
-		var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
-		var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			kubeclient, kubeUtil, radixclient, commonTestUtils, env := setupTest(t)
+			var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
+			var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
 
-		if scenario.configureEnvironment {
-			componentEnvironmentConfigs = append(componentEnvironmentConfigs, utils.AnEnvironmentConfig().WithEnvironment(anyProdEnvironment).WithIdentity(scenario.environment))
-			jobEnvironmentConfigs = append(jobEnvironmentConfigs, utils.AJobComponentEnvironmentConfig().WithEnvironment(anyProdEnvironment).WithIdentity(scenario.environment))
-		}
+			if scenario.configureEnvironment {
+				componentEnvironmentConfigs = append(componentEnvironmentConfigs, utils.AnEnvironmentConfig().WithEnvironment(anyProdEnvironment).WithIdentity(scenario.environmentConfig))
+				jobEnvironmentConfigs = append(jobEnvironmentConfigs, utils.AJobComponentEnvironmentConfig().WithEnvironment(anyProdEnvironment).WithIdentity(scenario.environmentConfig))
+			}
 
-		commonTestUtils.ApplyDeployment(
-			utils.NewDeploymentBuilder().
-				WithComponents(
-					utils.NewDeployComponentBuilder().
-						WithName("comp1").
-						WithIdentity(currentRdIdentity),
-				).
-				WithJobComponents(
-					utils.NewDeployJobComponentBuilder().
-						WithName("job1").
-						WithIdentity(currentRdIdentity),
-				).
-				WithAppName(anyApp).
-				WithDeploymentName(anyDeploymentName).
-				WithEnvironment(anyDevEnvironment).
-				WithImageTag(anyImageTag).
-				WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
-				WithRadixApplication(
-					utils.NewRadixApplicationBuilder().
-						WithRadixRegistration(
-							utils.ARadixRegistration().
-								WithName(anyApp)).
-						WithAppName(anyApp).
-						WithEnvironment(anyDevEnvironment, "").
-						WithEnvironment(anyProdEnvironment, "").
-						WithComponents(
-							utils.AnApplicationComponent().
-								WithName("comp1").
-								WithIdentity(scenario.common).
-								WithEnvironmentConfigs(componentEnvironmentConfigs...)).
-						WithJobComponents(
-							utils.AnApplicationJobComponent().
-								WithName("job1").
-								WithIdentity(scenario.common).
-								WithSchedulerPort(numbers.Int32Ptr(8888)).
-								WithPayloadPath(utils.StringPtr("/path")).
-								WithEnvironmentConfigs(jobEnvironmentConfigs...),
-						)),
-		)
+			commonTestUtils.ApplyDeployment(
+				utils.NewDeploymentBuilder().
+					WithComponents(
+						utils.NewDeployComponentBuilder().
+							WithName("comp1").
+							WithIdentity(currentRdIdentity),
+					).
+					WithJobComponents(
+						utils.NewDeployJobComponentBuilder().
+							WithName("job1").
+							WithIdentity(currentRdIdentity),
+					).
+					WithAppName(anyApp).
+					WithDeploymentName(anyDeploymentName).
+					WithEnvironment(anyDevEnvironment).
+					WithImageTag(anyImageTag).
+					WithLabel(kube.RadixJobNameLabel, anyBuildDeployJobName).
+					WithRadixApplication(
+						utils.NewRadixApplicationBuilder().
+							WithRadixRegistration(
+								utils.ARadixRegistration().
+									WithName(anyApp)).
+							WithAppName(anyApp).
+							WithEnvironment(anyDevEnvironment, "").
+							WithEnvironment(anyProdEnvironment, "").
+							WithComponents(
+								utils.AnApplicationComponent().
+									WithName("comp1").
+									WithIdentity(scenario.commonConfig).
+									WithEnvironmentConfigs(componentEnvironmentConfigs...)).
+							WithJobComponents(
+								utils.AnApplicationJobComponent().
+									WithName("job1").
+									WithIdentity(scenario.commonConfig).
+									WithSchedulerPort(numbers.Int32Ptr(8888)).
+									WithPayloadPath(utils.StringPtr("/path")).
+									WithEnvironmentConfigs(jobEnvironmentConfigs...),
+							)),
+			)
 
-		// Create prod environment without any deployments
-		test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
+			// Create prod environment without any deployments
+			test.CreateEnvNamespace(kubeclient, anyApp, anyProdEnvironment)
 
-		rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
-		ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
+			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), anyApp, metav1.GetOptions{})
+			ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
-		cli := NewPromoteStep()
-		cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
+			cli := NewPromoteStep()
+			cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
 
-		pipelineInfo := &model.PipelineInfo{
-			PipelineArguments: model.PipelineArguments{
-				FromEnvironment: anyDevEnvironment,
-				ToEnvironment:   anyProdEnvironment,
-				DeploymentName:  anyDeploymentName,
-				JobName:         anyPromoteJobName,
-				ImageTag:        anyImageTag,
-				CommitID:        anyCommitID,
-			},
-		}
+			pipelineInfo := &model.PipelineInfo{
+				PipelineArguments: model.PipelineArguments{
+					FromEnvironment: anyDevEnvironment,
+					ToEnvironment:   anyProdEnvironment,
+					DeploymentName:  anyDeploymentName,
+					JobName:         anyPromoteJobName,
+					ImageTag:        anyImageTag,
+					CommitID:        anyCommitID,
+				},
+			}
 
-		applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
-		pipelineInfo.SetApplicationConfig(applicationConfig)
-		err := cli.Run(pipelineInfo)
-		require.NoError(t, err, scenarioTitle)
+			applicationConfig, _ := application.NewApplicationConfig(kubeclient, kubeUtil, radixclient, rr, ra)
+			pipelineInfo.SetApplicationConfig(applicationConfig)
+			err := cli.Run(pipelineInfo)
+			require.NoError(t, err)
 
-		rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
-		require.Equal(t, 1, len(rds.Items), scenarioTitle)
-		assert.Equal(t, scenario.expected, rds.Items[0].Spec.Components[0].Identity, "%s - %s", scenarioTitle, "component")
-		assert.Equal(t, scenario.expected, rds.Items[0].Spec.Jobs[0].Identity, "%s - %s", scenarioTitle, "job")
+			rds, _ := radixclient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(anyApp, anyProdEnvironment)).List(context.TODO(), metav1.ListOptions{})
+			require.Equal(t, 1, len(rds.Items))
+			assert.Equal(t, scenario.expected, rds.Items[0].Spec.Components[0].Identity)
+			assert.Equal(t, scenario.expected, rds.Items[0].Spec.Jobs[0].Identity)
+		})
+
 	}
 }
