@@ -9,6 +9,7 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/google/uuid"
 	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
 )
@@ -194,6 +195,14 @@ func getRadixCommonComponentIdentity(radixComponent v1.RadixCommonComponent, env
 
 	if reflect.DeepEqual(identity, &v1.Identity{}) {
 		return nil, nil
+	}
+
+	if identity != nil && identity.Azure != nil {
+		id, err := uuid.Parse(identity.Azure.ClientId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse identity.azure.clientId for component %s: %w", radixComponent.GetName(), err)
+		}
+		identity.Azure.ClientId = id.String()
 	}
 
 	return identity, nil
