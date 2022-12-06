@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -15,6 +16,8 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -102,7 +105,7 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 		},
 	}
 
-	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment, appName, componentName)
+	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
 	if err != nil {
 		return nil, err
 	}
@@ -118,11 +121,10 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
-	componentName := deployComponent.GetName()
 	log.Debugf("Get desired updated deployment config for application: %s.", appName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
-	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment, appName, componentName)
+	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
 	if err != nil {
 		return nil, err
 	}
@@ -135,28 +137,68 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
 
-func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName, componentName string) error {
-	branch, commitID := deploy.getRadixBranchAndCommitId()
+func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	_, commitID := deploy.getRadixBranchAndCommitId()
 
-	desiredDeployment.ObjectMeta.Name = componentName
-	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
-	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = string(deployComponent.GetType())
-	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+	labels := radixlabels.Merge(
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForComponentName(deployComponent.GetName()),
+		radixlabels.ForCommitId(commitID),
+		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
+	)
 
-	desiredDeployment.Spec.Selector.MatchLabels[kube.RadixComponentLabel] = componentName
-
-	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixAppLabel] = appName
-	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-	desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	if deployComponent.GetType() == v1.RadixComponentTypeJobScheduler {
-		desiredDeployment.Spec.Template.ObjectMeta.Labels[kube.RadixPodIsJobSchedulerLabel] = "true"
+	if isDeployComponentJobSchedulerDeployment(deployComponent) {
+		labels = radixlabels.Merge(labels, radixlabels.ForPodIsJobScheduler())
 	}
 
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations["apparmor.security.beta.kubernetes.io/pod"] = "runtime/default"
-	desiredDeployment.Spec.Template.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+	return labels
+}
+
+func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	branch, _ := deploy.getRadixBranchAndCommitId()
+
+	annotations := radixlabels.Merge(
+		radixannotations.ForPodAppArmorRuntimeDefault(),
+		radixannotations.ForRadixBranch(branch),
+	)
+
+	if deployComponent.IsAlwaysPullImageOnDeploy() {
+		annotations = radixlabels.Merge(annotations, radixannotations.ForRadixDeploymentName(deploy.radixDeployment.Name))
+	}
+
+	return annotations
+}
+
+func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	_, commitID := deploy.getRadixBranchAndCommitId()
+
+	labels := radixlabels.Merge(
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForComponentName(deployComponent.GetName()),
+		radixlabels.ForComponentType(deployComponent.GetType()),
+		radixlabels.ForCommitId(commitID),
+	)
+
+	return labels
+}
+
+func (deploy *Deployment) getDeploymentAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	branch, _ := deploy.getRadixBranchAndCommitId()
+	return radixannotations.ForRadixBranch(branch)
+}
+
+func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName()
+
+	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
+	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
+	desiredDeployment.ObjectMeta.Labels = deploy.getDeploymentLabels(deployComponent)
+	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations(deployComponent)
+
+	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
+
+	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
+	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
 
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
@@ -205,10 +247,6 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 }
 
 func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName string) (*appsv1.Deployment, error) {
-	if deployComponent.IsAlwaysPullImageOnDeploy() {
-		desiredDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation] = deploy.radixDeployment.Name
-	}
-
 	replicas := deployComponent.GetReplicas()
 	if replicas != nil && *replicas >= 0 {
 		desiredDeployment.Spec.Replicas = int32Ptr(int32(*replicas))
