@@ -527,6 +527,8 @@ type Identity struct {
 
 // AzureIdentity properties for Azure AD Workload Identity
 type AzureIdentity struct {
+	// ClientId is the client ID for a user defined managed identity
+	// or application ID for an application registration
 	ClientId string `json:"clientId" yaml:"clientId"`
 }
 
