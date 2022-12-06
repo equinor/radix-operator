@@ -8,30 +8,15 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ApplyPipelineServiceAccount create service account needed by pipeline
 func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, error) {
-	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.PipelineServiceAccountName,
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		},
-	}
-
-	return app.kubeutil.ApplyServiceAccount(&serviceAccount)
+	return app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.PipelineServiceAccountName)
 }
 
 func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (*corev1.ServiceAccount, error) {
-	newServiceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.GetMachineUserRoleName(app.registration.Name),
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		},
-	}
-
-	serviceAccount, err := app.kubeutil.ApplyServiceAccount(&newServiceAccount)
+	serviceAccount, err := app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.GetMachineUserRoleName(app.registration.Name))
 	if err != nil {
 		return nil, err
 	}
