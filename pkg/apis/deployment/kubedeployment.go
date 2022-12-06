@@ -169,17 +169,31 @@ func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCo
 	return annotations
 }
 
+func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	_, commitID := deploy.getRadixBranchAndCommitId()
+
+	labels := radixlabels.Merge(
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForComponentName(deployComponent.GetName()),
+		radixlabels.ForComponentType(deployComponent.GetType()),
+		radixlabels.ForCommitId(commitID),
+	)
+
+	return labels
+}
+
+func (deploy *Deployment) getDeploymentAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	branch, _ := deploy.getRadixBranchAndCommitId()
+	return radixannotations.ForRadixBranch(branch)
+}
+
 func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
-	branch, commitID := deploy.getRadixBranchAndCommitId()
 	appName, componentName := deploy.radixDeployment.Spec.AppName, deployComponent.GetName()
 
 	desiredDeployment.ObjectMeta.Name = deployComponent.GetName()
 	desiredDeployment.ObjectMeta.OwnerReferences = []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)}
-	desiredDeployment.ObjectMeta.Labels[kube.RadixAppLabel] = appName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentLabel] = componentName
-	desiredDeployment.ObjectMeta.Labels[kube.RadixComponentTypeLabel] = string(deployComponent.GetType())
-	desiredDeployment.ObjectMeta.Labels[kube.RadixCommitLabel] = commitID
-	desiredDeployment.ObjectMeta.Annotations[kube.RadixBranchAnnotation] = branch
+	desiredDeployment.ObjectMeta.Labels = deploy.getDeploymentLabels(deployComponent)
+	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations(deployComponent)
 
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
 

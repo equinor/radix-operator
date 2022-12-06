@@ -30,6 +30,14 @@ func ForComponentName(componentName string) kubelabels.Set {
 	}
 }
 
+// ForComponentTypeName returns labels describing the component type,
+// e.g. "radix-component-type": "job"
+func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixComponentTypeLabel: string(componentType),
+	}
+}
+
 // ForCommitId returns labels describing the commit ID,
 // e.g. "radix-commit": "64b54f4a6aa542cb4bd15666c1e104eee647573a"
 func ForCommitId(commitId string) kubelabels.Set {
