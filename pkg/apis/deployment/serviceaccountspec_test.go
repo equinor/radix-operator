@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,17 +17,43 @@ func Test_ServiceAccountSpec(t *testing.T) {
 			WithRadixApplication(utils.ARadixApplication()).
 			WithAppName("app").
 			WithEnvironment("test").
-			WithComponent(utils.NewDeployComponentBuilder().WithName("app")).
-			WithJobComponent(utils.NewDeployJobComponentBuilder().WithName("job")).
+			WithComponents(
+				utils.NewDeployComponentBuilder().WithName("app"),
+				utils.NewDeployComponentBuilder().
+					WithName("app-with-identity").
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "123"}}),
+			).
+			WithJobComponents(
+				utils.NewDeployJobComponentBuilder().WithName("job"),
+				utils.NewDeployJobComponentBuilder().
+					WithName("job").
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "123"}}),
+			).
 			BuildRD()
 
 		spec := NewServiceAccountSpec(rd, &rd.Spec.Components[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
-		assert.Equal(t, "", spec.ServiceAccountName())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		spec = NewServiceAccountSpec(rd, &rd.Spec.Components[1])
+		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Components[1].Name), spec.ServiceAccountName())
+
+		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+
+		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
+
+		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
+		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
+		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+
+		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[1])
+		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, utils.GetComponentServiceAccountName(rd.Spec.Jobs[1].Name), spec.ServiceAccountName())
 	})
 
 	t.Run("radix api", func(t *testing.T) {
@@ -43,9 +70,14 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixAPIServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+
+		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
+
 	})
 
 	t.Run("radix webhook", func(t *testing.T) {
@@ -62,8 +94,13 @@ func Test_ServiceAccountSpec(t *testing.T) {
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, spec.ServiceAccountName())
 
-		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
 		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+
+		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
+		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
+		assert.Equal(t, defaultServiceAccountName, spec.ServiceAccountName())
+
 	})
 }

@@ -831,10 +831,172 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
-	t.Run("app with job use custom SA", func(t *testing.T) {
+	t.Run("app with component using identity use custom SA", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId, newClientId := "any-app", "any-env", "any-component", "any-client-id", "new-client-id"
+
+		// Deploy component with Azure identity must create custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		sa := serviceAccounts.Items[0]
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
+		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
+
+		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
+
+		// Deploy component with new Azure identity must update SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: newClientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		sa = serviceAccounts.Items[0]
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
+		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": newClientId}, sa.Annotations)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
+
+		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
+		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
+
+		// Redploy component without Azure identity should delete custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(utils.NewDeployComponentBuilder().WithName(componentName)).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
+
+		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
+		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		_, hasLabel := expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"]
+		assert.False(t, hasLabel)
+	})
+
+	t.Run("app with component using identity fails if SA exist with missing is-service-account-for-component label", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
+		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
+			context.Background(),
+			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName}}},
+			metav1.CreateOptions{})
+
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		assert.Error(t, err)
+	})
+
+	t.Run("app with component using identity success if SA exist with correct labels", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId := "any-app", "any-env", "any-component", "any-client-id"
+		client.CoreV1().ServiceAccounts("any-app-any-env").Create(
+			context.Background(),
+			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: utils.GetComponentServiceAccountName(componentName), Labels: map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "any-other-label": "any-value"}}},
+			metav1.CreateOptions{})
+
+		_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		require.NoError(t, err)
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		sa := serviceAccounts.Items[0]
+		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), sa.Name)
+		assert.Equal(t, map[string]string{"azure.workload.identity/client-id": clientId}, sa.Annotations)
+		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
+	})
+
+	t.Run("component removed, custom SA is garbage collected", func(t *testing.T) {
+		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+		appName, envName, componentName, clientId, anyOtherServiceAccountName := "any-app", "any-env", "any-component", "any-client-id", "any-other-serviceaccount"
+
+		// A service account that must not be deleted
+		client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).Create(
+			context.Background(),
+			&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: anyOtherServiceAccountName, Labels: map[string]string{kube.RadixComponentLabel: "anything"}}},
+			metav1.CreateOptions{})
+
+		// Deploy component with Azure identity must create custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+				utils.NewDeployComponentBuilder().
+					WithName("any-other-component").
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 3, len(serviceAccounts.Items), "Number of service accounts was not expected")
+
+		// Redploy component without Azure identity should delete custom SA
+		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+			WithComponents(
+				utils.NewDeployComponentBuilder().
+					WithName(componentName).
+					WithIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: clientId}}),
+			).
+			WithJobComponents().
+			WithAppName(appName).
+			WithEnvironment(envName))
+
+		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
+		assert.Equal(t, 2, len(serviceAccounts.Items), "Number of service accounts was not expected")
+		assert.NotNil(t, getServiceAccountByName(utils.GetComponentServiceAccountName(componentName), serviceAccounts))
+		assert.NotNil(t, getServiceAccountByName(anyOtherServiceAccountName, serviceAccounts))
+	})
+
+	t.Run("app with job use radix-job-scheduler-server SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents().
@@ -867,7 +1029,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// Change app to be a job
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -899,10 +1061,10 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, "", expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
 
-	t.Run("webhook runs custom SA", func(t *testing.T) {
+	t.Run("webhook runs as radix-github-webhook SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithJobComponents().
@@ -918,7 +1080,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 
 	})
 
-	t.Run("radix-api runs custom SA", func(t *testing.T) {
+	t.Run("radix-api runs as radix-api SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithJobComponents().
@@ -1614,7 +1776,8 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 			envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = testcase.expectedGitCommitHash
 			envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = testcase.expectedGitTags
 
-			rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, testcase.environment, envVarsMap)
+			rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, testcase.environment, envVarsMap)
+			require.NoError(t, err)
 
 			assert.Equal(t, testcase.expectedReplicas, *rd.Spec.Components[0].Replicas, "Number of replicas wasn't as expected")
 			assert.Equal(t, testcase.expectedDbHost, rd.Spec.Components[0].EnvironmentVariables["DB_HOST"])
@@ -1677,7 +1840,8 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
 	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
 
-	rd, _ := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap)
+	rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "dev", envVarsMap)
+	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
 	assert.True(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
@@ -1686,7 +1850,8 @@ func TestConstructForTargetEnvironment_AlwaysPullImageOnDeployOverride(t *testin
 	t.Log(rd.Spec.Components[2].Name)
 	assert.False(t, rd.Spec.Components[2].AlwaysPullImageOnDeploy)
 
-	rd, _ = ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "prod", envVarsMap)
+	rd, err = ConstructForTargetEnvironment(ra, "anyjob", "anyimageTag", "anybranch", componentImages, "prod", envVarsMap)
+	require.NoError(t, err)
 
 	t.Log(rd.Spec.Components[0].Name)
 	assert.False(t, rd.Spec.Components[0].AlwaysPullImageOnDeploy)
@@ -3552,6 +3717,66 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 	assert.False(t, envVariableByNameExistOnDeployment("SECRET2", jobName, deployments), "SECRET2 exist")
 }
 
+func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {
+	type scenarioSpec struct {
+		name                 string
+		commonConfig         *v1.Identity
+		configureEnvironment bool
+		environmentConfig    *v1.Identity
+		expected             *v1.Identity
+	}
+
+	scenarios := []scenarioSpec{
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "transform clientId with curly to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "{11111111-2222-3333-4444-555555555555}"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId with urn:uuid to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "urn:uuid:11111111-2222-3333-4444-555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId without dashes to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111222233334444555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+	}
+
+	componentTest := func(scenario scenarioSpec, t *testing.T) {
+		const envName = "anyenv"
+		component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.commonConfig)
+		if scenario.configureEnvironment {
+			component = component.WithEnvironmentConfigs(
+				utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environmentConfig),
+			)
+		}
+		ra := utils.ARadixApplication().WithComponents(component).BuildRA()
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(map[string]pipeline.ComponentImage), envName, make(v1.EnvVarsMap))
+		require.NoError(t, err)
+		assert.Equal(t, scenario.expected, rd.Spec.Components[0].Identity)
+	}
+	jobTest := func(scenario scenarioSpec, t *testing.T) {
+		const envName = "anyenv"
+		job := utils.AnApplicationJobComponent().WithName("anyjob").WithIdentity(scenario.commonConfig)
+		if scenario.configureEnvironment {
+			job = job.WithEnvironmentConfigs(
+				utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environmentConfig),
+			)
+		}
+		ra := utils.ARadixApplication().WithJobComponents(job).BuildRA()
+		rd, err := ConstructForTargetEnvironment(ra, "anyjob", "anyimage", "anybranch", make(map[string]pipeline.ComponentImage), envName, make(v1.EnvVarsMap))
+		require.NoError(t, err)
+		assert.Equal(t, scenario.expected, rd.Spec.Jobs[0].Identity)
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			componentTest(scenario, t)
+			jobTest(scenario, t)
+		})
+	}
+}
+
 func parseQuantity(value string) resource.Quantity {
 	q, _ := resource.ParseQuantity(value)
 	return q
@@ -3711,6 +3936,16 @@ func getServiceByName(name string, services *corev1.ServiceList) *corev1.Service
 	for _, service := range services.Items {
 		if service.Name == name {
 			return &service
+		}
+	}
+
+	return nil
+}
+
+func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {
+	for _, serviceAccount := range serviceAccounts.Items {
+		if serviceAccount.Name == name {
+			return &serviceAccount
 		}
 	}
 

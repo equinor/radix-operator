@@ -46,6 +46,7 @@ func (kubeutil *Kube) ListSecretExistsForLabels(namespace string, labelSelector 
 // ApplySecret Creates or updates secret to namespace
 func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (savedSecret *corev1.Secret, err error) {
 	secretName := secret.GetName()
+	// file deepcode ignore ClearTextLogging: logs name of secret only
 	log.Debugf("Applies secret %s in namespace %s", secretName, namespace)
 
 	oldSecret, err := kubeutil.GetSecret(namespace, secretName)

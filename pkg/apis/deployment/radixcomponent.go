@@ -43,6 +43,11 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 			return nil, err
 		}
 
+		identity, err := getRadixCommonComponentIdentity(&radixComponent, environmentSpecificConfig)
+		if err != nil {
+			return nil, err
+		}
+
 		componentImage := componentImages[componentName]
 		deployComponent.Image = getImagePath(&componentImage, environmentSpecificConfig)
 		deployComponent.Node = getRadixCommonComponentNode(&radixComponent, environmentSpecificConfig)
@@ -53,11 +58,19 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		deployComponent.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixComponent, environmentSpecificConfig)
 		deployComponent.PublicPort = getRadixComponentPort(&radixComponent)
 		deployComponent.Authentication = auth
+		deployComponent.Identity = identity
 
 		components = append(components, deployComponent)
 	}
 
 	return components, nil
+}
+
+func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) bool {
+	if environmentSpecificConfig != nil {
+		return GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, radixComponent.AlwaysPullImageOnDeploy, false)
+	}
+	return GetCascadeBoolean(nil, radixComponent.AlwaysPullImageOnDeploy, false)
 }
 
 func getRadixComponentAuthentication(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) (*v1.Authentication, error) {
@@ -66,13 +79,6 @@ func getRadixComponentAuthentication(radixComponent *v1.RadixComponent, environm
 		environmentAuthentication = environmentSpecificConfig.Authentication
 	}
 	return GetAuthenticationForComponent(radixComponent.Authentication, environmentAuthentication)
-}
-
-func getRadixComponentAlwaysPullImageOnDeployFlag(radixComponent *v1.RadixComponent, environmentSpecificConfig *v1.RadixEnvironmentConfig) bool {
-	if environmentSpecificConfig != nil {
-		return GetCascadeBoolean(environmentSpecificConfig.AlwaysPullImageOnDeploy, radixComponent.AlwaysPullImageOnDeploy, false)
-	}
-	return GetCascadeBoolean(nil, radixComponent.AlwaysPullImageOnDeploy, false)
 }
 
 func GetAuthenticationForComponent(componentAuthentication *v1.Authentication, environmentAuthentication *v1.Authentication) (auth *v1.Authentication, err error) {
