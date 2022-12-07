@@ -7,15 +7,13 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ConfigureDeploymentRbacFunc defines a function that configures RBAC
 type ConfigureDeploymentRbacFunc func() error
 
-//GetDeploymentRbacConfigurators returns an array of RBAC configuration functions
+// GetDeploymentRbacConfigurators returns an array of RBAC configuration functions
 func GetDeploymentRbacConfigurators(deploy *Deployment) []ConfigureDeploymentRbacFunc {
 	var rbac []ConfigureDeploymentRbacFunc
 
@@ -38,14 +36,7 @@ func configureRbacForRadixAPI(deploy *Deployment) ConfigureDeploymentRbacFunc {
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 
 	return func() error {
-		newServiceAccount := corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.RadixAPIRoleName,
-				Namespace: deploy.radixDeployment.Namespace,
-			},
-		}
-
-		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(deploy.radixDeployment.Namespace, defaults.RadixAPIRoleName)
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix api. %v", err)
 		}
@@ -57,14 +48,7 @@ func configureRbacForRadixGithubWebhook(deploy *Deployment) ConfigureDeploymentR
 	ownerReference := application.GetOwnerReferenceOfRegistration(deploy.registration)
 
 	return func() error {
-		newServiceAccount := corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.RadixGithubWebhookRoleName,
-				Namespace: deploy.radixDeployment.Namespace,
-			},
-		}
-
-		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(deploy.radixDeployment.Namespace, defaults.RadixGithubWebhookRoleName)
 		if err != nil {
 			return fmt.Errorf("service account for running radix github webhook not made. %v", err)
 		}
@@ -77,14 +61,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 	appName := deploy.radixDeployment.Spec.AppName
 
 	return func() error {
-		newServiceAccount := corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      defaults.RadixJobSchedulerServerServiceName,
-				Namespace: namespace,
-			},
-		}
-
-		serviceAccount, err := deploy.kubeutil.ApplyServiceAccount(newServiceAccount)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(namespace, defaults.RadixJobSchedulerServerServiceName)
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix job scheduler. %v", err)
 		}

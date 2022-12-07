@@ -25,6 +25,7 @@ type DeployJobComponentBuilder interface {
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
 	WithTimeLimitSeconds(*int64) DeployJobComponentBuilder
+	WithIdentity(*v1.Identity) DeployJobComponentBuilder
 	BuildJobComponent() v1.RadixDeployJobComponent
 }
 
@@ -44,6 +45,7 @@ type deployJobComponentBuilder struct {
 	payloadPath             *string
 	node                    v1.RadixNode
 	timeLimitSeconds        *int64
+	identity                *v1.Identity
 }
 
 func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployJobComponentBuilder {
@@ -156,6 +158,11 @@ func (dcb *deployJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int
 	return dcb
 }
 
+func (dcb *deployJobComponentBuilder) WithIdentity(identity *v1.Identity) DeployJobComponentBuilder {
+	dcb.identity = identity
+	return dcb
+}
+
 func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobComponent {
 	var payload *v1.RadixJobComponentPayload
 	if dcb.payloadPath != nil {
@@ -178,6 +185,7 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 		Node:                    dcb.node,
 		TimeLimitSeconds:        dcb.timeLimitSeconds,
+		Identity:                dcb.identity,
 	}
 }
 

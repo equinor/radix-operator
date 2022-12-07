@@ -43,16 +43,16 @@ func (s *testSuite) Test_isCreatedAfter() {
 		{
 			name: "rj1 is not after rj2",
 			jobs: jobPair{
-				rj1: createRadixJob("rj1", s.timeNow),
-				rj2: createRadixJob("rj2", s.timeNow.Add(time.Hour)),
+				rj1: createRadixJob("rj1", getPtr(s.timeNow)),
+				rj2: createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour))),
 			},
 			want: false,
 		},
 		{
 			name: "rj1 is after rj2",
 			jobs: jobPair{
-				rj1: createRadixJob("rj1", s.timeNow.Add(time.Hour)),
-				rj2: createRadixJob("rj2", s.timeNow),
+				rj1: createRadixJob("rj1", getPtr(s.timeNow.Add(time.Hour))),
+				rj2: createRadixJob("rj2", getPtr(s.timeNow)),
 			},
 			want: true,
 		},
@@ -69,16 +69,16 @@ func (s *testSuite) Test_isCreatedBefore() {
 		{
 			name: "rj1 is before rj2",
 			jobs: jobPair{
-				rj1: createRadixJob("rj1", s.timeNow),
-				rj2: createRadixJob("rj2", s.timeNow.Add(time.Hour)),
+				rj1: createRadixJob("rj1", getPtr(s.timeNow)),
+				rj2: createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour))),
 			},
 			want: true,
 		},
 		{
 			name: "rj1 is not before rj2",
 			jobs: jobPair{
-				rj1: createRadixJob("rj1", s.timeNow.Add(time.Hour)),
-				rj2: createRadixJob("rj2", s.timeNow),
+				rj1: createRadixJob("rj1", getPtr(s.timeNow.Add(time.Hour))),
+				rj2: createRadixJob("rj2", getPtr(s.timeNow)),
 			},
 			want: false,
 		},
@@ -95,29 +95,47 @@ func (s *testSuite) Test_sortJobsByCreatedAsc() {
 		{
 			name: "asc order",
 			jobs: []v1.RadixJob{
-				*createRadixJob("rj1", s.timeNow),
-				*createRadixJob("rj2", s.timeNow.Add(time.Hour)),
-				*createRadixJob("rj3", s.timeNow.Add(time.Hour*2)),
+				*createRadixJob("rj1", getPtr(s.timeNow)),
+				*createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour))),
+				*createRadixJob("rj3", getPtr(s.timeNow.Add(time.Hour*2))),
 			},
 			expectedJobNamesInList: []string{"rj1", "rj2", "rj3"},
 		},
 		{
 			name: "desc",
 			jobs: []v1.RadixJob{
-				*createRadixJob("rj1", s.timeNow.Add(time.Hour*2)),
-				*createRadixJob("rj2", s.timeNow.Add(time.Hour)),
-				*createRadixJob("rj3", s.timeNow),
+				*createRadixJob("rj1", getPtr(s.timeNow.Add(time.Hour*2))),
+				*createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour))),
+				*createRadixJob("rj3", getPtr(s.timeNow)),
 			},
 			expectedJobNamesInList: []string{"rj3", "rj2", "rj1"},
 		},
 		{
 			name: "random",
 			jobs: []v1.RadixJob{
-				*createRadixJob("rj1", s.timeNow.Add(time.Hour)),
-				*createRadixJob("rj2", s.timeNow),
-				*createRadixJob("rj3", s.timeNow.Add(time.Hour*2)),
+				*createRadixJob("rj1", getPtr(s.timeNow.Add(time.Hour))),
+				*createRadixJob("rj2", getPtr(s.timeNow)),
+				*createRadixJob("rj3", getPtr(s.timeNow.Add(time.Hour*2))),
 			},
 			expectedJobNamesInList: []string{"rj2", "rj1", "rj3"},
+		},
+		{
+			name: "not set created on rj1",
+			jobs: []v1.RadixJob{
+				*createRadixJob("rj1", nil),
+				*createRadixJob("rj2", getPtr(s.timeNow)),
+				*createRadixJob("rj3", getPtr(s.timeNow.Add(time.Hour*2))),
+			},
+			expectedJobNamesInList: []string{"rj2", "rj3", "rj1"},
+		},
+		{
+			name: "not set created on rj2",
+			jobs: []v1.RadixJob{
+				*createRadixJob("rj1", getPtr(s.timeNow)),
+				*createRadixJob("rj2", nil),
+				*createRadixJob("rj3", getPtr(s.timeNow.Add(time.Hour*2))),
+			},
+			expectedJobNamesInList: []string{"rj1", "rj3", "rj2"},
 		},
 	}
 	for _, tt := range tests {
@@ -131,35 +149,35 @@ func (s *testSuite) Test_sortJobsByCreatedAsc() {
 }
 
 func (s *testSuite) Test_sortJobsByCreatedDesc() {
-	j1 := createRadixJob("rj2", s.timeNow.Add(time.Hour*2))
-	j2 := createRadixJob("rj2", s.timeNow.Add(time.Hour))
+	j1 := createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour*2)))
+	j2 := createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour)))
 	fmt.Println(j1)
 	fmt.Println(j2)
 	tests := []listScenario{
 		{
 			name: "asc order",
 			jobs: []v1.RadixJob{
-				*createRadixJob("rj1", s.timeNow),
-				*createRadixJob("rj2", s.timeNow.Add(time.Hour)),
-				*createRadixJob("rj3", s.timeNow.Add(time.Hour*2)),
+				*createRadixJob("rj1", getPtr(s.timeNow)),
+				*createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour))),
+				*createRadixJob("rj3", getPtr(s.timeNow.Add(time.Hour*2))),
 			},
 			expectedJobNamesInList: []string{"rj3", "rj2", "rj1"},
 		},
 		{
 			name: "desc",
 			jobs: []v1.RadixJob{
-				*createRadixJob("rj1", s.timeNow.Add(time.Hour*2)),
-				*createRadixJob("rj2", s.timeNow.Add(time.Hour)),
-				*createRadixJob("rj3", s.timeNow),
+				*createRadixJob("rj1", getPtr(s.timeNow.Add(time.Hour*2))),
+				*createRadixJob("rj2", getPtr(s.timeNow.Add(time.Hour))),
+				*createRadixJob("rj3", getPtr(s.timeNow)),
 			},
 			expectedJobNamesInList: []string{"rj1", "rj2", "rj3"},
 		},
 		{
 			name: "random",
 			jobs: []v1.RadixJob{
-				*createRadixJob("rj1", s.timeNow.Add(time.Hour)),
-				*createRadixJob("rj2", s.timeNow),
-				*createRadixJob("rj3", s.timeNow.Add(time.Hour*2)),
+				*createRadixJob("rj1", getPtr(s.timeNow.Add(time.Hour))),
+				*createRadixJob("rj2", getPtr(s.timeNow)),
+				*createRadixJob("rj3", getPtr(s.timeNow.Add(time.Hour*2))),
 			},
 			expectedJobNamesInList: []string{"rj3", "rj1", "rj2"},
 		},
@@ -174,6 +192,14 @@ func (s *testSuite) Test_sortJobsByCreatedDesc() {
 	}
 }
 
-func createRadixJob(name string, created time.Time) *v1.RadixJob {
-	return &v1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: name}, Status: v1.RadixJobStatus{Created: &metav1.Time{Time: created}}}
+func getPtr(t time.Time) *time.Time {
+	return &t
+}
+
+func createRadixJob(name string, created *time.Time) *v1.RadixJob {
+	var createdStatus *metav1.Time
+	if created != nil {
+		createdStatus = &metav1.Time{Time: *created}
+	}
+	return &v1.RadixJob{ObjectMeta: metav1.ObjectMeta{Name: name}, Status: v1.RadixJobStatus{Created: createdStatus}}
 }

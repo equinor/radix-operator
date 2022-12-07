@@ -3,6 +3,7 @@ package steps
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -56,8 +57,8 @@ func (cli *DeployStepImplementation) deploy(pipelineInfo *model.PipelineInfo) er
 	log.Infof("Deploying app %s", appName)
 
 	if !pipelineInfo.BranchIsMapped {
-		// Do nothing
-		return fmt.Errorf("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Infof("skip deploy step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		return nil
 	}
 
 	for env, shouldDeploy := range pipelineInfo.TargetEnvironments {
@@ -100,7 +101,7 @@ func (cli *DeployStepImplementation) deployToEnv(appName, env string, pipelineIn
 	}
 
 	log.Infof("Apply radix deployment %s on env %s", radixDeployment.GetName(), radixDeployment.GetNamespace())
-	_, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.TODO(), &radixDeployment, metav1.CreateOptions{})
+	_, err = cli.GetRadixclient().RadixV1().RadixDeployments(radixDeployment.GetNamespace()).Create(context.TODO(), radixDeployment, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to apply radix deployment for app %s to environment %s. %v", appName, env, err)
 	}

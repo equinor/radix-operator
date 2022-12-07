@@ -22,14 +22,16 @@ func sortRadixJobsByCreatedDesc(radixJobs []v1.RadixJob) []v1.RadixJob {
 
 func isCreatedAfter(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
 	rj1Created := rj1.Status.Created
+	if rj1Created == nil {
+		return true
+	}
 	rj2Created := rj2.Status.Created
-
+	if rj2Created == nil {
+		return false
+	}
 	return rj1Created.After(rj2Created.Time)
 }
 
 func isCreatedBefore(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
-	rj1Created := rj1.Status.Created
-	rj2Created := rj2.Status.Created
-
-	return rj1Created.Before(rj2Created)
+	return !isCreatedAfter(rj1, rj2)
 }

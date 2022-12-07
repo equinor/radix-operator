@@ -30,7 +30,8 @@ type DeployComponentBuilder interface {
 	WithDNSExternalAlias(string) DeployComponentBuilder
 	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
-	WithAuthentication(authentication *v1.Authentication) DeployComponentBuilder
+	WithAuthentication(*v1.Authentication) DeployComponentBuilder
+	WithIdentity(*v1.Identity) DeployComponentBuilder
 	BuildComponent() v1.RadixDeployComponent
 }
 
@@ -56,6 +57,7 @@ type deployComponentBuilder struct {
 	volumeMounts            []v1.RadixVolumeMount
 	node                    v1.RadixNode
 	authentication          *v1.Authentication
+	identity                *v1.Identity
 }
 
 func (dcb *deployComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployComponentBuilder {
@@ -206,6 +208,11 @@ func (dcb *deployComponentBuilder) WithAuthentication(authentication *v1.Authent
 	return dcb
 }
 
+func (dcb *deployComponentBuilder) WithIdentity(identity *v1.Identity) DeployComponentBuilder {
+	dcb.identity = identity
+	return dcb
+}
+
 func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 	return v1.RadixDeployComponent{
 		Image:                   dcb.image,
@@ -228,6 +235,7 @@ func (dcb *deployComponentBuilder) BuildComponent() v1.RadixDeployComponent {
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 		Node:                    dcb.node,
 		Authentication:          dcb.authentication,
+		Identity:                dcb.identity,
 	}
 }
 
