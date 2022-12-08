@@ -619,23 +619,21 @@ func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(curr
 
 func (job *Job) garbageCollectConfigMaps() {
 	namespace := job.radixJob.GetNamespace()
-	configMapList, err := job.kubeutil.KubeClient().CoreV1().ConfigMaps(namespace).List(context.Background(), metav1.ListOptions{})
+	radixJobConfigMaps, err := job.kubeutil.GetConfigMapListForLabels(namespace, *getRadixJobNameExistsSelectorRequirement())
 	if err != nil {
 		log.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %v", namespace, err)
 		return
 	}
-	radixJobNameSet, err := job.getRadixJobNameSet(err, namespace)
+	radixJobNameSet, err := job.getRadixJobNameSet(namespace)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	for _, configMap := range configMapList.Items {
-		jobName, jobNameIsDefined := configMap.GetLabels()[kube.RadixJobNameLabel]
-		if !jobNameIsDefined {
-			continue
-		}
+	for _, configMap := range radixJobConfigMaps {
+		jobName := configMap.GetLabels()[kube.RadixJobNameLabel]
 		if _, radixJobExists := radixJobNameSet[jobName]; !radixJobExists {
 			err := job.kubeutil.DeleteConfigMap(configMap.GetNamespace(), configMap.GetName())
+			log.Debugf("Deleted the ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
 			if err != nil {
 				log.Errorf("failed to delete ConfigMap %s while garbage collecting config-maps in %s. Error: %v", configMap.GetName(), namespace, err)
 			}
@@ -643,7 +641,7 @@ func (job *Job) garbageCollectConfigMaps() {
 	}
 }
 
-func (job *Job) getRadixJobNameSet(err error, namespace string) (map[string]bool, error) {
+func (job *Job) getRadixJobNameSet(namespace string) (map[string]bool, error) {
 	radixJobs, err := job.getAllRadixJobs()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get RadixJob while garbage collecting config-maps in %s. Error: %w", namespace, err)

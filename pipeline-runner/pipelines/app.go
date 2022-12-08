@@ -137,8 +137,11 @@ func (cli *PipelineRunner) CreateResultConfigMap() error {
 	jobName := cli.pipelineInfo.PipelineArguments.JobName
 	configMap := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   jobName,
-			Labels: map[string]string{kube.RadixJobNameLabel: jobName},
+			Name: jobName,
+			Labels: map[string]string{
+				kube.RadixJobNameLabel:       jobName,
+				kube.RadixConfigMapTypeLabel: string(kube.RadixPipelineResultConfigMap),
+			},
 		},
 		Data: map[string]string{jobs.ResultContent: string(resultContent)},
 	}

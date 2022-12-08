@@ -95,6 +95,16 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 	return err
 }
 
+// GetConfigMapListForLabels Get a list of ConfigMaps by Label requirements
+func (kubeutil *Kube) GetConfigMapListForLabels(namespace string, requirements ...labels.Requirement) ([]corev1.ConfigMap, error) {
+	list, err := kubeutil.KubeClient().CoreV1().ConfigMaps(namespace).List(context.Background(),
+		metav1.ListOptions{LabelSelector: labels.NewSelector().Add(requirements...).String()})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 func (kubeutil *Kube) listConfigMapsByLabels(namespace string, labelsMap map[string]string) ([]*corev1.ConfigMap, error) {
 	list, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).List(
 		context.TODO(), metav1.ListOptions{

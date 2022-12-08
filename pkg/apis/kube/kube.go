@@ -75,6 +75,22 @@ const (
 	RadixBranchDeprecated = "radix-branch"
 )
 
+//RadixConfigMapType Purpose of ConfigMap
+type RadixConfigMapType string
+
+const (
+	//EnvVarsConfigMap ConfigMap contains environment variables
+	EnvVarsConfigMap RadixConfigMapType = "env-vars"
+	//EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
+	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
+	// RadixPipelineResultConfigMap Label of a ConfigMap, which keeps a Radix pipeline result
+	RadixPipelineResultConfigMap RadixConfigMapType = "radix-pipeline-result"
+	// RadixPipelineConfigConfigMap Label of a ConfigMap, which keeps a Radix pipeline configuration
+	RadixPipelineConfigConfigMap RadixConfigMapType = "radix-pipeline-config"
+	// RadixPipelineGitInformationConfigMap Label of a ConfigMap, which keeps a Radix pipeline Git information
+	RadixPipelineGitInformationConfigMap RadixConfigMapType = "radix-pipeline-git-information"
+)
+
 // Kube  Struct for accessing lower level kubernetes functions
 type Kube struct {
 	kubeClient               kubernetes.Interface
