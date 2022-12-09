@@ -64,6 +64,19 @@ echo:
 	@echo "VERSION : " $(VERSION)
 	@echo "TAG : " $(TAG)
 
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen:
+ifeq (, $(shell which controller-gen))
+	@{ \
+	set -e ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0 ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif
+
 .PHONY: test
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
@@ -107,6 +120,8 @@ CUSTOM_RESOURCE_VERSION=v1
 code-gen: 
 	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
 
+crds: controller-gen
+	${CONTROLLER_GEN} crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:stdout
 
 .HONY: staticcheck
 staticcheck:

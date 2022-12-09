@@ -120,6 +120,15 @@ This file/directory should NOT be edited.
 
 If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
 
+### Generate Helm chart templates for CRDs
+
+CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen)
+
+Generate/refresh CRD template files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
+```shell
+make crds
+```
+
 ## Security Principle
 
 The radix-operator reacts on events to the custom resource types defined by the platform, the RadixRegistration, the RadixApplication, the RadixDeployment, the RadixJob and the RadixEnvironment. It cannot be controlled directly by any platform user. It's main purpose is to create the core resources when the custom resources appears, which will live inside application and environment [namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) for the application. Access to a namespace is configured as [RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/) manifests when the namespace is created, which main purpose is to isolate the platform user applications from one another. For more information on this see [this](./docs/RBAC.md). Another is to define the [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/), to ensure no [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) can access another pod, outside of its namespace.
