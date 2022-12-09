@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"context"
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
@@ -14,6 +15,7 @@ import (
 	"github.com/golang/mock/gomock"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
@@ -72,6 +74,8 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	}
 
 	err := cli.Run(pipelineInfo)
-	assert.Error(t, err)
-
+	assert.NoError(t, err)
+	radixJobList, err := radixclient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Empty(t, radixJobList.Items)
 }

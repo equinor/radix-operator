@@ -3,15 +3,14 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-	numberUtils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	batchv1 "k8s.io/api/batch/v1"
@@ -21,15 +20,12 @@ import (
 )
 
 const (
-	workerImage                = "radix-pipeline"
-	PRIVILEGED_CONTAINER       = false
-	ALLOW_PRIVILEGE_ESCALATION = false
-	RUN_AS_NON_ROOT            = true
-	RUN_AS_USER                = 1000
-	RUN_AS_GROUP               = 1000
-	FS_GROUP                   = 1000
+	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
+	runAsUser     = 1000
+	runAsGroup    = 1000
+	fsGroup       = 1000
 )
 
 func (job *Job) createPipelineJob() error {
@@ -79,23 +75,21 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: conditionUtils.BoolPtr(RUN_AS_NON_ROOT),
-						FSGroup:      numberUtils.Int64Ptr(FS_GROUP),
-					},
 					ServiceAccountName: defaults.PipelineServiceAccountName,
+					SecurityContext: securitycontext.Pod(
+						securitycontext.WithPodFSGroup(fsGroup),
+						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					Containers: []corev1.Container{
 						{
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
 							Args:            containerArguments,
-							SecurityContext: &corev1.SecurityContext{
-								Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
-								AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
-								RunAsUser:                numberUtils.Int64Ptr(RUN_AS_USER),
-								RunAsGroup:               numberUtils.Int64Ptr(RUN_AS_GROUP),
-							},
+							SecurityContext: securitycontext.Container(
+								securitycontext.WithContainerDropAllCapabilities(),
+								securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+								securitycontext.WithContainerRunAsGroup(runAsGroup),
+								securitycontext.WithContainerRunAsUser(runAsUser)),
 						},
 					},
 					RestartPolicy: "Never",
@@ -174,7 +168,6 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 		kube.RadixJobNameLabel: jobName,
 		kube.RadixJobTypeLabel: kube.RadixJobTypeJob,
 		"radix-pipeline":       string(pipeline.Type),
-		"radix-app-name":       appName, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel:     appName,
 	}
 

@@ -151,7 +151,7 @@ func unknownVolumeMountTypeError(volumeMountType, component, environment string)
 		volumeMountType, component, environment)
 }
 
-//ApplicationNameNotLowercaseError Indicates that application name contains upper case letters
+// ApplicationNameNotLowercaseError Indicates that application name contains upper case letters
 func ApplicationNameNotLowercaseError(appName string) error {
 	return fmt.Errorf("application with name %s contains uppercase letters", appName)
 }
@@ -218,6 +218,11 @@ func ResourceNameCannotBeEmptyError(resourceName string) error {
 	return fmt.Errorf("%s cannot be empty", resourceName)
 }
 
+// InvalidUUIDError Invalid UUID
+func InvalidUUIDError(resourceName string, uuid string) error {
+	return fmt.Errorf("field %s does not contain a valid UUID (value: %s)", resourceName, uuid)
+}
+
 // InvalidEmailError Invalid email
 func InvalidEmailError(resourceName, email string) error {
 	return fmt.Errorf("field %s does not contain a valid email (value: %s)", resourceName, email)
@@ -228,7 +233,7 @@ func InvalidResourceNameError(resourceName, value string) error {
 	return fmt.Errorf("%s %s can only consist of alphanumeric characters, '.' and '-'", resourceName, value)
 }
 
-//InvalidLowerCaseAlphaNumericDotDashResourceNameError Invalid lower case alpha-numeric, dot, dash resource name error
+// InvalidLowerCaseAlphaNumericDotDashResourceNameError Invalid lower case alpha-numeric, dot, dash resource name error
 func InvalidLowerCaseAlphaNumericDotDashResourceNameError(resourceName, value string) error {
 	return fmt.Errorf("%s %s can only consist of lower case alphanumeric characters, '.' and '-'", resourceName, value)
 }

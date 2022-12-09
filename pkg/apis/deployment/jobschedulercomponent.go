@@ -20,10 +20,6 @@ func newJobSchedulerComponent(jobComponent *v1.RadixDeployJobComponent, rd *v1.R
 	}
 }
 
-func (js *jobSchedulerComponent) GetType() v1.RadixComponentType {
-	return v1.RadixComponentTypeJobScheduler
-}
-
 func (js *jobSchedulerComponent) GetImage() string {
 	containerRegistry := os.Getenv(defaults.ContainerRegistryEnvironmentVariable)
 	radixJobScheduler := os.Getenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable)

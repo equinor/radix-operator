@@ -67,7 +67,7 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 	}
 
 	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
-	if component.GetType() == v1.RadixComponentTypeJobScheduler {
+	if isDeployComponentJobSchedulerDeployment(component) {
 		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
 	}
 	service.Spec.Selector = selector
