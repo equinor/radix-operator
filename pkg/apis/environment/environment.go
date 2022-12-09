@@ -131,13 +131,11 @@ func (env *Environment) ApplyNamespace(name string) error {
 	// get key to use for namespace annotation to pick up private image hubs
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
 	nsLabels := labels.Set{
-		"sync":                         "cluster-wildcard-tls-cert",
-		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
-		"app-wildcard-sync":            "app-wildcard-tls-cert",
-		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
-		imagehubKey:                    env.config.Spec.AppName,
-		kube.RadixAppLabel:             env.config.Spec.AppName,
-		kube.RadixEnvLabel:             env.config.Spec.EnvName,
+		"sync":                "radix-wildcard-tls-cert",
+		"radix-wildcard-sync": "radix-wildcard-tls-cert",
+		imagehubKey:           env.config.Spec.AppName,
+		kube.RadixAppLabel:    env.config.Spec.AppName,
+		kube.RadixEnvLabel:    env.config.Spec.EnvName,
 	}
 	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewPodSecurityStandardFromEnv().Labels()))
 	return env.kubeutil.ApplyNamespace(name, nsLabels, env.AsOwnerReference())
