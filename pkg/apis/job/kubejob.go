@@ -23,6 +23,9 @@ const (
 	workerImage = "radix-pipeline"
 	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
 	ResultContent = "ResultContent"
+	runAsUser     = 1000
+	runAsGroup    = 1000
+	fsGroup       = 1000
 )
 
 func (job *Job) createPipelineJob() error {
@@ -74,7 +77,7 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 				Spec: corev1.PodSpec{
 					ServiceAccountName: defaults.PipelineServiceAccountName,
 					SecurityContext: securitycontext.Pod(
-						securitycontext.WithPodFSGroup(securitycontext.FS_GROUP),
+						securitycontext.WithPodFSGroup(fsGroup),
 						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					Containers: []corev1.Container{
 						{
@@ -85,8 +88,8 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerDropAllCapabilities(),
 								securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-								securitycontext.WithContainerRunAsGroup(securitycontext.RUN_AS_GROUP),
-								securitycontext.WithContainerRunAsUser(securitycontext.RUN_AS_USER)),
+								securitycontext.WithContainerRunAsGroup(runAsGroup),
+								securitycontext.WithContainerRunAsUser(runAsUser)),
 						},
 					},
 					RestartPolicy: "Never",

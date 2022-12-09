@@ -18,7 +18,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const multiComponentImageName = "multi-component"
+const (
+	multiComponentImageName = "multi-component"
+	runAsUser               = 1000
+	runAsGroup              = 1000
+	fsGroup                 = 1000
+)
 
 type componentType struct {
 	name           string
@@ -158,12 +163,12 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
-	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(securitycontext.FS_GROUP),
+	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(fsGroup),
 		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
 		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
-		securitycontext.WithContainerRunAsGroup(securitycontext.RUN_AS_GROUP),
-		securitycontext.WithContainerRunAsUser(securitycontext.RUN_AS_USER))
+		securitycontext.WithContainerRunAsGroup(runAsGroup),
+		securitycontext.WithContainerRunAsUser(runAsUser))
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
