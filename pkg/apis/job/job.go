@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"sort"
 	"strings"
 	"time"
@@ -619,12 +621,12 @@ func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(curr
 
 func (job *Job) garbageCollectConfigMaps() {
 	namespace := job.radixJob.GetNamespace()
-	radixJobConfigMaps, err := job.kubeutil.GetConfigMapListForLabels(namespace, *getRadixJobNameExistsSelectorRequirement())
+	radixJobConfigMaps, err := job.kubeutil.ListConfigMapsWithSelector(namespace, getRadixJobNameExistsSelector().String())
 	if err != nil {
 		log.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %v", namespace, err)
 		return
 	}
-	radixJobNameSet, err := job.getRadixJobNameSet(namespace)
+	radixJobNameSet, err := job.getRadixJobNameSet()
 	if err != nil {
 		log.Error(err)
 		return
@@ -641,14 +643,19 @@ func (job *Job) garbageCollectConfigMaps() {
 	}
 }
 
-func (job *Job) getRadixJobNameSet(namespace string) (map[string]bool, error) {
+func (job *Job) getRadixJobNameSet() (map[string]bool, error) {
 	radixJobs, err := job.getAllRadixJobs()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get RadixJob while garbage collecting config-maps in %s. Error: %w", namespace, err)
+		return nil, fmt.Errorf("failed to get RadixJob while garbage collecting config-maps in %s. Error: %w", job.radixJob.GetNamespace(), err)
 	}
 	radixJobNameSet := make(map[string]bool)
 	for _, radixJob := range radixJobs {
 		radixJobNameSet[radixJob.GetName()] = true
 	}
 	return radixJobNameSet, nil
+}
+
+func getRadixJobNameExistsSelector() labels.Selector {
+	requirement, _ := labels.NewRequirement(kube.RadixJobNameLabel, selection.Exists, []string{})
+	return labels.NewSelector().Add(*requirement)
 }

@@ -95,14 +95,26 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 	return err
 }
 
-// GetConfigMapListForLabels Get a list of ConfigMaps by Label requirements
-func (kubeutil *Kube) GetConfigMapListForLabels(namespace string, requirements ...labels.Requirement) ([]corev1.ConfigMap, error) {
-	list, err := kubeutil.KubeClient().CoreV1().ConfigMaps(namespace).List(context.Background(),
-		metav1.ListOptions{LabelSelector: labels.NewSelector().Add(requirements...).String()})
+// ListConfigMapsWithSelector Get a list of ConfigMaps by Label requirements
+func (kubeutil *Kube) ListConfigMapsWithSelector(namespace string, labelSelectorString string) ([]*corev1.ConfigMap, error) {
+	if kubeutil.ConfigMapLister != nil {
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
+		}
+		configMaps, err := kubeutil.ConfigMapLister.ConfigMaps(namespace).List(selector)
+		if err != nil {
+			return nil, err
+		}
+		return configMaps, nil
+	}
+
+	listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
+	list, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).List(context.TODO(), listOptions)
 	if err != nil {
 		return nil, err
 	}
-	return list.Items, nil
+	return slice.PointersOf(list.Items).([]*corev1.ConfigMap), nil
 }
 
 func (kubeutil *Kube) listConfigMapsByLabels(namespace string, labelsMap map[string]string) ([]*corev1.ConfigMap, error) {

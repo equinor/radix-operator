@@ -112,6 +112,7 @@ type Kube struct {
 	ServiceAccountLister     coreListers.ServiceAccountLister
 	LimitRangeLister         coreListers.LimitRangeLister
 	JobLister                batchListers.JobLister
+	ConfigMapLister          coreListers.ConfigMapLister
 }
 
 var logger *log.Entry
@@ -155,6 +156,7 @@ func NewWithListers(client kubernetes.Interface,
 		ClusterRoleLister:        kubeInformerFactory.Rbac().V1().ClusterRoles().Lister(),
 		LimitRangeLister:         kubeInformerFactory.Core().V1().LimitRanges().Lister(),
 		JobLister:                kubeInformerFactory.Batch().V1().Jobs().Lister(),
+		ConfigMapLister:          kubeInformerFactory.Core().V1().ConfigMaps().Lister(),
 	}
 
 	return kubeutil, nil
