@@ -62,6 +62,7 @@ const (
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
 	RadixPodIsJobSchedulerLabel        = "is-job-scheduler-pod"
+	IsServiceAccountForComponent       = "is-service-account-for-component"
 	//RadixBatchNameLabel A label that k8s automatically adds to a Pod created by Job and to the Job for a Batch
 	RadixBatchNameLabel = "radix-batch-name"
 	RadixJobIdLabel     = "radix-job-id"
@@ -147,12 +148,12 @@ func IsEmptyPatch(patchBytes []byte) bool {
 	return string(patchBytes) == "{}"
 }
 
-//KubeClient Kubernetes client
+// KubeClient Kubernetes client
 func (kubeutil *Kube) KubeClient() kubernetes.Interface {
 	return kubeutil.kubeClient
 }
 
-//RadixClient Radix Kubernetes CRD client
+// RadixClient Radix Kubernetes CRD client
 func (kubeutil *Kube) RadixClient() radixclient.Interface {
 	return kubeutil.radixclient
 }

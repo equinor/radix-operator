@@ -168,7 +168,6 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 		kube.RadixJobNameLabel: jobName,
 		kube.RadixJobTypeLabel: kube.RadixJobTypeJob,
 		"radix-pipeline":       string(pipeline.Type),
-		"radix-app-name":       appName, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel:     appName,
 	}
 

@@ -96,6 +96,7 @@ type RadixDeployComponent struct {
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	Identity                *Identity               `json:"identity,omitempty" yaml:"identity,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -186,6 +187,10 @@ func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication
 	return deployComponent.Authentication
 }
 
+func (deployComponent *RadixDeployComponent) GetIdentity() *Identity {
+	return deployComponent.Identity
+}
+
 func (deployComponent *RadixDeployComponent) SetName(name string) {
 	deployComponent.Name = name
 }
@@ -203,7 +208,7 @@ func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetType() RadixComponentType {
-	return RadixComponentTypeJobScheduler
+	return RadixComponentTypeJob
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
@@ -291,6 +296,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authenti
 	return nil
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetIdentity() *Identity {
+	return deployJobComponent.Identity
+}
+
 func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
 	deployJobComponent.Name = name
 }
@@ -333,13 +342,14 @@ type RadixDeployJobComponent struct {
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Identity                *Identity                 `json:"identity,omitempty" yaml:"identity,omitempty"`
 }
 
 type RadixComponentType string
 
 const (
-	RadixComponentTypeComponent    RadixComponentType = "component"
-	RadixComponentTypeJobScheduler RadixComponentType = "job"
+	RadixComponentTypeComponent RadixComponentType = "component"
+	RadixComponentTypeJob       RadixComponentType = "job"
 )
 
 // RadixCommonDeployComponent defines a common component interface a RadixDeployment
@@ -369,6 +379,7 @@ type RadixCommonDeployComponent interface {
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
 	GetTimeLimitSeconds() *int64
+	GetIdentity() *Identity
 }
 
 // RadixCommonDeployComponentFactory defines a common component factory

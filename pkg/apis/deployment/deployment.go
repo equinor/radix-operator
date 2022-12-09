@@ -91,14 +91,17 @@ func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.Ra
 }
 
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployment, error) {
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (*v1.RadixDeployment, error) {
 	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
 	components, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars)
 	if err != nil {
-		return v1.RadixDeployment{}, err
+		return nil, err
 	}
-	jobs := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	jobs, err := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	if err != nil {
+		return nil, err
+	}
 	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, components, jobs)
 	return radixDeployment, nil
 }
@@ -445,6 +448,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectServiceAccountNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -457,7 +465,7 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 	return nil
 }
 
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) *v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
@@ -465,7 +473,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
 
-	radixDeployment := v1.RadixDeployment{
+	radixDeployment := &v1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deployName,
 			Namespace: utils.GetEnvironmentNamespace(appName, env),
@@ -546,64 +554,63 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	if err != nil {
 		return err
 	}
-	// Deploy to current radixDeploy object's namespace
+
+	err = deploy.createOrUpdateServiceAccount(component)
+	if err != nil {
+		return fmt.Errorf("failed to create service account: %w", err)
+	}
+
 	err = deploy.createOrUpdateDeployment(component)
 	if err != nil {
-		log.Infof("Failed to create deployment: %v", err)
-		return fmt.Errorf("failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	err = deploy.createOrUpdateHPA(component)
 	if err != nil {
-		log.Infof("Failed to create horizontal pod autoscaler: %v", err)
-		return fmt.Errorf("failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	err = deploy.createOrUpdateService(component)
 	if err != nil {
-		log.Infof("Failed to create service: %v", err)
-		return fmt.Errorf("failed to create service: %v", err)
+		return fmt.Errorf("failed to create service: %w", err)
 	}
 
 	err = deploy.createOrUpdatePodDisruptionBudget(component)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to create PDB: %v", err)
-		log.Infof(errMsg)
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("failed to create PDB: %w", err)
 	}
 
 	err = deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to garbage collect PDB: %v", err)
-		log.Infof(errMsg)
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("failed to garbage collect PDB: %w", err)
+	}
+
+	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(component)
+	if err != nil {
+		return fmt.Errorf("failed to garbage collect service account: %w", err)
 	}
 
 	if component.IsPublic() {
 		err = deploy.createOrUpdateIngress(component)
 		if err != nil {
-			log.Infof("Failed to create ingress: %v", err)
-			return fmt.Errorf("failed to create ingress: %v", err)
+			return fmt.Errorf("failed to create ingress: %w", err)
 		}
 	} else {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(component)
 		if err != nil {
-			log.Infof("Failed to delete ingress: %v", err)
-			return fmt.Errorf("failed to delete ingress: %v", err)
+			return fmt.Errorf("failed to delete ingress: %w", err)
 		}
 	}
 
 	if component.GetMonitoring() {
 		err = deploy.createOrUpdateServiceMonitor(component)
 		if err != nil {
-			log.Infof("Failed to create service monitor: %v", err)
-			return fmt.Errorf("failed to create service monitor: %v", err)
+			return fmt.Errorf("failed to create service monitor: %w", err)
 		}
 	} else {
 		err = deploy.deleteServiceMonitorForComponent(component)
 		if err != nil {
-			log.Infof("Failed to delete servicemonitor: %v", err)
-			return fmt.Errorf("failed to delete servicemonitor: %v", err)
+			return fmt.Errorf("failed to delete servicemonitor: %w", err)
 		}
 	}
 
