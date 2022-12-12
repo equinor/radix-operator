@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +18,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const multiComponentImageName = "multi-component"
+const (
+	multiComponentImageName = "multi-component"
+	runAsUser               = 1000
+	runAsGroup              = 1000
+	fsGroup                 = 1000
+)
 
 type componentType struct {
 	name           string
@@ -157,8 +163,12 @@ func InitPipeline(pipelineType *pipeline.Definition,
 	radixConfigMapName := fmt.Sprintf("radix-config-2-map-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 	gitConfigFileName := fmt.Sprintf("radix-git-information-%s-%s-%s", timestamp, pipelineArguments.ImageTag, hash)
 
-	podSecContext := GetPodSecurityContext(RUN_AS_NON_ROOT, FS_GROUP)
-	containerSecContext := GetContainerSecurityContext(PRIVILEGED_CONTAINER, ALLOW_PRIVILEGE_ESCALATION, RUN_AS_GROUP, RUN_AS_USER)
+	podSecContext := securitycontext.Pod(securitycontext.WithPodFSGroup(fsGroup),
+		securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
+	containerSecContext := securitycontext.Container(securitycontext.WithContainerDropAllCapabilities(),
+		securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+		securitycontext.WithContainerRunAsGroup(runAsGroup),
+		securitycontext.WithContainerRunAsUser(runAsUser))
 
 	pipelineArguments.ContainerSecurityContext = *containerSecContext
 	pipelineArguments.PodSecurityContext = *podSecContext
