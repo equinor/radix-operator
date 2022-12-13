@@ -29,3 +29,5 @@ type RadixEnvironmentExpansion interface{}
 type RadixJobExpansion interface{}
 
 type RadixRegistrationExpansion interface{}
+
+type RadixScheduledJobExpansion interface{}

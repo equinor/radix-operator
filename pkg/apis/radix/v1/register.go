@@ -8,7 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/radix"
 )
 
-//SchemeGroupVersion provides the group version
+// SchemeGroupVersion provides the group version
 var SchemeGroupVersion = schema.GroupVersion{
 	Group:   radix.GroupName,
 	Version: "v1",
@@ -25,7 +25,7 @@ func init() {
 	localSchemeBuilder.Register(addKnownTypes)
 }
 
-//Resource does things to resource
+// Resource does things to resource
 func Resource(resource string) schema.GroupResource {
 	return SchemeGroupVersion.WithResource(resource).GroupResource()
 }
@@ -47,6 +47,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&RadixEnvironmentList{},
 		&RadixAlert{},
 		&RadixAlertList{},
+		&RadixScheduledJob{},
+		&RadixScheduledJobList{},
 	)
 
 	// register the type in the scheme

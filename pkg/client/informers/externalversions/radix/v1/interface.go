@@ -36,6 +36,8 @@ type Interface interface {
 	RadixJobs() RadixJobInformer
 	// RadixRegistrations returns a RadixRegistrationInformer.
 	RadixRegistrations() RadixRegistrationInformer
+	// RadixScheduledJobs returns a RadixScheduledJobInformer.
+	RadixScheduledJobs() RadixScheduledJobInformer
 }
 
 type version struct {
@@ -77,4 +79,9 @@ func (v *version) RadixJobs() RadixJobInformer {
 // RadixRegistrations returns a RadixRegistrationInformer.
 func (v *version) RadixRegistrations() RadixRegistrationInformer {
 	return &radixRegistrationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
+}
+
+// RadixScheduledJobs returns a RadixScheduledJobInformer.
+func (v *version) RadixScheduledJobs() RadixScheduledJobInformer {
+	return &radixScheduledJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

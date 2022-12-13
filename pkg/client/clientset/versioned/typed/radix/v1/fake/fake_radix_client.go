@@ -52,6 +52,10 @@ func (c *FakeRadixV1) RadixRegistrations() v1.RadixRegistrationInterface {
 	return &FakeRadixRegistrations{c}
 }
 
+func (c *FakeRadixV1) RadixScheduledJobs(namespace string) v1.RadixScheduledJobInterface {
+	return &FakeRadixScheduledJobs{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeRadixV1) RESTClient() rest.Interface {

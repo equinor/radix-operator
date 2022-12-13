@@ -34,6 +34,7 @@ type RadixV1Interface interface {
 	RadixEnvironmentsGetter
 	RadixJobsGetter
 	RadixRegistrationsGetter
+	RadixScheduledJobsGetter
 }
 
 // RadixV1Client is used to interact with features provided by the radix.equinor.com group.
@@ -63,6 +64,10 @@ func (c *RadixV1Client) RadixJobs(namespace string) RadixJobInterface {
 
 func (c *RadixV1Client) RadixRegistrations() RadixRegistrationInterface {
 	return newRadixRegistrations(c)
+}
+
+func (c *RadixV1Client) RadixScheduledJobs(namespace string) RadixScheduledJobInterface {
+	return newRadixScheduledJobs(c, namespace)
 }
 
 // NewForConfig creates a new RadixV1Client for the given config.

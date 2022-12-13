@@ -57,3 +57,11 @@ type RadixJobNamespaceListerExpansion interface{}
 // RadixRegistrationListerExpansion allows custom methods to be added to
 // RadixRegistrationLister.
 type RadixRegistrationListerExpansion interface{}
+
+// RadixScheduledJobListerExpansion allows custom methods to be added to
+// RadixScheduledJobLister.
+type RadixScheduledJobListerExpansion interface{}
+
+// RadixScheduledJobNamespaceListerExpansion allows custom methods to be added to
+// RadixScheduledJobNamespaceLister.
+type RadixScheduledJobNamespaceListerExpansion interface{}

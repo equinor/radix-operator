@@ -6,10 +6,9 @@ import (
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
 // +kubebuilder:printcolumn:name="Job",type="string",JSONPath=".spec.radixDeploymentJobRef.job"
 // +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
-// +kubebuilder:resource:path=radixscheduledjobs
+// +kubebuilder:resource:path=radixscheduledjobs,shortName=rsj
 // +kubebuilder:subresource:status
 
 // RadixScheduledJob describes a job
@@ -55,6 +54,7 @@ type RadixScheduledJobSpec struct {
 	Stop *bool `json:"bool,omitempty"`
 }
 
+// PayloadSecretKeySelector selects a Secret to get job payload from
 type PayloadSecretKeySelector struct {
 	// The name of the Secret resource being referred to.
 	LocalObjectReference `json:",inline"`
@@ -72,27 +72,31 @@ type RadixDeploymentJobComponentSelector struct {
 	Job string `json:"job"`
 }
 
-// RadixScheduledJobState represents the state of the job
-// +kubebuilder:validation:Enum=pending;running;completed;failed;stopped
-type RadixScheduledJobState string
+// RadixScheduledJobPhase represents the phase of the job
+// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed;Stopped
+type RadixScheduledJobPhase string
 
 const (
-	// ScheduledJobStatePending means that the underlying Kubernetes job is created but not yet running
-	ScheduledJobStatePending = "pending"
-	// ScheduledJobStateRunning means that the job is running
-	ScheduledJobStateRunning = "running"
-	// ScheduledJobStateCompleted means that the job has completed without errors
-	ScheduledJobStateCompleted = "completed"
-	// ScheduledJobStateFailed means that the job has failed
-	ScheduledJobStateFailed = "failed"
-	// ScheduledJobStateStopped means that the job has been stopped
-	ScheduledJobStateStopped = "stopped"
+	// ScheduledJobPhasePending means that the underlying Kubernetes job is created but not yet running
+	ScheduledJobPhasePending RadixScheduledJobPhase = "Pending"
+
+	// ScheduledJobPhaseRunning means that the job is running
+	ScheduledJobPhaseRunning RadixScheduledJobPhase = "Running"
+
+	// ScheduledJobPhaseCompleted means that the job has completed without errors
+	ScheduledJobPhaseCompleted RadixScheduledJobPhase = "Completed"
+
+	// ScheduledJobPhaseFailed means that the job has failed
+	ScheduledJobPhaseFailed RadixScheduledJobPhase = "Failed"
+
+	// ScheduledJobPhaseStopped means that the job has been stopped
+	ScheduledJobPhaseStopped RadixScheduledJobPhase = "Stopped"
 )
 
 // RadixScheduledJobStatus is the status for a RadixScheduledJob
 type RadixScheduledJobStatus struct {
 	// +optional
-	State RadixScheduledJobState `json:"state,omitempty"`
+	Phase RadixScheduledJobPhase `json:"phase,omitempty"`
 	// +optional
 	Created *meta_v1.Time `json:"created,omitempty"`
 	// +optional

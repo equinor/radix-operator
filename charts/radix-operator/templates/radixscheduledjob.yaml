@@ -3,7 +3,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
-  creationTimestamp: null
   name: radixscheduledjobs.radix.equinor.com
 spec:
   group: radix.equinor.com
@@ -11,6 +10,8 @@ spec:
     kind: RadixScheduledJob
     listKind: RadixScheduledJobList
     plural: radixscheduledjobs
+    shortNames:
+    - rsj
     singular: radixscheduledjob
   scope: Namespaced
   versions:
@@ -62,6 +63,8 @@ spec:
                 - gpuCount
                 type: object
               payloadSecretRef:
+                description: PayloadSecretKeySelector selects a Secret to get job
+                  payload from
                 properties:
                   key:
                     description: The key of the entry in the Secret resource's `data`
@@ -124,17 +127,17 @@ spec:
               ended:
                 format: date-time
                 type: string
+              phase:
+                description: RadixScheduledJobPhase represents the phase of the job
+                enum:
+                - Pending
+                - Running
+                - Completed
+                - Failed
+                - Stopped
+                type: string
               started:
                 format: date-time
-                type: string
-              state:
-                description: RadixScheduledJobState represents the state of the job
-                enum:
-                - pending
-                - running
-                - completed
-                - failed
-                - stopped
                 type: string
             type: object
         required:
