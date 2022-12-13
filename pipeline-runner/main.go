@@ -33,13 +33,12 @@ func main() {
 
 	err = runner.Run()
 	runner.TearDown()
+
 	if err != nil {
 		os.Exit(2)
 	}
-
 	err = runner.CreateResultConfigMap()
 	if err != nil {
-		log.Error(err.Error())
 		os.Exit(3)
 	}
 

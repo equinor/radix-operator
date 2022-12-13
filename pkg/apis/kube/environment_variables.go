@@ -16,6 +16,16 @@ const (
 	envVarsMetadataPropertyName = "metadata"          //Metadata property for environment variables in config-map
 )
 
+//RadixConfigMapType Purpose of ConfigMap
+type RadixConfigMapType string
+
+const (
+	//EnvVarsConfigMap ConfigMap contains environment variables
+	EnvVarsConfigMap RadixConfigMapType = "env-vars"
+	//EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
+	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
+)
+
 //EnvVarMetadata Metadata for environment variables
 type EnvVarMetadata struct {
 	RadixConfigValue string
