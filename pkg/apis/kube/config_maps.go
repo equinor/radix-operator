@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
@@ -28,17 +27,23 @@ func (kubeutil *Kube) GetConfigMap(namespace, name string) (*corev1.ConfigMap, e
 
 // ListConfigMaps Lists config maps in namespace
 func (kubeutil *Kube) ListConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, "")
+	return kubeutil.listConfigMapsByLabels(namespace, make(map[string]string))
 }
 
 // ListEnvVarsConfigMaps Lists config maps which contain env vars
 func (kubeutil *Kube) ListEnvVarsConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, getEnvVarsConfigMapSelector().String())
+	labelsMap := map[string]string{
+		RadixConfigMapTypeLabel: string(EnvVarsConfigMap),
+	}
+	return kubeutil.listConfigMapsByLabels(namespace, labelsMap)
 }
 
 // ListEnvVarsMetadataConfigMaps Lists config maps which contain metadata of env vars
 func (kubeutil *Kube) ListEnvVarsMetadataConfigMaps(namespace string) ([]*corev1.ConfigMap, error) {
-	return kubeutil.ListConfigMapsWithSelector(namespace, getEnvVarsMetadataConfigMapSelector().String())
+	labelsMap := map[string]string{
+		RadixConfigMapTypeLabel: string(EnvVarsMetadataConfigMap),
+	}
+	return kubeutil.listConfigMapsByLabels(namespace, labelsMap)
 }
 
 // UpdateConfigMap Update config-maps
@@ -90,22 +95,17 @@ func (kubeutil *Kube) ApplyConfigMap(namespace string, currentConfigMap, desired
 	return err
 }
 
-// ListConfigMapsWithSelector Get a list of ConfigMaps by Label requirements
-func (kubeutil *Kube) ListConfigMapsWithSelector(namespace string, labelSelectorString string) ([]*corev1.ConfigMap, error) {
-	listOptions := metav1.ListOptions{LabelSelector: labelSelectorString}
-	list, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).List(context.TODO(), listOptions)
+func (kubeutil *Kube) listConfigMapsByLabels(namespace string, labelsMap map[string]string) ([]*corev1.ConfigMap, error) {
+	list, err := kubeutil.kubeClient.CoreV1().ConfigMaps(namespace).List(
+		context.TODO(), metav1.ListOptions{
+			LabelSelector: labels.Set(metav1.LabelSelector{
+				MatchLabels: labelsMap,
+			}.MatchLabels).String(),
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	return slice.PointersOf(list.Items).([]*corev1.ConfigMap), nil
-}
-
-func getEnvVarsConfigMapSelector() labels.Selector {
-	requirement, _ := labels.NewRequirement(RadixConfigMapTypeLabel, selection.Equals, []string{string(EnvVarsConfigMap)})
-	return labels.NewSelector().Add(*requirement)
-}
-
-func getEnvVarsMetadataConfigMapSelector() labels.Selector {
-	requirement, _ := labels.NewRequirement(RadixConfigMapTypeLabel, selection.Equals, []string{string(EnvVarsMetadataConfigMap)})
-	return labels.NewSelector().Add(*requirement)
+	cms := slice.PointersOf(list.Items).([]*corev1.ConfigMap)
+	return cms, nil
 }
