@@ -135,6 +135,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
 		"app-wildcard-sync":            "app-wildcard-tls-cert",
 		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
+		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
 		imagehubKey:                    env.config.Spec.AppName,
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
