@@ -73,18 +73,22 @@ type RadixDeploymentJobComponentSelector struct {
 }
 
 // RadixScheduledJobPhase represents the phase of the job
-// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed;Stopped
+// +kubebuilder:validation:Enum=Pending;Waiting;Running;Succeeded;Failed;Stopped
 type RadixScheduledJobPhase string
 
 const (
-	// ScheduledJobPhasePending means that the underlying Kubernetes job is created but not yet running
+	// ScheduledJobPhasePending means that the the Kubernetes job has not been created
+	// Details about the reason for this state is found in the `reason` field
 	ScheduledJobPhasePending RadixScheduledJobPhase = "Pending"
+
+	// ScheduledJobPhaseWaiting means that the underlying Kubernetes job is created but has not yet started
+	ScheduledJobPhaseWaiting RadixScheduledJobPhase = "Waiting"
 
 	// ScheduledJobPhaseRunning means that the job is running
 	ScheduledJobPhaseRunning RadixScheduledJobPhase = "Running"
 
-	// ScheduledJobPhaseCompleted means that the job has completed without errors
-	ScheduledJobPhaseCompleted RadixScheduledJobPhase = "Completed"
+	// ScheduledJobPhaseSucceeded means that the job has completed without errors
+	ScheduledJobPhaseSucceeded RadixScheduledJobPhase = "Succeeded"
 
 	// ScheduledJobPhaseFailed means that the job has failed
 	ScheduledJobPhaseFailed RadixScheduledJobPhase = "Failed"
@@ -97,10 +101,17 @@ const (
 type RadixScheduledJobStatus struct {
 	// +optional
 	Phase RadixScheduledJobPhase `json:"phase,omitempty"`
+
+	// The reason why the job is in its current phase
+	// +optional
+	Reason string `json:"reason,omitempty"`
+
 	// +optional
 	Created *meta_v1.Time `json:"created,omitempty"`
+
 	// +optional
 	Started *meta_v1.Time `json:"started,omitempty"`
+
 	// +optional
 	Ended *meta_v1.Time `json:"ended,omitempty"`
 }

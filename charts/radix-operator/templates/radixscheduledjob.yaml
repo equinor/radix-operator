@@ -131,10 +131,14 @@ spec:
                 description: RadixScheduledJobPhase represents the phase of the job
                 enum:
                 - Pending
+                - Waiting
                 - Running
-                - Completed
+                - Succeeded
                 - Failed
                 - Stopped
+                type: string
+              reason:
+                description: The reason why the job is in its current phase
                 type: string
               started:
                 format: date-time

@@ -27,6 +27,8 @@ rules:
   - radixjobs/status
   - radixalerts
   - radixalerts/status
+  - radixscheduledjobs
+  - radixscheduledjobs/status
   verbs:
   - get
   - list

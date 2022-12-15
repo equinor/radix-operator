@@ -180,7 +180,7 @@ func OperatorError(kind, method, errorType string) {
 	}).Inc()
 }
 
-// AddDurrationOfReconciliation Add duration it takes to reconcile
-func AddDurrationOfReconciliation(kind string, duration time.Duration) {
+// AddDurationOfReconciliation Add duration it takes to reconcile
+func AddDurationOfReconciliation(kind string, duration time.Duration) {
 	recTimeBucket.WithLabelValues(kind).Observe(duration.Seconds())
 }
