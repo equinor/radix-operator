@@ -18,7 +18,7 @@ type radixJobsForConditions map[v1.RadixJobCondition]radixJobsForBranches
 func (job *Job) maintainHistoryLimit() {
 	radixJobs, err := job.getAllRadixJobs()
 	if err != nil {
-		log.Errorf("failed to get RadixJob in maintain job history. Error: %v", err)
+		log.Warnf("failed to get RadixJob in maintain job history. Error: %v", err)
 		return
 	}
 	if err != nil || len(radixJobs) == 0 {
@@ -26,7 +26,7 @@ func (job *Job) maintainHistoryLimit() {
 	}
 	radixJobsWithRDs, err := job.getRadixJobsWithRadixDeployments()
 	if err != nil {
-		log.Errorf("failed to get RadixJobs with RadixDeployments in maintain job history. Error: %v", err)
+		log.Warnf("failed to get RadixJobs with RadixDeployments in maintain job history. Error: %v", err)
 		return
 	}
 	deletingJobs, radixJobsForConditions := job.groupSortedRadixJobs(radixJobs, radixJobsWithRDs)

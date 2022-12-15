@@ -202,12 +202,12 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.PodSecurityContext()
+	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.ContainerSecurityContext()
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {

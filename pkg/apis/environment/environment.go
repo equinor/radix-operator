@@ -132,9 +132,10 @@ func (env *Environment) ApplyNamespace(name string) error {
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
 	nsLabels := labels.Set{
 		"sync":                         "cluster-wildcard-tls-cert",
-		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
-		"app-wildcard-sync":            "app-wildcard-tls-cert",
-		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
+		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",        // redundant, can be removed
+		"app-wildcard-sync":            "app-wildcard-tls-cert",            // redundant, can be removed
+		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert", // redundant, can be removed
+		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
 		imagehubKey:                    env.config.Spec.AppName,
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,

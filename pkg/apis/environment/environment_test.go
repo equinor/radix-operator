@@ -83,6 +83,7 @@ func Test_Create_Namespace(t *testing.T) {
 	expected := map[string]string{
 		"sync":                         "cluster-wildcard-tls-cert",
 		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
+		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
 		"app-wildcard-sync":            "app-wildcard-tls-cert",
 		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
 		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
@@ -114,6 +115,7 @@ func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
 	expected := map[string]string{
 		"sync":                         "cluster-wildcard-tls-cert",
 		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
+		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
 		"app-wildcard-sync":            "app-wildcard-tls-cert",
 		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
 		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
