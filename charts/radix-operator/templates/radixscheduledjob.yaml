@@ -3,6 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
   name: radixscheduledjobs.radix.equinor.com
 spec:
   group: radix.equinor.com
@@ -19,8 +20,8 @@ spec:
     - jsonPath: .spec.radixDeploymentJobRef.job
       name: Job
       type: string
-    - jsonPath: .status.state
-      name: State
+    - jsonPath: .status.phase
+      name: Phase
       type: string
     name: v1
     schema:
@@ -130,7 +131,6 @@ spec:
               phase:
                 description: RadixScheduledJobPhase represents the phase of the job
                 enum:
-                - Pending
                 - Waiting
                 - Running
                 - Succeeded

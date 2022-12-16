@@ -7,7 +7,7 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="Job",type="string",JSONPath=".spec.radixDeploymentJobRef.job"
-// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state"
+// +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
 // +kubebuilder:resource:path=radixscheduledjobs,shortName=rsj
 // +kubebuilder:subresource:status
 
@@ -73,16 +73,16 @@ type RadixDeploymentJobComponentSelector struct {
 }
 
 // RadixScheduledJobPhase represents the phase of the job
-// +kubebuilder:validation:Enum=Pending;Waiting;Running;Succeeded;Failed;Stopped
+// +kubebuilder:validation:Enum=Waiting;Running;Succeeded;Failed;Stopped
 type RadixScheduledJobPhase string
 
 const (
-	// ScheduledJobPhasePending means that the the Kubernetes job has not been created
+	// ScheduledJobPhaseWaiting means that the the job is waiting to start
 	// Details about the reason for this state is found in the `reason` field
-	ScheduledJobPhasePending RadixScheduledJobPhase = "Pending"
-
-	// ScheduledJobPhaseWaiting means that the underlying Kubernetes job is created but has not yet started
 	ScheduledJobPhaseWaiting RadixScheduledJobPhase = "Waiting"
+
+	// // ScheduledJobPhasePending means that the underlying Kubernetes job is created but has not yet started
+	// ScheduledJobPhasePending RadixScheduledJobPhase = "Pending"
 
 	// ScheduledJobPhaseRunning means that the job is running
 	ScheduledJobPhaseRunning RadixScheduledJobPhase = "Running"

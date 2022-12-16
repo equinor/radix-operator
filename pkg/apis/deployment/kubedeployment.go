@@ -262,7 +262,7 @@ func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCo
 
 	radixDeployment := deploy.radixDeployment
 
-	environmentVariables, err := getEnvironmentVariablesForRadixOperator(deploy.kubeutil, appName, radixDeployment, deployComponent)
+	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(deploy.kubeutil, appName, radixDeployment, deployComponent)
 	if err != nil {
 		return nil, err
 	}

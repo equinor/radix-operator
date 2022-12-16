@@ -8,9 +8,9 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
-	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -19,6 +19,7 @@ import (
 
 const (
 	RadixScheduledJobControllerUIDLabel = "radix-scheduled-job-controller-uid"
+	kubernetesJobNameLabel              = "job-name"
 )
 
 type Syncer interface {
@@ -49,53 +50,36 @@ func (s *syncer) OnSync() error {
 		return nil
 	}
 	if s.isStopRequested() {
-		return s.stopScheduledJob()
+		return s.stopJob()
 	}
 	return s.reconcile()
 }
 
 func (s *syncer) reconcile() error {
-	if err := s.reconcileResources(); err != nil {
+	if err := s.reconcileService(); err != nil {
+		return err
+	}
+
+	if err := s.reconcileJob(); err != nil {
 		return err
 	}
 
 	return s.syncStatus()
 }
 
-func (s *syncer) reconcileResources() error {
-	if err := s.reconcileJob(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *syncer) reconcileJob() error {
-	selector := scheduledJobLabelIdentifier(s.radixScheduledJob)
-	existingJobs, err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {
+	rd, err := s.getRadixDeployment()
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	if len(existingJobs.Items) == 0 {
-		jobSpec, err := s.buildJobSpec()
-		if err != nil {
-			return err
-		}
-		job := &batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName:    fmt.Sprintf("%s-", s.radixScheduledJob.GetName()),
-				Labels:          selector,
-				OwnerReferences: ownerReference(s.radixScheduledJob),
-			},
-			Spec: *jobSpec,
-		}
-		_, err = s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).Create(context.TODO(), job, metav1.CreateOptions{})
-		return err
+	jobComponent := rd.GetJobComponentByName(s.radixScheduledJob.Spec.RadixDeploymentJobRef.Job)
+	if jobComponent == nil {
+		return nil, nil, fmt.Errorf("radix deployment %s does not contain a job with name %s", rd.GetName(), s.radixScheduledJob.Spec.RadixDeploymentJobRef.Job)
 	}
-	return nil
+
+	return rd, jobComponent, nil
 }
 
-// GetOwnerReference Gets owner reference of radix job
 func ownerReference(job *radixv1.RadixScheduledJob) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
@@ -113,16 +97,13 @@ func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
 	return s.radixclient.RadixV1().RadixDeployments(s.radixScheduledJob.GetNamespace()).Get(context.TODO(), s.radixScheduledJob.Spec.RadixDeploymentJobRef.Name, metav1.GetOptions{})
 }
 
-func (s *syncer) syncStatus() error {
-	return nil
+func (s *syncer) scheduledJobLabelIdentifier() labels.Set {
+	return radixlabels.ForJobName(s.radixScheduledJob.GetName())
+	// return labels.Set{RadixScheduledJobControllerUIDLabel: string(job.GetUID())}
 }
 
-func scheduledJobLabelIdentifier(job *radixv1.RadixScheduledJob) labels.Set {
-	return labels.Set{RadixScheduledJobControllerUIDLabel: string(job.GetUID())}
-}
-
-func (s *syncer) stopScheduledJob() error {
-	selector := scheduledJobLabelIdentifier(s.radixScheduledJob)
+func (s *syncer) stopJob() error {
+	selector := s.scheduledJobLabelIdentifier()
 	err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
