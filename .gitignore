@@ -16,7 +16,7 @@ vendor/
 vendor.orig/
 bin/
 rootfs/
-.vscode/
+.vscode/*.log
 .idea/
 radix-operator/__debug_bin
 pipeline-runner/__debug_bin

@@ -49,11 +49,9 @@ func (s *syncer) buildService(serviceName, jobName, componentName, appName strin
 			OwnerReferences: ownerReference(s.radixScheduledJob),
 		},
 		Spec: corev1.ServiceSpec{
-			Type:  corev1.ServiceTypeClusterIP,
-			Ports: buildServicePorts(componentPorts),
-			Selector: map[string]string{
-				kubernetesJobNameLabel: jobName, // K8s adds a "job-name" label to a Pod created from a Job
-			},
+			Type:     corev1.ServiceTypeClusterIP,
+			Ports:    buildServicePorts(componentPorts),
+			Selector: jobNameLabelSelector(jobName),
 		},
 	}
 

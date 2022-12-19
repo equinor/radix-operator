@@ -23,6 +23,9 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
     name: v1
     schema:
       openAPIV3Schema:
@@ -43,8 +46,6 @@ spec:
           spec:
             description: RadixScheduledJobSpec is the spec for a RadixScheduledJob
             properties:
-              bool:
-                type: boolean
               jobId:
                 type: string
               node:
@@ -113,6 +114,8 @@ spec:
                       to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                     type: object
                 type: object
+              stop:
+                type: boolean
               timeLimitSeconds:
                 format: int64
                 type: integer
@@ -128,6 +131,10 @@ spec:
               ended:
                 format: date-time
                 type: string
+              message:
+                description: A human readable message indicating details about why
+                  the job is in this phase
+                type: string
               phase:
                 description: RadixScheduledJobPhase represents the phase of the job
                 enum:
@@ -138,7 +145,8 @@ spec:
                 - Stopped
                 type: string
               reason:
-                description: The reason why the job is in its current phase
+                description: A brief CamelCase message indicating details about why
+                  the job is in this phase
                 type: string
               started:
                 format: date-time

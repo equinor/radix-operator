@@ -8,6 +8,7 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:printcolumn:name="Job",type="string",JSONPath=".spec.radixDeploymentJobRef.job"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=radixscheduledjobs,shortName=rsj
 // +kubebuilder:subresource:status
 
@@ -51,7 +52,7 @@ type RadixScheduledJobSpec struct {
 	PayloadSecretRef *PayloadSecretKeySelector `json:"payloadSecretRef,omitempty"`
 
 	// +optional
-	Stop *bool `json:"bool,omitempty"`
+	Stop *bool `json:"stop,omitempty"`
 }
 
 // PayloadSecretKeySelector selects a Secret to get job payload from
@@ -102,9 +103,13 @@ type RadixScheduledJobStatus struct {
 	// +optional
 	Phase RadixScheduledJobPhase `json:"phase,omitempty"`
 
-	// The reason why the job is in its current phase
+	// A brief CamelCase message indicating details about why the job is in this phase
 	// +optional
 	Reason string `json:"reason,omitempty"`
+
+	// A human readable message indicating details about why the job is in this phase
+	// +optional
+	Message string `json:"message,omitempty"`
 
 	// +optional
 	Created *meta_v1.Time `json:"created,omitempty"`

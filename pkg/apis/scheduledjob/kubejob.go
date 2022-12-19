@@ -14,6 +14,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -197,4 +198,8 @@ func (s *syncer) getContainerVolumeMounts(radixJobComponent *radixv1.RadixDeploy
 	}
 
 	return volumeMounts, nil
+}
+
+func jobNameLabelSelector(jobName string) labels.Set {
+	return labels.Set{kubernetesJobNameLabel: jobName}
 }
