@@ -27,7 +27,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	jobName := pipelineInfo.PipelineArguments.JobName
 
-	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext, pipelineInfo.PipelineArguments.CommitID)
+	initContainers := git.CloneInitContainers(rr.Spec.CloneURL, branch, pipelineInfo.PipelineArguments.ContainerSecurityContext)
 	buildContainers := createACRBuildContainers(appName, pipelineInfo, buildSecrets)
 	timestamp := time.Now().Format("20060102150405")
 	defaultMode, backOffLimit := int32(256), int32(0)
@@ -41,7 +41,6 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 			Labels: map[string]string{
 				kube.RadixJobNameLabel:  jobName,
 				kube.RadixBuildLabel:    fmt.Sprintf("%s-%s-%s", appName, imageTag, hash),
-				"radix-app-name":        appName, // For backwards compatibility. Remove when cluster is migrated
 				kube.RadixAppLabel:      appName,
 				kube.RadixImageTagLabel: imageTag,
 				kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
@@ -100,8 +99,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
-	containerRegistry := pipelineInfo.ContainerRegistry
-	subscriptionId := pipelineInfo.SubscriptionId
+	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
+	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
 
@@ -111,11 +110,18 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	var containers []corev1.Container
 	azureServicePrincipleContext := "/radix-image-builder/.azure"
 	firstPartContainerRegistry := strings.Split(containerRegistry, ".")[0]
-	noPushFlag := "--no-push"
+	var push string
+	var useCache string
+	var useBuildKit string
 	if pushImage {
-		noPushFlag = ""
+		push = "--push"
 	}
-
+	if !pipelineInfo.PipelineArguments.UseCache {
+		useCache = "--no-cache"
+	}
+	if pipelineInfo.RadixApplication.Spec.Build != nil && pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit {
+		useBuildKit = "1"
+	}
 	distinctBuildContainers := make(map[string]void)
 	for _, componentImage := range pipelineInfo.ComponentImages {
 		if !componentImage.Build {
@@ -133,6 +139,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		// For extra meta information about an image
 		clusterTypeImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterType, imageTag))
 		clusterNameImage := utils.GetImagePath(containerRegistry, appName, componentImage.ImageName, fmt.Sprintf("%s-%s", clusterName, imageTag))
+		containerImageRepositoryName := utils.GetRepositoryName(appName, componentImage.ImageName)
 
 		envVars := []corev1.EnvVar{
 			{
@@ -152,8 +159,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Value: componentImage.Context,
 			},
 			{
-				Name:  "NO_PUSH",
-				Value: noPushFlag,
+				Name:  "PUSH",
+				Value: push,
 			},
 			{
 				Name:  "AZURE_CREDENTIALS",
@@ -163,8 +170,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "SUBSCRIPTION_ID",
 				Value: subscriptionId,
 			},
-
-			// Extra meta information
 			{
 				Name:  "CLUSTERTYPE_IMAGE",
 				Value: clusterTypeImage,
@@ -173,6 +178,23 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  "CLUSTERNAME_IMAGE",
 				Value: clusterNameImage,
 			},
+			{
+				Name:  "REPOSITORY_NAME",
+				Value: containerImageRepositoryName,
+			},
+			{
+				Name:  "CACHE",
+				Value: useCache,
+			},
+			{
+				Name:  defaults.RadixZoneEnvironmentVariable,
+				Value: pipelineInfo.PipelineArguments.RadixZone,
+			},
+			{
+				Name:  defaults.UseBuildKitEnvironmentVariable,
+				Value: useBuildKit,
+			},
+			// Extra meta information
 			{
 				Name:  defaults.RadixBranchEnvironmentVariable,
 				Value: branch,

@@ -33,29 +33,31 @@ const (
 	// JobQueued When another job is running with the same
 	// condition app + branch, the job is queued
 	JobQueued RadixJobCondition = "Queued"
-	// JobQueued When operator hasn't picked up the radix job
+	// JobWaiting When operator hasn't picked up the radix job
 	// the API will show the job as waiting. Also when the
 	// kubernetes jobs (steps) are in waiting the step will be
 	// in JobWaiting
-	JobWaiting   RadixJobCondition = "Waiting"
-	JobRunning   RadixJobCondition = "Running"
-	JobSucceeded RadixJobCondition = "Succeeded"
-	JobFailed    RadixJobCondition = "Failed"
-	JobStopped   RadixJobCondition = "Stopped"
+	JobWaiting          RadixJobCondition = "Waiting"
+	JobRunning          RadixJobCondition = "Running"
+	JobSucceeded        RadixJobCondition = "Succeeded"
+	JobFailed           RadixJobCondition = "Failed"
+	JobStopped          RadixJobCondition = "Stopped"
+	JobStoppedNoChanges RadixJobCondition = "StoppedNoChanges"
 )
 
 //RadixJobSpec is the spec for a job
 type RadixJobSpec struct {
-	AppName        string            `json:"appName" yaml:"appName"`
-	CloneURL       string            `json:"cloneURL" yaml:"cloneURL"`
-	PipeLineType   RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
-	DockerRegistry string            `json:"dockerRegistry" yaml:"dockerRegistry"`
-	PipelineImage  string            `json:"pipelineImage" yaml:"pipelineImage"`
-	Build          RadixBuildSpec    `json:"build" yaml:"build"`
-	Promote        RadixPromoteSpec  `json:"promote" yaml:"promote"`
-	Deploy         RadixDeploySpec   `json:"deploy" yaml:"deploy"`
-	Stop           bool              `json:"stop" yaml:"stop"`
-	TriggeredBy    string            `json:"triggeredBy" yaml:"triggeredBy"`
+	AppName             string            `json:"appName" yaml:"appName"`
+	CloneURL            string            `json:"cloneURL" yaml:"cloneURL"`
+	PipeLineType        RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
+	DockerRegistry      string            `json:"dockerRegistry" yaml:"dockerRegistry"`
+	PipelineImage       string            `json:"pipelineImage" yaml:"pipelineImage"`
+	Build               RadixBuildSpec    `json:"build" yaml:"build"`
+	Promote             RadixPromoteSpec  `json:"promote" yaml:"promote"`
+	Deploy              RadixDeploySpec   `json:"deploy" yaml:"deploy"`
+	Stop                bool              `json:"stop" yaml:"stop"`
+	TriggeredBy         string            `json:"triggeredBy" yaml:"triggeredBy"`
+	RadixConfigFullName string            `json:"radixConfigFullName" yaml:"radixConfigFullName"`
 }
 
 // RadixPipelineType Holds the different type of pipeline
@@ -71,11 +73,10 @@ const (
 
 //RadixBuildSpec is the spec for a build job
 type RadixBuildSpec struct {
-	ImageTag      string `json:"imageTag" yaml:"imageTag"`
-	Branch        string `json:"branch" yaml:"branch"`
-	CommitID      string `json:"commitID" yaml:"commitID"`
-	PushImage     bool   `json:"pushImage" yaml:"pushImage"`
-	RadixFileName string `json:"radixFileName" yaml:"radixFileName"`
+	ImageTag  string `json:"imageTag" yaml:"imageTag"`
+	Branch    string `json:"branch" yaml:"branch"`
+	CommitID  string `json:"commitID" yaml:"commitID"`
+	PushImage bool   `json:"pushImage" yaml:"pushImage"`
 }
 
 //RadixPromoteSpec is the spec for a promote job
@@ -101,41 +102,24 @@ type RadixJobList struct {
 
 //RadixJobStep holds status for a single step
 type RadixJobStep struct {
-	Name       string              `json:"name" yaml:"name"`
-	Condition  RadixJobCondition   `json:"condition" yaml:"condition"`
-	Started    *meta_v1.Time       `json:"started" yaml:"started"`
-	Ended      *meta_v1.Time       `json:"ended" yaml:"ended"`
-	PodName    string              `json:"podName" yaml:"podName"`
-	Components []string            `json:"components,omitempty" yaml:"components,omitempty"`
-	Output     *RadixJobStepOutput `json:"output,omitempty" yaml:"output,omitempty"`
+	Name       string            `json:"name" yaml:"name"`
+	Condition  RadixJobCondition `json:"condition" yaml:"condition"`
+	Started    *meta_v1.Time     `json:"started" yaml:"started"`
+	Ended      *meta_v1.Time     `json:"ended" yaml:"ended"`
+	PodName    string            `json:"podName" yaml:"podName"`
+	Components []string          `json:"components,omitempty" yaml:"components,omitempty"`
 }
 
-// RadixJobStepOutput holds information about output from a single step
-type RadixJobStepOutput struct {
-	Scan *RadixJobStepScanOutput `json:"scan,omitempty" yaml:"scan,omitempty"`
-}
-
-// RadixJobStepScanOutput holds information about output from a single scan step
-type RadixJobStepScanOutput struct {
-	// Status of scan results
-	Status ScanStatus `json:"status" yaml:"status"`
-	// Reason for the status
-	Reason string `json:"reason,omitempty" yaml:"reason,omitempty"`
-	// Vulnerabilities is a map of severity level and number of vulnerabilities found
-	Vulnerabilities VulnerabilityMap `json:"vulnerabilities,omitempty" yaml:"vulnerabilities,omitempty"`
-	// VulnerabilityListConfigMap defines the name of the ConfigMap with list of information about vulnerabilities found during scan
-	// the ConfigMap must be in the same namespace as the RadixJob
-	VulnerabilityListConfigMap string `json:"vulnerabilityListConfigMap,omitempty" yaml:"vulnerabilityListConfigMap,omitempty"`
-	// VulnerabilityListKey defines the key in VulnerabilityListConfigMap where vulnerability details are stored
-	VulnerabilityListKey string `json:"vulnerabilityListKey,omitempty" yaml:"vulnerabilityListKey,omitempty"`
-}
-
-type VulnerabilityMap map[string]uint
-
-// ScanStatus defines the statuys of the vulnerability scanning
-type ScanStatus string
+// RadixJobResultType Type of the Radix pipeline job result
+type RadixJobResultType string
 
 const (
-	ScanSuccess ScanStatus = "Success" // Scan completed successfully
-	ScanMissing ScanStatus = "Missing" // Scan results are missing
+	// RadixJobResultStoppedNoChanges The Radix build-deploy pipeline job was stopped due to there were no changes in component source code
+	RadixJobResultStoppedNoChanges RadixJobResultType = "stoppedNoChanges"
 )
+
+//RadixJobResult is returned by Radix pipeline jobs via ConfigMap
+type RadixJobResult struct {
+	Result  RadixJobResultType `json:"result" yaml:"result"`
+	Message string             `json:"message" yaml:"message"`
+}

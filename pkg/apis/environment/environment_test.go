@@ -69,6 +69,7 @@ func newEnv(client kubernetes.Interface, kubeUtil *kube.Kube, radixclient radixc
 
 func Test_Create_Namespace(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
+	defer os.Clearenv()
 	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	sync(t, &env)
@@ -78,10 +79,61 @@ func Test_Create_Namespace(t *testing.T) {
 	})
 
 	commonAsserts(t, env, namespacesAsMeta(namespaces.Items), namespaceName)
+
+	expected := map[string]string{
+		"sync":                         "cluster-wildcard-tls-cert",
+		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
+		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
+		"app-wildcard-sync":            "app-wildcard-tls-cert",
+		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
+		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
+		kube.RadixAppLabel: env.config.Spec.AppName,
+		kube.RadixEnvLabel: env.config.Spec.EnvName,
+	}
+	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
+}
+
+func Test_Create_Namespace_PodSecurityStandardLabels(t *testing.T) {
+	_, client, kubeUtil, radixclient := setupTest()
+	os.Setenv(defaults.PodSecurityStandardEnforceLevelEnvironmentVariable, "enforceLvl")
+	os.Setenv(defaults.PodSecurityStandardEnforceVersionEnvironmentVariable, "enforceVer")
+	os.Setenv(defaults.PodSecurityStandardAuditLevelEnvironmentVariable, "auditLvl")
+	os.Setenv(defaults.PodSecurityStandardAuditVersionEnvironmentVariable, "auditVer")
+	os.Setenv(defaults.PodSecurityStandardWarnLevelEnvironmentVariable, "warnLvl")
+	os.Setenv(defaults.PodSecurityStandardWarnVersionEnvironmentVariable, "warnVer")
+	defer os.Clearenv()
+	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
+
+	sync(t, &env)
+
+	namespaces, _ := client.CoreV1().Namespaces().List(context.TODO(), meta.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixAppLabel, rr.Name),
+	})
+
+	commonAsserts(t, env, namespacesAsMeta(namespaces.Items), namespaceName)
+
+	expected := map[string]string{
+		"sync":                         "cluster-wildcard-tls-cert",
+		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
+		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
+		"app-wildcard-sync":            "app-wildcard-tls-cert",
+		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
+		fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName): env.config.Spec.AppName,
+		kube.RadixAppLabel:                           env.config.Spec.AppName,
+		kube.RadixEnvLabel:                           env.config.Spec.EnvName,
+		"pod-security.kubernetes.io/enforce":         "enforceLvl",
+		"pod-security.kubernetes.io/enforce-version": "enforceVer",
+		"pod-security.kubernetes.io/audit":           "auditLvl",
+		"pod-security.kubernetes.io/audit-version":   "auditVer",
+		"pod-security.kubernetes.io/warn":            "warnLvl",
+		"pod-security.kubernetes.io/warn-version":    "warnVer",
+	}
+	assert.Equal(t, expected, namespaces.Items[0].GetLabels())
 }
 
 func Test_Create_EgressRules(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
+	defer os.Clearenv()
 	rr, _, env := newEnv(client, kubeUtil, radixclient, egressRuleEnvConfigFileName)
 
 	sync(t, &env)
@@ -102,13 +154,14 @@ func Test_Create_EgressRules(t *testing.T) {
 
 func Test_Create_RoleBinding(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
+	defer os.Clearenv()
 	rr, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	sync(t, &env)
 
 	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
 
-	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-app-admin-envs")
+	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env")
 
 	adGroupName := rr.Spec.AdGroups[0]
 	t.Run("It contains the correct AD groups", func(t *testing.T) {
@@ -129,6 +182,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 func Test_Create_LimitRange(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
+	defer os.Clearenv()
 	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	sync(t, &env)
@@ -148,6 +202,7 @@ func Test_Create_LimitRange(t *testing.T) {
 
 func Test_Orphaned_Status(t *testing.T) {
 	_, client, kubeUtil, radixclient := setupTest()
+	defer os.Clearenv()
 	_, _, env := newEnv(client, kubeUtil, radixclient, envConfigFileName)
 
 	env.appConfig = nil
@@ -192,23 +247,27 @@ func sync(t *testing.T, env *Environment) {
 }
 
 // commonAsserts runs a generic set of assertions about resource creation
-func commonAsserts(t *testing.T, env Environment, resources []meta.Object, name string) {
+func commonAsserts(t *testing.T, env Environment, resources []meta.Object, names ...string) {
 	t.Run("It creates a single resource", func(t *testing.T) {
-		assert.Len(t, resources, 1)
+		assert.Len(t, resources, len(names))
 	})
 
 	t.Run("Resource has a correct name", func(t *testing.T) {
-		assert.Equal(t, name, resources[0].GetName())
+		for _, resource := range resources {
+			assert.Contains(t, names, resource.GetName())
+		}
 	})
 
 	t.Run("Resource has a correct owner", func(t *testing.T) {
-		assert.Equal(t, env.AsOwnerReference(), resources[0].GetOwnerReferences())
+		for _, resource := range resources {
+			assert.Equal(t, env.AsOwnerReference(), resource.GetOwnerReferences())
+		}
 	})
 
 	t.Run("Creation is idempotent", func(t *testing.T) {
 		err := env.OnSync(meta.NewTime(time.Now().UTC()))
 		assert.NoError(t, err)
-		assert.Len(t, resources, 1)
+		assert.Len(t, resources, len(names))
 	})
 }
 
@@ -218,6 +277,7 @@ func commonAsserts(t *testing.T, env Environment, resources []meta.Object, name 
 func namespacesAsMeta(items []core.Namespace) []meta.Object {
 	var slice []meta.Object
 	for _, w := range items {
+		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -225,6 +285,7 @@ func namespacesAsMeta(items []core.Namespace) []meta.Object {
 func roleBindingsAsMeta(items []rbac.RoleBinding) []meta.Object {
 	var slice []meta.Object
 	for _, w := range items {
+		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice
@@ -232,6 +293,7 @@ func roleBindingsAsMeta(items []rbac.RoleBinding) []meta.Object {
 func limitRangesAsMeta(items []core.LimitRange) []meta.Object {
 	var slice []meta.Object
 	for _, w := range items {
+		w := w
 		slice = append(slice, w.GetObjectMeta())
 	}
 	return slice

@@ -20,15 +20,25 @@ func getNumberOfReplicas(component v1.RadixCommonDeployComponent) int {
 
 }
 
-func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCommonDeployComponent) error {
-	namespace := deploy.radixDeployment.Namespace
-	componentName := component.GetName()
-
+func componentShallHavePdb(component v1.RadixCommonDeployComponent) bool {
 	replicas := getNumberOfReplicas(component)
-	if replicas < 2 {
+	if replicas == 0 {
+		return false
+	}
+	horizontalScaling := component.GetHorizontalScaling()
+	if horizontalScaling != nil {
+		return horizontalScaling.MinReplicas != nil &&
+			*horizontalScaling.MinReplicas > 1
+	}
+	return replicas > 1
+}
+
+func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCommonDeployComponent) error {
+	if !componentShallHavePdb(component) {
 		return nil
 	}
-
+	namespace := deploy.radixDeployment.Namespace
+	componentName := component.GetName()
 	pdb := utils.GetPDBConfig(componentName, namespace)
 	pdbName := pdb.Name
 
@@ -49,23 +59,27 @@ func (deploy *Deployment) createOrUpdatePodDisruptionBudget(component v1.RadixCo
 }
 
 func (deploy *Deployment) garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component v1.RadixCommonDeployComponent) error {
-	// Check if replicas for component is < 2. If yes, delete PDB
+	if componentShallHavePdb(component) {
+		return nil
+	}
 	namespace := deploy.radixDeployment.Namespace
 	componentName := component.GetName()
 
+	pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, componentName),
+	})
+	if err != nil {
+		return err
+	}
+
 	var errs []error
-	replicas := getNumberOfReplicas(component)
-	if replicas < 2 {
-		pdbs, err := deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).List(context.TODO(), metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", kube.RadixComponentLabel, componentName),
-		})
-		for _, pdb := range pdbs.Items {
-			err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
-			if err != nil {
-				errs = append(errs, err)
-			}
+	for _, pdb := range pdbs.Items {
+		err = deploy.kubeclient.PolicyV1().PodDisruptionBudgets(namespace).Delete(context.TODO(), pdb.Name, metav1.DeleteOptions{})
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+
 	return errors.Concat(errs)
 }
 

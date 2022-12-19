@@ -593,6 +593,31 @@ func Test_invalid_ra(t *testing.T) {
 			job.Name = validRAFirstComponentName
 			ra.Spec.Jobs = append(ra.Spec.Jobs, job)
 		}},
+		{"identity.azure.clientId cannot be empty for component", radixvalidators.ResourceNameCannotBeEmptyError("identity.azure.clientId"), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Identity.Azure.ClientId = " "
+		}},
+		{"identity.azure.clientId cannot be empty for component environment config", radixvalidators.ResourceNameCannotBeEmptyError("identity.azure.clientId"), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Identity.Azure.ClientId = " "
+		}},
+		{"identity.azure.clientId cannot be empty for job", radixvalidators.ResourceNameCannotBeEmptyError("identity.azure.clientId"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Identity.Azure.ClientId = " "
+		}},
+		{"identity.azure.clientId cannot be empty for job environment config", radixvalidators.ResourceNameCannotBeEmptyError("identity.azure.clientId"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Identity.Azure.ClientId = " "
+		}},
+
+		{"invalid identity.azure.clientId for component", radixvalidators.InvalidUUIDError("identity.azure.clientId", "1111-22-33-44"), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].Identity.Azure.ClientId = "1111-22-33-44"
+		}},
+		{"invalid identity.azure.clientId for component environment config", radixvalidators.InvalidUUIDError("identity.azure.clientId", "1111-22-33-44"), func(ra *v1.RadixApplication) {
+			ra.Spec.Components[0].EnvironmentConfig[0].Identity.Azure.ClientId = "1111-22-33-44"
+		}},
+		{"invalid identity.azure.clientId for job", radixvalidators.InvalidUUIDError("identity.azure.clientId", "1111-22-33-44"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].Identity.Azure.ClientId = "1111-22-33-44"
+		}},
+		{"invalid identity.azure.clientId for job environment config", radixvalidators.InvalidUUIDError("identity.azure.clientId", "1111-22-33-44"), func(ra *v1.RadixApplication) {
+			ra.Spec.Jobs[0].EnvironmentConfig[0].Identity.Azure.ClientId = "1111-22-33-44"
+		}},
 	}
 
 	_, client := validRASetup()

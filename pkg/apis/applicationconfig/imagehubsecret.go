@@ -57,10 +57,14 @@ func (app *ApplicationConfig) GetPendingPrivateImageHubSecrets() ([]string, erro
 	ns := utils.GetAppNamespace(appName)
 	secret, err := app.kubeutil.GetSecret(ns, defaults.PrivateImageHubSecretName)
 	if err != nil && !errors.IsNotFound(err) {
-		return pendingSecrets, err
+		return nil, err
 	}
 
 	imageHubs, err := getImageHubSecretValue(secret.Data[corev1.DockerConfigJsonKey])
+	if err != nil {
+		return nil, err
+	}
+
 	for key, imageHub := range imageHubs {
 		if imageHub.Password == "" {
 			pendingSecrets = append(pendingSecrets, key)
@@ -77,7 +81,7 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 		return err
 	}
 
-	secretValue := []byte{}
+	var secretValue []byte
 	if errors.IsNotFound(err) || secret == nil {
 		secretValue, err = createImageHubsSecretValue(app.config.Spec.PrivateImageHubs)
 		if err != nil {
@@ -121,7 +125,6 @@ func (app *ApplicationConfig) syncPrivateImageHubSecrets() error {
 			return err
 		}
 	}
-
 	return applyPrivateImageHubSecret(app.kubeutil, ns, app.config.Name, secretValue)
 }
 

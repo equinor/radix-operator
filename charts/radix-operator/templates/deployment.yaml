@@ -36,6 +36,8 @@ spec:
               value: {{ .Values.prometheusName }}
             - name: DNS_ZONE
               value: {{ .Values.dnsZone }}
+            - name: RADIX_ZONE
+              value: {{ .Values.radixZone }}
             - name: APP_ALIAS_BASE_URL
               value: {{ .Values.appAliasBaseURL }}
             - name: RADIXOPERATOR_CLUSTER_TYPE
@@ -81,24 +83,22 @@ spec:
             # Maximum custom resources
             - name: RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT
               value: {{ .Values.deploymentsPerEnvironmentHistoryLimit | quote }}
-            - name: RADIX_JOBS_PER_APP_HISTORY_LIMIT
-              value: {{ .Values.jobsPerAppHistoryLimit | quote }}
+            - name: RADIX_PIPELINE_JOBS_HISTORY_LIMIT
+              value: {{ .Values.pipelineJobsHistoryLimit | quote }}
             - name: RADIX_TEKTON_IMAGE
               value: {{ .Values.radixTekton }}
             - name: RADIX_IMAGE_BUILDER
               value: {{ .Values.imageBuilder }}
-            - name: RADIX_IMAGE_SCANNER
-              value: {{ .Values.imageScanner }}
             - name: RADIXOPERATOR_JOB_SCHEDULER
               value: {{ .Values.jobScheduler }}
+            - name: USE_CACHE
+              value: {{ .Values.useImageBuilderCache | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: RADIX_CONTAINER_REGISTRY
               value: {{ .Values.containerRegistry }}
             - name: RADIXOPERATOR_TENANT_ID
               value: {{ .Values.tenantId }}
-            - name: RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER
-              value: {{ .Values.forceNonRootDeploymentContainers | quote }}
             - name: RADIX_OAUTH_PROXY_DEFAULT_OIDC_ISSUER_URL
               value: {{ .Values.oauthProxyDefaultIssuerUrl }}
             - name: RADIX_OAUTH_PROXY_IMAGE
@@ -119,6 +119,30 @@ spec:
               value: {{ .Values.kubeClientRateLimitBurst | quote }}
             - name: KUBE_CLIENT_RATE_LIMIT_QPS
               value: {{ .Values.kubeClientRateLimitQPS | quote }}
+            {{- if .Values.podSecurityStandard.enforce.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL
+              value: {{ .Values.podSecurityStandard.enforce.level }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.enforce.version }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION
+              value: {{ .Values.podSecurityStandard.enforce.version }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.audit.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_LEVEL
+              value: {{ .Values.podSecurityStandard.audit.level }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.audit.version }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION
+              value: {{ .Values.podSecurityStandard.audit.version }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.warn.level }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL
+              value: {{ .Values.podSecurityStandard.warn.level }}
+            {{- end }}
+            {{- if .Values.podSecurityStandard.warn.version }}
+            - name: RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION
+              value: {{ .Values.podSecurityStandard.warn.version }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

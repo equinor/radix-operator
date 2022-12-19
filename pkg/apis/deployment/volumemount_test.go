@@ -40,11 +40,12 @@ type TestEnv struct {
 }
 
 type volumeMountTestScenario struct {
-	name                  string
-	radixVolumeMount      v1.RadixVolumeMount
-	expectedVolumeName    string
-	expectedError         string
-	expectedPvcNamePrefix string
+	name                       string
+	radixVolumeMount           v1.RadixVolumeMount
+	expectedVolumeName         string
+	expectedVolumeNameIsPrefix bool
+	expectedError              string
+	expectedPvcNamePrefix      string
 }
 
 type deploymentVolumesTestScenario struct {
@@ -120,6 +121,11 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
 		},
+		{
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath3"},
+			expectedVolumeName:         "csi-az-file-app-volume-with-long-name-storageName-with-lo-",
+			expectedVolumeNameIsPrefix: true,
+		},
 	}
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
@@ -127,31 +133,42 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
-				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
+				WithVolumeMounts(scenarios[0].radixVolumeMount).
 				BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			assert.Equal(t, 1, len(volumeMounts))
-			mount := volumeMounts[0]
-			assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
-			assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+			if len(volumeMounts) > 0 {
+				mount := volumeMounts[0]
+				assert.Less(t, len(mount.Name), 64)
+				assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
+				assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+			}
 		}
 	})
 	suite.T().Run("Multiple File CSI Azure volume mount", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
-			component := utils.NewDeployCommonComponentBuilder(factory).
+			builder := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
-				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
-				BuildComponent()
+				WithVolumeMounts(scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount, scenarios[2].radixVolumeMount)
+
+			component := builder.BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
+			assert.Equal(t, 3, len(volumeMounts))
 			for idx, testCase := range scenarios {
-				assert.Equal(t, 2, len(volumeMounts))
-				assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
-				assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+				if len(volumeMounts) > 0 {
+					assert.Less(t, len(volumeMounts[idx].Name), 64)
+					if testCase.expectedVolumeNameIsPrefix {
+						assert.True(t, strings.HasPrefix(volumeMounts[idx].Name, testCase.expectedVolumeName))
+					} else {
+						assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+					}
+					assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+				}
 			}
 		}
 	})
@@ -167,21 +184,29 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-blob-app-volume2-storageName2",
 		},
+		{
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath2"},
+			expectedVolumeName:         "csi-az-blob-app-volume-with-long-name-storageName-with-lo-",
+			expectedVolumeNameIsPrefix: true,
+		},
 	}
 	suite.T().Run("One Blob CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).WithName("app").
-				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
+				WithVolumeMounts(scenarios[0].radixVolumeMount).
 				BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			assert.Equal(t, 1, len(volumeMounts))
-			mount := volumeMounts[0]
-			assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
-			assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+			if len(volumeMounts) > 0 {
+				mount := volumeMounts[0]
+				assert.Less(t, len(volumeMounts[0].Name), 64)
+				assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
+				assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+			}
 		}
 	})
 	suite.T().Run("Multiple Blob CSI Azure volume mount ", func(t *testing.T) {
@@ -190,15 +215,22 @@ func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
-				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
+				WithVolumeMounts(scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount, scenarios[2].radixVolumeMount).
 				BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
+			assert.Equal(t, 3, len(volumeMounts))
 			assert.Nil(t, err)
 			for idx, testCase := range scenarios {
-				assert.Equal(t, 2, len(volumeMounts))
-				assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
-				assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+				if len(volumeMounts) > 0 {
+					assert.Less(t, len(volumeMounts[idx].Name), 64)
+					if testCase.expectedVolumeNameIsPrefix {
+						assert.True(t, strings.HasPrefix(volumeMounts[idx].Name, testCase.expectedVolumeName))
+					} else {
+						assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+					}
+					assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+				}
 			}
 		}
 	})
@@ -229,8 +261,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 				t.Logf("Test case %s for component %s", testCase.name, factory.GetTargetType())
 				component := utils.NewDeployCommonComponentBuilder(factory).
 					WithName("app").
-					WithVolumeMounts([]v1.RadixVolumeMount{
-						testCase.radixVolumeMount}).
+					WithVolumeMounts(testCase.radixVolumeMount).
 					BuildComponent()
 
 				_, err := GetRadixDeployComponentVolumeMounts(component, "")
@@ -256,7 +287,7 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 	suite.T().Run("One Blobfuse Azure volume mount", func(t *testing.T) {
 		t.Parallel()
 		component := utils.NewDeployComponentBuilder().WithName("app").
-			WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
+			WithVolumeMounts(scenarios[0].radixVolumeMount).
 			BuildComponent()
 
 		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component, "")
@@ -269,7 +300,7 @@ func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 	suite.T().Run("Multiple Blobfuse Azure volume mount", func(t *testing.T) {
 		t.Parallel()
 		component := utils.NewDeployComponentBuilder().WithName("app").
-			WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
+			WithVolumeMounts(scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount).
 			BuildComponent()
 
 		volumeMounts, err := GetRadixDeployComponentVolumeMounts(&component, "")
@@ -289,7 +320,7 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	suite.T().Run("No volumes in component", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{}).BuildComponent()
+		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts().BuildComponent()
 		volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 		assert.Nil(t, err)
 		assert.Len(t, volumes, 0)
@@ -307,6 +338,20 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 			expectedVolumeName:    "csi-az-file-some-component-volume1-storage1",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-volume1-storage1",
 		},
+		{
+			name:                       "Blob CSI Azure volume",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
+			expectedVolumeName:         "csi-az-blob-some-component-volume-with-long-name-storageN-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-volume-with-long-name-storageN-",
+		},
+		{
+			name:                       "File CSI Azure volume",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
+			expectedVolumeName:         "csi-az-file-some-component-volume-with-long-name-storageN-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-file-some-component-volume-with-long-name-storageN-",
+		},
 	}
 	blobFuseScenario := volumeMountTestScenario{
 		name:               "Blob Azure FlexVolume",
@@ -318,12 +363,17 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s", scenario.name)
-			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			volume := volumes[0]
-			assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+			if scenario.expectedVolumeNameIsPrefix {
+				assert.True(t, strings.HasPrefix(volume.Name, scenario.expectedVolumeName))
+			} else {
+				assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+			}
+			assert.Less(t, len(volume.Name), 64)
 			assert.NotNil(t, volume.PersistentVolumeClaim)
 			assert.Contains(t, volume.PersistentVolumeClaim.ClaimName, scenario.expectedPvcNamePrefix)
 		}
@@ -331,7 +381,7 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	suite.T().Run("Blobfuse-flex volume", func(t *testing.T) {
 		t.Parallel()
 		testEnv := getTestEnv()
-		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{blobFuseScenario.radixVolumeMount}).BuildComponent()
+		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(blobFuseScenario.radixVolumeMount).BuildComponent()
 		volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 		assert.Nil(t, err)
 		assert.Len(t, volumes, 1)
@@ -349,12 +399,17 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range append(scenarios, blobFuseScenario) {
-			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
 			volume := volumes[0]
-			assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+			if scenario.expectedVolumeNameIsPrefix {
+				assert.True(t, strings.HasPrefix(volume.Name, scenario.expectedVolumeName))
+			} else {
+				assert.Equal(t, scenario.expectedVolumeName, volume.Name)
+			}
+			assert.Less(t, len(volume.Name), 64)
 			assert.Equal(t, len(scenario.expectedPvcNamePrefix) > 0, volume.PersistentVolumeClaim != nil)
 		}
 	})
@@ -364,7 +419,7 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 		mounts := []v1.RadixVolumeMount{
 			{Type: "unsupported-type", Name: "volume1", Container: "storage1", Path: "path1"},
 		}
-		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(mounts).BuildComponent()
+		component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(mounts...).BuildComponent()
 		volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 		assert.Len(t, volumes, 0)
 		assert.NotNil(t, err)
@@ -438,7 +493,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
 			_, _ = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), &scenario.pvc, metav1.CreateOptions{})
 
-			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
@@ -454,7 +509,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		for _, scenario := range scenarios {
 			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
 
-			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts([]v1.RadixVolumeMount{scenario.radixVolumeMount}).BuildComponent()
+			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
 			assert.Nil(t, err)
 			assert.Len(t, volumes, 1)
@@ -598,6 +653,20 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 			expectedVolumeName:    "csi-az-file-some-component-file-volume2-storage4",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume2-storage4",
 		},
+		{
+			name:                       "Blob CSI Azure volume, Status phase: Pending",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
+			expectedVolumeName:         "csi-az-blob-some-component-blob-volume-with-long-name-sto-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-blob-volume-with-long-name-",
+		},
+		{
+			name:                       "File CSI Azure volume, Status phase: Pending",
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "file-volume-with-long-name", Storage: "storage-with-long-name", Path: "path4", GID: "1000"},
+			expectedVolumeName:         "csi-az-file-some-component-file-volume-with-long-name-sto-",
+			expectedVolumeNameIsPrefix: true,
+			expectedPvcNamePrefix:      "pvc-csi-az-file-some-component-file-volume-with-long-name-",
+		},
 	}
 
 	suite.T().Run("No volumes", func(t *testing.T) {
@@ -627,13 +696,17 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 				deployment.radixDeployment = buildRd(appName, environment, componentName, []v1.RadixVolumeMount{scenario.radixVolumeMount})
 				deployComponent := deployment.radixDeployment.Spec.Components[0]
 
-				volumes, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
+				volumeMounts, err := GetRadixDeployComponentVolumeMounts(&deployComponent, "")
 
 				assert.Nil(t, err)
-				assert.Len(t, volumes, 1)
-				assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
-				assert.Equal(t, scenario.expectedVolumeName, volumes[0].Name)
-				assert.Equal(t, scenario.radixVolumeMount.Path, volumes[0].MountPath)
+				assert.Len(t, volumeMounts, 1)
+				if scenario.expectedVolumeNameIsPrefix {
+					assert.True(t, strings.HasPrefix(volumeMounts[0].Name, scenario.expectedVolumeName))
+				} else {
+					assert.Equal(t, scenario.expectedVolumeName, volumeMounts[0].Name)
+				}
+				assert.Less(t, len(volumeMounts[0].Name), 64)
+				assert.Equal(t, scenario.radixVolumeMount.Path, volumeMounts[0].MountPath)
 			}
 		}
 	})
@@ -649,6 +722,11 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
 		},
+		{
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath3"},
+			expectedVolumeName:         "csi-az-file-app-volume-with-long-name-storageName-with-lo-",
+			expectedVolumeNameIsPrefix: true,
+		},
 	}
 	suite.T().Run("One File CSI Azure volume mount ", func(t *testing.T) {
 		t.Parallel()
@@ -656,15 +734,17 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 			t.Logf("Test case %s for component %s", scenarios[0].name, factory.GetTargetType())
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
-				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount}).
+				WithVolumeMounts(scenarios[0].radixVolumeMount).
 				BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
 			assert.Equal(t, 1, len(volumeMounts))
-			mount := volumeMounts[0]
-			assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
-			assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+			if len(volumeMounts) > 0 {
+				mount := volumeMounts[0]
+				assert.Equal(t, scenarios[0].expectedVolumeName, mount.Name)
+				assert.Equal(t, scenarios[0].radixVolumeMount.Path, mount.MountPath)
+			}
 		}
 	})
 	suite.T().Run("Multiple File CSI Azure volume mount", func(t *testing.T) {
@@ -672,15 +752,22 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResource
 		for _, factory := range suite.radixCommonDeployComponentFactories {
 			component := utils.NewDeployCommonComponentBuilder(factory).
 				WithName("app").
-				WithVolumeMounts([]v1.RadixVolumeMount{scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount}).
+				WithVolumeMounts(scenarios[0].radixVolumeMount, scenarios[1].radixVolumeMount, scenarios[2].radixVolumeMount).
 				BuildComponent()
 
 			volumeMounts, err := GetRadixDeployComponentVolumeMounts(component, "")
 			assert.Nil(t, err)
+			assert.Equal(t, 3, len(volumeMounts))
 			for idx, testCase := range scenarios {
-				assert.Equal(t, 2, len(volumeMounts))
-				assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
-				assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+				if len(volumeMounts) > 0 {
+					assert.Less(t, len(volumeMounts[idx].Name), 64)
+					if testCase.expectedVolumeNameIsPrefix {
+						assert.True(t, strings.HasPrefix(volumeMounts[idx].Name, testCase.expectedVolumeName))
+					} else {
+						assert.Equal(t, testCase.expectedVolumeName, volumeMounts[idx].Name)
+					}
+					assert.Equal(t, testCase.radixVolumeMount.Path, volumeMounts[idx].MountPath)
+				}
 			}
 		}
 	})
@@ -961,7 +1048,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources() {
 	namespace := "some-namespace"
 	environment := "some-env"
-	componentName1 := "component1"
+	componentName1, componentNameLong := "component1", "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit"
 	type expectedVolumeProps struct {
 		expectedVolumeNamePrefix         string
 		expectedVolumeMountPath          string
@@ -1038,6 +1125,24 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 				},
 			},
 		},
+		{
+			name:          "Volume name should be trimmed when exceeding 63 chars",
+			componentName: componentNameLong,
+			azureKeyVaults: []v1.RadixAzureKeyVault{{
+				Name:  "kv1",
+				Items: []v1.RadixAzureKeyVaultItem{{Name: "secret1", EnvVar: "SECRET_REF1"}},
+			}},
+			expectedVolumeProps: []expectedVolumeProps{
+				{
+					expectedVolumeNamePrefix:         "a-very-long-component-name-that-exceeds-63-kubernetes-vol",
+					expectedVolumeMountPath:          "/mnt/azure-key-vault/kv1",
+					expectedNodePublishSecretRefName: "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-kv1-csiazkvcreds",
+					expectedVolumeAttributePrefixes: map[string]string{
+						"secretProviderClass": "a-very-long-component-name-that-exceeds-63-kubernetes-volume-name-limit-az-keyvault-kv1-",
+					},
+				},
+			},
+		},
 	}
 	suite.T().Run("CSI Azure Key vault volumes", func(t *testing.T) {
 		t.Parallel()
@@ -1069,6 +1174,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 
 			for i := 0; i < len(volumes); i++ {
 				volume := volumes[i]
+				assert.Less(t, len(volume.Name), 64, "volume name is too long")
 				assert.NotNil(t, volume.CSI)
 				assert.NotNil(t, volume.CSI.VolumeAttributes)
 				assert.NotNil(t, volume.CSI.NodePublishSecretRef)
@@ -1117,6 +1223,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureKeyVaultResources(
 			for i := 0; i < len(volumeMounts); i++ {
 				volumeMount := volumeMounts[i]
 				volumeProp := scenario.expectedVolumeProps[i]
+				assert.Less(t, len(volumeMount.Name), 64, "volumemount name is too long")
 				assert.True(t, strings.Contains(volumeMount.Name, volumeProp.expectedVolumeNamePrefix))
 				assert.Equal(t, volumeProp.expectedVolumeMountPath, volumeMount.MountPath)
 				assert.True(t, volumeMount.ReadOnly)
@@ -1269,7 +1376,7 @@ func buildRd(appName string, environment string, componentName string, radixVolu
 		WithEnvironment(environment).
 		WithComponents(utils.NewDeployComponentBuilder().
 			WithName(componentName).
-			WithVolumeMounts(radixVolumeMounts)).
+			WithVolumeMounts(radixVolumeMounts...)).
 		BuildRD()
 }
 

@@ -4,27 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
-	"k8s.io/client-go/util/retry"
-
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
 // Job Instance variables
@@ -34,34 +33,41 @@ type Job struct {
 	kubeutil                  *kube.Kube
 	radixJob                  *v1.RadixJob
 	originalRadixJobCondition v1.RadixJobCondition
+	config                    *Config
 }
 
 // NewJob Constructor
-func NewJob(
-	kubeclient kubernetes.Interface,
-	kubeutil *kube.Kube,
-	radixclient radixclient.Interface,
-	radixJob *v1.RadixJob) Job {
+func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, radixJob *v1.RadixJob, config *Config) Job {
 	originalRadixJobStatus := radixJob.Status.Condition
 
 	return Job{
-		kubeclient,
-		radixclient,
-		kubeutil, radixJob, originalRadixJobStatus}
+		kubeclient:                kubeclient,
+		radixclient:               radixclient,
+		kubeutil:                  kubeutil,
+		radixJob:                  radixJob,
+		originalRadixJobCondition: originalRadixJobStatus,
+		config:                    config}
 }
 
 // OnSync compares the actual state with the desired, and attempts to
 // converge the two
 func (job *Job) OnSync() error {
 	job.restoreStatus()
-	job.SyncTargetEnvironments()
+
+	appName := job.radixJob.Spec.AppName
+	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(context.TODO(), appName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("for BuildDeploy failed to find RadixApplication by name %s", appName)
+	}
+
+	job.syncTargetEnvironments(ra)
 
 	if IsRadixJobDone(job.radixJob) {
 		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
 
-	stopReconciliation, err := job.syncStatuses()
+	stopReconciliation, err := job.syncStatuses(ra)
 	if err != nil {
 		return err
 	}
@@ -72,13 +78,17 @@ func (job *Job) OnSync() error {
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
 
-	if k8serrors.IsNotFound(err) {
+	if k8sErrors.IsNotFound(err) {
 		err = job.createPipelineJob()
+		if err != nil {
+			return err
+		}
 	}
 
 	job.maintainHistoryLimit()
+	job.garbageCollectConfigMaps()
 
-	return err
+	return nil
 }
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -103,16 +113,11 @@ func (job *Job) restoreStatus() {
 				log.Error("Unable to restore status", err)
 				return
 			}
-			// OwnerReference for pipeline step output configmaps are not restored by velero, and must be re-applied
-			if err := job.setJobStepOutputOwnerReference(); err != nil {
-				log.Error("Unable to set ownerReference on step output", err)
-				return
-			}
 		}
 	}
 }
 
-func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
+func (job *Job) syncStatuses(ra *v1.RadixApplication) (stopReconciliation bool, err error) {
 	stopReconciliation = false
 
 	if job.radixJob.Spec.Stop {
@@ -130,7 +135,7 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 		return false, err
 	}
 
-	if job.isOtherJobRunningOnBranch(allJobs.Items) {
+	if job.isOtherJobRunningOnBranch(ra, allJobs.Items) {
 		err = job.queueJob()
 		if err != nil {
 			return false, err
@@ -147,28 +152,34 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 	return
 }
 
-func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
+func (job *Job) isOtherJobRunningOnBranch(ra *v1.RadixApplication, allJobs []v1.RadixJob) bool {
+	if len(job.radixJob.Spec.Build.Branch) == 0 {
+		return false
+	}
 	for _, rj := range allJobs {
-		if rj.GetName() != job.radixJob.GetName() &&
-			job.radixJob.Spec.Build.Branch != "" &&
-			job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch &&
-			rj.Status.Condition == v1.JobRunning {
-			return true
+		if rj.GetName() == job.radixJob.GetName() || len(rj.Spec.Build.Branch) == 0 || rj.Status.Condition != v1.JobRunning {
+			continue
+		}
+		for _, env := range ra.Spec.Environments {
+			if len(env.Build.From) > 0 &&
+				branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) &&
+				branch.MatchesPattern(env.Build.From, job.radixJob.Spec.Build.Branch) {
+				return true
+			}
 		}
 	}
-
 	return false
 }
 
-// SyncTargetEnvironments sync the environments in the RadixJob with environments in the RA
-func (job *Job) SyncTargetEnvironments() {
+// sync the environments in the RadixJob with environments in the RA
+func (job *Job) syncTargetEnvironments(ra *v1.RadixApplication) {
 	rj := job.radixJob
 
 	// TargetEnv has already been set
 	if len(rj.Status.TargetEnvs) > 0 {
 		return
 	}
-	targetEnvs := job.getTargetEnv(rj)
+	targetEnvs := job.getTargetEnv(ra, rj)
 
 	// Update RJ with accurate env data
 	err := job.updateRadixJobStatus(rj, func(currStatus *v1.RadixJobStatus) {
@@ -185,18 +196,13 @@ func (job *Job) SyncTargetEnvironments() {
 	}
 }
 
-func (job *Job) getTargetEnv(rj *v1.RadixJob) *[]string {
-	if rj.Spec.PipeLineType != v1.BuildDeploy {
+func (job *Job) getTargetEnv(ra *v1.RadixApplication, rj *v1.RadixJob) *[]string {
+	if rj.Spec.PipeLineType != v1.BuildDeploy || len(rj.Spec.Build.Branch) == 0 {
 		return nil
-	}
-	ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(context.TODO(), rj.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", rj.Spec.AppName)
-		return &[]string{"N/A"}
 	}
 	targetEnvs := make([]string, 0)
 	for _, env := range ra.Spec.Environments {
-		if env.Build.From == rj.Spec.Build.Branch {
+		if len(env.Build.From) > 0 && branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) {
 			targetEnvs = append(targetEnvs, env.Name)
 		}
 	}
@@ -205,12 +211,12 @@ func (job *Job) getTargetEnv(rj *v1.RadixJob) *[]string {
 
 // IsRadixJobDone Checks if job is done
 func IsRadixJobDone(rj *v1.RadixJob) bool {
-	return rj == nil || rj.Status.Condition == v1.JobFailed || rj.Status.Condition == v1.JobSucceeded || rj.Status.Condition == v1.JobStopped
+	return rj == nil || isJobConditionDone(rj.Status.Condition)
 }
 
 func (job *Job) setStatusOfJob() error {
 	pipelineJob, err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-	if k8serrors.IsNotFound(err) {
+	if k8sErrors.IsNotFound(err) {
 		// No kubernetes job created yet, so nothing to sync
 		return nil
 	}
@@ -226,7 +232,10 @@ func (job *Job) setStatusOfJob() error {
 	if err != nil {
 		return err
 	}
-	jobStatusCondition := getJobConditionFromJobStatus(pipelineJob.Status)
+	jobStatusCondition, err := job.getJobConditionFromJobStatus(pipelineJob.Status)
+	if err != nil {
+		return err
+	}
 
 	err = job.updateRadixJobStatusWithMetrics(job.radixJob, job.originalRadixJobCondition, func(currStatus *v1.RadixJobStatus) {
 		currStatus.Steps = steps
@@ -243,11 +252,18 @@ func (job *Job) setStatusOfJob() error {
 	if err != nil {
 		return err
 	}
-
-	if jobStatusCondition == v1.JobSucceeded || jobStatusCondition == v1.JobFailed {
+	if isJobConditionDone(jobStatusCondition) {
 		err = job.setNextJobToRunning()
+		if err != nil {
+			return err
+		}
 	}
-	return err
+	return nil
+}
+
+func isJobConditionDone(jobStatusCondition v1.RadixJobCondition) bool {
+	return jobStatusCondition == v1.JobSucceeded || jobStatusCondition == v1.JobFailed ||
+		jobStatusCondition == v1.JobStopped || jobStatusCondition == v1.JobStoppedNoChanges
 }
 
 func (job *Job) stopJob() error {
@@ -278,7 +294,7 @@ func (job *Job) getStoppedSteps(isRunning bool) (*[]v1.RadixJobStep, error) {
 	}
 	// Delete pipeline job
 	err := job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Delete(context.TODO(), job.radixJob.Name, metav1.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
+	if err != nil && !k8sErrors.IsNotFound(err) {
 		return nil, err
 	}
 
@@ -326,7 +342,7 @@ func (job *Job) setNextJobToRunning() error {
 		return err
 	}
 
-	rjs := sortJobsByActiveFromTimestampAsc(rjList.Items)
+	rjs := sortRadixJobsByCreatedAsc(rjList.Items)
 	for _, otherRj := range rjs {
 		if otherRj.Name != job.radixJob.Name && otherRj.Status.Condition == v1.JobQueued { // previous status for this otherRj was Queued
 			return job.updateRadixJobStatusWithMetrics(&otherRj, v1.JobQueued, func(currStatus *v1.RadixJobStatus) {
@@ -335,20 +351,6 @@ func (job *Job) setNextJobToRunning() error {
 		}
 	}
 	return nil
-}
-
-func sortJobsByActiveFromTimestampAsc(rjs []v1.RadixJob) []v1.RadixJob {
-	sort.Slice(rjs, func(i, j int) bool {
-		return isRJ1ActiveAfterRJ2(&rjs[j], &rjs[i])
-	})
-	return rjs
-}
-
-func isRJ1ActiveAfterRJ2(rj1 *v1.RadixJob, rj2 *v1.RadixJob) bool {
-	rj1ActiveFrom := rj1.CreationTimestamp
-	rj2ActiveFrom := rj2.CreationTimestamp
-
-	return rj2ActiveFrom.Before(&rj1ActiveFrom)
 }
 
 func (job *Job) queueJob() error {
@@ -436,16 +438,9 @@ func (job *Job) getJobStepsBuildPipeline(pipelinePod *corev1.Pod, pipelineJob *b
 			return nil, err
 		}
 
-		containerOutputNames := make(pipeline.ContainerOutputName)
-		if err := getObjectFromJobAnnotation(&jobStep, kube.RadixContainerOutputAnnotation, &containerOutputNames); err != nil {
-			return nil, err
-		}
-
 		for _, containerStatus := range pod.Status.ContainerStatuses {
 			components := getComponentsForContainer(containerStatus.Name, componentImages)
-			containerOutputName := containerOutputNames[containerStatus.Name]
-			jobStepOutput := getJobStepOutput(job.kubeclient, jobType, containerOutputName, job.radixJob.Namespace, containerStatus)
-			step := getJobStep(pod.GetName(), &containerStatus, components, jobStepOutput)
+			step := getJobStep(pod.GetName(), &containerStatus, components)
 			if _, ok := foundPrepareStepNames[step.Name]; ok {
 				continue
 			}
@@ -497,7 +492,7 @@ func (job *Job) getPipelinePod() (*corev1.Pod, error) {
 
 func getPipelineJobStep(pipelinePod *corev1.Pod) v1.RadixJobStep {
 	var components []string
-	return getJobStep(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0], components, nil)
+	return getJobStep(pipelinePod.GetName(), &pipelinePod.Status.ContainerStatuses[0], components)
 }
 
 func (job *Job) getCloneConfigApplyConfigAndPreparePipelineStep() (*v1.RadixJobStep, *v1.RadixJobStep) {
@@ -541,14 +536,14 @@ func getContainerStatusByName(name string, containerStatuses []corev1.ContainerS
 }
 
 func getJobStepWithNoComponents(podName string, containerStatus *corev1.ContainerStatus) v1.RadixJobStep {
-	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, nil, nil)
+	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, nil)
 }
 
-func getJobStep(podName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutput *v1.RadixJobStepOutput) v1.RadixJobStep {
-	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, components, jobStepOutput)
+func getJobStep(podName string, containerStatus *corev1.ContainerStatus, components []string) v1.RadixJobStep {
+	return getJobStepWithContainerName(podName, containerStatus.Name, containerStatus, components)
 }
 
-func getJobStepWithContainerName(podName, containerName string, containerStatus *corev1.ContainerStatus, components []string, jobStepOutput *v1.RadixJobStepOutput) v1.RadixJobStep {
+func getJobStepWithContainerName(podName, containerName string, containerStatus *corev1.ContainerStatus, components []string) v1.RadixJobStep {
 	var startedAt *metav1.Time
 	var finishedAt *metav1.Time
 
@@ -581,7 +576,6 @@ func getJobStepWithContainerName(podName, containerName string, containerStatus 
 		Condition:  status,
 		PodName:    podName,
 		Components: components,
-		Output:     jobStepOutput,
 	}
 }
 
@@ -607,15 +601,9 @@ func (job *Job) updateRadixJobStatusWithMetrics(savingRadixJob *v1.RadixJob, ori
 	if err := job.updateRadixJobStatus(savingRadixJob, changeStatusFunc); err != nil {
 		return err
 	}
-
 	if originalRadixJobCondition != job.radixJob.Status.Condition {
 		metrics.RadixJobStatusChanged(job.radixJob)
-
-		if job.radixJob.Status.Condition == v1.JobSucceeded {
-			metrics.RadixJobVulnerabilityScan(job.radixJob)
-		}
 	}
-
 	return nil
 }
 
@@ -640,78 +628,43 @@ func (job *Job) updateRadixJobStatus(rj *v1.RadixJob, changeStatusFunc func(curr
 	return err
 }
 
-func (job *Job) maintainHistoryLimit() {
-	historyLimit := os.Getenv(defaults.JobsHistoryLimitEnvironmentVariable)
-	if historyLimit != "" {
-		limit, err := strconv.Atoi(historyLimit)
-		if err != nil {
-			log.Warnf("%s is not set to a proper number, %s, and cannot be parsed.", defaults.JobsHistoryLimitEnvironmentVariable, historyLimit)
-			return
-		}
-
-		allRJs, err := job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			log.Errorf("Failed to get all RadixDeployments. Error was %v", err)
-			return
-		}
-
-		if len(allRJs.Items) > limit {
-			jobs := allRJs.Items
-			numToDelete := len(jobs) - limit
-			if numToDelete <= 0 {
-				return
-			}
-
-			jobs = sortJobsByActiveFromTimestampAsc(jobs)
-			for i := 0; i < numToDelete; i++ {
-				log.Infof("Removing job %s from %s", jobs[i].Name, jobs[i].Namespace)
-				//goland:noinspection GoUnhandledErrorResult - do not fail on error
-				job.radixclient.RadixV1().RadixJobs(job.radixJob.Namespace).Delete(context.TODO(), jobs[i].Name, metav1.DeleteOptions{})
+func (job *Job) garbageCollectConfigMaps() {
+	namespace := job.radixJob.GetNamespace()
+	radixJobConfigMaps, err := job.kubeutil.ListConfigMapsWithSelector(namespace, getRadixJobNameExistsSelector().String())
+	if err != nil {
+		log.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %v", namespace, err)
+		return
+	}
+	radixJobNameSet, err := job.getRadixJobNameSet()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	for _, configMap := range radixJobConfigMaps {
+		jobName := configMap.GetLabels()[kube.RadixJobNameLabel]
+		if _, radixJobExists := radixJobNameSet[jobName]; !radixJobExists {
+			err := job.kubeutil.DeleteConfigMap(configMap.GetNamespace(), configMap.GetName())
+			log.Debugf("Deleted the ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
+			if err != nil {
+				log.Errorf("failed to delete ConfigMap %s while garbage collecting config-maps in %s. Error: %v", configMap.GetName(), namespace, err)
 			}
 		}
 	}
 }
 
-func (job *Job) setJobStepOutputOwnerReference() error {
-	for _, step := range job.radixJob.Status.Steps {
-		if output := step.Output; output != nil {
-			switch {
-			case output.Scan != nil:
-				if err := job.setScanStepOutputOwnerReference(output.Scan); err != nil {
-					return err
-				}
-			}
-		}
+func (job *Job) getRadixJobNameSet() (map[string]bool, error) {
+	radixJobs, err := job.getAllRadixJobs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get RadixJob while garbage collecting config-maps in %s. Error: %w", job.radixJob.GetNamespace(), err)
 	}
-
-	return nil
+	radixJobNameSet := make(map[string]bool)
+	for _, radixJob := range radixJobs {
+		radixJobNameSet[radixJob.GetName()] = true
+	}
+	return radixJobNameSet, nil
 }
 
-func (job *Job) setScanStepOutputOwnerReference(scanOutput *v1.RadixJobStepScanOutput) error {
-	if scanOutput == nil {
-		return nil
-	}
-
-	configMapName := strings.TrimSpace(scanOutput.VulnerabilityListConfigMap)
-	if configMapName == "" {
-		return nil
-	}
-
-	namespace := job.radixJob.Namespace
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		cm, err := job.kubeutil.GetConfigMap(namespace, configMapName)
-		if err != nil && k8serrors.IsNotFound(err) {
-			log.Debugf("ConfigMap %s not found", configMapName)
-			return nil
-		}
-
-		// Skip ownerReference update if already set
-		if len(cm.OwnerReferences) > 0 {
-			return nil
-		}
-
-		cm.OwnerReferences = GetOwnerReference(job.radixJob)
-		_, err = job.kubeclient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
-		return err
-	})
+func getRadixJobNameExistsSelector() labels.Selector {
+	requirement, _ := labels.NewRequirement(kube.RadixJobNameLabel, selection.Exists, []string{})
+	return labels.NewSelector().Add(*requirement)
 }

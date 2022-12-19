@@ -310,21 +310,7 @@ func ACompletedJobStatus() JobStatusBuilder {
 			ABuildAppStep().
 				WithCondition(v1.JobRunning).
 				WithStarted(started).
-				WithEnded(ended),
-			AScanAppStep().
-				WithCondition(v1.JobRunning).
-				WithStarted(started).
-				WithEnded(ended).
-				WithOutput(
-					&v1.RadixJobStepOutput{
-						Scan: &v1.RadixJobStepScanOutput{
-							Status:                     v1.ScanSuccess,
-							Vulnerabilities:            v1.VulnerabilityMap{"critical": 1, "high": 2},
-							VulnerabilityListConfigMap: "scan-configmap",
-							VulnerabilityListKey:       "list-of-vulnerabilities",
-						},
-					},
-				))
+				WithEnded(ended))
 
 	return builder
 }
@@ -336,7 +322,6 @@ type JobStepBuilder interface {
 	WithStarted(time.Time) JobStepBuilder
 	WithEnded(time.Time) JobStepBuilder
 	WithComponents(...string) JobStepBuilder
-	WithOutput(*v1.RadixJobStepOutput) JobStepBuilder
 	Build() v1.RadixJobStep
 }
 
@@ -346,7 +331,6 @@ type jobStepBuilder struct {
 	started    time.Time
 	ended      time.Time
 	components []string
-	output     *v1.RadixJobStepOutput
 }
 
 func (sb *jobStepBuilder) WithCondition(condition v1.RadixJobCondition) JobStepBuilder {
@@ -374,11 +358,6 @@ func (sb *jobStepBuilder) WithComponents(components ...string) JobStepBuilder {
 	return sb
 }
 
-func (sb *jobStepBuilder) WithOutput(output *v1.RadixJobStepOutput) JobStepBuilder {
-	sb.output = output
-	return sb
-}
-
 func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 	// Need to trim away milliseconds, as reading job status from annotation wont hold them
 	started := sb.started.Truncate(1 * time.Second)
@@ -390,7 +369,6 @@ func (sb *jobStepBuilder) Build() v1.RadixJobStep {
 		Ended:      &metav1.Time{Time: ended},
 		Name:       sb.name,
 		Components: sb.components,
-		Output:     sb.output,
 	}
 }
 
@@ -427,14 +405,6 @@ func ACloneStep() JobStepBuilder {
 func ABuildAppStep() JobStepBuilder {
 	builder := NewJobStepBuilder().
 		WithName("build-app")
-
-	return builder
-}
-
-// ABuildAppStep Constructor build-app
-func AScanAppStep() JobStepBuilder {
-	builder := NewJobStepBuilder().
-		WithName("scan-app")
 
 	return builder
 }

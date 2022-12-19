@@ -6,8 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/google/uuid"
+	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,8 +31,11 @@ func updateComponentNode(component v1.RadixCommonComponent, node *v1.RadixNode) 
 }
 
 func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) v1.EnvVarsMap {
+	if !component.GetEnabledForEnv(environmentSpecificConfig) {
+		return make(v1.EnvVarsMap)
+	}
 	var variables v1.EnvVarsMap
-	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+	if !commonUtils.IsNil(environmentSpecificConfig) {
 		variables = environmentSpecificConfig.GetVariables()
 	}
 	if variables == nil {
@@ -53,7 +59,7 @@ func getRadixCommonComponentEnvVars(component v1.RadixCommonComponent, environme
 
 func getRadixCommonComponentResources(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.ResourceRequirements {
 	var resources v1.ResourceRequirements
-	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+	if !commonUtils.IsNil(environmentSpecificConfig) {
 		resources = environmentSpecificConfig.GetResources()
 	}
 	if reflect.DeepEqual(resources, v1.ResourceRequirements{}) {
@@ -64,7 +70,7 @@ func getRadixCommonComponentResources(component v1.RadixCommonComponent, environ
 
 func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixNode {
 	var node v1.RadixNode
-	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+	if !commonUtils.IsNil(environmentSpecificConfig) {
 		node = environmentSpecificConfig.GetNode()
 	}
 	updateComponentNode(radixComponent, &node)
@@ -73,7 +79,7 @@ func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environ
 
 func getImagePath(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
 	var imageTagName string
-	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+	if !commonUtils.IsNil(environmentSpecificConfig) {
 		imageTagName = environmentSpecificConfig.GetImageTagName()
 	}
 
@@ -94,7 +100,7 @@ func getRadixCommonComponentRadixSecretRefs(component v1.RadixCommonComponent, e
 
 func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) []v1.RadixAzureKeyVault {
 	if len(radixComponent.GetSecretRefs().AzureKeyVaults) == 0 {
-		if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+		if !commonUtils.IsNil(environmentSpecificConfig) {
 			return environmentSpecificConfig.GetSecretRefs().AzureKeyVaults
 		}
 		return nil
@@ -103,7 +109,7 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 	envAzureKeyVaultsMap := make(map[string]v1.RadixAzureKeyVault)
 	envSecretRefsExistingEnvVarsMap := make(map[string]bool)
 
-	if !reflect.ValueOf(environmentSpecificConfig).IsNil() {
+	if !commonUtils.IsNil(environmentSpecificConfig) {
 		for _, envAzureKeyVault := range environmentSpecificConfig.GetSecretRefs().AzureKeyVaults {
 			envAzureKeyVaultsMap[envAzureKeyVault.Name] = envAzureKeyVault
 			for _, envKeyVaultItem := range envAzureKeyVault.Items {
@@ -156,4 +162,48 @@ func getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(commonAzureKeyVa
 		}
 	}
 	return keyVaultItems
+}
+
+func getRadixCommonComponentIdentity(radixComponent v1.RadixCommonComponent, environmentConfig v1.RadixCommonEnvironmentConfig) (identity *v1.Identity, err error) {
+	// mergo uses the reflect package, and reflect use panic() when errors are detected
+	// We handle panics to prevent process termination even if the RD will be re-queued forever (until a new RD is built)
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
+	identity = &v1.Identity{}
+
+	if !commonUtils.IsNil(radixComponent) {
+		if componentIdentity := radixComponent.GetIdentity(); componentIdentity != nil {
+			componentIdentity.DeepCopyInto(identity)
+		}
+	}
+
+	if !commonUtils.IsNil(environmentConfig) {
+		if environmentIdentity := environmentConfig.GetIdentity(); environmentIdentity != nil {
+			if err := mergo.Merge(identity, environmentIdentity, mergo.WithOverride); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if reflect.DeepEqual(identity, &v1.Identity{}) {
+		return nil, nil
+	}
+
+	if identity != nil && identity.Azure != nil {
+		id, err := uuid.Parse(identity.Azure.ClientId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse identity.azure.clientId for component %s: %w", radixComponent.GetName(), err)
+		}
+		identity.Azure.ClientId = id.String()
+	}
+
+	return identity, nil
 }

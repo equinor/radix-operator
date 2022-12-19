@@ -7,7 +7,6 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,12 +46,11 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	commitID := pipelineInfo.GitCommitHash
 
 	if !pipelineInfo.BranchIsMapped {
-		// Do nothing
-		return fmt.Errorf("skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		log.Infof("Skip build step as branch %s is not mapped to any environment", pipelineInfo.PipelineArguments.Branch)
+		return nil
 	}
 
-	if noBuildComponents(pipelineInfo.RadixApplication) {
-		// Do nothing and no error
+	if !needToBuildComponents(pipelineInfo.ComponentImages) {
 		log.Infof("No component in app %s requires building", cli.GetAppName())
 		return nil
 	}
@@ -89,18 +87,11 @@ func (cli *BuildStepImplementation) Run(pipelineInfo *model.PipelineInfo) error 
 	return cli.GetKubeutil().WaitForCompletionOf(job)
 }
 
-func noBuildComponents(ra *v1.RadixApplication) bool {
-	for _, c := range ra.Spec.Components {
-		if c.Image == "" {
-			return false
+func needToBuildComponents(componentImages map[string]pipeline.ComponentImage) bool {
+	for _, componentImage := range componentImages {
+		if componentImage.Build {
+			return true
 		}
 	}
-
-	for _, c := range ra.Spec.Jobs {
-		if c.Image == "" {
-			return false
-		}
-	}
-
-	return true
+	return false
 }

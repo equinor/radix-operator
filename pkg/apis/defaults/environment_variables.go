@@ -13,14 +13,17 @@ const (
 	// DeploymentsHistoryLimitEnvironmentVariable Controls the number of RDs we can have in a environment
 	DeploymentsHistoryLimitEnvironmentVariable = "RADIX_DEPLOYMENTS_PER_ENVIRONMENT_HISTORY_LIMIT"
 
-	// JobsHistoryLimitEnvironmentVariable Controls the number of RJs we can have in a app namespace
-	JobsHistoryLimitEnvironmentVariable = "RADIX_JOBS_PER_APP_HISTORY_LIMIT"
+	// PipelineJobsHistoryLimitEnvironmentVariable Controls the number of RJs we can have in an app namespace, per groups by branch and status
+	PipelineJobsHistoryLimitEnvironmentVariable = "RADIX_PIPELINE_JOBS_HISTORY_LIMIT"
 
 	// ClusternameEnvironmentVariable The name of the cluster
 	ClusternameEnvironmentVariable = "RADIX_CLUSTERNAME"
 
 	// ContainerRegistryEnvironmentVariable The name of the container registry
 	ContainerRegistryEnvironmentVariable = "RADIX_CONTAINER_REGISTRY"
+
+	// AzureSubscriptionIdEnvironmentVariable The Azure subscription ID
+	AzureSubscriptionIdEnvironmentVariable = "AZURE_SUBSCRIPTION_ID"
 
 	// EnvironmentnameEnvironmentVariable The name of the environment for the application
 	EnvironmentnameEnvironmentVariable = "RADIX_ENVIRONMENT"
@@ -46,6 +49,9 @@ const (
 	// RadixDNSZoneEnvironmentVariable The environment variable on a radix app giving the dns zone. Will be equal to OperatorDNSZoneEnvironmentVariable
 	RadixDNSZoneEnvironmentVariable = "RADIX_DNS_ZONE"
 
+	// RadixZoneEnvironmentVariable The environment variable on a radix app giving the radix zone.
+	RadixZoneEnvironmentVariable = "RADIX_ZONE"
+
 	// RadixClusterTypeEnvironmentVariable The type of cluster dev|playground|prod. Will be equal to OperatorClusterTypeEnvironmentVariable
 	RadixClusterTypeEnvironmentVariable = "RADIX_CLUSTER_TYPE"
 
@@ -64,9 +70,6 @@ const (
 	// RadixImageBuilderEnvironmentVariable Points to the image builder
 	RadixImageBuilderEnvironmentVariable = "RADIX_IMAGE_BUILDER"
 
-	// RadixImageScannerEnvironmentVariable Points to the image scanner
-	RadixImageScannerEnvironmentVariable = "RADIX_IMAGE_SCANNER"
-
 	// OperatorRadixJobSchedulerEnvironmentVariable Points to the image used to deploy job scheduler REST API for RD jobs
 	OperatorRadixJobSchedulerEnvironmentVariable = "RADIXOPERATOR_JOB_SCHEDULER"
 
@@ -82,10 +85,14 @@ const (
 	// RadixPromoteToEnvironmentEnvironmentVariable Name of Radix environment for pipeline promote to
 	RadixPromoteToEnvironmentEnvironmentVariable = "TO_ENVIRONMENT"
 
-	// RadixDeploymentForceNonRootContainers Controls the non-root configuration for component containers
-	// true: all component containers are force to run as non-root
-	// false: non-root for a component container is controlled by runAsNonRoot from radixconfig
-	RadixDeploymentForceNonRootContainers = "RADIX_DEPLOYMENTS_FORCE_NON_ROOT_CONTAINER"
+	// RadixPromoteSourceDeploymentCommitHashEnvironmentVariable Git commit hash of source deployment in promote jobs
+	RadixPromoteSourceDeploymentCommitHashEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_COMMIT_HASH"
+
+	// RadixPromoteSourceDeploymentBranchEnvironmentVariable Git branch of source deployment in promote jobs
+	RadixPromoteSourceDeploymentBranchEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_BRANCH"
+
+	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
+	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"
 
 	// RadixActiveClusterEgressIpsEnvironmentVariable IPs assigned to the cluster
 	RadixActiveClusterEgressIpsEnvironmentVariable = "RADIX_ACTIVE_CLUSTER_EGRESS_IPS"
@@ -113,6 +120,9 @@ const (
 	// RadixUseCacheEnvironmentVariable Use cache for the built component
 	RadixUseCacheEnvironmentVariable = "USE_CACHE"
 
+	// UseBuildKitEnvironmentVariable Use Docker BuildKit in radix-image-builder
+	UseBuildKitEnvironmentVariable = "DOCKER_BUILDKIT"
+
 	// RadixPipelineJobEnvironmentVariable Radix pipeline job name
 	RadixPipelineJobEnvironmentVariable = "JOB_NAME"
 
@@ -124,6 +134,9 @@ const (
 
 	// RadixBranchEnvironmentVariable Branch of the Radix application to process in a pipeline
 	RadixBranchEnvironmentVariable = "BRANCH"
+
+	// RadixConfigBranchEnvironmentVariable Branch of the Radix application config
+	RadixConfigBranchEnvironmentVariable = "RADIX_CONFIG_BRANCH"
 
 	// RadixCommitIdEnvironmentVariable Commit ID of the Radix application to process in a pipeline
 	RadixCommitIdEnvironmentVariable = "COMMIT_ID"
@@ -145,4 +158,22 @@ const (
 
 	// LogLevel Log level: ERROR, INFO (default), DEBUG
 	LogLevel = "LOG_LEVEL"
+
+	// PodSecurityStandardEnforceLevelEnvironmentVariable Pod Security Standard enforce level for app and environment namespaces
+	PodSecurityStandardEnforceLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_LEVEL"
+
+	// PodSecurityStandardEnforceVersionEnvironmentVariable Pod Security Standard enforce version for app and environment namespaces
+	PodSecurityStandardEnforceVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_ENFORCE_VERSION"
+
+	// PodSecurityStandardAuditLevelEnvironmentVariable Pod Security Standard audit level for app and environment namespaces
+	PodSecurityStandardAuditLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_LEVEL"
+
+	// PodSecurityStandardAuditVersionEnvironmentVariable Pod Security Standard audit version for app and environment namespaces
+	PodSecurityStandardAuditVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_AUDIT_VERSION"
+
+	// PodSecurityStandardWarnLevelEnvironmentVariable Pod Security Standard warn level for app and environment namespaces
+	PodSecurityStandardWarnLevelEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_LEVEL"
+
+	// PodSecurityStandardWarnVersionEnvironmentVariable Pod Security Standard warn version for app and environment namespaces
+	PodSecurityStandardWarnVersionEnvironmentVariable = "RADIXOPERATOR_PODSECURITYSTANDARD_WARN_VERSION"
 )

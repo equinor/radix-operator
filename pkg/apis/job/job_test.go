@@ -2,13 +2,13 @@ package job
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	kubeUtils "github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -16,9 +16,8 @@ import (
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kube "k8s.io/client-go/kubernetes"
+	kubeclient "k8s.io/client-go/kubernetes"
 	kubernetes "k8s.io/client-go/kubernetes/fake"
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
@@ -30,8 +29,8 @@ const egressIps = "0.0.0.0"
 type RadixJobTestSuiteBase struct {
 	suite.Suite
 	testUtils   *test.Utils
-	kubeClient  kube.Interface
-	kubeUtils   *kubeUtils.Kube
+	kubeClient  kubeclient.Interface
+	kubeUtils   *kube.Kube
 	radixClient radixclient.Interface
 }
 
@@ -45,13 +44,13 @@ func (s *RadixJobTestSuiteBase) TearDownTest() {
 
 func (s *RadixJobTestSuiteBase) setupTest() {
 	// Setup
-	kubeclient := kubernetes.NewSimpleClientset()
-	radixclient := radix.NewSimpleClientset()
+	kubeClient := kubernetes.NewSimpleClientset()
+	radixClient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
-	kubeUtil, _ := kubeUtils.New(kubeclient, radixclient, secretproviderclient)
-	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
+	kubeUtil, _ := kube.New(kubeClient, radixClient, secretproviderclient)
+	handlerTestUtils := test.NewTestUtils(kubeClient, radixClient, secretproviderclient)
 	handlerTestUtils.CreateClusterPrerequisites(clusterName, anyContainerRegistry, egressIps)
-	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeclient, kubeUtil, radixclient
+	s.testUtils, s.kubeClient, s.kubeUtils, s.radixClient = &handlerTestUtils, kubeClient, kubeUtil, radixClient
 }
 
 func (s *RadixJobTestSuiteBase) teardownTest() {
@@ -61,17 +60,16 @@ func (s *RadixJobTestSuiteBase) teardownTest() {
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
 	os.Unsetenv(defaults.OperatorReadinessProbePeriodSeconds)
 	os.Unsetenv(defaults.ActiveClusternameEnvironmentVariable)
-	os.Unsetenv(defaults.JobsHistoryLimitEnvironmentVariable)
 	os.Unsetenv(defaults.OperatorTenantIdEnvironmentVariable)
 }
 
-func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
+func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder, config *Config) (*v1.RadixJob, error) {
 	rj, err := s.testUtils.ApplyJob(jobBuilder)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.runSync(rj)
+	err = s.runSync(rj, config)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +78,8 @@ func (s *RadixJobTestSuiteBase) applyJobWithSync(jobBuilder utils.JobBuilder) (*
 	return updatedJob, err
 }
 
-func (s *RadixJobTestSuiteBase) runSync(rj *v1.RadixJob) error {
-	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj)
+func (s *RadixJobTestSuiteBase) runSync(rj *v1.RadixJob, config *Config) error {
+	job := NewJob(s.kubeClient, s.kubeUtils, s.radixClient, rj, config)
 	err := job.OnSync()
 	if err != nil {
 		return err
@@ -99,100 +97,596 @@ type RadixJobTestSuite struct {
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_StatusMissing_StatusFromAnnotation() {
-	appName, cmName := "anyapp", "anycm"
-	s.kubeClient.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Create(
-		context.Background(),
-		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: cmName}},
-		metav1.CreateOptions{},
-	)
-	completedJobStatus := utils.ACompletedJobStatus().WithStep(
-		utils.
-			AScanAppStep().
-			WithStarted(time.Now()).
-			WithEnded(time.Now()).
-			WithOutput(
-				&v1.RadixJobStepOutput{Scan: &v1.RadixJobStepScanOutput{VulnerabilityListConfigMap: cmName}},
-			))
+	config := &Config{
+		PipelineJobsHistoryLimit: 3,
+	}
+
+	appName := "anyApp"
+	completedJobStatus := utils.ACompletedJobStatus()
 
 	// Test
 	job, err := s.applyJobWithSync(utils.NewJobBuilder().
+		WithRadixApplication(utils.ARadixApplication().WithAppName(appName)).
 		WithStatusOnAnnotation(completedJobStatus).
 		WithAppName(appName).
-		WithJobName("anyjob"))
+		WithJobName("anyJob"), config)
 
 	assert.NoError(s.T(), err)
 
 	expectedStatus := completedJobStatus.Build()
 	actualStatus := job.Status
 	assertStatusEqual(s.T(), expectedStatus, actualStatus)
-	cm, _ := s.kubeUtils.GetConfigMap(utils.GetAppNamespace(appName), cmName)
-	s.ElementsMatch(GetOwnerReference(job), cm.GetOwnerReferences())
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobs_SecondJobQueued() {
+	config := &Config{
+		PipelineJobsHistoryLimit: 3,
+	}
 	// Setup
-	firstJob, _ := s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
+	firstJob, _ := s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"), config)
 
 	// Test
-	secondJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("master"))
+	secondJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("master"), config)
 
 	assert.True(s.T(), secondJob.Status.Condition == v1.JobQueued)
 
 	// Stopping first job should set second job to running
 	firstJob.Spec.Stop = true
 	s.radixClient.RadixV1().RadixJobs(firstJob.ObjectMeta.Namespace).Update(context.TODO(), firstJob, metav1.UpdateOptions{})
-	s.runSync(firstJob)
+	s.runSync(firstJob, config)
 
 	secondJob, _ = s.radixClient.RadixV1().RadixJobs(secondJob.ObjectMeta.Namespace).Get(context.TODO(), secondJob.Name, metav1.GetOptions{})
 	assert.True(s.T(), secondJob.Status.Condition == v1.JobRunning)
 }
 
 func (s *RadixJobTestSuite) TestObjectSynced_MultipleJobsDifferentBranch_SecondJobRunning() {
+	config := &Config{
+		PipelineJobsHistoryLimit: 3,
+	}
 	// Setup
-	s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"))
+	s.applyJobWithSync(utils.AStartedBuildDeployJob().WithJobName("FirstJob").WithBranch("master"), config)
 
 	// Test
-	secondJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("release"))
+	secondJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob").WithBranch("release"), config)
 
 	assert.True(s.T(), secondJob.Status.Condition != v1.JobQueued)
 }
 
-func (s *RadixJobTestSuite) TestHistoryLimit_IsBroken_FixedAmountOfJobs() {
-	anyLimit := 3
+type radixDeploymentJob struct {
+	// jobName Radix pipeline job
+	jobName string
+	// rdName RadixDeployment name
+	rdName string
+	// env of environments, where RadixDeployments are deployed
+	env string
+	// branch to build
+	branch string
+	// type of the pipeline
+	pipelineType v1.RadixPipelineType
+	// jobStatus Status of the job
+	jobStatus v1.RadixJobCondition
+}
 
-	// Current cluster is active cluster
-	os.Setenv(defaults.JobsHistoryLimitEnvironmentVariable, strconv.Itoa(anyLimit))
+func (s *RadixJobTestSuite) TestHistoryLimit_EachEnvHasOwnHistory() {
+	appName := "anyApp"
+	appNamespace := utils.GetAppNamespace(appName)
+	const envDev = "dev"
+	const envQa = "qa"
+	const envProd = "prod"
+	const branchDevQa = "main"
+	const branchProd = "release"
+	raBuilder := utils.ARadixApplication().WithAppName(appName).
+		WithEnvironment(envDev, branchDevQa).
+		WithEnvironment(envQa, branchDevQa).
+		WithEnvironment(envProd, branchProd)
 
-	firstJob, _ := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FirstJob"))
+	type jobScenario struct {
+		// name Scenario name
+		name string
+		// existingRadixDeploymentJobs List of RadixDeployments and its RadixJobs, setup before test
+		existingRadixDeploymentJobs []radixDeploymentJob
+		// testingRadixDeploymentJob RadixDeployments and its RadixJobs under test
+		testingRadixDeploymentJob radixDeploymentJob
+		// jobsHistoryLimitPerBranchAndStatus Limit, defined in the env-var   RADIX_PIPELINE_JOBS_HISTORY_LIMIT
+		jobsHistoryLimit int
+		// expectedJobNames Name of jobs, expected to exist on finishing test
+		expectedJobNames []string
+	}
 
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("SecondJob"))
+	scenarios := []jobScenario{
+		{
+			name:             "All jobs are successful and running - no deleted job",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobRunning,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3"},
+		},
+		{
+			name:             "All jobs are successful and queued - no deleted job",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobQueued,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3"},
+		},
+		{
+			name:             "All jobs are successful and waiting - no deleted job",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobWaiting,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3"},
+		},
+		{
+			name:             "Stopped job within the limit - not deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j2"},
+		},
+		{
+			name:             "Stopped job out of the limit - old deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4"},
+		},
+		{
+			name:             "Failed job within the limit - not deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j2"},
+		},
+		{
+			name:             "Failed job out of the limit - old deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4"},
+		},
+		{
+			name:             "StoppedNoChanges job within the limit - not deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j2"},
+		},
+		{
+			name:             "StoppedNoChanges job out of the limit - old deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4"},
+		},
+		{
+			name:             "Stopped and failed jobs within the limit - not deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5"},
+		},
+		{
+			name:             "Stopped job out of the limit - old stopped deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6"},
+		},
+		{
+			name:             "Failed job out of the limit - old falsed deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j2", "j4", "j5", "j6"},
+		},
+		{
+			name:             "StoppedNoChanges job out of the limit - old stopped-no-changes deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j5", "j6"},
+		},
+		{
+			name:             "Failed job is within the limit on env - not deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobFailed},
+				{jobName: "j6", rdName: "rd6", env: envProd, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j7", rdName: "rd7", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5", "j6", "j7"},
+		},
+		{
+			name:             "Failed job out of the limit on env - old failed deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobFailed},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobFailed},
+				{jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobFailed},
+				{jobName: "j7", rdName: "rd7", env: envProd, jobStatus: v1.JobFailed},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j8", rdName: "rd8", env: envDev, jobStatus: v1.JobFailed,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6", "j7", "j8"},
+		},
+		{
+			name:             "Stopped job is within the limit on env - not deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStopped},
+				{jobName: "j6", rdName: "rd6", env: envProd, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j7", rdName: "rd7", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5", "j6", "j7"},
+		},
+		{
+			name:             "Stopped job out of the limit on env - old stopped deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStopped},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStopped},
+				{jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStopped},
+				{jobName: "j7", rdName: "rd7", env: envProd, jobStatus: v1.JobStopped},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j8", rdName: "rd8", env: envDev, jobStatus: v1.JobStopped,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6", "j7", "j8"},
+		},
+		{
+			name:             "StoppedNoChanges job is within the limit on env - not deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j6", rdName: "rd6", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j7", rdName: "rd7", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j2", "j3", "j4", "j5", "j6", "j7"},
+		},
+		{
+			name:             "StoppedNoChanges job out of the limit on env - old StoppedNoChanges deleted",
+			jobsHistoryLimit: 2,
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", rdName: "rd1", env: envDev, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", rdName: "rd2", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j3", rdName: "rd3", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j4", rdName: "rd4", env: envQa, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", rdName: "rd5", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j6", rdName: "rd6", env: envDev, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j7", rdName: "rd7", env: envProd, jobStatus: v1.JobStoppedNoChanges},
+			},
+			testingRadixDeploymentJob: radixDeploymentJob{
+				jobName: "j8", rdName: "rd8", env: envDev, jobStatus: v1.JobStoppedNoChanges,
+			},
+			expectedJobNames: []string{"j1", "j3", "j4", "j5", "j6", "j7", "j8"},
+		},
+	}
 
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("ThirdJob"))
+	for _, scenario := range scenarios {
+		s.T().Run(scenario.name, func(t *testing.T) {
+			defer s.teardownTest()
+			s.setupTest()
+			config := &Config{
+				PipelineJobsHistoryLimit: scenario.jobsHistoryLimit,
+			}
+			testTime := time.Now().Add(time.Hour * -100)
+			for _, rdJob := range scenario.existingRadixDeploymentJobs {
+				_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+					WithAppName(appName).WithDeploymentName(rdJob.rdName).WithEnvironment(rdJob.env).WithJobName(rdJob.jobName).
+					WithActiveFrom(testTime))
+				s.NoError(err)
+				s.applyJobWithSyncFor(raBuilder, appName, rdJob, config)
+				testTime = testTime.Add(time.Hour)
+			}
 
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FourthJob"))
+			_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+				WithAppName(appName).WithDeploymentName(scenario.testingRadixDeploymentJob.rdName).
+				WithEnvironment(scenario.testingRadixDeploymentJob.env).
+				WithActiveFrom(testTime))
+			s.NoError(err)
+			s.applyJobWithSyncFor(raBuilder, appName, scenario.testingRadixDeploymentJob, config)
 
-	jobs, _ := s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+			s.NoError(err)
+			s.assertExistRadixJobsWithNames(radixJobList, scenario.expectedJobNames)
+		})
+	}
+}
 
-	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("SecondJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
+type jobConditions map[string]v1.RadixJobCondition
 
-	s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("FifthJob"))
+func (s *RadixJobTestSuite) Test_WildCardJobs() {
+	appName := "anyApp"
+	appNamespace := utils.GetAppNamespace(appName)
+	const (
+		envTest                      = "test"
+		envQa                        = "qa"
+		branchQa                     = "qa"
+		branchTest                   = "test"
+		branchTestWildCard           = "test*"
+		branchTest1                  = "test1"
+		branchTest2                  = "test2"
+		testingJobConditionIsRunning = "" //because k8s job is not started for the RadixJob
+	)
 
-	jobs, _ = s.radixClient.RadixV1().RadixJobs(firstJob.Namespace).List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(s.T(), anyLimit, len(jobs.Items), "Number of jobs should match limit")
+	type jobScenario struct {
+		// name Scenario name
+		name      string
+		raBuilder utils.ApplicationBuilder
+		// existingRadixDeploymentJobs List of RadixDeployments and its RadixJobs, setup before test
+		existingRadixDeploymentJobs []radixDeploymentJob
+		// testingRadixJobBuilder RadixDeployments and its RadixJobs under test
+		testingRadixJobBuilder utils.JobBuilder
+		// expectedJobConditions State of jobs, mapped by job name, expected to exist on finishing test
+		expectedJobConditions jobConditions
+	}
 
-	assert.False(s.T(), s.radixJobByNameExists("FirstJob", jobs))
-	assert.False(s.T(), s.radixJobByNameExists("SecondJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("ThirdJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("FourthJob", jobs))
-	assert.True(s.T(), s.radixJobByNameExists("FifthJob", jobs))
+	scenarios := []jobScenario{
+		{
+			name: "One job is running",
+			raBuilder: getRadixApplicationBuilder(appName).
+				WithEnvironment(envTest, branchTest),
+			existingRadixDeploymentJobs: nil,
+			testingRadixJobBuilder: utils.NewJobBuilder().WithPipeline(v1.BuildDeploy).
+				WithJobName("j-new").WithBranch(branchTest),
+			expectedJobConditions: jobConditions{"j-new": testingJobConditionIsRunning},
+		},
+		{
+			name: "One job is running, new is queuing on same branch",
+			raBuilder: getRadixApplicationBuilder(appName).
+				WithEnvironment(envTest, branchTest),
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", env: envTest, branch: branchTest, jobStatus: v1.JobRunning},
+			},
+			testingRadixJobBuilder: utils.NewJobBuilder().WithPipeline(v1.BuildDeploy).
+				WithJobName("j-new").WithBranch(branchTest),
+			expectedJobConditions: jobConditions{"j1": v1.JobRunning, "j-new": v1.JobQueued},
+		},
+		{
+			name: "One job is running, new is running on another branch",
+			raBuilder: getRadixApplicationBuilder(appName).
+				WithEnvironment(envTest, branchTest).
+				WithEnvironment(envQa, branchQa),
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", env: envTest, branch: branchTest, jobStatus: v1.JobRunning},
+			},
+			testingRadixJobBuilder: utils.NewJobBuilder().WithPipeline(v1.BuildDeploy).
+				WithJobName("j-new").WithBranch(branchQa),
+			expectedJobConditions: jobConditions{"j1": v1.JobRunning, "j-new": testingJobConditionIsRunning},
+		},
+		{
+			name: "One job is running, new is queuing on same branch",
+			raBuilder: getRadixApplicationBuilder(appName).
+				WithEnvironment(envTest, branchTestWildCard),
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: v1.JobRunning},
+			},
+			testingRadixJobBuilder: utils.NewJobBuilder().WithPipeline(v1.BuildDeploy).
+				WithJobName("j-new").WithBranch(branchTest2),
+			expectedJobConditions: jobConditions{"j1": v1.JobRunning, "j-new": v1.JobQueued},
+		},
+		{
+			name: "One job is running, new is queuing on same branch",
+			raBuilder: getRadixApplicationBuilder(appName).
+				WithEnvironment(envTest, branchTestWildCard),
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: v1.JobRunning},
+			},
+			testingRadixJobBuilder: utils.NewJobBuilder().WithPipeline(v1.BuildDeploy).
+				WithJobName("j-new").WithBranch(branchTest2),
+			expectedJobConditions: jobConditions{"j1": v1.JobRunning, "j-new": v1.JobQueued},
+		},
+		{
+			name: "Multiple non-running, new is running on same branch",
+			raBuilder: getRadixApplicationBuilder(appName).
+				WithEnvironment(envTest, branchTestWildCard),
+			existingRadixDeploymentJobs: []radixDeploymentJob{
+				{jobName: "j1", env: envTest, branch: branchTest1, jobStatus: v1.JobSucceeded},
+				{jobName: "j2", env: envTest, branch: branchTest1, jobStatus: v1.JobFailed},
+				{jobName: "j3", env: envTest, branch: branchTest1, jobStatus: v1.JobStopped},
+				{jobName: "j4", env: envTest, branch: branchTest1, jobStatus: v1.JobStoppedNoChanges},
+				{jobName: "j5", env: envTest, branch: branchTest1, jobStatus: v1.JobQueued},
+				{jobName: "j6", env: envTest, branch: branchTest1, jobStatus: v1.JobWaiting},
+			},
+			testingRadixJobBuilder: utils.NewJobBuilder().WithPipeline(v1.BuildDeploy).
+				WithJobName("j-new").WithBranch(branchTest1),
+			expectedJobConditions: jobConditions{
+				"j1":    v1.JobSucceeded,
+				"j2":    v1.JobFailed,
+				"j3":    v1.JobStopped,
+				"j4":    v1.JobStoppedNoChanges,
+				"j5":    v1.JobQueued,
+				"j6":    v1.JobWaiting,
+				"j-new": testingJobConditionIsRunning,
+			},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		s.T().Run(scenario.name, func(t *testing.T) {
+			defer s.teardownTest()
+			s.setupTest()
+			config := &Config{PipelineJobsHistoryLimit: 10}
+			testTime := time.Now().Add(time.Hour * -100)
+			raBuilder := scenario.raBuilder.WithAppName(appName)
+			s.testUtils.ApplyApplication(raBuilder)
+			for _, rdJob := range scenario.existingRadixDeploymentJobs {
+				if rdJob.jobStatus == v1.JobSucceeded {
+					_, err := s.testUtils.ApplyDeployment(utils.ARadixDeployment().
+						WithAppName(appName).WithDeploymentName(fmt.Sprintf("%s-deployment", rdJob.jobName)).
+						WithJobName(rdJob.jobName).
+						WithActiveFrom(testTime))
+					s.NoError(err)
+				}
+				rjBuilder := utils.NewJobBuilder().WithAppName(appName).WithPipeline(rdJob.pipelineType).
+					WithJobName(rdJob.jobName).WithBranch(rdJob.branch).WithCreated(testTime.Add(time.Minute * 2)).
+					WithStatus(utils.NewJobStatusBuilder().WithCondition(rdJob.jobStatus))
+				_, err := s.applyRadixJob(appName, rjBuilder)
+				s.NoError(err)
+				testTime = testTime.Add(time.Hour)
+			}
+
+			testingRadixJob, err := s.applyRadixJob(appName, scenario.testingRadixJobBuilder.WithAppName(appName))
+			s.NoError(err)
+			err = s.runSync(testingRadixJob, config)
+			s.NoError(err)
+
+			radixJobList, err := s.radixClient.RadixV1().RadixJobs(appNamespace).List(context.TODO(), metav1.ListOptions{})
+			s.NoError(err)
+			s.assertExistRadixJobsWithConditions(radixJobList, scenario.expectedJobConditions)
+		})
+	}
+}
+
+func getRadixApplicationBuilder(appName string) utils.ApplicationBuilder {
+	return utils.NewRadixApplicationBuilder().
+		WithRadixRegistration(utils.NewRegistrationBuilder().WithName(appName))
+}
+func (s *RadixJobTestSuite) assertExistRadixJobsWithConditions(radixJobList *v1.RadixJobList, expectedJobConditions jobConditions) {
+	resultJobConditions := make(jobConditions)
+	for _, rj := range radixJobList.Items {
+		rj := rj
+		resultJobConditions[rj.GetName()] = rj.Status.Condition
+		if _, ok := expectedJobConditions[rj.GetName()]; !ok {
+			s.Fail(fmt.Sprintf("unexpected job exists %s", rj.GetName()))
+		}
+	}
+	for expectedJobName, expectedJobCondition := range expectedJobConditions {
+		resultJobCondition, ok := resultJobConditions[expectedJobName]
+		s.True(ok, "missing job %s", expectedJobName)
+		s.Equal(expectedJobCondition, resultJobCondition, "unexpected job condition")
+	}
+}
+
+func (s *RadixJobTestSuite) assertExistRadixJobsWithNames(radixJobList *v1.RadixJobList, expectedJobNames []string) {
+	resultJobNames := make(map[string]bool)
+	for _, rj := range radixJobList.Items {
+		resultJobNames[rj.GetName()] = true
+	}
+	for _, jobName := range expectedJobNames {
+		_, ok := resultJobNames[jobName]
+		s.True(ok, "missing job %s", jobName)
+	}
+}
+
+func (s *RadixJobTestSuite) applyJobWithSyncFor(raBuilder utils.ApplicationBuilder, appName string, rdJob radixDeploymentJob, config *Config) {
+	_, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().
+		WithRadixApplication(raBuilder).
+		WithAppName(appName).
+		WithJobName(rdJob.jobName).
+		WithDeploymentName(rdJob.rdName).
+		WithBranch(rdJob.env).
+		WithStatus(utils.NewJobStatusBuilder().
+			WithCondition(rdJob.jobStatus)), config)
+	s.NoError(err)
 }
 
 func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {
-	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"))
+	config := &Config{
+		PipelineJobsHistoryLimit: 3,
+	}
+
+	job, err := s.applyJobWithSync(utils.ARadixBuildDeployJob().WithJobName("test").WithBranch("master"), config)
 
 	expectedEnvs := []string{"test"}
 
@@ -201,20 +695,6 @@ func (s *RadixJobTestSuite) TestTargetEnvironmentIsSet() {
 	// Master maps to Test env
 	assert.Equal(s.T(), job.Spec.Build.Branch, "master")
 	assert.Equal(s.T(), expectedEnvs, job.Status.TargetEnvs)
-}
-
-func (s *RadixJobTestSuite) radixJobByNameExists(name string, jobs *v1.RadixJobList) bool {
-	return s.getRadixJobByName(name, jobs) != nil
-}
-
-func (s *RadixJobTestSuite) getRadixJobByName(name string, jobs *v1.RadixJobList) *v1.RadixJob {
-	for _, job := range jobs.Items {
-		if job.Name == name {
-			return &job
-		}
-	}
-
-	return nil
 }
 
 func assertStatusEqual(t *testing.T, expectedStatus, actualStatus v1.RadixJobStatus) {
@@ -234,6 +714,15 @@ func assertStatusEqual(t *testing.T, expectedStatus, actualStatus v1.RadixJobSta
 		assert.Equal(t, getTimestamp(expectedStep.Ended.Time), getTimestamp(actualStatus.Steps[index].Ended.Time))
 		assert.Equal(t, expectedStep.Components, actualStatus.Steps[index].Components)
 		assert.Equal(t, expectedStep.PodName, actualStatus.Steps[index].PodName)
-		assert.Equal(t, expectedStep.Output, actualStatus.Steps[index].Output)
 	}
+}
+
+func (s *RadixJobTestSuite) applyRadixJob(appName string, jobBuilder utils.JobBuilder) (*v1.RadixJob, error) {
+	rj := jobBuilder.BuildRJ()
+	namespace := utils.GetAppNamespace(appName)
+	createdRadixJobs, err := s.radixClient.RadixV1().RadixJobs(namespace).Create(context.TODO(), rj, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return createdRadixJobs, err
 }

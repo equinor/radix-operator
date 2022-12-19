@@ -68,10 +68,15 @@ func GetKubeClientRateLimitBurst() (int, error) {
 // GetKubeClientRateLimitQps returns rate limit for queries per second for k8s client
 func GetKubeClientRateLimitQps() (float32, error) {
 	envVarStr, err := GetEnvVar(KubeClientRateLimitQpsEnvironmentVariable)
+	if err != nil {
+		return 0, err
+	}
+
 	envVarFloat64, err := strconv.ParseFloat(envVarStr, 32)
 	if err != nil {
 		return 0, err
 	}
+
 	envVarFloat := float32(envVarFloat64)
 	return envVarFloat, nil
 }

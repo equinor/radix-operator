@@ -12,7 +12,7 @@ import (
 
 func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
-	service := getServiceConfig(deployComponent.GetName(), deploy.radixDeployment, deployComponent.GetPorts())
+	service := getServiceConfig(deployComponent, deploy.radixDeployment, deployComponent.GetPorts())
 	return deploy.kubeutil.ApplyService(namespace, service)
 }
 
@@ -27,17 +27,7 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 		if !ok {
 			continue
 		}
-
-		// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
-		garbageCollect := false
-		if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
-			garbageCollect = !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
-		} else {
-			// Garbage collect service if not defined in RD components or jobs
-			garbageCollect = !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
-		}
-
-		if garbageCollect {
+		if deploy.isEligibleForGarbageCollectServiceForComponent(service, componentName) {
 			err = deploy.kubeclient.CoreV1().Services(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), service.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -48,27 +38,39 @@ func (deploy *Deployment) garbageCollectServicesNoLongerInSpec() error {
 	return nil
 }
 
-func getServiceConfig(componentName string, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
+func (deploy *Deployment) isEligibleForGarbageCollectServiceForComponent(service *corev1.Service, componentName RadixComponentName) bool {
+	// Garbage collect if service is labelled radix-job-type=job-scheduler and not defined in RD jobs
+	if jobType, ok := NewRadixJobTypeFromObjectLabels(service); ok && jobType.IsJobScheduler() {
+		return !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment)
+	}
+	// Garbage collect service if not defined in RD components or jobs
+	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
+}
+
+func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *v1.RadixDeployment, componentPorts []v1.ComponentPort) *corev1.Service {
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(radixDeployment),
 	}
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: componentName,
+			Name: component.GetName(),
 			Labels: map[string]string{
 				kube.RadixAppLabel:       radixDeployment.Spec.AppName,
-				kube.RadixComponentLabel: componentName,
+				kube.RadixComponentLabel: component.GetName(),
 			},
 			OwnerReferences: ownerReference,
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
-			Selector: map[string]string{
-				kube.RadixComponentLabel: componentName,
-			},
 		},
 	}
+
+	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
+	if isDeployComponentJobSchedulerDeployment(component) {
+		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
+	}
+	service.Spec.Selector = selector
 
 	ports := buildServicePorts(componentPorts)
 	service.Spec.Ports = ports

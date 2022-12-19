@@ -3,20 +3,21 @@ package environment
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
-	"k8s.io/client-go/util/retry"
 
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/networkpolicy"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/sirupsen/logrus"
-
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 )
 
 // Environment is the aggregate-root for manipulating RadixEnvironments
@@ -70,6 +71,16 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return fmt.Errorf("failed to apply RBAC on namespace %s: %v", namespaceName, err)
 	}
 
+	err = env.applyRadixTektonEnvRoleBinding(namespaceName)
+	if err != nil {
+		return fmt.Errorf("failed to apply RBAC for radix-tekton-env on namespace %s: %v", namespaceName, err)
+	}
+
+	err = env.ApplyRadixPipelineRunnerRoleBinding(namespaceName)
+	if err != nil {
+		return fmt.Errorf("failed to apply RBAC for radix-pipeline-runner on namespace %s: %v", namespaceName, err)
+	}
+
 	err = env.ApplyLimitRange(namespaceName)
 	if err != nil {
 		return fmt.Errorf("failed to apply limit range on namespace %s: %v", namespaceName, err)
@@ -94,6 +105,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 	env.logger.Debugf("Environment %s reconciled", namespaceName)
 	return nil
 }
+
 func (env *Environment) updateRadixEnvironmentStatus(rEnv *v1.RadixEnvironment, changeStatusFunc func(currStatus *v1.RadixEnvironmentStatus)) error {
 	radixEnvironmentInterface := env.radixclient.RadixV1().RadixEnvironments()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -118,17 +130,18 @@ func (env *Environment) ApplyNamespace(name string) error {
 
 	// get key to use for namespace annotation to pick up private image hubs
 	imagehubKey := fmt.Sprintf("%s-sync", defaults.PrivateImageHubSecretName)
-	labels := map[string]string{
+	nsLabels := labels.Set{
 		"sync":                         "cluster-wildcard-tls-cert",
-		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",
-		"app-wildcard-sync":            "app-wildcard-tls-cert",
-		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert",
+		"cluster-wildcard-sync":        "cluster-wildcard-tls-cert",        // redundant, can be removed
+		"app-wildcard-sync":            "app-wildcard-tls-cert",            // redundant, can be removed
+		"active-cluster-wildcard-sync": "active-cluster-wildcard-tls-cert", // redundant, can be removed
+		"radix-wildcard-sync":          "radix-wildcard-tls-cert",
 		imagehubKey:                    env.config.Spec.AppName,
 		kube.RadixAppLabel:             env.config.Spec.AppName,
 		kube.RadixEnvLabel:             env.config.Spec.EnvName,
 	}
-
-	return env.kubeutil.ApplyNamespace(name, labels, env.AsOwnerReference())
+	nsLabels = labels.Merge(nsLabels, labels.Set(kube.NewPodSecurityStandardFromEnv().Labels()))
+	return env.kubeutil.ApplyNamespace(name, nsLabels, env.AsOwnerReference())
 }
 
 // ApplyAdGroupRoleBinding grants access to environment namespace
@@ -144,7 +157,7 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 	// Add machine user to subjects
 	if env.regConfig.Spec.MachineUser {
 		subjects = append(subjects, rbac.Subject{
-			Kind:      "ServiceAccount",
+			Kind:      k8s.KindServiceAccount,
 			Name:      defaults.GetMachineUserRoleName(env.config.Spec.AppName),
 			Namespace: utils.GetAppNamespace(env.regConfig.Name),
 		})
@@ -152,7 +165,68 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 
 	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, subjects)
 	roleBinding.SetOwnerReferences(env.AsOwnerReference())
+	err = env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
+func (env *Environment) applyRadixTektonEnvRoleBinding(namespace string) error {
+	roleBinding := &rbac.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindRoleBinding,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: defaults.RadixTektonEnvRoleName,
+			Labels: map[string]string{
+				kube.RadixAppLabel: env.config.Spec.AppName,
+			},
+		},
+		RoleRef: rbac.RoleRef{
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     k8s.KindClusterRole,
+			Name:     defaults.RadixTektonEnvRoleName,
+		},
+		Subjects: []rbac.Subject{
+			{
+				Kind:      k8s.KindServiceAccount,
+				Name:      defaults.RadixTektonServiceAccountName,
+				Namespace: utils.GetAppNamespace(env.config.Spec.AppName),
+			},
+		},
+	}
+	roleBinding.SetOwnerReferences(env.AsOwnerReference())
+	return env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+}
+
+func (env *Environment) ApplyRadixPipelineRunnerRoleBinding(namespace string) error {
+	roleBinding := &rbac.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: k8s.RbacApiVersion,
+			Kind:       k8s.KindRoleBinding,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: defaults.PipelineEnvRoleName,
+			Labels: map[string]string{
+				kube.RadixAppLabel: env.config.Spec.AppName,
+			},
+		},
+		RoleRef: rbac.RoleRef{
+			APIGroup: k8s.RbacApiGroup,
+			Kind:     k8s.KindClusterRole,
+			Name:     defaults.PipelineEnvRoleName,
+		},
+		Subjects: []rbac.Subject{
+			{
+				Kind:      k8s.KindServiceAccount,
+				Name:      defaults.PipelineServiceAccountName,
+				Namespace: utils.GetAppNamespace(env.config.Spec.AppName),
+			},
+		},
+	}
+	roleBinding.SetOwnerReferences(env.AsOwnerReference())
 	return env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 }
 

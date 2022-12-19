@@ -14,25 +14,26 @@ type RadixEnvironmentConfigBuilder interface {
 	BuildEnvironmentConfig() v1.RadixEnvironmentConfig
 	WithAlwaysPullImageOnDeploy(bool) RadixEnvironmentConfigBuilder
 	WithMonitoring(bool) RadixEnvironmentConfigBuilder
-	WithRunAsNonRoot(bool) RadixEnvironmentConfigBuilder
-	WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder
-	WithAuthentication(authentication *v1.Authentication) RadixEnvironmentConfigBuilder
-	WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixEnvironmentConfigBuilder
+	WithNode(v1.RadixNode) RadixEnvironmentConfigBuilder
+	WithAuthentication(*v1.Authentication) RadixEnvironmentConfigBuilder
+	WithSecretRefs(v1.RadixSecretRefs) RadixEnvironmentConfigBuilder
+	WithEnabled(bool) RadixEnvironmentConfigBuilder
+	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
 	environment             string
 	variables               v1.EnvVarsMap
 	replicas                *int
-	secrets                 []string
 	resources               v1.ResourceRequirements
 	alwaysPullImageOnDeploy *bool
 	volumeMounts            []v1.RadixVolumeMount
-	runAsNonRoot            bool
 	monitoring              bool
 	node                    v1.RadixNode
 	secretRefs              v1.RadixSecretRefs
 	authentication          *v1.Authentication
+	enabled                 *bool
+	identity                *v1.Identity
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -77,11 +78,6 @@ func (ceb *radixEnvironmentConfigBuilder) WithMonitoring(monitoring bool) RadixE
 	return ceb
 }
 
-func (ceb *radixEnvironmentConfigBuilder) WithRunAsNonRoot(runAsNonRoot bool) RadixEnvironmentConfigBuilder {
-	ceb.runAsNonRoot = runAsNonRoot
-	return ceb
-}
-
 func (ceb *radixEnvironmentConfigBuilder) WithNode(node v1.RadixNode) RadixEnvironmentConfigBuilder {
 	ceb.node = node
 	return ceb
@@ -97,6 +93,16 @@ func (ceb *radixEnvironmentConfigBuilder) WithSecretRefs(secretRefs v1.RadixSecr
 	return ceb
 }
 
+func (ceb *radixEnvironmentConfigBuilder) WithEnabled(enabled bool) RadixEnvironmentConfigBuilder {
+	ceb.enabled = &enabled
+	return ceb
+}
+
+func (ceb *radixEnvironmentConfigBuilder) WithIdentity(identity *v1.Identity) RadixEnvironmentConfigBuilder {
+	ceb.identity = identity
+	return ceb
+}
+
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
 	return v1.RadixEnvironmentConfig{
 		Environment:             ceb.environment,
@@ -108,8 +114,9 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		SecretRefs:              ceb.secretRefs,
 		Monitoring:              ceb.monitoring,
 		AlwaysPullImageOnDeploy: ceb.alwaysPullImageOnDeploy,
-		RunAsNonRoot:            ceb.runAsNonRoot,
 		Authentication:          ceb.authentication,
+		Enabled:                 ceb.enabled,
+		Identity:                ceb.identity,
 	}
 }
 

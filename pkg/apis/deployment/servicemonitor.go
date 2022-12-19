@@ -54,20 +54,11 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	}
 
 	for _, serviceMonitor := range serviceMonitors.Items {
-		// Handle servicemonitors with prometheus=radix_stage1 label only for backward compatibility
-		// Code can be removed when all servicemonitors has radix-component label
-		garbageCollectBackwardCompatibility := false
-		labelValue, ok := serviceMonitor.Labels["prometheus"]
-		if ok && labelValue == os.Getenv(prometheusInstanceLabel) && len(serviceMonitor.Labels) == 1 {
-			garbageCollectBackwardCompatibility = true
-		}
-
 		componentName, ok := RadixComponentNameFromComponentLabel(serviceMonitor)
 		if !ok {
 			continue
 		}
-
-		if garbageCollectBackwardCompatibility || !componentName.ExistInDeploymentSpec(deploy.radixDeployment) {
+		if deploy.isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor, componentName) {
 			err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(deploy.radixDeployment.GetNamespace()).Delete(context.TODO(), serviceMonitor.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
@@ -76,6 +67,16 @@ func (deploy *Deployment) garbageCollectServiceMonitorsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) isEligibleForGarbageCollectServiceMonitorsForComponent(serviceMonitor *monitoringv1.ServiceMonitor, componentName RadixComponentName) bool {
+	// Handle servicemonitors with prometheus=radix_stage1 label only for backward compatibility
+	// Code can be removed when all servicemonitors has radix-component label
+	labelValue, ok := serviceMonitor.Labels["prometheus"]
+	if ok && labelValue == os.Getenv(prometheusInstanceLabel) && len(serviceMonitor.Labels) == 1 {
+		return true
+	}
+	return !componentName.ExistInDeploymentSpec(deploy.radixDeployment)
 }
 
 func getServiceMonitorConfig(componentName, namespace string, monitoringConfig v1.MonitoringConfig) *monitoringv1.ServiceMonitor {
@@ -124,13 +125,13 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 	if err != nil && errors.IsNotFound(err) {
 		createdServiceMonitor, err := deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Create(context.TODO(), serviceMonitor, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to create ServiceMonitor object: %v", err)
+			return fmt.Errorf("failed to create ServiceMonitor object: %v", err)
 		}
 
 		log.Debugf("Created ServiceMonitor: %s in namespace %s", createdServiceMonitor.Name, namespace)
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Failed to get ServiceMonitor object: %v", err)
+		return fmt.Errorf("failed to get ServiceMonitor object: %v", err)
 	}
 
 	newServiceMonitor := oldServiceMonitor.DeepCopy()
@@ -141,7 +142,7 @@ func (deploy *Deployment) applyServiceMonitor(namespace string, serviceMonitor *
 
 	_, err = deploy.prometheusperatorclient.MonitoringV1().ServiceMonitors(namespace).Update(context.TODO(), newServiceMonitor, metav1.UpdateOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to update ServiceMonitor object: %v", err)
+		return fmt.Errorf("failed to update ServiceMonitor object: %v", err)
 	}
 
 	return nil

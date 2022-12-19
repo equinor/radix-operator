@@ -32,7 +32,7 @@ const (
 	prometheusInstanceLabel = "LABEL_PROMETHEUS_INSTANCE"
 )
 
-//DeploymentSyncer defines interface for syncing a RadixDeployment
+// DeploymentSyncer defines interface for syncing a RadixDeployment
 type DeploymentSyncer interface {
 	OnSync() error
 }
@@ -45,7 +45,6 @@ type Deployment struct {
 	prometheusperatorclient    monitoring.Interface
 	registration               *v1.RadixRegistration
 	radixDeployment            *v1.RadixDeployment
-	securityContextBuilder     SecurityContextBuilder
 	auxResourceManagers        []AuxiliaryResourceManager
 	ingressAnnotationProviders []IngressAnnotationProvider
 	tenantId                   string
@@ -56,7 +55,7 @@ type Deployment struct {
 var _ DeploymentSyncerFactory = DeploymentSyncerFactoryFunc(NewDeployment)
 
 // NewDeployment Constructor
-func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, forceRunAsNonRoot bool, tenantId string, kubernetesApiPort int32, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
+func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient radixclient.Interface, prometheusperatorclient monitoring.Interface, registration *v1.RadixRegistration, radixDeployment *v1.RadixDeployment, tenantId string, kubernetesApiPort int32, ingressAnnotationProviders []IngressAnnotationProvider, auxResourceManagers []AuxiliaryResourceManager) DeploymentSyncer {
 	return &Deployment{
 		kubeclient:                 kubeclient,
 		radixclient:                radixclient,
@@ -64,7 +63,6 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 		prometheusperatorclient:    prometheusperatorclient,
 		registration:               registration,
 		radixDeployment:            radixDeployment,
-		securityContextBuilder:     NewSecurityContextBuilder(forceRunAsNonRoot),
 		auxResourceManagers:        auxResourceManagers,
 		ingressAnnotationProviders: ingressAnnotationProviders,
 		tenantId:                   tenantId,
@@ -72,7 +70,7 @@ func NewDeployment(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixcl
 	}
 }
 
-// GetDeploymentComponent Gets the index  of and the component given name
+// GetDeploymentComponent Gets the index of and the component given name
 func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployComponent) {
 	for index, component := range rd.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
@@ -82,15 +80,28 @@ func GetDeploymentComponent(rd *v1.RadixDeployment, name string) (int, *v1.Radix
 	return -1, nil
 }
 
+// GetDeploymentJobComponent Gets the index of and the job component given name
+func GetDeploymentJobComponent(rd *v1.RadixDeployment, name string) (int, *v1.RadixDeployJobComponent) {
+	for index, job := range rd.Spec.Jobs {
+		if strings.EqualFold(job.Name, name) {
+			return index, &job
+		}
+	}
+	return -1, nil
+}
+
 // ConstructForTargetEnvironment Will build a deployment for target environment
-func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployment, error) {
+func ConstructForTargetEnvironment(config *v1.RadixApplication, jobName string, imageTag string, branch string, componentImages map[string]pipeline.ComponentImage, env string, defaultEnvVars v1.EnvVarsMap) (*v1.RadixDeployment, error) {
 	commitID := defaultEnvVars[defaults.RadixCommitHashEnvironmentVariable]
 	gitTags := defaultEnvVars[defaults.RadixGitTagsEnvironmentVariable]
 	components, err := GetRadixComponentsForEnv(config, env, componentImages, defaultEnvVars)
 	if err != nil {
-		return v1.RadixDeployment{}, err
+		return nil, err
 	}
-	jobs := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	jobs, err := NewJobComponentsBuilder(config, env, componentImages, defaultEnvVars).JobComponents()
+	if err != nil {
+		return nil, err
+	}
 	radixDeployment := constructRadixDeployment(config, env, jobName, imageTag, branch, commitID, gitTags, components, jobs)
 	return radixDeployment, nil
 }
@@ -221,7 +232,6 @@ func (deploy *Deployment) syncDeployment() error {
 
 	err = deploy.createOrUpdateSecrets()
 	if err != nil {
-		log.Errorf("Failed to provision secrets: %v", err)
 		return fmt.Errorf("failed to provision secrets: %v", err)
 	}
 
@@ -433,6 +443,16 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectConfigMapsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
+	err = deploy.garbageCollectServiceAccountNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -445,7 +465,7 @@ func (deploy *Deployment) garbageCollectAuxiliaryResources() error {
 	return nil
 }
 
-func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) v1.RadixDeployment {
+func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobName, imageTag, branch, commitID, gitTags string, components []v1.RadixDeployComponent, jobs []v1.RadixDeployJobComponent) *v1.RadixDeployment {
 	appName := radixApplication.GetName()
 	deployName := utils.GetDeploymentName(appName, env, imageTag)
 	imagePullSecrets := []corev1.LocalObjectReference{}
@@ -453,7 +473,7 @@ func constructRadixDeployment(radixApplication *v1.RadixApplication, env, jobNam
 		imagePullSecrets = append(imagePullSecrets, corev1.LocalObjectReference{Name: defaults.PrivateImageHubSecretName})
 	}
 
-	radixDeployment := v1.RadixDeployment{
+	radixDeployment := &v1.RadixDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deployName,
 			Namespace: utils.GetEnvironmentNamespace(appName, env),
@@ -534,64 +554,63 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	if err != nil {
 		return err
 	}
-	// Deploy to current radixDeploy object's namespace
+
+	err = deploy.createOrUpdateServiceAccount(component)
+	if err != nil {
+		return fmt.Errorf("failed to create service account: %w", err)
+	}
+
 	err = deploy.createOrUpdateDeployment(component)
 	if err != nil {
-		log.Infof("Failed to create deployment: %v", err)
-		return fmt.Errorf("failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	err = deploy.createOrUpdateHPA(component)
 	if err != nil {
-		log.Infof("Failed to create horizontal pod autoscaler: %v", err)
-		return fmt.Errorf("failed to create deployment: %v", err)
+		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
 	err = deploy.createOrUpdateService(component)
 	if err != nil {
-		log.Infof("Failed to create service: %v", err)
-		return fmt.Errorf("failed to create service: %v", err)
+		return fmt.Errorf("failed to create service: %w", err)
 	}
 
 	err = deploy.createOrUpdatePodDisruptionBudget(component)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to create PDB: %v", err)
-		log.Infof(errMsg)
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("failed to create PDB: %w", err)
 	}
 
 	err = deploy.garbageCollectPodDisruptionBudgetNoLongerInSpecForComponent(component)
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to garbage collect PDB: %v", err)
-		log.Infof(errMsg)
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("failed to garbage collect PDB: %w", err)
+	}
+
+	err = deploy.garbageCollectServiceAccountNoLongerInSpecForComponent(component)
+	if err != nil {
+		return fmt.Errorf("failed to garbage collect service account: %w", err)
 	}
 
 	if component.IsPublic() {
 		err = deploy.createOrUpdateIngress(component)
 		if err != nil {
-			log.Infof("Failed to create ingress: %v", err)
-			return fmt.Errorf("failed to create ingress: %v", err)
+			return fmt.Errorf("failed to create ingress: %w", err)
 		}
 	} else {
 		err = deploy.garbageCollectIngressNoLongerInSpecForComponent(component)
 		if err != nil {
-			log.Infof("Failed to delete ingress: %v", err)
-			return fmt.Errorf("failed to delete ingress: %v", err)
+			return fmt.Errorf("failed to delete ingress: %w", err)
 		}
 	}
 
 	if component.GetMonitoring() {
 		err = deploy.createOrUpdateServiceMonitor(component)
 		if err != nil {
-			log.Infof("Failed to create service monitor: %v", err)
-			return fmt.Errorf("failed to create service monitor: %v", err)
+			return fmt.Errorf("failed to create service monitor: %w", err)
 		}
 	} else {
 		err = deploy.deleteServiceMonitorForComponent(component)
 		if err != nil {
-			log.Infof("Failed to delete servicemonitor: %v", err)
-			return fmt.Errorf("failed to delete servicemonitor: %v", err)
+			return fmt.Errorf("failed to delete servicemonitor: %w", err)
 		}
 	}
 

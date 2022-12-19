@@ -17,15 +17,15 @@ type DeployJobComponentBuilder interface {
 	WithAlwaysPullImageOnDeploy(bool) DeployJobComponentBuilder
 	WithResourceRequestsOnly(map[string]string) DeployJobComponentBuilder
 	WithResource(map[string]string, map[string]string) DeployJobComponentBuilder
-	WithVolumeMounts([]v1.RadixVolumeMount) DeployJobComponentBuilder
+	WithVolumeMounts(...v1.RadixVolumeMount) DeployJobComponentBuilder
 	WithNodeGpu(gpu string) DeployJobComponentBuilder
 	WithNodeGpuCount(gpuCount string) DeployJobComponentBuilder
 	WithSecrets([]string) DeployJobComponentBuilder
 	WithSecretRefs(v1.RadixSecretRefs) DeployJobComponentBuilder
 	WithSchedulerPort(*int32) DeployJobComponentBuilder
 	WithPayloadPath(*string) DeployJobComponentBuilder
-	WithRunAsNonRoot(bool) DeployJobComponentBuilder
 	WithTimeLimitSeconds(*int64) DeployJobComponentBuilder
+	WithIdentity(*v1.Identity) DeployJobComponentBuilder
 	BuildJobComponent() v1.RadixDeployJobComponent
 }
 
@@ -44,11 +44,11 @@ type deployJobComponentBuilder struct {
 	schedulerPort           *int32
 	payloadPath             *string
 	node                    v1.RadixNode
-	runAsNonRoot            bool
 	timeLimitSeconds        *int64
+	identity                *v1.Identity
 }
 
-func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) DeployJobComponentBuilder {
+func (dcb *deployJobComponentBuilder) WithVolumeMounts(volumeMounts ...v1.RadixVolumeMount) DeployJobComponentBuilder {
 	dcb.volumeMounts = volumeMounts
 	return dcb
 }
@@ -153,13 +153,13 @@ func (dcb *deployJobComponentBuilder) WithPayloadPath(path *string) DeployJobCom
 	return dcb
 }
 
-func (dcb *deployJobComponentBuilder) WithRunAsNonRoot(runAsNonRoot bool) DeployJobComponentBuilder {
-	dcb.runAsNonRoot = runAsNonRoot
+func (dcb *deployJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) DeployJobComponentBuilder {
+	dcb.timeLimitSeconds = timeLimitSeconds
 	return dcb
 }
 
-func (dcb *deployJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) DeployJobComponentBuilder {
-	dcb.timeLimitSeconds = timeLimitSeconds
+func (dcb *deployJobComponentBuilder) WithIdentity(identity *v1.Identity) DeployJobComponentBuilder {
+	dcb.identity = identity
 	return dcb
 }
 
@@ -184,8 +184,8 @@ func (dcb *deployJobComponentBuilder) BuildJobComponent() v1.RadixDeployJobCompo
 		Payload:                 payload,
 		AlwaysPullImageOnDeploy: dcb.alwaysPullImageOnDeploy,
 		Node:                    dcb.node,
-		RunAsNonRoot:            dcb.runAsNonRoot,
 		TimeLimitSeconds:        dcb.timeLimitSeconds,
+		Identity:                dcb.identity,
 	}
 }
 

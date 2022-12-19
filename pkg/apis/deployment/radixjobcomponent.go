@@ -9,7 +9,7 @@ import (
 
 // JobComponentsBuilder builds RD job components for a given environment
 type JobComponentsBuilder interface {
-	JobComponents() []v1.RadixDeployJobComponent
+	JobComponents() ([]v1.RadixDeployJobComponent, error)
 }
 
 type jobComponentsBuilder struct {
@@ -29,15 +29,22 @@ func NewJobComponentsBuilder(ra *v1.RadixApplication, env string, componentImage
 	}
 }
 
-func (c *jobComponentsBuilder) JobComponents() []v1.RadixDeployJobComponent {
+func (c *jobComponentsBuilder) JobComponents() ([]v1.RadixDeployJobComponent, error) {
 	var jobs []v1.RadixDeployJobComponent
 
-	for _, appJob := range c.ra.Spec.Jobs {
-		deployJob := c.buildJobComponent(appJob, c.defaultEnvVars)
+	for _, radixJobComponent := range c.ra.Spec.Jobs {
+		environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
+		if !radixJobComponent.GetEnabledForEnv(environmentSpecificConfig) {
+			continue
+		}
+		deployJob, err := c.buildJobComponent(radixJobComponent, environmentSpecificConfig, c.defaultEnvVars)
+		if err != nil {
+			return nil, err
+		}
 		jobs = append(jobs, deployJob)
 	}
 
-	return jobs
+	return jobs, nil
 }
 
 func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent) *v1.RadixJobComponentEnvironmentConfig {
@@ -53,7 +60,7 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 	return nil
 }
 
-func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, defaultEnvVars v1.EnvVarsMap) v1.RadixDeployJobComponent {
+func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployJobComponent, error) {
 	componentName := radixJobComponent.Name
 	deployJob := v1.RadixDeployJobComponent{
 		Name:             componentName,
@@ -61,16 +68,13 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		Secrets:          radixJobComponent.Secrets,
 		Monitoring:       false,
 		MonitoringConfig: radixJobComponent.MonitoringConfig,
-		RunAsNonRoot:     false,
 		Payload:          radixJobComponent.Payload,
 		SchedulerPort:    radixJobComponent.SchedulerPort,
 	}
 
-	environmentSpecificConfig := c.getEnvironmentConfig(radixJobComponent)
 	if environmentSpecificConfig != nil {
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
-		deployJob.RunAsNonRoot = environmentSpecificConfig.RunAsNonRoot
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
 	}
 
@@ -82,11 +86,18 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		}
 	}
 
+	identity, err := getRadixCommonComponentIdentity(&radixJobComponent, environmentSpecificConfig)
+	if err != nil {
+		return v1.RadixDeployJobComponent{}, err
+	}
+
 	componentImage := c.componentImages[componentName]
 	deployJob.Image = getImagePath(&componentImage, environmentSpecificConfig)
 	deployJob.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars)
 	deployJob.Resources = getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig)
 	deployJob.Node = getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig)
 	deployJob.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig)
-	return deployJob
+	deployJob.Identity = identity
+
+	return deployJob, nil
 }

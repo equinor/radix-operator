@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -159,22 +161,25 @@ func areArgumentsValid(arguments model.PipelineArguments) error {
 }
 
 func mergeWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
-	if err := mergeComponentsWithRadixApplication(radixConfig, radixDeployment, environment); err != nil {
+	defaultEnvVars := getDefaultEnvVarsFromRadixDeployment(radixDeployment)
+	if err := mergeComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars); err != nil {
 		return err
 	}
 
-	if err := mergeJobComponentsWithRadixApplication(radixConfig, radixDeployment, environment); err != nil {
+	if err := mergeJobComponentsWithRadixApplication(radixConfig, radixDeployment, environment, defaultEnvVars); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
-	newEnvJobs := deployment.
-		NewJobComponentsBuilder(radixConfig, environment, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap)).
+func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap) error {
+	newEnvJobs, err := deployment.
+		NewJobComponentsBuilder(radixConfig, environment, make(map[string]pipeline.ComponentImage), defaultEnvVars).
 		JobComponents()
-
+	if err != nil {
+		return err
+	}
 	newEnvJobsMap := make(map[string]v1.RadixDeployJobComponent)
 	for _, job := range newEnvJobs {
 		newEnvJobsMap[job.Name] = job
@@ -194,8 +199,8 @@ func mergeJobComponentsWithRadixApplication(radixConfig *v1.RadixApplication, ra
 	return nil
 }
 
-func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string) error {
-	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radixDeployment *v1.RadixDeployment, environment string, defaultEnvVars v1.EnvVarsMap) error {
+	newEnvComponents, err := deployment.GetRadixComponentsForEnv(radixConfig, environment, make(map[string]pipeline.ComponentImage), defaultEnvVars)
 	if err != nil {
 		return nil
 	}
@@ -217,4 +222,26 @@ func mergeComponentsWithRadixApplication(radixConfig *v1.RadixApplication, radix
 	}
 
 	return nil
+}
+
+func getDefaultEnvVarsFromRadixDeployment(radixDeployment *v1.RadixDeployment) v1.EnvVarsMap {
+	envVarsMap := make(v1.EnvVarsMap)
+	gitCommitHash := getGitCommitHashFromDeployment(radixDeployment)
+	if gitCommitHash != "" {
+		envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = gitCommitHash
+	}
+	if gitTags, ok := radixDeployment.Annotations[kube.RadixGitTagsAnnotation]; ok {
+		envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = gitTags
+	}
+	return envVarsMap
+}
+
+func getGitCommitHashFromDeployment(radixDeployment *v1.RadixDeployment) string {
+	if gitCommitHash, ok := radixDeployment.Annotations[kube.RadixCommitAnnotation]; ok {
+		return gitCommitHash
+	}
+	if gitCommitHash, ok := radixDeployment.Labels[kube.RadixCommitLabel]; ok {
+		return gitCommitHash
+	}
+	return ""
 }

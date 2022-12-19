@@ -77,7 +77,6 @@ type RadixDeploymentList struct {
 // RadixDeployComponent defines a single component within a RadixDeployment - maps to single deployment/service/ingress etc
 type RadixDeployComponent struct {
 	Name                    string                  `json:"name" yaml:"name"`
-	RunAsNonRoot            bool                    `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	Image                   string                  `json:"image" yaml:"image"`
 	Ports                   []ComponentPort         `json:"ports" yaml:"ports"`
 	Replicas                *int                    `json:"replicas" yaml:"replicas"`
@@ -97,6 +96,7 @@ type RadixDeployComponent struct {
 	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
 	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
+	Identity                *Identity               `json:"identity,omitempty" yaml:"identity,omitempty"`
 }
 
 func (deployComponent *RadixDeployComponent) GetName() string {
@@ -175,10 +175,6 @@ func (deployComponent *RadixDeployComponent) GetIngressConfiguration() []string 
 	return deployComponent.IngressConfiguration
 }
 
-func (deployComponent *RadixDeployComponent) GetRunAsNonRoot() bool {
-	return deployComponent.RunAsNonRoot
-}
-
 func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
 }
@@ -191,6 +187,10 @@ func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication
 	return deployComponent.Authentication
 }
 
+func (deployComponent *RadixDeployComponent) GetIdentity() *Identity {
+	return deployComponent.Identity
+}
+
 func (deployComponent *RadixDeployComponent) SetName(name string) {
 	deployComponent.Name = name
 }
@@ -199,12 +199,16 @@ func (deployComponent *RadixDeployComponent) SetVolumeMounts(mounts []RadixVolum
 	deployComponent.VolumeMounts = mounts
 }
 
+func (deployComponent *RadixDeployComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
+	deployComponent.EnvironmentVariables = envVars
+}
+
 func (deployJobComponent *RadixDeployJobComponent) GetName() string {
 	return deployJobComponent.Name
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetType() RadixComponentType {
-	return RadixComponentTypeJobScheduler
+	return RadixComponentTypeJob
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetImage() string {
@@ -280,10 +284,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetIngressConfiguration() []s
 	return nil
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetRunAsNonRoot() bool {
-	return deployJobComponent.RunAsNonRoot
-}
-
 func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
@@ -296,12 +296,20 @@ func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authenti
 	return nil
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetIdentity() *Identity {
+	return deployJobComponent.Identity
+}
+
 func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
 	deployJobComponent.Name = name
 }
 
 func (deployJobComponent *RadixDeployJobComponent) SetVolumeMounts(mounts []RadixVolumeMount) {
 	deployJobComponent.VolumeMounts = mounts
+}
+
+func (deployJobComponent *RadixDeployJobComponent) SetEnvironmentVariables(envVars EnvVarsMap) {
+	deployJobComponent.EnvironmentVariables = envVars
 }
 
 // GetNrOfReplicas gets number of replicas component will run
@@ -331,17 +339,17 @@ type RadixDeployJobComponent struct {
 	VolumeMounts            []RadixVolumeMount        `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
 	SchedulerPort           *int32                    `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
 	Payload                 *RadixJobComponentPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
-	RunAsNonRoot            bool                      `json:"runAsNonRoot" yaml:"runAsNonRoot"`
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	Identity                *Identity                 `json:"identity,omitempty" yaml:"identity,omitempty"`
 }
 
 type RadixComponentType string
 
 const (
-	RadixComponentTypeComponent    RadixComponentType = "component"
-	RadixComponentTypeJobScheduler RadixComponentType = "job"
+	RadixComponentTypeComponent RadixComponentType = "component"
+	RadixComponentTypeJob       RadixComponentType = "job"
 )
 
 // RadixCommonDeployComponent defines a common component interface a RadixDeployment
@@ -351,6 +359,7 @@ type RadixCommonDeployComponent interface {
 	GetImage() string
 	GetPorts() []ComponentPort
 	GetEnvironmentVariables() EnvVarsMap
+	SetEnvironmentVariables(envVars EnvVarsMap)
 	GetSecrets() []string
 	GetSecretRefs() RadixSecretRefs
 	GetMonitoring() bool
@@ -365,12 +374,12 @@ type RadixCommonDeployComponent interface {
 	GetDNSExternalAlias() []string
 	IsDNSAppAlias() bool
 	GetIngressConfiguration() []string
-	GetRunAsNonRoot() bool
 	GetNode() *RadixNode
 	GetAuthentication() *Authentication
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
 	GetTimeLimitSeconds() *int64
+	GetIdentity() *Identity
 }
 
 // RadixCommonDeployComponentFactory defines a common component factory

@@ -10,10 +10,12 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithVolumeMounts([]v1.RadixVolumeMount) RadixJobComponentEnvironmentConfigBuilder
 	WithMonitoring(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithImageTagName(string) RadixJobComponentEnvironmentConfigBuilder
-	WithNode(node v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
+	WithNode(v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithTimeLimitSeconds(*int64) RadixJobComponentEnvironmentConfigBuilder
-	WithSecretRefs(secretRefs v1.RadixSecretRefs) RadixJobComponentEnvironmentConfigBuilder
+	WithSecretRefs(v1.RadixSecretRefs) RadixJobComponentEnvironmentConfigBuilder
+	WithEnabled(bool) RadixJobComponentEnvironmentConfigBuilder
+	WithIdentity(*v1.Identity) RadixJobComponentEnvironmentConfigBuilder
 	BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig
 }
 
@@ -28,6 +30,8 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	runAsNonRoot     bool
 	secretRefs       v1.RadixSecretRefs
 	timeLimitSeconds *int64
+	enabled          *bool
+	identity         *v1.Identity
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
@@ -87,6 +91,16 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) WithSecretRefs(secretRefs 
 	return ceb
 }
 
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithEnabled(enabled bool) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.enabled = &enabled
+	return ceb
+}
+
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithIdentity(identity *v1.Identity) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.identity = identity
+	return ceb
+}
+
 func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixJobComponentEnvironmentConfig {
 	return v1.RadixJobComponentEnvironmentConfig{
 		Environment:      ceb.environment,
@@ -96,9 +110,10 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		Monitoring:       ceb.monitoring,
 		ImageTagName:     ceb.imageTagName,
 		Node:             ceb.node,
-		RunAsNonRoot:     ceb.runAsNonRoot,
 		SecretRefs:       ceb.secretRefs,
 		TimeLimitSeconds: ceb.timeLimitSeconds,
+		Enabled:          ceb.enabled,
+		Identity:         ceb.identity,
 	}
 }
 

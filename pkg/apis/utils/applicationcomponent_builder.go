@@ -23,9 +23,11 @@ type RadixApplicationComponentBuilder interface {
 	WithEnvironmentConfigs(...RadixEnvironmentConfigBuilder) RadixApplicationComponentBuilder
 	WithCommonEnvironmentVariable(string, string) RadixApplicationComponentBuilder
 	WithCommonResource(map[string]string, map[string]string) RadixApplicationComponentBuilder
-	WithNode(node v1.RadixNode) RadixApplicationComponentBuilder
-	WithAuthentication(authentication *v1.Authentication) RadixApplicationComponentBuilder
-	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationComponentBuilder
+	WithNode(v1.RadixNode) RadixApplicationComponentBuilder
+	WithAuthentication(*v1.Authentication) RadixApplicationComponentBuilder
+	WithVolumeMounts([]v1.RadixVolumeMount) RadixApplicationComponentBuilder
+	WithEnabled(bool) RadixApplicationComponentBuilder
+	WithIdentity(*v1.Identity) RadixApplicationComponentBuilder
 	BuildComponent() v1.RadixComponent
 }
 
@@ -48,6 +50,8 @@ type radixApplicationComponentBuilder struct {
 	node                    v1.RadixNode
 	authentication          *v1.Authentication
 	volumeMounts            []v1.RadixVolumeMount
+	enabled                 *bool
+	identity                *v1.Identity
 }
 
 func (rcb *radixApplicationComponentBuilder) WithName(name string) RadixApplicationComponentBuilder {
@@ -156,6 +160,16 @@ func (rcb *radixApplicationComponentBuilder) WithVolumeMounts(volumes []v1.Radix
 	return rcb
 }
 
+func (rcb *radixApplicationComponentBuilder) WithEnabled(enabled bool) RadixApplicationComponentBuilder {
+	rcb.enabled = &enabled
+	return rcb
+}
+
+func (rcb *radixApplicationComponentBuilder) WithIdentity(identity *v1.Identity) RadixApplicationComponentBuilder {
+	rcb.identity = identity
+	return rcb
+}
+
 func (rcb *radixApplicationComponentBuilder) WithCommonResource(request map[string]string, limit map[string]string) RadixApplicationComponentBuilder {
 	rcb.resources = v1.ResourceRequirements{
 		Limits:   limit,
@@ -188,6 +202,8 @@ func (rcb *radixApplicationComponentBuilder) BuildComponent() v1.RadixComponent 
 		AlwaysPullImageOnDeploy: rcb.alwaysPullImageOnDeploy,
 		Node:                    rcb.node,
 		Authentication:          rcb.authentication,
+		Enabled:                 rcb.enabled,
+		Identity:                rcb.identity,
 	}
 }
 

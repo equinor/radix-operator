@@ -1,8 +1,9 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 
@@ -10,6 +11,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
@@ -28,8 +30,8 @@ func Test_GetRadixJobComponents_BuildAllJobComponents(t *testing.T) {
 		env:             "any",
 		componentImages: make(map[string]pipeline.ComponentImage),
 	}
-	jobs := cfg.JobComponents()
-
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, "job1", jobs[0].Name)
 	assert.Equal(t, int32Ptr(8888), jobs[0].SchedulerPort)
@@ -58,8 +60,8 @@ func Test_GetRadixJobComponentsWithNode_BuildAllJobComponents(t *testing.T) {
 		env:             "any",
 		componentImages: make(map[string]pipeline.ComponentImage),
 	}
-	jobs := cfg.JobComponents()
-
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs, 2)
 	assert.Equal(t, gpu, jobs[0].Node.Gpu)
 	assert.Equal(t, gpuCount, jobs[0].Node.GpuCount)
@@ -94,8 +96,9 @@ func Test_GetRadixJobComponents_EnvironmentVariables(t *testing.T) {
 		componentImages: make(map[string]pipeline.ComponentImage),
 		defaultEnvVars:  envVarsMap,
 	}
-	jobComponent := cfg.JobComponents()[0]
-
+	jobComponents, err := cfg.JobComponents()
+	require.NoError(t, err)
+	jobComponent := jobComponents[0]
 	assert.Len(t, jobComponent.EnvironmentVariables, 5)
 	assert.Equal(t, "override1", jobComponent.EnvironmentVariables["COMMON1"])
 	assert.Equal(t, "common2", jobComponent.EnvironmentVariables["COMMON2"])
@@ -134,28 +137,79 @@ func Test_GetRadixJobComponents_Monitoring(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	job := cfg.JobComponents()[0]
+	jobComponents, err := cfg.JobComponents()
+	require.NoError(t, err)
+	job := jobComponents[0]
 	assert.True(t, job.Monitoring)
 	assert.Empty(t, job.MonitoringConfig.PortName)
 	assert.Empty(t, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	job = cfg.JobComponents()[0]
+	jobComponents, err = cfg.JobComponents()
+	require.NoError(t, err)
+	job = jobComponents[0]
 	assert.False(t, job.Monitoring)
 	assert.Empty(t, job.MonitoringConfig.PortName)
 	assert.Empty(t, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	job = cfg.JobComponents()[1]
+	jobComponents, err = cfg.JobComponents()
+	require.NoError(t, err)
+	job = jobComponents[1]
 	assert.True(t, job.Monitoring)
 	assert.Equal(t, monitoringConfig.PortName, job.MonitoringConfig.PortName)
 	assert.Equal(t, monitoringConfig.Path, job.MonitoringConfig.Path)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	job = cfg.JobComponents()[1]
+	jobComponents, err = cfg.JobComponents()
+	require.NoError(t, err)
+	job = jobComponents[1]
 	assert.False(t, job.Monitoring)
 	assert.Equal(t, monitoringConfig.PortName, job.MonitoringConfig.PortName)
 	assert.Equal(t, monitoringConfig.Path, job.MonitoringConfig.Path)
+}
+
+func Test_GetRadixJobComponents_Identity(t *testing.T) {
+	type scenarioSpec struct {
+		name                 string
+		commonConfig         *v1.Identity
+		configureEnvironment bool
+		environmentConfig    *v1.Identity
+		expected             *v1.Identity
+	}
+
+	scenarios := []scenarioSpec{
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "transform clientId with curly to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "{11111111-2222-3333-4444-555555555555}"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId with urn:uuid to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "urn:uuid:11111111-2222-3333-4444-555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId without dashes to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111222233334444555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			const envName = "anyenv"
+			jobComponent := utils.AnApplicationJobComponent().WithName("anyjob").WithIdentity(scenario.commonConfig)
+			if scenario.configureEnvironment {
+				jobComponent = jobComponent.WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environmentConfig),
+				)
+			}
+			ra := utils.ARadixApplication().WithJobComponents(jobComponent).BuildRA()
+			sut := jobComponentsBuilder{ra: ra, env: envName, componentImages: make(map[string]pipeline.ComponentImage)}
+			jobs, err := sut.JobComponents()
+			require.NoError(t, err)
+			assert.Equal(t, scenario.expected, jobs[0].Identity)
+		})
+	}
 }
 
 func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
@@ -180,32 +234,10 @@ func Test_GetRadixJobComponents_ImageTagName(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env2", componentImages: componentImages}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, "img:release", jobs[0].Image)
 	assert.Equal(t, "job2:tag", jobs[1].Image)
-}
-
-func Test_GetRadixJobComponents_RunAsNonRoot(t *testing.T) {
-	ra := utils.ARadixApplication().
-		WithJobComponents(
-			utils.AnApplicationJobComponent().
-				WithName("job").
-				WithEnvironmentConfigs(
-					utils.NewJobComponentEnvironmentBuilder().
-						WithEnvironment("env1").
-						WithRunAsNonRoot(true),
-					utils.NewJobComponentEnvironmentBuilder().
-						WithEnvironment("env2"),
-				),
-		).BuildRA()
-
-	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	job := cfg.JobComponents()[0]
-	assert.True(t, job.RunAsNonRoot)
-
-	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	job = cfg.JobComponents()[0]
-	assert.False(t, job.RunAsNonRoot)
 }
 
 func Test_GetRadixJobComponents_NodeName(t *testing.T) {
@@ -238,28 +270,32 @@ func Test_GetRadixJobComponents_NodeName(t *testing.T) {
 	t.Run("override job gpu and gpu-count with environment gpu and gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env1"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, envGpu1, jobs[0].Node.Gpu)
 		assert.Equal(t, envGpuCount1, jobs[0].Node.GpuCount)
 	})
 	t.Run("override job gpu-count with environment gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env2"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
 		assert.Equal(t, envGpuCount2, jobs[0].Node.GpuCount)
 	})
 	t.Run("override job gpu with environment gpu", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env3"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, envGpu3, jobs[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
 	})
 	t.Run("do not override job gpu or gpu-count with environment gpu or gpu-count", func(t *testing.T) {
 		t.Parallel()
 		cfg := jobComponentsBuilder{ra: ra, env: "env4"}
-		jobs := cfg.JobComponents()
+		jobs, err := cfg.JobComponents()
+		require.NoError(t, err)
 		assert.Equal(t, compGpu, jobs[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, jobs[0].Node.GpuCount)
 	})
@@ -293,7 +329,8 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, "1100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "1150m", jobs[0].Resources.Requests["cpu"])
 	assert.Equal(t, "1200Mi", jobs[0].Resources.Limits["memory"])
@@ -301,7 +338,8 @@ func Test_GetRadixJobComponents_Resources(t *testing.T) {
 	assert.Empty(t, jobs[1].Resources)
 
 	cfg = jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs = cfg.JobComponents()
+	jobs, err = cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, "100Mi", jobs[0].Resources.Requests["memory"])
 	assert.Equal(t, "150m", jobs[0].Resources.Requests["cpu"])
 	assert.Equal(t, "200Mi", jobs[0].Resources.Limits["memory"])
@@ -320,7 +358,8 @@ func Test_GetRadixJobComponents_Ports(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs[0].Ports, 2)
 	portMap := make(map[string]v1.ComponentPort)
 	for _, p := range jobs[0].Ports {
@@ -342,7 +381,8 @@ func Test_GetRadixJobComponents_Secrets(t *testing.T) {
 		).BuildRA()
 
 	cfg := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
-	jobs := cfg.JobComponents()
+	jobs, err := cfg.JobComponents()
+	require.NoError(t, err)
 	assert.Len(t, jobs[0].Secrets, 2)
 	assert.ElementsMatch(t, []string{"SECRET1", "SECRET2"}, jobs[0].Secrets)
 
@@ -368,8 +408,10 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 
 	cfgEnv1 := jobComponentsBuilder{ra: ra, env: "env1", componentImages: make(map[string]pipeline.ComponentImage)}
 	cfgEnv2 := jobComponentsBuilder{ra: ra, env: "env2", componentImages: make(map[string]pipeline.ComponentImage)}
-	env1Job := cfgEnv1.JobComponents()
-	env2Job := cfgEnv2.JobComponents()
+	env1Job, err := cfgEnv1.JobComponents()
+	require.NoError(t, err)
+	env2Job, err := cfgEnv2.JobComponents()
+	require.NoError(t, err)
 	assert.Equal(t, numbers.Int64Ptr(100), env1Job[0].TimeLimitSeconds)
 	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
 }

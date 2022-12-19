@@ -8,6 +8,9 @@ import (
 
 func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 	jobs, err := deploy.kubeutil.ListJobs(deploy.radixDeployment.GetNamespace())
+	if err != nil {
+		return err
+	}
 
 	for _, job := range jobs {
 		componentName, ok := RadixComponentNameFromComponentLabel(job)

@@ -3,7 +3,6 @@ VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-VAULT_NAME ?= radix-vault-$(ENVIRONMENT)
 
 # If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
 
@@ -39,7 +38,6 @@ ifdef IS_PROD
 	DNS_ZONE = radix.equinor.com
 endif
 
-VAULT_NAME = radix-vault-$(ENVIRONMENT)
 CONTAINER_REPO ?= radix$(ENVIRONMENT)
 DOCKER_REGISTRY	?= $(CONTAINER_REPO).azurecr.io
 APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
@@ -47,7 +45,6 @@ APP_ALIAS_BASE_URL = app.$(DNS_ZONE)
 HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
-CHART_VERSION = $(shell cat charts/radix-operator/Chart.yaml | yq --raw-output .version)
 
 TAG := $(BRANCH)-$(HASH)
 
@@ -75,7 +72,6 @@ mocks:
 	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/deployment.go -destination ./pkg/apis/deployment/deployment_mock.go -package deployment
-	mockgen -source ./pkg/apis/deployment/securitycontext.go -destination ./pkg/apis/deployment/securitycontext_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/auxiliaryresourcemanager.go -destination ./pkg/apis/deployment/auxiliaryresourcemanager_mock.go -package deployment
 	mockgen -source ./pkg/apis/deployment/ingressannotationprovider.go -destination ./pkg/apis/deployment/ingressannotationprovider_mock.go -package deployment
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
@@ -103,53 +99,15 @@ deploy-operator:
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
 
-# deploys radix operator using helm chart in radixdev/radixprod acr
-deploy-via-helm:
-ifndef OVERRIDE_BRANCH
-ifndef CAN_DEPLOY_OPERATOR
-		@echo "Cannot release Operator to this cluster";\
-		exit 1
-endif
-endif
-
-	az acr helm repo add --name $(CONTAINER_REPO)
-	helm repo update
-
-	az keyvault secret download \
-		--vault-name $(VAULT_NAME) \
-		--name radix-operator-values \
-		--file radix-operator-values.yaml
-
-	helm upgrade --install radix-operator \
-	    ./charts/radix-operator/ \
-		--namespace default \
-	    --set dnsZone=$(DNS_ZONE) \
-		--set appAliasBaseURL=$(APP_ALIAS_BASE_URL) \
-		--set prometheusName=radix-stage1 \
-		--set image.repository=$(DOCKER_REGISTRY) \
-		--set clusterName=$(CLUSTER_NAME) \
-		--set image.tag=$(BRANCH)-$(VERSION) \
-    	--set clusterType="development" \
-    	-f radix-operator-values.yaml
-
-	rm -f radix-operator-values.yaml
-
-# build and deploy radix operator
-helm-up:
-	make deploy-operator
-	make deploy-via-helm
-
-# upgrades helm chart in radixdev/radixprod acr (does not deploy radix-operator)
-helm-upgrade-operator-chart:
-	az acr helm repo add --name $(CONTAINER_REPO)
-	tar -zcvf radix-operator-$(CHART_VERSION).tgz charts/radix-operator
-	az acr helm push --name $(CONTAINER_REPO) charts/radix-operator-$(CHART_VERSION).tgz
-	rm charts/radix-operator-$(CHART_VERSION).tgz
-
 ROOT_PACKAGE=github.com/equinor/radix-operator
 CUSTOM_RESOURCE_NAME=radix
 CUSTOM_RESOURCE_VERSION=v1
 
 .PHONY: code-gen
 code-gen: 
-	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.19.9/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION)
+	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
+
+
+.HONY: staticcheck
+staticcheck:
+	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`

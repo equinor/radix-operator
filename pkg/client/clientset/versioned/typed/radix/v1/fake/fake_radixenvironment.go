@@ -110,7 +110,7 @@ func (c *FakeRadixEnvironments) UpdateStatus(ctx context.Context, radixEnvironme
 // Delete takes name of the radixEnvironment and deletes it. Returns an error if one occurs.
 func (c *FakeRadixEnvironments) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(radixenvironmentsResource, name), &radixv1.RadixEnvironment{})
+		Invokes(testing.NewRootDeleteActionWithOptions(radixenvironmentsResource, name, opts), &radixv1.RadixEnvironment{})
 	return err
 }
 

@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 
-	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -41,14 +40,6 @@ type HandlerConfigOption func(*Handler)
 func WithHasSyncedCallback(callback common.HasSynced) HandlerConfigOption {
 	return func(h *Handler) {
 		h.hasSynced = callback
-	}
-}
-
-// WithForceRunAsNonRootFromEnvVar configures runAsNonRoot for Handler from an environment variable
-func WithForceRunAsNonRootFromEnvVar(envVarName string) HandlerConfigOption {
-	return func(h *Handler) {
-		envValue := os.Getenv(envVarName)
-		h.forceRunAsNonRoot = commonUtils.ContainsString([]string{"true"}, envValue)
 	}
 }
 
@@ -102,7 +93,6 @@ type Handler struct {
 	prometheusperatorclient monitoring.Interface
 	kubeutil                *kube.Kube
 	hasSynced               common.HasSynced
-	forceRunAsNonRoot       bool
 	tenantId                string
 	kubernetesApiPort       int32
 	oauth2DefaultConfig     defaults.OAuth2Config
@@ -179,7 +169,7 @@ func (t *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 		deployment.NewOAuthProxyResourceManager(syncRD, radixRegistration, t.kubeutil, t.oauth2DefaultConfig, []deployment.IngressAnnotationProvider{deployment.NewForceSslRedirectAnnotationProvider()}, t.oauth2ProxyDockerImage),
 	}
 
-	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.forceRunAsNonRoot, t.tenantId, t.kubernetesApiPort, ingressAnnotations, auxResourceManagers)
+	deployment := t.deploymentSyncerFactory.CreateDeploymentSyncer(t.kubeclient, t.kubeutil, t.radixclient, t.prometheusperatorclient, radixRegistration, syncRD, t.tenantId, t.kubernetesApiPort, ingressAnnotations, auxResourceManagers)
 	err = deployment.OnSync()
 	if err != nil {
 		// Put back on queue

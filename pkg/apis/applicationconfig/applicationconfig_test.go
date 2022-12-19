@@ -3,7 +3,7 @@ package applicationconfig
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"testing"
 
@@ -32,7 +32,7 @@ const (
 )
 
 func init() {
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 }
 
 func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
@@ -541,6 +541,43 @@ func Test_RadixEnvironment(t *testing.T) {
 	})
 }
 
+func Test_UseBuildKit(t *testing.T) {
+	var testScenarios = []struct {
+		appName             string
+		useBuildKit         *bool
+		expectedUseBuildKit *bool
+	}{
+		{
+			appName:             "any-app1",
+			useBuildKit:         nil,
+			expectedUseBuildKit: nil,
+		},
+		{
+			appName:             "any-app2",
+			useBuildKit:         utils.BoolPtr(false),
+			expectedUseBuildKit: utils.BoolPtr(false),
+		},
+		{
+			appName:             "any-app3",
+			useBuildKit:         utils.BoolPtr(true),
+			expectedUseBuildKit: utils.BoolPtr(true),
+		},
+	}
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	for _, testScenario := range testScenarios {
+		ra := utils.ARadixApplication().WithAppName(testScenario.appName)
+		if testScenario.useBuildKit != nil {
+			ra = ra.WithBuildKit(testScenario.useBuildKit)
+		}
+		applyApplicationWithSync(tu, client, kubeUtil, radixclient, ra)
+
+		raAfterSync, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})
+
+		assert.Equal(t, testScenario.expectedUseBuildKit, raAfterSync.Spec.Build.UseBuildKit)
+	}
+}
+
 func Test_GetConfigBranch_notSet(t *testing.T) {
 	rr := utils.NewRegistrationBuilder().
 		BuildRR()
@@ -577,7 +614,7 @@ func Test_IsConfigBranch(t *testing.T) {
 func rrAsOwnerReference(rr *radixv1.RadixRegistration) []metav1.OwnerReference {
 	trueVar := true
 	return []metav1.OwnerReference{
-		metav1.OwnerReference{
+		{
 			APIVersion: "radix.equinor.com/v1",
 			Kind:       "RadixRegistration",
 			Name:       rr.Name,
@@ -622,6 +659,9 @@ func applyApplicationWithSync(tu *test.Utils, client kubernetes.Interface, kubeU
 	}
 
 	applicationconfig, err := NewApplicationConfig(client, kubeUtil, radixclient, radixRegistration, ra)
+	if err != nil {
+		return err
+	}
 
 	err = applicationconfig.OnSync()
 	if err != nil {
@@ -642,12 +682,7 @@ func getSecretByName(name string, secrets *corev1.SecretList) *corev1.Secret {
 }
 
 func secretByNameExists(name string, secrets *corev1.SecretList) bool {
-	secret := getSecretByName(name, secrets)
-	if secret != nil {
-		return true
-	}
-
-	return false
+	return getSecretByName(name, secrets) != nil
 }
 
 func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
@@ -661,12 +696,7 @@ func getRoleByName(name string, roles *rbacv1.RoleList) *rbacv1.Role {
 }
 
 func roleByNameExists(name string, roles *rbacv1.RoleList) bool {
-	role := getRoleByName(name, roles)
-	if role != nil {
-		return true
-	}
-
-	return false
+	return getRoleByName(name, roles) != nil
 }
 
 func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rbacv1.RoleBinding {
@@ -680,10 +710,5 @@ func getRoleBindingByName(name string, roleBindings *rbacv1.RoleBindingList) *rb
 }
 
 func roleBindingByNameExists(name string, roleBindings *rbacv1.RoleBindingList) bool {
-	role := getRoleBindingByName(name, roleBindings)
-	if role != nil {
-		return true
-	}
-
-	return false
+	return getRoleBindingByName(name, roleBindings) != nil
 }

@@ -3,36 +3,37 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	conditionUtils "github.com/equinor/radix-operator/pkg/apis/utils/conditions"
-	numberUtils "github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 const (
-	defaultRadixConfigPath     = "/workspace/radixconfig.yaml"
-	workerImage                = "radix-pipeline"
-	PRIVILEGED_CONTAINER       = false
-	ALLOW_PRIVILEGE_ESCALATION = false
-	RUN_AS_NON_ROOT            = true
-	RUN_AS_USER                = 1000
-	RUN_AS_GROUP               = 1000
-	FS_GROUP                   = 1000
+	workerImage = "radix-pipeline"
+	// ResultContent of the pipeline job, passed via ConfigMap as v1.RadixJobResult structure
+	ResultContent = "ResultContent"
+	runAsUser     = 1000
+	runAsGroup    = 1000
+	fsGroup       = 1000
 )
 
 func (job *Job) createPipelineJob() error {
 	namespace := job.radixJob.Namespace
 
 	ownerReference := GetOwnerReference(job.radixJob)
-	jobConfig, err := job.getJobConfig()
+	jobConfig, err := job.getPipelineJobConfig()
 	if err != nil {
 		return err
 	}
@@ -46,7 +47,7 @@ func (job *Job) createPipelineJob() error {
 	return nil
 }
 
-func (job *Job) getJobConfig() (*batchv1.Job, error) {
+func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 	imageTag := fmt.Sprintf("%s/%s:%s", job.radixJob.Spec.DockerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
 	log.Infof("Using image: %s", imageTag)
 
@@ -59,6 +60,10 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 		return nil, err
 	}
 
+	containerArguments, err := job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline)
+	if err != nil {
+		return nil, err
+	}
 	jobCfg := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   jobName,
@@ -71,23 +76,21 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 			BackoffLimit: &backOffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: conditionUtils.BoolPtr(RUN_AS_NON_ROOT),
-						FSGroup:      numberUtils.Int64Ptr(FS_GROUP),
-					},
-					ServiceAccountName: defaults.PipelineRoleName,
+					ServiceAccountName: defaults.PipelineServiceAccountName,
+					SecurityContext: securitycontext.Pod(
+						securitycontext.WithPodFSGroup(fsGroup),
+						securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					Containers: []corev1.Container{
 						{
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
-							Args:            job.getPipelineJobArguments(appName, jobName, job.radixJob.Spec, pipeline),
-							SecurityContext: &corev1.SecurityContext{
-								Privileged:               conditionUtils.BoolPtr(PRIVILEGED_CONTAINER),
-								AllowPrivilegeEscalation: conditionUtils.BoolPtr(ALLOW_PRIVILEGE_ESCALATION),
-								RunAsUser:                numberUtils.Int64Ptr(RUN_AS_USER),
-								RunAsGroup:               numberUtils.Int64Ptr(RUN_AS_GROUP),
-							},
+							Args:            containerArguments,
+							SecurityContext: securitycontext.Container(
+								securitycontext.WithContainerDropAllCapabilities(),
+								securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault),
+								securitycontext.WithContainerRunAsGroup(runAsGroup),
+								securitycontext.WithContainerRunAsUser(runAsUser)),
 						},
 					},
 					RestartPolicy: "Never",
@@ -99,11 +102,23 @@ func (job *Job) getJobConfig() (*batchv1.Job, error) {
 	return &jobCfg, nil
 }
 
-func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) []string {
+func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) ([]string, error) {
 	clusterType := os.Getenv(defaults.OperatorClusterTypeEnvironmentVariable)
+	radixZone := os.Getenv(defaults.RadixZoneEnvironmentVariable)
+	useImageBuilderCache := os.Getenv(defaults.RadixUseCacheEnvironmentVariable)
 
-	// Operator will never have an issue with getting clustername
-	clusterName, _ := job.kubeutil.GetClusterName()
+	clusterName, err := job.kubeutil.GetClusterName()
+	if err != nil {
+		return nil, err
+	}
+	containerRegistry, err := job.kubeutil.GetContainerRegistry()
+	if err != nil {
+		return nil, err
+	}
+	subscriptionId, err := job.kubeutil.GetSubscriptionId()
+	if err != nil {
+		return nil, err
+	}
 
 	// Base arguments for all types of pipeline
 	args := []string{
@@ -111,34 +126,41 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 		fmt.Sprintf("%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
 		fmt.Sprintf("%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
 
-		// Pass config-to-map, builder and scanner images
+		// Pass tekton and builder images
 		fmt.Sprintf("%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),
 		fmt.Sprintf("%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
-		fmt.Sprintf("%s=%s", defaults.RadixImageScannerEnvironmentVariable, os.Getenv(defaults.RadixImageScannerEnvironmentVariable)),
 
 		// Used for tagging source of image
 		fmt.Sprintf("%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
+		fmt.Sprintf("%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
 		fmt.Sprintf("%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
+		fmt.Sprintf("%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
+		fmt.Sprintf("%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 	}
 
+	radixConfigFullName := jobSpec.RadixConfigFullName
+	if len(radixConfigFullName) == 0 {
+		radixConfigFullName = fmt.Sprintf("%s/%s", git.Workspace, defaults.DefaultRadixConfigFileName)
+	}
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	case v1.Promote:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	case v1.Deploy:
 		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, defaultRadixConfigPath))
+		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	}
 
-	return args
+	return args, nil
 }
 
 func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipeline *pipelineJob.Definition) map[string]string {
@@ -147,7 +169,6 @@ func getPipelineJobLabels(appName, jobName string, jobSpec v1.RadixJobSpec, pipe
 		kube.RadixJobNameLabel: jobName,
 		kube.RadixJobTypeLabel: kube.RadixJobTypeJob,
 		"radix-pipeline":       string(pipeline.Type),
-		"radix-app-name":       appName, // For backwards compatibility. Remove when cluster is migrated
 		kube.RadixAppLabel:     appName,
 	}
 
@@ -168,19 +189,52 @@ func getPushImageTag(pushImage bool) string {
 	return "0"
 }
 
-func getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) v1.RadixJobCondition {
-	var status v1.RadixJobCondition
-
+func (job *Job) getJobConditionFromJobStatus(jobStatus batchv1.JobStatus) (v1.RadixJobCondition, error) {
 	if jobStatus.Failed > 0 {
-		status = v1.JobFailed
-
-	} else if jobStatus.Active > 0 {
-		status = v1.JobRunning
-
-	} else if jobStatus.Succeeded > 0 {
-		status = v1.JobSucceeded
+		return v1.JobFailed, nil
+	}
+	if jobStatus.Active > 0 {
+		return v1.JobRunning, nil
 
 	}
+	if jobStatus.Succeeded > 0 {
+		jobResult, err := job.getRadixJobResult()
+		if err != nil {
+			return v1.JobSucceeded, err
+		}
+		if jobResult.Result == v1.RadixJobResultStoppedNoChanges || job.radixJob.Status.Condition == v1.JobStoppedNoChanges {
+			return v1.JobStoppedNoChanges, nil
+		}
+		return v1.JobSucceeded, nil
+	}
+	return v1.JobWaiting, nil
+}
 
-	return status
+func (job *Job) getRadixJobResult() (*v1.RadixJobResult, error) {
+	namespace := job.radixJob.GetNamespace()
+	jobName := job.radixJob.GetName()
+	configMaps, err := job.kubeutil.ListConfigMapsWithSelector(namespace, getRadixPipelineJobResultConfigMapSelector(jobName))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ConfigMaps while garbage collecting config-maps in %s. Error: %w", namespace, err)
+	}
+	if len(configMaps) > 1 {
+		return nil, fmt.Errorf("unexpected multiple Radix pipeline result ConfigMaps for the job %s in %s", jobName, job.radixJob.GetNamespace())
+	}
+	radixJobResult := &v1.RadixJobResult{}
+	if len(configMaps) == 0 {
+		return radixJobResult, nil
+	}
+	if resultContent, ok := configMaps[0].Data[ResultContent]; ok && len(resultContent) > 0 {
+		err = yaml.Unmarshal([]byte(resultContent), radixJobResult)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return radixJobResult, nil
+}
+
+func getRadixPipelineJobResultConfigMapSelector(jobName string) string {
+	radixJobNameReq, _ := labels.NewRequirement(kube.RadixJobNameLabel, selection.Equals, []string{jobName})
+	pipelineResultConfigMapReq, _ := labels.NewRequirement(kube.RadixConfigMapTypeLabel, selection.Equals, []string{string(kube.RadixPipelineResultConfigMap)})
+	return labels.NewSelector().Add(*radixJobNameReq, *pipelineResultConfigMapReq).String()
 }

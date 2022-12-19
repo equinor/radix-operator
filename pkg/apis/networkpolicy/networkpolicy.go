@@ -2,6 +2,9 @@ package networkpolicy
 
 import (
 	"context"
+	"strconv"
+	"strings"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	rx "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -11,8 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -73,6 +74,9 @@ func (nw *NetworkPolicy) UpdateEnvEgressRules(radixEgressRules []rx.EgressRule, 
 
 func (nw *NetworkPolicy) deleteUserDefinedEgressPolicies(ns string, env string) error {
 	existingPolicies, err := nw.kubeUtil.ListUserDefinedNetworkPolicies(nw.appName, env)
+	if err != nil {
+		return err
+	}
 
 	for _, policy := range existingPolicies.Items {
 		err = nw.kubeClient.NetworkingV1().NetworkPolicies(ns).Delete(context.TODO(), policy.GetName(), metav1.DeleteOptions{})

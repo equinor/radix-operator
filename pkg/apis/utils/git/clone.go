@@ -2,8 +2,6 @@ package git
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -30,24 +28,14 @@ const (
 	waitForGithubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
 )
 
-func getGitCloneCommand(sshURL, branch, webhookCommitId string) string {
-	gitClone := fmt.Sprintf("git clone --recurse-submodules %s --single-branch -b %s --verbose --progress %s", sshURL, branch, Workspace)
-	if webhookCommitId == "" {
-		return gitClone
-	}
-	log.Debugf("webhookCommitId was non-empty, checking out commit %s in initContainer for prepare-pipelines step", webhookCommitId)
-	gitCloneAndCheckout := fmt.Sprintf("%s && git --git-dir %s/.git --work-tree %s checkout %s", gitClone, Workspace, Workspace, webhookCommitId)
-	return gitCloneAndCheckout
-}
-
 // CloneInitContainers The sidecars for cloning repo
-func CloneInitContainers(sshURL, branch string, containerSecContext corev1.SecurityContext, webhookCommitId string) []corev1.Container {
-	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, containerSecContext, webhookCommitId)
+func CloneInitContainers(sshURL, branch string, containerSecContext corev1.SecurityContext) []corev1.Container {
+	return CloneInitContainersWithContainerName(sshURL, branch, CloneContainerName, containerSecContext)
 }
 
 // CloneInitContainersWithContainerName The sidecars for cloning repo
-func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, containerSecContext corev1.SecurityContext, webhookCommitId string) []corev1.Container {
-	gitCloneCmd := getGitCloneCommand(sshURL, branch, webhookCommitId)
+func CloneInitContainersWithContainerName(sshURL, branch, cloneContainerName string, containerSecContext corev1.SecurityContext) []corev1.Container {
+	gitCloneCmd := fmt.Sprintf("git clone --recurse-submodules %s -b %s --verbose --progress %s", sshURL, branch, Workspace)
 	containers := []corev1.Container{
 		{
 			Name:            fmt.Sprintf("%snslookup", InternalContainerPrefix),

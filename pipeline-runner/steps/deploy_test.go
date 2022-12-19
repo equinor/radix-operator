@@ -75,11 +75,13 @@ func TestDeploy_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 	}
 
 	err := cli.Run(pipelineInfo)
-	assert.Error(t, err)
-
+	assert.NoError(t, err)
+	radixJobList, err := radixclient.RadixV1().RadixJobs(utils.GetAppNamespace(anyAppName)).List(context.Background(), metav1.ListOptions{})
+	assert.NoError(t, err)
+	assert.Empty(t, radixJobList.Items)
 }
 
-func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(t *testing.T) {
+func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExists(t *testing.T) {
 	kubeclient, kubeUtil, radixclient, _, env := setupTest(t)
 
 	rr := utils.ARadixRegistration().
@@ -119,7 +121,6 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 								},
 							},
 						).
-						WithRunAsNonRoot(true).
 						WithReplicas(test.IntPtr(4))),
 			utils.AnApplicationComponent().
 				WithName("redis").
@@ -261,10 +262,4 @@ func TestDeploy_PromotionSetup_ShouldCreateNamespacesForAllBranchesIfNotExtists(
 		assert.Equal(t, "500m", rdDev.Spec.Components[1].Resources.Limits["cpu"])
 	})
 
-	t.Run("Validate run as non root", func(t *testing.T) {
-		rdDev, _ := radixclient.RadixV1().RadixDeployments("any-app-dev").Get(context.TODO(), rdNameDev, metav1.GetOptions{})
-
-		assert.True(t, rdDev.Spec.Components[0].RunAsNonRoot)
-		assert.False(t, rdDev.Spec.Components[1].RunAsNonRoot)
-	})
 }

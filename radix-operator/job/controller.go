@@ -5,18 +5,16 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-
-	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
-	kubeinformers "k8s.io/client-go/informers"
-
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -35,12 +33,7 @@ func init() {
 }
 
 // NewController creates a new controller that handles RadixJobs
-func NewController(client kubernetes.Interface,
-	radixClient radixclient.Interface, handler common.Handler,
-	kubeInformerFactory kubeinformers.SharedInformerFactory,
-	radixInformerFactory informers.SharedInformerFactory,
-	waitForChildrenToSync bool,
-	recorder record.EventRecorder) *common.Controller {
+func NewController(client kubernetes.Interface, radixClient radixclient.Interface, handler common.Handler, kubeInformerFactory kubeinformers.SharedInformerFactory, radixInformerFactory informers.SharedInformerFactory, waitForChildrenToSync bool, recorder record.EventRecorder) *common.Controller {
 
 	jobInformer := radixInformerFactory.Radix().V1().RadixJobs()
 	kubernetesJobInformer := kubeInformerFactory.Batch().V1().Jobs()
@@ -88,7 +81,11 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixJob, _ := obj.(*v1.RadixJob)
+			radixJob, converted := obj.(*v1.RadixJob)
+			if !converted {
+				logger.Errorf("RadixJob object cast failed during deleted event received.")
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixJob)
 			if err == nil {
 				logger.Debugf("Job object deleted event received for %s. Do nothing", key)
@@ -107,7 +104,11 @@ func NewController(client kubernetes.Interface,
 			controller.HandleObject(cur, "RadixJob", getObject)
 		},
 		DeleteFunc: func(obj interface{}) {
-			job := obj.(*batchv1.Job)
+			job, converted := obj.(*batchv1.Job)
+			if !converted {
+				logger.Errorf("RadixJob object cast failed during deleted event received.")
+				return
+			}
 			// If a kubernetes job gets deleted for a running job, the running radix job should
 			// take this into account. The running job will get restarted
 			controller.HandleObject(job, "RadixJob", getObject)

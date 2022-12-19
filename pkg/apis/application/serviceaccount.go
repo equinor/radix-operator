@@ -8,54 +8,15 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ApplyPipelineServiceAccount create service account needed by pipeline
 func (app Application) applyPipelineServiceAccount() (*corev1.ServiceAccount, error) {
-	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.PipelineRoleName,
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		},
-	}
-
-	return app.kubeutil.ApplyServiceAccount(serviceAccount)
-}
-
-// applyRadixTektonServiceAccount create service account needed by radix-tekton
-func (app Application) applyRadixTektonServiceAccount() (*corev1.ServiceAccount, error) {
-	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.RadixTektonRoleName,
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		},
-	}
-
-	return app.kubeutil.ApplyServiceAccount(serviceAccount)
-}
-
-// applyScanImageServiceAccount create service account needed by scan-image-runner
-func (app Application) applyScanImageServiceAccount() (*corev1.ServiceAccount, error) {
-	serviceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.ScanImageRunnerRoleName,
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		},
-	}
-
-	return app.kubeutil.ApplyServiceAccount(serviceAccount)
+	return app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.PipelineServiceAccountName)
 }
 
 func (app Application) applyMachineUserServiceAccount(granter GranterFunction) (*corev1.ServiceAccount, error) {
-	newServiceAccount := corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      defaults.GetMachineUserRoleName(app.registration.Name),
-			Namespace: utils.GetAppNamespace(app.registration.Name),
-		},
-	}
-
-	serviceAccount, err := app.kubeutil.ApplyServiceAccount(newServiceAccount)
+	serviceAccount, err := app.kubeutil.CreateServiceAccount(utils.GetAppNamespace(app.registration.Name), defaults.GetMachineUserRoleName(app.registration.Name))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +70,7 @@ func (app Application) removeAppAdminAccessToMachineUserToken() error {
 // GrantAppAdminAccessToMachineUserToken Granter function to grant access to service account token
 func GrantAppAdminAccessToMachineUserToken(kubeutil *kube.Kube, app *v1.RadixRegistration, namespace string, serviceAccount *corev1.ServiceAccount) error {
 	if len(serviceAccount.Secrets) == 0 {
-		return fmt.Errorf("Service account %s currently has no secrets associated with it", serviceAccount.Name)
+		return fmt.Errorf("service account %s currently has no secrets associated with it", serviceAccount.Name)
 	}
 
 	role := roleAppAdminMachineUserToken(app.Name, serviceAccount)

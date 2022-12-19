@@ -67,9 +67,8 @@ It is then possible to reference radix-operator from radix-api through adding `g
 
 We need to build from both `master` (used by QA environment) and `release` (used by Prod environment) in both `dev` and `prod` subscriptions. We should not merge to `release` branch before QA has passed. Merging to `master` or `release` branch will trigger Github actions build that handles this procedure. The radix-pipeline make use of:
 
-- [radix-config-2-map](https://github.com/equinor/radix-config-2-map)
+- [radix-tekton](https://github.com/equinor/radix-tekton)
 - [radix-image-builder](https://github.com/equinor/radix-image-builder)
-- [radix-image-scanner](https://github.com/equinor/radix-image-scanner)
 
 #### Radix-operator
 
@@ -84,7 +83,7 @@ For changes to the chart the same procedure applies as for changes to the code. 
 3. Onetime
     ```
         helm init --client-only
-        go get -u golang.org/x/lint/golint
+        go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
     ```
 4. for `master` branch: `make helm-up ENVIRONMENT=dev` (will release latest version of helm chart in ACR to cluster)
 5. for `custom` branch: 
@@ -98,19 +97,20 @@ For changes to the chart the same procedure applies as for changes to the code. 
 The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
 Make sure you have downloaded latest version of [code-generator](https://github.com/kubernetes/code-generator) by setting up following way:
-* Add following line to the `go.mod` file. This particular version is specified in the `Makefile`  
+* Install `code-generator`. The particular version is specified in the `Makefile`  
 ```
-k8s.io/code-generator v0.19.9
+go install k8s.io/code-generator@v0.25.3
 ```
-* Execute in a terminal following command (NOTE: after executing any `go mod tidy` command - this line will be removed as "not used dependency")
+Make `generate-groups.sh` executable:
 ```
-go mod download
+chmod +x $GOPATH/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh
 ```
-NB: using `go get ...` does not setup it properly.
-
-Next command will auto-generate some code and implement certain interfaces.
-
+If `radix-operator` project folder is not located in the `$GOPATH/go/src/github.com/equinor` - make a symbolic link from your custom location there, because the code-generator expects this location to be corresponding to the package name, starting from `$GOPATH/go/src`:
+```shell
+ln -s [custom-dev-folder]/radix-operator $GOPATH/go/src/github.com
 ```
+Run code-generator
+```shell
 make code-gen
 ```
 

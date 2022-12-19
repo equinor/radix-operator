@@ -12,8 +12,6 @@ const (
 )
 
 var (
-	wildcardChars   = []string{"*", "**", "?"}
-	variablePattern = regexp.MustCompile("^(([A-Za-z0-9][-A-Za-z0-9.]*)?[A-Za-z0-9])?$")
 	patternReplacer = strings.NewReplacer("/**/", "/.*", "*", "[^/]*", "?", ".")
 )
 
@@ -37,15 +35,6 @@ func MatchesPattern(pattern, branch string) bool {
 	branchPattern := regexp.MustCompile(pattern)
 	isValidBranch := branchPattern.MatchString(branch)
 	return isValidBranch
-}
-
-func replaceWildcardChars(token string) string {
-	for _, char := range wildcardChars {
-		replacer := strings.NewReplacer(char, "")
-		token = replacer.Replace(token)
-	}
-
-	return token
 }
 
 func enclosePattern(pattern string) string {

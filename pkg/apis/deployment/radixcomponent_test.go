@@ -1,14 +1,16 @@
 package deployment
 
 import (
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -36,12 +38,15 @@ func TestGetAuthenticationForComponent(t *testing.T) {
 		{name: "should return environment when component is nil", env: &v1.Authentication{}, expected: &v1.Authentication{}},
 	}
 
-	for i, scenario := range scenarios {
-		comp, _ := scenario.comp.(*v1.Authentication)
-		env, _ := scenario.env.(*v1.Authentication)
-		expected, _ := scenario.expected.(*v1.Authentication)
-		actual, _ := GetAuthenticationForComponent(comp, env)
-		assert.Equal(t, expected, actual, "%v: %v", i+1, scenario.name)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			comp, _ := scenario.comp.(*v1.Authentication)
+			env, _ := scenario.env.(*v1.Authentication)
+			expected, _ := scenario.expected.(*v1.Authentication)
+			actual, _ := GetAuthenticationForComponent(comp, env)
+			assert.Equal(t, expected, actual)
+		})
+
 	}
 }
 
@@ -121,12 +126,15 @@ func TestGetClientCertificateAuthenticationForComponent(t *testing.T) {
 		},
 	}
 
-	for i, scenario := range scenarios {
-		comp, _ := scenario.comp.(*v1.ClientCertificate)
-		env, _ := scenario.env.(*v1.ClientCertificate)
-		expected, _ := scenario.expected.(*v1.ClientCertificate)
-		actual, _ := GetAuthenticationForComponent(&v1.Authentication{ClientCertificate: comp}, &v1.Authentication{ClientCertificate: env})
-		assert.Equal(t, expected, actual.ClientCertificate, "%v: %v", i+1, scenario.name)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			comp, _ := scenario.comp.(*v1.ClientCertificate)
+			env, _ := scenario.env.(*v1.ClientCertificate)
+			expected, _ := scenario.expected.(*v1.ClientCertificate)
+			actual, _ := GetAuthenticationForComponent(&v1.Authentication{ClientCertificate: comp}, &v1.Authentication{ClientCertificate: env})
+			assert.Equal(t, expected, actual.ClientCertificate)
+		})
+
 	}
 }
 
@@ -161,12 +169,14 @@ func TestGetOAuth2AuthenticationForComponent(t *testing.T) {
 		},
 	}
 
-	for i, scenario := range scenarios {
-		comp, _ := scenario.comp.(*v1.OAuth2)
-		env, _ := scenario.env.(*v1.OAuth2)
-		expected, _ := scenario.expected.(*v1.OAuth2)
-		actual, _ := GetAuthenticationForComponent(&v1.Authentication{OAuth2: comp}, &v1.Authentication{OAuth2: env})
-		assert.Equal(t, expected, actual.OAuth2, "%v: %v", i+1, scenario.name)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			comp, _ := scenario.comp.(*v1.OAuth2)
+			env, _ := scenario.env.(*v1.OAuth2)
+			expected, _ := scenario.expected.(*v1.OAuth2)
+			actual, _ := GetAuthenticationForComponent(&v1.Authentication{OAuth2: comp}, &v1.Authentication{OAuth2: env})
+			assert.Equal(t, expected, actual.OAuth2)
+		})
 	}
 }
 
@@ -604,4 +614,201 @@ func Test_GetRadixComponents_NodeName(t *testing.T) {
 		assert.Equal(t, compGpu, deployComponent[0].Node.Gpu)
 		assert.Equal(t, compGpuCount, deployComponent[0].Node.GpuCount)
 	})
+}
+
+func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledComponents(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithComponents(
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_1"),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_2").WithEnabled(true),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_3").WithEnabled(false),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_4").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_5").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_6").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_7").
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_8").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false)),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_9").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationComponentBuilder().
+				WithName("comp_10").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false))).
+		BuildRA()
+
+	deployComponentProd, _ := GetRadixComponentsForEnv(ra, "prod", componentImages, envVarsMap)
+	nameSet := convertRadixDeployComponentToNameSet(deployComponentProd)
+	assert.NotEmpty(t, nameSet["comp_1"])
+	assert.NotEmpty(t, nameSet["comp_2"])
+	assert.Empty(t, nameSet["comp_3"])
+	assert.NotEmpty(t, nameSet["comp_4"])
+	assert.NotEmpty(t, nameSet["comp_5"])
+	assert.Empty(t, nameSet["comp_6"])
+	assert.NotEmpty(t, nameSet["comp_7"])
+	assert.Empty(t, nameSet["comp_8"])
+	assert.NotEmpty(t, nameSet["comp_9"])
+	assert.Empty(t, nameSet["comp_10"])
+}
+
+func TestGetRadixComponentsForEnv_ReturnsOnlyNotDisabledJobComponents(t *testing.T) {
+	componentImages := make(map[string]pipeline.ComponentImage)
+	componentImages["app"] = pipeline.ComponentImage{ImageName: anyImage, ImagePath: anyImagePath}
+	envVarsMap := make(v1.EnvVarsMap)
+	envVarsMap[defaults.RadixCommitHashEnvironmentVariable] = "anycommit"
+	envVarsMap[defaults.RadixGitTagsEnvironmentVariable] = "anytag"
+
+	ra := utils.ARadixApplication().
+		WithEnvironment("prod", "release").
+		WithEnvironment("dev", "master").
+		WithJobComponents(
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_1"),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_2").WithEnabled(true),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_3").WithEnabled(false),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_4").
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_5").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_6").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod")),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_7").
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_8").WithEnabled(true).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false)),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_9").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(true)),
+			utils.NewApplicationJobComponentBuilder().
+				WithName("job_10").WithEnabled(false).
+				WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().
+						WithEnvironment("prod").WithEnabled(false))).
+		BuildRA()
+
+	builder := NewJobComponentsBuilder(ra, "prod", componentImages, envVarsMap)
+	deployComponentProd, err := builder.JobComponents()
+	require.NoError(t, err)
+	nameSet := convertRadixDeployJobComponentsToNameSet(deployComponentProd)
+	assert.NotEmpty(t, nameSet["job_1"])
+	assert.NotEmpty(t, nameSet["job_2"])
+	assert.Empty(t, nameSet["job_3"])
+	assert.NotEmpty(t, nameSet["job_4"])
+	assert.NotEmpty(t, nameSet["job_5"])
+	assert.Empty(t, nameSet["job_6"])
+	assert.NotEmpty(t, nameSet["job_7"])
+	assert.Empty(t, nameSet["job_8"])
+	assert.NotEmpty(t, nameSet["job_9"])
+	assert.Empty(t, nameSet["job_10"])
+}
+
+func Test_GetRadixComponentsForEnv_Identity(t *testing.T) {
+	type scenarioSpec struct {
+		name                 string
+		commonConfig         *v1.Identity
+		configureEnvironment bool
+		environmentConfig    *v1.Identity
+		expected             *v1.Identity
+	}
+
+	scenarios := []scenarioSpec{
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Identity{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "use commonConfig when environmentConfig.Azure is empty", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "override non-empty commonConfig with environmentConfig.Azure", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Identity{}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "override empty commonConfig.Azure with environmentConfig", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{}}, configureEnvironment: true, environmentConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "66666666-7777-8888-9999-aaaaaaaaaaaa"}}},
+		{name: "transform clientId with curly to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "{11111111-2222-3333-4444-555555555555}"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId with urn:uuid to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "urn:uuid:11111111-2222-3333-4444-555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+		{name: "transform clientId without dashes to standard format", commonConfig: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111222233334444555555555555"}}, configureEnvironment: false, environmentConfig: nil, expected: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "11111111-2222-3333-4444-555555555555"}}},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			const envName = "anyenv"
+			component := utils.AnApplicationComponent().WithName("anycomponent").WithIdentity(scenario.commonConfig)
+			if scenario.configureEnvironment {
+				component = component.WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().WithEnvironment(envName).WithIdentity(scenario.environmentConfig),
+				)
+			}
+			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
+			sut := GetRadixComponentsForEnv
+			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+			require.NoError(t, err)
+			assert.Equal(t, scenario.expected, components[0].Identity)
+		})
+	}
+}
+
+func convertRadixDeployComponentToNameSet(deployComponents []v1.RadixDeployComponent) map[string]bool {
+	set := make(map[string]bool)
+	for _, deployComponent := range deployComponents {
+		set[deployComponent.Name] = true
+	}
+	return set
+}
+
+func convertRadixDeployJobComponentsToNameSet(deployComponents []v1.RadixDeployJobComponent) map[string]bool {
+	set := make(map[string]bool)
+	for _, deployComponent := range deployComponents {
+		set[deployComponent.Name] = true
+	}
+	return set
 }

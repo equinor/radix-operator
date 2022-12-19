@@ -21,7 +21,6 @@ const (
 	RadixGitTagsAnnotation         = "radix.equinor.com/radix-git-tags"
 	RadixCommitAnnotation          = "radix.equinor.com/radix-commit"
 	RadixComponentImagesAnnotation = "radix-component-images"
-	RadixContainerOutputAnnotation = "radix-container-output"
 	RadixDeploymentNameAnnotation  = "radix-deployment-name"
 
 	// See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
@@ -45,7 +44,6 @@ const (
 	RadixJobTypeLabel                  = "radix-job-type"
 	RadixJobTypeJob                    = "job" // Outer job
 	RadixJobTypeBuild                  = "build"
-	RadixJobTypeScan                   = "scan"
 	RadixJobTypeCloneConfig            = "clone-config"
 	RadixJobTypePreparePipelines       = "prepare-pipelines"
 	RadixJobTypeRunPipelines           = "run-pipelines"
@@ -64,6 +62,7 @@ const (
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
 	RadixPodIsJobSchedulerLabel        = "is-job-scheduler-pod"
+	IsServiceAccountForComponent       = "is-service-account-for-component"
 	//RadixBatchNameLabel A label that k8s automatically adds to a Pod created by Job and to the Job for a Batch
 	RadixBatchNameLabel = "radix-batch-name"
 	RadixJobIdLabel     = "radix-job-id"
@@ -74,6 +73,22 @@ const (
 
 	//RadixBranchDeprecated Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
+)
+
+//RadixConfigMapType Purpose of ConfigMap
+type RadixConfigMapType string
+
+const (
+	//EnvVarsConfigMap ConfigMap contains environment variables
+	EnvVarsConfigMap RadixConfigMapType = "env-vars"
+	//EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
+	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
+	// RadixPipelineResultConfigMap Label of a ConfigMap, which keeps a Radix pipeline result
+	RadixPipelineResultConfigMap RadixConfigMapType = "radix-pipeline-result"
+	// RadixPipelineConfigConfigMap Label of a ConfigMap, which keeps a Radix pipeline configuration
+	RadixPipelineConfigConfigMap RadixConfigMapType = "radix-pipeline-config"
+	// RadixPipelineGitInformationConfigMap Label of a ConfigMap, which keeps a Radix pipeline Git information
+	RadixPipelineGitInformationConfigMap RadixConfigMapType = "radix-pipeline-git-information"
 )
 
 // Kube  Struct for accessing lower level kubernetes functions
@@ -97,6 +112,7 @@ type Kube struct {
 	ServiceAccountLister     coreListers.ServiceAccountLister
 	LimitRangeLister         coreListers.LimitRangeLister
 	JobLister                batchListers.JobLister
+	//Do not use ConfigMapLister as it were cases it return outdated data
 }
 
 var logger *log.Entry
@@ -149,12 +165,12 @@ func IsEmptyPatch(patchBytes []byte) bool {
 	return string(patchBytes) == "{}"
 }
 
-//KubeClient Kubernetes client
+// KubeClient Kubernetes client
 func (kubeutil *Kube) KubeClient() kubernetes.Interface {
 	return kubeutil.kubeClient
 }
 
-//RadixClient Radix Kubernetes CRD client
+// RadixClient Radix Kubernetes CRD client
 func (kubeutil *Kube) RadixClient() radixclient.Interface {
 	return kubeutil.radixclient
 }

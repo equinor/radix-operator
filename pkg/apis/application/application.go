@@ -57,7 +57,7 @@ func (app Application) OnSync() error {
 // OnSyncWithGranterToMachineUserToken OnSync where handler is passed in, as the granter function cannot be tested and has to be mocked
 func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGranter GranterFunction) error {
 	radixRegistration := app.registration
-	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName(), "registrationNamespace": radixRegistration.GetNamespace()})
+	logger = log.WithFields(log.Fields{"registrationName": radixRegistration.GetName()})
 
 	err := app.createAppNamespace()
 	if err != nil {
@@ -107,11 +107,7 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		logger.Errorf("failed to set access permissions needed by pipeline: %v", err)
 		return err
 	}
-	err = app.applyRbacOnScanImageRunner()
-	if err != nil {
-		logger.Errorf("Failed to set access permissions needed to copy vulnerability scan results to configmap: %v", err)
-		return err
-	}
+
 	logger.Debugf("Applied access permissions needed by pipeline")
 
 	err = app.applyRbacRadixRegistration()

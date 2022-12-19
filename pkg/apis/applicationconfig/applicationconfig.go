@@ -59,33 +59,37 @@ func (app *ApplicationConfig) GetRadixRegistration() *v1.RadixRegistration {
 }
 
 // GetComponent Gets the component for a provided name
-func GetComponent(ra *v1.RadixApplication, name string) *v1.RadixComponent {
+func GetComponent(ra *v1.RadixApplication, name string) v1.RadixCommonComponent {
 	for _, component := range ra.Spec.Components {
 		if strings.EqualFold(component.Name, name) {
 			return &component
 		}
 	}
-
+	for _, jobComponent := range ra.Spec.Jobs {
+		if strings.EqualFold(jobComponent.Name, name) {
+			return &jobComponent
+		}
+	}
 	return nil
 }
 
 // GetComponentEnvironmentConfig Gets environment config of component
-func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) *v1.RadixEnvironmentConfig {
+func GetComponentEnvironmentConfig(ra *v1.RadixApplication, envName, componentName string) v1.RadixCommonEnvironmentConfig {
+	// TODO: Add interface for RA + EnvConfig
 	return GetEnvironment(GetComponent(ra, componentName), envName)
 }
 
 // GetEnvironment Gets environment config of component
-func GetEnvironment(component *v1.RadixComponent, envName string) *v1.RadixEnvironmentConfig {
+func GetEnvironment(component v1.RadixCommonComponent, envName string) v1.RadixCommonEnvironmentConfig {
 	if component == nil {
 		return nil
 	}
 
-	for _, environment := range component.EnvironmentConfig {
-		if strings.EqualFold(environment.Environment, envName) {
-			return &environment
+	for _, environment := range component.GetEnvironmentConfig() {
+		if strings.EqualFold(environment.GetEnvironment(), envName) {
+			return environment
 		}
 	}
-
 	return nil
 }
 
@@ -223,15 +227,11 @@ func isTargetEnvsEmpty(targetEnvs map[string]bool) bool {
 	// Check if all values are false
 	falseCount := 0
 	for _, value := range targetEnvs {
-		if value == false {
+		if !value {
 			falseCount++
 		}
 	}
-	if falseCount == len(targetEnvs) {
-		return true
-	}
-
-	return false
+	return falseCount == len(targetEnvs)
 }
 
 // applyEnvironment creates an environment or applies changes if it exists
@@ -248,12 +248,12 @@ func (app *ApplicationConfig) applyEnvironment(newRe *v1.RadixEnvironment) error
 
 		newRe, err = repository.Create(context.TODO(), newRe, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to create RadixEnvironment object: %v", err)
+			return fmt.Errorf("failed to create RadixEnvironment object: %v", err)
 		}
 		logger.Debugf("Created RadixEnvironment: %s", newRe.Name)
 
 	} else if err != nil {
-		return fmt.Errorf("Failed to get RadixEnvironment object: %v", err)
+		return fmt.Errorf("failed to get RadixEnvironment object: %v", err)
 
 	} else {
 		// Environment already exists
@@ -278,21 +278,24 @@ func patchDifference(repository radixTypes.RadixEnvironmentInterface, oldRe *v1.
 
 	oldReJSON, err := json.Marshal(oldRe)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal old RadixEnvironment object: %v", err)
+		return fmt.Errorf("failed to marshal old RadixEnvironment object: %v", err)
 	}
 
 	radixEnvironmentJSON, err := json.Marshal(radixEnvironment)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal new RadixEnvironment object: %v", err)
+		return fmt.Errorf("failed to marshal new RadixEnvironment object: %v", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldReJSON, radixEnvironmentJSON, v1.RadixEnvironment{})
+	if err != nil {
+		return fmt.Errorf("failed to create patch document for RadixEnvironment object: %v", err)
+	}
 
 	if !isEmptyPatch(patchBytes) {
 		// Will perform update as patching does not seem to work for this custom resource
 		patchedEnvironment, err := repository.Update(context.TODO(), radixEnvironment, metav1.UpdateOptions{})
 		if err != nil {
-			return fmt.Errorf("Failed to patch RadixEnvironment object: %v", err)
+			return fmt.Errorf("failed to patch RadixEnvironment object: %v", err)
 		}
 		logger.Debugf("Patched RadixEnvironment: %s", patchedEnvironment.Name)
 	} else {

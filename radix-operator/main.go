@@ -4,25 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	errorUtils "github.com/equinor/radix-common/utils/errors"
+	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	errorUtils "github.com/equinor/radix-common/utils/errors"
 	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	deploymentAPI "github.com/equinor/radix-operator/pkg/apis/deployment"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/metrics"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/alert"
 	"github.com/equinor/radix-operator/radix-operator/application"
 	"github.com/equinor/radix-operator/radix-operator/common"
+	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
@@ -30,7 +30,7 @@ import (
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -49,14 +49,8 @@ var logger *log.Entry
 
 func main() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "main"})
-	switch os.Getenv(defaults.LogLevel) {
-	case "DEBUG":
-		logger.Logger.SetLevel(log.DebugLevel)
-	case "ERROR":
-		logger.Logger.SetLevel(log.ErrorLevel)
-	default:
-		logger.Logger.SetLevel(log.InfoLevel)
-	}
+	cfg := config.NewConfig()
+	setLogLevel(cfg.LogLevel)
 
 	registrationControllerThreads, applicationControllerThreads, environmentControllerThreads, deploymentControllerThreads, jobControllerThreads, alertControllerThreads, kubeClientRateLimitBurst, kubeClientRateLimitQPS, err := getInitParams()
 	if err != nil {
@@ -79,7 +73,7 @@ func main() {
 	go startApplicationController(client, radixClient, eventRecorder, stop, secretProviderClient, applicationControllerThreads)
 	go startEnvironmentController(client, radixClient, eventRecorder, stop, secretProviderClient, environmentControllerThreads)
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
-	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads)
+	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads, cfg.PipelineJobConfig)
 	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, alertControllerThreads)
 
 	sigTerm := make(chan os.Signal, 1)
@@ -248,7 +242,6 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 		kubeUtil,
 		radixClient,
 		prometheusOperatorClient,
-		deployment.WithForceRunAsNonRootFromEnvVar(defaults.RadixDeploymentForceNonRootContainers),
 		deployment.WithTenantIdFromEnvVar(defaults.OperatorTenantIdEnvironmentVariable),
 		deployment.WithKubernetesApiPortFromEnvVar(defaults.KubernetesApiPortEnvironmentVariable),
 		deployment.WithOAuth2DefaultConfig(oauthDefaultConfig),
@@ -274,9 +267,7 @@ func startDeploymentController(client kubernetes.Interface, radixClient radixcli
 	}
 }
 
-func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-
-	syncJobStatusMetrics(radixClient)
+func startJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int, config *jobUtil.Config) {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
@@ -288,20 +279,10 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 		radixInformerFactory,
 	)
 
-	handler := job.NewHandler(client,
-		kubeUtil,
-		radixClient,
-		func(syncedOk bool) {}) // Not interested in getting notifications of synced)
+	handler := job.NewHandler(client, kubeUtil, radixClient, config, func(syncedOk bool) {}) // Not interested in getting notifications of synced)
 
 	waitForChildrenToSync := true
-	jobController := job.NewController(
-		client,
-		radixClient,
-		&handler,
-		kubeInformerFactory,
-		radixInformerFactory,
-		waitForChildrenToSync,
-		recorder)
+	jobController := job.NewController(client, radixClient, &handler, kubeInformerFactory, radixInformerFactory, waitForChildrenToSync, recorder)
 
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
@@ -362,33 +343,6 @@ func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfigu
 	return config, nil
 }
 
-func syncJobStatusMetrics(radixClient radixclient.Interface) error {
-	logger.Info("Restore vulnerability scan metrics from build job.")
-	radixJobs, err := radixClient.RadixV1().RadixJobs("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-	logger.Debugf("Found %d build Radix jobs.", len(radixJobs.Items))
-	radixJobMap := make(map[string]v1.RadixJob)
-	for _, radixJob := range radixJobs.Items {
-		if radixJob.Status.Condition != v1.JobSucceeded {
-			continue
-		}
-		for _, env := range radixJob.Status.TargetEnvs {
-			appEnvKey := fmt.Sprintf("%s#%s", radixJob.Namespace, env)
-			cachedRadixJob, found := radixJobMap[appEnvKey]
-			if !found || cachedRadixJob.Status.Ended.Before(radixJob.Status.Ended) {
-				radixJobMap[appEnvKey] = radixJob
-			}
-		}
-	}
-	for _, radixJob := range radixJobMap {
-		metrics.RadixJobVulnerabilityScan(&radixJob)
-	}
-	logger.Debugf("Completed restoring vulnerability scan metrics from build job for %d Radix jobs.", len(radixJobMap))
-	return nil
-}
-
 func startMetricsServer(stop <-chan struct{}) {
 	srv := &http.Server{Addr: ":9000"}
 	http.Handle("/metrics", promhttp.Handler())
@@ -426,4 +380,15 @@ func Healthz(writer http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(writer, "%s", response)
+}
+
+func setLogLevel(logLevel string) {
+	switch logLevel {
+	case string(config.LogLevelDebug):
+		log.SetLevel(log.DebugLevel)
+	case string(config.LogLevelError):
+		log.SetLevel(log.ErrorLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 }

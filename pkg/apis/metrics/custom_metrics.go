@@ -56,15 +56,6 @@ var (
 		Name: "radix_operator_radix_job_processed",
 		Help: "The number of radix jobs processed with status",
 	}, []string{"application", "pipeline_type", "status", "docker_registry", "pipeline_image"})
-
-	radixVulnerabilityScanSeverity = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "radix_operator_vulnerability_scan_severity",
-		Help: "Vulnerability count by application, environment, component and severity",
-	}, []string{"application", "environment", "component", "severity"})
-	radixVulnerabilityScanProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "radix_operator_vulnerability_scan_status",
-		Help: "The total number of vulnerability scans by status",
-	}, []string{"application", "environment", "component", "status"})
 )
 
 func init() {
@@ -138,43 +129,6 @@ func RadixJobStatusChanged(rj *v1.RadixJob) {
 	}
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
 		"status": string(rj.Status.Condition), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Inc()
-}
-
-var vulnerabilitySeverities = []string{"critical", "high", "medium", "low"}
-
-func RadixJobVulnerabilityScan(rj *v1.RadixJob) {
-	if rj == nil {
-		return
-	}
-
-	for _, step := range rj.Status.Steps {
-		if step.Output != nil && step.Output.Scan != nil {
-			scan := step.Output.Scan
-
-			for _, env := range rj.Status.TargetEnvs {
-				for _, comp := range step.Components {
-					radixVulnerabilityScanProcessed.With(
-						prometheus.Labels{"application": rj.Spec.AppName, "environment": env, "component": comp, "status": string(scan.Status)},
-					).Inc()
-
-					if scan.Status == v1.ScanSuccess {
-						vulnerabilities := scan.Vulnerabilities
-
-						if vulnerabilities == nil {
-							vulnerabilities = make(v1.VulnerabilityMap)
-						}
-
-						for _, severity := range vulnerabilitySeverities {
-							severityCount := vulnerabilities[severity]
-							radixVulnerabilityScanSeverity.With(
-								prometheus.Labels{"application": rj.Spec.AppName, "environment": env, "component": comp, "severity": severity},
-							).Set(float64(severityCount))
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 // DefaultBuckets Holds the buckets used as default

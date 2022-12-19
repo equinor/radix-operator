@@ -6,6 +6,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pipeline-runner/model/env"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -13,6 +14,9 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	secretsstorevclient "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
@@ -64,18 +68,6 @@ func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) erro
 	if err != nil {
 		return err
 	}
-
-	containerRegistry, err := cli.kubeUtil.GetContainerRegistry()
-	if err != nil {
-		return err
-	}
-	subscriptionId, err := cli.kubeUtil.GetSubscriptionId()
-	if err != nil {
-		return err
-	}
-
-	cli.pipelineInfo.ContainerRegistry = containerRegistry
-	cli.pipelineInfo.SubscriptionId = subscriptionId
 	return nil
 }
 
@@ -90,6 +82,10 @@ func (cli *PipelineRunner) Run() error {
 			return err
 		}
 		log.Infof(step.SucceededMsg())
+		if cli.pipelineInfo.StopPipeline {
+			log.Infof("Pipeline is stopped: %s", cli.pipelineInfo.StopPipelineMessage)
+			break
+		}
 	}
 	return nil
 }
@@ -99,13 +95,15 @@ func (cli *PipelineRunner) TearDown() {
 	namespace := utils.GetAppNamespace(cli.appName)
 
 	err := cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.RadixConfigMapName)
-	if err != nil {
+	if err != nil && !k8sErrors.IsNotFound(err) {
 		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.RadixConfigMapName, namespace, err)
 	}
 
-	err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
-	if err != nil {
-		log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.GitConfigMapName, namespace, err)
+	if cli.pipelineInfo.PipelineArguments.PipelineType == string(v1.BuildDeploy) {
+		err = cli.kubeUtil.DeleteConfigMap(namespace, cli.pipelineInfo.GitConfigMapName)
+		if err != nil && !k8sErrors.IsNotFound(err) {
+			log.Errorf("failed on tear-down deleting the config-map %s, ns: %s. %v", cli.pipelineInfo.GitConfigMapName, namespace, err)
+		}
 	}
 }
 
@@ -115,7 +113,6 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 	stepImplementations = append(stepImplementations, steps.NewApplyConfigStep())
 	stepImplementations = append(stepImplementations, steps.NewBuildStep())
 	stepImplementations = append(stepImplementations, steps.NewRunPipelinesStep())
-	stepImplementations = append(stepImplementations, steps.NewScanImageStep())
 	stepImplementations = append(stepImplementations, steps.NewDeployStep(kube.NewNamespaceWatcherImpl(cli.kubeclient)))
 	stepImplementations = append(stepImplementations, steps.NewPromoteStep())
 
@@ -125,4 +122,30 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 	}
 
 	return stepImplementations
+}
+
+func (cli *PipelineRunner) CreateResultConfigMap() error {
+	result := v1.RadixJobResult{}
+	if cli.pipelineInfo.StopPipeline {
+		result.Result = v1.RadixJobResultStoppedNoChanges
+		result.Message = cli.pipelineInfo.StopPipelineMessage
+	}
+	resultContent, err := yaml.Marshal(&result)
+	if err != nil {
+		return err
+	}
+	jobName := cli.pipelineInfo.PipelineArguments.JobName
+	configMap := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: jobName,
+			Labels: map[string]string{
+				kube.RadixJobNameLabel:       jobName,
+				kube.RadixConfigMapTypeLabel: string(kube.RadixPipelineResultConfigMap),
+			},
+		},
+		Data: map[string]string{jobs.ResultContent: string(resultContent)},
+	}
+	log.Debugf("Create the result ConfigMap %s in %s", configMap.GetName(), configMap.GetNamespace())
+	_, err = cli.kubeUtil.CreateConfigMap(utils.GetAppNamespace(cli.appName), &configMap)
+	return err
 }
