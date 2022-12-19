@@ -146,7 +146,7 @@ func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(jobsForConditions
 		for jobBranch, jobs := range jobsForBranches {
 			jobs := sortRadixJobsByCreatedDesc(jobs)
 			for i := jobHistoryLimit; i < len(jobs); i++ {
-				log.Debugf("- collect for deleting RadixJob %s for the branch %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
+				log.Debugf("- collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
 				deletingJobs = append(deletingJobs, jobs[i])
 			}
 		}
