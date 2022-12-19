@@ -77,7 +77,11 @@ func NewController(client kubernetes.Interface,
 			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixAlert, _ := obj.(*radixv1.RadixAlert)
+			radixAlert, converted := obj.(*radixv1.RadixAlert)
+			if !converted {
+				logger.Errorf("RadixAlert object cast failed during deleted event received.")
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixAlert)
 			if err == nil {
 				logger.Debugf("RadixAlert object deleted event received for %s. Do nothing", key)

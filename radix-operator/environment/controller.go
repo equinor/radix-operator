@@ -82,7 +82,11 @@ func NewController(client kubernetes.Interface,
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixEnvironment, _ := obj.(*v1.RadixEnvironment)
+			radixEnvironment, converted := obj.(*v1.RadixEnvironment)
+			if !converted {
+				logger.Errorf("RadixEnvironment object cast failed during deleted event received.")
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixEnvironment)
 			if err == nil {
 				logger.Debugf("Environment object deleted event received for %s. Do nothing", key)
@@ -164,8 +168,13 @@ func NewController(client kubernetes.Interface,
 			}
 		},
 		DeleteFunc: func(cur interface{}) {
-			for _, env := range cur.(*v1.RadixApplication).Spec.Environments {
-				uniqueName := utils.GetEnvironmentNamespace(cur.(*v1.RadixApplication).Name, env.Name)
+			radixApplication, converted := cur.(*v1.RadixApplication)
+			if !converted {
+				logger.Errorf("RadixApplication object cast failed during deleted event received.")
+				return
+			}
+			for _, env := range radixApplication.Spec.Environments {
+				uniqueName := utils.GetEnvironmentNamespace(radixApplication.Name, env.Name)
 				re, err := radixClient.RadixV1().RadixEnvironments().Get(context.TODO(), uniqueName, metav1.GetOptions{})
 				if err == nil {
 					controller.Enqueue(re)
