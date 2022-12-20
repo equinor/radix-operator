@@ -55,6 +55,11 @@ func GetEnvVarsFromSecrets(componentName string, secretNames []string) []corev1.
 	return envVars
 }
 
+// GetServiceAccountSecretNamePrefix Gets name prefix of the service account secret
+func GetServiceAccountSecretNamePrefix(serviceAccountName string) string {
+	return fmt.Sprintf("%s-token", serviceAccountName)
+}
+
 func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name: envVarName,

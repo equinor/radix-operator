@@ -6,6 +6,10 @@ import (
 )
 
 const (
+
+	// RadixMachineUserTokenSecretAnnotation is the key for the annotation to determine if a secret holds a machine user token
+	RadixMachineUserTokenSecretAnnotation = "radix.equinor.com/radix-machine-user-token-secret"
+
 	// BuildSecretPrefix All build secrets will be mounted with this prefix
 	BuildSecretPrefix = "BUILD_SECRET_"
 
