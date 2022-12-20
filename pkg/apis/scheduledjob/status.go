@@ -155,6 +155,15 @@ func getReasonAndMessageFromPod(pods []v1.Pod) (reason, message string) {
 	case v1.PodFailed:
 		reason = pod.Status.Reason
 		message = pod.Status.Message
+
+		if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
+			if len(reason) == 0 {
+				reason = pod.Status.ContainerStatuses[0].State.Terminated.Reason
+			}
+			if len(message) == 0 {
+				message = pod.Status.ContainerStatuses[0].State.Terminated.Message
+			}
+		}
 	}
 
 	return

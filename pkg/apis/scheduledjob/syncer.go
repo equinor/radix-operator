@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -115,14 +116,13 @@ func (s *syncer) isScheduledJobDone() bool {
 }
 
 func ownerReference(job *radixv1.RadixScheduledJob) []metav1.OwnerReference {
-	trueVar := true
 	return []metav1.OwnerReference{
 		{
 			APIVersion: "radix.equinor.com/v1",
 			Kind:       "RadixScheduledJob",
 			Name:       job.Name,
 			UID:        job.UID,
-			Controller: &trueVar,
+			Controller: utils.BoolPtr(true),
 		},
 	}
 }

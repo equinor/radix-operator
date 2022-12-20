@@ -2,7 +2,6 @@ package scheduledjob
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -12,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -88,7 +86,7 @@ func NewController(client kubernetes.Interface,
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldMeta := oldObj.(metav1.Object)
-			newMeta := oldObj.(metav1.Object)
+			newMeta := newObj.(metav1.Object)
 			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
 				return
 			}
@@ -100,29 +98,6 @@ func NewController(client kubernetes.Interface,
 	})
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			objMeta, ok := obj.(metav1.Object)
-			if !ok {
-				utilruntime.HandleError(errors.New("error decoding pod object in AddFunc, invalid type"))
-				return
-			}
-			podOwnerRef := metav1.GetControllerOf(objMeta)
-			if podOwnerRef == nil {
-				return
-			}
-			if podOwnerRef.Kind != "Job" {
-				return
-			}
-
-			job, err := client.BatchV1().Jobs(objMeta.GetNamespace()).Get(context.TODO(), podOwnerRef.Name, metav1.GetOptions{})
-			if err != nil {
-				// This job may not be found because application is being deleted and resources are being deleted
-				logger.Debugf("Could not find owning job of pod %s: %w", objMeta.GetName(), err)
-				return
-			}
-
-			controller.HandleObject(job, "RadixScheduledJob", getOwner)
-		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldMeta := oldObj.(metav1.Object)
 			newMeta := newObj.(metav1.Object)
@@ -138,7 +113,7 @@ func NewController(client kubernetes.Interface,
 			job, err := client.BatchV1().Jobs(newMeta.GetNamespace()).Get(context.TODO(), podOwnerRef.Name, metav1.GetOptions{})
 			if err != nil {
 				// This job may not be found because application is being deleted and resources are being deleted
-				logger.Debugf("Could not find owning job of pod %s: %w", newMeta.GetName(), err)
+				logger.Debugf("Could not find owning job of pod %s: %v", newMeta.GetName(), err)
 				return
 			}
 

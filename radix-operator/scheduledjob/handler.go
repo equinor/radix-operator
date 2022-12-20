@@ -17,12 +17,15 @@ import (
 )
 
 const (
-	// SuccessSynced is used as part of the Event 'reason' when a RadixScheduleJob is synced
-	SuccessSynced = "Synced"
+	// Synced is the Event reason when a RadixScheduleJob is synced without errors
+	Synced = "Synced"
 
-	// MessageResourceSynced is the message used for an Event fired when a RadixScheduleJob
+	// SyncFailed is the Event reason when an error occurs while syncing a RadixScheduledJob
+	SyncFailed = "SyncFailed"
+
+	// MessageResourceSynced is the message used for an Event fired when a RadixScheduledJob
 	// is synced successfully
-	MessageResourceSynced = "Radix Schedule Job synced successfully"
+	MessageResourceSynced = "Radix Scheduled Job synced successfully"
 )
 
 var _ common.Handler = &Handler{}
@@ -82,11 +85,12 @@ func (h *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncRSC)
 	err = syncer.OnSync()
 	if err != nil {
+		eventRecorder.Event(syncRSC, corev1.EventTypeWarning, SyncFailed, err.Error())
 		// Put back on queue
 		return err
 	}
 
-	eventRecorder.Event(syncRSC, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
+	eventRecorder.Event(syncRSC, corev1.EventTypeNormal, Synced, MessageResourceSynced)
 	return nil
 }
 
