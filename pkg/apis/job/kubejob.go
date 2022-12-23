@@ -3,9 +3,10 @@ package job
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-	"os"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"

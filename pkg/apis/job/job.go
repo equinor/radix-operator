@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"sort"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
@@ -57,7 +58,10 @@ func (job *Job) OnSync() error {
 	appName := job.radixJob.Spec.AppName
 	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("for BuildDeploy failed to find RadixApplication by name %s", appName)
+		if !k8sErrors.IsNotFound(err) {
+			return err
+		}
+		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", appName)
 	}
 
 	job.syncTargetEnvironments(ra)
@@ -77,9 +81,12 @@ func (job *Job) OnSync() error {
 	}
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-
 	if k8sErrors.IsNotFound(err) {
 		err = job.createPipelineJob()
+		if err != nil {
+			return err
+		}
+		err = job.setStatusOfJob()
 		if err != nil {
 			return err
 		}
@@ -93,7 +100,7 @@ func (job *Job) OnSync() error {
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 func (job *Job) restoreStatus() {
-	if restoredStatus, ok := job.radixJob.Annotations[kube.RestoredStatusAnnotation]; ok {
+	if restoredStatus, ok := job.radixJob.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
 		if job.radixJob.Status.Condition == "" {
 			var status v1.RadixJobStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)
@@ -156,18 +163,29 @@ func (job *Job) isOtherJobRunningOnBranch(ra *v1.RadixApplication, allJobs []v1.
 	if len(job.radixJob.Spec.Build.Branch) == 0 {
 		return false
 	}
+
+	isJobActive := func(rj *v1.RadixJob) bool {
+		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
+	}
+
 	for _, rj := range allJobs {
-		if rj.GetName() == job.radixJob.GetName() || len(rj.Spec.Build.Branch) == 0 || rj.Status.Condition != v1.JobRunning {
+		if rj.GetName() == job.radixJob.GetName() || len(rj.Spec.Build.Branch) == 0 || !isJobActive(&rj) {
 			continue
 		}
-		for _, env := range ra.Spec.Environments {
-			if len(env.Build.From) > 0 &&
-				branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) &&
-				branch.MatchesPattern(env.Build.From, job.radixJob.Spec.Build.Branch) {
-				return true
+
+		if ra != nil {
+			for _, env := range ra.Spec.Environments {
+				if len(env.Build.From) > 0 &&
+					branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) &&
+					branch.MatchesPattern(env.Build.From, job.radixJob.Spec.Build.Branch) {
+					return true
+				}
 			}
+		} else if job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch {
+			return true
 		}
 	}
+
 	return false
 }
 
@@ -187,8 +205,8 @@ func (job *Job) syncTargetEnvironments(ra *v1.RadixApplication) {
 			currStatus.TargetEnvs = append(currStatus.TargetEnvs, rj.Spec.Deploy.ToEnvironment)
 		} else if rj.Spec.PipeLineType == v1.Promote {
 			currStatus.TargetEnvs = append(currStatus.TargetEnvs, rj.Spec.Promote.ToEnvironment)
-		} else if rj.Spec.PipeLineType == v1.BuildDeploy && targetEnvs != nil {
-			currStatus.TargetEnvs = *targetEnvs
+		} else if rj.Spec.PipeLineType == v1.BuildDeploy {
+			currStatus.TargetEnvs = targetEnvs
 		}
 	})
 	if err != nil {
@@ -196,17 +214,17 @@ func (job *Job) syncTargetEnvironments(ra *v1.RadixApplication) {
 	}
 }
 
-func (job *Job) getTargetEnv(ra *v1.RadixApplication, rj *v1.RadixJob) *[]string {
-	if rj.Spec.PipeLineType != v1.BuildDeploy || len(rj.Spec.Build.Branch) == 0 {
-		return nil
+func (job *Job) getTargetEnv(ra *v1.RadixApplication, rj *v1.RadixJob) (targetEnvs []string) {
+	if rj.Spec.PipeLineType != v1.BuildDeploy || len(rj.Spec.Build.Branch) == 0 || ra == nil {
+		return
 	}
-	targetEnvs := make([]string, 0)
+
 	for _, env := range ra.Spec.Environments {
 		if len(env.Build.From) > 0 && branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) {
 			targetEnvs = append(targetEnvs, env.Name)
 		}
 	}
-	return &targetEnvs
+	return targetEnvs
 }
 
 // IsRadixJobDone Checks if job is done
