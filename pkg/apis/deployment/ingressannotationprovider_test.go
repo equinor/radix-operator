@@ -67,7 +67,7 @@ func Test_IngressConfigurationAnnotations(t *testing.T) {
 	annotations, err = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"socket", "round-robin"}})
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(annotations))
-	assert.Equal(t, maputils.MergeStringMaps(config.AnnotationConfigurations[1].Annotations, config.AnnotationConfigurations[2].Annotations), annotations)
+	assert.Equal(t, maputils.MergeMaps(config.AnnotationConfigurations[1].Annotations, config.AnnotationConfigurations[2].Annotations), annotations)
 
 	annotations, err = componentIngress.GetAnnotations(&v1.RadixDeployComponent{IngressConfiguration: []string{"non-existing"}})
 	assert.Nil(t, err)
