@@ -340,7 +340,7 @@ func (deploy *Deployment) getIngressConfig(
 		if err != nil {
 			return nil, err
 		}
-		annotations = radixmaps.MergeStringMaps(annotations, providedAnnotations)
+		annotations = radixmaps.MergeMaps(annotations, providedAnnotations)
 	}
 
 	ingress := &networkingv1.Ingress{

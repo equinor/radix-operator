@@ -42,8 +42,12 @@ func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 			}
 		},
 		DeleteFunc: func(old interface{}) {
-			currJob, success := old.(*batchv1.Job)
-			if success && currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
+			currJob, converted := old.(*batchv1.Job)
+			if !converted {
+				logger.Errorf("Job object cast failed during deleted event received.")
+				return
+			}
+			if currJob.GetName() == job.GetName() && currJob.GetNamespace() == job.GetNamespace() {
 				errChan <- errors.New("job failed - Job deleted")
 			}
 		},
@@ -63,8 +67,12 @@ func (kubeutil *Kube) WaitForCompletionOf(job *batchv1.Job) error {
 			}
 		},
 		DeleteFunc: func(old interface{}) {
-			pod, success := old.(*corev1.Pod)
-			if success && job.GetNamespace() == pod.GetNamespace() && pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() {
+			pod, converted := old.(*corev1.Pod)
+			if !converted {
+				logger.Errorf("Pod object cast failed during deleted event received.")
+				return
+			}
+			if job.GetNamespace() == pod.GetNamespace() && pod.ObjectMeta.Labels[jobNameLabel] == job.GetName() {
 				errChan <- fmt.Errorf("job's pod deleted")
 			}
 		},
