@@ -71,10 +71,11 @@ rules:
   resources:
   - radixenvironments
   verbs:
-  - list
   - get
+  - list
   - watch
   - delete
+  - create
 - apiGroups:
   - '*'
   resources:
@@ -99,6 +100,7 @@ rules:
   - get
   - list
   - watch
+  - create
 - apiGroups:
   - radix.equinor.com
   resources:
@@ -109,28 +111,18 @@ rules:
   - watch
   - patch
   - create
-# Remove as part of https://equinor.atlassian.net/browse/RA-725
 - apiGroups:
-  - batch
+  - 'secrets-store.csi.x-k8s.io'
   resources:
-  - jobs
+  - secretproviderclasses
+  - secretproviderclasspodstatuses
   verbs:
   - get
   - list
-  - watch
-  - create
 - apiGroups:
-    - 'secrets-store.csi.x-k8s.io'
+  - '*'
   resources:
-    - secretproviderclasses
-    - secretproviderclasspodstatuses
+  - secrets
   verbs:
-    - get
-    - list
-- apiGroups:
-    - '*'
-  resources:
-    - secrets
-  verbs:
-    - list
+  - list
 ---

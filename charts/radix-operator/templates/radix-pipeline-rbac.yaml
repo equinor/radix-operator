@@ -42,9 +42,9 @@ rules:
   - delete
   - create
 - apiGroups:
-    - 'secrets-store.csi.x-k8s.io'
+  - 'secrets-store.csi.x-k8s.io'
   resources:
-    - secretproviderclasses
+  - secretproviderclasses
   verbs:
   - get
   - list
