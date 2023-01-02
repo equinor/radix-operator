@@ -113,6 +113,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	var push string
 	var useCache string
 	var useBuildKit string
+	command := []string{"/radix-image-builder/build_acr_no_buildkit.sh"}
 	if pushImage {
 		push = "--push"
 	}
@@ -121,6 +122,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	}
 	if pipelineInfo.RadixApplication.Spec.Build != nil && pipelineInfo.RadixApplication.Spec.Build.UseBuildKit != nil && *pipelineInfo.RadixApplication.Spec.Build.UseBuildKit {
 		useBuildKit = "1"
+		command = []string{"/radix-image-builder/build_acr_with_buildkit.sh"}
 	}
 	distinctBuildContainers := make(map[string]void)
 	for _, componentImage := range pipelineInfo.ComponentImages {
@@ -221,6 +223,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
+			Command:         command,
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,
