@@ -270,7 +270,7 @@ pkg/apis/environment/environment.go:ApplyAdGroupRoleBinding|rolebinding|radix-ap
 `application`-machine-user-token     | k8s        || secrets                      |secrets|secrets|secrets|secrets|secrets
  cluster-admin                        ||||||||
  pipeline-build-secrets               | k8s        || secrets                      |secrets|secrets|secrets|secrets|secrets
- radix-api                            | k8s        | jobs                          |namespaces, serviceaccounts, jobs|namespaces, serviceaccounts, jobs, secrets|serviceaccounts, jobs|||namespaces
+ radix-api                            | k8s        | jobs                          |namespaces, serviceaccounts, jobs|namespaces, serviceaccounts, jobs, secrets|serviceaccounts, jobs|||
  radix-api                            | radix      | radixjobs, radixenvironments |radixregistrations, radixapplications, radixdeployments, radixjobs, radixenvironments|radixregistrations, radixapplications, radixdeployments, radixjobs, radixenvironments|radixregistrations, radixapplications, radixdeployments, radixjobs, radixenvironments||radixjobs|radixenvironments
  radix-api                            | secrets-store | |secretproviderclasses, secretproviderclasspodstatuses|secretproviderclasses, secretproviderclasspodstatuses|||
  radix-app-adm-`component`            | k8s        || secrets                      |secrets|secrets|secrets|secrets|secrets
