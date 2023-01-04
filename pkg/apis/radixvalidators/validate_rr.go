@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"regexp"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
