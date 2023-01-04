@@ -200,7 +200,7 @@ func validateSSHKey(deployKey string) error {
 func validateDoesRRExist(client radixclient.Interface, appName string) error {
 	_, err := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
-		if errors2.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			return NoRegistrationExistsForApplicationError(appName)
 		}
 		return err
