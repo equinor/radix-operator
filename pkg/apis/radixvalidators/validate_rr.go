@@ -11,7 +11,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	log "github.com/sirupsen/logrus"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -198,10 +198,12 @@ func validateSSHKey(deployKey string) error {
 }
 
 func validateDoesRRExist(client radixclient.Interface, appName string) error {
-	rr, err := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
-	if rr == nil || err != nil {
-		log.Debugf("error: %v", err)
-		return NoRegistrationExistsForApplicationError(appName)
+	_, err := client.RadixV1().RadixRegistrations().Get(context.TODO(), appName, metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return NoRegistrationExistsForApplicationError(appName)
+		}
+		return err
 	}
 	return nil
 }
