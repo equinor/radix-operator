@@ -3,12 +3,14 @@ package job
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
+	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 )
 
 type radixJobsWithRadixDeployments map[string]v1.RadixDeployment
@@ -61,13 +63,11 @@ func (job *Job) groupSortedRadixJobs(radixJobs []v1.RadixJob, radixJobsWithRDs r
 	for _, rj := range radixJobs {
 		rj := rj
 		jobCondition := rj.Status.Condition
-		switch jobCondition {
-		case v1.JobSucceeded:
+		switch {
+		case jobCondition == v1.JobSucceeded && rj.Spec.PipeLineType != v1.Build:
 			if _, ok := radixJobsWithRDs[rj.GetName()]; !ok {
 				deletingJobs = append(deletingJobs, rj)
 			}
-		case v1.JobRunning:
-			continue
 		default:
 			if radixJobsForConditions[jobCondition] == nil {
 				radixJobsForConditions[jobCondition] = make(radixJobsForBranches)
@@ -95,6 +95,10 @@ func (job *Job) getRadixJobsWithRadixDeployments() (radixJobsWithRadixDeployment
 	}
 	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.Namespace).Get(context.TODO(), appName, metav1.GetOptions{})
 	if err != nil {
+		// RadixApplication may not exist if this is the first job for a new application
+		if k8errors.IsNotFound(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	rdRadixJobs := make(radixJobsWithRadixDeployments)
@@ -143,13 +147,19 @@ func (job *Job) getAllRadixJobs() ([]v1.RadixJob, error) {
 func (job *Job) getJobsToGarbageCollectByJobConditionAndBranch(jobsForConditions radixJobsForConditions, jobHistoryLimit int) []v1.RadixJob {
 	var deletingJobs []v1.RadixJob
 	for jobCondition, jobsForBranches := range jobsForConditions {
-		for jobBranch, jobs := range jobsForBranches {
-			jobs := sortRadixJobsByCreatedDesc(jobs)
-			for i := jobHistoryLimit; i < len(jobs); i++ {
-				log.Debugf("- collect for deleting RadixJob %s for the branch %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
-				deletingJobs = append(deletingJobs, jobs[i])
+		switch jobCondition {
+		case v1.JobRunning, v1.JobQueued, v1.JobWaiting, "": // Jobs with this condition should never be garbage collected
+			continue
+		default:
+			for jobBranch, jobs := range jobsForBranches {
+				jobs := sortRadixJobsByCreatedDesc(jobs)
+				for i := jobHistoryLimit; i < len(jobs); i++ {
+					log.Debugf("- collect for deleting RadixJob %s for the env %s, condition %s", jobs[i].GetName(), jobBranch, jobCondition)
+					deletingJobs = append(deletingJobs, jobs[i])
+				}
 			}
 		}
+
 	}
 	return deletingJobs
 }

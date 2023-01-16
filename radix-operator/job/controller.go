@@ -81,7 +81,11 @@ func NewController(client kubernetes.Interface, radixClient radixclient.Interfac
 			metrics.CustomResourceUpdated(crType)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixJob, _ := obj.(*v1.RadixJob)
+			radixJob, converted := obj.(*v1.RadixJob)
+			if !converted {
+				logger.Errorf("RadixJob object cast failed during deleted event received.")
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(radixJob)
 			if err == nil {
 				logger.Debugf("Job object deleted event received for %s. Do nothing", key)

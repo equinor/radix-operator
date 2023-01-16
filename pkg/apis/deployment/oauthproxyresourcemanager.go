@@ -400,7 +400,7 @@ func (o *oauthProxyResourceManager) buildOAuthProxyIngressForComponentIngress(co
 		if err != nil {
 			return nil, err
 		}
-		annotations = radixmaps.MergeStringMaps(annotations, providedAnnotations)
+		annotations = radixmaps.MergeMaps(annotations, providedAnnotations)
 	}
 
 	var tls []networkingv1.IngressTLS

@@ -4,16 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"sort"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/metrics"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	log "github.com/sirupsen/logrus"
@@ -52,14 +54,24 @@ func NewJob(kubeclient kubernetes.Interface, kubeutil *kube.Kube, radixclient ra
 // converge the two
 func (job *Job) OnSync() error {
 	job.restoreStatus()
-	job.SyncTargetEnvironments()
+
+	appName := job.radixJob.Spec.AppName
+	ra, err := job.radixclient.RadixV1().RadixApplications(job.radixJob.GetNamespace()).Get(context.TODO(), appName, metav1.GetOptions{})
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			return err
+		}
+		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", appName)
+	}
+
+	job.syncTargetEnvironments(ra)
 
 	if IsRadixJobDone(job.radixJob) {
 		log.Debugf("Ignoring RadixJob %s/%s as it's no longer active.", job.radixJob.Namespace, job.radixJob.Name)
 		return nil
 	}
 
-	stopReconciliation, err := job.syncStatuses()
+	stopReconciliation, err := job.syncStatuses(ra)
 	if err != nil {
 		return err
 	}
@@ -69,9 +81,12 @@ func (job *Job) OnSync() error {
 	}
 
 	_, err = job.kubeclient.BatchV1().Jobs(job.radixJob.Namespace).Get(context.TODO(), job.radixJob.Name, metav1.GetOptions{})
-
 	if k8sErrors.IsNotFound(err) {
 		err = job.createPipelineJob()
+		if err != nil {
+			return err
+		}
+		err = job.setStatusOfJob()
 		if err != nil {
 			return err
 		}
@@ -85,7 +100,7 @@ func (job *Job) OnSync() error {
 
 // See https://github.com/equinor/radix-velero-plugin/blob/master/velero-plugins/deployment/restore.go
 func (job *Job) restoreStatus() {
-	if restoredStatus, ok := job.radixJob.Annotations[kube.RestoredStatusAnnotation]; ok {
+	if restoredStatus, ok := job.radixJob.Annotations[kube.RestoredStatusAnnotation]; ok && len(restoredStatus) > 0 {
 		if job.radixJob.Status.Condition == "" {
 			var status v1.RadixJobStatus
 			err := json.Unmarshal([]byte(restoredStatus), &status)
@@ -109,7 +124,7 @@ func (job *Job) restoreStatus() {
 	}
 }
 
-func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
+func (job *Job) syncStatuses(ra *v1.RadixApplication) (stopReconciliation bool, err error) {
 	stopReconciliation = false
 
 	if job.radixJob.Spec.Stop {
@@ -127,7 +142,7 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 		return false, err
 	}
 
-	if job.isOtherJobRunningOnBranch(allJobs.Items) {
+	if job.isOtherJobRunningOnBranch(ra, allJobs.Items) {
 		err = job.queueJob()
 		if err != nil {
 			return false, err
@@ -144,12 +159,29 @@ func (job *Job) syncStatuses() (stopReconciliation bool, err error) {
 	return
 }
 
-func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
+func (job *Job) isOtherJobRunningOnBranch(ra *v1.RadixApplication, allJobs []v1.RadixJob) bool {
+	if len(job.radixJob.Spec.Build.Branch) == 0 {
+		return false
+	}
+
+	isJobActive := func(rj *v1.RadixJob) bool {
+		return rj.Status.Condition == v1.JobWaiting || rj.Status.Condition == v1.JobRunning
+	}
+
 	for _, rj := range allJobs {
-		if rj.GetName() != job.radixJob.GetName() &&
-			job.radixJob.Spec.Build.Branch != "" &&
-			job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch &&
-			rj.Status.Condition == v1.JobRunning {
+		if rj.GetName() == job.radixJob.GetName() || len(rj.Spec.Build.Branch) == 0 || !isJobActive(&rj) {
+			continue
+		}
+
+		if ra != nil {
+			for _, env := range ra.Spec.Environments {
+				if len(env.Build.From) > 0 &&
+					branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) &&
+					branch.MatchesPattern(env.Build.From, job.radixJob.Spec.Build.Branch) {
+					return true
+				}
+			}
+		} else if job.radixJob.Spec.Build.Branch == rj.Spec.Build.Branch {
 			return true
 		}
 	}
@@ -157,15 +189,15 @@ func (job *Job) isOtherJobRunningOnBranch(allJobs []v1.RadixJob) bool {
 	return false
 }
 
-// SyncTargetEnvironments sync the environments in the RadixJob with environments in the RA
-func (job *Job) SyncTargetEnvironments() {
+// sync the environments in the RadixJob with environments in the RA
+func (job *Job) syncTargetEnvironments(ra *v1.RadixApplication) {
 	rj := job.radixJob
 
 	// TargetEnv has already been set
 	if len(rj.Status.TargetEnvs) > 0 {
 		return
 	}
-	targetEnvs := job.getTargetEnv(rj)
+	targetEnvs := job.getTargetEnv(ra, rj)
 
 	// Update RJ with accurate env data
 	err := job.updateRadixJobStatus(rj, func(currStatus *v1.RadixJobStatus) {
@@ -173,8 +205,8 @@ func (job *Job) SyncTargetEnvironments() {
 			currStatus.TargetEnvs = append(currStatus.TargetEnvs, rj.Spec.Deploy.ToEnvironment)
 		} else if rj.Spec.PipeLineType == v1.Promote {
 			currStatus.TargetEnvs = append(currStatus.TargetEnvs, rj.Spec.Promote.ToEnvironment)
-		} else if rj.Spec.PipeLineType == v1.BuildDeploy && targetEnvs != nil {
-			currStatus.TargetEnvs = *targetEnvs
+		} else if rj.Spec.PipeLineType == v1.BuildDeploy {
+			currStatus.TargetEnvs = targetEnvs
 		}
 	})
 	if err != nil {
@@ -182,22 +214,17 @@ func (job *Job) SyncTargetEnvironments() {
 	}
 }
 
-func (job *Job) getTargetEnv(rj *v1.RadixJob) *[]string {
-	if rj.Spec.PipeLineType != v1.BuildDeploy {
-		return nil
+func (job *Job) getTargetEnv(ra *v1.RadixApplication, rj *v1.RadixJob) (targetEnvs []string) {
+	if rj.Spec.PipeLineType != v1.BuildDeploy || len(rj.Spec.Build.Branch) == 0 || ra == nil {
+		return
 	}
-	ra, err := job.radixclient.RadixV1().RadixApplications(rj.Namespace).Get(context.TODO(), rj.Spec.AppName, metav1.GetOptions{})
-	if err != nil {
-		log.Debugf("for BuildDeploy failed to find RadixApplication by name %s", rj.Spec.AppName)
-		return &[]string{"N/A"}
-	}
-	targetEnvs := make([]string, 0)
+
 	for _, env := range ra.Spec.Environments {
-		if env.Build.From == rj.Spec.Build.Branch {
+		if len(env.Build.From) > 0 && branch.MatchesPattern(env.Build.From, rj.Spec.Build.Branch) {
 			targetEnvs = append(targetEnvs, env.Name)
 		}
 	}
-	return &targetEnvs
+	return targetEnvs
 }
 
 // IsRadixJobDone Checks if job is done
