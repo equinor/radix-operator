@@ -82,9 +82,6 @@ const (
 	// Details about the reason for this state is found in the `reason` field
 	ScheduledJobPhaseWaiting RadixScheduledJobPhase = "Waiting"
 
-	// // ScheduledJobPhasePending means that the underlying Kubernetes job is created but has not yet started
-	// ScheduledJobPhasePending RadixScheduledJobPhase = "Pending"
-
 	// ScheduledJobPhaseRunning means that the job is running
 	ScheduledJobPhaseRunning RadixScheduledJobPhase = "Running"
 

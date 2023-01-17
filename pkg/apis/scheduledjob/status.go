@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"sort"
 
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
@@ -58,8 +60,15 @@ func (s *syncer) updateStatus(changeStatusFunc func(currStatus *radixv1.RadixSch
 	return nil
 }
 
+func isJobStatusCondition(conditionType batchv1.JobConditionType) func(batchv1.JobCondition) bool {
+	return func(condition batchv1.JobCondition) bool {
+		return condition.Type == conditionType && condition.Status == v1.ConditionTrue
+	}
+
+}
+
 func (s *syncer) buildStatusFromKubernetesJob(job *batchv1.Job) (radixv1.RadixScheduledJobStatus, error) {
-	var phase radixv1.RadixScheduledJobPhase
+	var phase radixv1.RadixScheduledJobPhase = radixv1.ScheduledJobPhaseWaiting
 	var reason, message string
 	var started, ended *metav1.Time
 
@@ -69,12 +78,12 @@ func (s *syncer) buildStatusFromKubernetesJob(job *batchv1.Job) (radixv1.RadixSc
 	}
 
 	switch {
-	case job.Status.Succeeded > 0:
+	case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobComplete)):
 		phase = radixv1.ScheduledJobPhaseSucceeded
-	case job.Status.Failed > 0:
+	case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobFailed)):
 		phase = radixv1.ScheduledJobPhaseFailed
-	default:
-		phase = getPhaseFromPods(pods.Items)
+	case job.Status.Active > 0:
+		phase = radixv1.ScheduledJobPhaseRunning
 	}
 
 	switch phase {
@@ -87,7 +96,9 @@ func (s *syncer) buildStatusFromKubernetesJob(job *batchv1.Job) (radixv1.RadixSc
 		started = job.Status.StartTime
 	}
 
-	reason, message = getReasonAndMessageFromPod(pods.Items)
+	if phase == radixv1.ScheduledJobPhaseFailed || phase == radixv1.ScheduledJobPhaseWaiting {
+		reason, message = getReasonAndMessageFromPendingOrFailedPod(pods.Items)
+	}
 
 	status := radixv1.RadixScheduledJobStatus{
 		Phase:   phase,
@@ -118,30 +129,11 @@ func (s *syncer) restoreStatus() error {
 	return nil
 }
 
-func getPhaseFromPods(pods []v1.Pod) (phase radixv1.RadixScheduledJobPhase) {
+func getReasonAndMessageFromPendingOrFailedPod(pods []v1.Pod) (reason, message string) {
 	if len(pods) == 0 {
 		return
 	}
-
-	switch pods[0].Status.Phase {
-	case v1.PodPending, v1.PodUnknown:
-		phase = radixv1.ScheduledJobPhaseWaiting
-	case v1.PodRunning:
-		phase = radixv1.ScheduledJobPhaseRunning
-	case v1.PodFailed:
-		phase = radixv1.ScheduledJobPhaseFailed
-	case v1.PodSucceeded:
-		phase = radixv1.ScheduledJobPhaseSucceeded
-	}
-
-	return
-}
-
-func getReasonAndMessageFromPod(pods []v1.Pod) (reason, message string) {
-	if len(pods) == 0 {
-		return
-	}
-
+	sort.Slice(pods, func(i, j int) bool { return pods[i].CreationTimestamp.After(pods[j].CreationTimestamp.Time) })
 	pod := pods[0]
 	switch pod.Status.Phase {
 	case v1.PodPending, v1.PodUnknown:
