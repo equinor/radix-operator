@@ -9,6 +9,7 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +36,8 @@ func (s *syncerTestSuite) SetupTest() {
 	s.kubeClient = fake.NewSimpleClientset()
 	s.radixClient = fakeradix.NewSimpleClientset()
 	s.kubeUtil, _ = kube.New(s.kubeClient, s.radixClient, secretproviderfake.NewSimpleClientset())
+	s.T().Setenv("RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_MEMORY", "1500Mi")
+	s.T().Setenv("RADIXOPERATOR_APP_ENV_LIMITS_DEFAULT_CPU", "2000m")
 }
 
 func (s *syncerTestSuite) Test_RestoreStatus() {
@@ -57,7 +60,7 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 	job, err = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Create(context.Background(), job, v1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(job)
-	sut.OnSync()
+	s.Require().NoError(sut.OnSync())
 	job, err = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Get(context.Background(), jobName, v1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(expectedStatus, job.Status)
@@ -84,7 +87,7 @@ func (s *syncerTestSuite) Test_ShouldRestoreStatusFromAnnotationWhenStatusEmpty(
 	job, err = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Create(context.Background(), job, v1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(job)
-	sut.OnSync()
+	s.Require().NoError(sut.OnSync())
 	job, err = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Get(context.Background(), jobName, v1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(expectedStatus, job.Status)
@@ -112,7 +115,7 @@ func (s *syncerTestSuite) Test_ShouldNotRestoreStatusFromAnnotationWhenStatusNot
 	job, err = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Create(context.Background(), job, v1.CreateOptions{})
 	s.Require().NoError(err)
 	sut := s.createSyncer(job)
-	sut.OnSync()
+	s.Require().NoError(sut.OnSync())
 	job, err = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Get(context.Background(), jobName, v1.GetOptions{})
 	s.Require().NoError(err)
 	s.Equal(expectedStatus, job.Status)
@@ -132,7 +135,7 @@ func (s *syncerTestSuite) Test_ShouldSkipReconcileResourcesWhenJobStatusIsDone()
 			scheduledjob, err := s.radixClient.RadixV1().RadixScheduledJobs(namespace).Create(context.Background(), scheduledjob, v1.CreateOptions{})
 			s.Require().NoError(err)
 			sut := s.createSyncer(scheduledjob)
-			sut.OnSync()
+			s.Require().NoError(sut.OnSync())
 			scheduledjob, err = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Get(context.Background(), jobName, v1.GetOptions{})
 			s.Require().NoError(err)
 			s.Equal(expectedStatus, scheduledjob.Status)
@@ -146,3 +149,54 @@ func (s *syncerTestSuite) Test_ShouldSkipReconcileResourcesWhenJobStatusIsDone()
 	}
 
 }
+
+func (s *syncerTestSuite) Test_ResourceReconciled() {
+	rsjName, jobName, jobImage, namespace, rdName, secretName, secretKey := "any-job", "compute", "any-image", "any-ns", "any-rd", "any-secret", "any-secret-key"
+	// payloadPath := "/mnt/any/path"
+	rsj := &radixv1.RadixScheduledJob{
+		ObjectMeta: v1.ObjectMeta{Name: rsjName},
+		Spec: radixv1.RadixScheduledJobSpec{
+			TimeLimitSeconds: numbers.Int64Ptr(1000),
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  jobName,
+			},
+			PayloadSecretRef: &radixv1.PayloadSecretKeySelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: secretName},
+				Key:                  secretKey,
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: v1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:  jobName,
+					Image: jobImage,
+				},
+			},
+		},
+	}
+	rsj, err := s.radixClient.RadixV1().RadixScheduledJobs(namespace).Create(context.Background(), rsj, v1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, v1.CreateOptions{})
+	s.Require().NoError(err)
+
+	sut := s.createSyncer(rsj)
+	err = sut.OnSync()
+	s.Require().NoError(err)
+}
+
+// All resources (jobs and services) created according to spec - split job features (volumes, keyvaults etc)
+// Phase Waiting
+// Phase Running
+// Phase Completed
+// Phase Failed
+// Reason and Status from latest Pod when Phase in Failed or Waiting
+
+// Delete Job when stop is set to true
+// Missing RD => status pending
+// RD exist but missing job
+
+//

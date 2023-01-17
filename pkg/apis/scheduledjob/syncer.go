@@ -2,7 +2,6 @@ package scheduledjob
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -70,13 +69,13 @@ func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, 
 	rd, err := s.getRadixDeployment()
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil, nil, newReconcileWaitingError("InvalidDeploymentReference", err.Error())
+			return nil, nil, newReconcileRadixDeploymentNotFoundError(s.radixScheduledJob.Spec.RadixDeploymentJobRef.Name)
 		}
 		return nil, nil, err
 	}
 	jobComponent := rd.GetJobComponentByName(s.radixScheduledJob.Spec.RadixDeploymentJobRef.Job)
 	if jobComponent == nil {
-		return nil, nil, newReconcileWaitingError("InvalidDeploymentReference", fmt.Sprintf("radix deployment %s does not contain a job with name %s", rd.GetName(), s.radixScheduledJob.Spec.RadixDeploymentJobRef.Job))
+		return nil, nil, newReconcileRadixDeploymentJobSpecNotFoundError(rd.GetName(), s.radixScheduledJob.Spec.RadixDeploymentJobRef.Job)
 	}
 
 	return rd, jobComponent, nil
@@ -88,7 +87,6 @@ func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
 
 func (s *syncer) scheduledJobLabelIdentifier() labels.Set {
 	return radixlabels.ForJobName(s.radixScheduledJob.GetName())
-	// return labels.Set{RadixScheduledJobControllerUIDLabel: string(job.GetUID())}
 }
 
 func (s *syncer) stopJob() error {

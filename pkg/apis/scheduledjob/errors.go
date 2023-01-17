@@ -1,6 +1,14 @@
 package scheduledjob
 
-import radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+import (
+	"fmt"
+
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+)
+
+const (
+	invalidDeploymentReferenceReason = "InvalidDeploymentReference"
+)
 
 func newReconcileWaitingError(reason, message string) *reconcileError {
 	return &reconcileError{
@@ -10,6 +18,14 @@ func newReconcileWaitingError(reason, message string) *reconcileError {
 			Message: message,
 		},
 	}
+}
+
+func newReconcileRadixDeploymentNotFoundError(rdName string) *reconcileError {
+	return newReconcileWaitingError(invalidDeploymentReferenceReason, fmt.Sprintf("radixdeployment '%s' not found", rdName))
+}
+
+func newReconcileRadixDeploymentJobSpecNotFoundError(rdName, jobName string) *reconcileError {
+	return newReconcileWaitingError(invalidDeploymentReferenceReason, fmt.Sprintf("radixdeployment '%s' does not contain a job with name '%s'", rdName, jobName))
 }
 
 type reconcileError struct {
