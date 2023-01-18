@@ -19,7 +19,7 @@ func (s *syncer) reconcileService() error {
 	if len(jobComponent.GetPorts()) == 0 {
 		return nil
 	}
-	selector := s.scheduledJobLabelIdentifier()
+	selector := s.scheduledJobIdentifierLabel()
 	existingServices, err := s.kubeclient.CoreV1().Services(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil {
 		return err
@@ -28,18 +28,17 @@ func (s *syncer) reconcileService() error {
 		return nil
 	}
 	serviceName := s.radixScheduledJob.GetName()
-	service := s.buildService(serviceName, s.radixScheduledJob.GetName(), jobComponent.Name, rd.Spec.AppName, jobComponent.GetPorts())
+	service := s.buildService(serviceName, jobComponent.Name, rd.Spec.AppName, jobComponent.GetPorts())
 	return s.kubeutil.ApplyService(s.radixScheduledJob.GetNamespace(), service)
 
 }
 
-func (s *syncer) buildService(serviceName, jobName, componentName, appName string, componentPorts []v1.ComponentPort) *corev1.Service {
+func (s *syncer) buildService(serviceName, componentName, appName string, componentPorts []v1.ComponentPort) *corev1.Service {
 	labels := radixlabels.Merge(
-		s.scheduledJobLabelIdentifier(),
+		s.scheduledJobIdentifierLabel(),
 		radixlabels.ForApplicationName(appName),
 		radixlabels.ForComponentName(componentName),
 		radixlabels.ForJobType(kube.RadixJobTypeJobSchedule),
-		radixlabels.ForJobName(jobName),
 	)
 
 	service := &corev1.Service{
@@ -51,7 +50,7 @@ func (s *syncer) buildService(serviceName, jobName, componentName, appName strin
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Ports:    buildServicePorts(componentPorts),
-			Selector: jobNameLabelSelector(jobName),
+			Selector: s.scheduledJobIdentifierLabel(),
 		},
 	}
 

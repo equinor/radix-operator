@@ -28,7 +28,7 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		Phase: radixv1.ScheduledJobPhaseWaiting,
 	}
 
-	existingJobs, err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: s.scheduledJobLabelIdentifier().String()})
+	existingJobs, err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: s.scheduledJobIdentifierLabel().String()})
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (s *syncer) buildStatusFromKubernetesJob(job *batchv1.Job) (radixv1.RadixSc
 	var reason, message string
 	var started, ended *metav1.Time
 
-	pods, err := s.kubeclient.CoreV1().Pods(job.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: jobNameLabelSelector(job.GetName()).String()})
+	pods, err := s.kubeclient.CoreV1().Pods(job.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: s.scheduledJobIdentifierLabel().String()})
 	if err != nil {
 		return radixv1.RadixScheduledJobStatus{}, err
 	}

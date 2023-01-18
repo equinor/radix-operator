@@ -85,12 +85,12 @@ func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
 	return s.radixclient.RadixV1().RadixDeployments(s.radixScheduledJob.GetNamespace()).Get(context.TODO(), s.radixScheduledJob.Spec.RadixDeploymentJobRef.Name, metav1.GetOptions{})
 }
 
-func (s *syncer) scheduledJobLabelIdentifier() labels.Set {
+func (s *syncer) scheduledJobIdentifierLabel() labels.Set {
 	return radixlabels.ForJobName(s.radixScheduledJob.GetName())
 }
 
 func (s *syncer) stopJob() error {
-	selector := s.scheduledJobLabelIdentifier()
+	selector := s.scheduledJobIdentifierLabel()
 	background := metav1.DeletePropagationBackground
 	err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).DeleteCollection(context.TODO(), metav1.DeleteOptions{PropagationPolicy: &background}, metav1.ListOptions{LabelSelector: selector.String()})
 	if err != nil && !errors.IsNotFound(err) {

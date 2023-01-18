@@ -14,7 +14,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 const (
@@ -22,7 +21,7 @@ const (
 )
 
 func (s *syncer) reconcileJob() error {
-	existingJobs, err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: s.scheduledJobLabelIdentifier().String()})
+	existingJobs, err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: s.scheduledJobIdentifierLabel().String()})
 	if err != nil {
 		return err
 	}
@@ -43,17 +42,17 @@ func (s *syncer) reconcileJob() error {
 
 func (s *syncer) buildJob(jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) (*batchv1.Job, error) {
 	podLabels := radixlabels.Merge(
+		s.scheduledJobIdentifierLabel(),
 		radixlabels.ForApplicationName(rd.Spec.AppName),
 		radixlabels.ForComponentName(jobComponent.Name),
 		radixlabels.ForJobType(kube.RadixJobTypeJobSchedule),
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
 	)
 	jobLabels := radixlabels.Merge(
-		s.scheduledJobLabelIdentifier(),
+		s.scheduledJobIdentifierLabel(),
 		radixlabels.ForApplicationName(rd.Spec.AppName),
 		radixlabels.ForComponentName(jobComponent.Name),
 		radixlabels.ForJobType(kube.RadixJobTypeJobSchedule),
-		radixlabels.ForJobId(s.radixScheduledJob.Spec.JobId),
 	)
 
 	volumes, err := s.getVolumes(rd.GetNamespace(), rd.Spec.Environment, jobComponent, rd.Name)
@@ -117,7 +116,7 @@ func (s *syncer) getVolumes(namespace, environment string, radixJobComponent *ra
 		return nil, err
 	}
 
-	if s.radixScheduledJob.Spec.PayloadSecretRef != nil {
+	if radixJobComponent.Payload != nil && s.radixScheduledJob.Spec.PayloadSecretRef != nil {
 		volumes = append(volumes, corev1.Volume{
 			Name: jobPayloadVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -194,7 +193,7 @@ func (s *syncer) getContainerVolumeMounts(radixJobComponent *radixv1.RadixDeploy
 	if err != nil {
 		return nil, err
 	}
-	if s.radixScheduledJob.Spec.PayloadSecretRef != nil {
+	if radixJobComponent.Payload != nil && s.radixScheduledJob.Spec.PayloadSecretRef != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      jobPayloadVolumeName,
 			ReadOnly:  true,
@@ -203,8 +202,4 @@ func (s *syncer) getContainerVolumeMounts(radixJobComponent *radixv1.RadixDeploy
 	}
 
 	return volumeMounts, nil
-}
-
-func jobNameLabelSelector(jobName string) labels.Set {
-	return labels.Set{kubernetesJobNameLabel: jobName}
 }
