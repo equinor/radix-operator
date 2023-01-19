@@ -289,6 +289,8 @@ func (s *syncerTestSuite) Test_JobStaticConfiguration() {
 	s.Equal(utils.BoolPtr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
 	s.Nil(jobs.Items[0].Spec.Template.Spec.Affinity.NodeAffinity)
 	s.Len(jobs.Items[0].Spec.Template.Spec.Tolerations, 0)
+	s.Len(jobs.Items[0].Spec.Template.Spec.Volumes, 0)
+	s.Len(jobs.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 0)
 	services, err := s.kubeClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().NoError(err)
 	s.Len(services.Items, 0)
@@ -372,8 +374,17 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 	s.Len(jobs.Items, 1)
 	s.Equal(rsjName, jobs.Items[0].Name)
 	s.Len(jobs.Items[0].Spec.Template.Spec.Volumes, 1)
-
+	s.Equal(corev1.Volume{
+		Name: jobPayloadVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: secretName,
+				Items:      []corev1.KeyToPath{{Key: secretKey, Path: "payload"}},
+			},
+		},
+	}, jobs.Items[0].Spec.Template.Spec.Volumes[0])
 	s.Len(jobs.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 1)
+	s.Equal(corev1.VolumeMount{Name: jobPayloadVolumeName, ReadOnly: true, MountPath: payloadPath}, jobs.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts[0])
 
 }
 
