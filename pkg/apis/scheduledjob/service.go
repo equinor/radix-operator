@@ -1,8 +1,6 @@
 package scheduledjob
 
 import (
-	"context"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
@@ -19,12 +17,12 @@ func (s *syncer) reconcileService() error {
 	if len(jobComponent.GetPorts()) == 0 {
 		return nil
 	}
-	selector := s.scheduledJobIdentifierLabel()
-	existingServices, err := s.kubeclient.CoreV1().Services(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: selector.String()})
+
+	existingServices, err := s.kubeutil.ListServicesWithSelector(s.radixScheduledJob.GetNamespace(), s.scheduledJobIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
-	if len(existingServices.Items) > 0 {
+	if len(existingServices) > 0 {
 		return nil
 	}
 	serviceName := s.radixScheduledJob.GetName()

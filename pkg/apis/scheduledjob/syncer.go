@@ -82,7 +82,7 @@ func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, 
 }
 
 func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
-	return s.radixclient.RadixV1().RadixDeployments(s.radixScheduledJob.GetNamespace()).Get(context.TODO(), s.radixScheduledJob.Spec.RadixDeploymentJobRef.Name, metav1.GetOptions{})
+	return s.kubeutil.GetRadixDeployment(s.radixScheduledJob.GetNamespace(), s.radixScheduledJob.Spec.RadixDeploymentJobRef.Name)
 }
 
 func (s *syncer) scheduledJobIdentifierLabel() labels.Set {

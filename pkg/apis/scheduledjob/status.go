@@ -28,13 +28,13 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		Phase: radixv1.ScheduledJobPhaseWaiting,
 	}
 
-	existingJobs, err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: s.scheduledJobIdentifierLabel().String()})
+	existingJobs, err := s.kubeutil.ListJobsWithSelector(s.radixScheduledJob.GetNamespace(), s.scheduledJobIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
 
-	if len(existingJobs.Items) > 0 {
-		status, err = s.buildStatusFromKubernetesJob(&existingJobs.Items[0])
+	if len(existingJobs) > 0 {
+		status, err = s.buildStatusFromKubernetesJob(existingJobs[0])
 		if err != nil {
 			return err
 		}

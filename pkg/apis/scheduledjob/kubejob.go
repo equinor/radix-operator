@@ -21,11 +21,11 @@ const (
 )
 
 func (s *syncer) reconcileJob() error {
-	existingJobs, err := s.kubeclient.BatchV1().Jobs(s.radixScheduledJob.GetNamespace()).List(context.TODO(), metav1.ListOptions{LabelSelector: s.scheduledJobIdentifierLabel().String()})
+	existingJobs, err := s.kubeutil.ListJobsWithSelector(s.radixScheduledJob.GetNamespace(), s.scheduledJobIdentifierLabel().String())
 	if err != nil {
 		return err
 	}
-	if len(existingJobs.Items) > 0 {
+	if len(existingJobs) > 0 {
 		return nil
 	}
 	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()

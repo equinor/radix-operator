@@ -133,3 +133,22 @@ func (kubeutil *Kube) ListJobs(namespace string) ([]*batchv1.Job, error) {
 		return jobs, nil
 	}
 }
+
+// ListJobsWithSelector List jobs with selector
+func (kubeutil *Kube) ListJobsWithSelector(namespace, labelSelectorString string) ([]*batchv1.Job, error) {
+	if kubeutil.JobLister != nil {
+		selector, err := labels.Parse(labelSelectorString)
+		if err != nil {
+			return nil, err
+		}
+		return kubeutil.JobLister.Jobs(namespace).List(selector)
+	}
+
+	list, err := kubeutil.kubeClient.BatchV1().Jobs(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelectorString})
+	if err != nil {
+		return nil, err
+	}
+
+	return slice.PointersOf(list.Items).([]*batchv1.Job), nil
+
+}
