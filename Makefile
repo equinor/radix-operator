@@ -89,8 +89,8 @@ mocks:
 	mockgen -source ./pkg/apis/deployment/ingressannotationprovider.go -destination ./pkg/apis/deployment/ingressannotationprovider_mock.go -package deployment
 	mockgen -source ./pkg/apis/alert/alert.go -destination ./pkg/apis/alert/alert_mock.go -package alert
 	mockgen -source ./pkg/apis/alert/alertfactory.go -destination ./pkg/apis/alert/alertfactory_mock.go -package alert
-	mockgen -source ./pkg/apis/scheduledjob/syncer.go -destination ./pkg/apis/scheduledjob/syncer_mock.go -package scheduledjob
-	mockgen -source ./pkg/apis/scheduledjob/syncerfactory.go -destination ./pkg/apis/scheduledjob/syncerfactory_mock.go -package scheduledjob
+	mockgen -source ./pkg/apis/batch/syncer.go -destination ./pkg/apis/batch/syncer_mock.go -package batch
+	mockgen -source ./pkg/apis/batch/syncerfactory.go -destination ./pkg/apis/batch/syncerfactory_mock.go -package batch
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
 	mockgen -source ./pipeline-runner/model/env/env.go -destination ./pipeline-runner/model/mock/env_mock.go -package mock
 

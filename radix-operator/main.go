@@ -22,13 +22,13 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/alert"
 	"github.com/equinor/radix-operator/radix-operator/application"
+	"github.com/equinor/radix-operator/radix-operator/batch"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
 	"github.com/equinor/radix-operator/radix-operator/environment"
 	"github.com/equinor/radix-operator/radix-operator/job"
 	"github.com/equinor/radix-operator/radix-operator/registration"
-	"github.com/equinor/radix-operator/radix-operator/scheduledjob"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -77,7 +77,7 @@ func main() {
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
 	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads, cfg.PipelineJobConfig)
 	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, alertControllerThreads)
-	go startScheduledJobController(client, radixClient, eventRecorder, stop, secretProviderClient, 1)
+	go startBatchController(client, radixClient, eventRecorder, stop, secretProviderClient, 1)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -331,7 +331,7 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	}
 }
 
-func startScheduledJobController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
+func startBatchController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
@@ -343,14 +343,14 @@ func startScheduledJobController(client kubernetes.Interface, radixClient radixc
 		radixInformerFactory,
 	)
 
-	handler := scheduledjob.NewHandler(
+	handler := batch.NewHandler(
 		client,
 		kubeUtil,
 		radixClient,
 	)
 
 	waitForChildrenToSync := true
-	scheduledjobController := scheduledjob.NewController(
+	batchController := batch.NewController(
 		client,
 		radixClient,
 		handler,
@@ -362,7 +362,7 @@ func startScheduledJobController(client kubernetes.Interface, radixClient radixc
 	kubeInformerFactory.Start(stop)
 	radixInformerFactory.Start(stop)
 
-	if err := scheduledjobController.Run(threads, stop); err != nil {
+	if err := batchController.Run(threads, stop); err != nil {
 		logger.Fatalf("Error running controller: %s", err.Error())
 	}
 }

@@ -1,13 +1,13 @@
-package scheduledjob
+package batch
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/batch"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/scheduledjob"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/golang/mock/gomock"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
@@ -27,8 +27,8 @@ type handlerTestSuite struct {
 	kubeUtil             *kube.Kube
 	eventRecorder        *record.FakeRecorder
 	mockCtrl             *gomock.Controller
-	syncerFactory        *scheduledjob.MockSyncerFactory
-	syncer               *scheduledjob.MockSyncer
+	syncerFactory        *batch.MockSyncerFactory
+	syncer               *batch.MockSyncer
 }
 
 func TestHandlerSuite(t *testing.T) {
@@ -43,8 +43,8 @@ func (s *handlerTestSuite) SetupTest() {
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.eventRecorder = &record.FakeRecorder{}
 	s.mockCtrl = gomock.NewController(s.T())
-	s.syncerFactory = scheduledjob.NewMockSyncerFactory(s.mockCtrl)
-	s.syncer = scheduledjob.NewMockSyncer(s.mockCtrl)
+	s.syncerFactory = batch.NewMockSyncerFactory(s.mockCtrl)
+	s.syncer = batch.NewMockSyncer(s.mockCtrl)
 }
 
 func (s *handlerTestSuite) TearDownTest() {
@@ -61,8 +61,8 @@ func (s *handlerTestSuite) Test_RadixScheduleJobNotFound() {
 
 func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerError() {
 	jobName, namespace := "any-job", "ns"
-	job := &v1.RadixScheduledJob{ObjectMeta: metav1.ObjectMeta{Name: jobName}}
-	job, _ = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+	job := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: jobName}}
+	job, _ = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 	expectedError := fmt.Errorf("error")
 
 	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, WithSyncerFactory(s.syncerFactory))
@@ -74,8 +74,8 @@ func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerError() {
 
 func (s *handlerTestSuite) Test_RadixScheduledExist_SyncerNoError() {
 	jobName, namespace := "any-job", "ns"
-	job := &v1.RadixScheduledJob{ObjectMeta: metav1.ObjectMeta{Name: jobName}}
-	job, _ = s.radixClient.RadixV1().RadixScheduledJobs(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+	job := &v1.RadixBatch{ObjectMeta: metav1.ObjectMeta{Name: jobName}}
+	job, _ = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
 
 	sut := NewHandler(s.kubeClient, s.kubeUtil, s.radixClient, WithSyncerFactory(s.syncerFactory))
 	s.syncerFactory.EXPECT().CreateSyncer(s.kubeClient, s.kubeUtil, s.radixClient, job).Return(s.syncer).Times(1)

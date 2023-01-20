@@ -1,4 +1,4 @@
-package scheduledjob
+package batch
 
 import (
 	"context"
@@ -21,15 +21,15 @@ import (
 var logger *log.Entry
 
 const (
-	controllerAgentName = "scheduled-job-controller"
-	crType              = "RadixScheduledJobs"
+	controllerAgentName = "batch-controller"
+	crType              = "RadixBatches"
 )
 
 func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": controllerAgentName})
 }
 
-// NewController creates a new controller that handles RadixScheduledJobs
+// NewController creates a new controller that handles RadixBatches
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -37,7 +37,7 @@ func NewController(client kubernetes.Interface,
 	waitForChildrenToSync bool,
 	recorder record.EventRecorder) *common.Controller {
 
-	scheduledJobInformer := radixInformerFactory.Radix().V1().RadixScheduledJobs()
+	batchInformer := radixInformerFactory.Radix().V1().RadixBatches()
 	jobInformer := kubeInformerFactory.Batch().V1().Jobs()
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 
@@ -46,7 +46,7 @@ func NewController(client kubernetes.Interface,
 		HandlerOf:             crType,
 		KubeClient:            client,
 		RadixClient:           radixClient,
-		Informer:              scheduledJobInformer.Informer(),
+		Informer:              batchInformer.Informer(),
 		KubeInformerFactory:   kubeInformerFactory,
 		WorkQueue:             workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), crType),
 		Handler:               handler,
@@ -57,16 +57,16 @@ func NewController(client kubernetes.Interface,
 	}
 
 	logger.Info("Setting up event handlers")
-	scheduledJobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	batchInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(cur interface{}) {
 			controller.Enqueue(cur)
 			metrics.CustomResourceAdded(crType)
 		},
 		UpdateFunc: func(old, cur interface{}) {
-			oldRadixScheduledJob := old.(*radixv1.RadixScheduledJob)
-			newRadixScheduledJob := cur.(*radixv1.RadixScheduledJob)
-			if deepEqual(oldRadixScheduledJob, newRadixScheduledJob) {
-				logger.Debugf("RadixScheduledJob object is equal to old for %s. Do nothing", newRadixScheduledJob.GetName())
+			oldRadixBatch := old.(*radixv1.RadixBatch)
+			newRadixBatch := cur.(*radixv1.RadixBatch)
+			if deepEqual(oldRadixBatch, newRadixBatch) {
+				logger.Debugf("RadixBatch object is equal to old for %s. Do nothing", newRadixBatch.GetName())
 				metrics.CustomResourceUpdatedButSkipped(crType)
 				return
 			}
@@ -74,10 +74,10 @@ func NewController(client kubernetes.Interface,
 			controller.Enqueue(cur)
 		},
 		DeleteFunc: func(obj interface{}) {
-			radixScheduledJob, _ := obj.(*radixv1.RadixScheduledJob)
-			key, err := cache.MetaNamespaceKeyFunc(radixScheduledJob)
+			radixBatch, _ := obj.(*radixv1.RadixBatch)
+			key, err := cache.MetaNamespaceKeyFunc(radixBatch)
 			if err == nil {
-				logger.Debugf("RadixScheduledJob object deleted event received for %s. Do nothing", key)
+				logger.Debugf("RadixBatch object deleted event received for %s. Do nothing", key)
 			}
 			metrics.CustomResourceDeleted(crType)
 		},
@@ -90,10 +90,10 @@ func NewController(client kubernetes.Interface,
 			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
 				return
 			}
-			controller.HandleObject(newObj, "RadixScheduledJob", getOwner)
+			controller.HandleObject(newObj, "RadixBatch", getOwner)
 		},
 		DeleteFunc: func(obj interface{}) {
-			controller.HandleObject(obj, "RadixScheduledJob", getOwner)
+			controller.HandleObject(obj, "RadixBatch", getOwner)
 		},
 	})
 
@@ -117,17 +117,17 @@ func NewController(client kubernetes.Interface,
 				return
 			}
 
-			controller.HandleObject(job, "RadixScheduledJob", getOwner)
+			controller.HandleObject(job, "RadixBatch", getOwner)
 		},
 	})
 
 	return controller
 }
 
-func deepEqual(old, new *radixv1.RadixScheduledJob) bool {
+func deepEqual(old, new *radixv1.RadixBatch) bool {
 	return reflect.DeepEqual(new.Spec, old.Spec)
 }
 
 func getOwner(radixClient radixclient.Interface, namespace, name string) (interface{}, error) {
-	return radixClient.RadixV1().RadixScheduledJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	return radixClient.RadixV1().RadixBatches(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 }

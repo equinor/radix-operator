@@ -22,6 +22,8 @@ type RadixAlertExpansion interface{}
 
 type RadixApplicationExpansion interface{}
 
+type RadixBatchExpansion interface{}
+
 type RadixDeploymentExpansion interface{}
 
 type RadixEnvironmentExpansion interface{}
@@ -29,5 +31,3 @@ type RadixEnvironmentExpansion interface{}
 type RadixJobExpansion interface{}
 
 type RadixRegistrationExpansion interface{}
-
-type RadixScheduledJobExpansion interface{}

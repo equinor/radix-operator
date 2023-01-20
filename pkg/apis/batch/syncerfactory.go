@@ -1,4 +1,4 @@
-package scheduledjob
+package batch
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -13,7 +13,7 @@ type SyncerFactory interface {
 		kubeclient kubernetes.Interface,
 		kubeutil *kube.Kube,
 		radixclient radixclient.Interface,
-		radixScheduleJob *v1.RadixScheduledJob) Syncer
+		batch *v1.RadixBatch) Syncer
 }
 
 // AlertSyncerFactoryFunc is an adapter that can be used to convert
@@ -22,14 +22,14 @@ type SyncerFactoryFunc func(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	radixScheduledJob *v1.RadixScheduledJob,
+	batch *v1.RadixBatch,
 ) Syncer
 
 func (f SyncerFactoryFunc) CreateSyncer(
 	kubeclient kubernetes.Interface,
 	kubeutil *kube.Kube,
 	radixclient radixclient.Interface,
-	radixScheduledJob *v1.RadixScheduledJob,
+	batch *v1.RadixBatch,
 ) Syncer {
-	return f(kubeclient, kubeutil, radixclient, radixScheduledJob)
+	return f(kubeclient, kubeutil, radixclient, batch)
 }

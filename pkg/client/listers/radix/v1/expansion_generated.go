@@ -34,6 +34,14 @@ type RadixApplicationListerExpansion interface{}
 // RadixApplicationNamespaceLister.
 type RadixApplicationNamespaceListerExpansion interface{}
 
+// RadixBatchListerExpansion allows custom methods to be added to
+// RadixBatchLister.
+type RadixBatchListerExpansion interface{}
+
+// RadixBatchNamespaceListerExpansion allows custom methods to be added to
+// RadixBatchNamespaceLister.
+type RadixBatchNamespaceListerExpansion interface{}
+
 // RadixDeploymentListerExpansion allows custom methods to be added to
 // RadixDeploymentLister.
 type RadixDeploymentListerExpansion interface{}
@@ -57,11 +65,3 @@ type RadixJobNamespaceListerExpansion interface{}
 // RadixRegistrationListerExpansion allows custom methods to be added to
 // RadixRegistrationLister.
 type RadixRegistrationListerExpansion interface{}
-
-// RadixScheduledJobListerExpansion allows custom methods to be added to
-// RadixScheduledJobLister.
-type RadixScheduledJobListerExpansion interface{}
-
-// RadixScheduledJobNamespaceListerExpansion allows custom methods to be added to
-// RadixScheduledJobNamespaceLister.
-type RadixScheduledJobNamespaceListerExpansion interface{}

@@ -32,59 +32,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// RadixScheduledJobInformer provides access to a shared informer and lister for
-// RadixScheduledJobs.
-type RadixScheduledJobInformer interface {
+// RadixBatchInformer provides access to a shared informer and lister for
+// RadixBatches.
+type RadixBatchInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1.RadixScheduledJobLister
+	Lister() v1.RadixBatchLister
 }
 
-type radixScheduledJobInformer struct {
+type radixBatchInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewRadixScheduledJobInformer constructs a new informer for RadixScheduledJob type.
+// NewRadixBatchInformer constructs a new informer for RadixBatch type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewRadixScheduledJobInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredRadixScheduledJobInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewRadixBatchInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredRadixBatchInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredRadixScheduledJobInformer constructs a new informer for RadixScheduledJob type.
+// NewFilteredRadixBatchInformer constructs a new informer for RadixBatch type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredRadixScheduledJobInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredRadixBatchInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixScheduledJobs(namespace).List(context.TODO(), options)
+				return client.RadixV1().RadixBatches(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.RadixV1().RadixScheduledJobs(namespace).Watch(context.TODO(), options)
+				return client.RadixV1().RadixBatches(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&radixv1.RadixScheduledJob{},
+		&radixv1.RadixBatch{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *radixScheduledJobInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredRadixScheduledJobInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *radixBatchInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredRadixBatchInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *radixScheduledJobInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&radixv1.RadixScheduledJob{}, f.defaultInformer)
+func (f *radixBatchInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&radixv1.RadixBatch{}, f.defaultInformer)
 }
 
-func (f *radixScheduledJobInformer) Lister() v1.RadixScheduledJobLister {
-	return v1.NewRadixScheduledJobLister(f.Informer().GetIndexer())
+func (f *radixBatchInformer) Lister() v1.RadixBatchLister {
+	return v1.NewRadixBatchLister(f.Informer().GetIndexer())
 }

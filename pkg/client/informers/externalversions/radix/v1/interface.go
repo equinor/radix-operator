@@ -28,6 +28,8 @@ type Interface interface {
 	RadixAlerts() RadixAlertInformer
 	// RadixApplications returns a RadixApplicationInformer.
 	RadixApplications() RadixApplicationInformer
+	// RadixBatches returns a RadixBatchInformer.
+	RadixBatches() RadixBatchInformer
 	// RadixDeployments returns a RadixDeploymentInformer.
 	RadixDeployments() RadixDeploymentInformer
 	// RadixEnvironments returns a RadixEnvironmentInformer.
@@ -36,8 +38,6 @@ type Interface interface {
 	RadixJobs() RadixJobInformer
 	// RadixRegistrations returns a RadixRegistrationInformer.
 	RadixRegistrations() RadixRegistrationInformer
-	// RadixScheduledJobs returns a RadixScheduledJobInformer.
-	RadixScheduledJobs() RadixScheduledJobInformer
 }
 
 type version struct {
@@ -61,6 +61,11 @@ func (v *version) RadixApplications() RadixApplicationInformer {
 	return &radixApplicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
+// RadixBatches returns a RadixBatchInformer.
+func (v *version) RadixBatches() RadixBatchInformer {
+	return &radixBatchInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // RadixDeployments returns a RadixDeploymentInformer.
 func (v *version) RadixDeployments() RadixDeploymentInformer {
 	return &radixDeploymentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
@@ -79,9 +84,4 @@ func (v *version) RadixJobs() RadixJobInformer {
 // RadixRegistrations returns a RadixRegistrationInformer.
 func (v *version) RadixRegistrations() RadixRegistrationInformer {
 	return &radixRegistrationInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
-}
-
-// RadixScheduledJobs returns a RadixScheduledJobInformer.
-func (v *version) RadixScheduledJobs() RadixScheduledJobInformer {
-	return &radixScheduledJobInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

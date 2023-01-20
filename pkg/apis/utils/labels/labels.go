@@ -38,27 +38,19 @@ func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
 	}
 }
 
-// ForJobType returns labels describing the job type,
-// e.g. "radix-job-type": "job-scheduler"
-func ForJobType(jobType string) kubelabels.Set {
+// ForBatchName returns labels describing name of a batch,
+// e.g. "radix-batch-name": "compute-20221212125307-pet6fubk"
+func ForBatchName(batchName string) kubelabels.Set {
 	return kubelabels.Set{
-		kube.RadixJobTypeLabel: jobType,
+		kube.RadixBatchNameLabel: batchName,
 	}
 }
 
-// ForJobType returns labels describing name of a scheduled job,
-// e.g. "radix-job-name": "compute-20221212125307-pet6fubk"
-func ForJobName(jobName string) kubelabels.Set {
+// ForBatchJobName returns labels describing name of job in a batch,
+// e.g. "radix-batch-job-name": "fns63hk8"
+func ForBatchJobName(jobName string) kubelabels.Set {
 	return kubelabels.Set{
-		kube.RadixJobNameLabel: jobName,
-	}
-}
-
-// ForJobType returns labels describing name of a scheduled job,
-// e.g. "radix-job-id": "any-id"
-func ForJobId(jobId string) kubelabels.Set {
-	return kubelabels.Set{
-		kube.RadixJobIdLabel: jobId,
+		kube.RadixBatchJobNameLabel: jobName,
 	}
 }
 

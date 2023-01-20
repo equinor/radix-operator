@@ -1,4 +1,4 @@
-package scheduledjob
+package batch
 
 import (
 	"fmt"
@@ -12,8 +12,8 @@ const (
 
 func newReconcileWaitingError(reason, message string) *reconcileError {
 	return &reconcileError{
-		status: radixv1.RadixScheduledJobStatus{
-			Phase:   radixv1.ScheduledJobPhaseWaiting,
+		status: radixv1.RadixBatchCondition{
+			Type:    radixv1.BatchConditionTypeWaiting,
 			Reason:  reason,
 			Message: message,
 		},
@@ -29,17 +29,17 @@ func newReconcileRadixDeploymentJobSpecNotFoundError(rdName, jobName string) *re
 }
 
 type reconcileError struct {
-	status radixv1.RadixScheduledJobStatus
+	status radixv1.RadixBatchCondition
 }
 
 func (rc *reconcileError) Error() string {
 	return rc.status.Message
 }
 
-func (rc *reconcileError) Status() radixv1.RadixScheduledJobStatus {
+func (rc *reconcileError) Status() radixv1.RadixBatchCondition {
 	return rc.status
 }
 
 type reconcileStatus interface {
-	Status() radixv1.RadixScheduledJobStatus
+	Status() radixv1.RadixBatchCondition
 }

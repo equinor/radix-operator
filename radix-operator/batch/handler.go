@@ -1,11 +1,11 @@
-package scheduledjob
+package batch
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/equinor/radix-operator/pkg/apis/batch"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/scheduledjob"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	corev1 "k8s.io/api/core/v1"
@@ -17,15 +17,15 @@ import (
 )
 
 const (
-	// Synced is the Event reason when a RadixScheduleJob is synced without errors
+	// Synced is the Event reason when a RadixBatch is synced without errors
 	Synced = "Synced"
 
-	// SyncFailed is the Event reason when an error occurs while syncing a RadixScheduledJob
+	// SyncFailed is the Event reason when an error occurs while syncing a RadixBatch
 	SyncFailed = "SyncFailed"
 
-	// MessageResourceSynced is the message used for an Event fired when a RadixScheduledJob
+	// MessageResourceSynced is the message used for an Event fired when a RadixBatch
 	// is synced successfully
-	MessageResourceSynced = "Radix Scheduled Job synced successfully"
+	MessageResourceSynced = "RadixBatch synced successfully"
 )
 
 var _ common.Handler = &Handler{}
@@ -34,7 +34,7 @@ var _ common.Handler = &Handler{}
 type HandlerConfigOption func(*Handler)
 
 // WithSyncerFactory configures the SyncerFactory for the Handler
-func WithSyncerFactory(factory scheduledjob.SyncerFactory) HandlerConfigOption {
+func WithSyncerFactory(factory batch.SyncerFactory) HandlerConfigOption {
 	return func(h *Handler) {
 		h.syncerFactory = factory
 	}
@@ -44,7 +44,7 @@ type Handler struct {
 	kubeclient    kubernetes.Interface
 	radixclient   radixclient.Interface
 	kubeutil      *kube.Kube
-	syncerFactory scheduledjob.SyncerFactory
+	syncerFactory batch.SyncerFactory
 }
 
 func NewHandler(
@@ -69,19 +69,19 @@ func NewHandler(
 }
 
 func (h *Handler) Sync(namespace, name string, eventRecorder record.EventRecorder) error {
-	radixScheduledJob, err := h.radixclient.RadixV1().RadixScheduledJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	radixBatch, err := h.radixclient.RadixV1().RadixBatches(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		// The resource may no longer exist, in which case we stop
 		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleError(fmt.Errorf("radix scheduled job %s in work queue no longer exists", name))
+			utilruntime.HandleError(fmt.Errorf("radix batch %s in work queue no longer exists", name))
 			return nil
 		}
 
 		return err
 	}
 
-	syncRSC := radixScheduledJob.DeepCopy()
+	syncRSC := radixBatch.DeepCopy()
 	syncer := h.syncerFactory.CreateSyncer(h.kubeclient, h.kubeutil, h.radixclient, syncRSC)
 	err = syncer.OnSync()
 	if err != nil {
@@ -95,5 +95,5 @@ func (h *Handler) Sync(namespace, name string, eventRecorder record.EventRecorde
 }
 
 func configureDefaultSyncerFactory(h *Handler) {
-	WithSyncerFactory(scheduledjob.SyncerFactoryFunc(scheduledjob.NewSyncer))(h)
+	WithSyncerFactory(batch.SyncerFactoryFunc(batch.NewSyncer))(h)
 }
