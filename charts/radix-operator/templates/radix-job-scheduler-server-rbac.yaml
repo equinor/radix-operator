@@ -33,6 +33,17 @@ rules:
       - list
       - get
   - apiGroups:
+      - radix.equinor.com
+    resources:
+      - radixbatches
+    verbs:
+      - list
+      - get
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
       - '*'
     resources:
       - secrets
