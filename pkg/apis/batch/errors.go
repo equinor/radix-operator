@@ -10,6 +10,22 @@ const (
 	invalidDeploymentReferenceReason = "InvalidDeploymentReference"
 )
 
+type reconcileStatus interface {
+	Status() radixv1.RadixBatchCondition
+}
+
+type reconcileError struct {
+	status radixv1.RadixBatchCondition
+}
+
+func (rc *reconcileError) Error() string {
+	return rc.status.Message
+}
+
+func (rc *reconcileError) Status() radixv1.RadixBatchCondition {
+	return rc.status
+}
+
 func newReconcileWaitingError(reason, message string) *reconcileError {
 	return &reconcileError{
 		status: radixv1.RadixBatchCondition{
@@ -26,20 +42,4 @@ func newReconcileRadixDeploymentNotFoundError(rdName string) *reconcileError {
 
 func newReconcileRadixDeploymentJobSpecNotFoundError(rdName, jobName string) *reconcileError {
 	return newReconcileWaitingError(invalidDeploymentReferenceReason, fmt.Sprintf("radixdeployment '%s' does not contain a job with name '%s'", rdName, jobName))
-}
-
-type reconcileError struct {
-	status radixv1.RadixBatchCondition
-}
-
-func (rc *reconcileError) Error() string {
-	return rc.status.Message
-}
-
-func (rc *reconcileError) Status() radixv1.RadixBatchCondition {
-	return rc.status
-}
-
-type reconcileStatus interface {
-	Status() radixv1.RadixBatchCondition
 }

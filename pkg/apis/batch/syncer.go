@@ -1,20 +1,14 @@
 package batch
 
 import (
-	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
-
-// const (
-// 	kubernetesJobNameLabel = "job-name"
-// )
 
 type Syncer interface {
 	OnSync() error
@@ -44,7 +38,7 @@ func (s *syncer) OnSync() error {
 		return err
 	}
 
-	if s.isBatchDone() {
+	if isBatchDone(s.batch) {
 		return nil
 	}
 
@@ -90,20 +84,4 @@ func (s *syncer) batchIdentifierLabel() labels.Set {
 		radixlabels.ForComponentName(s.batch.Spec.RadixDeploymentJobRef.Job),
 		radixlabels.ForBatchName(s.batch.GetName()),
 	)
-}
-
-func (s *syncer) isBatchDone() bool {
-	return s.batch.Status.Condition.Type == radixv1.BatchConditionTypeCompleted
-}
-
-func ownerReference(job *radixv1.RadixBatch) []metav1.OwnerReference {
-	return []metav1.OwnerReference{
-		{
-			APIVersion: "radix.equinor.com/v1",
-			Kind:       "RadixBatch",
-			Name:       job.Name,
-			UID:        job.UID,
-			Controller: utils.BoolPtr(true),
-		},
-	}
 }

@@ -69,7 +69,7 @@
         "RADIXOPERATOR_APP_ROLLING_UPDATE_MAX_SURGE": "25%",
         "RADIXOPERATOR_APP_READINESS_PROBE_INITIAL_DELAY_SECONDS": "5",
         "RADIXOPERATOR_APP_READINESS_PROBE_PERIOD_SECONDS": "10",
-        "RADIX_ACTIVE_CLUSTERNAME": "weekly-51",
+        "RADIX_ACTIVE_CLUSTERNAME": "weekly-03",
         "RADIX_IMAGE_BUILDER": "radix-image-builder:master-latest",
         "RADIX_TEKTON_IMAGE": "radix-tekton:main-latest",
         "RADIXOPERATOR_JOB_SCHEDULER": "radix-job-scheduler-server:main-latest",
