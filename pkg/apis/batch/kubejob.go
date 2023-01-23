@@ -11,7 +11,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	operatorUtils "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -85,6 +84,11 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 		node = batchJob.Node
 	}
 
+	backoffLimit := int32(0)
+	if batchJob.BackoffLimit != nil {
+		backoffLimit = *batchJob.BackoffLimit
+	}
+
 	affinity := operatorUtils.GetPodSpecAffinity(node, rd.Spec.AppName, jobComponent.GetName())
 	tolerations := operatorUtils.GetPodSpecTolerations(node)
 	serviceAccountSpec := deployment.NewServiceAccountSpec(rd, jobComponent)
@@ -96,7 +100,7 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 			OwnerReferences: ownerReference(s.batch),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: numbers.Int32Ptr(0),
+			BackoffLimit: &backoffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: podLabels,

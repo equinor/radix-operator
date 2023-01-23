@@ -20,7 +20,7 @@ func (s *syncer) reconcileServices(rd *radixv1.RadixDeployment, jobComponent *ra
 	}
 
 	for _, batchjob := range s.batch.Spec.Jobs {
-		if isBatchJobStopRequested(batchjob) {
+		if isBatchJobStopRequested(batchjob) || isBatchJobDone(s.batch, batchjob.Name) {
 			continue
 		}
 

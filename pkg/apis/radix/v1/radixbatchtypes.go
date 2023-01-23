@@ -37,12 +37,13 @@ type RadixBatchSpec struct {
 	// +listType:=map
 	// +listMapKey:=name
 	// +kubebuilder:validation:MinItems:=1
-	// +kubebuilder:validation:MaxItems:=100
+	// +kubebuilder:validation:MaxItems:=500
 	Jobs []RadixBatchJob `json:"jobs"`
 }
 
 // RadixBatchJob defines the spec for a single job in the batch
 type RadixBatchJob struct {
+	// +kubebuilder:validation:MaxLength:=63
 	Name string `json:"name"`
 
 	// +optional
@@ -58,7 +59,12 @@ type RadixBatchJob struct {
 	Node *RadixNode `json:"node,omitempty"`
 
 	// +optional
+	// +kubebuilder:validation:Minimum:=1
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
+
+	// +optional
+	// +kubebuilder:validation:Minimum:=0
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
 	// +optional
 	PayloadSecretRef *PayloadSecretKeySelector `json:"payloadSecretRef,omitempty"`
@@ -140,6 +146,7 @@ type RadixBatchStatus struct {
 
 // RadixBatchJobStatus is the status for a specific item in spec.items
 type RadixBatchJobStatus struct {
+	// +kubebuilder:validation:MaxLength:=63
 	Name string `json:"name"`
 
 	// +optional
@@ -166,5 +173,6 @@ type RadixBatchJobStatus struct {
 type LocalObjectReference struct {
 	// Name of the resource being referred to.
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+	// +kubebuilder:validation:MaxLength:=253
 	Name string `json:"name"`
 }

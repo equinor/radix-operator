@@ -57,6 +57,7 @@ spec:
                     jobId:
                       type: string
                     name:
+                      maxLength: 63
                       type: string
                     node:
                       description: RadixNode defines node attributes, where container

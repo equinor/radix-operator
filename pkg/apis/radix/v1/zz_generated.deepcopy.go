@@ -929,6 +929,11 @@ func (in *RadixBatchJob) DeepCopyInto(out *RadixBatchJob) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.BackoffLimit != nil {
+		in, out := &in.BackoffLimit, &out.BackoffLimit
+		*out = new(int32)
+		**out = **in
+	}
 	if in.PayloadSecretRef != nil {
 		in, out := &in.PayloadSecretRef, &out.PayloadSecretRef
 		*out = new(PayloadSecretKeySelector)
