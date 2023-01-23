@@ -85,3 +85,10 @@ func (s *syncer) batchIdentifierLabel() labels.Set {
 		radixlabels.ForBatchName(s.batch.GetName()),
 	)
 }
+
+func (s *syncer) batchJobIdentifierLabel(batchJobName string) labels.Set {
+	return radixlabels.Merge(
+		s.batchIdentifierLabel(),
+		radixlabels.ForBatchJobName(batchJobName),
+	)
+}

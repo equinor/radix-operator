@@ -39,6 +39,10 @@ func (s *syncer) reconcileJob(rd *radixv1.RadixDeployment, jobComponent *radixv1
 			continue
 		}
 
+		if isBatchJobDone(s.batch, batchjob.Name) {
+			continue
+		}
+
 		if !slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, job) }) {
 			job, err := s.buildJob(batchjob, jobComponent, rd)
 			if err != nil {
@@ -55,15 +59,10 @@ func (s *syncer) reconcileJob(rd *radixv1.RadixDeployment, jobComponent *radixv1
 }
 
 func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) (*batchv1.Job, error) {
+	jobLabels := s.batchJobIdentifierLabel(batchJob.Name)
 	podLabels := radixlabels.Merge(
-		s.batchIdentifierLabel(),
-		radixlabels.ForBatchJobName("jobname"),
+		s.batchJobIdentifierLabel(batchJob.Name),
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
-		radixlabels.ForBatchJobName(batchJob.Name),
-	)
-	jobLabels := radixlabels.Merge(
-		s.batchIdentifierLabel(),
-		radixlabels.ForBatchJobName(batchJob.Name),
 	)
 
 	volumes, err := s.getVolumes(rd.GetNamespace(), rd.Spec.Environment, batchJob, jobComponent, rd.Name)

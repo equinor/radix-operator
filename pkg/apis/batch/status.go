@@ -92,13 +92,20 @@ func (s *syncer) buildJobStatuses() ([]radixv1.RadixBatchJobStatus, error) {
 	}
 
 	for _, batchJob := range s.batch.Spec.Jobs {
-		jobStatuses = append(jobStatuses, s.buildJobStatusFromKubernetesJob(batchJob, jobs, pods.Items))
+		jobStatuses = append(jobStatuses, s.buildBatchJobStatus(batchJob, jobs, pods.Items))
 	}
 
 	return jobStatuses, nil
 }
 
-func (s *syncer) buildJobStatusFromKubernetesJob(batchJob radixv1.RadixBatchJob, allJobs []*batchv1.Job, allPods []corev1.Pod) radixv1.RadixBatchJobStatus {
+func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*batchv1.Job, allPods []corev1.Pod) radixv1.RadixBatchJobStatus {
+	currentStatus := slice.FindAll(s.batch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
+		return jobStatus.Name == batchJob.Name
+	})
+	if len(currentStatus) > 0 && isBatchJobPhaseDone(currentStatus[0].Phase) {
+		return currentStatus[0]
+	}
+
 	status := radixv1.RadixBatchJobStatus{
 		Name:  batchJob.Name,
 		Phase: radixv1.BatchJobPhaseWaiting,
