@@ -50,6 +50,10 @@ spec:
                   description: RadixBatchJob defines the spec for a single job in
                     the batch
                   properties:
+                    backoffLimit:
+                      format: int32
+                      minimum: 0
+                      type: integer
                     jobId:
                       type: string
                     name:
@@ -81,6 +85,7 @@ spec:
                         name:
                           description: 'Name of the resource being referred to. More
                             info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          maxLength: 253
                           type: string
                       required:
                       - key
@@ -114,11 +119,12 @@ spec:
                       type: object
                     timeLimitSeconds:
                       format: int64
+                      minimum: 1
                       type: integer
                   required:
                   - name
                   type: object
-                maxItems: 100
+                maxItems: 500
                 minItems: 1
                 type: array
                 x-kubernetes-list-map-keys:
@@ -135,6 +141,7 @@ spec:
                   name:
                     description: 'Name of the resource being referred to. More info:
                       https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                    maxLength: 253
                     type: string
                 required:
                 - job
@@ -182,6 +189,7 @@ spec:
                         why the job is in this phase
                       type: string
                     name:
+                      maxLength: 63
                       type: string
                     phase:
                       description: RadixBatchJobPhase represents the phase of the
