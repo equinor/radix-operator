@@ -45,7 +45,6 @@ func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch) Syncer {
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
-
 	envVarConfigMapsMap := map[string]*corev1.ConfigMap{}
 	for _, deployComponent := range rd.Spec.Components {
 		envVarConfigMapsMap[deployComponent.GetName()] = s.ensurePopulatedEnvVarsConfigMaps(kubeUtil, rd, &deployComponent)
@@ -85,28 +84,30 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 	created, started, ended := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 3, 0, 0, 0, 0, time.Local))
 	expectedStatus := radixv1.RadixBatchStatus{
 		Condition: radixv1.RadixBatchCondition{
-			Type:    radixv1.BatchConditionTypeCompleted,
-			Reason:  "any reson",
-			Message: "any message",
+			Type:          radixv1.BatchConditionTypeCompleted,
+			Reason:        "any reson",
+			Message:       "any message",
+			ActiveTime:    &started,
+			CompletedTime: &ended,
 		},
 		JobStatuses: []radixv1.RadixBatchJobStatus{
 			{
-				Name:    "job1",
-				Phase:   radixv1.BatchJobPhaseSucceeded,
-				Reason:  "any-reason1",
-				Message: "any-message1",
-				Created: &created,
-				Started: &started,
-				Ended:   &ended,
+				Name:        "job1",
+				Phase:       radixv1.BatchJobPhaseSucceeded,
+				Reason:      "any-reason1",
+				Message:     "any-message1",
+				CreatedTime: &created,
+				StartedTime: &started,
+				EndedTime:   &ended,
 			},
 			{
-				Name:    "job1",
-				Phase:   radixv1.BatchJobPhaseFailed,
-				Reason:  "any-reason2",
-				Message: "any-message2",
-				Created: &created,
-				Started: &started,
-				Ended:   &ended,
+				Name:        "job1",
+				Phase:       radixv1.BatchJobPhaseFailed,
+				Reason:      "any-reason2",
+				Message:     "any-message2",
+				CreatedTime: &created,
+				StartedTime: &started,
+				EndedTime:   &ended,
 			},
 		},
 	}
@@ -136,22 +137,22 @@ func (s *syncerTestSuite) Test_ShouldRestoreStatusFromAnnotationWhenStatusEmpty(
 		},
 		JobStatuses: []radixv1.RadixBatchJobStatus{
 			{
-				Name:    "job1",
-				Phase:   radixv1.BatchJobPhaseSucceeded,
-				Reason:  "any-reason1",
-				Message: "any-message1",
-				Created: &created,
-				Started: &started,
-				Ended:   &ended,
+				Name:        "job1",
+				Phase:       radixv1.BatchJobPhaseSucceeded,
+				Reason:      "any-reason1",
+				Message:     "any-message1",
+				CreatedTime: &created,
+				StartedTime: &started,
+				EndedTime:   &ended,
 			},
 			{
-				Name:    "job1",
-				Phase:   radixv1.BatchJobPhaseFailed,
-				Reason:  "any-reason2",
-				Message: "any-message2",
-				Created: &created,
-				Started: &started,
-				Ended:   &ended,
+				Name:        "job1",
+				Phase:       radixv1.BatchJobPhaseFailed,
+				Reason:      "any-reason2",
+				Message:     "any-message2",
+				CreatedTime: &created,
+				StartedTime: &started,
+				EndedTime:   &ended,
 			},
 		},
 	}
@@ -343,7 +344,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedForJobWithPhaseDone() {
 				{Name: "job2", Phase: radixv1.BatchJobPhaseFailed},
 				{Name: "job3", Phase: radixv1.BatchJobPhaseStopped},
 				{Name: "job4", Phase: radixv1.BatchJobPhaseWaiting},
-				{Name: "job5", Phase: radixv1.BatchJobPhaseRunning},
+				{Name: "job5", Phase: radixv1.BatchJobPhaseActive},
 			},
 		},
 	}
@@ -370,7 +371,7 @@ func (s *syncerTestSuite) Test_ServiceNotCreatedForJobWithPhaseDone() {
 	s.ElementsMatch([]string{getKubeServiceName(batchName, "job4"), getKubeServiceName(batchName, "job5")}, slice.Map(allServices.Items, func(svc corev1.Service) string { return svc.GetName() }))
 }
 
-func (s *syncerTestSuite) Test_JobStaticConfiguration() {
+func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 	appName, batchName, componentName, namespace, rdName, imageName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "any-image"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
@@ -477,7 +478,7 @@ func (s *syncerTestSuite) Test_JobNotCreatedForJobWithPhaseDone() {
 				{Name: "job2", Phase: radixv1.BatchJobPhaseFailed},
 				{Name: "job3", Phase: radixv1.BatchJobPhaseStopped},
 				{Name: "job4", Phase: radixv1.BatchJobPhaseWaiting},
-				{Name: "job5", Phase: radixv1.BatchJobPhaseRunning},
+				{Name: "job5", Phase: radixv1.BatchJobPhaseActive},
 			},
 		},
 	}
@@ -822,6 +823,182 @@ func (s *syncerTestSuite) Test_JobWithGpuNode() {
 	s.Equal(corev1.TaintEffectNoSchedule, tolerations[0].Effect)
 }
 
+func (s *syncerTestSuite) Test_StopJob() {
+	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	job1Name, job2Name := "job1", "job2"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: job1Name},
+				{Name: job2Name},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name: componentName,
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(allJobs.Items, 2)
+
+	batch.Spec.Jobs[0].Stop = utils.BoolPtr(true)
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	allJobs, _ = s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(allJobs.Items, 1)
+	s.Equal(getKubeJobName(batchName, job2Name), allJobs.Items[0].GetName())
+
+}
+
+func (s *syncerTestSuite) Test_SyncErrorWhenJobMissingInRadixDeployment() {
+	appName, batchName, componentName, namespace, rdName, missingComponentName := "any-app", "any-batch", "compute", "any-ns", "any-rd", "incorrect-job"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  missingComponentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{{Name: "any-job-name"}},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name: componentName,
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	err = sut.OnSync()
+	s.Equal(err, newReconcileRadixDeploymentJobSpecNotFoundError(rdName, missingComponentName))
+	var target reconcileStatus
+	s.ErrorAs(err, &target)
+	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
+	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
+	s.Equal(err.Error(), batch.Status.Condition.Message)
+}
+
+func (s *syncerTestSuite) Test_SyncErrorWhenRadixDeploymentDoesNotExist() {
+	batchName, namespace, rdName, missingComponentName := "any-batch", "any-ns", "any-rd", "incorrect-job"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  missingComponentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{{Name: "any-job-name"}},
+		},
+	}
+
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	err = sut.OnSync()
+	s.Equal(err, newReconcileRadixDeploymentNotFoundError(rdName))
+	var target reconcileStatus
+	s.ErrorAs(err, &target)
+	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
+	s.Equal(invalidDeploymentReferenceReason, batch.Status.Condition.Reason)
+	s.Equal(err.Error(), batch.Status.Condition.Message)
+}
+
+func (s *syncerTestSuite) Test_BatchStatusCondition() {
+	batchName, namespace, rdName := "any-batch", "any-ns", "any-rd"
+	job1Name, job2Name, job3Name := "job1", "job2", "job3"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  "any-job",
+			},
+			Jobs: []radixv1.RadixBatchJob{{Name: job1Name}, {Name: job2Name}, {Name: job3Name}},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: "any-app",
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name: "any-job",
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	allJobs, err := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().NoError(err)
+	s.Require().Len(allJobs.Items, 3)
+	s.Require().ElementsMatch([]string{getKubeJobName(batchName, job1Name), getKubeJobName(batchName, job2Name), getKubeJobName(batchName, job3Name)}, slice.Map(allJobs.Items, func(job batchv1.Job) string { return job.GetName() }))
+
+	updateKubeJobStatus := func(jobName string) func(updater func(status *batchv1.JobStatus)) {
+		job, err := s.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
+		if err != nil {
+			s.FailNow(err.Error())
+		}
+		return func(updater func(status *batchv1.JobStatus)) {
+			updater(&job.Status)
+			_, err := s.kubeClient.BatchV1().Jobs(namespace).Update(context.Background(), job, metav1.UpdateOptions{})
+			if err != nil {
+				s.FailNow(err.Error())
+			}
+		}
+	}
+
+	// Initial condition is Waiting when no jobs are active
+	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
+
+	// Set job1 status.active to 1 => batch condition is Running
+	updateKubeJobStatus(getKubeJobName(batchName, job1Name))(func(status *batchv1.JobStatus) {
+		status.Active = 1
+	})
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	s.Equal(radixv1.BatchConditionTypeRunning, batch.Status.Condition.Type)
+
+	// Set job status.active to 1 => batch condition is Running
+	updateKubeJobStatus(getKubeJobName(batchName, job1Name))(func(status *batchv1.JobStatus) {
+		status.Active = 1
+	})
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	s.Equal(radixv1.BatchConditionTypeRunning, batch.Status.Condition.Type)
+}
+
 func (s *syncerTestSuite) getNodeSelectorRequirementByKeyForTest(requirements []corev1.NodeSelectorRequirement, key string) *corev1.NodeSelectorRequirement {
 	for _, requirement := range requirements {
 		if requirement.Key == key {
@@ -836,9 +1013,3 @@ func (s *syncerTestSuite) getNodeSelectorRequirementByKeyForTest(requirements []
 // Phase Completed
 // Phase Failed
 // Reason and Status from latest Pod when Phase in Failed or Waiting
-
-// Delete Job when stop is set to true
-// Missing RD => status pending
-// RD exist but missing job
-
-//

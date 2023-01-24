@@ -50,9 +50,6 @@ type RadixBatchJob struct {
 	JobId string `json:"jobId,omitempty"`
 
 	// +optional
-	Tags map[string]string `json:"tags,omitempty"`
-
-	// +optional
 	Resources *ResourceRequirements `json:"resources,omitempty"`
 
 	// +optional
@@ -92,7 +89,7 @@ type RadixDeploymentJobComponentSelector struct {
 }
 
 // RadixBatchJobPhase represents the phase of the job
-// +kubebuilder:validation:Enum=Waiting;Running;Succeeded;Failed;Stopped
+// +kubebuilder:validation:Enum=Waiting;Active;Succeeded;Failed;Stopped
 type RadixBatchJobPhase string
 
 const (
@@ -100,8 +97,8 @@ const (
 	// Details about the reason for this state is found in the `reason` field
 	BatchJobPhaseWaiting RadixBatchJobPhase = "Waiting"
 
-	// BatchJobPhaseRunning means that the job is running
-	BatchJobPhaseRunning RadixBatchJobPhase = "Running"
+	// BatchJobPhaseActive means that the job is active
+	BatchJobPhaseActive RadixBatchJobPhase = "Active"
 
 	// BatchJobPhaseSucceeded means that the job has completed without errors
 	BatchJobPhaseSucceeded RadixBatchJobPhase = "Succeeded"
@@ -113,17 +110,16 @@ const (
 	BatchJobPhaseStopped RadixBatchJobPhase = "Stopped"
 )
 
+// +kubebuilder:validation:Enum=Waiting;Active;Completed
 type RadixBatchConditionType string
 
 const (
-	//
 	BatchConditionTypeWaiting   RadixBatchConditionType = "Waiting"
-	BatchConditionTypeRunning   RadixBatchConditionType = "Running"
+	BatchConditionTypeRunning   RadixBatchConditionType = "Active"
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
 )
 
 type RadixBatchCondition struct {
-	// +kubebuilder:validation:Enum=Waiting;Running;Running;Completed
 	Type RadixBatchConditionType `json:"type"`
 
 	// +optional
@@ -131,6 +127,12 @@ type RadixBatchCondition struct {
 
 	// +optional
 	Message string `json:"message,omitempty"`
+
+	// +optional
+	ActiveTime *meta_v1.Time `json:"activeTime,omitempty"`
+
+	// +optional
+	CompletedTime *meta_v1.Time `json:"completedTime,omitempty"`
 }
 
 // RadixBatchStatus is the status for a RadixBatch
@@ -149,8 +151,7 @@ type RadixBatchJobStatus struct {
 	// +kubebuilder:validation:MaxLength:=63
 	Name string `json:"name"`
 
-	// +optional
-	Phase RadixBatchJobPhase `json:"phase,omitempty"`
+	Phase RadixBatchJobPhase `json:"phase"`
 
 	// A brief CamelCase message indicating details about why the job is in this phase
 	// +optional
@@ -161,13 +162,13 @@ type RadixBatchJobStatus struct {
 	Message string `json:"message,omitempty"`
 
 	// +optional
-	Created *meta_v1.Time `json:"created,omitempty"`
+	CreatedTime *meta_v1.Time `json:"createdTime,omitempty"`
 
 	// +optional
-	Started *meta_v1.Time `json:"started,omitempty"`
+	StartedTime *meta_v1.Time `json:"startedTime,omitempty"`
 
 	// +optional
-	Ended *meta_v1.Time `json:"ended,omitempty"`
+	EndedTime *meta_v1.Time `json:"endedTime,omitempty"`
 }
 
 type LocalObjectReference struct {
