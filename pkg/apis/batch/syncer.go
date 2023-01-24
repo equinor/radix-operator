@@ -55,7 +55,7 @@ func (s *syncer) reconcile() error {
 		return err
 	}
 
-	return s.reconcileJob(rd, jobComponent)
+	return s.reconcileKubeJobs(rd, jobComponent)
 }
 
 func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {

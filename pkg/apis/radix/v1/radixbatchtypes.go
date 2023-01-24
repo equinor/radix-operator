@@ -115,7 +115,7 @@ type RadixBatchConditionType string
 
 const (
 	BatchConditionTypeWaiting   RadixBatchConditionType = "Waiting"
-	BatchConditionTypeRunning   RadixBatchConditionType = "Active"
+	BatchConditionTypeActive    RadixBatchConditionType = "Active"
 	BatchConditionTypeCompleted RadixBatchConditionType = "Completed"
 )
 

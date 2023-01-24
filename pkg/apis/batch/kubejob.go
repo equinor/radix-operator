@@ -21,7 +21,7 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
-func (s *syncer) reconcileJob(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent) error {
+func (s *syncer) reconcileKubeJobs(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent) error {
 	existingJobs, err := s.kubeutil.ListJobsWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
 	if err != nil {
 		return err

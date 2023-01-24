@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
-	"sort"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -16,8 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func isJobStatusRunning(jobStatus radixv1.RadixBatchJobStatus) bool {
-	return jobStatus.Phase == radixv1.BatchJobPhaseActive
+func isJobStatusWaiting(jobStatus radixv1.RadixBatchJobStatus) bool {
+	return jobStatus.Phase == radixv1.BatchJobPhaseWaiting
 }
 
 func isJobStatusDone(jobStatus radixv1.RadixBatchJobStatus) bool {
@@ -39,10 +38,10 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		return err
 	}
 
-	conditionType := radixv1.BatchConditionTypeWaiting
+	conditionType := radixv1.BatchConditionTypeActive
 	switch {
-	case slice.Any(jobStatuses, isJobStatusRunning):
-		conditionType = radixv1.BatchConditionTypeRunning
+	case slice.All(jobStatuses, isJobStatusWaiting):
+		conditionType = radixv1.BatchConditionTypeWaiting
 	case slice.All(jobStatuses, isJobStatusDone):
 		conditionType = radixv1.BatchConditionTypeCompleted
 	}
@@ -57,7 +56,7 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		case radixv1.BatchConditionTypeWaiting:
 			currStatus.Condition.ActiveTime = nil
 			currStatus.Condition.CompletionTime = nil
-		case radixv1.BatchConditionTypeRunning:
+		case radixv1.BatchConditionTypeActive:
 			now := metav1.Now()
 			if currStatus.Condition.ActiveTime == nil {
 				currStatus.Condition.ActiveTime = &now
@@ -107,19 +106,14 @@ func (s *syncer) buildJobStatuses() ([]radixv1.RadixBatchJobStatus, error) {
 		return nil, err
 	}
 
-	pods, err := s.kubeclient.CoreV1().Pods(s.batch.GetNamespace()).List(context.Background(), metav1.ListOptions{LabelSelector: s.batchIdentifierLabel().String()})
-	if err != nil {
-		return nil, err
-	}
-
 	for _, batchJob := range s.batch.Spec.Jobs {
-		jobStatuses = append(jobStatuses, s.buildBatchJobStatus(batchJob, jobs, pods.Items))
+		jobStatuses = append(jobStatuses, s.buildBatchJobStatus(batchJob, jobs))
 	}
 
 	return jobStatuses, nil
 }
 
-func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*batchv1.Job, allPods []corev1.Pod) radixv1.RadixBatchJobStatus {
+func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
 	currentStatus := slice.FindAll(s.batch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
@@ -132,15 +126,14 @@ func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*
 		Phase: radixv1.BatchJobPhaseWaiting,
 	}
 
-	if len(currentStatus) > 0 {
-		status.CreationTime = currentStatus[0].CreationTime
-		status.StartTime = currentStatus[0].StartTime
-	}
-
 	if isBatchJobStopRequested(batchJob) {
 		now := metav1.Now()
 		status.Phase = radixv1.BatchJobPhaseStopped
 		status.EndTime = &now
+		if len(currentStatus) > 0 {
+			status.CreationTime = currentStatus[0].CreationTime
+			status.StartTime = currentStatus[0].StartTime
+		}
 		return status
 	}
 
@@ -149,31 +142,23 @@ func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*
 		status.CreationTime = &job.CreationTimestamp
 
 		switch {
-		case job.Status.Active > 0:
-			status.Phase = radixv1.BatchJobPhaseActive
 		case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobComplete)):
 			status.Phase = radixv1.BatchJobPhaseSucceeded
-		case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobFailed)):
-			status.Phase = radixv1.BatchJobPhaseFailed
-		}
-
-		switch status.Phase {
-		case radixv1.BatchJobPhaseActive:
-			status.StartTime = job.Status.StartTime
-		case radixv1.BatchJobPhaseSucceeded:
 			status.StartTime = job.Status.StartTime
 			status.EndTime = job.Status.CompletionTime
-		case radixv1.BatchJobPhaseFailed:
+		case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobFailed)):
+			status.Phase = radixv1.BatchJobPhaseFailed
 			status.StartTime = job.Status.StartTime
 			if failedConditions := slice.FindAll(job.Status.Conditions, isJobStatusCondition(batchv1.JobFailed)); len(failedConditions) > 0 {
 				status.EndTime = &failedConditions[0].LastTransitionTime
+				status.Reason = failedConditions[0].Reason
+				status.Message = failedConditions[0].Message
 			}
+		case job.Status.Active > 0:
+			status.Phase = radixv1.BatchJobPhaseActive
+			status.StartTime = job.Status.StartTime
 		}
 
-		if status.Phase == radixv1.BatchJobPhaseFailed || status.Phase == radixv1.BatchJobPhaseWaiting {
-			pods := slice.FindAll(allPods, func(pod corev1.Pod) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, &pod) })
-			status.Reason, status.Message = getReasonAndMessageFromPendingOrFailedPod(pods)
-		}
 	}
 
 	return status
@@ -196,38 +181,4 @@ func (s *syncer) restoreStatus() error {
 	}
 
 	return nil
-}
-
-func getReasonAndMessageFromPendingOrFailedPod(pods []corev1.Pod) (reason, message string) {
-	if len(pods) == 0 {
-		return
-	}
-	sort.Slice(pods, func(i, j int) bool { return pods[i].CreationTimestamp.After(pods[j].CreationTimestamp.Time) })
-	pod := pods[0]
-
-	switch pod.Status.Phase {
-	case corev1.PodPending, corev1.PodUnknown:
-		reason = pod.Status.Reason
-		message = pod.Status.Message
-
-		if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Waiting != nil {
-			reason = pod.Status.ContainerStatuses[0].State.Waiting.Reason
-			message = pod.Status.ContainerStatuses[0].State.Waiting.Message
-		}
-	case corev1.PodFailed:
-		reason = pod.Status.Reason
-		message = pod.Status.Message
-
-		if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
-			if len(reason) == 0 {
-				reason = pod.Status.ContainerStatuses[0].State.Terminated.Reason
-			}
-
-			if len(message) == 0 {
-				message = pod.Status.ContainerStatuses[0].State.Terminated.Message
-			}
-		}
-	}
-
-	return
 }
