@@ -41,7 +41,7 @@ func TestSyncerTestSuite(t *testing.T) {
 }
 
 func (s *syncerTestSuite) createSyncer(forJob *radixv1.RadixBatch) Syncer {
-	return NewSyncer(s.kubeClient, s.kubeUtil, s.radixClient, forJob)
+	return &syncer{kubeclient: s.kubeClient, kubeutil: s.kubeUtil, radixclient: s.radixClient, batch: forJob}
 }
 
 func (s *syncerTestSuite) applyRadixDeploymentEnvVarsConfigMaps(kubeUtil *kube.Kube, rd *radixv1.RadixDeployment) map[string]*corev1.ConfigMap {
@@ -84,30 +84,30 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 	created, started, ended := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 2, 0, 0, 0, 0, time.Local)), metav1.NewTime(time.Date(2020, 1, 3, 0, 0, 0, 0, time.Local))
 	expectedStatus := radixv1.RadixBatchStatus{
 		Condition: radixv1.RadixBatchCondition{
-			Type:          radixv1.BatchConditionTypeCompleted,
-			Reason:        "any reson",
-			Message:       "any message",
-			ActiveTime:    &started,
-			CompletedTime: &ended,
+			Type:           radixv1.BatchConditionTypeCompleted,
+			Reason:         "any reson",
+			Message:        "any message",
+			ActiveTime:     &started,
+			CompletionTime: &ended,
 		},
 		JobStatuses: []radixv1.RadixBatchJobStatus{
 			{
-				Name:        "job1",
-				Phase:       radixv1.BatchJobPhaseSucceeded,
-				Reason:      "any-reason1",
-				Message:     "any-message1",
-				CreatedTime: &created,
-				StartedTime: &started,
-				EndedTime:   &ended,
+				Name:         "job1",
+				Phase:        radixv1.BatchJobPhaseSucceeded,
+				Reason:       "any-reason1",
+				Message:      "any-message1",
+				CreationTime: &created,
+				StartTime:    &started,
+				EndTime:      &ended,
 			},
 			{
-				Name:        "job1",
-				Phase:       radixv1.BatchJobPhaseFailed,
-				Reason:      "any-reason2",
-				Message:     "any-message2",
-				CreatedTime: &created,
-				StartedTime: &started,
-				EndedTime:   &ended,
+				Name:         "job1",
+				Phase:        radixv1.BatchJobPhaseFailed,
+				Reason:       "any-reason2",
+				Message:      "any-message2",
+				CreationTime: &created,
+				StartTime:    &started,
+				EndTime:      &ended,
 			},
 		},
 	}
@@ -137,22 +137,22 @@ func (s *syncerTestSuite) Test_ShouldRestoreStatusFromAnnotationWhenStatusEmpty(
 		},
 		JobStatuses: []radixv1.RadixBatchJobStatus{
 			{
-				Name:        "job1",
-				Phase:       radixv1.BatchJobPhaseSucceeded,
-				Reason:      "any-reason1",
-				Message:     "any-message1",
-				CreatedTime: &created,
-				StartedTime: &started,
-				EndedTime:   &ended,
+				Name:         "job1",
+				Phase:        radixv1.BatchJobPhaseSucceeded,
+				Reason:       "any-reason1",
+				Message:      "any-message1",
+				CreationTime: &created,
+				StartTime:    &started,
+				EndTime:      &ended,
 			},
 			{
-				Name:        "job1",
-				Phase:       radixv1.BatchJobPhaseFailed,
-				Reason:      "any-reason2",
-				Message:     "any-message2",
-				CreatedTime: &created,
-				StartedTime: &started,
-				EndedTime:   &ended,
+				Name:         "job1",
+				Phase:        radixv1.BatchJobPhaseFailed,
+				Reason:       "any-reason2",
+				Message:      "any-message2",
+				CreationTime: &created,
+				StartTime:    &started,
+				EndTime:      &ended,
 			},
 		},
 	}
@@ -981,22 +981,45 @@ func (s *syncerTestSuite) Test_BatchStatusCondition() {
 
 	// Initial condition is Waiting when no jobs are active
 	s.Equal(radixv1.BatchConditionTypeWaiting, batch.Status.Condition.Type)
+	s.Nil(batch.Status.Condition.ActiveTime)
+	s.Nil(batch.Status.Condition.CompletionTime)
 
 	// Set job1 status.active to 1 => batch condition is Running
 	updateKubeJobStatus(getKubeJobName(batchName, job1Name))(func(status *batchv1.JobStatus) {
 		status.Active = 1
-	})
-	sut = s.createSyncer(batch)
-	s.Require().NoError(sut.OnSync())
-	s.Equal(radixv1.BatchConditionTypeRunning, batch.Status.Condition.Type)
 
-	// Set job status.active to 1 => batch condition is Running
-	updateKubeJobStatus(getKubeJobName(batchName, job1Name))(func(status *batchv1.JobStatus) {
-		status.Active = 1
 	})
 	sut = s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
 	s.Equal(radixv1.BatchConditionTypeRunning, batch.Status.Condition.Type)
+	s.NotNil(batch.Status.Condition.ActiveTime)
+	s.Nil(batch.Status.Condition.CompletionTime)
+
+	// Set job2 condition to failed => batch condition is Running
+	updateKubeJobStatus(getKubeJobName(batchName, job2Name))(func(status *batchv1.JobStatus) {
+		status.Conditions = []batchv1.JobCondition{
+			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
+		}
+	})
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	s.Equal(radixv1.BatchConditionTypeRunning, batch.Status.Condition.Type)
+	s.NotNil(batch.Status.Condition.ActiveTime)
+	s.Nil(batch.Status.Condition.CompletionTime)
+
+	// Set job1 condition to failed => batch condition is Running
+	updateKubeJobStatus(getKubeJobName(batchName, job1Name))(func(status *batchv1.JobStatus) {
+		status.Active = 0
+		status.Conditions = []batchv1.JobCondition{
+			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+		}
+	})
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	s.Equal(radixv1.BatchConditionTypeRunning, batch.Status.Condition.Type)
+	s.NotNil(batch.Status.Condition.ActiveTime)
+	s.Nil(batch.Status.Condition.CompletionTime)
+
 }
 
 func (s *syncerTestSuite) getNodeSelectorRequirementByKeyForTest(requirements []corev1.NodeSelectorRequirement, key string) *corev1.NodeSelectorRequirement {

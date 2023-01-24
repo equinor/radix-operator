@@ -158,7 +158,7 @@ spec:
                   activeTime:
                     format: date-time
                     type: string
-                  completedTime:
+                  completionTime:
                     format: date-time
                     type: string
                   message:
@@ -180,10 +180,10 @@ spec:
                   description: RadixBatchJobStatus is the status for a specific item
                     in spec.items
                   properties:
-                    createdTime:
+                    creationTime:
                       format: date-time
                       type: string
-                    endedTime:
+                    endTime:
                       format: date-time
                       type: string
                     message:
@@ -207,7 +207,7 @@ spec:
                       description: A brief CamelCase message indicating details about
                         why the job is in this phase
                       type: string
-                    startedTime:
+                    startTime:
                       format: date-time
                       type: string
                   required:

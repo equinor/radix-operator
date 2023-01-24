@@ -132,7 +132,7 @@ type RadixBatchCondition struct {
 	ActiveTime *meta_v1.Time `json:"activeTime,omitempty"`
 
 	// +optional
-	CompletedTime *meta_v1.Time `json:"completedTime,omitempty"`
+	CompletionTime *meta_v1.Time `json:"completionTime,omitempty"`
 }
 
 // RadixBatchStatus is the status for a RadixBatch
@@ -162,13 +162,13 @@ type RadixBatchJobStatus struct {
 	Message string `json:"message,omitempty"`
 
 	// +optional
-	CreatedTime *meta_v1.Time `json:"createdTime,omitempty"`
+	CreationTime *meta_v1.Time `json:"creationTime,omitempty"`
 
 	// +optional
-	StartedTime *meta_v1.Time `json:"startedTime,omitempty"`
+	StartTime *meta_v1.Time `json:"startTime,omitempty"`
 
 	// +optional
-	EndedTime *meta_v1.Time `json:"endedTime,omitempty"`
+	EndTime *meta_v1.Time `json:"endTime,omitempty"`
 }
 
 type LocalObjectReference struct {

@@ -56,20 +56,20 @@ func (s *syncer) syncStatus(reconcileError error) error {
 		switch conditionType {
 		case radixv1.BatchConditionTypeWaiting:
 			currStatus.Condition.ActiveTime = nil
-			currStatus.Condition.CompletedTime = nil
+			currStatus.Condition.CompletionTime = nil
 		case radixv1.BatchConditionTypeRunning:
 			now := metav1.Now()
 			if currStatus.Condition.ActiveTime == nil {
 				currStatus.Condition.ActiveTime = &now
 			}
-			currStatus.Condition.CompletedTime = nil
+			currStatus.Condition.CompletionTime = nil
 		case radixv1.BatchConditionTypeCompleted:
 			now := metav1.Now()
 			if currStatus.Condition.ActiveTime == nil {
 				currStatus.Condition.ActiveTime = &now
 			}
-			if currStatus.Condition.CompletedTime == nil {
-				currStatus.Condition.CompletedTime = &now
+			if currStatus.Condition.CompletionTime == nil {
+				currStatus.Condition.CompletionTime = &now
 			}
 		}
 	})
@@ -133,20 +133,20 @@ func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*
 	}
 
 	if len(currentStatus) > 0 {
-		status.CreatedTime = currentStatus[0].CreatedTime
-		status.StartedTime = currentStatus[0].StartedTime
+		status.CreationTime = currentStatus[0].CreationTime
+		status.StartTime = currentStatus[0].StartTime
 	}
 
 	if isBatchJobStopRequested(batchJob) {
 		now := metav1.Now()
 		status.Phase = radixv1.BatchJobPhaseStopped
-		status.EndedTime = &now
+		status.EndTime = &now
 		return status
 	}
 
 	if jobs := slice.FindAll(allJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) }); len(jobs) > 0 {
 		job := jobs[0]
-		status.CreatedTime = &job.CreationTimestamp
+		status.CreationTime = &job.CreationTimestamp
 
 		switch {
 		case job.Status.Active > 0:
@@ -159,14 +159,14 @@ func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*
 
 		switch status.Phase {
 		case radixv1.BatchJobPhaseActive:
-			status.StartedTime = job.Status.StartTime
+			status.StartTime = job.Status.StartTime
 		case radixv1.BatchJobPhaseSucceeded:
-			status.StartedTime = job.Status.StartTime
-			status.EndedTime = job.Status.CompletionTime
+			status.StartTime = job.Status.StartTime
+			status.EndTime = job.Status.CompletionTime
 		case radixv1.BatchJobPhaseFailed:
-			status.StartedTime = job.Status.StartTime
+			status.StartTime = job.Status.StartTime
 			if failedConditions := slice.FindAll(job.Status.Conditions, isJobStatusCondition(batchv1.JobFailed)); len(failedConditions) > 0 {
-				status.EndedTime = &failedConditions[0].LastTransitionTime
+				status.EndTime = &failedConditions[0].LastTransitionTime
 			}
 		}
 
