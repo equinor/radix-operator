@@ -29,7 +29,7 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: RadixBatch describes a job
+        description: RadixBatch enables batch execution of Radix job components.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -44,24 +44,30 @@ spec:
           metadata:
             type: object
           spec:
+            description: RadixBatchSpec is the specification of batch jobs.
             properties:
               jobs:
+                description: List of batch jobs to run.
                 items:
-                  description: RadixBatchJob defines the spec for a single job in
-                    the batch
+                  description: Spec for a batch job
                   properties:
                     backoffLimit:
+                      description: Specifies the number of retries before marking
+                        this job failed.
                       format: int32
                       minimum: 0
                       type: integer
                     jobId:
+                      description: Defines a user defined ID of the job.
                       type: string
                     name:
+                      description: Defines the unique name of the job in a RadixBatch.
                       maxLength: 63
                       type: string
                     node:
-                      description: RadixNode defines node attributes, where container
-                        should be scheduled
+                      description: Specifies node attributes, where container should
+                        be scheduled. Overrides node configuration defined for job
+                        component in RadixDeployment.
                       properties:
                         gpu:
                           description: Gpu Optional. Holds lists of node GPU types,
@@ -76,16 +82,14 @@ spec:
                       - gpuCount
                       type: object
                     payloadSecretRef:
-                      description: PayloadSecretKeySelector selects a Secret to get
-                        job payload from
+                      description: Specifies the Secret name and data key containing
+                        the payload for the job
                       properties:
                         key:
-                          description: The key of the entry in the Secret resource's
-                            `data` field to be used.
+                          description: The key of the secret to select from.
                           type: string
                         name:
-                          description: 'Name of the resource being referred to. More
-                            info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                          description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
                           maxLength: 253
                           type: string
                       required:
@@ -93,8 +97,8 @@ spec:
                       - name
                       type: object
                     resources:
-                      description: ResourceRequirements describes the compute resource
-                        requirements.
+                      description: Specifies compute resource requirements. Overrides
+                        resource configuration defined for job component in RadixDeployment.
                       properties:
                         limits:
                           additionalProperties:
@@ -113,8 +117,14 @@ spec:
                           type: object
                       type: object
                     stop:
+                      description: Controls if a job should be stopped. If Stop is
+                        set to true, the underlying Kubernetes Job is deleted. A job
+                        that is stopped cannot be started again by setting Stop to
+                        false.
                       type: boolean
                     timeLimitSeconds:
+                      description: Specifies maximum job run time. Overrides timeLimitSeconds
+                        defined for job component in RadixDeployment.
                       format: int64
                       minimum: 1
                       type: integer
@@ -128,16 +138,14 @@ spec:
                 - name
                 x-kubernetes-list-type: map
               radixDeploymentJobRef:
-                description: A reference to a specific job within a RadixDeployment
-                  resource.
+                description: Reference to the RadixDeployment containing the job component
+                  spec.
                 properties:
                   job:
-                    description: The name of the job in the RadixDeployment's `jobs`
-                      list to be used
+                    description: The job name of the RadixDeployment to select.
                     type: string
                   name:
-                    description: 'Name of the resource being referred to. More info:
-                      https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
                     maxLength: 253
                     type: string
                 required:
@@ -149,23 +157,29 @@ spec:
             - radixDeploymentJobRef
             type: object
           status:
-            description: RadixBatchStatus is the status for a RadixBatch
+            description: RadixBatchStatus represents the current state of a RadixBatch
             properties:
               condition:
                 description: The batch is completed when all jobs are in a completed
                   phase (Succeeded, Failed or Stopped)
                 properties:
                   activeTime:
+                    description: The time the condition entered Active state.
                     format: date-time
                     type: string
                   completionTime:
+                    description: The time the condition entered Completed state.
                     format: date-time
                     type: string
                   message:
+                    description: A human readable message indicating details about
+                      the condition.
                     type: string
                   reason:
+                    description: The reason for the condition.
                     type: string
                   type:
+                    description: Type of RadixBatch condition.
                     enum:
                     - Waiting
                     - Active
@@ -177,13 +191,20 @@ spec:
               jobStatuses:
                 description: Status for each job defined in spec.jobs
                 items:
-                  description: RadixBatchJobStatus is the status for a specific item
-                    in spec.items
+                  description: RadixBatchJobStatus contains details for the current
+                    status of the job.
                   properties:
                     creationTime:
+                      description: The time at which the Kubernetes job was created.
                       format: date-time
                       type: string
                     endTime:
+                      description: 'The time at which the batch job ended. The value
+                        is set when phase is either Succeeded, Failed or Stopped.
+                        - Succeeded: Value from CompletionTime of the Kubernetes job.
+                        - Failed: Value from LastTransitionTime of the Failed condition
+                        of the Kubernetes job. - Stopped: The timestamp a job with
+                        Stop=true was reonciled.'
                       format: date-time
                       type: string
                     message:
@@ -208,6 +229,7 @@ spec:
                         why the job is in this phase
                       type: string
                     startTime:
+                      description: The time at which the Kubernetes job was started.
                       format: date-time
                       type: string
                   required:
