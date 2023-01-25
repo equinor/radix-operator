@@ -46,16 +46,38 @@ func (s *syncer) OnSync() error {
 }
 
 func (s *syncer) reconcile() error {
+	const syncStatusForEveryNumberOfBatchJobsReonciled = 10
+
 	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()
 	if err != nil {
 		return err
 	}
 
-	if err := s.reconcileServices(rd, jobComponent); err != nil {
+	existingJobs, err := s.kubeutil.ListJobsWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
+	if err != nil {
 		return err
 	}
 
-	return s.reconcileKubeJobs(rd, jobComponent)
+	existingServices, err := s.kubeutil.ListServicesWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
+	if err != nil {
+		return err
+	}
+
+	for i, batchJob := range s.batch.Spec.Jobs {
+		if err := s.reconcileService(batchJob, rd, jobComponent, existingServices); err != nil {
+			return err
+		}
+
+		if err := s.reconcileKubeJob(batchJob, rd, jobComponent, existingJobs); err != nil {
+			return err
+		}
+
+		if i%syncStatusForEveryNumberOfBatchJobsReonciled == 0 {
+			s.syncStatus(nil)
+		}
+	}
+
+	return nil
 }
 
 func (s *syncer) getRadixDeploymentAndJobComponent() (*radixv1.RadixDeployment, *radixv1.RadixDeployJobComponent, error) {

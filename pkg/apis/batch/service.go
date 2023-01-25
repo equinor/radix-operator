@@ -9,30 +9,21 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func (s *syncer) reconcileServices(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent) error {
+func (s *syncer) reconcileService(batchjob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
 	if len(jobComponent.GetPorts()) == 0 {
 		return nil
 	}
 
-	existingServices, err := s.kubeutil.ListServicesWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
-	if err != nil {
-		return err
+	if isBatchJobStopRequested(batchjob) || isBatchJobDone(s.batch, batchjob.Name) {
+		return nil
 	}
 
-	for _, batchjob := range s.batch.Spec.Jobs {
-		if isBatchJobStopRequested(batchjob) || isBatchJobDone(s.batch, batchjob.Name) {
-			continue
-		}
-
-		if !slice.Any(existingServices, func(service *corev1.Service) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, service) }) {
-			service := s.buildService(batchjob.Name, jobComponent.GetPorts())
-			if err := s.kubeutil.ApplyService(s.batch.GetNamespace(), service); err != nil {
-				return err
-			}
-		}
+	if slice.Any(existingServices, func(service *corev1.Service) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, service) }) {
+		return nil
 	}
 
-	return nil
+	service := s.buildService(batchjob.Name, jobComponent.GetPorts())
+	return s.kubeutil.ApplyService(s.batch.GetNamespace(), service)
 }
 
 func (s *syncer) buildService(batchJobName string, componentPorts []radixv1.ComponentPort) *corev1.Service {

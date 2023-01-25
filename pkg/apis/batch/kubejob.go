@@ -21,40 +21,33 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
-func (s *syncer) reconcileKubeJobs(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent) error {
-	existingJobs, err := s.kubeutil.ListJobsWithSelector(s.batch.GetNamespace(), s.batchIdentifierLabel().String())
+func (s *syncer) reconcileKubeJob(batchjob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
+	// Delete existing k8s job if stop is requested for batch job
+	if isBatchJobStopRequested(batchjob) {
+		for _, jobToDelete := range slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, job) }) {
+			err := s.kubeclient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(context.Background(), jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if isBatchJobDone(s.batch, batchjob.Name) {
+		return nil
+	}
+
+	if slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, job) }) {
+		return nil
+	}
+
+	job, err := s.buildJob(batchjob, jobComponent, rd)
 	if err != nil {
 		return err
 	}
 
-	for _, batchjob := range s.batch.Spec.Jobs {
-		if isBatchJobStopRequested(batchjob) {
-			for _, jobToDelete := range slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, job) }) {
-				err := s.kubeclient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(context.Background(), jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)})
-				if err != nil && !errors.IsNotFound(err) {
-					return err
-				}
-			}
-			continue
-		}
-
-		if isBatchJobDone(s.batch, batchjob.Name) {
-			continue
-		}
-
-		if !slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, job) }) {
-			job, err := s.buildJob(batchjob, jobComponent, rd)
-			if err != nil {
-				return err
-			}
-
-			if _, err := s.kubeclient.BatchV1().Jobs(s.batch.GetNamespace()).Create(context.TODO(), job, metav1.CreateOptions{}); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	_, err = s.kubeclient.BatchV1().Jobs(s.batch.GetNamespace()).Create(context.TODO(), job, metav1.CreateOptions{})
+	return err
 }
 
 func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) (*batchv1.Job, error) {
