@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	log "github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -170,8 +170,7 @@ func (s *syncer) restoreStatus() error {
 			var status radixv1.RadixBatchStatus
 
 			if err := json.Unmarshal([]byte(restoredStatus), &status); err != nil {
-				log.Warnf("unable to restore status for batch %s.%s from annotation", s.batch.GetNamespace(), s.batch.GetName())
-				return nil
+				return fmt.Errorf("unable to restore status for batch %s.%s from annotation: %w", s.batch.GetNamespace(), s.batch.GetName(), err)
 			}
 
 			return s.updateStatus(func(currStatus *radixv1.RadixBatchStatus) {

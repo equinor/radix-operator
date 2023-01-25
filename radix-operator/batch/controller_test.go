@@ -9,7 +9,6 @@ import (
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/stretchr/testify/suite"
 	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,7 +23,6 @@ func TestControllerSuite(t *testing.T) {
 func (s *controllerTestSuite) Test_RadixBatchEvents() {
 	batchName, namespace := "a-batch-job", "a-ns"
 	jobName := "a-job"
-	podName := "a-pod"
 
 	sut := NewController(s.KubeClient, s.RadixClient, s.Handler, s.KubeInformerFactory, s.RadixInformerFactory, false, s.EventRecorder)
 	s.RadixInformerFactory.Start(s.Stop)
@@ -78,39 +76,6 @@ func (s *controllerTestSuite) Test_RadixBatchEvents() {
 	_, err = s.KubeClient.BatchV1().Jobs(namespace).Update(context.Background(), kubejob, metav1.UpdateOptions{})
 	s.Require().NoError(err)
 	s.WaitForSynced("Sync should be called on k8s job update with changed resource version")
-
-	// Add Kubernetes Pod with ownerreference to Job should not trigger sync
-	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
-		Name:            podName,
-		Namespace:       namespace,
-		ResourceVersion: "1",
-		OwnerReferences: []metav1.OwnerReference{
-			{APIVersion: "batch/v1", Kind: "Job", Name: jobName, Controller: utils.BoolPtr(true)},
-		},
-	}}
-	s.Handler.EXPECT().Sync(namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	pod, err = s.KubeClient.CoreV1().Pods(namespace).Create(context.Background(), pod, metav1.CreateOptions{})
-	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should not be called when adding k8s pod")
-
-	// Sync should not trigger on pod update if resource version is unchanged
-	s.Handler.EXPECT().Sync(namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	pod, err = s.KubeClient.CoreV1().Pods(namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should not be called on k8s pod update with no resource version change")
-
-	// Sync should trigger on pod update if resource version is changed
-	pod.ResourceVersion = "2"
-	s.Handler.EXPECT().Sync(namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)
-	_, err = s.KubeClient.CoreV1().Pods(namespace).Update(context.Background(), pod, metav1.UpdateOptions{})
-	s.Require().NoError(err)
-	s.WaitForSynced("Sync should be called on k8s pod update with changed resource version")
-
-	// Sync should not trigger when deleting pod
-	s.Handler.EXPECT().Sync(namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(0)
-	err = s.KubeClient.CoreV1().Pods(namespace).Delete(context.Background(), podName, metav1.DeleteOptions{})
-	s.Require().NoError(err)
-	s.WaitForNotSynced("Sync should not be called on k8s pod deletion")
 
 	// Sync should trigger when deleting job
 	s.Handler.EXPECT().Sync(namespace, batchName, s.EventRecorder).DoAndReturn(s.SyncedChannelCallback()).Times(1)

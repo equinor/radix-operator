@@ -115,16 +115,60 @@ func (s *syncerTestSuite) Test_RestoreStatus() {
 	s.Require().NoError(err)
 
 	jobName, namespace := "any-job", "any-ns"
-	job := &radixv1.RadixBatch{
+	batch := &radixv1.RadixBatch{
 		ObjectMeta: metav1.ObjectMeta{Name: jobName, Annotations: map[string]string{kube.RestoredStatusAnnotation: string(statusBytes)}},
 	}
-	job, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), job, metav1.CreateOptions{})
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
-	sut := s.createSyncer(job)
+	sut := s.createSyncer(batch)
 	s.Require().NoError(sut.OnSync())
-	job, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	s.Require().NoError(err)
-	s.Equal(expectedStatus, job.Status)
+	s.Equal(expectedStatus, batch.Status)
+}
+
+func (s *syncerTestSuite) Test_RestoreStatusWithInvalidAnnotationValueShouldReturnErrorAndSkipReconcile() {
+	jobName, namespace := "any-job", "any-ns"
+	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName, Annotations: map[string]string{kube.RestoredStatusAnnotation: "invalid data"}},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: jobName},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:  componentName,
+					Ports: []radixv1.ComponentPort{{Name: "port1", Port: 8000}, {Name: "port2", Port: 9000}},
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	err = sut.OnSync()
+	s.Require().Error(err)
+	s.Contains(err.Error(), "unable to restore status for batch")
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Get(context.Background(), batchName, metav1.GetOptions{})
+	s.Require().NoError(err)
+	s.Empty(batch.Status)
+	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(jobs.Items, 0)
+	services, _ := s.kubeClient.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Len(services.Items, 0)
 }
 
 func (s *syncerTestSuite) Test_ShouldRestoreStatusFromAnnotationWhenStatusEmpty() {
@@ -502,6 +546,90 @@ func (s *syncerTestSuite) Test_JobNotCreatedForJobWithPhaseDone() {
 	s.Require().NoError(sut.OnSync())
 	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.ElementsMatch([]string{getKubeJobName(batchName, "job4"), getKubeJobName(batchName, "job5")}, slice.Map(allJobs.Items, func(job batchv1.Job) string { return job.GetName() }))
+}
+
+func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
+	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	job1Name, job2Name := "job1", "job2"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: job1Name},
+				{Name: job2Name, TimeLimitSeconds: numbers.Int64Ptr(234)},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:             componentName,
+					TimeLimitSeconds: numbers.Int64Ptr(123),
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(allJobs.Items, 2)
+	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
+	s.Equal(numbers.Int64Ptr(123), job1.Spec.Template.Spec.ActiveDeadlineSeconds)
+	job2 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
+	s.Equal(numbers.Int64Ptr(234), job2.Spec.Template.Spec.ActiveDeadlineSeconds)
+}
+
+func (s *syncerTestSuite) Test_BatchJobBackoffLimit() {
+	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	job1Name, job2Name := "job1", "job2"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: job1Name},
+				{Name: job2Name, BackoffLimit: numbers.Int32Ptr(5)},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name:             componentName,
+					TimeLimitSeconds: numbers.Int64Ptr(123),
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(allJobs.Items, 2)
+	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
+	s.Equal(numbers.Int32Ptr(0), job1.Spec.BackoffLimit)
+	job2 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
+	s.Equal(numbers.Int32Ptr(5), job2.Spec.BackoffLimit)
 }
 
 func (s *syncerTestSuite) Test_JobWithIdentity() {

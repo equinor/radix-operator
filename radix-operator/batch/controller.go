@@ -39,7 +39,7 @@ func NewController(client kubernetes.Interface,
 
 	batchInformer := radixInformerFactory.Radix().V1().RadixBatches()
 	jobInformer := kubeInformerFactory.Batch().V1().Jobs()
-	podInformer := kubeInformerFactory.Core().V1().Pods()
+	// podInformer := kubeInformerFactory.Core().V1().Pods()
 
 	controller := &common.Controller{
 		Name:                  controllerAgentName,
@@ -94,30 +94,6 @@ func NewController(client kubernetes.Interface,
 		},
 		DeleteFunc: func(obj interface{}) {
 			controller.HandleObject(obj, "RadixBatch", getOwner)
-		},
-	})
-
-	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			oldMeta := oldObj.(metav1.Object)
-			newMeta := newObj.(metav1.Object)
-			if oldMeta.GetResourceVersion() == newMeta.GetResourceVersion() {
-				return
-			}
-
-			podOwnerRef := metav1.GetControllerOf(newMeta)
-			if podOwnerRef == nil || podOwnerRef.Kind != "Job" {
-				return
-			}
-
-			job, err := client.BatchV1().Jobs(newMeta.GetNamespace()).Get(context.TODO(), podOwnerRef.Name, metav1.GetOptions{})
-			if err != nil {
-				// This job may not be found because application is being deleted and resources are being deleted
-				logger.Debugf("Could not find owning job of pod %s: %v", newMeta.GetName(), err)
-				return
-			}
-
-			controller.HandleObject(job, "RadixBatch", getOwner)
 		},
 	})
 
