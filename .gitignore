@@ -24,3 +24,6 @@ pipeline-runner/__debug_bin
 
 # binary built by goland
 radix-operator/main
+
+# Temporary dir for CRD generation
+.temp-crds

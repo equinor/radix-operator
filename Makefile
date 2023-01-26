@@ -4,6 +4,9 @@ VERSION 	?= latest
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
+CRD_TEMP_DIR := ./.temp-crds/
+CRD_CHART_DIR := ./charts/radix-operator/templates/
+
 # If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
 
 ifeq ($(ENVIRONMENT),prod)
@@ -122,9 +125,24 @@ CUSTOM_RESOURCE_VERSION=v1
 code-gen: 
 	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
 
-crds: controller-gen
-	${CONTROLLER_GEN} crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:stdout
+.PHONY: crds
+crds: temp-crds radixbatch-crd delete-temp-crds
 
-.HONY: staticcheck
+.PHONY: radixbatch-crd
+radixbatch-crd: temp-crds
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixbatches.yaml $(CRD_CHART_DIR)/radixbatch.yaml
+
+.PHONY: temp-crds
+temp-crds: controller-gen
+	echo "tempcrdrun"
+	${CONTROLLER_GEN} crd:crdVersions=v1 paths=./pkg/apis/radix/v1/ output:dir:=$(CRD_TEMP_DIR)
+
+.PHONY: delete-temp-crds
+delete-temp-crds:
+	rm -rf $(CRD_TEMP_DIR)
+
+.PHONY: staticcheck
 staticcheck:
 	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`
+
+

@@ -125,6 +125,7 @@ If you wish more in-depth information, [read this](https://blog.openshift.com/ku
 CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen)
 
 Generate/refresh CRD template files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
+Currently, only the CRD for RadixBatch is automatically generated.
 ```shell
 make crds
 ```
