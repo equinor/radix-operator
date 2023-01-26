@@ -92,7 +92,7 @@ For changes to the chart the same procedure applies as for changes to the code. 
         make helm-up ENVIRONMENT=dev OVERIDE_BRANCH=true
     ``` 
 
-### Updating RadixApplication CRD
+### Updating Radix CRD types
 
 The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
@@ -109,7 +109,8 @@ If `radix-operator` project folder is not located in the `$GOPATH/go/src/github.
 ```shell
 ln -s [custom-dev-folder]/radix-operator $GOPATH/go/src/github.com
 ```
-Run code-generator
+
+Generate the strongly type client for Radix v1 objects:
 ```shell
 make code-gen
 ```
@@ -118,17 +119,15 @@ This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client`
 
 This file/directory should NOT be edited.
 
-If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
+CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen), and are stored in the `charts/radix-operator/templates` directory
 
-### Generate Helm chart templates for CRDs
-
-CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen)
-
-Generate/refresh CRD template files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
-Currently, only the CRD for RadixBatch is automatically generated.
+Generate CRD yaml files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
+Currently, only the CRD for RadixBatch is generated.
 ```shell
 make crds
 ```
+
+If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
 
 ## Security Principle
 
