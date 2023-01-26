@@ -1,9 +1,0 @@
-apiVersion: radix.equinor.com/v1
-kind: RadixDeployment
-metadata:
-  name: sampledeploy
-spec:
-  appname: sampleapp
-  components:
-    - name: web
-      image: radixdev.azurecr.io/radix-demo-hello-nodejs
