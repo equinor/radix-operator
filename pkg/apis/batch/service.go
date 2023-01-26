@@ -3,10 +3,10 @@ package batch
 import (
 	"github.com/equinor/radix-common/utils/slice"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (s *syncer) reconcileService(batchjob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
@@ -38,24 +38,10 @@ func (s *syncer) buildService(batchJobName string, componentPorts []radixv1.Comp
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Ports:    buildServicePorts(componentPorts),
+			Ports:    utils.BuildServicePorts(componentPorts),
 			Selector: selector,
 		},
 	}
 
 	return service
-}
-
-func buildServicePorts(componentPorts []radixv1.ComponentPort) []corev1.ServicePort {
-	var ports []corev1.ServicePort
-	for _, v := range componentPorts {
-		servicePort := corev1.ServicePort{
-			Name:       v.Name,
-			Port:       v.Port,
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(int(v.Port)),
-		}
-		ports = append(ports, servicePort)
-	}
-	return ports
 }
