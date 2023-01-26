@@ -38,7 +38,7 @@ func (s *syncer) buildService(batchJobName string, componentPorts []radixv1.Comp
 		},
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Ports:    utils.BuildServicePorts(componentPorts),
+			Ports:    utils.GetServicePorts(componentPorts),
 			Selector: selector,
 		},
 	}

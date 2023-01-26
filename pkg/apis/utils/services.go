@@ -13,8 +13,8 @@ func GetAuxiliaryComponentServiceName(componentName string, auxSuffix string) st
 	return fmt.Sprintf("%s-%s", componentName, auxSuffix)
 }
 
-// BuildServicePorts transforms a Radix ComponentPort list toa  ServicePort list for use with a Kubernetes Service
-func BuildServicePorts(componentPorts []radixv1.ComponentPort) []corev1.ServicePort {
+// GetServicePorts transforms a Radix ComponentPort list toa  ServicePort list for use with a Kubernetes Service
+func GetServicePorts(componentPorts []radixv1.ComponentPort) []corev1.ServicePort {
 
 	var ports []corev1.ServicePort
 	for _, port := range componentPorts {

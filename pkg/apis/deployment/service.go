@@ -69,7 +69,7 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
 			Selector: selector,
-			Ports:    utils.BuildServicePorts(componentPorts),
+			Ports:    utils.GetServicePorts(componentPorts),
 		},
 	}
 
