@@ -82,8 +82,6 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 		backoffLimit = *batchJob.BackoffLimit
 	}
 
-	affinity := operatorUtils.GetPodSpecAffinity(node, rd.Spec.AppName, jobComponent.GetName())
-	tolerations := operatorUtils.GetPodSpecTolerations(node)
 	serviceAccountSpec := deployment.NewServiceAccountSpec(rd, jobComponent)
 
 	job := &batchv1.Job{
@@ -104,8 +102,8 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 					SecurityContext:              securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 					RestartPolicy:                corev1.RestartPolicyNever,
 					ImagePullSecrets:             rd.Spec.ImagePullSecrets,
-					Affinity:                     affinity,
-					Tolerations:                  tolerations,
+					Affinity:                     operatorUtils.GetPodSpecAffinity(node, rd.Spec.AppName, jobComponent.GetName()),
+					Tolerations:                  operatorUtils.GetPodSpecTolerations(node),
 					ActiveDeadlineSeconds:        timeLimitSeconds,
 					ServiceAccountName:           serviceAccountSpec.ServiceAccountName(),
 					AutomountServiceAccountToken: serviceAccountSpec.AutomountServiceAccountToken(),

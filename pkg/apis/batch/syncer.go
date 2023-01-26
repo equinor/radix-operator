@@ -46,7 +46,7 @@ func (s *syncer) OnSync() error {
 }
 
 func (s *syncer) reconcile() error {
-	const syncStatusForEveryNumberOfBatchJobsReonciled = 10
+	const syncStatusForEveryNumberOfBatchJobsReconciled = 10
 
 	rd, jobComponent, err := s.getRadixDeploymentAndJobComponent()
 	if err != nil {
@@ -72,7 +72,7 @@ func (s *syncer) reconcile() error {
 			return err
 		}
 
-		if i%syncStatusForEveryNumberOfBatchJobsReonciled == 0 {
+		if i%syncStatusForEveryNumberOfBatchJobsReconciled == 0 {
 			s.syncStatus(nil)
 		}
 	}
