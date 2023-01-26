@@ -279,7 +279,7 @@ pkg/apis/environment/environment.go:ApplyAdGroupRoleBinding|rolebinding|radix-ap
  radix-app-admin                      | tekton      || pipelineruns            |pipelineruns||||
  radix-app-admin-build-secrets        | k8s        || secrets                      |secrets|secrets|secrets|secrets|secrets
  radix-app-admin-envs                 | k8s        | secrets                      |deployments, pods, pods/log, services, ingresses, horizontalpodautoscalers|deployments, pods, pods/log, services, ingresses, horizontalpodautoscalers|deployments, pods, pods/log, services, ingresses, horizontalpodautoscalers|||deployments, pods, pods/log, services
- radix-app-admin-envs                 | radix      | radixdeployments, radixalerts |radixdeployments, radixalerts|radixdeployments, radixalerts|radixdeployments, radixalerts|radixalerts|radixdeployments, radixalerts|radixdeployments, radixalerts
+ radix-app-admin-envs                 | radix      | radixdeployments, radixalerts, radixbatches |radixdeployments, radixalerts, radixbatches|radixdeployments, radixalerts, radixbatches|radixdeployments, radixalerts, radixbatches|radixalerts, radixbatches|radixdeployments, radixalerts, radixbatches|radixdeployments, radixalerts, radixbatches
  radix-tekton                  | k8s        | configmaps                  ||||||
  radix-tekton                  | tekton.dev | tasks, pipeline, pipelinerun |tasks, pipeline, pipelinerun|tasks, pipeline, pipelinerun|tasks, pipeline, pipelinerun|||
  radix-pipeline-app                       | k8s        | jobs, configmaps                         |jobs, configmaps|jobs|jobs|configmaps||configmaps
@@ -298,4 +298,4 @@ pkg/apis/environment/environment.go:ApplyAdGroupRoleBinding|rolebinding|radix-ap
 Role|Domain|All permissions
 --|---|--
 radix-operator|k8s|events, limitranges, namespaces, secrets, serviceaccounts, roles, rolebindings, clusterroles, clusterrolebindings, deployments, services, ingresses, servicemonitors, networkpolicies
-radix-operator|radix|radixregistrations, radixregistrations/status, radixapplications, radixenvironments, radixenvironments/status, radixdeployments, radixdeployments/status, radixjobs, radixjobs/status, radixalerts, radixalerts/status
+radix-operator|radix|radixregistrations, radixregistrations/status, radixapplications, radixenvironments, radixenvironments/status, radixdeployments, radixdeployments/status, radixjobs, radixjobs/status, radixalerts, radixalerts/status, radixbatches, radixbatches/status
