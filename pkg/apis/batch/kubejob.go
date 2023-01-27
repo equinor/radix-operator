@@ -176,9 +176,9 @@ func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, j
 func (s *syncer) getContainerResources(jobComponent *radixv1.RadixDeployJobComponent, batchJob radixv1.RadixBatchJob) corev1.ResourceRequirements {
 	if batchJob.Resources != nil {
 		return operatorUtils.BuildResourceRequirement(batchJob.Resources)
-	} else {
-		return operatorUtils.GetResourceRequirements(jobComponent)
 	}
+
+	return operatorUtils.GetResourceRequirements(jobComponent)
 }
 
 func getContainerPorts(radixJobComponent *radixv1.RadixDeployJobComponent) []corev1.ContainerPort {
