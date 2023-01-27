@@ -9,20 +9,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (s *syncer) reconcileService(batchjob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
+func (s *syncer) reconcileService(batchJob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
 	if len(jobComponent.GetPorts()) == 0 {
 		return nil
 	}
 
-	if isBatchJobStopRequested(batchjob) || isBatchJobDone(s.batch, batchjob.Name) {
+	if isBatchJobStopRequested(batchJob) || isBatchJobDone(s.batch, batchJob.Name) {
 		return nil
 	}
 
-	if slice.Any(existingServices, func(service *corev1.Service) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, service) }) {
+	if slice.Any(existingServices, func(service *corev1.Service) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, service) }) {
 		return nil
 	}
 
-	service := s.buildService(batchjob.Name, jobComponent.GetPorts())
+	service := s.buildService(batchJob.Name, jobComponent.GetPorts())
 	return s.kubeutil.ApplyService(s.batch.GetNamespace(), service)
 }
 

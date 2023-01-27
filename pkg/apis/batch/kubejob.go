@@ -21,10 +21,10 @@ const (
 	jobPayloadVolumeName = "job-payload"
 )
 
-func (s *syncer) reconcileKubeJob(batchjob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
+func (s *syncer) reconcileKubeJob(batchJob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingJobs []*batchv1.Job) error {
 	// Delete existing k8s job if stop is requested for batch job
-	if isBatchJobStopRequested(batchjob) {
-		for _, jobToDelete := range slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, job) }) {
+	if isBatchJobStopRequested(batchJob) {
+		for _, jobToDelete := range slice.FindAll(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) }) {
 			err := s.kubeclient.BatchV1().Jobs(jobToDelete.GetNamespace()).Delete(context.Background(), jobToDelete.GetName(), metav1.DeleteOptions{PropagationPolicy: pointers.Ptr(metav1.DeletePropagationBackground)})
 			if err != nil && !errors.IsNotFound(err) {
 				return err
@@ -33,15 +33,15 @@ func (s *syncer) reconcileKubeJob(batchjob radixv1.RadixBatchJob, rd *radixv1.Ra
 		return nil
 	}
 
-	if isBatchJobDone(s.batch, batchjob.Name) {
+	if isBatchJobDone(s.batch, batchJob.Name) {
 		return nil
 	}
 
-	if slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchjob.Name, job) }) {
+	if slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) }) {
 		return nil
 	}
 
-	job, err := s.buildJob(batchjob, jobComponent, rd)
+	job, err := s.buildJob(batchJob, jobComponent, rd)
 	if err != nil {
 		return err
 	}
