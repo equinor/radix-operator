@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (s *syncer) reconcileService(batchJob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
+func (s *syncer) reconcileService(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
 	if len(jobComponent.GetPorts()) == 0 {
 		return nil
 	}

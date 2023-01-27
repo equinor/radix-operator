@@ -64,7 +64,7 @@ func (s *syncer) reconcile() error {
 	}
 
 	for i, batchJob := range s.batch.Spec.Jobs {
-		if err := s.reconcileService(batchJob, rd, jobComponent, existingServices); err != nil {
+		if err := s.reconcileService(batchJob, jobComponent, existingServices); err != nil {
 			return err
 		}
 
