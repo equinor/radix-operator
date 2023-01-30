@@ -38,6 +38,22 @@ func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
 	}
 }
 
+// ForBatchName returns labels describing name of a batch,
+// e.g. "radix-batch-name": "compute-20221212125307-pet6fubk"
+func ForBatchName(batchName string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixBatchNameLabel: batchName,
+	}
+}
+
+// ForBatchJobName returns labels describing name of job in a batch,
+// e.g. "radix-batch-job-name": "fns63hk8"
+func ForBatchJobName(jobName string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixBatchJobNameLabel: jobName,
+	}
+}
+
 // ForCommitId returns labels describing the commit ID,
 // e.g. "radix-commit": "64b54f4a6aa542cb4bd15666c1e104eee647573a"
 func ForCommitId(commitId string) kubelabels.Set {

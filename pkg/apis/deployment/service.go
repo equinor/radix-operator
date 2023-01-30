@@ -5,9 +5,9 @@ import (
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (deploy *Deployment) createOrUpdateService(deployComponent v1.RadixCommonDeployComponent) error {
@@ -52,6 +52,11 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 		getOwnerReferenceOfDeployment(radixDeployment),
 	}
 
+	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
+	if isDeployComponentJobSchedulerDeployment(component) {
+		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
+	}
+
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: component.GetName(),
@@ -62,32 +67,11 @@ func getServiceConfig(component v1.RadixCommonDeployComponent, radixDeployment *
 			OwnerReferences: ownerReference,
 		},
 		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeClusterIP,
+			Type:     corev1.ServiceTypeClusterIP,
+			Selector: selector,
+			Ports:    utils.GetServicePorts(componentPorts),
 		},
 	}
 
-	selector := map[string]string{kube.RadixComponentLabel: component.GetName()}
-	if isDeployComponentJobSchedulerDeployment(component) {
-		selector[kube.RadixPodIsJobSchedulerLabel] = "true"
-	}
-	service.Spec.Selector = selector
-
-	ports := buildServicePorts(componentPorts)
-	service.Spec.Ports = ports
-
 	return service
-}
-
-func buildServicePorts(componentPorts []v1.ComponentPort) []corev1.ServicePort {
-	var ports []corev1.ServicePort
-	for _, v := range componentPorts {
-		servicePort := corev1.ServicePort{
-			Name:       v.Name,
-			Port:       int32(v.Port),
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(int(v.Port)),
-		}
-		ports = append(ports, servicePort)
-	}
-	return ports
 }

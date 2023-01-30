@@ -148,6 +148,18 @@ rules:
   - patch
   - update
 - apiGroups:
+  - radix.equinor.com
+  resources:
+  - radixbatches
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - patch
+  - update
+- apiGroups:
   - '*'
   resources:
   - deployments
