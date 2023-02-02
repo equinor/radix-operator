@@ -38,6 +38,14 @@ func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
 	}
 }
 
+// ForBatchType returns labels describing the type of a batch,
+// e.g. "radix-batch-type": "batch"
+func ForBatchType(batchType kube.RadixBatchType) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixBatchTypeLabel: string(batchType),
+	}
+}
+
 // ForBatchName returns labels describing name of a batch,
 // e.g. "radix-batch-name": "compute-20221212125307-pet6fubk"
 func ForBatchName(batchName string) kubelabels.Set {
