@@ -24,7 +24,7 @@ const (
 	// Workspace Folder to hold the code to build
 	Workspace = "/workspace"
 
-	// The script to ensure that github reponds before cloning. It breaks after max attempts
+	// The script to ensure that github responds before cloning. It breaks after max attempts
 	waitForGithubToRespond = "n=1;max=10;delay=2;while true; do if [ \"$n\" -lt \"$max\" ]; then nslookup github.com && break; n=$((n+1)); sleep $(($delay*$n)); else echo \"The command has failed after $n attempts.\"; break; fi done"
 )
 
