@@ -65,6 +65,7 @@ const (
 	IsServiceAccountForComponent       = "is-service-account-for-component"
 	RadixBatchNameLabel                = "radix-batch-name"
 	RadixBatchJobNameLabel             = "radix-batch-job-name"
+	RadixBatchTypeLabel                = "radix-batch-type"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
@@ -72,6 +73,14 @@ const (
 
 	//RadixBranchDeprecated Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
+)
+
+// RadixBatchType defines value for use with label RadixBatchTypeLabel
+type RadixBatchType string
+
+const (
+	RadixBatchTypeJob   RadixBatchType = "job"
+	RadixBatchTypeBatch RadixBatchType = "batch"
 )
 
 // RadixConfigMapType Purpose of ConfigMap
