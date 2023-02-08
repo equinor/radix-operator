@@ -3,7 +3,9 @@ package application
 import (
 	"context"
 	"fmt"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
+	"strings"
 	"time"
 
 	"k8s.io/client-go/util/retry"
@@ -155,6 +157,26 @@ func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, 
 	})
 }
 
+// TODO: func updateRadixRegistrationDeployKey
+func (app *Application) updateRadixRegistrationDeployKey(rr *v1.RadixRegistration, deployKey string) error {
+	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		currentRR, err := rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		currentRR.Spec.DeployKey = deployKey
+		_, err = rrInterface.Update(context.TODO(), currentRR, metav1.UpdateOptions{})
+		if err == nil && rr.GetName() == app.registration.GetName() {
+			currentRR, err = rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
+			if err == nil {
+				app.registration = currentRR
+			}
+		}
+		return err
+	})
+}
+
 // Garbage collect machine user resources
 func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 	err := app.garbageCollectMachineUserServiceAccount()
@@ -175,6 +197,32 @@ func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 	return nil
 }
 
+func (app Application) gitPublicKeyExists(namespace string) (bool, error) {
+	cm, err := app.kubeutil.GetConfigMap(namespace, defaults.GitPublicKeyConfigMapName)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if publicKeyIsEmpty(cm.Data[defaults.GitPublicKeyConfigMapKey]) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) interface{} {
+
+}
+
+func publicKeyIsEmpty(s string) bool {
+	if len(strings.TrimSpace(s)) > 0 {
+		return false
+	}
+	return true
+}
+
 // GetAdGroups Gets ad-groups from registration. If missing, gives default for cluster
 func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
 	if registration.Spec.AdGroups == nil || len(registration.Spec.AdGroups) <= 0 {
@@ -189,3 +237,4 @@ func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
 
 	return registration.Spec.AdGroups, nil
 }
+)

@@ -9,4 +9,6 @@ const (
 	RadixGitChangedFolders = "git-changed-folders"
 	// RadixGitChangedChangedRadixConfig Indicates if Radix config file is changed in the GitHub source
 	RadixGitChangedChangedRadixConfig = "git-changed-radixconfig"
+	GitPublicKeyConfigMapName         = "git-ssh-public-key"
+	GitPublicKeyConfigMapKey          = "public-key"
 )
