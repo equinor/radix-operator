@@ -197,6 +197,9 @@ func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 }
 
 func (app Application) gitPublicKeyExists(cm *corev1.ConfigMap) (bool, error) {
+	if cm == nil {
+		return false, nil
+	}
 	if publicKeyIsEmpty(cm.Data[defaults.GitPublicKeyConfigMapKey]) {
 		return false, nil
 	}

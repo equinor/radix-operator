@@ -60,8 +60,8 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 				return err
 			}
 		}
-		configMap := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey, radixRegistration)
-		err = app.kubeutil.ApplyConfigMap(namespace, nil, configMap)
+		newCm := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey, radixRegistration)
+		_, err = app.kubeutil.CreateConfigMap(namespace, newCm)
 		if err != nil {
 			return err
 		}
