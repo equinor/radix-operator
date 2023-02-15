@@ -126,7 +126,26 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
+	configMapInformer := kubeInformerFactory.Core().V1().ConfigMaps()
+	configMapInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			cm, converted := obj.(*corev1.ConfigMap)
+			if !converted {
+				logger.Errorf("corev1.ConfigMap object cast failed during deleted event received.")
+				return
+			}
+			if isPublicConfigMap(cm) {
+				// Resync, as configmap is deleted.
+				controller.HandleObject(cm, "RadixRegistration", getObject)
+			}
+		},
+	})
+
 	return controller
+}
+
+func isPublicConfigMap(cm *corev1.ConfigMap) bool {
+	return cm.Name == defaults.GitPublicKeyConfigMapName
 }
 
 func isMachineUserToken(appName string, secret *corev1.Secret) bool {

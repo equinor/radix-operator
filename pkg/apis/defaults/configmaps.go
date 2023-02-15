@@ -11,4 +11,5 @@ const (
 	RadixGitChangedChangedRadixConfig = "git-changed-radixconfig"
 	GitPublicKeyConfigMapName         = "git-ssh-public-key"
 	GitPublicKeyConfigMapKey          = "public-key"
+	GitPrivateKeySecretName           = "git-ssh-private-key"
 )

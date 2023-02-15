@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"strings"
 	"time"
@@ -197,23 +196,24 @@ func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 	return nil
 }
 
-func (app Application) gitPublicKeyExists(namespace string) (bool, error) {
-	cm, err := app.kubeutil.GetConfigMap(namespace, defaults.GitPublicKeyConfigMapName)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, err
-	}
-
+func (app Application) gitPublicKeyExists(cm *corev1.ConfigMap) (bool, error) {
 	if publicKeyIsEmpty(cm.Data[defaults.GitPublicKeyConfigMapKey]) {
 		return false, nil
 	}
 	return true, nil
 }
 
-func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) interface{} {
+// TODO: func (app Application) createGitPublicKeyConfigMap
+func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
+	// Create a configmap with the public key
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            defaults.GitPublicKeyConfigMapName,
+			Namespace:       namespace,
+			OwnerReferences: GetOwnerReferenceOfRegistration(registration),
+		}, Data: map[string]string{defaults.GitPublicKeyConfigMapKey: key}}
 
+	return cm
 }
 
 func publicKeyIsEmpty(s string) bool {
@@ -237,4 +237,3 @@ func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
 
 	return registration.Spec.AdGroups, nil
 }
-)

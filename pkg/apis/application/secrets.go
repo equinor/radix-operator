@@ -6,6 +6,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -29,20 +30,42 @@ func (app Application) applySecretsForPipelines() error {
 
 func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error {
 	radixRegistration := app.registration
-	publicKeyExists, err := app.gitPublicKeyExists(namespace)
+	cm, err := app.kubeutil.GetConfigMap(namespace, defaults.GitPublicKeyConfigMapName)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return err
+		}
+	}
+	publicKeyExists, err := app.gitPublicKeyExists(cm) // checking if public key exists
 	if err != nil {
 		return err
 	}
-	if publicKeyExists {
-		deployKey, err := utils.GenerateDeployKey()
-		if err != nil {
-			return err
+	if !publicKeyExists {
+		var deployKey *utils.DeployKey
+		// if public key cm does not exist, check if RR has public key
+		deployKeyString := radixRegistration.Spec.DeployKeyPublic
+		if deployKeyString == "" {
+			// if RR does not have public key, generate new key pair
+			deployKey, err = utils.GenerateDeployKey()
+			if err != nil {
+				return err
+			}
+		} else {
+			// if RR has public key, retrieve both public and private key from RR
+			deployKey = &utils.DeployKey{
+				PrivateKey: radixRegistration.Spec.DeployKey,
+				PublicKey:  radixRegistration.Spec.DeployKeyPublic,
+			}
+			if err != nil {
+				return err
+			}
 		}
 		configMap := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey, radixRegistration)
-		err = app.kubeutil.ApplyConfigMap(configMap)
+		err = app.kubeutil.ApplyConfigMap(namespace, nil, configMap)
 		if err != nil {
 			return err
 		}
+		// also create corresponding secret with private key
 		secret, err := app.createNewGitDeployKey(namespace, deployKey.PrivateKey, radixRegistration)
 		_, err = app.kubeutil.ApplySecret(namespace, secret)
 		if err != nil {
@@ -51,39 +74,23 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 		return nil
 	}
 
-	// TODO: apply ownerReference to secret and cm
-
-	/*deployKey, err = utils.GenerateDeployKey()
-	if err != nil && !k8errors.IsNotFound(err) {
+	desiredCm := cm.DeepCopy()
+	desiredCm.OwnerReferences = GetOwnerReferenceOfRegistration(radixRegistration)
+	err = app.kubeutil.ApplyConfigMap(namespace, cm, desiredCm)
+	if err != nil {
 		return err
 	}
-	if k8errors.IsNotFound(err) && radixRegistration.Spec.DeployKey == "" {
-		return fmt.Errorf("secret git-ssh-keys not found in namespace %s, and no deploy key is set in RadixRegistration %s", namespace, radixRegistration.Name)
-	}
 
-	if k8errors.IsNotFound(err) && radixRegistration.Spec.DeployKey != "" {
-		secret, err := app.createNewGitDeployKey(namespace, radixRegistration.Spec.DeployKey)
-		if err != nil {
-			return err
-		}
-		_, err = app.kubeutil.ApplySecret(namespace, secret)
-		if err != nil {
-			return err
-		}
-		return nil
+	// apply ownerReference to secret and cm
+	secret, err := app.kubeutil.GetSecret(namespace, "git-ssh-keys")
+	if err != nil {
+		return err
 	}
+	secret.OwnerReferences = GetOwnerReferenceOfRegistration(radixRegistration)
+	_, err = app.kubeutil.ApplySecret(namespace, secret)
 
-	if err == nil && radixRegistration.Spec.DeployKey != "" {
-		log.Warnf("secret git-ssh-keys already exists in namespace %s, and deploy key is set in RadixRegistration %s. Unexpected state, deleting deploy key from RadixRegistration", namespace, radixRegistration.Name)
-	}
-	*/
 	return err
 }
-
-// Case 2: Hvis secreten er tom, og radixregistration.spec.deploykey er satt, så opprettes en ny secret med deploykey
-// Case 1: Hvis secreten er tom, og radixregistration.spec.deploykey er ikke satt, så panic
-// Case 4: Hvis secreten er satt, og radixregistration.spec.deploykey er satt, så printes en warning og secret slettes fra RR
-// Case 3: Hvis secreten er satt, og radixregistration.spec.deploykey er ikke satt, så skjer ingenting
 
 func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
 	servicePrincipalSecretForBuild, err := app.createNewServicePrincipalACRSecret(buildNamespace)
