@@ -156,7 +156,6 @@ func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, 
 	})
 }
 
-// TODO: func updateRadixRegistrationDeployKey
 func (app *Application) updateRadixRegistrationDeployKey(rr *v1.RadixRegistration, deployKey string) error {
 	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -206,7 +205,6 @@ func (app Application) gitPublicKeyExists(cm *corev1.ConfigMap) (bool, error) {
 	return true, nil
 }
 
-// TODO: func (app Application) createGitPublicKeyConfigMap
 func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
 	// Create a configmap with the public key
 	cm := &corev1.ConfigMap{
