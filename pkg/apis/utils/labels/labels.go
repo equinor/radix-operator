@@ -5,6 +5,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	kubelabels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 )
 
 const azureWorkloadIdentityUseLabel = "azure.workload.identity/use"
@@ -30,7 +31,7 @@ func ForComponentName(componentName string) kubelabels.Set {
 	}
 }
 
-// ForComponentTypeName returns labels describing the component type,
+// ForComponentType returns labels describing the component type,
 // e.g. "radix-component-type": "job"
 func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
 	return kubelabels.Set{
@@ -38,7 +39,7 @@ func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
 	}
 }
 
-// ForBatchType returns labels describing the type of a batch,
+// ForBatchType returns labels describing the type of batch,
 // e.g. "radix-batch-type": "batch"
 func ForBatchType(batchType kube.RadixBatchType) kubelabels.Set {
 	return kubelabels.Set{
@@ -116,8 +117,31 @@ func ForPodWithRadixIdentity(identity *v1.Identity) kubelabels.Set {
 	return labels
 }
 
+// ForJobType returns labels describing the job type,
+// e.g. "radix-job-type": "batch-scheduler"
+func ForJobType(jobType string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixJobTypeLabel: jobType,
+	}
+}
+
+// ForBatchScheduleJobType returns labels describing the batch schedule job type
+func ForBatchScheduleJobType() kubelabels.Set {
+	return ForJobType(kube.RadixJobTypeBatchSchedule)
+}
+
+// ForJobScheduleJobType returns labels describing the job schedule job type
+func ForJobScheduleJobType() kubelabels.Set {
+	return ForJobType(kube.RadixJobTypeJobSchedule)
+}
+
 func forAzureWorkloadUseIdentity() kubelabels.Set {
 	return kubelabels.Set{
 		azureWorkloadIdentityUseLabel: "true",
 	}
+}
+
+// RequirementRadixBatchNameLabelExists returns a requirement that the label RadixBatchNameLabel exists
+func RequirementRadixBatchNameLabelExists() (*kubelabels.Requirement, error) {
+	return kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
 }

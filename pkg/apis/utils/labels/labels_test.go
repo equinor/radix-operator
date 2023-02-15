@@ -1,6 +1,7 @@
 package labels
 
 import (
+	"k8s.io/apimachinery/pkg/selection"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -85,5 +86,29 @@ func Test_ForForBatchName(t *testing.T) {
 func Test_ForBatchJobName(t *testing.T) {
 	actual := ForBatchJobName("anyjobname")
 	expected := kubelabels.Set{kube.RadixBatchJobNameLabel: "anyjobname"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForJobType(t *testing.T) {
+	actual := ForJobType("anyjobtype")
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: "anyjobtype"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForBatchScheduleJobType(t *testing.T) {
+	actual := ForBatchScheduleJobType()
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: kube.RadixJobTypeBatchSchedule}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForJobScheduleJobType(t *testing.T) {
+	actual := ForJobScheduleJobType()
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
+	actual, _ := RequirementRadixBatchNameLabelExists()
+	expected, _ := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
 	assert.Equal(t, expected, actual)
 }
