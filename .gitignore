@@ -16,7 +16,7 @@ vendor/
 vendor.orig/
 bin/
 rootfs/
-.vscode/
+.vscode/*.log
 .idea/
 radix-operator/__debug_bin
 pipeline-runner/__debug_bin
@@ -24,3 +24,6 @@ pipeline-runner/__debug_bin
 
 # binary built by goland
 radix-operator/main
+
+# Temporary dir for CRD generation
+.temp-crds

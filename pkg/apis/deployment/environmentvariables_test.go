@@ -104,7 +104,7 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 			"containerRegistry": anyContainerRegistry,
 		}})
 
-		envVars, err := getEnvironmentVariablesForRadixOperator(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
+		envVars, err := GetEnvironmentVariablesForRadixOperator(testEnv.kubeUtil, appName, rd, &rd.Spec.Components[0])
 
 		assert.NoError(t, err)
 		assert.True(t, len(envVars) > 3)

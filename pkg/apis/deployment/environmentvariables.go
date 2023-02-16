@@ -79,13 +79,13 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 	return egressIps, nil
 }
 
-//getEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
-//It requires service account having access to config map in default namespace.
-func getEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
+// GetEnvironmentVariablesForRadixOperator Provides RADIX_* environment variables for Radix operator.
+// It requires service account having access to config map in default namespace.
+func GetEnvironmentVariablesForRadixOperator(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	return getEnvironmentVariablesFrom(kubeutil, appName, &radixOperatorEnvironmentVariablesSourceDecorator{kubeutil: kubeutil}, radixDeployment, deployComponent)
 }
 
-//GetEnvironmentVariables Provides environment variables for Radix application.
+// GetEnvironmentVariables Provides environment variables for Radix application.
 func GetEnvironmentVariables(kubeutil *kube.Kube, appName string, radixDeployment *v1.RadixDeployment, deployComponent v1.RadixCommonDeployComponent) ([]corev1.EnvVar, error) {
 	return getEnvironmentVariablesFrom(kubeutil, appName, &radixApplicationEnvironmentVariablesSourceDecorator{}, radixDeployment, deployComponent)
 }

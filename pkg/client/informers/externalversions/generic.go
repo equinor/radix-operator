@@ -57,6 +57,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixAlerts().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("radixapplications"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixApplications().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("radixbatches"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixBatches().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("radixdeployments"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Radix().V1().RadixDeployments().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("radixenvironments"):

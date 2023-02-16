@@ -1,3 +1,4 @@
+// file deepcode ignore HardcodedPassword/test: unit tests
 package deployment
 
 import (
@@ -12,12 +13,14 @@ import (
 
 	radixutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
@@ -35,6 +38,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -3715,6 +3719,52 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 2, "number of volumemounts")
 	assert.False(t, envVariableByNameExistOnDeployment("SECRET1", jobName, deployments), "SECRET1 exist")
 	assert.False(t, envVariableByNameExistOnDeployment("SECRET2", jobName, deployments), "SECRET2 exist")
+}
+
+func TestRadixBatch_IsGarbageCollected(t *testing.T) {
+	// Setup
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	anyEnvironment := "test"
+	namespace := utils.GetEnvironmentNamespace(appName, anyEnvironment)
+
+	batchFactory := func(name, componentName string) *v1.RadixBatch {
+		var lbl labels.Set
+		if len(componentName) > 0 {
+			lbl = radixlabels.ForComponentName(componentName)
+		}
+
+		return &v1.RadixBatch{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   name,
+				Labels: lbl,
+			},
+		}
+	}
+
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch1", "job1"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch2", "job1"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch3", "job2"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch4", "job2"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch5", "job3"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch6", "job4"), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches(namespace).Create(context.Background(), batchFactory("batch7", ""), metav1.CreateOptions{})
+	radixclient.RadixV1().RadixBatches("other-ns").Create(context.Background(), batchFactory("batch8", "job1"), metav1.CreateOptions{})
+
+	// Test
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithAppName(appName).
+		WithEnvironment(anyEnvironment).
+		WithJobComponents(
+			utils.NewDeployJobComponentBuilder().WithName("job1"),
+			utils.NewDeployJobComponentBuilder().WithName("job2"),
+		),
+	)
+	require.NoError(t, err)
+	actualBatches, _ := radixclient.RadixV1().RadixBatches("").List(context.Background(), metav1.ListOptions{})
+	actualBatchNames := slice.Map(actualBatches.Items, func(batch v1.RadixBatch) string { return batch.GetName() })
+	expectedBatchNames := []string{"batch1", "batch2", "batch3", "batch4", "batch7", "batch8"}
+	assert.ElementsMatch(t, expectedBatchNames, actualBatchNames)
 }
 
 func Test_ConstructForTargetEnvironment_Identity(t *testing.T) {

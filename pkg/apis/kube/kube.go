@@ -63,9 +63,9 @@ const (
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
 	RadixPodIsJobSchedulerLabel        = "is-job-scheduler-pod"
 	IsServiceAccountForComponent       = "is-service-account-for-component"
-	//RadixBatchNameLabel A label that k8s automatically adds to a Pod created by Job and to the Job for a Batch
-	RadixBatchNameLabel = "radix-batch-name"
-	RadixJobIdLabel     = "radix-job-id"
+	RadixBatchNameLabel                = "radix-batch-name"
+	RadixBatchJobNameLabel             = "radix-batch-job-name"
+	RadixBatchTypeLabel                = "radix-batch-type"
 
 	// NodeTaintGpuCountKey defines the taint key on GPU nodes.
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
@@ -75,7 +75,15 @@ const (
 	RadixBranchDeprecated = "radix-branch"
 )
 
-//RadixConfigMapType Purpose of ConfigMap
+// RadixBatchType defines value for use with label RadixBatchTypeLabel
+type RadixBatchType string
+
+const (
+	RadixBatchTypeJob   RadixBatchType = "job"
+	RadixBatchTypeBatch RadixBatchType = "batch"
+)
+
+// RadixConfigMapType Purpose of ConfigMap
 type RadixConfigMapType string
 
 const (

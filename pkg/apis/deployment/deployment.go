@@ -443,6 +443,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectRadixBatchesNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	err = deploy.garbageCollectConfigMapsNoLongerInSpec()
 	if err != nil {
 		return err

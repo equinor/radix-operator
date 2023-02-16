@@ -53,7 +53,7 @@ const (
 	volumeNameMaxLength = 63
 )
 
-//GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
+// GetRadixDeployComponentVolumeMounts Gets list of v1.VolumeMount for radixv1.RadixCommonDeployComponent
 func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.VolumeMount, error) {
 	componentName := deployComponent.GetName()
 	volumeMounts := make([]corev1.VolumeMount, 0)
@@ -62,10 +62,7 @@ func GetRadixDeployComponentVolumeMounts(deployComponent radixv1.RadixCommonDepl
 		return nil, err
 	}
 	volumeMounts = append(volumeMounts, externalVolumeMounts...)
-	secretRefsVolumeMounts, err := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName, radixDeploymentName)
-	if err != nil {
-		return nil, err
-	}
+	secretRefsVolumeMounts := getRadixComponentSecretRefsVolumeMounts(deployComponent, componentName, radixDeploymentName)
 	volumeMounts = append(volumeMounts, secretRefsVolumeMounts...)
 	return volumeMounts, nil
 }
@@ -97,7 +94,7 @@ func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDe
 	return volumeMounts, nil
 }
 
-func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName, radixDeploymentName string) ([]corev1.VolumeMount, error) {
+func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommonDeployComponent, componentName, radixDeploymentName string) []corev1.VolumeMount {
 	secretRefs := deployComponent.GetSecretRefs()
 	var volumeMounts []corev1.VolumeMount
 	for _, azureKeyVault := range secretRefs.AzureKeyVaults {
@@ -117,7 +114,7 @@ func getRadixComponentSecretRefsVolumeMounts(deployComponent radixv1.RadixCommon
 			})
 		}
 	}
-	return volumeMounts, nil
+	return volumeMounts
 }
 
 func getCsiAzureKeyVaultSecretMountPath(azureKeyVault radixv1.RadixAzureKeyVault) string {
@@ -155,12 +152,12 @@ func getRadixVolumeTypeIdForName(radixVolumeMountType radixv1.MountType) string 
 	return "undef"
 }
 
-//GetVolumesForComponent Gets volumes for Radix deploy component or job
+// GetVolumesForComponent Gets volumes for Radix deploy component or job
 func (deploy *Deployment) GetVolumesForComponent(deployComponent radixv1.RadixCommonDeployComponent) ([]corev1.Volume, error) {
 	return GetVolumes(deploy.kubeclient, deploy.kubeutil, deploy.getNamespace(), deploy.radixDeployment.Spec.Environment, deployComponent, deploy.radixDeployment.GetName())
 }
 
-//GetVolumes Get volumes of a component by RadixVolumeMounts
+// GetVolumes Get volumes of a component by RadixVolumeMounts
 func GetVolumes(kubeclient kubernetes.Interface, kubeutil *kube.Kube, namespace string, environment string, deployComponent radixv1.RadixCommonDeployComponent, radixDeploymentName string) ([]corev1.Volume, error) {
 	var volumes []corev1.Volume
 
@@ -303,7 +300,7 @@ func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMo
 	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(5))), nil //volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
-//GetCsiAzureStorageClassName hold a name of CSI volume storage class
+// GetCsiAzureStorageClassName hold a name of CSI volume storage class
 func GetCsiAzureStorageClassName(namespace, volumeName string) string {
 	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, volumeName) //volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
@@ -546,7 +543,7 @@ func (deploy *Deployment) deletePersistentVolume(pvName string) error {
 	return nil
 }
 
-//GetRadixVolumeMountStorage get RadixVolumeMount storage property, depend on volume type
+// GetRadixVolumeMountStorage get RadixVolumeMount storage property, depend on volume type
 func GetRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) string {
 	if radixVolumeMount.Type == radixv1.MountTypeBlob {
 		return radixVolumeMount.Container //Outdated
@@ -580,7 +577,7 @@ func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(exclud
 	return nil
 }
 
-//createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - StorageClasses, PersistentVolumeClaims, PersistentVolume
+// createOrUpdateCsiAzureVolumeResources Create or update CSI Azure volume resources - StorageClasses, PersistentVolumeClaims, PersistentVolume
 func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeployment *appsv1.Deployment) error {
 	namespace := deploy.radixDeployment.GetNamespace()
 	appName := deploy.radixDeployment.Spec.AppName
@@ -688,7 +685,7 @@ func (deploy *Deployment) createCsiAzurePersistentVolumeClaim(storageClass *stor
 	return deploy.createPersistentVolumeClaim(appName, namespace, componentName, persistentVolumeClaimName, storageClass.Name, radixVolumeMount)
 }
 
-//getOrCreateCsiAzureVolumeMountStorageClass returns creates or existing StorageClass, storageClassIsCreated=true, if created; error, if any
+// getOrCreateCsiAzureVolumeMountStorageClass returns creates or existing StorageClass, storageClassIsCreated=true, if created; error, if any
 func (deploy *Deployment) getOrCreateCsiAzureVolumeMountStorageClass(appName, volumeRootMount, namespace, componentName string, radixVolumeMount *radixv1.RadixVolumeMount, volumeName string, scMap map[string]*storagev1.StorageClass) (*storagev1.StorageClass, bool, error) {
 	volumeMountProvisioner, foundProvisioner := radixv1.GetStorageClassProvisionerByVolumeMountType(radixVolumeMount.Type)
 	if !foundProvisioner {
