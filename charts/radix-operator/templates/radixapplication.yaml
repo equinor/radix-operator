@@ -1,26 +1,1327 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.10.0
+  creationTimestamp: null
   name: radixapplications.radix.equinor.com
-  labels:
-    {{- include "radix-operator.labels" . | nindent 4 }}
 spec:
   group: radix.equinor.com
   names:
     kind: RadixApplication
+    listKind: RadixApplicationList
     plural: radixapplications
-    singular: radixapplication
     shortNames:
-      - ra
+    - ra
+    singular: radixapplication
   scope: Namespaced
   versions:
   - name: v1
-    served: true
-    storage: true
     schema:
       openAPIV3Schema:
-        type: object
+        description: RadixApplication describes an application
         properties:
-          spec:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
             type: object
-            x-kubernetes-preserve-unknown-fields: true
+          spec:
+            description: Specification for an application
+            properties:
+              build:
+                description: Defines build configuration
+                properties:
+                  secrets:
+                    description: Defines a list of secrets to be used in Dockerfile
+                      or sub-pipelines
+                    items:
+                      type: string
+                    type: array
+                  useBuildKit:
+                    description: 'Enables BuildKit when for docker build. More info
+                      about BuildKit: https://docs.docker.com/build/buildkit/'
+                    type: boolean
+                  variables:
+                    additionalProperties:
+                      type: string
+                    description: Defines variables that will be available in sub-pipelines
+                    type: object
+                type: object
+              components:
+                description: Defines the components for the application.
+                items:
+                  description: RadixComponent defines a single component within a
+                    RadixApplication - maps to single deployment/service/ingress etc
+                  properties:
+                    alwaysPullImageOnDeploy:
+                      type: boolean
+                    authentication:
+                      description: Authentication Radix authentication settings
+                      properties:
+                        clientCertificate:
+                          description: ClientCertificate Authentication client certificate
+                          properties:
+                            passCertificateToUpstream:
+                              description: PassCertificateToUpstream Should a certificate
+                                be passed to upstream
+                              type: boolean
+                            verification:
+                              description: Verification Client certificate verification
+                                type
+                              type: string
+                          type: object
+                        oauth2:
+                          description: OAuth2 defines oauth proxy settings for a component
+                          properties:
+                            clientId:
+                              description: ClientID. The OAuth2 client ID
+                              type: string
+                            cookie:
+                              description: Cookie. Optional. Settings for the session
+                                cookie
+                              properties:
+                                expire:
+                                  description: 'Expire. Optional. The expire timeframe
+                                    for the session cookie Default: 168h0m0s'
+                                  type: string
+                                name:
+                                  description: 'Name. Optional. Defines the name of
+                                    the OAuth session cookie Default: _oauth2_proxy'
+                                  type: string
+                                refresh:
+                                  description: Refresh. Optional. The interval between
+                                    cookie refreshes The value must be a shorter timeframe
+                                    than Expire Default 60m0s
+                                  type: string
+                                sameSite:
+                                  description: 'SameSite. Optional. The samesite cookie
+                                    attribute Allowed values: strict, lax, none or
+                                    empty Default: lax'
+                                  type: string
+                              type: object
+                            cookieStore:
+                              description: CookieStore. Optional. Settings for cookie
+                                that stores session data when SessionStoreType is
+                                cookie
+                              properties:
+                                minimal:
+                                  description: 'Minimal. Optional. Strips OAuth tokens
+                                    from cookies if they are not needed (only when
+                                    SessionStoreType is cookie) Cookie.Refresh must
+                                    be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader
+                                    must be false if this setting is true Default:
+                                    false'
+                                  type: boolean
+                              type: object
+                            loginUrl:
+                              description: LoginURL. Optional. Authentication endpoint
+                                Must be set if OIDC.SkipDiscovery is true
+                              type: string
+                            oidc:
+                              description: OIDC. Optional. Defines OIDC settings
+                              properties:
+                                insecureSkipVerifyNonce:
+                                  description: 'InsecureSkipVerifyNonce. Optional.
+                                    Skip verifying the OIDC ID Token''s nonce claim
+                                    Default: false'
+                                  type: boolean
+                                issuerUrl:
+                                  description: 'IssuerURL. Optional. The OIDC issuer
+                                    URL Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0'
+                                  type: string
+                                jwksUrl:
+                                  description: JWKSURL. Optional. OIDC JWKS URL for
+                                    token verification; required if OIDC discovery
+                                    is disabled
+                                  type: string
+                                skipDiscovery:
+                                  description: 'SkipDiscovery. Optional. Defines if
+                                    OIDC endpoint discovery should be bypassed LoginURL,
+                                    RedeemURL, JWKSURL must be configured if discovery
+                                    is disabled Default: false'
+                                  type: boolean
+                              type: object
+                            proxyPrefix:
+                              description: 'ProxyPrefix. Optional. The url root path
+                                that OAuth Proxy should be nested under Default: /oauth2'
+                              type: string
+                            redeemUrl:
+                              description: RedeemURL. Optional. Endpoint to redeem
+                                the authorization code received from the OAuth code
+                                flow Must be set if OIDC.SkipDiscovery is true
+                              type: string
+                            redisStore:
+                              description: RedisStore. Optional. Settings for Redis
+                                store when SessionStoreType is redis
+                              properties:
+                                connectionUrl:
+                                  description: ConnectionURL. The URL for the Redis
+                                    server when SessionStoreType is redis
+                                  type: string
+                              type: object
+                            scope:
+                              description: 'Scope. Optional. The requested scope by
+                                the OAuth code flow Default: openid profile email'
+                              type: string
+                            sessionStoreType:
+                              description: 'SessionStoreType. Optional. Specifies
+                                where to store the session data Allowed values: cookie,
+                                redis Default: cookie'
+                              type: string
+                            setAuthorizationHeader:
+                              description: 'SetAuthorizationHeader. Optional. Defines
+                                if the IDToken received by the OAuth Proxy should
+                                be added to the Authorization header Default: false'
+                              type: boolean
+                            setXAuthRequestHeaders:
+                              description: 'SetXAuthRequestHeaders. Optional. Defines
+                                if X-Auth-* headers should added to the request Sets
+                                the X-Auth-Request-User, X-Auth-Request-Groups, X-Auth-Request-Email,
+                                X-Auth-Request-Preferred-Username and X-Auth-Request-Access-Token
+                                from values in the Access Token redeemed by the OAuth
+                                Proxy Default: false'
+                              type: boolean
+                          type: object
+                      type: object
+                    dockerfileName:
+                      type: string
+                    enabled:
+                      type: boolean
+                    environmentConfig:
+                      items:
+                        description: RadixEnvironmentConfig defines environment specific
+                          settings for a single component within a RadixApplication
+                        properties:
+                          alwaysPullImageOnDeploy:
+                            type: boolean
+                          authentication:
+                            description: Authentication Radix authentication settings
+                            properties:
+                              clientCertificate:
+                                description: ClientCertificate Authentication client
+                                  certificate
+                                properties:
+                                  passCertificateToUpstream:
+                                    description: PassCertificateToUpstream Should
+                                      a certificate be passed to upstream
+                                    type: boolean
+                                  verification:
+                                    description: Verification Client certificate verification
+                                      type
+                                    type: string
+                                type: object
+                              oauth2:
+                                description: OAuth2 defines oauth proxy settings for
+                                  a component
+                                properties:
+                                  clientId:
+                                    description: ClientID. The OAuth2 client ID
+                                    type: string
+                                  cookie:
+                                    description: Cookie. Optional. Settings for the
+                                      session cookie
+                                    properties:
+                                      expire:
+                                        description: 'Expire. Optional. The expire
+                                          timeframe for the session cookie Default:
+                                          168h0m0s'
+                                        type: string
+                                      name:
+                                        description: 'Name. Optional. Defines the
+                                          name of the OAuth session cookie Default:
+                                          _oauth2_proxy'
+                                        type: string
+                                      refresh:
+                                        description: Refresh. Optional. The interval
+                                          between cookie refreshes The value must
+                                          be a shorter timeframe than Expire Default
+                                          60m0s
+                                        type: string
+                                      sameSite:
+                                        description: 'SameSite. Optional. The samesite
+                                          cookie attribute Allowed values: strict,
+                                          lax, none or empty Default: lax'
+                                        type: string
+                                    type: object
+                                  cookieStore:
+                                    description: CookieStore. Optional. Settings for
+                                      cookie that stores session data when SessionStoreType
+                                      is cookie
+                                    properties:
+                                      minimal:
+                                        description: 'Minimal. Optional. Strips OAuth
+                                          tokens from cookies if they are not needed
+                                          (only when SessionStoreType is cookie) Cookie.Refresh
+                                          must be 0, and both SetXAuthRequestHeaders
+                                          and SetAuthorizationHeader must be false
+                                          if this setting is true Default: false'
+                                        type: boolean
+                                    type: object
+                                  loginUrl:
+                                    description: LoginURL. Optional. Authentication
+                                      endpoint Must be set if OIDC.SkipDiscovery is
+                                      true
+                                    type: string
+                                  oidc:
+                                    description: OIDC. Optional. Defines OIDC settings
+                                    properties:
+                                      insecureSkipVerifyNonce:
+                                        description: 'InsecureSkipVerifyNonce. Optional.
+                                          Skip verifying the OIDC ID Token''s nonce
+                                          claim Default: false'
+                                        type: boolean
+                                      issuerUrl:
+                                        description: 'IssuerURL. Optional. The OIDC
+                                          issuer URL Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0'
+                                        type: string
+                                      jwksUrl:
+                                        description: JWKSURL. Optional. OIDC JWKS
+                                          URL for token verification; required if
+                                          OIDC discovery is disabled
+                                        type: string
+                                      skipDiscovery:
+                                        description: 'SkipDiscovery. Optional. Defines
+                                          if OIDC endpoint discovery should be bypassed
+                                          LoginURL, RedeemURL, JWKSURL must be configured
+                                          if discovery is disabled Default: false'
+                                        type: boolean
+                                    type: object
+                                  proxyPrefix:
+                                    description: 'ProxyPrefix. Optional. The url root
+                                      path that OAuth Proxy should be nested under
+                                      Default: /oauth2'
+                                    type: string
+                                  redeemUrl:
+                                    description: RedeemURL. Optional. Endpoint to
+                                      redeem the authorization code received from
+                                      the OAuth code flow Must be set if OIDC.SkipDiscovery
+                                      is true
+                                    type: string
+                                  redisStore:
+                                    description: RedisStore. Optional. Settings for
+                                      Redis store when SessionStoreType is redis
+                                    properties:
+                                      connectionUrl:
+                                        description: ConnectionURL. The URL for the
+                                          Redis server when SessionStoreType is redis
+                                        type: string
+                                    type: object
+                                  scope:
+                                    description: 'Scope. Optional. The requested scope
+                                      by the OAuth code flow Default: openid profile
+                                      email'
+                                    type: string
+                                  sessionStoreType:
+                                    description: 'SessionStoreType. Optional. Specifies
+                                      where to store the session data Allowed values:
+                                      cookie, redis Default: cookie'
+                                    type: string
+                                  setAuthorizationHeader:
+                                    description: 'SetAuthorizationHeader. Optional.
+                                      Defines if the IDToken received by the OAuth
+                                      Proxy should be added to the Authorization header
+                                      Default: false'
+                                    type: boolean
+                                  setXAuthRequestHeaders:
+                                    description: 'SetXAuthRequestHeaders. Optional.
+                                      Defines if X-Auth-* headers should added to
+                                      the request Sets the X-Auth-Request-User, X-Auth-Request-Groups,
+                                      X-Auth-Request-Email, X-Auth-Request-Preferred-Username
+                                      and X-Auth-Request-Access-Token from values
+                                      in the Access Token redeemed by the OAuth Proxy
+                                      Default: false'
+                                    type: boolean
+                                type: object
+                            type: object
+                          enabled:
+                            type: boolean
+                          environment:
+                            maxLength: 63
+                            pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                            type: string
+                          horizontalScaling:
+                            description: RadixHorizontalScaling defines configuration
+                              for horizontal pod autoscaler. It is kept as close as
+                              the HorizontalPodAutoscalerSpec If set, this will override
+                              replicas config
+                            properties:
+                              maxReplicas:
+                                format: int32
+                                type: integer
+                              minReplicas:
+                                format: int32
+                                type: integer
+                            required:
+                            - maxReplicas
+                            type: object
+                          identity:
+                            description: Identity configuration for federation with
+                              external identity providers
+                            properties:
+                              azure:
+                                description: Azure identity configuration
+                                properties:
+                                  clientId:
+                                    description: ClientId is the client ID for a user
+                                      defined managed identity or application ID for
+                                      an application registration
+                                    type: string
+                                required:
+                                - clientId
+                                type: object
+                            type: object
+                          imageTagName:
+                            type: string
+                          monitoring:
+                            type: boolean
+                          node:
+                            description: RadixNode defines node attributes, where
+                              container should be scheduled
+                            properties:
+                              gpu:
+                                description: Gpu Optional. Holds lists of node GPU
+                                  types, with dashed types to exclude
+                                type: string
+                              gpuCount:
+                                description: GpuCount Optional. Holds minimum count
+                                  of GPU on node
+                                type: string
+                            required:
+                            - gpu
+                            - gpuCount
+                            type: object
+                          replicas:
+                            minimum: 0
+                            type: integer
+                          resources:
+                            description: 'ResourceRequirements describes the compute
+                              resource requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+                              - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                            properties:
+                              limits:
+                                additionalProperties:
+                                  type: string
+                                description: Limits describes the maximum amount of
+                                  compute resources allowed.
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  type: string
+                                description: Requests describes the minimum amount
+                                  of compute resources required. If Requests is omitted
+                                  for a container, it defaults to Limits if that is
+                                  explicitly specified, otherwise to an implementation-defined
+                                  value.
+                                type: object
+                            type: object
+                          secretRefs:
+                            description: RadixSecretRefs defines secret vault
+                            properties:
+                              azureKeyVaults:
+                                description: AzureKeyVaults. List of RadixSecretRefs-s,
+                                  containing Azure Key Vault configurations
+                                items:
+                                  description: RadixAzureKeyVault defines Azure Key
+                                    Vault
+                                  properties:
+                                    items:
+                                      description: Items. Azure Key Vault items
+                                      items:
+                                        description: 'RadixAzureKeyVaultItem defines
+                                          Azure Key Vault setting: secrets, keys,
+                                          certificates'
+                                        properties:
+                                          alias:
+                                            description: Alias. Optional.It is not
+                                              yet fully supported by the Azure CSI
+                                              Key vault driver. Specify the filename
+                                              of the object when written to disk.
+                                              Defaults to objectName if not provided.
+                                            type: string
+                                          encoding:
+                                            description: Encoding. Optional. Setting
+                                              object encoding to base64 and object
+                                              format to pfx will fetch and write the
+                                              base64 decoded pfx binary
+                                            type: string
+                                          envVar:
+                                            description: EnvVar. Name of the environment
+                                              variable within replicas, containing
+                                              Azure Key Vault object value
+                                            type: string
+                                          format:
+                                            description: 'Format. Optional. The format
+                                              of the Azure Key Vault object, supported
+                                              types are pem and pfx. objectFormat:
+                                              pfx is only supported with objectType:
+                                              secret and PKCS12 or ECC certificates.
+                                              Default format for certificates is pem.'
+                                            type: string
+                                          k8sSecretType:
+                                            description: 'K8SSecretType. Optional.
+                                              Setting object k8s secret type. Allowed
+                                              types: opaque (default), tls. It corresponds
+                                              to "Opaque" and "kubernetes.io/tls"
+                                              secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                            type: string
+                                          name:
+                                            description: Name. Name of the Azure Key
+                                              Vault object
+                                            type: string
+                                          type:
+                                            description: 'Type. Optional. Type of
+                                              the Azure KeyVault object: secret (default),
+                                              key, cert'
+                                            type: string
+                                          version:
+                                            description: Version. Optional. object
+                                              versions, default to the latest, if
+                                              empty
+                                            type: string
+                                        required:
+                                        - envVar
+                                        - name
+                                        type: object
+                                      type: array
+                                    name:
+                                      description: Name. Name of the Azure Key Vault
+                                      type: string
+                                    path:
+                                      description: 'Path. Optional. Path within replicas,
+                                        where secrets are mapped as files. Default:
+                                        /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                      type: string
+                                  required:
+                                  - items
+                                  - name
+                                  type: object
+                                type: array
+                            type: object
+                          variables:
+                            additionalProperties:
+                              type: string
+                            description: 'Map of environment variables in the form
+                              ''<envvarname>: <value>'''
+                            type: object
+                          volumeMounts:
+                            items:
+                              description: RadixVolumeMount defines volume to be mounted
+                                to the container
+                              properties:
+                                accessMode:
+                                  type: string
+                                bindingMode:
+                                  type: string
+                                container:
+                                  type: string
+                                gid:
+                                  type: string
+                                name:
+                                  type: string
+                                path:
+                                  type: string
+                                requestsStorage:
+                                  type: string
+                                skuName:
+                                  type: string
+                                storage:
+                                  type: string
+                                type:
+                                  description: MountType Holds types of mount
+                                  type: string
+                                uid:
+                                  type: string
+                              required:
+                              - accessMode
+                              - bindingMode
+                              - container
+                              - gid
+                              - name
+                              - path
+                              - requestsStorage
+                              - skuName
+                              - storage
+                              - type
+                              - uid
+                              type: object
+                            type: array
+                        required:
+                        - environment
+                        type: object
+                      type: array
+                    identity:
+                      description: Identity configuration for federation with external
+                        identity providers
+                      properties:
+                        azure:
+                          description: Azure identity configuration
+                          properties:
+                            clientId:
+                              description: ClientId is the client ID for a user defined
+                                managed identity or application ID for an application
+                                registration
+                              type: string
+                          required:
+                          - clientId
+                          type: object
+                      type: object
+                    image:
+                      type: string
+                    ingressConfiguration:
+                      items:
+                        type: string
+                      type: array
+                    monitoringConfig:
+                      description: MonitoringConfig Monitoring configuration
+                      properties:
+                        path:
+                          description: HTTP path to scrape for metrics.
+                          type: string
+                        portName:
+                          description: Port name
+                          type: string
+                      required:
+                      - portName
+                      type: object
+                    name:
+                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      type: string
+                    node:
+                      description: RadixNode defines node attributes, where container
+                        should be scheduled
+                      properties:
+                        gpu:
+                          description: Gpu Optional. Holds lists of node GPU types,
+                            with dashed types to exclude
+                          type: string
+                        gpuCount:
+                          description: GpuCount Optional. Holds minimum count of GPU
+                            on node
+                          type: string
+                      required:
+                      - gpu
+                      - gpuCount
+                      type: object
+                    ports:
+                      items:
+                        description: ComponentPort defines the port number, protocol
+                          and port for a service
+                        properties:
+                          name:
+                            maxLength: 15
+                            type: string
+                          port:
+                            format: int32
+                            maximum: 65535
+                            minimum: 1024
+                            type: integer
+                        required:
+                        - name
+                        - port
+                        type: object
+                      minItems: 1
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
+                    public:
+                      type: boolean
+                    publicPort:
+                      maxLength: 15
+                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      type: string
+                    resources:
+                      description: 'ResourceRequirements describes the compute resource
+                        requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+                        - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      properties:
+                        limits:
+                          additionalProperties:
+                            type: string
+                          description: Limits describes the maximum amount of compute
+                            resources allowed.
+                          type: object
+                        requests:
+                          additionalProperties:
+                            type: string
+                          description: Requests describes the minimum amount of compute
+                            resources required. If Requests is omitted for a container,
+                            it defaults to Limits if that is explicitly specified,
+                            otherwise to an implementation-defined value.
+                          type: object
+                      type: object
+                    secretRefs:
+                      description: RadixSecretRefs defines secret vault
+                      properties:
+                        azureKeyVaults:
+                          description: AzureKeyVaults. List of RadixSecretRefs-s,
+                            containing Azure Key Vault configurations
+                          items:
+                            description: RadixAzureKeyVault defines Azure Key Vault
+                            properties:
+                              items:
+                                description: Items. Azure Key Vault items
+                                items:
+                                  description: 'RadixAzureKeyVaultItem defines Azure
+                                    Key Vault setting: secrets, keys, certificates'
+                                  properties:
+                                    alias:
+                                      description: Alias. Optional.It is not yet fully
+                                        supported by the Azure CSI Key vault driver.
+                                        Specify the filename of the object when written
+                                        to disk. Defaults to objectName if not provided.
+                                      type: string
+                                    encoding:
+                                      description: Encoding. Optional. Setting object
+                                        encoding to base64 and object format to pfx
+                                        will fetch and write the base64 decoded pfx
+                                        binary
+                                      type: string
+                                    envVar:
+                                      description: EnvVar. Name of the environment
+                                        variable within replicas, containing Azure
+                                        Key Vault object value
+                                      type: string
+                                    format:
+                                      description: 'Format. Optional. The format of
+                                        the Azure Key Vault object, supported types
+                                        are pem and pfx. objectFormat: pfx is only
+                                        supported with objectType: secret and PKCS12
+                                        or ECC certificates. Default format for certificates
+                                        is pem.'
+                                      type: string
+                                    k8sSecretType:
+                                      description: 'K8SSecretType. Optional. Setting
+                                        object k8s secret type. Allowed types: opaque
+                                        (default), tls. It corresponds to "Opaque"
+                                        and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                      type: string
+                                    name:
+                                      description: Name. Name of the Azure Key Vault
+                                        object
+                                      type: string
+                                    type:
+                                      description: 'Type. Optional. Type of the Azure
+                                        KeyVault object: secret (default), key, cert'
+                                      type: string
+                                    version:
+                                      description: Version. Optional. object versions,
+                                        default to the latest, if empty
+                                      type: string
+                                  required:
+                                  - envVar
+                                  - name
+                                  type: object
+                                type: array
+                              name:
+                                description: Name. Name of the Azure Key Vault
+                                type: string
+                              path:
+                                description: 'Path. Optional. Path within replicas,
+                                  where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                type: string
+                            required:
+                            - items
+                            - name
+                            type: object
+                          type: array
+                      type: object
+                    secrets:
+                      items:
+                        type: string
+                      type: array
+                    src:
+                      type: string
+                    variables:
+                      additionalProperties:
+                        type: string
+                      description: 'Map of environment variables in the form ''<envvarname>:
+                        <value>'''
+                      type: object
+                  required:
+                  - name
+                  - ports
+                  type: object
+                minItems: 1
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              dnsAppAlias:
+                description: Defines a URL alias for this application. The URL will
+                  be of form <app-name>.app.radix.equinor.com
+                properties:
+                  component:
+                    maxLength: 63
+                    pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                    type: string
+                  environment:
+                    maxLength: 63
+                    pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                    type: string
+                required:
+                - component
+                - environment
+                type: object
+              dnsExternalAlias:
+                description: Defines mapping between external DNS aliases and components.
+                items:
+                  description: ExternalAlias defines a URL alias for this application
+                    with ability to bring-your-own certificate
+                  properties:
+                    alias:
+                      maxLength: 255
+                      type: string
+                    component:
+                      maxLength: 63
+                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      type: string
+                    environment:
+                      maxLength: 63
+                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      type: string
+                  required:
+                  - alias
+                  - component
+                  - environment
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - alias
+                x-kubernetes-list-type: map
+              environments:
+                description: Defines the environments for the application.
+                items:
+                  description: Defines an application environment
+                  properties:
+                    build:
+                      description: Defines build parameters
+                      properties:
+                        from:
+                          description: Name of the Github branch to build from
+                          maxLength: 255
+                          type: string
+                        variables:
+                          additionalProperties:
+                            type: string
+                          description: Defines variables that will be available in
+                            sub-pipelines
+                          type: object
+                      type: object
+                    egress:
+                      description: 'Defines egress configuration for the environment
+                        More info: https://www.radix.equinor.com/references/reference-radix-config/#egress'
+                      properties:
+                        allowRadix:
+                          description: Allow or deny outgoing traffic to the public
+                            IP for the Radix cluster.
+                          type: boolean
+                        rules:
+                          description: Defines a list of egress rules
+                          items:
+                            description: EgressRule defines an egress rule in network
+                              policy
+                            properties:
+                              destinations:
+                                description: List of allowed destinations Each destination
+                                  must be a valid CIDR
+                                items:
+                                  type: string
+                                minItems: 1
+                                type: array
+                              ports:
+                                items:
+                                  description: EgressPort defines a port in context
+                                    of EgressRule
+                                  properties:
+                                    port:
+                                      format: int32
+                                      maximum: 65535
+                                      minimum: 1024
+                                      type: integer
+                                    protocol:
+                                      enum:
+                                      - TCP
+                                      - UDP
+                                      type: string
+                                  required:
+                                  - port
+                                  - protocol
+                                  type: object
+                                minItems: 1
+                                type: array
+                            required:
+                            - destinations
+                            - ports
+                            type: object
+                          maxItems: 1000
+                          type: array
+                      type: object
+                    name:
+                      description: Name of the environment
+                      maxLength: 63
+                      pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+                      type: string
+                  required:
+                  - name
+                  type: object
+                minItems: 1
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              jobs:
+                description: Defines the jobs for the application.
+                items:
+                  description: RadixJobComponent defines a single job component within
+                    a RadixApplication The job component is used by the radix-job-scheduler-server
+                    to create Kubernetes Job objects
+                  properties:
+                    dockerfileName:
+                      type: string
+                    enabled:
+                      type: boolean
+                    environmentConfig:
+                      items:
+                        description: RadixJobComponentEnvironmentConfig defines environment
+                          specific settings for a single job component within a RadixApplication
+                        properties:
+                          enabled:
+                            type: boolean
+                          environment:
+                            type: string
+                          identity:
+                            description: Identity configuration for federation with
+                              external identity providers
+                            properties:
+                              azure:
+                                description: Azure identity configuration
+                                properties:
+                                  clientId:
+                                    description: ClientId is the client ID for a user
+                                      defined managed identity or application ID for
+                                      an application registration
+                                    type: string
+                                required:
+                                - clientId
+                                type: object
+                            type: object
+                          imageTagName:
+                            type: string
+                          monitoring:
+                            type: boolean
+                          node:
+                            description: RadixNode defines node attributes, where
+                              container should be scheduled
+                            properties:
+                              gpu:
+                                description: Gpu Optional. Holds lists of node GPU
+                                  types, with dashed types to exclude
+                                type: string
+                              gpuCount:
+                                description: GpuCount Optional. Holds minimum count
+                                  of GPU on node
+                                type: string
+                            required:
+                            - gpu
+                            - gpuCount
+                            type: object
+                          resources:
+                            description: 'ResourceRequirements describes the compute
+                              resource requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+                              - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                            properties:
+                              limits:
+                                additionalProperties:
+                                  type: string
+                                description: Limits describes the maximum amount of
+                                  compute resources allowed.
+                                type: object
+                              requests:
+                                additionalProperties:
+                                  type: string
+                                description: Requests describes the minimum amount
+                                  of compute resources required. If Requests is omitted
+                                  for a container, it defaults to Limits if that is
+                                  explicitly specified, otherwise to an implementation-defined
+                                  value.
+                                type: object
+                            type: object
+                          secretRefs:
+                            description: RadixSecretRefs defines secret vault
+                            properties:
+                              azureKeyVaults:
+                                description: AzureKeyVaults. List of RadixSecretRefs-s,
+                                  containing Azure Key Vault configurations
+                                items:
+                                  description: RadixAzureKeyVault defines Azure Key
+                                    Vault
+                                  properties:
+                                    items:
+                                      description: Items. Azure Key Vault items
+                                      items:
+                                        description: 'RadixAzureKeyVaultItem defines
+                                          Azure Key Vault setting: secrets, keys,
+                                          certificates'
+                                        properties:
+                                          alias:
+                                            description: Alias. Optional.It is not
+                                              yet fully supported by the Azure CSI
+                                              Key vault driver. Specify the filename
+                                              of the object when written to disk.
+                                              Defaults to objectName if not provided.
+                                            type: string
+                                          encoding:
+                                            description: Encoding. Optional. Setting
+                                              object encoding to base64 and object
+                                              format to pfx will fetch and write the
+                                              base64 decoded pfx binary
+                                            type: string
+                                          envVar:
+                                            description: EnvVar. Name of the environment
+                                              variable within replicas, containing
+                                              Azure Key Vault object value
+                                            type: string
+                                          format:
+                                            description: 'Format. Optional. The format
+                                              of the Azure Key Vault object, supported
+                                              types are pem and pfx. objectFormat:
+                                              pfx is only supported with objectType:
+                                              secret and PKCS12 or ECC certificates.
+                                              Default format for certificates is pem.'
+                                            type: string
+                                          k8sSecretType:
+                                            description: 'K8SSecretType. Optional.
+                                              Setting object k8s secret type. Allowed
+                                              types: opaque (default), tls. It corresponds
+                                              to "Opaque" and "kubernetes.io/tls"
+                                              secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                            type: string
+                                          name:
+                                            description: Name. Name of the Azure Key
+                                              Vault object
+                                            type: string
+                                          type:
+                                            description: 'Type. Optional. Type of
+                                              the Azure KeyVault object: secret (default),
+                                              key, cert'
+                                            type: string
+                                          version:
+                                            description: Version. Optional. object
+                                              versions, default to the latest, if
+                                              empty
+                                            type: string
+                                        required:
+                                        - envVar
+                                        - name
+                                        type: object
+                                      type: array
+                                    name:
+                                      description: Name. Name of the Azure Key Vault
+                                      type: string
+                                    path:
+                                      description: 'Path. Optional. Path within replicas,
+                                        where secrets are mapped as files. Default:
+                                        /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                      type: string
+                                  required:
+                                  - items
+                                  - name
+                                  type: object
+                                type: array
+                            type: object
+                          timeLimitSeconds:
+                            format: int64
+                            type: integer
+                          variables:
+                            additionalProperties:
+                              type: string
+                            description: 'Map of environment variables in the form
+                              ''<envvarname>: <value>'''
+                            type: object
+                          volumeMounts:
+                            items:
+                              description: RadixVolumeMount defines volume to be mounted
+                                to the container
+                              properties:
+                                accessMode:
+                                  type: string
+                                bindingMode:
+                                  type: string
+                                container:
+                                  type: string
+                                gid:
+                                  type: string
+                                name:
+                                  type: string
+                                path:
+                                  type: string
+                                requestsStorage:
+                                  type: string
+                                skuName:
+                                  type: string
+                                storage:
+                                  type: string
+                                type:
+                                  description: MountType Holds types of mount
+                                  type: string
+                                uid:
+                                  type: string
+                              required:
+                              - accessMode
+                              - bindingMode
+                              - container
+                              - gid
+                              - name
+                              - path
+                              - requestsStorage
+                              - skuName
+                              - storage
+                              - type
+                              - uid
+                              type: object
+                            type: array
+                        required:
+                        - environment
+                        - imageTagName
+                        - monitoring
+                        - variables
+                        type: object
+                      type: array
+                    identity:
+                      description: Identity configuration for federation with external
+                        identity providers
+                      properties:
+                        azure:
+                          description: Azure identity configuration
+                          properties:
+                            clientId:
+                              description: ClientId is the client ID for a user defined
+                                managed identity or application ID for an application
+                                registration
+                              type: string
+                          required:
+                          - clientId
+                          type: object
+                      type: object
+                    image:
+                      type: string
+                    monitoringConfig:
+                      description: MonitoringConfig Monitoring configuration
+                      properties:
+                        path:
+                          description: HTTP path to scrape for metrics.
+                          type: string
+                        portName:
+                          description: Port name
+                          type: string
+                      required:
+                      - portName
+                      type: object
+                    name:
+                      type: string
+                    node:
+                      description: RadixNode defines node attributes, where container
+                        should be scheduled
+                      properties:
+                        gpu:
+                          description: Gpu Optional. Holds lists of node GPU types,
+                            with dashed types to exclude
+                          type: string
+                        gpuCount:
+                          description: GpuCount Optional. Holds minimum count of GPU
+                            on node
+                          type: string
+                      required:
+                      - gpu
+                      - gpuCount
+                      type: object
+                    payload:
+                      description: RadixJobComponentPayload defines the path and where
+                        the payload received by radix-job-scheduler-server will be
+                        mounted to the job container
+                      properties:
+                        path:
+                          type: string
+                      required:
+                      - path
+                      type: object
+                    ports:
+                      items:
+                        description: ComponentPort defines the port number, protocol
+                          and port for a service
+                        properties:
+                          name:
+                            maxLength: 15
+                            type: string
+                          port:
+                            format: int32
+                            maximum: 65535
+                            minimum: 1024
+                            type: integer
+                        required:
+                        - name
+                        - port
+                        type: object
+                      type: array
+                    resources:
+                      description: 'ResourceRequirements describes the compute resource
+                        requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+                        - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      properties:
+                        limits:
+                          additionalProperties:
+                            type: string
+                          description: Limits describes the maximum amount of compute
+                            resources allowed.
+                          type: object
+                        requests:
+                          additionalProperties:
+                            type: string
+                          description: Requests describes the minimum amount of compute
+                            resources required. If Requests is omitted for a container,
+                            it defaults to Limits if that is explicitly specified,
+                            otherwise to an implementation-defined value.
+                          type: object
+                      type: object
+                    schedulerPort:
+                      format: int32
+                      type: integer
+                    secretRefs:
+                      description: RadixSecretRefs defines secret vault
+                      properties:
+                        azureKeyVaults:
+                          description: AzureKeyVaults. List of RadixSecretRefs-s,
+                            containing Azure Key Vault configurations
+                          items:
+                            description: RadixAzureKeyVault defines Azure Key Vault
+                            properties:
+                              items:
+                                description: Items. Azure Key Vault items
+                                items:
+                                  description: 'RadixAzureKeyVaultItem defines Azure
+                                    Key Vault setting: secrets, keys, certificates'
+                                  properties:
+                                    alias:
+                                      description: Alias. Optional.It is not yet fully
+                                        supported by the Azure CSI Key vault driver.
+                                        Specify the filename of the object when written
+                                        to disk. Defaults to objectName if not provided.
+                                      type: string
+                                    encoding:
+                                      description: Encoding. Optional. Setting object
+                                        encoding to base64 and object format to pfx
+                                        will fetch and write the base64 decoded pfx
+                                        binary
+                                      type: string
+                                    envVar:
+                                      description: EnvVar. Name of the environment
+                                        variable within replicas, containing Azure
+                                        Key Vault object value
+                                      type: string
+                                    format:
+                                      description: 'Format. Optional. The format of
+                                        the Azure Key Vault object, supported types
+                                        are pem and pfx. objectFormat: pfx is only
+                                        supported with objectType: secret and PKCS12
+                                        or ECC certificates. Default format for certificates
+                                        is pem.'
+                                      type: string
+                                    k8sSecretType:
+                                      description: 'K8SSecretType. Optional. Setting
+                                        object k8s secret type. Allowed types: opaque
+                                        (default), tls. It corresponds to "Opaque"
+                                        and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                      type: string
+                                    name:
+                                      description: Name. Name of the Azure Key Vault
+                                        object
+                                      type: string
+                                    type:
+                                      description: 'Type. Optional. Type of the Azure
+                                        KeyVault object: secret (default), key, cert'
+                                      type: string
+                                    version:
+                                      description: Version. Optional. object versions,
+                                        default to the latest, if empty
+                                      type: string
+                                  required:
+                                  - envVar
+                                  - name
+                                  type: object
+                                type: array
+                              name:
+                                description: Name. Name of the Azure Key Vault
+                                type: string
+                              path:
+                                description: 'Path. Optional. Path within replicas,
+                                  where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                type: string
+                            required:
+                            - items
+                            - name
+                            type: object
+                          type: array
+                      type: object
+                    secrets:
+                      items:
+                        type: string
+                      type: array
+                    src:
+                      type: string
+                    timeLimitSeconds:
+                      format: int64
+                      type: integer
+                    variables:
+                      additionalProperties:
+                        type: string
+                      description: 'Map of environment variables in the form ''<envvarname>:
+                        <value>'''
+                      type: object
+                  required:
+                  - dockerfileName
+                  - image
+                  - name
+                  - ports
+                  - src
+                  - variables
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              privateImageHubs:
+                additionalProperties:
+                  description: Defines the user name and email to use when pulling
+                    images from a private image repository.
+                  properties:
+                    email:
+                      type: string
+                    username:
+                      type: string
+                  required:
+                  - email
+                  - username
+                  type: object
+                description: Defines authentication information for private image
+                  registries.
+                type: object
+            required:
+            - components
+            - environments
+            type: object
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true

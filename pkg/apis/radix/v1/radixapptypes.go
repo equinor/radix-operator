@@ -14,154 +14,308 @@ const DynamicTagNameInEnvironmentConfig = "{imageTagName}"
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=radixapplications,shortName=ra
 
-// RadixApplication describe an application
+// RadixApplication describes an application
 type RadixApplication struct {
-	metav1.TypeMeta   `json:",inline" yaml:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec              RadixApplicationSpec `json:"spec" yaml:"spec"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+
+	// Specification for an application
+	Spec RadixApplicationSpec `json:"spec"`
 }
 
-// RadixApplicationSpec is the spec for an application
+// RadixApplicationSpec is the spec for an application.
+// More info: https://www.radix.equinor.com/references/reference-radix-config/
 type RadixApplicationSpec struct {
-	Build            *BuildSpec             `json:"build" yaml:"build"`
-	Environments     []Environment          `json:"environments" yaml:"environments"`
-	Jobs             []RadixJobComponent    `json:"jobs" yaml:"jobs"`
-	Components       []RadixComponent       `json:"components" yaml:"components"`
-	DNSAppAlias      AppAlias               `json:"dnsAppAlias" yaml:"dnsAppAlias"`
-	DNSExternalAlias []ExternalAlias        `json:"dnsExternalAlias" yaml:"dnsExternalAlias"`
-	PrivateImageHubs PrivateImageHubEntries `json:"privateImageHubs" yaml:"privateImageHubs"`
+	// Defines build configuration
+	// +optional
+	Build *BuildSpec `json:"build,omitempty"`
+
+	// Defines the environments for the application.
+	// +listType:=map
+	// +listMapKey:=name
+	// +kubebuilder:validation:MinItems:=1
+	Environments []Environment `json:"environments"`
+
+	// Defines the jobs for the application.
+	// +listType:=map
+	// +listMapKey:=name
+	// +optional
+	Jobs []RadixJobComponent `json:"jobs,omitempty"`
+
+	// Defines the components for the application.
+	// +listType:=map
+	// +listMapKey:=name
+	// +kubebuilder:validation:MinItems:=1
+	Components []RadixComponent `json:"components"`
+
+	// +optional
+	DNSAppAlias AppAlias `json:"dnsAppAlias,omitempty"`
+
+	// Defines mapping between external DNS aliases and components.
+	// +listType:=map
+	// +listMapKey:=alias
+	// +optional
+	DNSExternalAlias []ExternalAlias `json:"dnsExternalAlias,omitempty"`
+
+	// +optional
+	PrivateImageHubs PrivateImageHubEntries `json:"privateImageHubs,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// RadixApplicationList is a list of Radix applications
+// RadixApplicationList is a collection of RadixApplication.
 type RadixApplicationList struct {
-	metav1.TypeMeta `json:",inline" yaml:",inline"`
-	metav1.ListMeta `json:"metadata" yaml:"metadata"`
-	Items           []RadixApplication `json:"items" yaml:"items"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []RadixApplication `json:"items"`
 }
 
-// SecretsMap is a map of secrets (weird)
-type SecretsMap map[string]string
-
-// EnvVarsMap maps environment variable keys to their values
+// Map of environment variables in the form '<envvarname>: <value>'
 type EnvVarsMap map[string]string
 
-// BuildSpec defines the specification for building the components
+// BuildSpec contains configuration used when building the application
 type BuildSpec struct {
-	Secrets     []string   `json:"secrets" yaml:"secrets"`
-	Variables   EnvVarsMap `json:"variables" yaml:"variables"`
-	UseBuildKit *bool      `json:"useBuildKit,omitempty" yaml:"useBuildKit,omitempty"`
+	// Defines a list of secrets to be used in Dockerfile or sub-pipelines
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// Defines variables that will be available in sub-pipelines
+	// +optional
+	Variables EnvVarsMap `json:"variables,omitempty"`
+
+	// Enables BuildKit when for docker build.
+	// More info about BuildKit: https://docs.docker.com/build/buildkit/
+	// +optional
+	UseBuildKit *bool `json:"useBuildKit,omitempty"`
 }
 
-// EgressPort defines a port in context of EgressRule
-type EgressPort struct {
-	Port     int32  `json:"port" yaml:"port"`
-	Protocol string `json:"protocol" yaml:"protocol"`
+// Defines an application environment
+type Environment struct {
+	// Name of the environment
+	// +kubebuilder:validation:MaxLength:=63
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Name string `json:"name"`
+
+	// +optional
+	Build EnvBuild `json:"build,omitempty"`
+
+	// Defines egress configuration for the environment
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#egress
+	// +optional
+	Egress EgressConfig `json:"egress,omitempty"`
+}
+
+// Defines build parameters
+type EnvBuild struct {
+	// Name of the Github branch to build from
+	// +kubebuilder:validation:MaxLength:=255
+	// +optional
+	From string `json:"from,omitempty"`
+
+	// Defines variables that will be available in sub-pipelines
+	// +optional
+	Variables EnvVarsMap `json:"variables,omitempty"`
+}
+
+// Defines an egress configuration
+type EgressConfig struct {
+	// Allow or deny outgoing traffic to the public IP for the Radix cluster.
+	// +optional
+	AllowRadix *bool `json:"allowRadix,omitempty"`
+
+	// Defines a list of egress rules
+	// +kubebuilder:validation:MaxItems:=1000
+	// +optional
+	Rules []EgressRule `json:"rules,omitempty"`
 }
 
 // EgressRule defines an egress rule in network policy
 type EgressRule struct {
-	Destinations []string     `json:"destinations" yaml:"destinations"`
-	Ports        []EgressPort `json:"ports,omitempty" yaml:"ports,omitempty"`
+	// List of allowed destinations
+	// Each destination must be a valid CIDR
+	// +kubebuilder:validation:MinItems:=1
+	Destinations []string `json:"destinations"`
+
+	// +kubebuilder:validation:MinItems:=1
+	Ports []EgressPort `json:"ports"`
 }
 
-// EgressConfig defines an egress configuration for an environment
-type EgressConfig struct {
-	AllowRadix *bool        `json:"allowRadix,omitempty" yaml:"allowRadix,omitempty"`
-	Rules      []EgressRule `json:"rules,omitempty" yaml:"rules,omitempty"`
+// EgressPort defines a port in context of EgressRule
+type EgressPort struct {
+	// +kubebuilder:validation:Minimum:=1024
+	// +kubebuilder:validation:Maximum:=65535
+	Port int32 `json:"port"`
+
+	// +kubebuilder:validation:Enum=TCP;UDP
+	Protocol string `json:"protocol"`
 }
 
-// Environment defines a Radix application environment
-type Environment struct {
-	Name   string       `json:"name" yaml:"name"`
-	Build  EnvBuild     `json:"build,omitempty" yaml:"build,omitempty"`
-	Egress EgressConfig `json:"egress,omitempty" yaml:"egress,omitempty"`
-}
-
-// EnvBuild defines build parameters of a specific environment
-type EnvBuild struct {
-	From      string     `json:"from,omitempty" yaml:"from,omitempty"`
-	Variables EnvVarsMap `json:"variables,omitempty" yaml:"variables,omitempty"`
-	Secrets   []string   `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-}
-
-// AppAlias defines a URL alias for this application. The URL will be of form <app-name>.apps.radix.equinor.com
+// Defines a URL alias for this application.
+// The URL will be of form <app-name>.app.radix.equinor.com
 type AppAlias struct {
-	Environment string `json:"environment,omitempty" yaml:"environment,omitempty"`
-	Component   string `json:"component,omitempty" yaml:"component,omitempty"`
+	// +kubebuilder:validation:MaxLength:=63
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Environment string `json:"environment"`
+
+	// +kubebuilder:validation:MaxLength:=63
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Component string `json:"component"`
 }
 
 // ExternalAlias defines a URL alias for this application with ability to bring-your-own certificate
 type ExternalAlias struct {
-	Alias       string `json:"alias,omitempty" yaml:"alias,omitempty"`
-	Environment string `json:"environment,omitempty" yaml:"environment,omitempty"`
-	Component   string `json:"component,omitempty" yaml:"component,omitempty"`
+	// +kubebuilder:validation:MaxLength:=255
+	Alias string `json:"alias"`
+
+	// +kubebuilder:validation:MaxLength:=63
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Environment string `json:"environment"`
+
+	// +kubebuilder:validation:MaxLength:=63
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Component string `json:"component"`
 }
 
 // ComponentPort defines the port number, protocol and port for a service
 type ComponentPort struct {
+	// +kubebuilder:validation:MaxLength:=15
 	Name string `json:"name"`
-	Port int32  `json:"port"`
+
+	// +kubebuilder:validation:Minimum:=1024
+	// +kubebuilder:validation:Maximum:=65535
+	Port int32 `json:"port"`
 }
 
 // ResourceList Placeholder for resouce specifications in the config
 type ResourceList map[string]string
 
 // ResourceRequirements describes the compute resource requirements.
+// More info:
+//   - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
+//   - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 type ResourceRequirements struct {
 	// Limits describes the maximum amount of compute resources allowed.
-	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	// +optional
-	Limits ResourceList `json:"limits,omitempty" yaml:"limits,omitempty"`
+	Limits ResourceList `json:"limits,omitempty"`
 	// Requests describes the minimum amount of compute resources required.
 	// If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
 	// otherwise to an implementation-defined value.
-	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	// +optional
-	Requests ResourceList `json:"requests,omitempty" yaml:"requests,omitempty"`
+	Requests ResourceList `json:"requests,omitempty"`
 }
 
 // RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
 type RadixComponent struct {
-	Name                    string                   `json:"name" yaml:"name"`
-	SourceFolder            string                   `json:"src" yaml:"src"`
-	Image                   string                   `json:"image" yaml:"image"`
-	DockerfileName          string                   `json:"dockerfileName" yaml:"dockerfileName"`
-	Ports                   []ComponentPort          `json:"ports" yaml:"ports"`
-	MonitoringConfig        MonitoringConfig         `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
-	Public                  bool                     `json:"public" yaml:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
-	PublicPort              string                   `json:"publicPort,omitempty" yaml:"publicPort,omitempty"`
-	Secrets                 []string                 `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs              RadixSecretRefs          `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
-	IngressConfiguration    []string                 `json:"ingressConfiguration,omitempty" yaml:"ingressConfiguration,omitempty"`
-	EnvironmentConfig       []RadixEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
-	Variables               EnvVarsMap               `json:"variables" yaml:"variables"`
-	Resources               ResourceRequirements     `json:"resources,omitempty" yaml:"resources,omitempty"`
-	AlwaysPullImageOnDeploy *bool                    `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
-	Node                    RadixNode                `json:"node,omitempty" yaml:"node,omitempty"`
-	Authentication          *Authentication          `json:"authentication,omitempty" yaml:"authentication,omitempty"`
-	Identity                *Identity                `json:"identity,omitempty" yaml:"identity,omitempty"`
-	Enabled                 *bool                    `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Name string `json:"name"`
+
+	// +optional
+	SourceFolder string `json:"src"`
+
+	// +optional
+	Image string `json:"image"`
+
+	// +optional
+	DockerfileName string `json:"dockerfileName"`
+
+	// +kubebuilder:validation:MinItems:=1
+	// +listType:=map
+	// +listMapKey:=name
+	Ports []ComponentPort `json:"ports"`
+
+	// +optional
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// +optional
+	Public bool `json:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
+
+	// +kubebuilder:validation:MaxLength:=15
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// +optional
+	PublicPort string `json:"publicPort,omitempty"`
+
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
+
+	// +optional
+	EnvironmentConfig []RadixEnvironmentConfig `json:"environmentConfig,omitempty"`
+
+	// +optional
+	Variables EnvVarsMap `json:"variables"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
+
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +optional
+	Authentication *Authentication `json:"authentication,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
 type RadixEnvironmentConfig struct {
-	Environment             string                  `json:"environment" yaml:"environment"`
-	Replicas                *int                    `json:"replicas" yaml:"replicas"`
-	Monitoring              bool                    `json:"monitoring" yaml:"monitoring"`
-	Resources               ResourceRequirements    `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables               EnvVarsMap              `json:"variables" yaml:"variables"`
-	HorizontalScaling       *RadixHorizontalScaling `json:"horizontalScaling,omitempty" yaml:"horizontalScaling,omitempty"`
-	ImageTagName            string                  `json:"imageTagName" yaml:"imageTagName"`
-	AlwaysPullImageOnDeploy *bool                   `json:"alwaysPullImageOnDeploy,omitempty" yaml:"alwaysPullImageOnDeploy,omitempty"`
-	VolumeMounts            []RadixVolumeMount      `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	Node                    RadixNode               `json:"node,omitempty" yaml:"node,omitempty"`
-	Authentication          *Authentication         `json:"authentication,omitempty" yaml:"authentication,omitempty"`
-	SecretRefs              RadixSecretRefs         `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
-	Identity                *Identity               `json:"identity,omitempty" yaml:"identity,omitempty"`
-	Enabled                 *bool                   `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	// +kubebuilder:validation:MaxLength:=63
+	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	Environment string `json:"environment"`
+
+	// +kubebuilder:validation:Minimum:=0
+	// +optional
+	Replicas *int `json:"replicas"`
+
+	// +optional
+	Monitoring bool `json:"monitoring"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	Variables EnvVarsMap `json:"variables"`
+
+	// +optional
+	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
+
+	// +optional
+	ImageTagName string `json:"imageTagName"`
+
+	// +optional
+	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
+
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
+
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +optional
+	Authentication *Authentication `json:"authentication,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
@@ -216,10 +370,11 @@ type RadixHorizontalScaling struct {
 	MaxReplicas int32  `json:"maxReplicas" yaml:"maxReplicas"`
 }
 
-// PrivateImageHubEntries - key = imagehubserver
+// Defines authentication information for private image registries.
 type PrivateImageHubEntries map[string]*RadixPrivateImageHubCredential
 
-// RadixPrivateImageHubCredential defines a private image hub available during deployment time
+// Defines the user name and email to use when pulling images
+// from a private image repository.
 type RadixPrivateImageHubCredential struct {
 	Username string `json:"username" yaml:"username"`
 	Email    string `json:"email" yaml:"email"`
