@@ -77,6 +77,11 @@ spec:
                             verification:
                               description: Verification Client certificate verification
                                 type
+                              enum:
+                              - "on"
+                              - "off"
+                              - optional
+                              - optional_no_ca
                               type: string
                           type: object
                         oauth2:
@@ -106,6 +111,11 @@ spec:
                                   description: 'SameSite. Optional. The samesite cookie
                                     attribute Allowed values: strict, lax, none or
                                     empty Default: lax'
+                                  enum:
+                                  - strict
+                                  - lax
+                                  - none
+                                  - ""
                                   type: string
                               type: object
                             cookieStore:
@@ -167,6 +177,8 @@ spec:
                                   description: ConnectionURL. The URL for the Redis
                                     server when SessionStoreType is redis
                                   type: string
+                              required:
+                              - connectionUrl
                               type: object
                             scope:
                               description: 'Scope. Optional. The requested scope by
@@ -176,6 +188,9 @@ spec:
                               description: 'SessionStoreType. Optional. Specifies
                                 where to store the session data Allowed values: cookie,
                                 redis Default: cookie'
+                              enum:
+                              - cookie
+                              - redis
                               type: string
                             setAuthorizationHeader:
                               description: 'SetAuthorizationHeader. Optional. Defines
@@ -190,6 +205,8 @@ spec:
                                 from values in the Access Token redeemed by the OAuth
                                 Proxy Default: false'
                               type: boolean
+                          required:
+                          - clientId
                           type: object
                       type: object
                     dockerfileName:
@@ -217,6 +234,11 @@ spec:
                                   verification:
                                     description: Verification Client certificate verification
                                       type
+                                    enum:
+                                    - "on"
+                                    - "off"
+                                    - optional
+                                    - optional_no_ca
                                     type: string
                                 type: object
                               oauth2:
@@ -250,6 +272,11 @@ spec:
                                         description: 'SameSite. Optional. The samesite
                                           cookie attribute Allowed values: strict,
                                           lax, none or empty Default: lax'
+                                        enum:
+                                        - strict
+                                        - lax
+                                        - none
+                                        - ""
                                         type: string
                                     type: object
                                   cookieStore:
@@ -314,6 +341,8 @@ spec:
                                         description: ConnectionURL. The URL for the
                                           Redis server when SessionStoreType is redis
                                         type: string
+                                    required:
+                                    - connectionUrl
                                     type: object
                                   scope:
                                     description: 'Scope. Optional. The requested scope
@@ -324,6 +353,9 @@ spec:
                                     description: 'SessionStoreType. Optional. Specifies
                                       where to store the session data Allowed values:
                                       cookie, redis Default: cookie'
+                                    enum:
+                                    - cookie
+                                    - redis
                                     type: string
                                   setAuthorizationHeader:
                                     description: 'SetAuthorizationHeader. Optional.
@@ -340,6 +372,8 @@ spec:
                                       in the Access Token redeemed by the OAuth Proxy
                                       Default: false'
                                     type: boolean
+                                required:
+                                - clientId
                                 type: object
                             type: object
                           enabled:
@@ -356,9 +390,11 @@ spec:
                             properties:
                               maxReplicas:
                                 format: int32
+                                minimum: 1
                                 type: integer
                               minReplicas:
                                 format: int32
+                                minimum: 0
                                 type: integer
                             required:
                             - maxReplicas
@@ -397,7 +433,6 @@ spec:
                                 type: string
                             required:
                             - gpu
-                            - gpuCount
                             type: object
                           replicas:
                             minimum: 0
@@ -472,6 +507,9 @@ spec:
                                               types: opaque (default), tls. It corresponds
                                               to "Opaque" and "kubernetes.io/tls"
                                               secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                            enum:
+                                            - opaque
+                                            - tls
                                             type: string
                                           name:
                                             description: Name. Name of the Azure Key
@@ -481,6 +519,10 @@ spec:
                                             description: 'Type. Optional. Type of
                                               the Azure KeyVault object: secret (default),
                                               key, cert'
+                                            enum:
+                                            - secret
+                                            - key
+                                            - cert
                                             type: string
                                           version:
                                             description: Version. Optional. object
@@ -488,9 +530,9 @@ spec:
                                               empty
                                             type: string
                                         required:
-                                        - envVar
                                         - name
                                         type: object
+                                      minItems: 1
                                       type: array
                                     name:
                                       description: Name. Name of the Azure Key Vault
@@ -518,8 +560,15 @@ spec:
                                 to the container
                               properties:
                                 accessMode:
+                                  enum:
+                                  - ReadOnlyMany
+                                  - ReadWriteOnce
+                                  - ReadWriteMany
                                   type: string
                                 bindingMode:
+                                  enum:
+                                  - Immediate
+                                  - WaitForFirstConsumer
                                   type: string
                                 container:
                                   type: string
@@ -537,21 +586,18 @@ spec:
                                   type: string
                                 type:
                                   description: MountType Holds types of mount
+                                  enum:
+                                  - blob
+                                  - azure-blob
+                                  - azure-file
                                   type: string
                                 uid:
                                   type: string
                               required:
-                              - accessMode
-                              - bindingMode
-                              - container
-                              - gid
                               - name
                               - path
-                              - requestsStorage
-                              - skuName
                               - storage
                               - type
-                              - uid
                               type: object
                             type: array
                         required:
@@ -609,7 +655,6 @@ spec:
                           type: string
                       required:
                       - gpu
-                      - gpuCount
                       type: object
                     ports:
                       items:
@@ -704,6 +749,9 @@ spec:
                                         object k8s secret type. Allowed types: opaque
                                         (default), tls. It corresponds to "Opaque"
                                         and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                      enum:
+                                      - opaque
+                                      - tls
                                       type: string
                                     name:
                                       description: Name. Name of the Azure Key Vault
@@ -712,15 +760,19 @@ spec:
                                     type:
                                       description: 'Type. Optional. Type of the Azure
                                         KeyVault object: secret (default), key, cert'
+                                      enum:
+                                      - secret
+                                      - key
+                                      - cert
                                       type: string
                                     version:
                                       description: Version. Optional. object versions,
                                         default to the latest, if empty
                                       type: string
                                   required:
-                                  - envVar
                                   - name
                                   type: object
+                                minItems: 1
                                 type: array
                               name:
                                 description: Name. Name of the Azure Key Vault
@@ -933,7 +985,6 @@ spec:
                                 type: string
                             required:
                             - gpu
-                            - gpuCount
                             type: object
                           resources:
                             description: 'ResourceRequirements describes the compute
@@ -1005,6 +1056,9 @@ spec:
                                               types: opaque (default), tls. It corresponds
                                               to "Opaque" and "kubernetes.io/tls"
                                               secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                            enum:
+                                            - opaque
+                                            - tls
                                             type: string
                                           name:
                                             description: Name. Name of the Azure Key
@@ -1014,6 +1068,10 @@ spec:
                                             description: 'Type. Optional. Type of
                                               the Azure KeyVault object: secret (default),
                                               key, cert'
+                                            enum:
+                                            - secret
+                                            - key
+                                            - cert
                                             type: string
                                           version:
                                             description: Version. Optional. object
@@ -1021,9 +1079,9 @@ spec:
                                               empty
                                             type: string
                                         required:
-                                        - envVar
                                         - name
                                         type: object
+                                      minItems: 1
                                       type: array
                                     name:
                                       description: Name. Name of the Azure Key Vault
@@ -1054,8 +1112,15 @@ spec:
                                 to the container
                               properties:
                                 accessMode:
+                                  enum:
+                                  - ReadOnlyMany
+                                  - ReadWriteOnce
+                                  - ReadWriteMany
                                   type: string
                                 bindingMode:
+                                  enum:
+                                  - Immediate
+                                  - WaitForFirstConsumer
                                   type: string
                                 container:
                                   type: string
@@ -1073,28 +1138,22 @@ spec:
                                   type: string
                                 type:
                                   description: MountType Holds types of mount
+                                  enum:
+                                  - blob
+                                  - azure-blob
+                                  - azure-file
                                   type: string
                                 uid:
                                   type: string
                               required:
-                              - accessMode
-                              - bindingMode
-                              - container
-                              - gid
                               - name
                               - path
-                              - requestsStorage
-                              - skuName
                               - storage
                               - type
-                              - uid
                               type: object
                             type: array
                         required:
                         - environment
-                        - imageTagName
-                        - monitoring
-                        - variables
                         type: object
                       type: array
                     identity:
@@ -1143,7 +1202,6 @@ spec:
                           type: string
                       required:
                       - gpu
-                      - gpuCount
                       type: object
                     payload:
                       description: RadixJobComponentPayload defines the path and where
@@ -1241,6 +1299,9 @@ spec:
                                         object k8s secret type. Allowed types: opaque
                                         (default), tls. It corresponds to "Opaque"
                                         and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
+                                      enum:
+                                      - opaque
+                                      - tls
                                       type: string
                                     name:
                                       description: Name. Name of the Azure Key Vault
@@ -1249,15 +1310,19 @@ spec:
                                     type:
                                       description: 'Type. Optional. Type of the Azure
                                         KeyVault object: secret (default), key, cert'
+                                      enum:
+                                      - secret
+                                      - key
+                                      - cert
                                       type: string
                                     version:
                                       description: Version. Optional. object versions,
                                         default to the latest, if empty
                                       type: string
                                   required:
-                                  - envVar
                                   - name
                                   type: object
+                                minItems: 1
                                 type: array
                               name:
                                 description: Name. Name of the Azure Key Vault
@@ -1288,12 +1353,7 @@ spec:
                         <value>'''
                       type: object
                   required:
-                  - dockerfileName
-                  - image
                   - name
-                  - ports
-                  - src
-                  - variables
                   type: object
                 type: array
                 x-kubernetes-list-map-keys:

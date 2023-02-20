@@ -80,7 +80,6 @@ spec:
                           type: string
                       required:
                       - gpu
-                      - gpuCount
                       type: object
                     payloadSecretRef:
                       description: Specifies the Secret name and data key containing

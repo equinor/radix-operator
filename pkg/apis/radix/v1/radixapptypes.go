@@ -213,13 +213,13 @@ type RadixComponent struct {
 	Name string `json:"name"`
 
 	// +optional
-	SourceFolder string `json:"src"`
+	SourceFolder string `json:"src,omitempty"`
 
 	// +optional
-	Image string `json:"image"`
+	Image string `json:"image,omitempty"`
 
 	// +optional
-	DockerfileName string `json:"dockerfileName"`
+	DockerfileName string `json:"dockerfileName,omitempty"`
 
 	// +kubebuilder:validation:MinItems:=1
 	// +listType:=map
@@ -230,7 +230,7 @@ type RadixComponent struct {
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
 
 	// +optional
-	Public bool `json:"public"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
+	Public bool `json:"public,omitempty"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 
 	// +kubebuilder:validation:MaxLength:=15
 	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
@@ -250,7 +250,7 @@ type RadixComponent struct {
 	EnvironmentConfig []RadixEnvironmentConfig `json:"environmentConfig,omitempty"`
 
 	// +optional
-	Variables EnvVarsMap `json:"variables"`
+	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
@@ -279,7 +279,7 @@ type RadixEnvironmentConfig struct {
 
 	// +kubebuilder:validation:Minimum:=0
 	// +optional
-	Replicas *int `json:"replicas"`
+	Replicas *int `json:"replicas,omitempty"`
 
 	// +optional
 	Monitoring bool `json:"monitoring"`
@@ -288,13 +288,13 @@ type RadixEnvironmentConfig struct {
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
 	// +optional
-	Variables EnvVarsMap `json:"variables"`
+	Variables EnvVarsMap `json:"variables,omitempty"`
 
 	// +optional
 	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
 
 	// +optional
-	ImageTagName string `json:"imageTagName"`
+	ImageTagName string `json:"imageTagName,omitempty"`
 
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
@@ -321,53 +321,108 @@ type RadixEnvironmentConfig struct {
 // RadixJobComponent defines a single job component within a RadixApplication
 // The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
 type RadixJobComponent struct {
-	Name              string                               `json:"name" yaml:"name"`
-	SourceFolder      string                               `json:"src" yaml:"src"`
-	Image             string                               `json:"image" yaml:"image"`
-	DockerfileName    string                               `json:"dockerfileName" yaml:"dockerfileName"`
-	SchedulerPort     *int32                               `json:"schedulerPort,omitempty" yaml:"schedulerPort,omitempty"`
-	Payload           *RadixJobComponentPayload            `json:"payload,omitempty" yaml:"payload,omitempty"`
-	Ports             []ComponentPort                      `json:"ports" yaml:"ports"`
-	MonitoringConfig  MonitoringConfig                     `json:"monitoringConfig,omitempty" yaml:"monitoringConfig,omitempty"`
-	Secrets           []string                             `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	SecretRefs        RadixSecretRefs                      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
-	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty" yaml:"environmentConfig,omitempty"`
-	Variables         EnvVarsMap                           `json:"variables" yaml:"variables"`
-	Resources         ResourceRequirements                 `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Node              RadixNode                            `json:"node,omitempty" yaml:"node,omitempty"`
-	TimeLimitSeconds  *int64                               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
-	Identity          *Identity                            `json:"identity,omitempty" yaml:"identity,omitempty"`
-	Enabled           *bool                                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Name string `json:"name"`
+
+	// +optional
+	SourceFolder string `json:"src,omitempty"`
+
+	// +optional
+	Image string `json:"image,omitempty"`
+
+	// +optional
+	DockerfileName string `json:"dockerfileName,omitempty"`
+
+	// +optional
+	SchedulerPort *int32 `json:"schedulerPort,omitempty"`
+
+	// +optional
+	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
+
+	// +optional
+	Ports []ComponentPort `json:"ports,omitempty"`
+
+	// +optional
+	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
+
+	// +optional
+	Secrets []string `json:"secrets,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty"`
+
+	// +optional
+	Variables EnvVarsMap `json:"variables,omitempty"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +optional
+	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
-	Environment      string               `json:"environment" yaml:"environment"`
-	Monitoring       bool                 `json:"monitoring" yaml:"monitoring"`
-	Resources        ResourceRequirements `json:"resources,omitempty" yaml:"resources,omitempty"`
-	Variables        EnvVarsMap           `json:"variables" yaml:"variables"`
-	ImageTagName     string               `json:"imageTagName" yaml:"imageTagName"`
-	VolumeMounts     []RadixVolumeMount   `json:"volumeMounts,omitempty" yaml:"volumeMounts,omitempty"`
-	Node             RadixNode            `json:"node,omitempty" yaml:"node,omitempty"`
-	SecretRefs       RadixSecretRefs      `json:"secretRefs,omitempty" yaml:"secretRefs,omitempty"`
-	TimeLimitSeconds *int64               `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
-	Identity         *Identity            `json:"identity,omitempty" yaml:"identity,omitempty"`
-	Enabled          *bool                `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Environment string `json:"environment"`
+
+	// +optional
+	Monitoring bool `json:"monitoring,omitempty"`
+
+	// +optional
+	Resources ResourceRequirements `json:"resources,omitempty"`
+
+	// +optional
+	Variables EnvVarsMap `json:"variables,omitempty"`
+
+	// +optional
+	ImageTagName string `json:"imageTagName,omitempty"`
+
+	// +optional
+	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
+
+	// +optional
+	Node RadixNode `json:"node,omitempty"`
+
+	// +optional
+	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
+
+	// +optional
+	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
+
+	// +optional
+	Identity *Identity `json:"identity,omitempty"`
+
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
 // will be mounted to the job container
 type RadixJobComponentPayload struct {
-	Path string `json:"path" yaml:"path"`
+	Path string `json:"path"`
 }
 
 // RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec
 // If set, this will override replicas config
 type RadixHorizontalScaling struct {
+	// +kubebuilder:validation:Minimum:=0
 	// +optional
-	MinReplicas *int32 `json:"minReplicas,omitempty" yaml:"minReplicas,omitempty"`
-	MaxReplicas int32  `json:"maxReplicas" yaml:"maxReplicas"`
+	MinReplicas *int32 `json:"minReplicas,omitempty"`
+
+	// +kubebuilder:validation:Minimum:=1
+	MaxReplicas int32 `json:"maxReplicas"`
 }
 
 // Defines authentication information for private image registries.
@@ -376,23 +431,43 @@ type PrivateImageHubEntries map[string]*RadixPrivateImageHubCredential
 // Defines the user name and email to use when pulling images
 // from a private image repository.
 type RadixPrivateImageHubCredential struct {
-	Username string `json:"username" yaml:"username"`
-	Email    string `json:"email" yaml:"email"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 // RadixVolumeMount defines volume to be mounted to the container
 type RadixVolumeMount struct {
-	Type            MountType `json:"type" yaml:"type"`
-	Name            string    `json:"name" yaml:"name"`
-	Container       string    `json:"container" yaml:"container"`             //Outdated. Use Storage instead
-	Storage         string    `json:"storage" yaml:"storage"`                 //Container name, file Share name, etc.
-	Path            string    `json:"path" yaml:"path"`                       //Path within the pod (replica), where the volume mount has been mounted to
-	GID             string    `json:"gid" yaml:"gid"`                         //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
-	UID             string    `json:"uid" yaml:"uid"`                         //Optional. Volume mount owner UserID. Used instead of GID.
-	SkuName         string    `json:"skuName" yaml:"skuName"`                 //Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-	RequestsStorage string    `json:"requestsStorage" yaml:"requestsStorage"` //Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
-	AccessMode      string    `json:"accessMode" yaml:"accessMode"`           //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
-	BindingMode     string    `json:"bindingMode" yaml:"bindingMode"`         //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
+	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file
+	Type MountType `json:"type"`
+
+	Name string `json:"name"`
+
+	// +optional
+	Container string `json:"container,omitempty"` //Outdated. Use Storage instead
+
+	Storage string `json:"storage"` //Container name, file Share name, etc.
+
+	Path string `json:"path"` //Path within the pod (replica), where the volume mount has been mounted to
+
+	// +optional
+	GID string `json:"gid,omitempty"` //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
+
+	// +optional
+	UID string `json:"uid,omitempty"` //Optional. Volume mount owner UserID. Used instead of GID.
+
+	// +optional
+	SkuName string `json:"skuName,omitempty"` //Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+
+	// +optional
+	RequestsStorage string `json:"requestsStorage,omitempty"` //Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+
+	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany
+	// +optional
+	AccessMode string `json:"accessMode,omitempty"` //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+
+	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer
+	// +optional
+	BindingMode string `json:"bindingMode,omitempty"` //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 }
 
 // MountType Holds types of mount
@@ -455,17 +530,21 @@ func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
 	// Gpu Optional. Holds lists of node GPU types, with dashed types to exclude
-	Gpu string `json:"gpu" yaml:"gpu"`
+	Gpu string `json:"gpu"`
+
 	// GpuCount Optional. Holds minimum count of GPU on node
-	GpuCount string `json:"gpuCount" yaml:"gpuCount"`
+	// +optional
+	GpuCount string `json:"gpuCount,omitempty"`
 }
 
 // MonitoringConfig Monitoring configuration
 type MonitoringConfig struct {
 	// Port name
-	PortName string `json:"portName" yaml:"portName"`
+	PortName string `json:"portName"`
+
 	// HTTP path to scrape for metrics.
-	Path string `json:"path,omitempty" yaml:"path,omitempty"`
+	// +optional
+	Path string `json:"path,omitempty"`
 }
 
 // RadixSecretRefType Radix secret-ref of type
@@ -479,17 +558,22 @@ const (
 // RadixSecretRefs defines secret vault
 type RadixSecretRefs struct {
 	// AzureKeyVaults. List of RadixSecretRefs-s, containing Azure Key Vault configurations
-	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty" yaml:"azureKeyVaults,omitempty"`
+	// +optional
+	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults"`
 }
 
 // RadixAzureKeyVault defines Azure Key Vault
 type RadixAzureKeyVault struct {
 	// Name. Name of the Azure Key Vault
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name"`
+
 	// Path. Optional. Path within replicas, where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>
-	Path *string `json:"path,omitempty" yaml:"path,omitempty"`
+	// +optional
+	Path *string `json:"path,omitempty"`
+
 	// Items. Azure Key Vault items
-	Items []RadixAzureKeyVaultItem `json:"items" yaml:"items"`
+	// +kubebuilder:validation:MinItems:=1
+	Items []RadixAzureKeyVaultItem `json:"items"`
 }
 
 // RadixAzureKeyVaultObjectType Azure Key Vault item type
@@ -517,37 +601,60 @@ const (
 // RadixAzureKeyVaultItem defines Azure Key Vault setting: secrets, keys, certificates
 type RadixAzureKeyVaultItem struct {
 	// Name. Name of the Azure Key Vault object
-	Name string `json:"name" yaml:"name"`
+	Name string `json:"name"`
+
 	// EnvVar. Name of the environment variable within replicas, containing Azure Key Vault object value
-	EnvVar string `json:"envVar" yaml:"envVar"`
+	// +optional
+	EnvVar string `json:"envVar,omitempty"`
+
 	// Type. Optional. Type of the Azure KeyVault object: secret (default), key, cert
-	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty" yaml:"type,omitempty"`
+	// +kubebuilder:validation:Enum=secret;key;cert
+	// +optional
+	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty"`
+
 	// Alias. Optional.It is not yet fully supported by the Azure CSI Key vault driver. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
-	Alias *string `json:"alias,omitempty" yaml:"alias,omitempty"`
+	// +optional
+	Alias *string `json:"alias,omitempty"`
+
 	// Version. Optional. object versions, default to the latest, if empty
-	Version *string `json:"version,omitempty" yaml:"version,omitempty"`
+	// +optional
+	Version *string `json:"version,omitempty"`
+
 	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
-	Format *string `json:"format,omitempty" yaml:"format,omitempty"`
+	// +optional
+	Format *string `json:"format,omitempty"`
+
 	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
-	Encoding *string `json:"encoding,omitempty" yaml:"encoding,omitempty"`
+	// +optional
+	Encoding *string `json:"encoding,omitempty"`
+
 	// K8SSecretType. Optional. Setting object k8s secret type.
 	// Allowed types: opaque (default), tls. It corresponds to "Opaque" and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
-	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty" yaml:"k8sSecretType,omitempty"`
+	// +kubebuilder:validation:Enum=opaque;tls
+	// +optional
+	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty"`
 }
 
 // Authentication Radix authentication settings
 type Authentication struct {
 	//ClientCertificate Authentication client certificate
-	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
-	OAuth2            *OAuth2            `json:"oauth2,omitempty" yaml:"oauth2,omitempty"`
+	// +optional
+	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty"`
+
+	// +optional
+	OAuth2 *OAuth2 `json:"oauth2,omitempty"`
 }
 
 // ClientCertificate Authentication client certificate parameters
 type ClientCertificate struct {
 	//Verification Client certificate verification type
-	Verification *VerificationType `json:"verification,omitempty" yaml:"verification,omitempty"`
+	// +kubebuilder:validation:Enum=on;off;optional;optional_no_ca
+	// +optional
+	Verification *VerificationType `json:"verification,omitempty"`
+
 	//PassCertificateToUpstream Should a certificate be passed to upstream
-	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty" yaml:"passCertificateToUpstream,omitempty"`
+	// +optional
+	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty"`
 }
 
 // SessionStoreType type of session store
@@ -591,79 +698,117 @@ const (
 // OAuth2 defines oauth proxy settings for a component
 type OAuth2 struct {
 	// ClientID. The OAuth2 client ID
-	ClientID string `json:"clientId,omitempty" yaml:"clientId,omitempty"`
+	ClientID string `json:"clientId"`
+
 	// Scope. Optional. The requested scope by the OAuth code flow
 	// Default: openid profile email
-	Scope string `json:"scope,omitempty" yaml:"scope,omitempty"`
+	// +optional
+	Scope string `json:"scope,omitempty"`
+
 	// SetXAuthRequestHeaders. Optional. Defines if X-Auth-* headers should added to the request
 	// Sets the X-Auth-Request-User, X-Auth-Request-Groups, X-Auth-Request-Email, X-Auth-Request-Preferred-Username and X-Auth-Request-Access-Token
 	// from values in the Access Token redeemed by the OAuth Proxy
 	// Default: false
-	SetXAuthRequestHeaders *bool `json:"setXAuthRequestHeaders,omitempty" yaml:"setXAuthRequestHeaders,omitempty"`
+	// +optional
+	SetXAuthRequestHeaders *bool `json:"setXAuthRequestHeaders,omitempty"`
+
 	// SetAuthorizationHeader. Optional. Defines if the IDToken received by the OAuth Proxy should be added to the Authorization header
 	// Default: false
-	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty" yaml:"setAuthorizationHeader,omitempty"`
+	// +optional
+	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty"`
+
 	// ProxyPrefix. Optional. The url root path that OAuth Proxy should be nested under
 	// Default: /oauth2
-	ProxyPrefix string `json:"proxyPrefix,omitempty" yaml:"proxyPrefix,omitempty"`
+	// +optional
+	ProxyPrefix string `json:"proxyPrefix,omitempty"`
+
 	// LoginURL. Optional. Authentication endpoint
 	// Must be set if OIDC.SkipDiscovery is true
-	LoginURL string `json:"loginUrl,omitempty" yaml:"loginUrl,omitempty"`
+	// +optional
+	LoginURL string `json:"loginUrl,omitempty"`
+
 	// RedeemURL. Optional. Endpoint to redeem the authorization code received from the OAuth code flow
 	// Must be set if OIDC.SkipDiscovery is true
-	RedeemURL string `json:"redeemUrl,omitempty" yaml:"redeemUrl,omitempty"`
+	// +optional
+	RedeemURL string `json:"redeemUrl,omitempty"`
+
 	// OIDC. Optional. Defines OIDC settings
-	OIDC *OAuth2OIDC `json:"oidc,omitempty" yaml:"oidc,omitempty"`
+	// +optional
+	OIDC *OAuth2OIDC `json:"oidc,omitempty"`
+
 	// Cookie. Optional. Settings for the session cookie
-	Cookie *OAuth2Cookie `json:"cookie,omitempty" yaml:"cookie,omitempty"`
+	// +optional
+	Cookie *OAuth2Cookie `json:"cookie,omitempty"`
+
 	// SessionStoreType. Optional. Specifies where to store the session data
 	// Allowed values: cookie, redis
 	// Default: cookie
-	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty" yaml:"sessionStoreType,omitempty"`
+	// +kubebuilder:validation:Enum=cookie;redis
+	// +optional
+	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty"`
+
 	// CookieStore. Optional. Settings for cookie that stores session data when SessionStoreType is cookie
-	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty" yaml:"cookieStore,omitempty"`
+	// +optional
+	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty"`
+
 	// RedisStore. Optional. Settings for Redis store when SessionStoreType is redis
-	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty" yaml:"redisStore,omitempty"`
+	// +optional
+	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty"`
 }
 
 // OAuth2Cookie defines properties for the oauth cookie
 type OAuth2Cookie struct {
 	// Name. Optional. Defines the name of the OAuth session cookie
 	// Default: _oauth2_proxy
-	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// +optional
+	Name string `json:"name,omitempty"`
+
 	// Expire. Optional. The expire timeframe for the session cookie
 	// Default: 168h0m0s
-	Expire string `json:"expire,omitempty" yaml:"expire,omitempty"`
+	// +optional
+	Expire string `json:"expire,omitempty"`
+
 	// Refresh. Optional. The interval between cookie refreshes
 	// The value must be a shorter timeframe than Expire
 	// Default 60m0s
-	Refresh string `json:"refresh,omitempty" yaml:"refresh,omitempty"`
+	// +optional
+	Refresh string `json:"refresh,omitempty"`
+
 	// SameSite. Optional. The samesite cookie attribute
 	// Allowed values: strict, lax, none or empty
 	// Default: lax
-	SameSite CookieSameSiteType `json:"sameSite,omitempty" yaml:"sameSite,omitempty"`
+	// +kubebuilder:validation:Enum=strict;lax;none;""
+	// +optional
+	SameSite CookieSameSiteType `json:"sameSite,omitempty"`
 }
 
 // OAuth2OIDC defines OIDC properties for oauth proxy
 type OAuth2OIDC struct {
 	// IssuerURL. Optional. The OIDC issuer URL
 	// Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
-	IssuerURL string `json:"issuerUrl,omitempty" yaml:"issuerUrl,omitempty"`
+	// +optional
+	IssuerURL string `json:"issuerUrl,omitempty"`
+
 	// JWKSURL. Optional. OIDC JWKS URL for token verification; required if OIDC discovery is disabled
-	JWKSURL string `json:"jwksUrl,omitempty" yaml:"jwksUrl,omitempty"`
+	// +optional
+	JWKSURL string `json:"jwksUrl,omitempty"`
+
 	// SkipDiscovery. Optional. Defines if OIDC endpoint discovery should be bypassed
 	// LoginURL, RedeemURL, JWKSURL must be configured if discovery is disabled
 	// Default: false
-	SkipDiscovery *bool `json:"skipDiscovery,omitempty" yaml:"skipDiscovery,omitempty"`
+	// +optional
+	SkipDiscovery *bool `json:"skipDiscovery,omitempty"`
+
 	// InsecureSkipVerifyNonce. Optional. Skip verifying the OIDC ID Token's nonce claim
 	// Default: false
-	InsecureSkipVerifyNonce *bool `json:"insecureSkipVerifyNonce,omitempty" yaml:"insecureSkipVerifyNonce,omitempty"`
+	// +optional
+	InsecureSkipVerifyNonce *bool `json:"insecureSkipVerifyNonce,omitempty"`
 }
 
 // OAuth2RedisStore properties for redis session storage
 type OAuth2RedisStore struct {
 	// ConnectionURL. The URL for the Redis server when SessionStoreType is redis
-	ConnectionURL string `json:"connectionUrl,omitempty" yaml:"connectionUrl,omitempty"`
+	ConnectionURL string `json:"connectionUrl"`
 }
 
 // OAuth2CookieStore properties for cookie session storage
@@ -671,20 +816,22 @@ type OAuth2CookieStore struct {
 	// Minimal. Optional. Strips OAuth tokens from cookies if they are not needed (only when SessionStoreType is cookie)
 	// Cookie.Refresh must be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader must be false if this setting is true
 	// Default: false
-	Minimal *bool `json:"minimal,omitempty" yaml:"minimal,omitempty"`
+	// +optional
+	Minimal *bool `json:"minimal,omitempty"`
 }
 
 // Identity configuration for federation with external identity providers
 type Identity struct {
 	// Azure identity configuration
-	Azure *AzureIdentity `json:"azure,omitempty" yaml:"azure,omitempty"`
+	// +optional
+	Azure *AzureIdentity `json:"azure,omitempty"`
 }
 
 // AzureIdentity properties for Azure AD Workload Identity
 type AzureIdentity struct {
 	// ClientId is the client ID for a user defined managed identity
 	// or application ID for an application registration
-	ClientId string `json:"clientId" yaml:"clientId"`
+	ClientId string `json:"clientId"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components
