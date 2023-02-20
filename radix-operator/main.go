@@ -371,7 +371,7 @@ func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfigu
 	config := deploymentAPI.IngressConfiguration{}
 	configMap, err := kubeutil.GetConfigMap(metav1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
-		return config, nil
+		return config, err
 	}
 
 	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &config)
