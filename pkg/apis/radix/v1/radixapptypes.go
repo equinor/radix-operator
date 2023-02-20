@@ -612,7 +612,7 @@ type RadixAzureKeyVaultItem struct {
 	// +optional
 	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty"`
 
-	// Alias. Optional.It is not yet fully supported by the Azure CSI Key vault driver. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
+	// Alias. Optional. It is not yet fully supported by the Azure CSI Key vault driver. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
 	// +optional
 	Alias *string `json:"alias,omitempty"`
 
@@ -621,10 +621,12 @@ type RadixAzureKeyVaultItem struct {
 	Version *string `json:"version,omitempty"`
 
 	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
+	// +kubebuilder:validation:Enum=pem;pfx
 	// +optional
 	Format *string `json:"format,omitempty"`
 
 	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
+	// +kubebuilder:validation:Enum=base64
 	// +optional
 	Encoding *string `json:"encoding,omitempty"`
 
