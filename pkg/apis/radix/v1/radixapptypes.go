@@ -21,44 +21,53 @@ type RadixApplication struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	// Specification for an application
+	// Specification for an application.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/
 	Spec RadixApplicationSpec `json:"spec"`
 }
 
-// RadixApplicationSpec is the spec for an application.
-// More info: https://www.radix.equinor.com/references/reference-radix-config/
+// RadixApplicationSpec is the specification for an application.
 type RadixApplicationSpec struct {
-	// Defines build configuration
+	// Build contains configuration used by pipeline jobs.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#build
 	// +optional
 	Build *BuildSpec `json:"build,omitempty"`
 
-	// Defines the environments for the application.
-	// +listType:=map
-	// +listMapKey:=name
-	// +kubebuilder:validation:MinItems:=1
+	// List of environments belonging to the application.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#environments
+	// +listType=map
+	// +listMapKey=name
+	// +kubebuilder:validation:MinItems=1
 	Environments []Environment `json:"environments"`
 
-	// Defines the jobs for the application.
-	// +listType:=map
-	// +listMapKey:=name
+	// List of job specification for the application.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#jobs
+	// +listType=map
+	// +listMapKey=name
 	// +optional
 	Jobs []RadixJobComponent `json:"jobs,omitempty"`
 
-	// Defines the components for the application.
-	// +listType:=map
-	// +listMapKey:=name
-	// +kubebuilder:validation:MinItems:=1
+	// List of component specification for the application.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#components
+	// +listType=map
+	// +listMapKey=name
+	// +kubebuilder:validation:MinItems=1
 	Components []RadixComponent `json:"components"`
 
+	// Configure a component and environment to be linked to the app alias DNS record.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsappalias
 	// +optional
 	DNSAppAlias AppAlias `json:"dnsAppAlias,omitempty"`
 
-	// Defines mapping between external DNS aliases and components.
-	// +listType:=map
-	// +listMapKey:=alias
+	// List of external DNS names and which component and environment incoming requests shall be routed to.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsexternalalias
+	// +listType=map
+	// +listMapKey=alias
 	// +optional
 	DNSExternalAlias []ExternalAlias `json:"dnsExternalAlias,omitempty"`
 
+	// Defines protected container registries used by components or jobs.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs
 	// +optional
 	PrivateImageHubs PrivateImageHubEntries `json:"privateImageHubs,omitempty"`
 }
@@ -76,42 +85,48 @@ type RadixApplicationList struct {
 // Map of environment variables in the form '<envvarname>: <value>'
 type EnvVarsMap map[string]string
 
-// BuildSpec contains configuration used when building the application
+// BuildSpec contains configuration used by pipeline jobs.
 type BuildSpec struct {
-	// Defines a list of secrets to be used in Dockerfile or sub-pipelines
+	// Defines a list of secrets that will be passed as ARGs when building Dockerfile.
+	// The secrets can also be accessed in sub-pipelines.
+	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
-	// Defines variables that will be available in sub-pipelines
+	// Defines variables that will be available in sub-pipelines.
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
-	// Enables BuildKit when for docker build.
+	// Enables BuildKit when building Dockerfile.
 	// More info about BuildKit: https://docs.docker.com/build/buildkit/
 	// +optional
 	UseBuildKit *bool `json:"useBuildKit,omitempty"`
 }
 
-// Defines an application environment
+// Environment contains environment specific configuration.
 type Environment struct {
-	// Name of the environment
-	// +kubebuilder:validation:MaxLength:=63
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Name of the environment.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
+	// Build configuration for the environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#build-2
 	// +optional
 	Build EnvBuild `json:"build,omitempty"`
 
-	// Defines egress configuration for the environment
+	// Configure egress traffic rules for components and jobs.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#egress
 	// +optional
 	Egress EgressConfig `json:"egress,omitempty"`
 }
 
-// Defines build parameters
+// EnvBuild contains configuration used to determine how to build an environment.
 type EnvBuild struct {
 	// Name of the Github branch to build from
-	// +kubebuilder:validation:MaxLength:=255
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
 	// +optional
 	From string `json:"from,omitempty"`
 
@@ -120,200 +135,290 @@ type EnvBuild struct {
 	Variables EnvVarsMap `json:"variables,omitempty"`
 }
 
-// Defines an egress configuration
+// EgressConfig contains egress configuration.
 type EgressConfig struct {
 	// Allow or deny outgoing traffic to the public IP for the Radix cluster.
 	// +optional
 	AllowRadix *bool `json:"allowRadix,omitempty"`
 
-	// Defines a list of egress rules
-	// +kubebuilder:validation:MaxItems:=1000
+	// Defines a list of egress rules.
+	// +kubebuilder:validation:MaxItems=1000
 	// +optional
 	Rules []EgressRule `json:"rules,omitempty"`
 }
 
-// EgressRule defines an egress rule in network policy
-type EgressRule struct {
-	// List of allowed destinations
-	// Each destination must be a valid CIDR
-	// +kubebuilder:validation:MinItems:=1
-	Destinations []string `json:"destinations"`
+// +kubebuilder:validation:Pattern=`^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$`
+type EgressDestination string
 
-	// +kubebuilder:validation:MinItems:=1
+// EgressRule defines an egress rule.
+type EgressRule struct {
+	// List of allowed destinations.
+	// Each destination must be a valid CIDR.
+	// +kubebuilder:validation:UniqueItems=true
+	// +kubebuilder:validation:MinItems=1
+	Destinations []EgressDestination `json:"destinations"`
+
+	// List of allowed ports.
+	// +kubebuilder:validation:MinItems=1
 	Ports []EgressPort `json:"ports"`
 }
 
-// EgressPort defines a port in context of EgressRule
+// EgressPort defines a port in context of EgressRule.
 type EgressPort struct {
-	// +kubebuilder:validation:Minimum:=1024
-	// +kubebuilder:validation:Maximum:=65535
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port"`
 
 	// +kubebuilder:validation:Enum=TCP;UDP
 	Protocol string `json:"protocol"`
 }
 
-// Defines a URL alias for this application.
-// The URL will be of form <app-name>.app.radix.equinor.com
+// AppAlias contains information about the component and
+// environment to be linked to the app alias DNS record.
 type AppAlias struct {
-	// +kubebuilder:validation:MaxLength:=63
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Name of the environment for the component.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
-	// +kubebuilder:validation:MaxLength:=63
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Name of the component that shall receive the incoming requests.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Component string `json:"component"`
 }
 
-// ExternalAlias defines a URL alias for this application with ability to bring-your-own certificate
+// ExternalAlias defines mapping between an external DNS name and a component and environment.
 type ExternalAlias struct {
-	// +kubebuilder:validation:MaxLength:=255
+	// DNS name, e.g. myapp.example.com.
+	// +kubebuilder:validation:MinLength=4
+	// +kubebuilder:validation:MaxLength=255
+	// +kubebuilder:validation:Pattern=`^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$`
 	Alias string `json:"alias"`
 
-	// +kubebuilder:validation:MaxLength:=63
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Name of the environment for the component.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
-	// +kubebuilder:validation:MaxLength:=63
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Name of the component that shall receive the incoming requests.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Component string `json:"component"`
 }
 
-// ComponentPort defines the port number, protocol and port for a service
+// ComponentPort defines a named port.
 type ComponentPort struct {
-	// +kubebuilder:validation:MaxLength:=15
+	// Name of the port.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
-	// +kubebuilder:validation:Minimum:=1024
-	// +kubebuilder:validation:Maximum:=65535
+	// Port number.
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port"`
 }
 
-// ResourceList Placeholder for resouce specifications in the config
+// ResourceList defines a resource and a value.
 type ResourceList map[string]string
 
 // ResourceRequirements describes the compute resource requirements.
-// More info:
-//   - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
-//   - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common
 type ResourceRequirements struct {
 	// Limits describes the maximum amount of compute resources allowed.
 	// +optional
 	Limits ResourceList `json:"limits,omitempty"`
+
 	// Requests describes the minimum amount of compute resources required.
-	// If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-	// otherwise to an implementation-defined value.
+	// If Requests is omitted for a container, it defaults to Limits if
+	// that is explicitly specified, otherwise to an implementation-defined value.
 	// +optional
 	Requests ResourceList `json:"requests,omitempty"`
 }
 
-// RadixComponent defines a single component within a RadixApplication - maps to single deployment/service/ingress etc
+// RadixComponent defines a component.
 type RadixComponent struct {
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Name of the component.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
+	// Path to the Dockerfile that builds the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src
 	// +optional
 	SourceFolder string `json:"src,omitempty"`
 
-	// +optional
-	Image string `json:"image,omitempty"`
-
+	// Name of the Dockerfile that builds the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
-	// +kubebuilder:validation:MinItems:=1
-	// +listType:=map
-	// +listMapKey:=name
+	// Name of an existing container image to use when running the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image
+	// +optional
+	Image string `json:"image,omitempty"`
+
+	// List of ports that the component bind to.
+	// +kubebuilder:validation:MinItems=1
+	// +listType=map
+	// +listMapKey=name
 	Ports []ComponentPort `json:"ports"`
 
+	// Configures the monitoring endpoint exposed by the component.
+	// This endpoint is used by Prometheus to collect custom metrics.
+	// environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig
 	// +optional
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
 
+	// Deprecated, use publicPort instead.
 	// +optional
 	Public bool `json:"public,omitempty"` // Deprecated: For backwards compatibility Public is still supported, new code should use PublicPort instead
 
-	// +kubebuilder:validation:MaxLength:=15
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Defines which port (name) from the ports list that shall be accessible from the internet.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	// +optional
 	PublicPort string `json:"publicPort,omitempty"`
 
+	// List of secret environment variable names.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets
+	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
+	// Configuration for external secret stores, like Azure KeyVault.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
+	// Additional configuration settings for ingress traffic.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#ingressconfiguration
+	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
 
+	// Configure environment specific settings for the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig
+	// +listType=map
+	// +listMapKey=environment
 	// +optional
 	EnvironmentConfig []RadixEnvironmentConfig `json:"environmentConfig,omitempty"`
 
+	// List of environment variables and values.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
+	// Configures CPU and memory resources for the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
+	// Forces check/pull of images using static tags, e.g. myimage:latest, when deploying using deploy-only.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#alwayspullimageondeploy
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Defines GPU requirements for the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
+	// Configuration for TLS client certificate or OAuth2 authentication.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#authentication
 	// +optional
 	Authentication *Authentication `json:"authentication,omitempty"`
 
+	// Configuration for workload identity (federated credentials).
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
+	// Controls if the component shall be deployed.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// RadixEnvironmentConfig defines environment specific settings for a single component within a RadixApplication
+// RadixEnvironmentConfig defines environment specific settings for component.
 type RadixEnvironmentConfig struct {
-	// +kubebuilder:validation:MaxLength:=63
-	// +kubebuilder:validation:Pattern:=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
+	// Name of the environment which the settings applies to.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
-	// +kubebuilder:validation:Minimum:=0
+	// Number of desired replicas.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	Replicas *int `json:"replicas,omitempty"`
 
+	// Enabled or disables collection of custom Prometheus metrics.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring
 	// +optional
 	Monitoring bool `json:"monitoring"`
 
+	// Environment specific configuration for CPU and memory resources.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
+	// Environment specific environment variables.
+	// Variable names defined here have precedence over variables defined on component level.
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
+	// Configuration for automatic horizontal scaling of replicas.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling
 	// +optional
 	HorizontalScaling *RadixHorizontalScaling `json:"horizontalScaling,omitempty"`
 
+	// The imageTagName allows for flexible configuration of fixed images,
+	// built outside of Radix, to be configured with separate tag for each environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname
 	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
 
+	// Forces check/pull of images using static tags, e.g. myimage:latest, when deploying using deploy-only.
 	// +optional
 	AlwaysPullImageOnDeploy *bool `json:"alwaysPullImageOnDeploy,omitempty"`
 
+	// Configuration for mounting cloud storage into the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
+	// Environment specific GPU requirements for the component.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
+	// Environment specific configuration for TLS client certificate or OAuth2 authentication.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#authentication
 	// +optional
 	Authentication *Authentication `json:"authentication,omitempty"`
 
+	// Environment specific configuration for external secret stores, like Azure KeyVault.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
+	// Environment specific configuration for workload identity (federated credentials).
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
+	// Controls if the component shall be deployed to this environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -321,53 +426,96 @@ type RadixEnvironmentConfig struct {
 // RadixJobComponent defines a single job component within a RadixApplication
 // The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
 type RadixJobComponent struct {
+	// Name of the environment which the settings applies to.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Name string `json:"name"`
 
+	// Path to the Dockerfile that builds the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#src-2
 	// +optional
 	SourceFolder string `json:"src,omitempty"`
 
-	// +optional
-	Image string `json:"image,omitempty"`
-
+	// Name of the Dockerfile that builds the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename-2
 	// +optional
 	DockerfileName string `json:"dockerfileName,omitempty"`
 
+	// Name of an existing container image to use when running the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2
+	// +optional
+	Image string `json:"image,omitempty"`
+
+	// Defines the port number that the job-scheduler API server will listen to.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#schedulerport
+	// +kubebuilder:validation:Minimum=1024
+	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	SchedulerPort *int32 `json:"schedulerPort,omitempty"`
 
+	// Defines the path where the job payload is mounted.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#payload
 	// +optional
 	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
 
+	// List of ports that the job bind to.
+	// +listType=map
+	// +listMapKey=name
 	// +optional
 	Ports []ComponentPort `json:"ports,omitempty"`
 
+	// Configures the monitoring endpoint exposed by the job.
+	// This endpoint is used by Prometheus to collect custom metrics.
+	// environmentConfig.monitoring must be set to true to enable collection of metrics for an environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig-2
 	// +optional
 	MonitoringConfig MonitoringConfig `json:"monitoringConfig,omitempty"`
 
+	// List of secret environment variable names.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets-2
+	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
+	// Configuration for external secret stores, like Azure KeyVault.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
+	// Configure environment specific settings for the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig-2
+	// +listType=map
+	// +listMapKey=environment
 	// +optional
 	EnvironmentConfig []RadixJobComponentEnvironmentConfig `json:"environmentConfig,omitempty"`
 
+	// List of environment variables and values.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common-2
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
+	// Configures CPU and memory resources for the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common-2
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
+	// Defines GPU requirements for the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
+	// The maximum number of seconds the job can run.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
 
+	// Configuration for workload identity (federated credentials).
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
+	// Controls if the job shall be deployed.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -375,96 +523,150 @@ type RadixJobComponent struct {
 // RadixJobComponentEnvironmentConfig defines environment specific settings
 // for a single job component within a RadixApplication
 type RadixJobComponentEnvironmentConfig struct {
+	// Name of the environment which the settings applies to.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	Environment string `json:"environment"`
 
+	// Enabled or disables collection of custom Prometheus metrics.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring-2
 	// +optional
 	Monitoring bool `json:"monitoring,omitempty"`
 
+	// Environment specific configuration for CPU and memory resources.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3
 	// +optional
 	Resources ResourceRequirements `json:"resources,omitempty"`
 
+	// Environment specific environment variables.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-2
 	// +optional
 	Variables EnvVarsMap `json:"variables,omitempty"`
 
+	// The imageTagName allows for flexible configuration of fixed images,
+	// built outside of Radix, to be configured with separate tag for each environment.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname-2
 	// +optional
 	ImageTagName string `json:"imageTagName,omitempty"`
 
+	// Configuration for mounting cloud storage into the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts-2
 	// +optional
 	VolumeMounts []RadixVolumeMount `json:"volumeMounts,omitempty"`
 
+	// Environment specific GPU requirements for the job.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#node
 	// +optional
 	Node RadixNode `json:"node,omitempty"`
 
+	// Environment specific configuration for external secret stores, like Azure KeyVault.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs
 	// +optional
 	SecretRefs RadixSecretRefs `json:"secretRefs,omitempty"`
 
+	// Environment specific value for the maximum number of seconds the job can run.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
 
+	// Environment specific configuration for workload identity (federated credentials).
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
 	// +optional
 	Identity *Identity `json:"identity,omitempty"`
 
+	// Controls if the job shall be deployed to this environment.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// RadixJobComponentPayload defines the path and where the payload received by radix-job-scheduler-server
-// will be mounted to the job container
+// RadixJobComponentPayload defines the path and where the payload received
+// by radix-job-scheduler-server will be mounted to the job container
 type RadixJobComponentPayload struct {
+	// Path to the folder where payload is mounted
+	// +kubebuilder:validation:MinLength=1
 	Path string `json:"path"`
 }
 
-// RadixHorizontalScaling defines configuration for horizontal pod autoscaler. It is kept as close as the HorizontalPodAutoscalerSpec
+// RadixHorizontalScaling defines configuration for horizontal pod autoscaler.
 // If set, this will override replicas config
 type RadixHorizontalScaling struct {
-	// +kubebuilder:validation:Minimum:=0
+	// Defines the minimum number of replicas.
+	// +kubebuilder:validation:Minimum=0
 	// +optional
 	MinReplicas *int32 `json:"minReplicas,omitempty"`
 
-	// +kubebuilder:validation:Minimum:=1
+	// Defines the maximum number of replicas.
+	// +kubebuilder:validation:Minimum=1
 	MaxReplicas int32 `json:"maxReplicas"`
 }
 
-// Defines authentication information for private image registries.
+// PrivateImageHubEntries defines authentication information for private image registries.
 type PrivateImageHubEntries map[string]*RadixPrivateImageHubCredential
 
-// Defines the user name and email to use when pulling images
-// from a private image repository.
+// RadixPrivateImageHubCredential contains credentials to use when pulling images
+// from a protected container registry.
 type RadixPrivateImageHubCredential struct {
+	// User name with permission to pull images.
+	// The password is set in Radix Web Console.
+	// +kubebuilder:validation:MinLength=1
 	Username string `json:"username"`
-	Email    string `json:"email"`
+
+	// The email address linked to the username.
+	// +kubebuilder:validation:MinLength=1
+	Email string `json:"email"`
 }
 
-// RadixVolumeMount defines volume to be mounted to the container
+// RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
+	// Type defines the storage type.
+	// blob is deprecated, use azure-blob instead.
 	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file
 	Type MountType `json:"type"`
 
+	// User defined name of the volume mount.
+	// Must be unique for the component.
+	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 
+	// Deprecated. Only required by the deprecated type: blob.
 	// +optional
 	Container string `json:"container,omitempty"` //Outdated. Use Storage instead
 
+	// Storage defines the name of the container in the external storage resource.
+	// +optional
 	Storage string `json:"storage"` //Container name, file Share name, etc.
 
+	// Path defines in which directory the external storage is mounted.
+	// +kubebuilder:validation:MinLength=1
 	Path string `json:"path"` //Path within the pod (replica), where the volume mount has been mounted to
 
+	// GID defines the group ID (number) which will be set as owner of the mounted volume.
 	// +optional
 	GID string `json:"gid,omitempty"` //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
 
+	// UID defines the user ID (number) which will be set as owner of the mounted volume.
 	// +optional
 	UID string `json:"uid,omitempty"` //Optional. Volume mount owner UserID. Used instead of GID.
 
+	// TODO: describe
+	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +optional
 	SkuName string `json:"skuName,omitempty"` //Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 
+	// TODO: describe
+	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +optional
 	RequestsStorage string `json:"requestsStorage,omitempty"` //Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
+	// TODO: describe
+	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
+	// TODO: describe
+	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
@@ -529,20 +731,23 @@ func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 
 // RadixNode defines node attributes, where container should be scheduled
 type RadixNode struct {
-	// Gpu Optional. Holds lists of node GPU types, with dashed types to exclude
+	// Defines rules for allowed GPU types.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
 	Gpu string `json:"gpu"`
 
-	// GpuCount Optional. Holds minimum count of GPU on node
+	// Defines minimum number of required GPUs.
 	// +optional
 	GpuCount string `json:"gpuCount,omitempty"`
 }
 
 // MonitoringConfig Monitoring configuration
 type MonitoringConfig struct {
-	// Port name
+	// Defines which port in the ports list where metrics is served.
+	// +kubebuilder:validation:MaxLength=15
+	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
 	PortName string `json:"portName"`
 
-	// HTTP path to scrape for metrics.
+	// Defines the path where metrics is served.
 	// +optional
 	Path string `json:"path,omitempty"`
 }
@@ -557,22 +762,25 @@ const (
 
 // RadixSecretRefs defines secret vault
 type RadixSecretRefs struct {
-	// AzureKeyVaults. List of RadixSecretRefs-s, containing Azure Key Vault configurations
+	// List of Azure keyvaults to get secrets from.
 	// +optional
 	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults"`
 }
 
-// RadixAzureKeyVault defines Azure Key Vault
+// RadixAzureKeyVault defines an Azure keyvault.
 type RadixAzureKeyVault struct {
-	// Name. Name of the Azure Key Vault
+	// Name of the Azure keyvault.
+	// +kubebuilder:validation:MinLength=3
+	// +kubebuilder:validation:MaxLength=24
 	Name string `json:"name"`
 
-	// Path. Optional. Path within replicas, where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>
+	// Path where secrets from the keyvault is mounted.
+	// +kubebuilder:validation:MinLength=1
 	// +optional
 	Path *string `json:"path,omitempty"`
 
-	// Items. Azure Key Vault items
-	// +kubebuilder:validation:MinItems:=1
+	// List of keyvault items (secrets, keys and certificates).
+	// +kubebuilder:validation:MinItems=1
 	Items []RadixAzureKeyVaultItem `json:"items"`
 }
 
@@ -600,38 +808,45 @@ const (
 
 // RadixAzureKeyVaultItem defines Azure Key Vault setting: secrets, keys, certificates
 type RadixAzureKeyVaultItem struct {
-	// Name. Name of the Azure Key Vault object
+	// Name of a secret, key or certificate in the keyvault.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=127
 	Name string `json:"name"`
 
-	// EnvVar. Name of the environment variable within replicas, containing Azure Key Vault object value
+	// Defines the name of the environment variable that will contain the value of the secret, key or certificate.
 	// +optional
 	EnvVar string `json:"envVar,omitempty"`
 
-	// Type. Optional. Type of the Azure KeyVault object: secret (default), key, cert
+	// Type of item in the keyvault referenced by the name.
 	// +kubebuilder:validation:Enum=secret;key;cert
 	// +optional
 	Type *RadixAzureKeyVaultObjectType `json:"type,omitempty"`
 
-	// Alias. Optional. It is not yet fully supported by the Azure CSI Key vault driver. Specify the filename of the object when written to disk. Defaults to objectName if not provided.
+	// Alias overrides the default file name used when mounting the secret, key or certificate.
+	// +kubebuilder:validation:MinLength=1
 	// +optional
 	Alias *string `json:"alias,omitempty"`
 
-	// Version. Optional. object versions, default to the latest, if empty
+	// Defines that a specific version of a keyvault item should be loaded.
+	// The latest version is loaded when this field is not set.
 	// +optional
 	Version *string `json:"version,omitempty"`
 
-	// Format. Optional. The format of the Azure Key Vault object, supported types are pem and pfx. objectFormat: pfx is only supported with objectType: secret and PKCS12 or ECC certificates. Default format for certificates is pem.
+	// Defines the format of the keyvault item.
+	// pfx is only supported with type secret and PKCS12 or ECC certificate.
+	// Default format for certificates is pem.
 	// +kubebuilder:validation:Enum=pem;pfx
 	// +optional
 	Format *string `json:"format,omitempty"`
 
-	// Encoding. Optional. Setting object encoding to base64 and object format to pfx will fetch and write the base64 decoded pfx binary
+	// Encoding defines the encoding of a keyvault item when stored in the container.
+	// Setting encoding to base64 and format to pfx will fetch and write the base64 decoded pfx binary.
 	// +kubebuilder:validation:Enum=base64
 	// +optional
 	Encoding *string `json:"encoding,omitempty"`
 
-	// K8SSecretType. Optional. Setting object k8s secret type.
-	// Allowed types: opaque (default), tls. It corresponds to "Opaque" and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
+	// k8sSecretType defines the type of Kubernetes secret the keyvault item will be stored in.
+	// opaque corresponds to "Opaque" and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
 	// +kubebuilder:validation:Enum=opaque;tls
 	// +optional
 	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty"`
@@ -700,6 +915,7 @@ const (
 // OAuth2 defines oauth proxy settings for a component
 type OAuth2 struct {
 	// ClientID. The OAuth2 client ID
+	// +optional
 	ClientID string `json:"clientId"`
 
 	// Scope. Optional. The requested scope by the OAuth code flow

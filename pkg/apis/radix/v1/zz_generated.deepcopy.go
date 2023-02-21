@@ -224,7 +224,7 @@ func (in *EgressRule) DeepCopyInto(out *EgressRule) {
 	*out = *in
 	if in.Destinations != nil {
 		in, out := &in.Destinations, &out.Destinations
-		*out = make([]string, len(*in))
+		*out = make([]EgressDestination, len(*in))
 		copy(*out, *in)
 	}
 	if in.Ports != nil {
