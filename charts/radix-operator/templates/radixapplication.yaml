@@ -35,49 +35,56 @@ spec:
           metadata:
             type: object
           spec:
-            description: "Specification for an application. \n More info: https://www.radix.equinor.com/references/reference-radix-config/"
+            description: 'Specification for an application. More info: https://www.radix.equinor.com/references/reference-radix-config/'
             properties:
               build:
-                description: Build contains configuration used by pipeline jobs.
+                description: 'Build contains configuration used by pipeline jobs.
+                  More info: https://www.radix.equinor.com/references/reference-radix-config/#build'
                 properties:
                   secrets:
-                    description: Defines a list of secrets to be used in Dockerfile
-                      or sub-pipelines
+                    description: Defines a list of secrets that will be passed as
+                      ARGs when building Dockerfile. The secrets can also be accessed
+                      in sub-pipelines.
                     items:
                       type: string
                     type: array
-                    uniqueItems: true
                   useBuildKit:
-                    description: 'Enables BuildKit when for docker build. More info
-                      about BuildKit: https://docs.docker.com/build/buildkit/'
+                    description: 'Enables BuildKit when building Dockerfile. More
+                      info about BuildKit: https://docs.docker.com/build/buildkit/'
                     type: boolean
                   variables:
                     additionalProperties:
                       type: string
-                    description: Defines variables that will be available in sub-pipelines
+                    description: Defines variables that will be available in sub-pipelines.
                     type: object
                 type: object
               components:
-                description: Defines the components for the application.
+                description: 'List of component specification for the application.
+                  More info: https://www.radix.equinor.com/references/reference-radix-config/#components'
                 items:
-                  description: RadixComponent defines a single component within a
-                    RadixApplication - maps to single deployment/service/ingress etc
+                  description: RadixComponent defines a component.
                   properties:
                     alwaysPullImageOnDeploy:
+                      description: 'Forces check/pull of images using static tags,
+                        e.g. myimage:latest, when deploying using deploy-only. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#alwayspullimageondeploy'
                       type: boolean
                     authentication:
-                      description: Authentication Radix authentication settings
+                      description: 'Configuration for TLS client certificate or OAuth2
+                        authentication. More info: https://www.radix.equinor.com/references/reference-radix-config/#authentication'
                       properties:
                         clientCertificate:
-                          description: ClientCertificate Authentication client certificate
+                          description: 'Configuration for TLS client certificate authentication.
+                            More info: https://www.radix.equinor.com/references/reference-radix-config/#clientcertificate'
                           properties:
                             passCertificateToUpstream:
-                              description: PassCertificateToUpstream Should a certificate
-                                be passed to upstream
+                              description: Pass client certificate to backend in header
+                                ssl-client-cert. This setting has no effect if verification
+                                is set to off.
                               type: boolean
                             verification:
-                              description: Verification Client certificate verification
-                                type
+                              description: Defines how the client certificate shall
+                                be verified.
                               enum:
                               - "on"
                               - "off"
@@ -86,32 +93,30 @@ spec:
                               type: string
                           type: object
                         oauth2:
-                          description: OAuth2 defines oauth proxy settings for a component
+                          description: 'Configuration for OAuth2 authentication. More
+                            info: https://www.radix.equinor.com/references/reference-radix-config/#oauth2'
                           properties:
                             clientId:
-                              description: ClientID. The OAuth2 client ID
+                              description: Client ID of the application.
                               type: string
                             cookie:
-                              description: Cookie. Optional. Settings for the session
-                                cookie
+                              description: Session cookie settings.
                               properties:
                                 expire:
-                                  description: 'Expire. Optional. The expire timeframe
-                                    for the session cookie Default: 168h0m0s'
+                                  description: Defines the expire timeframe for the
+                                    session cookie.
                                   type: string
                                 name:
-                                  description: 'Name. Optional. Defines the name of
-                                    the OAuth session cookie Default: _oauth2_proxy'
+                                  description: Defines the name of the OAuth session
+                                    cookie.
                                   type: string
                                 refresh:
-                                  description: Refresh. Optional. The interval between
-                                    cookie refreshes The value must be a shorter timeframe
-                                    than Expire Default 60m0s
+                                  description: The interval between cookie refreshes.
+                                    The value must be a shorter timeframe than values
+                                    set in Expire.
                                   type: string
                                 sameSite:
-                                  description: 'SameSite. Optional. The samesite cookie
-                                    attribute Allowed values: strict, lax, none or
-                                    empty Default: lax'
+                                  description: Defines the samesite cookie attribute
                                   enum:
                                   - strict
                                   - lax
@@ -120,119 +125,118 @@ spec:
                                   type: string
                               type: object
                             cookieStore:
-                              description: CookieStore. Optional. Settings for cookie
-                                that stores session data when SessionStoreType is
-                                cookie
+                              description: Settings for the cookie that stores session
+                                data when SessionStoreType is cookie.
                               properties:
                                 minimal:
-                                  description: 'Minimal. Optional. Strips OAuth tokens
-                                    from cookies if they are not needed (only when
-                                    SessionStoreType is cookie) Cookie.Refresh must
-                                    be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader
-                                    must be false if this setting is true Default:
-                                    false'
+                                  description: Strips OAuth tokens from cookies if
+                                    they are not needed. Cookie.Refresh must be 0,
+                                    and both SetXAuthRequestHeaders and SetAuthorizationHeader
+                                    must be false if this setting is true.
                                   type: boolean
                               type: object
                             loginUrl:
-                              description: LoginURL. Optional. Authentication endpoint
-                                Must be set if OIDC.SkipDiscovery is true
+                              description: Defines the authentication endpoint of
+                                the identity provider. Must be set if OIDC.SkipDiscovery
+                                is true
                               type: string
                             oidc:
-                              description: OIDC. Optional. Defines OIDC settings
+                              description: OIDC settings.
                               properties:
                                 insecureSkipVerifyNonce:
-                                  description: 'InsecureSkipVerifyNonce. Optional.
-                                    Skip verifying the OIDC ID Token''s nonce claim
-                                    Default: false'
+                                  description: Skip verifying the OIDC ID Token's
+                                    nonce claim
                                   type: boolean
                                 issuerUrl:
-                                  description: 'IssuerURL. Optional. The OIDC issuer
-                                    URL Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0'
+                                  description: Defines the OIDC issuer URL.
                                   type: string
                                 jwksUrl:
-                                  description: JWKSURL. Optional. OIDC JWKS URL for
-                                    token verification; required if OIDC discovery
-                                    is disabled
+                                  description: Defines the OIDC JWKS URL for token
+                                    verification. Required if OIDC discovery is disabled.
                                   type: string
                                 skipDiscovery:
-                                  description: 'SkipDiscovery. Optional. Defines if
-                                    OIDC endpoint discovery should be bypassed LoginURL,
-                                    RedeemURL, JWKSURL must be configured if discovery
-                                    is disabled Default: false'
+                                  description: Defines if OIDC endpoint discovery
+                                    should be bypassed. LoginURL, RedeemURL, JWKSURL
+                                    must be configured if discovery is disabled.
                                   type: boolean
                               type: object
                             proxyPrefix:
-                              description: 'ProxyPrefix. Optional. The url root path
-                                that OAuth Proxy should be nested under Default: /oauth2'
+                              description: Defines the url root path that OAuth Proxy
+                                should be nested under.
                               type: string
                             redeemUrl:
-                              description: RedeemURL. Optional. Endpoint to redeem
-                                the authorization code received from the OAuth code
-                                flow Must be set if OIDC.SkipDiscovery is true
+                              description: Defines the endpoint to redeem the authorization
+                                code received from the OAuth code flow. Must be set
+                                if OIDC.SkipDiscovery is true
                               type: string
                             redisStore:
-                              description: RedisStore. Optional. Settings for Redis
-                                store when SessionStoreType is redis
+                              description: Settings for Redis store when SessionStoreType
+                                is redis.
                               properties:
                                 connectionUrl:
-                                  description: ConnectionURL. The URL for the Redis
-                                    server when SessionStoreType is redis
+                                  description: Defines the URL for the Redis server.
                                   type: string
                               required:
                               - connectionUrl
                               type: object
                             scope:
-                              description: 'Scope. Optional. The requested scope by
-                                the OAuth code flow Default: openid profile email'
+                              description: Requested scopes.
                               type: string
                             sessionStoreType:
-                              description: 'SessionStoreType. Optional. Specifies
-                                where to store the session data Allowed values: cookie,
-                                redis Default: cookie'
+                              description: Defines where to store session data.
                               enum:
                               - cookie
                               - redis
                               type: string
                             setAuthorizationHeader:
-                              description: 'SetAuthorizationHeader. Optional. Defines
-                                if the IDToken received by the OAuth Proxy should
-                                be added to the Authorization header Default: false'
+                              description: Defines if the IDToken received by the
+                                OAuth Proxy should be added to the Authorization header.
                               type: boolean
                             setXAuthRequestHeaders:
-                              description: 'SetXAuthRequestHeaders. Optional. Defines
-                                if X-Auth-* headers should added to the request Sets
-                                the X-Auth-Request-User, X-Auth-Request-Groups, X-Auth-Request-Email,
-                                X-Auth-Request-Preferred-Username and X-Auth-Request-Access-Token
-                                from values in the Access Token redeemed by the OAuth
-                                Proxy Default: false'
+                              description: Defines if claims from the access token
+                                is added to the X-Auth-Request-User, X-Auth-Request-Groups,
+                                X-Auth-Request-Email and X-Auth-Request-Preferred-Username
+                                request headers. The access token is passed in the
+                                X-Auth-Request-Access-Token header.
                               type: boolean
                           type: object
                       type: object
                     dockerfileName:
+                      description: 'Name of the Dockerfile that builds the component.
+                        More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename'
                       type: string
                     enabled:
+                      description: 'Controls if the component shall be deployed. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#enabled'
                       type: boolean
                     environmentConfig:
+                      description: 'Configure environment specific settings for the
+                        component. More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig'
                       items:
                         description: RadixEnvironmentConfig defines environment specific
-                          settings for a single component within a RadixApplication
+                          settings for component.
                         properties:
                           alwaysPullImageOnDeploy:
+                            description: Forces check/pull of images using static
+                              tags, e.g. myimage:latest, when deploying using deploy-only.
                             type: boolean
                           authentication:
-                            description: Authentication Radix authentication settings
+                            description: 'Environment specific configuration for TLS
+                              client certificate or OAuth2 authentication. More info:
+                              https://www.radix.equinor.com/references/reference-radix-config/#authentication'
                             properties:
                               clientCertificate:
-                                description: ClientCertificate Authentication client
-                                  certificate
+                                description: 'Configuration for TLS client certificate
+                                  authentication. More info: https://www.radix.equinor.com/references/reference-radix-config/#clientcertificate'
                                 properties:
                                   passCertificateToUpstream:
-                                    description: PassCertificateToUpstream Should
-                                      a certificate be passed to upstream
+                                    description: Pass client certificate to backend
+                                      in header ssl-client-cert. This setting has
+                                      no effect if verification is set to off.
                                     type: boolean
                                   verification:
-                                    description: Verification Client certificate verification
-                                      type
+                                    description: Defines how the client certificate
+                                      shall be verified.
                                     enum:
                                     - "on"
                                     - "off"
@@ -241,36 +245,30 @@ spec:
                                     type: string
                                 type: object
                               oauth2:
-                                description: OAuth2 defines oauth proxy settings for
-                                  a component
+                                description: 'Configuration for OAuth2 authentication.
+                                  More info: https://www.radix.equinor.com/references/reference-radix-config/#oauth2'
                                 properties:
                                   clientId:
-                                    description: ClientID. The OAuth2 client ID
+                                    description: Client ID of the application.
                                     type: string
                                   cookie:
-                                    description: Cookie. Optional. Settings for the
-                                      session cookie
+                                    description: Session cookie settings.
                                     properties:
                                       expire:
-                                        description: 'Expire. Optional. The expire
-                                          timeframe for the session cookie Default:
-                                          168h0m0s'
+                                        description: Defines the expire timeframe
+                                          for the session cookie.
                                         type: string
                                       name:
-                                        description: 'Name. Optional. Defines the
-                                          name of the OAuth session cookie Default:
-                                          _oauth2_proxy'
+                                        description: Defines the name of the OAuth
+                                          session cookie.
                                         type: string
                                       refresh:
-                                        description: Refresh. Optional. The interval
-                                          between cookie refreshes The value must
-                                          be a shorter timeframe than Expire Default
-                                          60m0s
+                                        description: The interval between cookie refreshes.
+                                          The value must be a shorter timeframe than
+                                          values set in Expire.
                                         type: string
                                       sameSite:
-                                        description: 'SameSite. Optional. The samesite
-                                          cookie attribute Allowed values: strict,
-                                          lax, none or empty Default: lax'
+                                        description: Defines the samesite cookie attribute
                                         enum:
                                         - strict
                                         - lax
@@ -279,118 +277,109 @@ spec:
                                         type: string
                                     type: object
                                   cookieStore:
-                                    description: CookieStore. Optional. Settings for
-                                      cookie that stores session data when SessionStoreType
-                                      is cookie
+                                    description: Settings for the cookie that stores
+                                      session data when SessionStoreType is cookie.
                                     properties:
                                       minimal:
-                                        description: 'Minimal. Optional. Strips OAuth
-                                          tokens from cookies if they are not needed
-                                          (only when SessionStoreType is cookie) Cookie.Refresh
-                                          must be 0, and both SetXAuthRequestHeaders
-                                          and SetAuthorizationHeader must be false
-                                          if this setting is true Default: false'
+                                        description: Strips OAuth tokens from cookies
+                                          if they are not needed. Cookie.Refresh must
+                                          be 0, and both SetXAuthRequestHeaders and
+                                          SetAuthorizationHeader must be false if
+                                          this setting is true.
                                         type: boolean
                                     type: object
                                   loginUrl:
-                                    description: LoginURL. Optional. Authentication
-                                      endpoint Must be set if OIDC.SkipDiscovery is
-                                      true
+                                    description: Defines the authentication endpoint
+                                      of the identity provider. Must be set if OIDC.SkipDiscovery
+                                      is true
                                     type: string
                                   oidc:
-                                    description: OIDC. Optional. Defines OIDC settings
+                                    description: OIDC settings.
                                     properties:
                                       insecureSkipVerifyNonce:
-                                        description: 'InsecureSkipVerifyNonce. Optional.
-                                          Skip verifying the OIDC ID Token''s nonce
-                                          claim Default: false'
+                                        description: Skip verifying the OIDC ID Token's
+                                          nonce claim
                                         type: boolean
                                       issuerUrl:
-                                        description: 'IssuerURL. Optional. The OIDC
-                                          issuer URL Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0'
+                                        description: Defines the OIDC issuer URL.
                                         type: string
                                       jwksUrl:
-                                        description: JWKSURL. Optional. OIDC JWKS
-                                          URL for token verification; required if
-                                          OIDC discovery is disabled
+                                        description: Defines the OIDC JWKS URL for
+                                          token verification. Required if OIDC discovery
+                                          is disabled.
                                         type: string
                                       skipDiscovery:
-                                        description: 'SkipDiscovery. Optional. Defines
-                                          if OIDC endpoint discovery should be bypassed
-                                          LoginURL, RedeemURL, JWKSURL must be configured
-                                          if discovery is disabled Default: false'
+                                        description: Defines if OIDC endpoint discovery
+                                          should be bypassed. LoginURL, RedeemURL,
+                                          JWKSURL must be configured if discovery
+                                          is disabled.
                                         type: boolean
                                     type: object
                                   proxyPrefix:
-                                    description: 'ProxyPrefix. Optional. The url root
-                                      path that OAuth Proxy should be nested under
-                                      Default: /oauth2'
+                                    description: Defines the url root path that OAuth
+                                      Proxy should be nested under.
                                     type: string
                                   redeemUrl:
-                                    description: RedeemURL. Optional. Endpoint to
-                                      redeem the authorization code received from
-                                      the OAuth code flow Must be set if OIDC.SkipDiscovery
-                                      is true
+                                    description: Defines the endpoint to redeem the
+                                      authorization code received from the OAuth code
+                                      flow. Must be set if OIDC.SkipDiscovery is true
                                     type: string
                                   redisStore:
-                                    description: RedisStore. Optional. Settings for
-                                      Redis store when SessionStoreType is redis
+                                    description: Settings for Redis store when SessionStoreType
+                                      is redis.
                                     properties:
                                       connectionUrl:
-                                        description: ConnectionURL. The URL for the
-                                          Redis server when SessionStoreType is redis
+                                        description: Defines the URL for the Redis
+                                          server.
                                         type: string
                                     required:
                                     - connectionUrl
                                     type: object
                                   scope:
-                                    description: 'Scope. Optional. The requested scope
-                                      by the OAuth code flow Default: openid profile
-                                      email'
+                                    description: Requested scopes.
                                     type: string
                                   sessionStoreType:
-                                    description: 'SessionStoreType. Optional. Specifies
-                                      where to store the session data Allowed values:
-                                      cookie, redis Default: cookie'
+                                    description: Defines where to store session data.
                                     enum:
                                     - cookie
                                     - redis
                                     type: string
                                   setAuthorizationHeader:
-                                    description: 'SetAuthorizationHeader. Optional.
-                                      Defines if the IDToken received by the OAuth
-                                      Proxy should be added to the Authorization header
-                                      Default: false'
+                                    description: Defines if the IDToken received by
+                                      the OAuth Proxy should be added to the Authorization
+                                      header.
                                     type: boolean
                                   setXAuthRequestHeaders:
-                                    description: 'SetXAuthRequestHeaders. Optional.
-                                      Defines if X-Auth-* headers should added to
-                                      the request Sets the X-Auth-Request-User, X-Auth-Request-Groups,
-                                      X-Auth-Request-Email, X-Auth-Request-Preferred-Username
-                                      and X-Auth-Request-Access-Token from values
-                                      in the Access Token redeemed by the OAuth Proxy
-                                      Default: false'
+                                    description: Defines if claims from the access
+                                      token is added to the X-Auth-Request-User, X-Auth-Request-Groups,
+                                      X-Auth-Request-Email and X-Auth-Request-Preferred-Username
+                                      request headers. The access token is passed
+                                      in the X-Auth-Request-Access-Token header.
                                     type: boolean
                                 type: object
                             type: object
                           enabled:
+                            description: 'Controls if the component shall be deployed
+                              to this environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#enabled'
                             type: boolean
                           environment:
+                            description: Name of the environment which the settings
+                              applies to.
                             maxLength: 63
                             minLength: 1
                             pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                             type: string
                           horizontalScaling:
-                            description: RadixHorizontalScaling defines configuration
-                              for horizontal pod autoscaler. It is kept as close as
-                              the HorizontalPodAutoscalerSpec If set, this will override
-                              replicas config
+                            description: 'Configuration for automatic horizontal scaling
+                              of replicas. More info: https://www.radix.equinor.com/references/reference-radix-config/#horizontalscaling'
                             properties:
                               maxReplicas:
+                                description: Defines the maximum number of replicas.
                                 format: int32
                                 minimum: 1
                                 type: integer
                               minReplicas:
+                                description: Defines the minimum number of replicas.
                                 format: int32
                                 minimum: 0
                                 type: integer
@@ -398,45 +387,51 @@ spec:
                             - maxReplicas
                             type: object
                           identity:
-                            description: Identity configuration for federation with
-                              external identity providers
+                            description: 'Environment specific configuration for workload
+                              identity (federated credentials). More info: https://www.radix.equinor.com/references/reference-radix-config/#identity'
                             properties:
                               azure:
                                 description: Azure identity configuration
                                 properties:
                                   clientId:
-                                    description: ClientId is the client ID for a user
+                                    description: Defines the Client ID for a user
                                       defined managed identity or application ID for
-                                      an application registration
+                                      an application registration.
                                     type: string
                                 required:
                                 - clientId
                                 type: object
                             type: object
                           imageTagName:
+                            description: 'The imageTagName allows for flexible configuration
+                              of fixed images, built outside of Radix, to be configured
+                              with separate tag for each environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname'
                             type: string
                           monitoring:
+                            description: 'Enabled or disables collection of custom
+                              Prometheus metrics. More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring'
                             type: boolean
                           node:
-                            description: RadixNode defines node attributes, where
-                              container should be scheduled
+                            description: 'Environment specific GPU requirements for
+                              the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#node'
                             properties:
                               gpu:
-                                description: Gpu Optional. Holds lists of node GPU
-                                  types, with dashed types to exclude
+                                description: 'Defines rules for allowed GPU types.
+                                  More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
                                 type: string
                               gpuCount:
-                                description: GpuCount Optional. Holds minimum count
-                                  of GPU on node
+                                description: Defines minimum number of required GPUs.
                                 type: string
+                            required:
+                            - gpu
                             type: object
                           replicas:
+                            description: 'Number of desired replicas. More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas'
                             minimum: 0
                             type: integer
                           resources:
-                            description: 'ResourceRequirements describes the compute
-                              resource requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
-                              - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                            description: 'Environment specific configuration for CPU
+                              and memory resources. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources'
                             properties:
                               limits:
                                 additionalProperties:
@@ -455,58 +450,57 @@ spec:
                                 type: object
                             type: object
                           secretRefs:
-                            description: RadixSecretRefs defines secret vault
+                            description: 'Environment specific configuration for external
+                              secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                             properties:
                               azureKeyVaults:
-                                description: AzureKeyVaults. List of RadixSecretRefs-s,
-                                  containing Azure Key Vault configurations
+                                description: List of Azure keyvaults to get secrets
+                                  from.
                                 items:
-                                  description: RadixAzureKeyVault defines Azure Key
-                                    Vault
+                                  description: RadixAzureKeyVault defines an Azure
+                                    keyvault.
                                   properties:
                                     items:
-                                      description: Items. Azure Key Vault items
+                                      description: List of keyvault items (secrets,
+                                        keys and certificates).
                                       items:
                                         description: 'RadixAzureKeyVaultItem defines
                                           Azure Key Vault setting: secrets, keys,
                                           certificates'
                                         properties:
                                           alias:
-                                            description: Alias. Optional. It is not
-                                              yet fully supported by the Azure CSI
-                                              Key vault driver. Specify the filename
-                                              of the object when written to disk.
-                                              Defaults to objectName if not provided.
+                                            description: Alias overrides the default
+                                              file name used when mounting the secret,
+                                              key or certificate.
                                             minLength: 1
                                             type: string
                                           encoding:
-                                            description: Encoding. Optional. Setting
-                                              object encoding to base64 and object
-                                              format to pfx will fetch and write the
-                                              base64 decoded pfx binary
+                                            description: Encoding defines the encoding
+                                              of a keyvault item when stored in the
+                                              container. Setting encoding to base64
+                                              and format to pfx will fetch and write
+                                              the base64 decoded pfx binary.
                                             enum:
                                             - base64
                                             type: string
                                           envVar:
-                                            description: EnvVar. Name of the environment
-                                              variable within replicas, containing
-                                              Azure Key Vault object value
+                                            description: Defines the name of the environment
+                                              variable that will contain the value
+                                              of the secret, key or certificate.
                                             type: string
                                           format:
-                                            description: 'Format. Optional. The format
-                                              of the Azure Key Vault object, supported
-                                              types are pem and pfx. objectFormat:
-                                              pfx is only supported with objectType:
-                                              secret and PKCS12 or ECC certificates.
-                                              Default format for certificates is pem.'
+                                            description: Defines the format of the
+                                              keyvault item. pfx is only supported
+                                              with type secret and PKCS12 or ECC certificate.
+                                              Default format for certificates is pem.
                                             enum:
                                             - pem
                                             - pfx
                                             type: string
                                           k8sSecretType:
-                                            description: 'K8SSecretType. Optional.
-                                              Setting object k8s secret type. Allowed
-                                              types: opaque (default), tls. It corresponds
+                                            description: 'k8sSecretType defines the
+                                              type of Kubernetes secret the keyvault
+                                              item will be stored in. opaque corresponds
                                               to "Opaque" and "kubernetes.io/tls"
                                               secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
                                             enum:
@@ -514,24 +508,24 @@ spec:
                                             - tls
                                             type: string
                                           name:
-                                            description: Name. Name of the Azure Key
-                                              Vault object
+                                            description: Name of a secret, key or
+                                              certificate in the keyvault.
                                             maxLength: 127
                                             minLength: 1
                                             type: string
                                           type:
-                                            description: 'Type. Optional. Type of
-                                              the Azure KeyVault object: secret (default),
-                                              key, cert'
+                                            description: Type of item in the keyvault
+                                              referenced by the name.
                                             enum:
                                             - secret
                                             - key
                                             - cert
                                             type: string
                                           version:
-                                            description: Version. Optional. object
-                                              versions, default to the latest, if
-                                              empty
+                                            description: Defines that a specific version
+                                              of a keyvault item should be loaded.
+                                              The latest version is loaded when this
+                                              field is not set.
                                             type: string
                                         required:
                                         - name
@@ -539,14 +533,13 @@ spec:
                                       minItems: 1
                                       type: array
                                     name:
-                                      description: Name. Name of the Azure Key Vault
+                                      description: Name of the Azure keyvault.
                                       maxLength: 24
                                       minLength: 3
                                       type: string
                                     path:
-                                      description: 'Path. Optional. Path within replicas,
-                                        where secrets are mapped as files. Default:
-                                        /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                      description: Path where secrets from the keyvault
+                                        is mounted.
                                       minLength: 1
                                       type: string
                                   required:
@@ -558,55 +551,73 @@ spec:
                           variables:
                             additionalProperties:
                               type: string
-                            description: 'Map of environment variables in the form
-                              ''<envvarname>: <value>'''
+                            description: Environment specific environment variables.
+                              Variable names defined here have precedence over variables
+                              defined on component level.
                             type: object
                           volumeMounts:
+                            description: 'Configuration for mounting cloud storage
+                              into the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts'
                             items:
-                              description: RadixVolumeMount defines volume to be mounted
-                                to the container
+                              description: RadixVolumeMount defines an external storage
+                                resource.
                               properties:
                                 accessMode:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - ReadOnlyMany
                                   - ReadWriteOnce
                                   - ReadWriteMany
                                   type: string
                                 bindingMode:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - Immediate
                                   - WaitForFirstConsumer
                                   type: string
                                 container:
+                                  description: 'Deprecated. Only required by the deprecated
+                                    type: blob.'
                                   type: string
                                 gid:
+                                  description: GID defines the group ID (number) which
+                                    will be set as owner of the mounted volume.
                                   type: string
                                 name:
+                                  description: User defined name of the volume mount.
+                                    Must be unique for the component.
                                   minLength: 1
                                   type: string
                                 path:
+                                  description: Path defines in which directory the
+                                    external storage is mounted.
                                   minLength: 1
                                   type: string
                                 requestsStorage:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   type: string
                                 skuName:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   type: string
                                 storage:
-                                  minLength: 1
+                                  description: Storage defines the name of the container
+                                    in the external storage resource.
                                   type: string
                                 type:
-                                  description: MountType Holds types of mount
+                                  description: Type defines the storage type. blob
+                                    is deprecated, use azure-blob instead.
                                   enum:
                                   - blob
                                   - azure-blob
                                   - azure-file
                                   type: string
                                 uid:
+                                  description: UID defines the user ID (number) which
+                                    will be set as owner of the mounted volume.
                                   type: string
                               required:
                               - name
                               - path
-                              - storage
                               - type
                               type: object
                             type: array
@@ -618,72 +629,83 @@ spec:
                       - environment
                       x-kubernetes-list-type: map
                     identity:
-                      description: Identity configuration for federation with external
-                        identity providers
+                      description: 'Configuration for workload identity (federated
+                        credentials). More info: https://www.radix.equinor.com/references/reference-radix-config/#identity'
                       properties:
                         azure:
                           description: Azure identity configuration
                           properties:
                             clientId:
-                              description: ClientId is the client ID for a user defined
+                              description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
-                                registration
+                                registration.
                               type: string
                           required:
                           - clientId
                           type: object
                       type: object
                     image:
+                      description: 'Name of an existing container image to use when
+                        running the component. More info: https://www.radix.equinor.com/references/reference-radix-config/#image'
                       type: string
                     ingressConfiguration:
+                      description: 'Additional configuration settings for ingress
+                        traffic. More info: https://www.radix.equinor.com/references/reference-radix-config/#ingressconfiguration'
                       items:
                         type: string
                       type: array
-                      uniqueItems: true
                     monitoringConfig:
-                      description: MonitoringConfig Monitoring configuration
+                      description: 'Configures the monitoring endpoint exposed by
+                        the component. This endpoint is used by Prometheus to collect
+                        custom metrics. environmentConfig.monitoring must be set to
+                        true to enable collection of metrics for an environment. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig'
                       properties:
                         path:
-                          description: HTTP path to scrape for metrics.
+                          description: Defines the path where metrics is served.
                           type: string
                         portName:
-                          description: Port name
+                          description: Defines which port in the ports list where
+                            metrics is served.
                           maxLength: 15
-                          minLength: 1
                           pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                           type: string
                       required:
                       - portName
                       type: object
                     name:
+                      description: Name of the component.
                       maxLength: 253
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                       type: string
                     node:
-                      description: RadixNode defines node attributes, where container
-                        should be scheduled
+                      description: 'Defines GPU requirements for the component. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#node'
                       properties:
                         gpu:
-                          description: Gpu Optional. Holds lists of node GPU types,
-                            with dashed types to exclude
+                          description: 'Defines rules for allowed GPU types. More
+                            info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
                           type: string
                         gpuCount:
-                          description: GpuCount Optional. Holds minimum count of GPU
-                            on node
+                          description: Defines minimum number of required GPUs.
                           type: string
+                      required:
+                      - gpu
                       type: object
                     ports:
+                      description: List of ports that the component bind to.
                       items:
-                        description: ComponentPort defines the port number, protocol
-                          and port for a service
+                        description: ComponentPort defines a named port.
                         properties:
                           name:
+                            description: Name of the port.
                             maxLength: 15
                             minLength: 1
                             pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                             type: string
                           port:
+                            description: Port number.
                             format: int32
                             maximum: 65535
                             minimum: 1024
@@ -698,16 +720,17 @@ spec:
                       - name
                       x-kubernetes-list-type: map
                     public:
+                      description: Deprecated, use publicPort instead.
                       type: boolean
                     publicPort:
+                      description: 'Defines which port (name) from the ports list
+                        that shall be accessible from the internet. More info: https://www.radix.equinor.com/references/reference-radix-config/#publicport'
                       maxLength: 15
-                      minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                       type: string
                     resources:
-                      description: 'ResourceRequirements describes the compute resource
-                        requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
-                        - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      description: 'Configures CPU and memory resources for the component.
+                        More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common'
                       properties:
                         limits:
                           additionalProperties:
@@ -725,78 +748,77 @@ spec:
                           type: object
                       type: object
                     secretRefs:
-                      description: RadixSecretRefs defines secret vault
+                      description: 'Configuration for external secret stores, like
+                        Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                       properties:
                         azureKeyVaults:
-                          description: AzureKeyVaults. List of RadixSecretRefs-s,
-                            containing Azure Key Vault configurations
+                          description: List of Azure keyvaults to get secrets from.
                           items:
-                            description: RadixAzureKeyVault defines Azure Key Vault
+                            description: RadixAzureKeyVault defines an Azure keyvault.
                             properties:
                               items:
-                                description: Items. Azure Key Vault items
+                                description: List of keyvault items (secrets, keys
+                                  and certificates).
                                 items:
                                   description: 'RadixAzureKeyVaultItem defines Azure
                                     Key Vault setting: secrets, keys, certificates'
                                   properties:
                                     alias:
-                                      description: Alias. Optional. It is not yet
-                                        fully supported by the Azure CSI Key vault
-                                        driver. Specify the filename of the object
-                                        when written to disk. Defaults to objectName
-                                        if not provided.
+                                      description: Alias overrides the default file
+                                        name used when mounting the secret, key or
+                                        certificate.
                                       minLength: 1
                                       type: string
                                     encoding:
-                                      description: Encoding. Optional. Setting object
-                                        encoding to base64 and object format to pfx
+                                      description: Encoding defines the encoding of
+                                        a keyvault item when stored in the container.
+                                        Setting encoding to base64 and format to pfx
                                         will fetch and write the base64 decoded pfx
-                                        binary
+                                        binary.
                                       enum:
                                       - base64
                                       type: string
                                     envVar:
-                                      description: EnvVar. Name of the environment
-                                        variable within replicas, containing Azure
-                                        Key Vault object value
+                                      description: Defines the name of the environment
+                                        variable that will contain the value of the
+                                        secret, key or certificate.
                                       type: string
                                     format:
-                                      description: 'Format. Optional. The format of
-                                        the Azure Key Vault object, supported types
-                                        are pem and pfx. objectFormat: pfx is only
-                                        supported with objectType: secret and PKCS12
-                                        or ECC certificates. Default format for certificates
-                                        is pem.'
+                                      description: Defines the format of the keyvault
+                                        item. pfx is only supported with type secret
+                                        and PKCS12 or ECC certificate. Default format
+                                        for certificates is pem.
                                       enum:
                                       - pem
                                       - pfx
                                       type: string
                                     k8sSecretType:
-                                      description: 'K8SSecretType. Optional. Setting
-                                        object k8s secret type. Allowed types: opaque
-                                        (default), tls. It corresponds to "Opaque"
+                                      description: 'k8sSecretType defines the type
+                                        of Kubernetes secret the keyvault item will
+                                        be stored in. opaque corresponds to "Opaque"
                                         and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
                                       enum:
                                       - opaque
                                       - tls
                                       type: string
                                     name:
-                                      description: Name. Name of the Azure Key Vault
-                                        object
+                                      description: Name of a secret, key or certificate
+                                        in the keyvault.
                                       maxLength: 127
                                       minLength: 1
                                       type: string
                                     type:
-                                      description: 'Type. Optional. Type of the Azure
-                                        KeyVault object: secret (default), key, cert'
+                                      description: Type of item in the keyvault referenced
+                                        by the name.
                                       enum:
                                       - secret
                                       - key
                                       - cert
                                       type: string
                                     version:
-                                      description: Version. Optional. object versions,
-                                        default to the latest, if empty
+                                      description: Defines that a specific version
+                                        of a keyvault item should be loaded. The latest
+                                        version is loaded when this field is not set.
                                       type: string
                                   required:
                                   - name
@@ -804,13 +826,13 @@ spec:
                                 minItems: 1
                                 type: array
                               name:
-                                description: Name. Name of the Azure Key Vault
+                                description: Name of the Azure keyvault.
                                 maxLength: 24
                                 minLength: 3
                                 type: string
                               path:
-                                description: 'Path. Optional. Path within replicas,
-                                  where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                description: Path where secrets from the keyvault
+                                  is mounted.
                                 minLength: 1
                                 type: string
                             required:
@@ -820,17 +842,20 @@ spec:
                           type: array
                       type: object
                     secrets:
+                      description: 'List of secret environment variable names. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#secrets'
                       items:
                         type: string
                       type: array
-                      uniqueItems: true
                     src:
+                      description: 'Path to the Dockerfile that builds the component.
+                        More info: https://www.radix.equinor.com/references/reference-radix-config/#src'
                       type: string
                     variables:
                       additionalProperties:
                         type: string
-                      description: 'Map of environment variables in the form ''<envvarname>:
-                        <value>'''
+                      description: 'List of environment variables and values. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common'
                       type: object
                   required:
                   - name
@@ -842,15 +867,18 @@ spec:
                 - name
                 x-kubernetes-list-type: map
               dnsAppAlias:
-                description: Defines a URL alias for this application. The URL will
-                  be of form <app-name>.app.radix.equinor.com
+                description: 'Configure a component and environment to be linked to
+                  the app alias DNS record. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsappalias'
                 properties:
                   component:
+                    description: Name of the component that shall receive the incoming
+                      requests.
                     maxLength: 63
                     minLength: 1
                     pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                     type: string
                   environment:
+                    description: Name of the environment for the component.
                     maxLength: 63
                     minLength: 1
                     pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
@@ -860,22 +888,27 @@ spec:
                 - environment
                 type: object
               dnsExternalAlias:
-                description: Defines mapping between external DNS aliases and components.
+                description: 'List of external DNS names and which component and environment
+                  incoming requests shall be routed to. More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsexternalalias'
                 items:
-                  description: ExternalAlias defines a URL alias for this application
-                    with ability to bring-your-own certificate
+                  description: ExternalAlias defines mapping between an external DNS
+                    name and a component and environment.
                   properties:
                     alias:
+                      description: DNS name, e.g. myapp.example.com.
                       maxLength: 255
                       minLength: 4
                       pattern: ^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$
                       type: string
                     component:
+                      description: Name of the component that shall receive the incoming
+                        requests.
                       maxLength: 63
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                       type: string
                     environment:
+                      description: Name of the environment for the component.
                       maxLength: 63
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
@@ -890,12 +923,14 @@ spec:
                 - alias
                 x-kubernetes-list-type: map
               environments:
-                description: List of environments belonging to the application.
+                description: 'List of environments belonging to the application. More
+                  info: https://www.radix.equinor.com/references/reference-radix-config/#environments'
                 items:
                   description: Environment contains environment specific configuration.
                   properties:
                     build:
-                      description: Build configuration for the environment.
+                      description: 'Build configuration for the environment. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#build-2'
                       properties:
                         from:
                           description: Name of the Github branch to build from
@@ -910,32 +945,31 @@ spec:
                           type: object
                       type: object
                     egress:
-                      description: 'Configure which egress traffic is allowed from
-                        components/jobs running in the environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#egress'
+                      description: 'Configure egress traffic rules for components
+                        and jobs. More info: https://www.radix.equinor.com/references/reference-radix-config/#egress'
                       properties:
                         allowRadix:
                           description: Allow or deny outgoing traffic to the public
                             IP for the Radix cluster.
                           type: boolean
                         rules:
-                          description: Defines a list of egress rules
+                          description: Defines a list of egress rules.
                           items:
-                            description: EgressRule defines an egress rule in network
-                              policy
+                            description: EgressRule defines an egress rule.
                             properties:
                               destinations:
-                                description: List of allowed destinations Each destination
-                                  must be a valid CIDR
+                                description: List of allowed destinations. Each destination
+                                  must be a valid CIDR.
                                 items:
                                   pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
                                   type: string
                                 minItems: 1
                                 type: array
-                                uniqueItems: true
                               ports:
+                                description: List of allowed ports.
                                 items:
                                   description: EgressPort defines a port in context
-                                    of EgressRule
+                                    of EgressRule.
                                   properties:
                                     port:
                                       format: int32
@@ -961,7 +995,7 @@ spec:
                           type: array
                       type: object
                     name:
-                      description: Name of the environment
+                      description: Name of the environment.
                       maxLength: 63
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
@@ -975,65 +1009,80 @@ spec:
                 - name
                 x-kubernetes-list-type: map
               jobs:
-                description: Defines the jobs for the application.
+                description: 'List of job specification for the application. More
+                  info: https://www.radix.equinor.com/references/reference-radix-config/#jobs'
                 items:
                   description: RadixJobComponent defines a single job component within
                     a RadixApplication The job component is used by the radix-job-scheduler-server
                     to create Kubernetes Job objects
                   properties:
                     dockerfileName:
+                      description: 'Name of the Dockerfile that builds the job. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename-2'
                       type: string
                     enabled:
+                      description: Controls if the job shall be deployed.
                       type: boolean
                     environmentConfig:
+                      description: 'Configure environment specific settings for the
+                        job. More info: https://www.radix.equinor.com/references/reference-radix-config/#environmentconfig-2'
                       items:
                         description: RadixJobComponentEnvironmentConfig defines environment
                           specific settings for a single job component within a RadixApplication
                         properties:
                           enabled:
+                            description: Controls if the job shall be deployed to
+                              this environment.
                             type: boolean
                           environment:
+                            description: Name of the environment which the settings
+                              applies to.
                             maxLength: 63
                             minLength: 1
                             pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                             type: string
                           identity:
-                            description: Identity configuration for federation with
-                              external identity providers
+                            description: 'Environment specific configuration for workload
+                              identity (federated credentials). More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2'
                             properties:
                               azure:
                                 description: Azure identity configuration
                                 properties:
                                   clientId:
-                                    description: ClientId is the client ID for a user
+                                    description: Defines the Client ID for a user
                                       defined managed identity or application ID for
-                                      an application registration
+                                      an application registration.
                                     type: string
                                 required:
                                 - clientId
                                 type: object
                             type: object
                           imageTagName:
+                            description: 'The imageTagName allows for flexible configuration
+                              of fixed images, built outside of Radix, to be configured
+                              with separate tag for each environment. More info: https://www.radix.equinor.com/references/reference-radix-config/#imagetagname-2'
                             type: string
                           monitoring:
+                            description: 'Enabled or disables collection of custom
+                              Prometheus metrics. More info: https://www.radix.equinor.com/references/reference-radix-config/#monitoring-2'
                             type: boolean
                           node:
-                            description: RadixNode defines node attributes, where
-                              container should be scheduled
+                            description: 'Environment specific GPU requirements for
+                              the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#node'
                             properties:
                               gpu:
-                                description: Gpu Optional. Holds lists of node GPU
-                                  types, with dashed types to exclude
+                                description: 'Defines rules for allowed GPU types.
+                                  More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
                                 type: string
                               gpuCount:
-                                description: GpuCount Optional. Holds minimum count
-                                  of GPU on node
+                                description: Defines minimum number of required GPUs.
                                 type: string
+                            required:
+                            - gpu
                             type: object
                           resources:
-                            description: 'ResourceRequirements describes the compute
-                              resource requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
-                              - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                            description: 'Environment specific configuration for CPU
+                              and memory resources. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3'
                             properties:
                               limits:
                                 additionalProperties:
@@ -1052,58 +1101,57 @@ spec:
                                 type: object
                             type: object
                           secretRefs:
-                            description: RadixSecretRefs defines secret vault
+                            description: 'Environment specific configuration for external
+                              secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                             properties:
                               azureKeyVaults:
-                                description: AzureKeyVaults. List of RadixSecretRefs-s,
-                                  containing Azure Key Vault configurations
+                                description: List of Azure keyvaults to get secrets
+                                  from.
                                 items:
-                                  description: RadixAzureKeyVault defines Azure Key
-                                    Vault
+                                  description: RadixAzureKeyVault defines an Azure
+                                    keyvault.
                                   properties:
                                     items:
-                                      description: Items. Azure Key Vault items
+                                      description: List of keyvault items (secrets,
+                                        keys and certificates).
                                       items:
                                         description: 'RadixAzureKeyVaultItem defines
                                           Azure Key Vault setting: secrets, keys,
                                           certificates'
                                         properties:
                                           alias:
-                                            description: Alias. Optional. It is not
-                                              yet fully supported by the Azure CSI
-                                              Key vault driver. Specify the filename
-                                              of the object when written to disk.
-                                              Defaults to objectName if not provided.
+                                            description: Alias overrides the default
+                                              file name used when mounting the secret,
+                                              key or certificate.
                                             minLength: 1
                                             type: string
                                           encoding:
-                                            description: Encoding. Optional. Setting
-                                              object encoding to base64 and object
-                                              format to pfx will fetch and write the
-                                              base64 decoded pfx binary
+                                            description: Encoding defines the encoding
+                                              of a keyvault item when stored in the
+                                              container. Setting encoding to base64
+                                              and format to pfx will fetch and write
+                                              the base64 decoded pfx binary.
                                             enum:
                                             - base64
                                             type: string
                                           envVar:
-                                            description: EnvVar. Name of the environment
-                                              variable within replicas, containing
-                                              Azure Key Vault object value
+                                            description: Defines the name of the environment
+                                              variable that will contain the value
+                                              of the secret, key or certificate.
                                             type: string
                                           format:
-                                            description: 'Format. Optional. The format
-                                              of the Azure Key Vault object, supported
-                                              types are pem and pfx. objectFormat:
-                                              pfx is only supported with objectType:
-                                              secret and PKCS12 or ECC certificates.
-                                              Default format for certificates is pem.'
+                                            description: Defines the format of the
+                                              keyvault item. pfx is only supported
+                                              with type secret and PKCS12 or ECC certificate.
+                                              Default format for certificates is pem.
                                             enum:
                                             - pem
                                             - pfx
                                             type: string
                                           k8sSecretType:
-                                            description: 'K8SSecretType. Optional.
-                                              Setting object k8s secret type. Allowed
-                                              types: opaque (default), tls. It corresponds
+                                            description: 'k8sSecretType defines the
+                                              type of Kubernetes secret the keyvault
+                                              item will be stored in. opaque corresponds
                                               to "Opaque" and "kubernetes.io/tls"
                                               secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
                                             enum:
@@ -1111,24 +1159,24 @@ spec:
                                             - tls
                                             type: string
                                           name:
-                                            description: Name. Name of the Azure Key
-                                              Vault object
+                                            description: Name of a secret, key or
+                                              certificate in the keyvault.
                                             maxLength: 127
                                             minLength: 1
                                             type: string
                                           type:
-                                            description: 'Type. Optional. Type of
-                                              the Azure KeyVault object: secret (default),
-                                              key, cert'
+                                            description: Type of item in the keyvault
+                                              referenced by the name.
                                             enum:
                                             - secret
                                             - key
                                             - cert
                                             type: string
                                           version:
-                                            description: Version. Optional. object
-                                              versions, default to the latest, if
-                                              empty
+                                            description: Defines that a specific version
+                                              of a keyvault item should be loaded.
+                                              The latest version is loaded when this
+                                              field is not set.
                                             type: string
                                         required:
                                         - name
@@ -1136,14 +1184,13 @@ spec:
                                       minItems: 1
                                       type: array
                                     name:
-                                      description: Name. Name of the Azure Key Vault
+                                      description: Name of the Azure keyvault.
                                       maxLength: 24
                                       minLength: 3
                                       type: string
                                     path:
-                                      description: 'Path. Optional. Path within replicas,
-                                        where secrets are mapped as files. Default:
-                                        /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                      description: Path where secrets from the keyvault
+                                        is mounted.
                                       minLength: 1
                                       type: string
                                   required:
@@ -1153,60 +1200,79 @@ spec:
                                 type: array
                             type: object
                           timeLimitSeconds:
+                            description: 'Environment specific value for the maximum
+                              number of seconds the job can run. More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2'
                             format: int64
                             type: integer
                           variables:
                             additionalProperties:
                               type: string
-                            description: 'Map of environment variables in the form
-                              ''<envvarname>: <value>'''
+                            description: 'Environment specific environment variables.
+                              More info: https://www.radix.equinor.com/references/reference-radix-config/#variables-2'
                             type: object
                           volumeMounts:
+                            description: 'Configuration for mounting cloud storage
+                              into the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#volumemounts-2'
                             items:
-                              description: RadixVolumeMount defines volume to be mounted
-                                to the container
+                              description: RadixVolumeMount defines an external storage
+                                resource.
                               properties:
                                 accessMode:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - ReadOnlyMany
                                   - ReadWriteOnce
                                   - ReadWriteMany
                                   type: string
                                 bindingMode:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - Immediate
                                   - WaitForFirstConsumer
                                   type: string
                                 container:
+                                  description: 'Deprecated. Only required by the deprecated
+                                    type: blob.'
                                   type: string
                                 gid:
+                                  description: GID defines the group ID (number) which
+                                    will be set as owner of the mounted volume.
                                   type: string
                                 name:
+                                  description: User defined name of the volume mount.
+                                    Must be unique for the component.
                                   minLength: 1
                                   type: string
                                 path:
+                                  description: Path defines in which directory the
+                                    external storage is mounted.
                                   minLength: 1
                                   type: string
                                 requestsStorage:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   type: string
                                 skuName:
+                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   type: string
                                 storage:
-                                  minLength: 1
+                                  description: Storage defines the name of the container
+                                    in the external storage resource.
                                   type: string
                                 type:
-                                  description: MountType Holds types of mount
+                                  description: Type defines the storage type. blob
+                                    is deprecated, use azure-blob instead.
                                   enum:
                                   - blob
                                   - azure-blob
                                   - azure-file
                                   type: string
                                 uid:
+                                  description: UID defines the user ID (number) which
+                                    will be set as owner of the mounted volume.
                                   type: string
                               required:
                               - name
                               - path
-                              - storage
                               - type
                               type: object
                             type: array
@@ -1218,78 +1284,89 @@ spec:
                       - environment
                       x-kubernetes-list-type: map
                     identity:
-                      description: Identity configuration for federation with external
-                        identity providers
+                      description: 'Configuration for workload identity (federated
+                        credentials). More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2'
                       properties:
                         azure:
                           description: Azure identity configuration
                           properties:
                             clientId:
-                              description: ClientId is the client ID for a user defined
+                              description: Defines the Client ID for a user defined
                                 managed identity or application ID for an application
-                                registration
+                                registration.
                               type: string
                           required:
                           - clientId
                           type: object
                       type: object
                     image:
+                      description: 'Name of an existing container image to use when
+                        running the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#image-2'
                       type: string
                     monitoringConfig:
-                      description: MonitoringConfig Monitoring configuration
+                      description: 'Configures the monitoring endpoint exposed by
+                        the job. This endpoint is used by Prometheus to collect custom
+                        metrics. environmentConfig.monitoring must be set to true
+                        to enable collection of metrics for an environment. More info:
+                        https://www.radix.equinor.com/references/reference-radix-config/#monitoringconfig-2'
                       properties:
                         path:
-                          description: HTTP path to scrape for metrics.
+                          description: Defines the path where metrics is served.
                           type: string
                         portName:
-                          description: Port name
+                          description: Defines which port in the ports list where
+                            metrics is served.
                           maxLength: 15
-                          minLength: 1
                           pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                           type: string
                       required:
                       - portName
                       type: object
                     name:
+                      description: Name of the environment which the settings applies
+                        to.
                       maxLength: 253
                       minLength: 1
                       pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                       type: string
                     node:
-                      description: RadixNode defines node attributes, where container
-                        should be scheduled
+                      description: 'Defines GPU requirements for the job. More info:
+                        https://www.radix.equinor.com/references/reference-radix-config/#node'
                       properties:
                         gpu:
-                          description: Gpu Optional. Holds lists of node GPU types,
-                            with dashed types to exclude
+                          description: 'Defines rules for allowed GPU types. More
+                            info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
                           type: string
                         gpuCount:
-                          description: GpuCount Optional. Holds minimum count of GPU
-                            on node
+                          description: Defines minimum number of required GPUs.
                           type: string
+                      required:
+                      - gpu
                       type: object
                     payload:
-                      description: RadixJobComponentPayload defines the path and where
-                        the payload received by radix-job-scheduler-server will be
-                        mounted to the job container
+                      description: 'Defines the path where the job payload is mounted.
+                        More info: https://www.radix.equinor.com/references/reference-radix-config/#payload'
                       properties:
                         path:
+                          description: Path to the folder where payload is mounted
                           minLength: 1
                           type: string
                       required:
                       - path
                       type: object
                     ports:
+                      description: List of ports that the job bind to.
                       items:
-                        description: ComponentPort defines the port number, protocol
-                          and port for a service
+                        description: ComponentPort defines a named port.
                         properties:
                           name:
+                            description: Name of the port.
                             maxLength: 15
                             minLength: 1
                             pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                             type: string
                           port:
+                            description: Port number.
                             format: int32
                             maximum: 65535
                             minimum: 1024
@@ -1303,9 +1380,8 @@ spec:
                       - name
                       x-kubernetes-list-type: map
                     resources:
-                      description: 'ResourceRequirements describes the compute resource
-                        requirements. More info: - https://www.radix.equinor.com/references/reference-radix-config/#resources-common
-                        - https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                      description: 'Configures CPU and memory resources for the job.
+                        More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-common-2'
                       properties:
                         limits:
                           additionalProperties:
@@ -1323,81 +1399,84 @@ spec:
                           type: object
                       type: object
                     schedulerPort:
+                      description: 'Defines the port number that the job-scheduler
+                        API server will listen to. More info: https://www.radix.equinor.com/references/reference-radix-config/#schedulerport'
                       format: int32
+                      maximum: 65535
+                      minimum: 1024
                       type: integer
                     secretRefs:
-                      description: RadixSecretRefs defines secret vault
+                      description: 'Configuration for external secret stores, like
+                        Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                       properties:
                         azureKeyVaults:
-                          description: AzureKeyVaults. List of RadixSecretRefs-s,
-                            containing Azure Key Vault configurations
+                          description: List of Azure keyvaults to get secrets from.
                           items:
-                            description: RadixAzureKeyVault defines Azure Key Vault
+                            description: RadixAzureKeyVault defines an Azure keyvault.
                             properties:
                               items:
-                                description: Items. Azure Key Vault items
+                                description: List of keyvault items (secrets, keys
+                                  and certificates).
                                 items:
                                   description: 'RadixAzureKeyVaultItem defines Azure
                                     Key Vault setting: secrets, keys, certificates'
                                   properties:
                                     alias:
-                                      description: Alias. Optional. It is not yet
-                                        fully supported by the Azure CSI Key vault
-                                        driver. Specify the filename of the object
-                                        when written to disk. Defaults to objectName
-                                        if not provided.
+                                      description: Alias overrides the default file
+                                        name used when mounting the secret, key or
+                                        certificate.
                                       minLength: 1
                                       type: string
                                     encoding:
-                                      description: Encoding. Optional. Setting object
-                                        encoding to base64 and object format to pfx
+                                      description: Encoding defines the encoding of
+                                        a keyvault item when stored in the container.
+                                        Setting encoding to base64 and format to pfx
                                         will fetch and write the base64 decoded pfx
-                                        binary
+                                        binary.
                                       enum:
                                       - base64
                                       type: string
                                     envVar:
-                                      description: EnvVar. Name of the environment
-                                        variable within replicas, containing Azure
-                                        Key Vault object value
+                                      description: Defines the name of the environment
+                                        variable that will contain the value of the
+                                        secret, key or certificate.
                                       type: string
                                     format:
-                                      description: 'Format. Optional. The format of
-                                        the Azure Key Vault object, supported types
-                                        are pem and pfx. objectFormat: pfx is only
-                                        supported with objectType: secret and PKCS12
-                                        or ECC certificates. Default format for certificates
-                                        is pem.'
+                                      description: Defines the format of the keyvault
+                                        item. pfx is only supported with type secret
+                                        and PKCS12 or ECC certificate. Default format
+                                        for certificates is pem.
                                       enum:
                                       - pem
                                       - pfx
                                       type: string
                                     k8sSecretType:
-                                      description: 'K8SSecretType. Optional. Setting
-                                        object k8s secret type. Allowed types: opaque
-                                        (default), tls. It corresponds to "Opaque"
+                                      description: 'k8sSecretType defines the type
+                                        of Kubernetes secret the keyvault item will
+                                        be stored in. opaque corresponds to "Opaque"
                                         and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
                                       enum:
                                       - opaque
                                       - tls
                                       type: string
                                     name:
-                                      description: Name. Name of the Azure Key Vault
-                                        object
+                                      description: Name of a secret, key or certificate
+                                        in the keyvault.
                                       maxLength: 127
                                       minLength: 1
                                       type: string
                                     type:
-                                      description: 'Type. Optional. Type of the Azure
-                                        KeyVault object: secret (default), key, cert'
+                                      description: Type of item in the keyvault referenced
+                                        by the name.
                                       enum:
                                       - secret
                                       - key
                                       - cert
                                       type: string
                                     version:
-                                      description: Version. Optional. object versions,
-                                        default to the latest, if empty
+                                      description: Defines that a specific version
+                                        of a keyvault item should be loaded. The latest
+                                        version is loaded when this field is not set.
                                       type: string
                                   required:
                                   - name
@@ -1405,13 +1484,13 @@ spec:
                                 minItems: 1
                                 type: array
                               name:
-                                description: Name. Name of the Azure Key Vault
+                                description: Name of the Azure keyvault.
                                 maxLength: 24
                                 minLength: 3
                                 type: string
                               path:
-                                description: 'Path. Optional. Path within replicas,
-                                  where secrets are mapped as files. Default: /mnt/azure-key-vault/<key-vault-name>/<component-name>'
+                                description: Path where secrets from the keyvault
+                                  is mounted.
                                 minLength: 1
                                 type: string
                             required:
@@ -1421,20 +1500,25 @@ spec:
                           type: array
                       type: object
                     secrets:
+                      description: 'List of secret environment variable names. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#secrets-2'
                       items:
                         type: string
                       type: array
-                      uniqueItems: true
                     src:
+                      description: 'Path to the Dockerfile that builds the job. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#src-2'
                       type: string
                     timeLimitSeconds:
+                      description: 'The maximum number of seconds the job can run.
+                        More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds'
                       format: int64
                       type: integer
                     variables:
                       additionalProperties:
                         type: string
-                      description: 'Map of environment variables in the form ''<envvarname>:
-                        <value>'''
+                      description: 'List of environment variables and values. More
+                        info: https://www.radix.equinor.com/references/reference-radix-config/#variables-common-2'
                       type: object
                   required:
                   - name
@@ -1445,20 +1529,24 @@ spec:
                 x-kubernetes-list-type: map
               privateImageHubs:
                 additionalProperties:
-                  description: Defines the user name and email to use when pulling
-                    images from a private image repository.
+                  description: RadixPrivateImageHubCredential contains credentials
+                    to use when pulling images from a protected container registry.
                   properties:
                     email:
+                      description: The email address linked to the username.
+                      minLength: 1
                       type: string
                     username:
+                      description: User name with permission to pull images. The password
+                        is set in Radix Web Console.
                       minLength: 1
                       type: string
                   required:
                   - email
                   - username
                   type: object
-                description: Defines authentication information for private image
-                  registries.
+                description: 'Defines protected container registries used by components
+                  or jobs. More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs'
                 type: object
             required:
             - components

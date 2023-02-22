@@ -71,13 +71,14 @@ spec:
                         component in RadixDeployment.
                       properties:
                         gpu:
-                          description: Gpu Optional. Holds lists of node GPU types,
-                            with dashed types to exclude
+                          description: 'Defines rules for allowed GPU types. More
+                            info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
                           type: string
                         gpuCount:
-                          description: GpuCount Optional. Holds minimum count of GPU
-                            on node
+                          description: Defines minimum number of required GPUs.
                           type: string
+                      required:
+                      - gpu
                       type: object
                     payloadSecretRef:
                       description: Specifies the Secret name and data key containing

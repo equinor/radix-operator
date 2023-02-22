@@ -89,7 +89,6 @@ type EnvVarsMap map[string]string
 type BuildSpec struct {
 	// Defines a list of secrets that will be passed as ARGs when building Dockerfile.
 	// The secrets can also be accessed in sub-pipelines.
-	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -154,7 +153,6 @@ type EgressDestination string
 type EgressRule struct {
 	// List of allowed destinations.
 	// Each destination must be a valid CIDR.
-	// +kubebuilder:validation:UniqueItems=true
 	// +kubebuilder:validation:MinItems=1
 	Destinations []EgressDestination `json:"destinations"`
 
@@ -290,7 +288,6 @@ type RadixComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets
-	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
@@ -301,7 +298,6 @@ type RadixComponent struct {
 
 	// Additional configuration settings for ingress traffic.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#ingressconfiguration
-	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	IngressConfiguration []string `json:"ingressConfiguration,omitempty"`
 
@@ -474,7 +470,6 @@ type RadixJobComponent struct {
 
 	// List of secret environment variable names.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#secrets-2
-	// +kubebuilder:validation:UniqueItems=true
 	// +optional
 	Secrets []string `json:"secrets,omitempty"`
 
