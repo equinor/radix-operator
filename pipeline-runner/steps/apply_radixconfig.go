@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
+	yamlk8s "sigs.k8s.io/yaml"
 )
 
 // ApplyConfigStepImplementation Step to apply RA
@@ -176,7 +177,9 @@ func (cli *ApplyConfigStepImplementation) getHashAndTags(namespace string, pipel
 func CreateRadixApplication(radixClient radixclient.Interface,
 	configFileContent string) (*v1.RadixApplication, error) {
 	ra := &v1.RadixApplication{}
-	if err := yaml.Unmarshal([]byte(configFileContent), ra); err != nil {
+
+	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
+	if err := yamlk8s.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
 
