@@ -422,8 +422,6 @@ spec:
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
                                 type: string
-                            required:
-                            - gpu
                             type: object
                           replicas:
                             description: 'Number of desired replicas. More info: https://www.radix.equinor.com/references/reference-radix-config/#replicas'
@@ -670,8 +668,6 @@ spec:
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                           type: string
-                      required:
-                      - portName
                       type: object
                     name:
                       description: Name of the component.
@@ -690,8 +686,6 @@ spec:
                         gpuCount:
                           description: Defines minimum number of required GPUs.
                           type: string
-                      required:
-                      - gpu
                       type: object
                     ports:
                       description: List of ports that the component bind to.
@@ -1077,8 +1071,6 @@ spec:
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
                                 type: string
-                            required:
-                            - gpu
                             type: object
                           resources:
                             description: 'Environment specific configuration for CPU
@@ -1319,8 +1311,6 @@ spec:
                           maxLength: 15
                           pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                           type: string
-                      required:
-                      - portName
                       type: object
                     name:
                       description: Name of the environment which the settings applies
@@ -1340,8 +1330,6 @@ spec:
                         gpuCount:
                           description: Defines minimum number of required GPUs.
                           type: string
-                      required:
-                      - gpu
                       type: object
                     payload:
                       description: 'Defines the path where the job payload is mounted.

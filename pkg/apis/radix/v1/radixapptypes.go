@@ -728,7 +728,7 @@ func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 type RadixNode struct {
 	// Defines rules for allowed GPU types.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
-	Gpu string `json:"gpu"`
+	Gpu string `json:"gpu,omitempty"`
 
 	// Defines minimum number of required GPUs.
 	// +optional
@@ -740,7 +740,7 @@ type MonitoringConfig struct {
 	// Defines which port in the ports list where metrics is served.
 	// +kubebuilder:validation:MaxLength=15
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
-	PortName string `json:"portName"`
+	PortName string `json:"portName,omitempty"`
 
 	// Defines the path where metrics is served.
 	// +optional
@@ -759,7 +759,7 @@ const (
 type RadixSecretRefs struct {
 	// List of Azure keyvaults to get secrets from.
 	// +optional
-	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults"`
+	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty"`
 }
 
 // RadixAzureKeyVault defines an Azure keyvault.
