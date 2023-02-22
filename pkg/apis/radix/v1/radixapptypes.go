@@ -51,8 +51,8 @@ type RadixApplicationSpec struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#components
 	// +listType=map
 	// +listMapKey=name
-	// +kubebuilder:validation:MinItems=1
-	Components []RadixComponent `json:"components"`
+	// +optional
+	Components []RadixComponent `json:"components,omitempty"`
 
 	// Configure a component and environment to be linked to the app alias DNS record.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#dnsappalias

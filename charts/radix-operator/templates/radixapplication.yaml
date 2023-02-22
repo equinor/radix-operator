@@ -857,7 +857,6 @@ spec:
                   - name
                   - ports
                   type: object
-                minItems: 1
                 type: array
                 x-kubernetes-list-map-keys:
                 - name
@@ -1538,7 +1537,6 @@ spec:
                   or jobs. More info: https://www.radix.equinor.com/references/reference-radix-config/#privateimagehubs'
                 type: object
             required:
-            - components
             - environments
             type: object
         required:
