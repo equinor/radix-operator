@@ -178,13 +178,13 @@ type AppAlias struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
-	Environment string `json:"environment"`
+	Environment string `json:"environment,omitempty"`
 
 	// Name of the component that shall receive the incoming requests.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
-	Component string `json:"component"`
+	Component string `json:"component,omitempty"`
 }
 
 // ExternalAlias defines mapping between an external DNS name and a component and environment.
@@ -728,6 +728,7 @@ func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 type RadixNode struct {
 	// Defines rules for allowed GPU types.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
+	// +kubebuilder:validation:MinLength=1
 	Gpu string `json:"gpu,omitempty"`
 
 	// Defines minimum number of required GPUs.

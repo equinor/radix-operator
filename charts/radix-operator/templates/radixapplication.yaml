@@ -418,6 +418,7 @@ spec:
                               gpu:
                                 description: 'Defines rules for allowed GPU types.
                                   More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
+                                minLength: 1
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -682,6 +683,7 @@ spec:
                         gpu:
                           description: 'Defines rules for allowed GPU types. More
                             info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
+                          minLength: 1
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -877,9 +879,6 @@ spec:
                     minLength: 1
                     pattern: ^(([a-z0-9][-a-z0-9.]*)?[a-z0-9])?$
                     type: string
-                required:
-                - component
-                - environment
                 type: object
               dnsExternalAlias:
                 description: 'List of external DNS names and which component and environment
@@ -1067,6 +1066,7 @@ spec:
                               gpu:
                                 description: 'Defines rules for allowed GPU types.
                                   More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
+                                minLength: 1
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -1326,6 +1326,7 @@ spec:
                         gpu:
                           description: 'Defines rules for allowed GPU types. More
                             info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
+                          minLength: 1
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
