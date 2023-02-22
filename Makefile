@@ -6,6 +6,7 @@ BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
 CRD_TEMP_DIR := ./.temp-crds/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
+JSON_SCHEMA_DIR := ./json-schema/
 
 # If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
 
@@ -131,6 +132,7 @@ crds: temp-crds radixapplication-crd radixbatch-crd delete-temp-crds
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
+	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
 
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-crds
