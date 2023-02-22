@@ -852,24 +852,28 @@ type RadixAzureKeyVaultItem struct {
 	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty"`
 }
 
-// Authentication Radix authentication settings
+// Authentication describes authentication options.
 type Authentication struct {
-	//ClientCertificate Authentication client certificate
+	// Configuration for TLS client certificate authentication.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#clientcertificate
 	// +optional
 	ClientCertificate *ClientCertificate `json:"clientCertificate,omitempty"`
 
+	// Configuration for OAuth2 authentication.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#oauth2
 	// +optional
 	OAuth2 *OAuth2 `json:"oauth2,omitempty"`
 }
 
 // ClientCertificate Authentication client certificate parameters
 type ClientCertificate struct {
-	//Verification Client certificate verification type
+	// Defines how the client certificate shall be verified.
 	// +kubebuilder:validation:Enum=on;off;optional;optional_no_ca
 	// +optional
 	Verification *VerificationType `json:"verification,omitempty"`
 
-	//PassCertificateToUpstream Should a certificate be passed to upstream
+	// Pass client certificate to backend in header ssl-client-cert.
+	// This setting has no effect if verification is set to off.
 	// +optional
 	PassCertificateToUpstream *bool `json:"passCertificateToUpstream,omitempty"`
 }
@@ -914,131 +918,117 @@ const (
 
 // OAuth2 defines oauth proxy settings for a component
 type OAuth2 struct {
-	// ClientID. The OAuth2 client ID
+	// Client ID of the application.
 	// +optional
 	ClientID string `json:"clientId"`
 
-	// Scope. Optional. The requested scope by the OAuth code flow
-	// Default: openid profile email
+	// Requested scopes.
 	// +optional
 	Scope string `json:"scope,omitempty"`
 
-	// SetXAuthRequestHeaders. Optional. Defines if X-Auth-* headers should added to the request
-	// Sets the X-Auth-Request-User, X-Auth-Request-Groups, X-Auth-Request-Email, X-Auth-Request-Preferred-Username and X-Auth-Request-Access-Token
-	// from values in the Access Token redeemed by the OAuth Proxy
-	// Default: false
+	// Defines if claims from the access token is added to the X-Auth-Request-User, X-Auth-Request-Groups,
+	// X-Auth-Request-Email and X-Auth-Request-Preferred-Username request headers.
+	// The access token is passed in the X-Auth-Request-Access-Token header.
 	// +optional
 	SetXAuthRequestHeaders *bool `json:"setXAuthRequestHeaders,omitempty"`
 
-	// SetAuthorizationHeader. Optional. Defines if the IDToken received by the OAuth Proxy should be added to the Authorization header
-	// Default: false
+	// Defines if the IDToken received by the OAuth Proxy should be added to the Authorization header.
 	// +optional
 	SetAuthorizationHeader *bool `json:"setAuthorizationHeader,omitempty"`
 
-	// ProxyPrefix. Optional. The url root path that OAuth Proxy should be nested under
-	// Default: /oauth2
+	// Defines the url root path that OAuth Proxy should be nested under.
 	// +optional
 	ProxyPrefix string `json:"proxyPrefix,omitempty"`
 
-	// LoginURL. Optional. Authentication endpoint
+	// Defines the authentication endpoint of the identity provider.
 	// Must be set if OIDC.SkipDiscovery is true
 	// +optional
 	LoginURL string `json:"loginUrl,omitempty"`
 
-	// RedeemURL. Optional. Endpoint to redeem the authorization code received from the OAuth code flow
+	// Defines the endpoint to redeem the authorization code received from the OAuth code flow.
 	// Must be set if OIDC.SkipDiscovery is true
 	// +optional
 	RedeemURL string `json:"redeemUrl,omitempty"`
 
-	// OIDC. Optional. Defines OIDC settings
+	// OIDC settings.
 	// +optional
 	OIDC *OAuth2OIDC `json:"oidc,omitempty"`
 
-	// Cookie. Optional. Settings for the session cookie
+	// Session cookie settings.
 	// +optional
 	Cookie *OAuth2Cookie `json:"cookie,omitempty"`
 
-	// SessionStoreType. Optional. Specifies where to store the session data
-	// Allowed values: cookie, redis
-	// Default: cookie
+	// Defines where to store session data.
 	// +kubebuilder:validation:Enum=cookie;redis
 	// +optional
 	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty"`
 
-	// CookieStore. Optional. Settings for cookie that stores session data when SessionStoreType is cookie
+	// Settings for the cookie that stores session data when SessionStoreType is cookie.
 	// +optional
 	CookieStore *OAuth2CookieStore `json:"cookieStore,omitempty"`
 
-	// RedisStore. Optional. Settings for Redis store when SessionStoreType is redis
+	// Settings for Redis store when SessionStoreType is redis.
 	// +optional
 	RedisStore *OAuth2RedisStore `json:"redisStore,omitempty"`
 }
 
-// OAuth2Cookie defines properties for the oauth cookie
+// OAuth2Cookie defines properties for the oauth cookie.
 type OAuth2Cookie struct {
-	// Name. Optional. Defines the name of the OAuth session cookie
-	// Default: _oauth2_proxy
+	// Defines the name of the OAuth session cookie.
 	// +optional
 	Name string `json:"name,omitempty"`
 
-	// Expire. Optional. The expire timeframe for the session cookie
-	// Default: 168h0m0s
+	// Defines the expire timeframe for the session cookie.
 	// +optional
 	Expire string `json:"expire,omitempty"`
 
-	// Refresh. Optional. The interval between cookie refreshes
-	// The value must be a shorter timeframe than Expire
-	// Default 60m0s
+	// The interval between cookie refreshes.
+	// The value must be a shorter timeframe than values set in Expire.
 	// +optional
 	Refresh string `json:"refresh,omitempty"`
 
-	// SameSite. Optional. The samesite cookie attribute
-	// Allowed values: strict, lax, none or empty
-	// Default: lax
+	// Defines the samesite cookie attribute
 	// +kubebuilder:validation:Enum=strict;lax;none;""
 	// +optional
 	SameSite CookieSameSiteType `json:"sameSite,omitempty"`
 }
 
-// OAuth2OIDC defines OIDC properties for oauth proxy
+// OAuth2OIDC defines OIDC settings for oauth proxy.
 type OAuth2OIDC struct {
-	// IssuerURL. Optional. The OIDC issuer URL
-	// Default: https://login.microsoftonline.com/3aa4a235-b6e2-48d5-9195-7fcf05b459b0/v2.0
+	// Defines the OIDC issuer URL.
 	// +optional
 	IssuerURL string `json:"issuerUrl,omitempty"`
 
-	// JWKSURL. Optional. OIDC JWKS URL for token verification; required if OIDC discovery is disabled
+	// Defines the OIDC JWKS URL for token verification.
+	// Required if OIDC discovery is disabled.
 	// +optional
 	JWKSURL string `json:"jwksUrl,omitempty"`
 
-	// SkipDiscovery. Optional. Defines if OIDC endpoint discovery should be bypassed
-	// LoginURL, RedeemURL, JWKSURL must be configured if discovery is disabled
-	// Default: false
+	// Defines if OIDC endpoint discovery should be bypassed.
+	// LoginURL, RedeemURL, JWKSURL must be configured if discovery is disabled.
 	// +optional
 	SkipDiscovery *bool `json:"skipDiscovery,omitempty"`
 
-	// InsecureSkipVerifyNonce. Optional. Skip verifying the OIDC ID Token's nonce claim
-	// Default: false
+	// Skip verifying the OIDC ID Token's nonce claim
 	// +optional
 	InsecureSkipVerifyNonce *bool `json:"insecureSkipVerifyNonce,omitempty"`
 }
 
-// OAuth2RedisStore properties for redis session storage
+// OAuth2RedisStore properties for redis session storage.
 type OAuth2RedisStore struct {
-	// ConnectionURL. The URL for the Redis server when SessionStoreType is redis
+	// Defines the URL for the Redis server.
 	ConnectionURL string `json:"connectionUrl"`
 }
 
-// OAuth2CookieStore properties for cookie session storage
+// OAuth2CookieStore properties for cookie session storage.
 type OAuth2CookieStore struct {
-	// Minimal. Optional. Strips OAuth tokens from cookies if they are not needed (only when SessionStoreType is cookie)
-	// Cookie.Refresh must be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader must be false if this setting is true
-	// Default: false
+	// Strips OAuth tokens from cookies if they are not needed.
+	// Cookie.Refresh must be 0, and both SetXAuthRequestHeaders and SetAuthorizationHeader must be false if this setting is true.
 	// +optional
 	Minimal *bool `json:"minimal,omitempty"`
 }
 
-// Identity configuration for federation with external identity providers
+// Identity configuration for federation with external identity providers.
 type Identity struct {
 	// Azure identity configuration
 	// +optional
@@ -1047,8 +1037,7 @@ type Identity struct {
 
 // AzureIdentity properties for Azure AD Workload Identity
 type AzureIdentity struct {
-	// ClientId is the client ID for a user defined managed identity
-	// or application ID for an application registration
+	// Defines the Client ID for a user defined managed identity or application ID for an application registration.
 	ClientId string `json:"clientId"`
 }
 
