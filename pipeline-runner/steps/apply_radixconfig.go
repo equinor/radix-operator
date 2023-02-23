@@ -179,6 +179,8 @@ func CreateRadixApplication(radixClient radixclient.Interface,
 	ra := &v1.RadixApplication{}
 
 	// Important: Must use sigs.k8s.io/yaml decoder to correctly unmarshal Kubernetes objects.
+	// This package supports encoding and decoding of yaml for CRD struct types using the json tag.
+	// The gopkg.in/yaml.v3 package requires the yaml tag.
 	if err := yamlk8s.Unmarshal([]byte(configFileContent), ra); err != nil {
 		return nil, err
 	}
