@@ -85,6 +85,7 @@ endif
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
+.PHONY: mocks
 mocks:
 	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
@@ -98,22 +99,24 @@ mocks:
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
 	mockgen -source ./pipeline-runner/model/env/env.go -destination ./pipeline-runner/model/mock/env_mock.go -package mock
 
+.PHONY: build-pipeline
 build-pipeline:
 	docker build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) -f pipeline.Dockerfile .
 
-deploy-pipeline:
+.PHONY: deploy-pipeline
+deploy-pipeline: build-pipeline
 	az acr login --name $(CONTAINER_REPO)
-	make build-pipeline
 	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(TAG)
 
+.PHONY: build-operator
 build-operator:
 	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) -f operator.Dockerfile .
 
-deploy-operator:
+.PHONY: deploy-operator
+deploy-operator: build-operator
 	az acr login --name $(CONTAINER_REPO)
-	make build-operator
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
