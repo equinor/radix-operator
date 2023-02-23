@@ -121,9 +121,10 @@ This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client`
 
 This file/directory should NOT be edited.
 
-CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen), and are stored in the `charts/radix-operator/templates` directory
-
+CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen), and are stored in the `charts/radix-operator/templates` directory.
+The CRD schema generates use comment markers. Read more about supported markers [here](https://book.kubebuilder.io/reference/markers/crd-validation.html).
 Generate CRD yaml files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
+
 Currently, only the CRD for RadixBatch and RadixApplication is generated.
 ```shell
 make crds
