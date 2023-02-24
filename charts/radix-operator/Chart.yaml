@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: v2
 name: radix-operator
 version: 1.13.5
 appVersion: 1.32.5
