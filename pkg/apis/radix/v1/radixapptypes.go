@@ -163,10 +163,12 @@ type EgressRule struct {
 
 // EgressPort defines a port in context of EgressRule.
 type EgressPort struct {
+	// Port number.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port"`
 
+	// Protocol.
 	// +kubebuilder:validation:Enum=TCP;UDP
 	Protocol string `json:"protocol"`
 }
