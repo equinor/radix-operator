@@ -964,11 +964,13 @@ spec:
                                     of EgressRule.
                                   properties:
                                     port:
+                                      description: Port number.
                                       format: int32
                                       maximum: 65535
                                       minimum: 0
                                       type: integer
                                     protocol:
+                                      description: Protocol.
                                       enum:
                                       - TCP
                                       - UDP
