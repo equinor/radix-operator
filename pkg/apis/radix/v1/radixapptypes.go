@@ -136,7 +136,7 @@ type EnvBuild struct {
 
 // EgressConfig contains egress configuration.
 type EgressConfig struct {
-	// Allow or deny outgoing traffic to the public IP for the Radix cluster.
+	// Allow or deny outgoing traffic to the public IP of the Radix cluster.
 	// +optional
 	AllowRadix *bool `json:"allowRadix,omitempty"`
 
@@ -152,7 +152,7 @@ type EgressDestination string
 // EgressRule defines an egress rule.
 type EgressRule struct {
 	// List of allowed destinations.
-	// Each destination must be a valid CIDR.
+	// Each destination must be a valid IPv4 CIDR.
 	// +kubebuilder:validation:MinItems=1
 	Destinations []EgressDestination `json:"destinations"`
 
@@ -164,7 +164,7 @@ type EgressRule struct {
 // EgressPort defines a port in context of EgressRule.
 type EgressPort struct {
 	// Port number.
-	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65535
 	Port int32 `json:"port"`
 
@@ -457,7 +457,7 @@ type RadixJobComponent struct {
 	// +optional
 	Payload *RadixJobComponentPayload `json:"payload,omitempty"`
 
-	// List of ports that the job bind to.
+	// List of ports that the job binds to.
 	// +listType=map
 	// +listMapKey=name
 	// +optional
@@ -604,13 +604,13 @@ type PrivateImageHubEntries map[string]*RadixPrivateImageHubCredential
 // RadixPrivateImageHubCredential contains credentials to use when pulling images
 // from a protected container registry.
 type RadixPrivateImageHubCredential struct {
-	// User name with permission to pull images.
+	// Username with permission to pull images.
 	// The password is set in Radix Web Console.
 	// +kubebuilder:validation:MinLength=1
 	Username string `json:"username"`
 
 	// The email address linked to the username.
-	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MinLength=3
 	Email string `json:"email"`
 }
 
@@ -621,7 +621,7 @@ type RadixVolumeMount struct {
 	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file
 	Type MountType `json:"type"`
 
-	// User defined name of the volume mount.
+	// User-defined name of the volume mount.
 	// Must be unique for the component.
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
@@ -843,7 +843,7 @@ type RadixAzureKeyVaultItem struct {
 	// +optional
 	Encoding *string `json:"encoding,omitempty"`
 
-	// k8sSecretType defines the type of Kubernetes secret the keyvault item will be stored in.
+	// K8sSecretType defines the type of Kubernetes secret the keyvault item will be stored in.
 	// opaque corresponds to "Opaque" and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
 	// +kubebuilder:validation:Enum=opaque;tls
 	// +optional
