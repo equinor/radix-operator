@@ -300,6 +300,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetIdentity() *Identity {
 	return deployJobComponent.Identity
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetNotifications() *RadixNotifications {
+	return deployJobComponent.Notifications
+}
+
 func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
 	deployJobComponent.Name = name
 }
@@ -343,6 +347,7 @@ type RadixDeployJobComponent struct {
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 	Identity                *Identity                 `json:"identity,omitempty" yaml:"identity,omitempty"`
+	Notifications           *RadixNotifications       `json:"notifications,omitempty"`
 }
 
 type RadixComponentType string

@@ -2,27 +2,23 @@ package radixvalidators
 
 import (
 	"fmt"
-
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/google/uuid"
-
 	"net"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
 	commonUtils "github.com/equinor/radix-common/utils"
 	errorUtils "github.com/equinor/radix-common/utils/errors"
-
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -132,6 +128,11 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	}
 
 	err = validateHPAConfigForRA(app)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = validateVolumeMountConfigForRA(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -1133,6 +1134,26 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 		}
 	}
 
+	return nil
+}
+
+func validateNotificationsRA(app *radixv1.RadixApplication) error {
+	var errs []error
+	for _, job := range app.Spec.Jobs {
+		if err := validateNotifications(app, job.Notifications, job.GetName(), ""); err != nil {
+			errs = append(errs, err)
+		}
+		for _, envConfig := range job.EnvironmentConfig {
+			if err := validateNotifications(app, envConfig.Notifications, job.GetName(), envConfig.Environment); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errorUtils.Concat(errs)
+}
+
+func validateNotifications(app *radixv1.RadixApplication, notifications *radixv1.RadixNotifications, jobComponentName string, environment string) error {
+	//TODO
 	return nil
 }
 

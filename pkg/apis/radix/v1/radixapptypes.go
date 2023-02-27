@@ -515,6 +515,10 @@ type RadixJobComponent struct {
 	// Controls if the job shall be deployed.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Notifications about batch or job status changes
+	// +optional
+	Notifications *RadixNotifications `json:"notifications,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -575,6 +579,10 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Controls if the job shall be deployed to this environment.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Notifications about batch or job status changes
+	// +optional
+	Notifications *RadixNotifications `json:"notifications,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -1037,6 +1045,14 @@ type Identity struct {
 type AzureIdentity struct {
 	// Defines the Client ID for a user defined managed identity or application ID for an application registration.
 	ClientId string `json:"clientId"`
+}
+
+// RadixNotifications is the spec for a notifying about internal events or changes
+type RadixNotifications struct {
+	// Webhook is a URL for notification about internal events or changes. The URL should be of a Radix component or job-component, with not public port.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	Webhook string `json:"webhook" yaml:"webhook"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components

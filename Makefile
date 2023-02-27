@@ -130,12 +130,16 @@ code-gen:
 	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
 
 .PHONY: crds
-crds: temp-crds radixapplication-crd radixbatch-crd delete-temp-crds
+crds: temp-crds radixapplication-crd radixdeployment-crd radixbatch-crd delete-temp-crds
 
 .PHONY: radixapplication-crd
 radixapplication-crd: temp-crds
 	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
 	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
+
+.PHONY: radixdeployment-crd
+radixdeployment-crd: temp-crds
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixdeployments.yaml $(CRD_CHART_DIR)radixdeployment.yaml
 
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-crds

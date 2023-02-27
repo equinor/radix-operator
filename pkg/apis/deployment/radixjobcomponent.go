@@ -70,12 +70,14 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		MonitoringConfig: radixJobComponent.MonitoringConfig,
 		Payload:          radixJobComponent.Payload,
 		SchedulerPort:    radixJobComponent.SchedulerPort,
+		Notifications:    radixJobComponent.Notifications,
 	}
 
 	if environmentSpecificConfig != nil {
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
+		deployJob.Notifications = environmentSpecificConfig.Notifications
 	}
 
 	if deployJob.TimeLimitSeconds == nil {
