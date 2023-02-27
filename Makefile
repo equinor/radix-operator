@@ -6,6 +6,7 @@ BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
 CRD_TEMP_DIR := ./.temp-crds/
 CRD_CHART_DIR := ./charts/radix-operator/templates/
+JSON_SCHEMA_DIR := ./json-schema/
 
 # If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
 
@@ -84,6 +85,7 @@ endif
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
+.PHONY: mocks
 mocks:
 	mockgen -source ./pkg/apis/defaults/oauth2.go -destination ./pkg/apis/defaults/oauth2_mock.go -package defaults
 	mockgen -source ./pkg/apis/deployment/deploymentfactory.go -destination ./pkg/apis/deployment/deploymentfactory_mock.go -package deployment
@@ -97,22 +99,24 @@ mocks:
 	mockgen -source ./radix-operator/common/handler.go -destination ./radix-operator/common/handler_mock.go -package common
 	mockgen -source ./pipeline-runner/model/env/env.go -destination ./pipeline-runner/model/mock/env_mock.go -package mock
 
+.PHONY: build-pipeline
 build-pipeline:
 	docker build -t $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-pipeline:$(TAG) -f pipeline.Dockerfile .
 
-deploy-pipeline:
+.PHONY: deploy-pipeline
+deploy-pipeline: build-pipeline
 	az acr login --name $(CONTAINER_REPO)
-	make build-pipeline
 	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(BRANCH)-$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-pipeline:$(TAG)
 
+.PHONY: build-operator
 build-operator:
 	docker build -t $(DOCKER_REGISTRY)/radix-operator:$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-operator:$(TAG) -f operator.Dockerfile .
 
-deploy-operator:
+.PHONY: deploy-operator
+deploy-operator: build-operator
 	az acr login --name $(CONTAINER_REPO)
-	make build-operator
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(BRANCH)-$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-operator:$(TAG)
@@ -126,11 +130,16 @@ code-gen:
 	$(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/generate-groups.sh all $(ROOT_PACKAGE)/pkg/client $(ROOT_PACKAGE)/pkg/apis $(CUSTOM_RESOURCE_NAME):$(CUSTOM_RESOURCE_VERSION) --go-header-file $(GOPATH)/pkg/mod/k8s.io/code-generator@v0.25.3/hack/boilerplate.go.txt
 
 .PHONY: crds
-crds: temp-crds radixbatch-crd delete-temp-crds
+crds: temp-crds radixapplication-crd radixbatch-crd delete-temp-crds
+
+.PHONY: radixapplication-crd
+radixapplication-crd: temp-crds
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixapplications.yaml $(CRD_CHART_DIR)radixapplication.yaml
+	yq eval '.spec.versions[0].schema.openAPIV3Schema' -ojson $(CRD_CHART_DIR)radixapplication.yaml > $(JSON_SCHEMA_DIR)radixapplication.json
 
 .PHONY: radixbatch-crd
 radixbatch-crd: temp-crds
-	cp $(CRD_TEMP_DIR)radix.equinor.com_radixbatches.yaml $(CRD_CHART_DIR)/radixbatch.yaml
+	cp $(CRD_TEMP_DIR)radix.equinor.com_radixbatches.yaml $(CRD_CHART_DIR)radixbatch.yaml
 
 .PHONY: temp-crds
 temp-crds: controller-gen

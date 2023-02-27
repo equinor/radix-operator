@@ -151,7 +151,7 @@ func convertToK8sEgressRule(radixEgressRule rx.EgressRule) (egressRule v1.Networ
 	for _, radixCidr := range radixEgressRule.Destinations {
 		cidrs = append(cidrs, v1.NetworkPolicyPeer{
 			IPBlock: &v1.IPBlock{
-				CIDR: radixCidr,
+				CIDR: string(radixCidr),
 			},
 		})
 	}
