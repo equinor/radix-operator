@@ -3,7 +3,9 @@ package radixvalidators
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -16,7 +18,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
@@ -137,7 +138,7 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	err = validateVolumeMountConfigForRA(app)
+	err = ValidateNotificationsRA(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -496,7 +497,7 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 	}
 
 	// Validate SessionStoreType
-	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
+	if !commonUtils.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
 		errors = append(errors, OAuthSessionStoreTypeInvalidError(componentName, environmentName, oauthWithDefaults.SessionStoreType))
 	}
 
@@ -536,7 +537,7 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 		if len(strings.TrimSpace(cookie.Name)) == 0 {
 			errors = append(errors, OAuthCookieNameEmptyError(componentName, environmentName))
 		}
-		if !slice.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
+		if !commonUtils.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
 			errors = append(errors, OAuthCookieSameSiteInvalidError(componentName, environmentName, cookie.SameSite))
 		}
 
@@ -1137,7 +1138,7 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	return nil
 }
 
-func validateNotificationsRA(app *radixv1.RadixApplication) error {
+func ValidateNotificationsRA(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, job := range app.Spec.Jobs {
 		if err := validateNotifications(app, job.Notifications, job.GetName(), ""); err != nil {
@@ -1153,8 +1154,62 @@ func validateNotificationsRA(app *radixv1.RadixApplication) error {
 }
 
 func validateNotifications(app *radixv1.RadixApplication, notifications *radixv1.RadixNotifications, jobComponentName string, environment string) error {
-	//TODO
+	if notifications == nil || len(notifications.Webhook) == 0 {
+		return nil
+	}
+	webhook := strings.ToLower(strings.TrimSpace(notifications.Webhook))
+	webhookUrl, err := url.Parse(webhook)
+	if err != nil {
+		return InvalidWebhookUrl(jobComponentName, environment)
+	}
+	if webhookUrl.Scheme == "https" {
+		return NotAllowedSchemaHttpsInWebhookUrl(jobComponentName, environment)
+	}
+	if len(webhookUrl.Port()) == 0 {
+		return MissingPortInWebhookUrl(jobComponentName, environment)
+	}
+	targetRadixComponent, targetRadixJobComponent := getRadixCommonComponentByName(app, webhookUrl.Hostname())
+	if targetRadixComponent == nil && targetRadixJobComponent == nil {
+		return OnlyAppComponentAllowedInWebhookUrl(jobComponentName, environment)
+	}
+	if targetRadixComponent != nil {
+		componentPort := getComponentPort(targetRadixComponent, webhookUrl.Port())
+		if componentPort == nil {
+			return InvalidPortInWebhookUrl(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
+		}
+		if strings.EqualFold(componentPort.Name, targetRadixComponent.PublicPort) {
+			return InvalidUseOfPublicPortInWebhookUrl(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
+		}
+	} else if targetRadixJobComponent != nil {
+		componentPort := getComponentPort(targetRadixJobComponent, webhookUrl.Port())
+		if componentPort == nil {
+			return InvalidPortInWebhookUrl(webhookUrl.Port(), targetRadixJobComponent.GetName(), jobComponentName, environment)
+		}
+	}
 	return nil
+}
+
+func getComponentPort(radixComponent radixv1.RadixCommonComponent, port string) *radixv1.ComponentPort {
+	for _, componentPort := range radixComponent.GetPorts() {
+		if strings.EqualFold(strconv.Itoa(int(componentPort.Port)), port) {
+			return &componentPort
+		}
+	}
+	return nil
+}
+
+func getRadixCommonComponentByName(app *radixv1.RadixApplication, componentName string) (*radixv1.RadixComponent, *radixv1.RadixJobComponent) {
+	for _, radixComponent := range app.Spec.Components {
+		if strings.EqualFold(radixComponent.GetName(), componentName) {
+			return &radixComponent, nil
+		}
+	}
+	for _, radixJobComponent := range app.Spec.Jobs {
+		if strings.EqualFold(radixJobComponent.GetName(), componentName) {
+			return nil, &radixJobComponent
+		}
+	}
+	return nil, nil
 }
 
 func validateVolumeMounts(componentName, environment string, volumeMounts []radixv1.RadixVolumeMount) error {
