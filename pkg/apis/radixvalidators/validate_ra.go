@@ -1013,7 +1013,7 @@ func validateEnvironmentEgressRules(app *radixv1.RadixApplication) []error {
 				errs = append(errs, fmt.Errorf("egress rule must contain at least one destination"))
 			}
 			for _, ipMask := range egressRule.Destinations {
-				err := validateEgressRuleIpMask(ipMask)
+				err := validateEgressRuleIpMask(string(ipMask))
 				if err != nil {
 					errs = append(errs, err)
 				}

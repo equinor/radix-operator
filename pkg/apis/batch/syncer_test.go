@@ -484,7 +484,7 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 			return env.Name == "SECRET2" && env.ValueFrom.SecretKeyRef.Key == "SECRET2" && env.ValueFrom.SecretKeyRef.LocalObjectReference.Name == utils.GetComponentSecretName(componentName)
 		}))
 		s.True(slice.Any(kubejob.Spec.Template.Spec.Containers[0].Env, func(env corev1.EnvVar) bool {
-			return env.Name == defaults.RadixScheduleJobNameEnvironmentVariable && env.Value == batchName
+			return env.Name == defaults.RadixScheduleJobNameEnvironmentVariable && env.Value == kubejob.GetName()
 		}))
 		s.Equal(corev1.PullAlways, kubejob.Spec.Template.Spec.Containers[0].ImagePullPolicy)
 		s.Equal("default", kubejob.Spec.Template.Spec.ServiceAccountName)

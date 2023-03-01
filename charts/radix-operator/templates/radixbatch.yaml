@@ -71,16 +71,13 @@ spec:
                         component in RadixDeployment.
                       properties:
                         gpu:
-                          description: Gpu Optional. Holds lists of node GPU types,
-                            with dashed types to exclude
+                          description: 'Defines rules for allowed GPU types. More
+                            info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
+                          minLength: 1
                           type: string
                         gpuCount:
-                          description: GpuCount Optional. Holds minimum count of GPU
-                            on node
+                          description: Defines minimum number of required GPUs.
                           type: string
-                      required:
-                      - gpu
-                      - gpuCount
                       type: object
                     payloadSecretRef:
                       description: Specifies the Secret name and data key containing
@@ -104,17 +101,16 @@ spec:
                         limits:
                           additionalProperties:
                             type: string
-                          description: 'Limits describes the maximum amount of compute
-                            resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                          description: Limits describes the maximum amount of compute
+                            resources allowed.
                           type: object
                         requests:
                           additionalProperties:
                             type: string
-                          description: 'Requests describes the minimum amount of compute
+                          description: Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
-                            otherwise to an implementation-defined value. More info:
-                            https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
+                            otherwise to an implementation-defined value.
                           type: object
                       type: object
                     stop:

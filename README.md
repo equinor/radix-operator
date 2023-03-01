@@ -7,6 +7,8 @@ The radix-operator is the central piece of the [Radix platform](https://github.c
 - RD - Application deployment
 - RJ - Application build/deploy jobs
 - RE - Application environments
+- RAL - Alerts
+- RB - Batch jobs
 
 The `radix-operator` and `radix-pipeline` are built using Github actions, then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch.
 
@@ -119,13 +121,17 @@ This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client`
 
 This file/directory should NOT be edited.
 
-CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen), and are stored in the `charts/radix-operator/templates` directory
-
+CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen), and are stored in the `charts/radix-operator/templates` directory.
+The CRD schema generates use comment markers. Read more about supported markers [here](https://book.kubebuilder.io/reference/markers/crd-validation.html).
 Generate CRD yaml files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
-Currently, only the CRD for RadixBatch is generated.
+
+Currently, only the CRD for RadixBatch and RadixApplication is generated.
 ```shell
 make crds
 ```
+This will also regenerate a json schema for RadixApplication into ./json-schema/radixapplication.json.
+This schema can be used in code editors like VS Code to get auto complete and validation when editing a radixconfig.yaml file.
+
 
 If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
 
