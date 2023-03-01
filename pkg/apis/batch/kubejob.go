@@ -62,7 +62,8 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 		return nil, err
 	}
 
-	containers, err := s.getContainers(rd, jobComponent, batchJob)
+	kubeJobName := getKubeJobName(s.batch.GetName(), batchJob.Name)
+	containers, err := s.getContainers(rd, jobComponent, batchJob, kubeJobName)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +87,7 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            getKubeJobName(s.batch.GetName(), batchJob.Name),
+			Name:            kubeJobName,
 			Labels:          jobLabels,
 			OwnerReferences: ownerReference(s.batch),
 		},
@@ -138,12 +139,12 @@ func (s *syncer) getVolumes(namespace, environment string, batchJob radixv1.Radi
 	return volumes, nil
 }
 
-func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob radixv1.RadixBatchJob) ([]corev1.Container, error) {
+func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, batchJob radixv1.RadixBatchJob, kubeJobName string) ([]corev1.Container, error) {
 	volumeMounts, err := s.getContainerVolumeMounts(batchJob, jobComponent, rd.GetName())
 	if err != nil {
 		return nil, err
 	}
-	environmentVariables, err := s.getContainerEnvironmentVariables(rd, jobComponent)
+	environmentVariables, err := s.getContainerEnvironmentVariables(rd, jobComponent, kubeJobName)
 	if err != nil {
 		return nil, err
 	}
@@ -164,12 +165,12 @@ func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv
 	return []corev1.Container{container}, nil
 }
 
-func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent) ([]corev1.EnvVar, error) {
+func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, kubeJobName string) ([]corev1.EnvVar, error) {
 	environmentVariables, err := deployment.GetEnvironmentVariablesForRadixOperator(s.kubeutil, rd.Spec.AppName, rd, jobComponent)
 	if err != nil {
 		return nil, err
 	}
-	environmentVariables = append(environmentVariables, corev1.EnvVar{Name: defaults.RadixScheduleJobNameEnvironmentVariable, Value: s.batch.GetName()})
+	environmentVariables = append(environmentVariables, corev1.EnvVar{Name: defaults.RadixScheduleJobNameEnvironmentVariable, Value: kubeJobName})
 	return environmentVariables, nil
 }
 
