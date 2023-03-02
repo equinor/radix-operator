@@ -407,7 +407,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 }
 
 func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
-	const jobSchedulerImage = "radix-job-scheduler-server:latest"
+	const jobSchedulerImage = "radix-job-scheduler:latest"
 	defer teardownTest()
 
 	for _, jobsExist := range []bool{false, true} {
@@ -643,7 +643,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects[1].Name)
 
 				// Exists due to being job-scheduler
-				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerServerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler-server to be there to access secrets for TLS certificates")
+				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler to be there to access secrets for TLS certificates")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
@@ -1000,7 +1000,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.NotNil(t, getServiceAccountByName(anyOtherServiceAccountName, serviceAccounts))
 	})
 
-	t.Run("app with job use radix-job-scheduler-server SA", func(t *testing.T) {
+	t.Run("app with job use radix-job-scheduler SA", func(t *testing.T) {
 		tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents().
@@ -1012,7 +1012,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 	})
 
@@ -1049,7 +1049,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// And change app back to a component
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().

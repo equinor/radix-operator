@@ -61,7 +61,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 	appName := deploy.radixDeployment.Spec.AppName
 
 	return func() error {
-		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(namespace, defaults.RadixJobSchedulerServerServiceName)
+		serviceAccount, err := deploy.kubeutil.CreateServiceAccount(namespace, defaults.RadixJobSchedulerServiceName)
 		if err != nil {
 			return fmt.Errorf("error creating Service account for radix job scheduler. %v", err)
 		}
@@ -72,7 +72,7 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 				Namespace: serviceAccount.Namespace,
 			}}
 
-		roleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerServerRoleName, subjects)
+		roleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerRoleName, subjects)
 		return deploy.kubeutil.ApplyRoleBinding(namespace, roleBinding)
 	}
 }

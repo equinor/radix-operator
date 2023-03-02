@@ -40,7 +40,7 @@ func (spec *radixWebhookServiceAccountSpec) AutomountServiceAccountToken() *bool
 type jobSchedulerServiceAccountSpec struct{}
 
 func (spec *jobSchedulerServiceAccountSpec) ServiceAccountName() string {
-	return defaults.RadixJobSchedulerServerServiceName
+	return defaults.RadixJobSchedulerServiceName
 }
 
 func (spec *jobSchedulerServiceAccountSpec) AutomountServiceAccountToken() *bool {

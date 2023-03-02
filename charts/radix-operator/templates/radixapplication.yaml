@@ -1007,7 +1007,7 @@ spec:
                   info: https://www.radix.equinor.com/references/reference-radix-config/#jobs'
                 items:
                   description: RadixJobComponent defines a single job component within
-                    a RadixApplication The job component is used by the radix-job-scheduler-server
+                    a RadixApplication The job component is used by the radix-job-scheduler
                     to create Kubernetes Job objects
                   properties:
                     dockerfileName:

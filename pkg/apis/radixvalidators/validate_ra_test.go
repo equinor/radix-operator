@@ -1577,7 +1577,7 @@ func Test_EgressConfig(t *testing.T) {
 }
 
 func Test_validateNotificationsRA(t *testing.T) {
-	invalidUrl := fmt.Sprintf(string([]byte{1, 2, 3, 0x7f, 0}))
+	invalidUrl := string([]byte{1, 2, 3, 0x7f, 0})
 	var testScenarios = []struct {
 		name          string
 		expectedError error

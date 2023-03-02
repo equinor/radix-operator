@@ -1065,7 +1065,7 @@
         "jobs": {
           "description": "List of job specification for the application. More info: https://www.radix.equinor.com/references/reference-radix-config/#jobs",
           "items": {
-            "description": "RadixJobComponent defines a single job component within a RadixApplication The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects",
+            "description": "RadixJobComponent defines a single job component within a RadixApplication The job component is used by the radix-job-scheduler to create Kubernetes Job objects",
             "properties": {
               "dockerfileName": {
                 "description": "Name of the Dockerfile that builds the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename-2",

@@ -422,7 +422,7 @@ type RadixEnvironmentConfig struct {
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
-// The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
+// The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixJobComponent struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
@@ -586,7 +586,7 @@ type RadixJobComponentEnvironmentConfig struct {
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
-// by radix-job-scheduler-server will be mounted to the job container
+// by radix-job-scheduler will be mounted to the job container
 type RadixJobComponentPayload struct {
 	// Path to the folder where payload is mounted
 	// +kubebuilder:validation:MinLength=1
