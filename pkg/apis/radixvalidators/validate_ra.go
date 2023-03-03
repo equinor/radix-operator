@@ -1153,11 +1153,11 @@ func ValidateNotificationsRA(app *radixv1.RadixApplication) error {
 	return errorUtils.Concat(errs)
 }
 
-func validateNotifications(app *radixv1.RadixApplication, notifications *radixv1.RadixNotifications, jobComponentName string, environment string) error {
-	if notifications == nil || len(notifications.Webhook) == 0 {
+func validateNotifications(app *radixv1.RadixApplication, notifications *radixv1.Notifications, jobComponentName string, environment string) error {
+	if notifications == nil || notifications.Webhook == nil || len(*notifications.Webhook) == 0 {
 		return nil
 	}
-	webhook := strings.ToLower(strings.TrimSpace(notifications.Webhook))
+	webhook := strings.ToLower(strings.TrimSpace(*notifications.Webhook))
 	webhookUrl, err := url.Parse(webhook)
 	if err != nil {
 		return InvalidWebhookUrl(jobComponentName, environment)

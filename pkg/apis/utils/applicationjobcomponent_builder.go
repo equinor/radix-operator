@@ -23,6 +23,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithTimeLimitSeconds(*int64) RadixApplicationJobComponentBuilder
 	WithEnabled(bool) RadixApplicationJobComponentBuilder
 	WithIdentity(*v1.Identity) RadixApplicationJobComponentBuilder
+	WithNotifications(*v1.Notifications) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
 }
 
@@ -45,6 +46,7 @@ type radixApplicationJobComponentBuilder struct {
 	timeLimitSeconds  *int64
 	enabled           *bool
 	identity          *v1.Identity
+	notifications     *v1.Notifications
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
@@ -160,6 +162,11 @@ func (rcb *radixApplicationJobComponentBuilder) WithIdentity(identity *v1.Identi
 	return rcb
 }
 
+func (rcb *radixApplicationJobComponentBuilder) WithNotifications(notifications *v1.Notifications) RadixApplicationJobComponentBuilder {
+	rcb.notifications = notifications
+	return rcb
+}
+
 func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobComponent {
 	var environmentConfig = make([]v1.RadixJobComponentEnvironmentConfig, 0)
 	for _, env := range rcb.environmentConfig {
@@ -189,6 +196,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		TimeLimitSeconds:  rcb.timeLimitSeconds,
 		Enabled:           rcb.enabled,
 		Identity:          rcb.identity,
+		Notifications:     rcb.notifications,
 	}
 }
 

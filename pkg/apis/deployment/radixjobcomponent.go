@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -70,16 +71,12 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		MonitoringConfig: radixJobComponent.MonitoringConfig,
 		Payload:          radixJobComponent.Payload,
 		SchedulerPort:    radixJobComponent.SchedulerPort,
-		Notifications:    radixJobComponent.Notifications,
 	}
 
 	if environmentSpecificConfig != nil {
 		deployJob.Monitoring = environmentSpecificConfig.Monitoring
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
-		if environmentSpecificConfig.Notifications != nil {
-			deployJob.Notifications = environmentSpecificConfig.Notifications
-		}
 	}
 
 	if deployJob.TimeLimitSeconds == nil {
@@ -90,9 +87,17 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		}
 	}
 
+	var errs []error
 	identity, err := getRadixCommonComponentIdentity(&radixJobComponent, environmentSpecificConfig)
 	if err != nil {
-		return v1.RadixDeployJobComponent{}, err
+		errs = append(errs, err)
+	}
+	notifications, err := getRadixJobComponentNotification(&radixJobComponent, environmentSpecificConfig)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return v1.RadixDeployJobComponent{}, commonErrors.Concat(errs)
 	}
 
 	componentImage := c.componentImages[componentName]
@@ -102,6 +107,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 	deployJob.Node = getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig)
 	deployJob.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig)
 	deployJob.Identity = identity
+	deployJob.Notifications = notifications
 
 	return deployJob, nil
 }

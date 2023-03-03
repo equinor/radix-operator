@@ -43,6 +43,7 @@ rules:
       - update
       - patch
       - delete
+      - watch
   - apiGroups:
       - '*'
     resources:

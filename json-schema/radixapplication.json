@@ -450,7 +450,7 @@
                       "description": "Environment specific configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                       "properties": {
                         "azureKeyVaults": {
-                          "description": "List of Azure keyvaults to get secrets from.",
+                          "description": "List of Azure Key Vaults to get secrets from.",
                           "items": {
                             "description": "RadixAzureKeyVault defines an Azure keyvault.",
                             "properties": {
@@ -771,7 +771,7 @@
                 "description": "Configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                 "properties": {
                   "azureKeyVaults": {
-                    "description": "List of Azure keyvaults to get secrets from.",
+                    "description": "List of Azure Key Vaults to get secrets from.",
                     "items": {
                       "description": "RadixAzureKeyVault defines an Azure keyvault.",
                       "properties": {
@@ -1143,9 +1143,6 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "webhook"
-                      ],
                       "type": "object"
                     },
                     "resources": {
@@ -1172,7 +1169,7 @@
                       "description": "Environment specific configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                       "properties": {
                         "azureKeyVaults": {
-                          "description": "List of Azure keyvaults to get secrets from.",
+                          "description": "List of Azure Key Vaults to get secrets from.",
                           "items": {
                             "description": "RadixAzureKeyVault defines an Azure keyvault.",
                             "properties": {
@@ -1434,9 +1431,6 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "webhook"
-                ],
                 "type": "object"
               },
               "payload": {
@@ -1516,7 +1510,7 @@
                 "description": "Configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                 "properties": {
                   "azureKeyVaults": {
-                    "description": "List of Azure keyvaults to get secrets from.",
+                    "description": "List of Azure Key Vaults to get secrets from.",
                     "items": {
                       "description": "RadixAzureKeyVault defines an Azure keyvault.",
                       "properties": {

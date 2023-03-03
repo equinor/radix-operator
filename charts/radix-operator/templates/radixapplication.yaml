@@ -453,7 +453,7 @@ spec:
                               secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                             properties:
                               azureKeyVaults:
-                                description: List of Azure keyvaults to get secrets
+                                description: List of Azure Key Vaults to get secrets
                                   from.
                                 items:
                                   description: RadixAzureKeyVault defines an Azure
@@ -748,7 +748,7 @@ spec:
                         Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                       properties:
                         azureKeyVaults:
-                          description: List of Azure keyvaults to get secrets from.
+                          description: List of Azure Key Vaults to get secrets from.
                           items:
                             description: RadixAzureKeyVault defines an Azure keyvault.
                             properties:
@@ -1084,8 +1084,6 @@ spec:
                                 maxLength: 253
                                 minLength: 1
                                 type: string
-                            required:
-                            - webhook
                             type: object
                           resources:
                             description: 'Environment specific configuration for CPU
@@ -1112,7 +1110,7 @@ spec:
                               secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                             properties:
                               azureKeyVaults:
-                                description: List of Azure keyvaults to get secrets
+                                description: List of Azure Key Vaults to get secrets
                                   from.
                                 items:
                                   description: RadixAzureKeyVault defines an Azure
@@ -1357,8 +1355,6 @@ spec:
                           maxLength: 253
                           minLength: 1
                           type: string
-                      required:
-                      - webhook
                       type: object
                     payload:
                       description: 'Defines the path where the job payload is mounted.
@@ -1427,7 +1423,7 @@ spec:
                         Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                       properties:
                         azureKeyVaults:
-                          description: List of Azure keyvaults to get secrets from.
+                          description: List of Azure Key Vaults to get secrets from.
                           items:
                             description: RadixAzureKeyVault defines an Azure keyvault.
                             properties:

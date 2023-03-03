@@ -518,7 +518,7 @@ type RadixJobComponent struct {
 
 	// Notifications about batch or job status changes
 	// +optional
-	Notifications *RadixNotifications `json:"notifications,omitempty"`
+	Notifications *Notifications `json:"notifications,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -582,7 +582,7 @@ type RadixJobComponentEnvironmentConfig struct {
 
 	// Notifications about batch or job status changes
 	// +optional
-	Notifications *RadixNotifications `json:"notifications,omitempty"`
+	Notifications *Notifications `json:"notifications,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
@@ -768,7 +768,7 @@ const (
 
 // RadixSecretRefs defines secret vault
 type RadixSecretRefs struct {
-	// List of Azure keyvaults to get secrets from.
+	// List of Azure Key Vaults to get secrets from.
 	// +optional
 	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty"`
 }
@@ -1047,12 +1047,13 @@ type AzureIdentity struct {
 	ClientId string `json:"clientId"`
 }
 
-// RadixNotifications is the spec for a notifying about internal events or changes
-type RadixNotifications struct {
+// Notifications is the spec for notification about internal events or changes
+type Notifications struct {
 	// Webhook is a URL for notification about internal events or changes. The URL should be of a Radix component or job-component, with not public port.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=253
-	Webhook string `json:"webhook" yaml:"webhook"`
+	// +optional
+	Webhook *string `json:"webhook,omitempty"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components
@@ -1226,6 +1227,11 @@ func (component *RadixJobComponent) GetResources() ResourceRequirements {
 
 func (component *RadixJobComponent) GetIdentity() *Identity {
 	return component.Identity
+}
+
+//GetNotifications Get job component notifications
+func (component *RadixJobComponent) GetNotifications() *Notifications {
+	return component.Notifications
 }
 
 func (component *RadixJobComponent) getEnabled() bool {
