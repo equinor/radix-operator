@@ -138,7 +138,7 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 		errs = append(errs, err)
 	}
 
-	err = ValidateNotificationsRA(app)
+	err = ValidateNotificationsForRA(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -1138,14 +1138,15 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	return nil
 }
 
-func ValidateNotificationsRA(app *radixv1.RadixApplication) error {
+// ValidateNotificationsForRA Validate all notifications in the RadixApplication
+func ValidateNotificationsForRA(app *radixv1.RadixApplication) error {
 	var errs []error
 	for _, job := range app.Spec.Jobs {
-		if err := validateNotifications(app, job.Notifications, job.GetName(), ""); err != nil {
+		if err := ValidateNotifications(app, job.Notifications, job.GetName(), ""); err != nil {
 			errs = append(errs, err)
 		}
 		for _, envConfig := range job.EnvironmentConfig {
-			if err := validateNotifications(app, envConfig.Notifications, job.GetName(), envConfig.Environment); err != nil {
+			if err := ValidateNotifications(app, envConfig.Notifications, job.GetName(), envConfig.Environment); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -1153,7 +1154,8 @@ func ValidateNotificationsRA(app *radixv1.RadixApplication) error {
 	return errorUtils.Concat(errs)
 }
 
-func validateNotifications(app *radixv1.RadixApplication, notifications *radixv1.Notifications, jobComponentName string, environment string) error {
+// ValidateNotifications Validate specified Notifications for the RadixApplication
+func ValidateNotifications(app *radixv1.RadixApplication, notifications *radixv1.Notifications, jobComponentName string, environment string) error {
 	if notifications == nil || notifications.Webhook == nil || len(*notifications.Webhook) == 0 {
 		return nil
 	}

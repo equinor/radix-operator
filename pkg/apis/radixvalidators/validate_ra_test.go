@@ -1686,7 +1686,7 @@ func Test_validateNotificationsRA(t *testing.T) {
 			ra := createValidRA()
 			testcase.updateRa(ra)
 
-			err := radixvalidators.ValidateNotificationsRA(ra)
+			err := radixvalidators.ValidateNotificationsForRA(ra)
 
 			if testcase.expectedError == nil && err != nil {
 				assert.Fail(t, "Not expected error %v", err)

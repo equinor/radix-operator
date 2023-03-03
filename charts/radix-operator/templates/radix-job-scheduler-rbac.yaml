@@ -35,13 +35,18 @@ rules:
   - apiGroups:
       - radix.equinor.com
     resources:
+      - radixapplications
+    verbs:
+      - get
+  - apiGroups:
+      - radix.equinor.com
+    resources:
       - radixbatches
     verbs:
       - list
       - get
       - create
       - update
-      - patch
       - delete
       - watch
   - apiGroups:
@@ -52,20 +57,14 @@ rules:
       - get
       - list
       - create
-      - update
       - delete
-      - patch
   - apiGroups:
       - '*'
     resources:
       - services
     verbs:
-      - get
-      - create
       - delete
       - list
-      - update
-      - patch
   - apiGroups:
       - ''
     resources:
@@ -75,6 +74,7 @@ rules:
       - list
       - create
       - update
+      - patch
   - apiGroups:
       - '*'
     resources:
