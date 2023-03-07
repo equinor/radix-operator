@@ -418,7 +418,6 @@ spec:
                               gpu:
                                 description: 'Defines rules for allowed GPU types.
                                   More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                                minLength: 1
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -683,7 +682,6 @@ spec:
                         gpu:
                           description: 'Defines rules for allowed GPU types. More
                             info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                          minLength: 1
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -1067,7 +1065,6 @@ spec:
                               gpu:
                                 description: 'Defines rules for allowed GPU types.
                                   More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                                minLength: 1
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -1327,7 +1324,6 @@ spec:
                         gpu:
                           description: 'Defines rules for allowed GPU types. More
                             info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                          minLength: 1
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
