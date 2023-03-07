@@ -418,7 +418,6 @@ spec:
                               gpu:
                                 description: 'Defines rules for allowed GPU types.
                                   More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                                minLength: 1
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -497,7 +496,7 @@ spec:
                                             - pfx
                                             type: string
                                           k8sSecretType:
-                                            description: 'k8sSecretType defines the
+                                            description: 'K8sSecretType defines the
                                               type of Kubernetes secret the keyvault
                                               item will be stored in. opaque corresponds
                                               to "Opaque" and "kubernetes.io/tls"
@@ -583,7 +582,7 @@ spec:
                                     will be set as owner of the mounted volume.
                                   type: string
                                 name:
-                                  description: User defined name of the volume mount.
+                                  description: User-defined name of the volume mount.
                                     Must be unique for the component.
                                   minLength: 1
                                   type: string
@@ -683,7 +682,6 @@ spec:
                         gpu:
                           description: 'Defines rules for allowed GPU types. More
                             info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                          minLength: 1
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -789,7 +787,7 @@ spec:
                                       - pfx
                                       type: string
                                     k8sSecretType:
-                                      description: 'k8sSecretType defines the type
+                                      description: 'K8sSecretType defines the type
                                         of Kubernetes secret the keyvault item will
                                         be stored in. opaque corresponds to "Opaque"
                                         and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
@@ -942,7 +940,7 @@ spec:
                       properties:
                         allowRadix:
                           description: Allow or deny outgoing traffic to the public
-                            IP for the Radix cluster.
+                            IP of the Radix cluster.
                           type: boolean
                         rules:
                           description: Defines a list of egress rules.
@@ -951,7 +949,7 @@ spec:
                             properties:
                               destinations:
                                 description: List of allowed destinations. Each destination
-                                  must be a valid CIDR.
+                                  must be a valid IPv4 CIDR.
                                 items:
                                   pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\/([0-9]|[1-2][0-9]|3[0-2]))?$
                                   type: string
@@ -967,7 +965,7 @@ spec:
                                       description: Port number.
                                       format: int32
                                       maximum: 65535
-                                      minimum: 0
+                                      minimum: 1
                                       type: integer
                                     protocol:
                                       description: Protocol.
@@ -1067,7 +1065,6 @@ spec:
                               gpu:
                                 description: 'Defines rules for allowed GPU types.
                                   More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                                minLength: 1
                                 type: string
                               gpuCount:
                                 description: Defines minimum number of required GPUs.
@@ -1142,7 +1139,7 @@ spec:
                                             - pfx
                                             type: string
                                           k8sSecretType:
-                                            description: 'k8sSecretType defines the
+                                            description: 'K8sSecretType defines the
                                               type of Kubernetes secret the keyvault
                                               item will be stored in. opaque corresponds
                                               to "Opaque" and "kubernetes.io/tls"
@@ -1232,7 +1229,7 @@ spec:
                                     will be set as owner of the mounted volume.
                                   type: string
                                 name:
-                                  description: User defined name of the volume mount.
+                                  description: User-defined name of the volume mount.
                                     Must be unique for the component.
                                   minLength: 1
                                   type: string
@@ -1327,7 +1324,6 @@ spec:
                         gpu:
                           description: 'Defines rules for allowed GPU types. More
                             info: https://www.radix.equinor.com/references/reference-radix-config/#gpu'
-                          minLength: 1
                           type: string
                         gpuCount:
                           description: Defines minimum number of required GPUs.
@@ -1345,7 +1341,7 @@ spec:
                       - path
                       type: object
                     ports:
-                      description: List of ports that the job bind to.
+                      description: List of ports that the job binds to.
                       items:
                         description: ComponentPort defines a named port.
                         properties:
@@ -1441,7 +1437,7 @@ spec:
                                       - pfx
                                       type: string
                                     k8sSecretType:
-                                      description: 'k8sSecretType defines the type
+                                      description: 'K8sSecretType defines the type
                                         of Kubernetes secret the keyvault item will
                                         be stored in. opaque corresponds to "Opaque"
                                         and "kubernetes.io/tls" secret types: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types'
@@ -1524,10 +1520,10 @@ spec:
                   properties:
                     email:
                       description: The email address linked to the username.
-                      minLength: 1
+                      minLength: 3
                       type: string
                     username:
-                      description: User name with permission to pull images. The password
+                      description: Username with permission to pull images. The password
                         is set in Radix Web Console.
                       minLength: 1
                       type: string
