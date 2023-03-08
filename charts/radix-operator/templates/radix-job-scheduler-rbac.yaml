@@ -35,12 +35,6 @@ rules:
   - apiGroups:
       - radix.equinor.com
     resources:
-      - radixapplications
-    verbs:
-      - get
-  - apiGroups:
-      - radix.equinor.com
-    resources:
       - radixbatches
     verbs:
       - list
