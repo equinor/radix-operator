@@ -112,13 +112,13 @@ func (app Application) createNewGitDeployKey(namespace, deployKey string, regist
 	secret := corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "git-ssh-keys",
+			Name:            defaults.GitPrivateKeySecretName,
 			Namespace:       namespace,
 			OwnerReferences: GetOwnerReferenceOfRegistration(registration),
 		},
 		Data: map[string][]byte{
-			"id_rsa":      []byte(deployKey),
-			"known_hosts": knownHostsSecret.Data["known_hosts"],
+			defaults.GitPrivateKeySecretKey: []byte(deployKey),
+			"known_hosts":                   knownHostsSecret.Data["known_hosts"],
 		},
 	}
 	return &secret, nil
