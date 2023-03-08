@@ -45,8 +45,11 @@ const (
 	// PlatformUserRoleName Name of platform user cluster role
 	PlatformUserRoleName = "radix-platform-user"
 
-	// RadixJobSchedulerRoleName Name of the cluster role with RBAC for radix-job-scheduler service account
-	RadixJobSchedulerRoleName = "radix-job-scheduler"
+	// RadixJobSchedulerEnvRoleName Name of the cluster role with RBAC for radix-job-scheduler service account in env-namespace
+	RadixJobSchedulerEnvRoleName = "radix-job-scheduler-env"
+
+	// RadixJobSchedulerAppRoleName Name of the cluster role with RBAC for radix-job-scheduler service account in app-namespace
+	RadixJobSchedulerAppRoleName = "radix-job-scheduler-app"
 
 	// RadixJobSchedulerServiceName Name of the service account representing the Radix Job Scheduler
 	RadixJobSchedulerServiceName = "radix-job-scheduler"

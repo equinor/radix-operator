@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: radix-job-scheduler
+  name: radix-job-scheduler-env
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
@@ -89,4 +89,18 @@ rules:
     verbs:
       - get
       - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: radix-job-scheduler-app
+  labels:
+    {{- include "radix-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - radix.equinor.com
+    resources:
+      - radixapplications
+    verbs:
+      - get
 ---
