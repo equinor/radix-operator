@@ -738,7 +738,7 @@ func IsKnownBlobFlexVolumeMount(volumeMount string) bool {
 type RadixNode struct {
 	// Defines rules for allowed GPU types.
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#gpu
-	// +kubebuilder:validation:MinLength=1
+	// +optional
 	Gpu string `json:"gpu,omitempty"`
 
 	// Defines minimum number of required GPUs.
