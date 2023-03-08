@@ -34,7 +34,7 @@ spec:
           replicas: 4
           authentication:
             clientCertificate:
-              verification: on
+              verification: "on"
               passCertificateToUpstream: true
             oauth2:
               clientId: 12cf
