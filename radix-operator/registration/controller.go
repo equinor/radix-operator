@@ -132,9 +132,10 @@ func NewController(client kubernetes.Interface,
 			cm, converted := obj.(*corev1.ConfigMap)
 			if !converted {
 				logger.Errorf("corev1.ConfigMap object cast failed during deleted event received.")
+				// TODO: Configmap was deleted, but not recreated.
 				return
 			}
-			if isPublicConfigMap(cm) {
+			if isPublicKeyConfigMap(cm) {
 				// Resync, as configmap is deleted.
 				controller.HandleObject(cm, "RadixRegistration", getObject)
 			}
@@ -144,7 +145,7 @@ func NewController(client kubernetes.Interface,
 	return controller
 }
 
-func isPublicConfigMap(cm *corev1.ConfigMap) bool {
+func isPublicKeyConfigMap(cm *corev1.ConfigMap) bool {
 	return cm.Name == defaults.GitPublicKeyConfigMapName
 }
 
