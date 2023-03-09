@@ -402,7 +402,7 @@ func InvalidWebhookUrl(jobComponentName, environment string) error {
 	return getWebhookError("invalid webhook URL", jobComponentName, environment)
 }
 
-func NotAllowedSchemaHttpsInWebhookUrl(jobComponentName, environment string) error {
+func NotAllowedSchemeHttpsInWebhookUrl(jobComponentName, environment string) error {
 	return getWebhookError("not allowed schema https in the webhook in the notifications", jobComponentName, environment)
 }
 

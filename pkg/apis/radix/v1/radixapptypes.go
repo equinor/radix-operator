@@ -1229,7 +1229,7 @@ func (component *RadixJobComponent) GetIdentity() *Identity {
 	return component.Identity
 }
 
-//GetNotifications Get job component notifications
+// GetNotifications Get job component notifications
 func (component *RadixJobComponent) GetNotifications() *Notifications {
 	return component.Notifications
 }

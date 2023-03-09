@@ -1165,7 +1165,7 @@ func ValidateNotifications(app *radixv1.RadixApplication, notifications *radixv1
 		return InvalidWebhookUrl(jobComponentName, environment)
 	}
 	if webhookUrl.Scheme == "https" {
-		return NotAllowedSchemaHttpsInWebhookUrl(jobComponentName, environment)
+		return NotAllowedSchemeHttpsInWebhookUrl(jobComponentName, environment)
 	}
 	if len(webhookUrl.Port()) == 0 {
 		return MissingPortInWebhookUrl(jobComponentName, environment)

@@ -1619,12 +1619,12 @@ func Test_validateNotificationsRA(t *testing.T) {
 				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: &invalidUrl}
 			},
 		},
-		{name: "Not allowed schema https", expectedError: radixvalidators.NotAllowedSchemaHttpsInWebhookUrl("job", ""),
+		{name: "Not allowed schema https", expectedError: radixvalidators.NotAllowedSchemeHttpsInWebhookUrl("job", ""),
 			updateRa: func(ra *v1.RadixApplication) {
 				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("https://api:8090")}
 			},
 		},
-		{name: "Not allowed schema https in environment", expectedError: radixvalidators.NotAllowedSchemaHttpsInWebhookUrl("job", "dev"),
+		{name: "Not allowed schema https in environment", expectedError: radixvalidators.NotAllowedSchemeHttpsInWebhookUrl("job", "dev"),
 			updateRa: func(ra *v1.RadixApplication) {
 				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("https://api:8090")}
 			},
