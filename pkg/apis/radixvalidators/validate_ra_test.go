@@ -1589,9 +1589,14 @@ func Test_validateNotificationsRA(t *testing.T) {
 				ra.Spec.Jobs[0].Notifications = nil
 			},
 		},
-		{name: "valid webhook", expectedError: nil,
+		{name: "valid webhook with http", expectedError: nil,
 			updateRa: func(ra *v1.RadixApplication) {
 				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://api:8090/abc")}
+			},
+		},
+		{name: "valid webhook with https", expectedError: nil,
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("https://api:8090/abc")}
 			},
 		},
 		{name: "valid webhook in environment", expectedError: nil,
@@ -1619,14 +1624,14 @@ func Test_validateNotificationsRA(t *testing.T) {
 				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: &invalidUrl}
 			},
 		},
-		{name: "Not allowed schema https", expectedError: radixvalidators.NotAllowedSchemaHttpsInWebhookUrl("job", ""),
+		{name: "Not allowed schema ftp", expectedError: radixvalidators.NotAllowedSchemaInWebhookUrl("ftp", "job", ""),
 			updateRa: func(ra *v1.RadixApplication) {
-				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("https://api:8090")}
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
 			},
 		},
-		{name: "Not allowed schema https in environment", expectedError: radixvalidators.NotAllowedSchemaHttpsInWebhookUrl("job", "dev"),
+		{name: "Not allowed schema ftp in environment", expectedError: radixvalidators.NotAllowedSchemaInWebhookUrl("ftp", "job", "dev"),
 			updateRa: func(ra *v1.RadixApplication) {
-				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("https://api:8090")}
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
 			},
 		},
 		{name: "missing port in the webhook", expectedError: radixvalidators.MissingPortInWebhookUrl("job", ""),

@@ -402,8 +402,8 @@ func InvalidWebhookUrl(jobComponentName, environment string) error {
 	return getWebhookError("invalid webhook URL", jobComponentName, environment)
 }
 
-func NotAllowedSchemaHttpsInWebhookUrl(jobComponentName, environment string) error {
-	return getWebhookError("not allowed schema https in the webhook in the notifications", jobComponentName, environment)
+func NotAllowedSchemaInWebhookUrl(schema, jobComponentName, environment string) error {
+	return getWebhookError(fmt.Sprintf("not allowed schema %s in the webhook in the notifications", schema), jobComponentName, environment)
 }
 
 func MissingPortInWebhookUrl(jobComponentName, environment string) error {
