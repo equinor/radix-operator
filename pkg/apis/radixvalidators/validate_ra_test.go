@@ -1624,12 +1624,12 @@ func Test_validateNotificationsRA(t *testing.T) {
 				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: &invalidUrl}
 			},
 		},
-		{name: "Not allowed schema ftp", expectedError: radixvalidators.NotAllowedSchemaInWebhookUrl("ftp", "job", ""),
+		{name: "Not allowed scheme ftp", expectedError: radixvalidators.NotAllowedSchemeInWebhookUrl("ftp", "job", ""),
 			updateRa: func(ra *v1.RadixApplication) {
 				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
 			},
 		},
-		{name: "Not allowed schema ftp in environment", expectedError: radixvalidators.NotAllowedSchemaInWebhookUrl("ftp", "job", "dev"),
+		{name: "Not allowed scheme ftp in environment", expectedError: radixvalidators.NotAllowedSchemeInWebhookUrl("ftp", "job", "dev"),
 			updateRa: func(ra *v1.RadixApplication) {
 				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
 			},
