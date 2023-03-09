@@ -13,6 +13,7 @@ type RadixJobComponentEnvironmentConfigBuilder interface {
 	WithNode(v1.RadixNode) RadixJobComponentEnvironmentConfigBuilder
 	WithRunAsNonRoot(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithTimeLimitSeconds(*int64) RadixJobComponentEnvironmentConfigBuilder
+	WithBackoffLimit(*int32) RadixJobComponentEnvironmentConfigBuilder
 	WithSecretRefs(v1.RadixSecretRefs) RadixJobComponentEnvironmentConfigBuilder
 	WithEnabled(bool) RadixJobComponentEnvironmentConfigBuilder
 	WithIdentity(*v1.Identity) RadixJobComponentEnvironmentConfigBuilder
@@ -30,12 +31,18 @@ type radixJobComponentEnvironmentConfigBuilder struct {
 	runAsNonRoot     bool
 	secretRefs       v1.RadixSecretRefs
 	timeLimitSeconds *int64
+	backoffLimit     *int32
 	enabled          *bool
 	identity         *v1.Identity
 }
 
 func (ceb *radixJobComponentEnvironmentConfigBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixJobComponentEnvironmentConfigBuilder {
 	ceb.timeLimitSeconds = timeLimitSeconds
+	return ceb
+}
+
+func (ceb *radixJobComponentEnvironmentConfigBuilder) WithBackoffLimit(backoffLimit *int32) RadixJobComponentEnvironmentConfigBuilder {
+	ceb.backoffLimit = backoffLimit
 	return ceb
 }
 
@@ -112,6 +119,7 @@ func (ceb *radixJobComponentEnvironmentConfigBuilder) BuildEnvironmentConfig() v
 		Node:             ceb.node,
 		SecretRefs:       ceb.secretRefs,
 		TimeLimitSeconds: ceb.timeLimitSeconds,
+		BackoffLimit:     ceb.backoffLimit,
 		Enabled:          ceb.enabled,
 		Identity:         ceb.identity,
 	}

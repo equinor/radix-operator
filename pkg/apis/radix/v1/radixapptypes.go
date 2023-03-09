@@ -507,6 +507,12 @@ type RadixJobComponent struct {
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
 
+	// Specifies the number of retries before marking this job failed.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit
+	// +optional
+	// +kubebuilder:validation:Minimum:=0
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
 	// Configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
 	// +optional
@@ -566,6 +572,12 @@ type RadixJobComponentEnvironmentConfig struct {
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#timelimitseconds-2
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
+
+	// Environment specific value for the number of retries before marking this job failed.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit-2
+	// +optional
+	// +kubebuilder:validation:Minimum:=0
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
 
 	// Environment specific configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2

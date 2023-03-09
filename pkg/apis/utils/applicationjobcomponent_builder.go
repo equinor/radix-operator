@@ -21,6 +21,7 @@ type RadixApplicationJobComponentBuilder interface {
 	WithNode(node v1.RadixNode) RadixApplicationJobComponentBuilder
 	WithVolumeMounts(volumeMounts []v1.RadixVolumeMount) RadixApplicationJobComponentBuilder
 	WithTimeLimitSeconds(*int64) RadixApplicationJobComponentBuilder
+	WithBackoffLimit(*int32) RadixApplicationJobComponentBuilder
 	WithEnabled(bool) RadixApplicationJobComponentBuilder
 	WithIdentity(*v1.Identity) RadixApplicationJobComponentBuilder
 	BuildJobComponent() v1.RadixJobComponent
@@ -43,12 +44,18 @@ type radixApplicationJobComponentBuilder struct {
 	node              v1.RadixNode
 	volumes           []v1.RadixVolumeMount
 	timeLimitSeconds  *int64
+	backoffLimit      *int32
 	enabled           *bool
 	identity          *v1.Identity
 }
 
 func (rcb *radixApplicationJobComponentBuilder) WithTimeLimitSeconds(timeLimitSeconds *int64) RadixApplicationJobComponentBuilder {
 	rcb.timeLimitSeconds = timeLimitSeconds
+	return rcb
+}
+
+func (rcb *radixApplicationJobComponentBuilder) WithBackoffLimit(backoffLimit *int32) RadixApplicationJobComponentBuilder {
+	rcb.backoffLimit = backoffLimit
 	return rcb
 }
 
@@ -187,6 +194,7 @@ func (rcb *radixApplicationJobComponentBuilder) BuildJobComponent() v1.RadixJobC
 		Payload:           payload,
 		Node:              rcb.node,
 		TimeLimitSeconds:  rcb.timeLimitSeconds,
+		BackoffLimit:      rcb.backoffLimit,
 		Enabled:           rcb.enabled,
 		Identity:          rcb.identity,
 	}
