@@ -1300,6 +1300,11 @@ func (in *RadixDeployJobComponent) DeepCopyInto(out *RadixDeployJobComponent) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.BackoffLimit != nil {
+		in, out := &in.BackoffLimit, &out.BackoffLimit
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Identity != nil {
 		in, out := &in.Identity, &out.Identity
 		*out = new(Identity)
@@ -1738,6 +1743,11 @@ func (in *RadixJobComponent) DeepCopyInto(out *RadixJobComponent) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.BackoffLimit != nil {
+		in, out := &in.BackoffLimit, &out.BackoffLimit
+		*out = new(int32)
+		**out = **in
+	}
 	if in.Identity != nil {
 		in, out := &in.Identity, &out.Identity
 		*out = new(Identity)
@@ -1787,6 +1797,11 @@ func (in *RadixJobComponentEnvironmentConfig) DeepCopyInto(out *RadixJobComponen
 	if in.TimeLimitSeconds != nil {
 		in, out := &in.TimeLimitSeconds, &out.TimeLimitSeconds
 		*out = new(int64)
+		**out = **in
+	}
+	if in.BackoffLimit != nil {
+		in, out := &in.BackoffLimit, &out.BackoffLimit
+		*out = new(int32)
 		**out = **in
 	}
 	if in.Identity != nil {
