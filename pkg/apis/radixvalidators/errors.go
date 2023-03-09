@@ -397,3 +397,35 @@ func NotValidIPv4CidrError(ipMask string) error {
 func InvalidEgressPortProtocolError(protocol string, validProtocols []string) error {
 	return fmt.Errorf("protocol %s must be one of {%s}", protocol, strings.Join(validProtocols, ", "))
 }
+
+func InvalidWebhookUrl(jobComponentName, environment string) error {
+	return getWebhookError("invalid webhook URL", jobComponentName, environment)
+}
+
+func NotAllowedSchemeInWebhookUrl(schema, jobComponentName, environment string) error {
+	return getWebhookError(fmt.Sprintf("not allowed scheme %s in the webhook in the notifications", schema), jobComponentName, environment)
+}
+
+func MissingPortInWebhookUrl(jobComponentName, environment string) error {
+	return getWebhookError("missing port in the webhook in the notifications", jobComponentName, environment)
+}
+
+func OnlyAppComponentAllowedInWebhookUrl(jobComponentName, environment string) error {
+	return getWebhookError("webhook can only reference to an application component", jobComponentName, environment)
+}
+
+func InvalidPortInWebhookUrl(webhookUrlPort, targetComponentName, jobComponentName, environment string) error {
+	return getWebhookError(fmt.Sprintf("webhook port %s does not exist in an application component %s", webhookUrlPort, targetComponentName), jobComponentName, environment)
+}
+
+func InvalidUseOfPublicPortInWebhookUrl(webhookUrlPort, targetComponentName, jobComponentName, environment string) error {
+	return getWebhookError(fmt.Sprintf("not allowed to use in the webhook a public port %s of the component %s", webhookUrlPort, targetComponentName), jobComponentName, environment)
+}
+
+func getWebhookError(message, jobComponentName, environment string) error {
+	componentAndEnvironmentNames := fmt.Sprintf("in the job component %s", jobComponentName)
+	if len(environment) == 0 {
+		return fmt.Errorf("%s %s", message, componentAndEnvironmentNames)
+	}
+	return fmt.Errorf("%s %s", message, fmt.Sprintf("%s in environment %s", componentAndEnvironmentNames, environment))
+}

@@ -45,11 +45,14 @@ const (
 	// PlatformUserRoleName Name of platform user cluster role
 	PlatformUserRoleName = "radix-platform-user"
 
-	// RadixJobSchedulerServerRoleName Name of the cluster role with RBAC for radix-job-scheduler-server service account
-	RadixJobSchedulerServerRoleName = "radix-job-scheduler-server"
+	// RadixJobSchedulerEnvRoleName Name of the cluster role with RBAC for radix-job-scheduler service account in env-namespace
+	RadixJobSchedulerEnvRoleName = "radix-job-scheduler-env"
 
-	// RadixJobSchedulerServerServiceName Name of the service account representing the Radix Job Scheduler
-	RadixJobSchedulerServerServiceName = "radix-job-scheduler-server"
+	// RadixJobSchedulerAppRoleName Name of the cluster role with RBAC for radix-job-scheduler service account in app-namespace
+	RadixJobSchedulerAppRoleName = "radix-job-scheduler-app"
+
+	// RadixJobSchedulerServiceName Name of the service account representing the Radix Job Scheduler
+	RadixJobSchedulerServiceName = "radix-job-scheduler"
 )
 
 // GetMachineUserRoleName Gets the name of the machine user for an app

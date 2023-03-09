@@ -452,7 +452,7 @@ spec:
                               secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                             properties:
                               azureKeyVaults:
-                                description: List of Azure keyvaults to get secrets
+                                description: List of Azure Key Vaults to get secrets
                                   from.
                                 items:
                                   description: RadixAzureKeyVault defines an Azure
@@ -746,7 +746,7 @@ spec:
                         Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                       properties:
                         azureKeyVaults:
-                          description: List of Azure keyvaults to get secrets from.
+                          description: List of Azure Key Vaults to get secrets from.
                           items:
                             description: RadixAzureKeyVault defines an Azure keyvault.
                             properties:
@@ -1005,7 +1005,7 @@ spec:
                   info: https://www.radix.equinor.com/references/reference-radix-config/#jobs'
                 items:
                   description: RadixJobComponent defines a single job component within
-                    a RadixApplication The job component is used by the radix-job-scheduler-server
+                    a RadixApplication The job component is used by the radix-job-scheduler
                     to create Kubernetes Job objects
                   properties:
                     dockerfileName:
@@ -1070,6 +1070,18 @@ spec:
                                 description: Defines minimum number of required GPUs.
                                 type: string
                             type: object
+                          notifications:
+                            description: Notifications about batch or job status changes
+                            properties:
+                              webhook:
+                                description: Webhook is a URL for notification about
+                                  internal events or changes. The URL should be of
+                                  a Radix component or job-component, with not public
+                                  port.
+                                maxLength: 253
+                                minLength: 1
+                                type: string
+                            type: object
                           resources:
                             description: 'Environment specific configuration for CPU
                               and memory resources. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3'
@@ -1095,7 +1107,7 @@ spec:
                               secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                             properties:
                               azureKeyVaults:
-                                description: List of Azure keyvaults to get secrets
+                                description: List of Azure Key Vaults to get secrets
                                   from.
                                 items:
                                   description: RadixAzureKeyVault defines an Azure
@@ -1329,6 +1341,17 @@ spec:
                           description: Defines minimum number of required GPUs.
                           type: string
                       type: object
+                    notifications:
+                      description: Notifications about batch or job status changes
+                      properties:
+                        webhook:
+                          description: Webhook is a URL for notification about internal
+                            events or changes. The URL should be of a Radix component
+                            or job-component, with not public port.
+                          maxLength: 253
+                          minLength: 1
+                          type: string
+                      type: object
                     payload:
                       description: 'Defines the path where the job payload is mounted.
                         More info: https://www.radix.equinor.com/references/reference-radix-config/#payload'
@@ -1396,7 +1419,7 @@ spec:
                         Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs'
                       properties:
                         azureKeyVaults:
-                          description: List of Azure keyvaults to get secrets from.
+                          description: List of Azure Key Vaults to get secrets from.
                           items:
                             description: RadixAzureKeyVault defines an Azure keyvault.
                             properties:

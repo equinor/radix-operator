@@ -3,7 +3,13 @@ kind: CustomResourceDefinition
 metadata:
   name: radixdeployments.radix.equinor.com
   labels:
-    {{- include "radix-operator.labels" . | nindent 4 }}
+    app.kubernetes.io/instance: radix-operator
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: radix-operator
+    app.kubernetes.io/version: 1.32.5
+    helm.sh/chart: radix-operator-1.13.5_1
+    helm.toolkit.fluxcd.io/name: radix-operator
+    helm.toolkit.fluxcd.io/namespace: default
 spec:
   group: radix.equinor.com
   names:
@@ -14,18 +20,18 @@ spec:
       - rd
   scope: Namespaced
   versions:
-  - name: v1
-    served: true
-    storage: true
-    subresources:
-      status: {}
-    schema:
-      openAPIV3Schema:
-        type: object
-        properties:
-          spec:
-            type: object
-            x-kubernetes-preserve-unknown-fields: true
-          status:
-            type: object
-            x-kubernetes-preserve-unknown-fields: true
+    - name: v1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
