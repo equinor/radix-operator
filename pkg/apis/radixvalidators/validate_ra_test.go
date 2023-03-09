@@ -2,6 +2,7 @@ package radixvalidators_test
 
 import (
 	"fmt"
+	"github.com/equinor/radix-common/utils/pointers"
 	"strings"
 	"testing"
 
@@ -1572,6 +1573,137 @@ func Test_EgressConfig(t *testing.T) {
 			testcase.updateRA(validRA)
 			isValid, _ := radixvalidators.CanRadixApplicationBeInserted(client, validRA)
 			assert.Equal(t, testcase.isValid, isValid)
+		})
+	}
+}
+
+func Test_validateNotificationsRA(t *testing.T) {
+	invalidUrl := string([]byte{1, 2, 3, 0x7f, 0})
+	var testScenarios = []struct {
+		name          string
+		expectedError error
+		updateRa      updateRAFunc
+	}{
+		{name: "No notification", expectedError: nil,
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = nil
+			},
+		},
+		{name: "valid webhook with http", expectedError: nil,
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://api:8090/abc")}
+			},
+		},
+		{name: "valid webhook with https", expectedError: nil,
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("https://api:8090/abc")}
+			},
+		},
+		{name: "valid webhook in environment", expectedError: nil,
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://api:8090/abc")}
+			},
+		},
+		{name: "valid webhook to job component", expectedError: nil,
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://job3:8099/abc")}
+			},
+		},
+		{name: "valid webhook to job component in environment", expectedError: nil,
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://job3:8099/abc")}
+			},
+		},
+		{name: "Invalid webhook URL", expectedError: radixvalidators.InvalidWebhookUrl("job", ""),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: &invalidUrl}
+			},
+		},
+		{name: "Invalid webhook URL in environment", expectedError: radixvalidators.InvalidWebhookUrl("job", "dev"),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: &invalidUrl}
+			},
+		},
+		{name: "Not allowed scheme ftp", expectedError: radixvalidators.NotAllowedSchemeInWebhookUrl("ftp", "job", ""),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
+			},
+		},
+		{name: "Not allowed scheme ftp in environment", expectedError: radixvalidators.NotAllowedSchemeInWebhookUrl("ftp", "job", "dev"),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("ftp://api:8090")}
+			},
+		},
+		{name: "missing port in the webhook", expectedError: radixvalidators.MissingPortInWebhookUrl("job", ""),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://api/abc")}
+			},
+		},
+		{name: "missing port in the webhook in environment", expectedError: radixvalidators.MissingPortInWebhookUrl("job", "dev"),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://api/abc")}
+			},
+		},
+		{name: "webhook can only reference to an application component or job", expectedError: radixvalidators.OnlyAppComponentAllowedInWebhookUrl("job", ""),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://notexistingcomponent:8090/abc")}
+			},
+		},
+		{name: "webhook can only reference to an application component or job in environment", expectedError: radixvalidators.OnlyAppComponentAllowedInWebhookUrl("job", "dev"),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://notexistingcomponent:8090/abc")}
+			},
+		},
+		{name: "webhook port does not exist in an application component", expectedError: radixvalidators.InvalidPortInWebhookUrl("8077", "api", "job", ""),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://api:8077")}
+			},
+		},
+		{name: "webhook port does not exist in an application component in environment", expectedError: radixvalidators.InvalidPortInWebhookUrl("8077", "api", "job", "dev"),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://api:8077")}
+			},
+		},
+		{name: "webhook port does not exist in an application job component", expectedError: radixvalidators.InvalidPortInWebhookUrl("8077", "job3", "job", ""),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://job3:8077")}
+			},
+		},
+		{name: "webhook port does not exist in an application job component in environment", expectedError: radixvalidators.InvalidPortInWebhookUrl("8077", "job3", "job", "dev"),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://job3:8077")}
+			},
+		},
+		{name: "not allowed to use in the webhook a public port of an application component", expectedError: radixvalidators.InvalidUseOfPublicPortInWebhookUrl("8080", "app", "job", ""),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://app:8080")}
+			},
+		},
+		{name: "not allowed to use in the webhook a public port of an application component in environment", expectedError: radixvalidators.InvalidUseOfPublicPortInWebhookUrl("8080", "app", "job", "dev"),
+			updateRa: func(ra *v1.RadixApplication) {
+				ra.Spec.Jobs[0].EnvironmentConfig[0].Notifications = &v1.Notifications{Webhook: pointers.Ptr("http://app:8080")}
+			},
+		},
+	}
+
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			ra := createValidRA()
+			testcase.updateRa(ra)
+
+			err := radixvalidators.ValidateNotificationsForRA(ra)
+
+			if testcase.expectedError == nil && err != nil {
+				assert.Fail(t, "Not expected error %v", err)
+				return
+			}
+			if err != nil {
+				assert.NotNil(t, err)
+				assert.True(t, testcase.expectedError.Error() == err.Error())
+				return
+			}
+			assert.Nil(t, testcase.expectedError)
+			assert.Nil(t, err)
 		})
 	}
 }

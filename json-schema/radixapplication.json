@@ -449,7 +449,7 @@
                       "description": "Environment specific configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                       "properties": {
                         "azureKeyVaults": {
-                          "description": "List of Azure keyvaults to get secrets from.",
+                          "description": "List of Azure Key Vaults to get secrets from.",
                           "items": {
                             "description": "RadixAzureKeyVault defines an Azure keyvault.",
                             "properties": {
@@ -769,7 +769,7 @@
                 "description": "Configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                 "properties": {
                   "azureKeyVaults": {
-                    "description": "List of Azure keyvaults to get secrets from.",
+                    "description": "List of Azure Key Vaults to get secrets from.",
                     "items": {
                       "description": "RadixAzureKeyVault defines an Azure keyvault.",
                       "properties": {
@@ -1063,7 +1063,7 @@
         "jobs": {
           "description": "List of job specification for the application. More info: https://www.radix.equinor.com/references/reference-radix-config/#jobs",
           "items": {
-            "description": "RadixJobComponent defines a single job component within a RadixApplication The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects",
+            "description": "RadixJobComponent defines a single job component within a RadixApplication The job component is used by the radix-job-scheduler to create Kubernetes Job objects",
             "properties": {
               "backoffLimit": {
                 "description": "Specifies the number of retries before marking this job failed. More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit",
@@ -1142,6 +1142,18 @@
                       },
                       "type": "object"
                     },
+                    "notifications": {
+                      "description": "Notifications about batch or job status changes",
+                      "properties": {
+                        "webhook": {
+                          "description": "Webhook is a URL for notification about internal events or changes. The URL should be of a Radix component or job-component, with not public port.",
+                          "maxLength": 253,
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
                     "resources": {
                       "description": "Environment specific configuration for CPU and memory resources. More info: https://www.radix.equinor.com/references/reference-radix-config/#resources-3",
                       "properties": {
@@ -1166,7 +1178,7 @@
                       "description": "Environment specific configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                       "properties": {
                         "azureKeyVaults": {
-                          "description": "List of Azure keyvaults to get secrets from.",
+                          "description": "List of Azure Key Vaults to get secrets from.",
                           "items": {
                             "description": "RadixAzureKeyVault defines an Azure keyvault.",
                             "properties": {
@@ -1417,6 +1429,18 @@
                 },
                 "type": "object"
               },
+              "notifications": {
+                "description": "Notifications about batch or job status changes",
+                "properties": {
+                  "webhook": {
+                    "description": "Webhook is a URL for notification about internal events or changes. The URL should be of a Radix component or job-component, with not public port.",
+                    "maxLength": 253,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
               "payload": {
                 "description": "Defines the path where the job payload is mounted. More info: https://www.radix.equinor.com/references/reference-radix-config/#payload",
                 "properties": {
@@ -1494,7 +1518,7 @@
                 "description": "Configuration for external secret stores, like Azure KeyVault. More info: https://www.radix.equinor.com/references/reference-radix-config/#secretrefs",
                 "properties": {
                   "azureKeyVaults": {
-                    "description": "List of Azure keyvaults to get secrets from.",
+                    "description": "List of Azure Key Vaults to get secrets from.",
                     "items": {
                       "description": "RadixAzureKeyVault defines an Azure keyvault.",
                       "properties": {

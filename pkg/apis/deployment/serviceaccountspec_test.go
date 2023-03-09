@@ -41,7 +41,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
@@ -49,7 +49,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[1], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[1])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
@@ -72,7 +72,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())
@@ -96,7 +96,7 @@ func Test_ServiceAccountSpec(t *testing.T) {
 
 		spec = NewServiceAccountSpec(rd, newJobSchedulerComponent(&rd.Spec.Jobs[0], rd))
 		assert.Equal(t, utils.BoolPtr(true), spec.AutomountServiceAccountToken())
-		assert.Equal(t, defaults.RadixJobSchedulerServerServiceName, spec.ServiceAccountName())
+		assert.Equal(t, defaults.RadixJobSchedulerServiceName, spec.ServiceAccountName())
 
 		spec = NewServiceAccountSpec(rd, &rd.Spec.Jobs[0])
 		assert.Equal(t, utils.BoolPtr(false), spec.AutomountServiceAccountToken())

@@ -292,6 +292,10 @@ func (deployJobComponent *RadixDeployJobComponent) GetIdentity() *Identity {
 	return deployJobComponent.Identity
 }
 
+func (deployJobComponent *RadixDeployJobComponent) GetNotifications() *Notifications {
+	return deployJobComponent.Notifications
+}
+
 func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
 	deployJobComponent.Name = name
 }
@@ -316,7 +320,7 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 }
 
 // RadixDeployJobComponent defines a single job component within a RadixDeployment
-// The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
+// The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name" yaml:"name"`
 	Environment             string                    `json:"environment" yaml:"environment"`
@@ -336,6 +340,7 @@ type RadixDeployJobComponent struct {
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
 	BackoffLimit            *int32                    `json:"backoffLimit,omitempty" yaml:"backoffLimit,omitempty"`
 	Identity                *Identity                 `json:"identity,omitempty" yaml:"identity,omitempty"`
+	Notifications           *Notifications            `json:"notifications,omitempty"`
 }
 
 type RadixComponentType string

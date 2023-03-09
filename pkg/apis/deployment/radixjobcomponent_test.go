@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-common/utils/pointers"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -459,6 +460,46 @@ func Test_GetRadixJobComponents_BackoffLimit(t *testing.T) {
 			require.NoError(t, err, "prodJobs build error")
 			require.Len(t, prodJobs, 1, "prodJobs length")
 			assert.Equal(t, scenario.expectedEnvProdBackoffLimit, prodJobs[0].BackoffLimit, "prodJobs bacoffLimit")
+		})
+	}
+}
+
+func Test_GetRadixJobComponents_Notifications(t *testing.T) {
+	type scenarioSpec struct {
+		name                 string
+		commonConfig         *v1.Notifications
+		configureEnvironment bool
+		environmentConfig    *v1.Notifications
+		expected             *v1.Notifications
+	}
+
+	scenarios := []scenarioSpec{
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Notifications{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
+		{name: "use commonConfig when environmentConfig.Webhook is empty", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: nil}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
+		{name: "override non-empty commonConfig with environmentConfig.Webhook", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+		{name: "override empty commonConfig.Webhook with environmentConfig", commonConfig: &v1.Notifications{Webhook: nil}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			const envName = "anyenv"
+			jobComponent := utils.AnApplicationJobComponent().WithName("anyjob").WithNotifications(scenario.commonConfig)
+			if scenario.configureEnvironment {
+				jobComponent = jobComponent.WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithNotifications(scenario.environmentConfig),
+				)
+			}
+			ra := utils.ARadixApplication().WithJobComponents(jobComponent).BuildRA()
+			sut := jobComponentsBuilder{ra: ra, env: envName, componentImages: make(map[string]pipeline.ComponentImage)}
+			jobs, err := sut.JobComponents()
+			require.NoError(t, err)
+			assert.Equal(t, scenario.expected, jobs[0].Notifications)
 		})
 	}
 }

@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
@@ -63,9 +64,18 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployJobComponent, error) {
 	componentName := radixJobComponent.Name
 	componentImage := c.componentImages[componentName]
+	
+  var errs []error
 	identity, err := getRadixCommonComponentIdentity(&radixJobComponent, environmentSpecificConfig)
 	if err != nil {
-		return v1.RadixDeployJobComponent{}, err
+		errs = append(errs, err)
+	}
+	notifications, err := getRadixJobComponentNotification(&radixJobComponent, environmentSpecificConfig)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return v1.RadixDeployJobComponent{}, commonErrors.Concat(errs)
 	}
 
 	deployJob := v1.RadixDeployJobComponent{
@@ -84,6 +94,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		BackoffLimit:         getRadixJobComponentBackoffLimit(radixJobComponent, environmentSpecificConfig),
 		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),
 		Identity:             identity,
+    Notifications:        notifications,
 	}
 
 	if environmentSpecificConfig != nil {
