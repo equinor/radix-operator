@@ -1065,6 +1065,12 @@
           "items": {
             "description": "RadixJobComponent defines a single job component within a RadixApplication The job component is used by the radix-job-scheduler to create Kubernetes Job objects",
             "properties": {
+              "backoffLimit": {
+                "description": "Specifies the number of retries before marking this job failed. More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit",
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
               "dockerfileName": {
                 "description": "Name of the Dockerfile that builds the job. More info: https://www.radix.equinor.com/references/reference-radix-config/#dockerfilename-2",
                 "type": "string"
@@ -1078,6 +1084,12 @@
                 "items": {
                   "description": "RadixJobComponentEnvironmentConfig defines environment specific settings for a single job component within a RadixApplication",
                   "properties": {
+                    "backoffLimit": {
+                      "description": "Environment specific value for the number of retries before marking this job failed. More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit-2",
+                      "format": "int32",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
                     "enabled": {
                       "description": "Controls if the job shall be deployed to this environment.",
                       "type": "boolean"

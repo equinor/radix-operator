@@ -63,31 +63,9 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 
 func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployJobComponent, error) {
 	componentName := radixJobComponent.Name
-	deployJob := v1.RadixDeployJobComponent{
-		Name:             componentName,
-		Ports:            radixJobComponent.Ports,
-		Secrets:          radixJobComponent.Secrets,
-		Monitoring:       false,
-		MonitoringConfig: radixJobComponent.MonitoringConfig,
-		Payload:          radixJobComponent.Payload,
-		SchedulerPort:    radixJobComponent.SchedulerPort,
-	}
-
-	if environmentSpecificConfig != nil {
-		deployJob.Monitoring = environmentSpecificConfig.Monitoring
-		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
-		deployJob.TimeLimitSeconds = environmentSpecificConfig.TimeLimitSeconds
-	}
-
-	if deployJob.TimeLimitSeconds == nil {
-		if radixJobComponent.TimeLimitSeconds != nil {
-			deployJob.TimeLimitSeconds = radixJobComponent.TimeLimitSeconds
-		} else {
-			deployJob.TimeLimitSeconds = numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
-		}
-	}
-
-	var errs []error
+	componentImage := c.componentImages[componentName]
+	
+  var errs []error
 	identity, err := getRadixCommonComponentIdentity(&radixJobComponent, environmentSpecificConfig)
 	if err != nil {
 		errs = append(errs, err)
@@ -100,14 +78,48 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		return v1.RadixDeployJobComponent{}, commonErrors.Concat(errs)
 	}
 
-	componentImage := c.componentImages[componentName]
-	deployJob.Image = getImagePath(&componentImage, environmentSpecificConfig)
-	deployJob.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars)
-	deployJob.Resources = getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig)
-	deployJob.Node = getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig)
-	deployJob.SecretRefs = getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig)
-	deployJob.Identity = identity
-	deployJob.Notifications = notifications
+	deployJob := v1.RadixDeployJobComponent{
+		Name:                 componentName,
+		Ports:                radixJobComponent.Ports,
+		Secrets:              radixJobComponent.Secrets,
+		Monitoring:           false,
+		MonitoringConfig:     radixJobComponent.MonitoringConfig,
+		Payload:              radixJobComponent.Payload,
+		SchedulerPort:        radixJobComponent.SchedulerPort,
+		Image:                getImagePath(&componentImage, environmentSpecificConfig),
+		EnvironmentVariables: getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars),
+		Resources:            getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig),
+		Node:                 getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig),
+		SecretRefs:           getRadixCommonComponentRadixSecretRefs(&radixJobComponent, environmentSpecificConfig),
+		BackoffLimit:         getRadixJobComponentBackoffLimit(radixJobComponent, environmentSpecificConfig),
+		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),
+		Identity:             identity,
+    Notifications:        notifications,
+	}
+
+	if environmentSpecificConfig != nil {
+		deployJob.Monitoring = environmentSpecificConfig.Monitoring
+		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
+	}
 
 	return deployJob, nil
+}
+
+func getRadixJobComponentTimeLimitSeconds(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *int64 {
+	if environmentSpecificConfig != nil && environmentSpecificConfig.TimeLimitSeconds != nil {
+		return environmentSpecificConfig.TimeLimitSeconds
+	}
+
+	if radixJobComponent.TimeLimitSeconds != nil {
+		return radixJobComponent.TimeLimitSeconds
+	}
+
+	return numbers.Int64Ptr(defaults.RadixJobTimeLimitSeconds)
+}
+
+func getRadixJobComponentBackoffLimit(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *int32 {
+	if environmentSpecificConfig != nil && environmentSpecificConfig.BackoffLimit != nil {
+		return environmentSpecificConfig.BackoffLimit
+	}
+	return radixJobComponent.BackoffLimit
 }

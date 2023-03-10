@@ -179,10 +179,6 @@ func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
 }
 
-func (deployComponent *RadixDeployComponent) GetTimeLimitSeconds() *int64 {
-	return nil
-}
-
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
 	return deployComponent.Authentication
 }
@@ -288,10 +284,6 @@ func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetTimeLimitSeconds() *int64 {
-	return deployJobComponent.TimeLimitSeconds
-}
-
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
 	return nil
 }
@@ -346,6 +338,7 @@ type RadixDeployJobComponent struct {
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	BackoffLimit            *int32                    `json:"backoffLimit,omitempty" yaml:"backoffLimit,omitempty"`
 	Identity                *Identity                 `json:"identity,omitempty" yaml:"identity,omitempty"`
 	Notifications           *Notifications            `json:"notifications,omitempty"`
 }
@@ -383,7 +376,6 @@ type RadixCommonDeployComponent interface {
 	GetAuthentication() *Authentication
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
-	GetTimeLimitSeconds() *int64
 	GetIdentity() *Identity
 }
 

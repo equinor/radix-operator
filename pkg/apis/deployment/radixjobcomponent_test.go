@@ -417,6 +417,53 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
 }
 
+func Test_GetRadixJobComponents_BackoffLimit(t *testing.T) {
+	devEnvName, prodEnvName := "dev", "prod"
+	scenarios := []struct {
+		name                        string
+		defaultBackoffLimit         *int32
+		envDevBackoffLimit          *int32
+		expectedEnvDevBackoffLimit  *int32
+		expectedEnvProdBackoffLimit *int32
+	}{
+		{name: "expect dev and prod nil", defaultBackoffLimit: nil, envDevBackoffLimit: nil, expectedEnvDevBackoffLimit: nil, expectedEnvProdBackoffLimit: nil},
+		{name: "expect dev and prod from default", defaultBackoffLimit: numbers.Int32Ptr(5), envDevBackoffLimit: nil, expectedEnvDevBackoffLimit: numbers.Int32Ptr(5), expectedEnvProdBackoffLimit: numbers.Int32Ptr(5)},
+		{name: "expect dev from envconfig and prod nil", defaultBackoffLimit: nil, envDevBackoffLimit: numbers.Int32Ptr(5), expectedEnvDevBackoffLimit: numbers.Int32Ptr(5), expectedEnvProdBackoffLimit: nil},
+		{name: "expect dev from envconfig and prod from default", defaultBackoffLimit: numbers.Int32Ptr(5), envDevBackoffLimit: numbers.Int32Ptr(10), expectedEnvDevBackoffLimit: numbers.Int32Ptr(10), expectedEnvProdBackoffLimit: numbers.Int32Ptr(5)},
+	}
+
+	for _, scenario := range scenarios {
+		scenario := scenario
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+			ra := utils.NewRadixApplicationBuilder().
+				WithJobComponents(
+					utils.NewApplicationJobComponentBuilder().
+						WithName("anyjob").
+						WithBackoffLimit(scenario.defaultBackoffLimit).
+						WithEnvironmentConfigs(
+							utils.NewJobComponentEnvironmentBuilder().
+								WithEnvironment(devEnvName).
+								WithBackoffLimit(scenario.envDevBackoffLimit),
+						),
+				).
+				BuildRA()
+
+			devBuilder := jobComponentsBuilder{ra: ra, env: devEnvName, componentImages: map[string]pipeline.ComponentImage{}}
+			devJobs, err := devBuilder.JobComponents()
+			require.NoError(t, err, "devJobs build error")
+			require.Len(t, devJobs, 1, "devJobs length")
+			assert.Equal(t, scenario.expectedEnvDevBackoffLimit, devJobs[0].BackoffLimit, "devJobs backoffLimit")
+
+			prodBuilder := jobComponentsBuilder{ra: ra, env: prodEnvName, componentImages: map[string]pipeline.ComponentImage{}}
+			prodJobs, err := prodBuilder.JobComponents()
+			require.NoError(t, err, "prodJobs build error")
+			require.Len(t, prodJobs, 1, "prodJobs length")
+			assert.Equal(t, scenario.expectedEnvProdBackoffLimit, prodJobs[0].BackoffLimit, "prodJobs bacoffLimit")
+		})
+	}
+}
+
 func Test_GetRadixJobComponents_Notifications(t *testing.T) {
 	type scenarioSpec struct {
 		name                 string

@@ -140,6 +140,7 @@ func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*
 	if jobs := slice.FindAll(allJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) }); len(jobs) > 0 {
 		job := jobs[0]
 		status.CreationTime = &job.CreationTimestamp
+		status.Failed = job.Status.Failed
 
 		switch {
 		case slice.Any(job.Status.Conditions, isJobStatusCondition(batchv1.JobComplete)):

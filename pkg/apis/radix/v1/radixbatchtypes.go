@@ -206,6 +206,10 @@ type RadixBatchJobStatus struct {
 	// - Stopped: The timestamp a job with Stop=true was reonciled.
 	// +optional
 	EndTime *meta_v1.Time `json:"endTime,omitempty"`
+
+	// The number of times the container for the job has failed.
+	// +optional
+	Failed int32 `json:"failed,omitempty"`
 }
 
 // LocalObjectReference contains enough information to let you locate the
