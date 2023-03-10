@@ -2,8 +2,6 @@ package deployment
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-
 	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -73,13 +71,8 @@ func configureRbacForRadixJobComponents(deploy *Deployment) ConfigureDeploymentR
 				Namespace: serviceAccount.Namespace,
 			}}
 
-		envRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerEnvRoleName, subjects)
-		err = deploy.kubeutil.ApplyRoleBinding(namespace, envRoleBinding)
-		if err != nil {
-			return err
-		}
-		appRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerAppRoleName, subjects)
-		return deploy.kubeutil.ApplyRoleBinding(utils.GetAppNamespace(appName), appRoleBinding)
+		envRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(appName, defaults.RadixJobSchedulerRoleName, subjects)
+		return deploy.kubeutil.ApplyRoleBinding(namespace, envRoleBinding)
 	}
 }
 

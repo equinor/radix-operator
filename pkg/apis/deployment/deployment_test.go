@@ -514,7 +514,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			}
 
 			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-			appNamespace := utils.GetAppNamespace(appName)
 
 			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
 				t.Parallel()
@@ -644,16 +643,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects[1].Name)
 
 				// Exists due to being job-scheduler
-				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerEnvRoleName, rolebindings), "Expected rolebinding radix-job-scheduler-env to be there to access secrets, RadixBatches, etc")
-			})
-
-			t.Run(fmt.Sprintf("%s validate rolebindings in app namespace", testScenario), func(t *testing.T) {
-				t.Parallel()
-				rolebindings, _ := kubeclient.RbacV1().RoleBindings(appNamespace).List(context.TODO(), metav1.ListOptions{})
-				assert.Equal(t, 1, len(rolebindings.Items), "Number of rolebindings was not expected")
-
-				// Exists due to being job-scheduler
-				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerAppRoleName, rolebindings), "Expected rolebinding radix-job-scheduler-app to be there to access RadixApplication")
+				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler-env to be there to access secrets, RadixBatches, etc")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
