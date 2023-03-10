@@ -643,7 +643,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 				assert.Equal(t, "edcradix-machine-user", getRoleBindingByName("radix-app-adm-job", rolebindings).Subjects[1].Name)
 
 				// Exists due to being job-scheduler
-				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler-env to be there to access secrets, RadixBatches, etc")
+				assert.True(t, roleBindingByNameExists(defaults.RadixJobSchedulerRoleName, rolebindings), "Expected rolebinding radix-job-scheduler to be there to access secrets, RadixBatches, etc")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
