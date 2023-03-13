@@ -64,7 +64,7 @@ func (s *syncer) reconcile() error {
 	}
 
 	for i, batchJob := range s.batch.Spec.Jobs {
-		if err := s.reconcileService(batchJob, jobComponent, existingServices); err != nil {
+		if err := s.reconcileService(batchJob, rd, jobComponent, existingServices); err != nil {
 			return err
 		}
 
@@ -103,14 +103,16 @@ func (s *syncer) getRadixDeployment() (*radixv1.RadixDeployment, error) {
 
 func (s *syncer) batchIdentifierLabel() labels.Set {
 	return radixlabels.Merge(
-		radixlabels.ForComponentName(s.batch.Spec.RadixDeploymentJobRef.Job),
 		radixlabels.ForBatchName(s.batch.GetName()),
 	)
 }
 
-func (s *syncer) batchJobIdentifierLabel(batchJobName string) labels.Set {
+func (s *syncer) batchJobIdentifierLabel(batchJobName, appName string) labels.Set {
 	return radixlabels.Merge(
+		radixlabels.ForApplicationName(appName),
+		radixlabels.ForComponentName(s.batch.Spec.RadixDeploymentJobRef.Job),
 		s.batchIdentifierLabel(),
+		radixlabels.ForJobScheduleJobType(),
 		radixlabels.ForBatchJobName(batchJobName),
 	)
 }
