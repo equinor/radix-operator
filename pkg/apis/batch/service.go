@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (s *syncer) reconcileService(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
+func (s *syncer) reconcileService(batchJob radixv1.RadixBatchJob, rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, existingServices []*corev1.Service) error {
 	if len(jobComponent.GetPorts()) == 0 {
 		return nil
 	}
@@ -22,14 +22,14 @@ func (s *syncer) reconcileService(batchJob radixv1.RadixBatchJob, jobComponent *
 		return nil
 	}
 
-	service := s.buildService(batchJob.Name, jobComponent.GetPorts())
+	service := s.buildService(batchJob.Name, rd.Spec.AppName, jobComponent.GetPorts())
 	return s.kubeutil.ApplyService(s.batch.GetNamespace(), service)
 }
 
-func (s *syncer) buildService(batchJobName string, componentPorts []radixv1.ComponentPort) *corev1.Service {
+func (s *syncer) buildService(batchJobName, appName string, componentPorts []radixv1.ComponentPort) *corev1.Service {
 	serviceName := getKubeServiceName(s.batch.GetName(), batchJobName)
-	labels := s.batchJobIdentifierLabel(batchJobName)
-	selector := s.batchJobIdentifierLabel(batchJobName)
+	labels := s.batchJobIdentifierLabel(batchJobName, appName)
+	selector := s.batchJobIdentifierLabel(batchJobName, appName)
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,

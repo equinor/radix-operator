@@ -52,9 +52,9 @@ func (s *syncer) reconcileKubeJob(batchJob radixv1.RadixBatchJob, rd *radixv1.Ra
 }
 
 func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) (*batchv1.Job, error) {
-	jobLabels := s.batchJobIdentifierLabel(batchJob.Name)
+	jobLabels := s.batchJobIdentifierLabel(batchJob.Name, rd.Spec.AppName)
 	podLabels := radixlabels.Merge(
-		s.batchJobIdentifierLabel(batchJob.Name),
+		jobLabels,
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
 	)
 
