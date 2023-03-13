@@ -678,13 +678,13 @@ type RadixVolumeMount struct {
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany
+	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer
+	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 }
@@ -977,7 +977,7 @@ type OAuth2 struct {
 	Cookie *OAuth2Cookie `json:"cookie,omitempty"`
 
 	// Defines where to store session data.
-	// +kubebuilder:validation:Enum=cookie;redis
+	// +kubebuilder:validation:Enum=cookie;redis;""
 	// +optional
 	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty"`
 
@@ -1241,7 +1241,7 @@ func (component *RadixJobComponent) GetIdentity() *Identity {
 	return component.Identity
 }
 
-//GetNotifications Get job component notifications
+// GetNotifications Get job component notifications
 func (component *RadixJobComponent) GetNotifications() *Notifications {
 	return component.Notifications
 }

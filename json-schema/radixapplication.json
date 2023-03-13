@@ -171,7 +171,8 @@
                         "description": "Defines where to store session data.",
                         "enum": [
                           "cookie",
-                          "redis"
+                          "redis",
+                          ""
                         ],
                         "type": "string"
                       },
@@ -329,7 +330,8 @@
                               "description": "Defines where to store session data.",
                               "enum": [
                                 "cookie",
-                                "redis"
+                                "redis",
+                                ""
                               ],
                               "type": "string"
                             },
@@ -558,7 +560,8 @@
                             "enum": [
                               "ReadOnlyMany",
                               "ReadWriteOnce",
-                              "ReadWriteMany"
+                              "ReadWriteMany",
+                              ""
                             ],
                             "type": "string"
                           },
@@ -566,7 +569,8 @@
                             "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                             "enum": [
                               "Immediate",
-                              "WaitForFirstConsumer"
+                              "WaitForFirstConsumer",
+                              ""
                             ],
                             "type": "string"
                           },
@@ -1292,7 +1296,8 @@
                             "enum": [
                               "ReadOnlyMany",
                               "ReadWriteOnce",
-                              "ReadWriteMany"
+                              "ReadWriteMany",
+                              ""
                             ],
                             "type": "string"
                           },
@@ -1300,7 +1305,8 @@
                             "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
                             "enum": [
                               "Immediate",
-                              "WaitForFirstConsumer"
+                              "WaitForFirstConsumer",
+                              ""
                             ],
                             "type": "string"
                           },
