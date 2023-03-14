@@ -179,10 +179,6 @@ func (deployComponent *RadixDeployComponent) GetNode() *RadixNode {
 	return &deployComponent.Node
 }
 
-func (deployComponent *RadixDeployComponent) GetTimeLimitSeconds() *int64 {
-	return nil
-}
-
 func (deployComponent *RadixDeployComponent) GetAuthentication() *Authentication {
 	return deployComponent.Authentication
 }
@@ -288,16 +284,16 @@ func (deployJobComponent *RadixDeployJobComponent) GetNode() *RadixNode {
 	return &deployJobComponent.Node
 }
 
-func (deployJobComponent *RadixDeployJobComponent) GetTimeLimitSeconds() *int64 {
-	return deployJobComponent.TimeLimitSeconds
-}
-
 func (deployJobComponent *RadixDeployJobComponent) GetAuthentication() *Authentication {
 	return nil
 }
 
 func (deployJobComponent *RadixDeployJobComponent) GetIdentity() *Identity {
 	return deployJobComponent.Identity
+}
+
+func (deployJobComponent *RadixDeployJobComponent) GetNotifications() *Notifications {
+	return deployJobComponent.Notifications
 }
 
 func (deployJobComponent *RadixDeployJobComponent) SetName(name string) {
@@ -324,7 +320,7 @@ func (deployComponent RadixDeployComponent) GetNrOfReplicas() int32 {
 }
 
 // RadixDeployJobComponent defines a single job component within a RadixDeployment
-// The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
+// The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixDeployJobComponent struct {
 	Name                    string                    `json:"name" yaml:"name"`
 	Environment             string                    `json:"environment" yaml:"environment"`
@@ -342,7 +338,9 @@ type RadixDeployJobComponent struct {
 	AlwaysPullImageOnDeploy bool                      `json:"alwaysPullImageOnDeploy" yaml:"alwaysPullImageOnDeploy"`
 	Node                    RadixNode                 `json:"node,omitempty" yaml:"node,omitempty"`
 	TimeLimitSeconds        *int64                    `json:"timeLimitSeconds,omitempty" yaml:"timeLimitSeconds,omitempty"`
+	BackoffLimit            *int32                    `json:"backoffLimit,omitempty" yaml:"backoffLimit,omitempty"`
 	Identity                *Identity                 `json:"identity,omitempty" yaml:"identity,omitempty"`
+	Notifications           *Notifications            `json:"notifications,omitempty"`
 }
 
 type RadixComponentType string
@@ -378,7 +376,6 @@ type RadixCommonDeployComponent interface {
 	GetAuthentication() *Authentication
 	SetName(name string)
 	SetVolumeMounts(mounts []RadixVolumeMount)
-	GetTimeLimitSeconds() *int64
 	GetIdentity() *Identity
 }
 

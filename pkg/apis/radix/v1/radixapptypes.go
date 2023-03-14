@@ -422,7 +422,7 @@ type RadixEnvironmentConfig struct {
 }
 
 // RadixJobComponent defines a single job component within a RadixApplication
-// The job component is used by the radix-job-scheduler-server to create Kubernetes Job objects
+// The job component is used by the radix-job-scheduler to create Kubernetes Job objects
 type RadixJobComponent struct {
 	// Name of the environment which the settings applies to.
 	// +kubebuilder:validation:MinLength=1
@@ -507,6 +507,12 @@ type RadixJobComponent struct {
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
 
+	// Specifies the number of retries before marking this job failed.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit
+	// +optional
+	// +kubebuilder:validation:Minimum:=0
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
 	// Configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
 	// +optional
@@ -515,6 +521,10 @@ type RadixJobComponent struct {
 	// Controls if the job shall be deployed.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Notifications about batch or job status changes
+	// +optional
+	Notifications *Notifications `json:"notifications,omitempty"`
 }
 
 // RadixJobComponentEnvironmentConfig defines environment specific settings
@@ -567,6 +577,12 @@ type RadixJobComponentEnvironmentConfig struct {
 	// +optional
 	TimeLimitSeconds *int64 `json:"timeLimitSeconds,omitempty"`
 
+	// Environment specific value for the number of retries before marking this job failed.
+	// More info: https://www.radix.equinor.com/references/reference-radix-config/#backofflimit-2
+	// +optional
+	// +kubebuilder:validation:Minimum:=0
+	BackoffLimit *int32 `json:"backoffLimit,omitempty"`
+
 	// Environment specific configuration for workload identity (federated credentials).
 	// More info: https://www.radix.equinor.com/references/reference-radix-config/#identity-2
 	// +optional
@@ -575,10 +591,14 @@ type RadixJobComponentEnvironmentConfig struct {
 	// Controls if the job shall be deployed to this environment.
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Notifications about batch or job status changes
+	// +optional
+	Notifications *Notifications `json:"notifications,omitempty"`
 }
 
 // RadixJobComponentPayload defines the path and where the payload received
-// by radix-job-scheduler-server will be mounted to the job container
+// by radix-job-scheduler will be mounted to the job container
 type RadixJobComponentPayload struct {
 	// Path to the folder where payload is mounted
 	// +kubebuilder:validation:MinLength=1
@@ -658,13 +678,13 @@ type RadixVolumeMount struct {
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany
+	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer
+	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 }
@@ -760,7 +780,7 @@ const (
 
 // RadixSecretRefs defines secret vault
 type RadixSecretRefs struct {
-	// List of Azure keyvaults to get secrets from.
+	// List of Azure Key Vaults to get secrets from.
 	// +optional
 	AzureKeyVaults []RadixAzureKeyVault `json:"azureKeyVaults,omitempty"`
 }
@@ -957,7 +977,7 @@ type OAuth2 struct {
 	Cookie *OAuth2Cookie `json:"cookie,omitempty"`
 
 	// Defines where to store session data.
-	// +kubebuilder:validation:Enum=cookie;redis
+	// +kubebuilder:validation:Enum=cookie;redis;""
 	// +optional
 	SessionStoreType SessionStoreType `json:"sessionStoreType,omitempty"`
 
@@ -1037,6 +1057,15 @@ type Identity struct {
 type AzureIdentity struct {
 	// Defines the Client ID for a user defined managed identity or application ID for an application registration.
 	ClientId string `json:"clientId"`
+}
+
+// Notifications is the spec for notification about internal events or changes
+type Notifications struct {
+	// Webhook is a URL for notification about internal events or changes. The URL should be of a Radix component or job-component, with not public port.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +optional
+	Webhook *string `json:"webhook,omitempty"`
 }
 
 // RadixCommonComponent defines a common component interface for Radix components
@@ -1210,6 +1239,11 @@ func (component *RadixJobComponent) GetResources() ResourceRequirements {
 
 func (component *RadixJobComponent) GetIdentity() *Identity {
 	return component.Identity
+}
+
+// GetNotifications Get job component notifications
+func (component *RadixJobComponent) GetNotifications() *Notifications {
+	return component.Notifications
 }
 
 func (component *RadixJobComponent) getEnabled() bool {

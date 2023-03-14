@@ -2,27 +2,24 @@ package radixvalidators
 
 import (
 	"fmt"
-
-	"github.com/equinor/radix-operator/pkg/apis/deployment"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/google/uuid"
-
 	"net"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
 	commonUtils "github.com/equinor/radix-common/utils"
 	errorUtils "github.com/equinor/radix-common/utils/errors"
-
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/deployment"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/branch"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
-	"github.com/equinor/radix-operator/pkg/apis/utils/slice"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -137,6 +134,11 @@ func CanRadixApplicationBeInsertedErrors(client radixclient.Interface, app *radi
 	}
 
 	err = validateVolumeMountConfigForRA(app)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	err = ValidateNotificationsForRA(app)
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -495,7 +497,7 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 	}
 
 	// Validate SessionStoreType
-	if !slice.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
+	if !commonUtils.ContainsString(validOAuthSessionStoreTypes, string(oauthWithDefaults.SessionStoreType)) {
 		errors = append(errors, OAuthSessionStoreTypeInvalidError(componentName, environmentName, oauthWithDefaults.SessionStoreType))
 	}
 
@@ -535,7 +537,7 @@ func validateOAuth(oauth *radixv1.OAuth2, componentName, environmentName string)
 		if len(strings.TrimSpace(cookie.Name)) == 0 {
 			errors = append(errors, OAuthCookieNameEmptyError(componentName, environmentName))
 		}
-		if !slice.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
+		if !commonUtils.ContainsString(validOAuthCookieSameSites, string(cookie.SameSite)) {
 			errors = append(errors, OAuthCookieSameSiteInvalidError(componentName, environmentName, cookie.SameSite))
 		}
 
@@ -1134,6 +1136,82 @@ func validateVolumeMountConfigForRA(app *radixv1.RadixApplication) error {
 	}
 
 	return nil
+}
+
+// ValidateNotificationsForRA Validate all notifications in the RadixApplication
+func ValidateNotificationsForRA(app *radixv1.RadixApplication) error {
+	var errs []error
+	for _, job := range app.Spec.Jobs {
+		if err := ValidateNotifications(app, job.Notifications, job.GetName(), ""); err != nil {
+			errs = append(errs, err)
+		}
+		for _, envConfig := range job.EnvironmentConfig {
+			if err := ValidateNotifications(app, envConfig.Notifications, job.GetName(), envConfig.Environment); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errorUtils.Concat(errs)
+}
+
+// ValidateNotifications Validate specified Notifications for the RadixApplication
+func ValidateNotifications(app *radixv1.RadixApplication, notifications *radixv1.Notifications, jobComponentName string, environment string) error {
+	if notifications == nil || notifications.Webhook == nil || len(*notifications.Webhook) == 0 {
+		return nil
+	}
+	webhook := strings.ToLower(strings.TrimSpace(*notifications.Webhook))
+	webhookUrl, err := url.Parse(webhook)
+	if err != nil {
+		return InvalidWebhookUrl(jobComponentName, environment)
+	}
+	if len(webhookUrl.Scheme) > 0 && webhookUrl.Scheme != "https" && webhookUrl.Scheme != "http" {
+		return NotAllowedSchemeInWebhookUrl(webhookUrl.Scheme, jobComponentName, environment)
+	}
+	if len(webhookUrl.Port()) == 0 {
+		return MissingPortInWebhookUrl(jobComponentName, environment)
+	}
+	targetRadixComponent, targetRadixJobComponent := getRadixCommonComponentByName(app, webhookUrl.Hostname())
+	if targetRadixComponent == nil && targetRadixJobComponent == nil {
+		return OnlyAppComponentAllowedInWebhookUrl(jobComponentName, environment)
+	}
+	if targetRadixComponent != nil {
+		componentPort := getComponentPort(targetRadixComponent, webhookUrl.Port())
+		if componentPort == nil {
+			return InvalidPortInWebhookUrl(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
+		}
+		if strings.EqualFold(componentPort.Name, targetRadixComponent.PublicPort) {
+			return InvalidUseOfPublicPortInWebhookUrl(webhookUrl.Port(), targetRadixComponent.GetName(), jobComponentName, environment)
+		}
+	} else if targetRadixJobComponent != nil {
+		componentPort := getComponentPort(targetRadixJobComponent, webhookUrl.Port())
+		if componentPort == nil {
+			return InvalidPortInWebhookUrl(webhookUrl.Port(), targetRadixJobComponent.GetName(), jobComponentName, environment)
+		}
+	}
+	return nil
+}
+
+func getComponentPort(radixComponent radixv1.RadixCommonComponent, port string) *radixv1.ComponentPort {
+	for _, componentPort := range radixComponent.GetPorts() {
+		if strings.EqualFold(strconv.Itoa(int(componentPort.Port)), port) {
+			return &componentPort
+		}
+	}
+	return nil
+}
+
+func getRadixCommonComponentByName(app *radixv1.RadixApplication, componentName string) (*radixv1.RadixComponent, *radixv1.RadixJobComponent) {
+	for _, radixComponent := range app.Spec.Components {
+		if strings.EqualFold(radixComponent.GetName(), componentName) {
+			return &radixComponent, nil
+		}
+	}
+	for _, radixJobComponent := range app.Spec.Jobs {
+		if strings.EqualFold(radixJobComponent.GetName(), componentName) {
+			return nil, &radixJobComponent
+		}
+	}
+	return nil, nil
 }
 
 func validateVolumeMounts(componentName, environment string, volumeMounts []radixv1.RadixVolumeMount) error {
