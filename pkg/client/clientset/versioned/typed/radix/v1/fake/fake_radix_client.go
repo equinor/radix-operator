@@ -36,6 +36,10 @@ func (c *FakeRadixV1) RadixApplications(namespace string) v1.RadixApplicationInt
 	return &FakeRadixApplications{c, namespace}
 }
 
+func (c *FakeRadixV1) RadixBatches(namespace string) v1.RadixBatchInterface {
+	return &FakeRadixBatches{c, namespace}
+}
+
 func (c *FakeRadixV1) RadixDeployments(namespace string) v1.RadixDeploymentInterface {
 	return &FakeRadixDeployments{c, namespace}
 }

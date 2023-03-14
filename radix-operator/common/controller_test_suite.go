@@ -16,7 +16,7 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-//ControllerTestSuite Test suite
+// ControllerTestSuite Test suite
 type ControllerTestSuite struct {
 	suite.Suite
 	KubeClient                *fake.Clientset
@@ -34,7 +34,7 @@ type ControllerTestSuite struct {
 	TestControllerSyncTimeout time.Duration
 }
 
-//SetupTest Set up the test suite
+// SetupTest Set up the test suite
 func (s *ControllerTestSuite) SetupTest() {
 	s.KubeClient = fake.NewSimpleClientset()
 	s.RadixClient = fakeradix.NewSimpleClientset()
@@ -51,14 +51,14 @@ func (s *ControllerTestSuite) SetupTest() {
 	s.TestControllerSyncTimeout = 5 * time.Second
 }
 
-//TearDownTest Tear down the test suite
+// TearDownTest Tear down the test suite
 func (s *ControllerTestSuite) TearDownTest() {
 	close(s.Synced)
 	close(s.Stop)
 	s.MockCtrl.Finish()
 }
 
-//WaitForSynced Wait while Synced signal received or fail after TestControllerSyncTimeout
+// WaitForSynced Wait while Synced signal received or fail after TestControllerSyncTimeout
 func (s *ControllerTestSuite) WaitForSynced(expectedOperation string) {
 	timeout := time.NewTimer(s.TestControllerSyncTimeout)
 	select {
@@ -68,9 +68,9 @@ func (s *ControllerTestSuite) WaitForSynced(expectedOperation string) {
 	}
 }
 
-//WaitForNotSynced Wait for Synced signal is not received during a second
+// WaitForNotSynced Wait for Synced signal is not received during a second
 func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
-	timeout := time.NewTimer(1 * time.Second)
+	timeout := time.NewTimer(10 * time.Millisecond)
 	select {
 	case <-s.Synced:
 		s.FailNow(failMessage)
@@ -78,7 +78,7 @@ func (s *ControllerTestSuite) WaitForNotSynced(failMessage string) {
 	}
 }
 
-//SyncedChannelCallback Callback to send a signal to the Synced
+// SyncedChannelCallback Callback to send a signal to the Synced
 func (s *ControllerTestSuite) SyncedChannelCallback() func(namespace string, name string, eventRecorder record.EventRecorder) error {
 	return func(namespace, name string, eventRecorder record.EventRecorder) error {
 		s.Synced <- true

@@ -1,12 +1,14 @@
 # radix-operator
 
-The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform natively on [Kubernetes](https://kubernetes.io/). It manages five [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/):
+The radix-operator is the central piece of the [Radix platform](https://github.com/equinor/radix-platform) which fully manages the Radix platform natively on [Kubernetes](https://kubernetes.io/). It manages seven [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/):
 
 - RR - Application registrations
 - RA - Application definition/configuration
 - RD - Application deployment
 - RJ - Application build/deploy jobs
 - RE - Application environments
+- RAL - Alerts
+- RB - Batch jobs
 
 The `radix-operator` and `radix-pipeline` are built using Github actions, then the `radix-operator` is deployed to cluster through a Helm release using the [Flux Operator](https://github.com/weaveworks/flux) whenever a new image is pushed to the container registry for the corresponding branch.
 
@@ -92,7 +94,7 @@ For changes to the chart the same procedure applies as for changes to the code. 
         make helm-up ENVIRONMENT=dev OVERIDE_BRANCH=true
     ``` 
 
-### Updating RadixApplication CRD
+### Updating Radix CRD types
 
 The `client-go` SDK requires strongly typed objects when dealing with CRDs so when you add a new type to the spec, you need to update `pkg/apis/radix/v1/types.go` typically.
 In order for these objects to work with the SDK, they need to implement certain functions and this is where you run the `code-generator` tool from Kubernetes.
@@ -109,7 +111,8 @@ If `radix-operator` project folder is not located in the `$GOPATH/go/src/github.
 ```shell
 ln -s [custom-dev-folder]/radix-operator $GOPATH/go/src/github.com
 ```
-Run code-generator
+
+Generate the strongly type client for Radix v1 objects:
 ```shell
 make code-gen
 ```
@@ -117,6 +120,18 @@ make code-gen
 This will generate `pkg/apis/radix/v1/zz_generated.deepcopy.go` and `pkg/client` directory.
 
 This file/directory should NOT be edited.
+
+CRD yaml files are generated with [controller-gen(https://pkg.go.dev/sigs.k8s.io/controller-tools/cmd/controller-gen), and are stored in the `charts/radix-operator/templates` directory.
+The CRD schema generates use comment markers. Read more about supported markers [here](https://book.kubebuilder.io/reference/markers/crd-validation.html).
+Generate CRD yaml files whenever you make changes to any of the types in `pkg/apis/radix/v1/`.
+
+Currently, only the CRD for RadixBatch and RadixApplication is generated.
+```shell
+make crds
+```
+This will also regenerate a json schema for RadixApplication into ./json-schema/radixapplication.json.
+This schema can be used in code editors like VS Code to get auto complete and validation when editing a radixconfig.yaml file.
+
 
 If you wish more in-depth information, [read this](https://blog.openshift.com/kubernetes-deep-dive-code-generation-customresources/)
 

@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	jobUtil "github.com/equinor/radix-operator/pkg/apis/job"
 
 	errorUtils "github.com/equinor/radix-common/utils/errors"
 	applicationAPI "github.com/equinor/radix-operator/pkg/apis/application"
@@ -21,6 +22,7 @@ import (
 	informers "github.com/equinor/radix-operator/pkg/client/informers/externalversions"
 	"github.com/equinor/radix-operator/radix-operator/alert"
 	"github.com/equinor/radix-operator/radix-operator/application"
+	"github.com/equinor/radix-operator/radix-operator/batch"
 	"github.com/equinor/radix-operator/radix-operator/common"
 	"github.com/equinor/radix-operator/radix-operator/config"
 	"github.com/equinor/radix-operator/radix-operator/deployment"
@@ -75,6 +77,7 @@ func main() {
 	go startDeploymentController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, deploymentControllerThreads)
 	go startJobController(client, radixClient, eventRecorder, stop, secretProviderClient, jobControllerThreads, cfg.PipelineJobConfig)
 	go startAlertController(client, radixClient, prometheusOperatorClient, eventRecorder, stop, secretProviderClient, alertControllerThreads)
+	go startBatchController(client, radixClient, eventRecorder, stop, secretProviderClient, 1)
 
 	sigTerm := make(chan os.Signal, 1)
 	signal.Notify(sigTerm, syscall.SIGTERM)
@@ -293,7 +296,6 @@ func startJobController(client kubernetes.Interface, radixClient radixclient.Int
 }
 
 func startAlertController(client kubernetes.Interface, radixClient radixclient.Interface, prometheusOperatorClient monitoring.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
-
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
 	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
 
@@ -329,11 +331,47 @@ func startAlertController(client kubernetes.Interface, radixClient radixclient.I
 	}
 }
 
+func startBatchController(client kubernetes.Interface, radixClient radixclient.Interface, recorder record.EventRecorder, stop <-chan struct{}, secretProviderClient secretProviderClient.Interface, threads int) {
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(client, resyncPeriod)
+	radixInformerFactory := informers.NewSharedInformerFactory(radixClient, resyncPeriod)
+
+	kubeUtil, _ := kube.NewWithListers(
+		client,
+		radixClient,
+		secretProviderClient,
+		kubeInformerFactory,
+		radixInformerFactory,
+	)
+
+	handler := batch.NewHandler(
+		client,
+		kubeUtil,
+		radixClient,
+	)
+
+	waitForChildrenToSync := true
+	batchController := batch.NewController(
+		client,
+		radixClient,
+		handler,
+		kubeInformerFactory,
+		radixInformerFactory,
+		waitForChildrenToSync,
+		recorder)
+
+	kubeInformerFactory.Start(stop)
+	radixInformerFactory.Start(stop)
+
+	if err := batchController.Run(threads, stop); err != nil {
+		logger.Fatalf("Error running controller: %s", err.Error())
+	}
+}
+
 func loadIngressConfigFromMap(kubeutil *kube.Kube) (deploymentAPI.IngressConfiguration, error) {
 	config := deploymentAPI.IngressConfiguration{}
 	configMap, err := kubeutil.GetConfigMap(metav1.NamespaceDefault, ingressConfigurationMap)
 	if err != nil {
-		return config, nil
+		return config, err
 	}
 
 	err = yaml.Unmarshal([]byte(configMap.Data["ingressConfiguration"]), &config)

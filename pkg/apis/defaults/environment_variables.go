@@ -64,6 +64,9 @@ const (
 	// RadixGitTagsEnvironmentVariable Contains a list of git tags which the RADIX_GIT_COMMIT_HASH points to
 	RadixGitTagsEnvironmentVariable = "RADIX_GIT_TAGS"
 
+	// RadixComponentEnvironmentVariable The environment variable holding the name of the scheduled job
+	RadixScheduleJobNameEnvironmentVariable = "RADIX_JOB_NAME"
+
 	// RadixRestartEnvironmentVariable Environment variable to indicate that a restart was triggered
 	RadixRestartEnvironmentVariable = "RADIX_RESTART_TRIGGERED"
 

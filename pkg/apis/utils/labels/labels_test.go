@@ -1,6 +1,7 @@
 package labels
 
 import (
+	"k8s.io/apimachinery/pkg/selection"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -63,5 +64,51 @@ func Test_ForPodWithRadixIdentity(t *testing.T) {
 
 	actual = ForPodWithRadixIdentity(&v1.Identity{Azure: &v1.AzureIdentity{ClientId: "any"}})
 	expected := kubelabels.Set{"azure.workload.identity/use": "true"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForBatchType(t *testing.T) {
+	actual := ForBatchType(kube.RadixBatchTypeBatch)
+	expected := kubelabels.Set{kube.RadixBatchTypeLabel: string(kube.RadixBatchTypeBatch)}
+	assert.Equal(t, expected, actual)
+
+	actual = ForBatchType(kube.RadixBatchTypeJob)
+	expected = kubelabels.Set{kube.RadixBatchTypeLabel: string(kube.RadixBatchTypeJob)}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForForBatchName(t *testing.T) {
+	actual := ForBatchName("anyname")
+	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForBatchJobName(t *testing.T) {
+	actual := ForBatchJobName("anyjobname")
+	expected := kubelabels.Set{kube.RadixBatchJobNameLabel: "anyjobname"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForJobType(t *testing.T) {
+	actual := ForJobType("anyjobtype")
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: "anyjobtype"}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForBatchScheduleJobType(t *testing.T) {
+	actual := ForBatchScheduleJobType()
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: kube.RadixJobTypeBatchSchedule}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_ForJobScheduleJobType(t *testing.T) {
+	actual := ForJobScheduleJobType()
+	expected := kubelabels.Set{kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule}
+	assert.Equal(t, expected, actual)
+}
+
+func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
+	actual, _ := RequirementRadixBatchNameLabelExists()
+	expected, _ := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
 	assert.Equal(t, expected, actual)
 }

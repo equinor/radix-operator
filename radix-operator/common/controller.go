@@ -175,7 +175,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	defer func() {
 		duration := time.Since(start)
-		metrics.AddDurrationOfReconciliation(c.HandlerOf, duration)
+		metrics.AddDurationOfReconciliation(c.HandlerOf, duration)
 	}()
 
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)

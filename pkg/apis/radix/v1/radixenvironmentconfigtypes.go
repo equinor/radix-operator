@@ -93,6 +93,11 @@ func (config RadixJobComponentEnvironmentConfig) GetIdentity() *Identity {
 	return config.Identity
 }
 
+//GetNotifications Get job component notifications
+func (config RadixJobComponentEnvironmentConfig) GetNotifications() *Notifications {
+	return config.Notifications
+}
+
 func (config RadixJobComponentEnvironmentConfig) getEnabled() *bool {
 	return config.Enabled
 }

@@ -1,8 +1,8 @@
-# defines roles for radix-job-scheduler-server
+# defines roles for radix-job-scheduler
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: radix-job-scheduler-server
+  name: radix-job-scheduler
   labels:
     {{- include "radix-operator.labels" . | nindent 4 }}
 rules:
@@ -33,6 +33,17 @@ rules:
       - list
       - get
   - apiGroups:
+      - radix.equinor.com
+    resources:
+      - radixbatches
+    verbs:
+      - list
+      - get
+      - create
+      - update
+      - delete
+      - watch
+  - apiGroups:
       - '*'
     resources:
       - secrets
@@ -40,20 +51,14 @@ rules:
       - get
       - list
       - create
-      - update
       - delete
-      - patch
   - apiGroups:
       - '*'
     resources:
       - services
     verbs:
-      - get
-      - create
       - delete
       - list
-      - update
-      - patch
   - apiGroups:
       - ''
     resources:
@@ -63,6 +68,7 @@ rules:
       - list
       - create
       - update
+      - patch
   - apiGroups:
       - '*'
     resources:

@@ -34,7 +34,7 @@ spec:
           replicas: 4
           authentication:
             clientCertificate:
-              verification: on
+              verification: "on"
               passCertificateToUpstream: true
             oauth2:
               clientId: 12cf
@@ -82,6 +82,11 @@ spec:
         - db-pass
         - db-pass2
         - db-pass3
+    - name: api
+      src: api/
+      ports:
+        - name: http
+          port: 8090
   jobs:
     - name: job
       src: job/
@@ -127,6 +132,12 @@ spec:
     - name: job2
       src: job2/
       schedulerPort: 8888
+    - name: job3
+      src: job3/
+      schedulerPort: 8888
+      ports:
+        - name: http
+          port: 8099
   dnsAppAlias:
     environment: prod
     component: app

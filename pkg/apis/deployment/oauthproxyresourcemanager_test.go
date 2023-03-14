@@ -57,7 +57,7 @@ func (*OAuthProxyResourceManagerTestSuite) SetupSuite() {
 	os.Setenv(defaults.OperatorRollingUpdateMaxSurge, "25%")
 	os.Setenv(defaults.OperatorReadinessProbeInitialDelaySeconds, "5")
 	os.Setenv(defaults.OperatorReadinessProbePeriodSeconds, "10")
-	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler-server:main-latest")
+	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	os.Setenv(defaults.RadixOAuthProxyDefaultOIDCIssuerURLEnvironmentVariable, "oidc_issuer_url")
 }
