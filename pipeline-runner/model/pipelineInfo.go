@@ -112,6 +112,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	deploymentName := args[defaults.RadixPromoteDeploymentEnvironmentVariable]       // For promotion pipeline
 	fromEnvironment := args[defaults.RadixPromoteFromEnvironmentEnvironmentVariable] // For promotion
 	toEnvironment := args[defaults.RadixPromoteToEnvironmentEnvironmentVariable]     // For promotion and deploy
+	imageTags := args[defaults.RadixImageTagsEnvironmentVariable]                    // For deploy
 
 	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
