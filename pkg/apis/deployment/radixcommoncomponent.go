@@ -87,6 +87,9 @@ func getImagePath(componentImage *pipeline.ComponentImage, environmentSpecificCo
 	// For deploy-only images, we will replace the dynamic tag with the tag from the environment
 	// config
 	if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
+		if componentImage.ImageTag != "" {
+			imageTagName = componentImage.ImageTag
+		}
 		image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
 	}
 	return image

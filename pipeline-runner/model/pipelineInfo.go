@@ -2,16 +2,17 @@ package model
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
@@ -95,6 +96,8 @@ type PipelineArguments struct {
 	SubscriptionId string
 	// Used to indicate debugging session
 	Debug bool
+	// Image tags for components: component-name:image-tag
+	ImageTags map[string]string
 }
 
 // GetPipelineArgsFromArguments Gets pipeline arguments from arg string
@@ -112,7 +115,8 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 	deploymentName := args[defaults.RadixPromoteDeploymentEnvironmentVariable]       // For promotion pipeline
 	fromEnvironment := args[defaults.RadixPromoteFromEnvironmentEnvironmentVariable] // For promotion
 	toEnvironment := args[defaults.RadixPromoteToEnvironmentEnvironmentVariable]     // For promotion and deploy
-	imageTags := args[defaults.RadixImageTagsEnvironmentVariable]                    // For deploy
+	imageTags := args[defaults.RadixImageTagsEnvironmentVariable]
+	imageTagsMap := getImageTagsMap(imageTags) // For deploy
 
 	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
 	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
@@ -142,6 +146,7 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		DeploymentName:    deploymentName,
 		FromEnvironment:   fromEnvironment,
 		ToEnvironment:     toEnvironment,
+		ImageTags:         imageTagsMap,
 		TektonPipeline:    tektonPipeline,
 		ImageBuilder:      imageBuilder,
 		Clustertype:       clusterType,
@@ -152,6 +157,15 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 		RadixConfigFile:   radixConfigFile,
 		Debug:             debug,
 	}
+}
+
+func getImageTagsMap(imageTags string) map[string]string {
+	return slice.Reduce(strings.Split(imageTags, ","), make(map[string]string), func(componentTags map[string]string, componentTagPair string) map[string]string {
+		if pair := strings.Split(componentTagPair, "="); len(pair) == 2 {
+			componentTags[pair[0]] = pair[1] //component-name=tag-name
+		}
+		return componentTags
+	})
 }
 
 // InitPipeline Initialize pipeline with step implementations
@@ -233,12 +247,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.BranchIsMapped = branchIsMapped
 	info.TargetEnvironments = targetEnvironments
 
-	componentImages := getComponentImages(
-		ra,
-		info.PipelineArguments.ContainerRegistry,
-		info.PipelineArguments.ImageTag,
-		maps.GetKeysFromMap(targetEnvironments),
-	)
+	componentImages := getComponentImages(ra, info.PipelineArguments.ContainerRegistry, info.PipelineArguments.ImageTag, maps.GetKeysFromMap(targetEnvironments), info.PipelineArguments.ImageTags)
 	info.ComponentImages = componentImages
 }
 
@@ -285,7 +294,7 @@ func getRadixJobComponentImageSources(ra *v1.RadixApplication, environments []st
 	return imageSources
 }
 
-func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag string, environments []string) map[string]pipeline.ComponentImage {
+func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag string, environments []string, imageTags map[string]string) map[string]pipeline.ComponentImage {
 	// Combine components and jobComponents
 	componentSource := make([]pipeline.ComponentImageSource, 0)
 	componentSource = append(componentSource, getRadixComponentImageSources(ra, environments)...)
@@ -319,9 +328,14 @@ func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag str
 
 	// Gather pre-built or public images
 	for _, c := range componentSource {
-		if c.Image != "" {
-			componentImages[c.Name] = pipeline.ComponentImage{Build: false, ImageName: c.Image, ImagePath: c.Image}
+		if c.Image == "" {
+			continue
 		}
+		componentImage := pipeline.ComponentImage{Build: false, ImageName: c.Image, ImagePath: c.Image}
+		if imageTags != nil {
+			componentImage.ImageTag = imageTags[c.Name]
+		}
+		componentImages[c.Name] = componentImage
 	}
 
 	// Gather build containers

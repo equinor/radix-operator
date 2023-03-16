@@ -213,7 +213,7 @@ func TestGetComponentImages_ReturnsProperMapping(t *testing.T) {
 			Components: applicationComponents,
 			Jobs:       jobComponents,
 		},
-	}, anyContainerRegistry, anyImageTag, nil)
+	}, anyContainerRegistry, anyImageTag, nil, nil)
 
 	assert.Equal(t, "build-multi-component", componentImages["client-component-1"].ContainerName)
 	assert.True(t, componentImages["client-component-1"].Build)
@@ -377,7 +377,7 @@ func TestGetComponentImages_ReturnsOnlyForNotDisabledComponents(t *testing.T) {
 			Components:   applicationComponents,
 			Jobs:         jobComponents,
 		},
-	}, anyContainerRegistry, anyImageTag, nil)
+	}, anyContainerRegistry, anyImageTag, nil, nil)
 
 	require.NotEmpty(t, componentImages["client-component-1"])
 	assert.Equal(t, "build-multi-component", componentImages["client-component-1"].ContainerName)

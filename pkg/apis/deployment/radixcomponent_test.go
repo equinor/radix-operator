@@ -21,7 +21,6 @@ const (
 
 	anyImage     = componentName
 	anyImagePath = anyImage
-	anyImageTag  = "latest"
 )
 
 type scenarioDef struct {
@@ -793,6 +792,105 @@ func Test_GetRadixComponentsForEnv_Identity(t *testing.T) {
 			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
 			require.NoError(t, err)
 			assert.Equal(t, scenario.expected, components[0].Identity)
+		})
+	}
+}
+
+func TestGetRadixComponentsForEnv_(t *testing.T) {
+	const (
+		customImageName = "custom-image-name:{imageTagName}"
+		environment     = "dev"
+	)
+	type scenario struct {
+		name                              string
+		pipelineImageTags                 map[string]string //map[component-name]image-tag
+		environmentConfigImageTagNames    map[string]string //map[component-name]image-tag
+		jobEnvironmentConfigImageTagNames map[string]string //map[job-component-name]image-tag
+		expectedComponentImage            map[string]string //map[component-name]image
+		expectedJobComponentImage         map[string]string //map[job-component-name]image
+	}
+	scenarios := []scenario{
+		{
+			name:                              "no tags",
+			pipelineImageTags:                 nil,
+			environmentConfigImageTagNames:    nil,
+			jobEnvironmentConfigImageTagNames: nil,
+			expectedComponentImage: map[string]string{
+				"componentA": customImageName,
+			},
+			expectedJobComponentImage: map[string]string{
+				"jobA": customImageName,
+			},
+		},
+		{
+			name: "with env-config imageTagName",
+			pipelineImageTags: map[string]string{
+				"componentA": "",
+				"jobA":       "",
+			},
+			environmentConfigImageTagNames: map[string]string{
+				"componentA": "tag-comp-a",
+			},
+			jobEnvironmentConfigImageTagNames: map[string]string{
+				"jobA": "tag-job-a",
+			},
+			expectedComponentImage: map[string]string{
+				"componentA": "custom-image-name:tag-comp-a",
+			},
+			expectedJobComponentImage: map[string]string{
+				"jobA": "custom-image-name:tag-job-a",
+			},
+		},
+		{
+			name: "with external image-tags",
+			pipelineImageTags: map[string]string{
+				"componentA": "external-tag-comp-a",
+				"jobA":       "external-tag-job-a",
+			},
+			environmentConfigImageTagNames: map[string]string{
+				"componentA": "tag-comp-a",
+			},
+			jobEnvironmentConfigImageTagNames: map[string]string{
+				"jobA": "tag-job-a",
+			},
+			expectedComponentImage: map[string]string{
+				"componentA": "custom-image-name:external-tag-comp-a",
+			},
+			expectedJobComponentImage: map[string]string{
+				"jobA": "custom-image-name:external-tag-job-a",
+			},
+		},
+	}
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			componentImages := make(map[string]pipeline.ComponentImage)
+			for componentName, imageTag := range ts.pipelineImageTags {
+				componentImages[componentName] = pipeline.ComponentImage{ImageName: customImageName, ImagePath: customImageName, ImageTag: imageTag}
+			}
+
+			componentBuilder := utils.NewApplicationComponentBuilder()
+			for componentName, imageTag := range ts.environmentConfigImageTagNames {
+				componentBuilder.WithName(componentName).WithImage(customImageName).
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(imageTag))
+			}
+			jobComponentBuilder := utils.NewApplicationJobComponentBuilder()
+			for componentName, imageTag := range ts.jobEnvironmentConfigImageTagNames {
+				jobComponentBuilder.WithName(componentName).WithImage(customImageName).
+					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(imageTag))
+			}
+
+			ra := utils.ARadixApplication().
+				WithEnvironment(environment, "master").
+				WithComponents(componentBuilder).
+				WithJobComponents(jobComponentBuilder).
+				BuildRA()
+
+			deployComponents, _ := GetRadixComponentsForEnv(ra, environment, componentImages, make(v1.EnvVarsMap))
+			assert.Equal(t, 1, len(deployComponents))
+			assert.Equal(t, ts.expectedComponentImage[deployComponents[0].Name], deployComponents[0].Image)
+			deployJobComponents, _ := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap)).JobComponents()
+			assert.Equal(t, 1, len(deployJobComponents))
+			assert.Equal(t, ts.expectedJobComponentImage[deployJobComponents[0].Name], deployJobComponents[0].Image)
 		})
 	}
 }

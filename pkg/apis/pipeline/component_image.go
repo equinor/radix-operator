@@ -7,5 +7,6 @@ type ComponentImage struct {
 	Dockerfile    string
 	ImageName     string
 	ImagePath     string
+	ImageTag      string
 	Build         bool
 }

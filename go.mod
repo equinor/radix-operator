@@ -3,7 +3,7 @@ module github.com/equinor/radix-operator
 go 1.18
 
 require (
-	github.com/equinor/radix-common v1.2.7
+	github.com/equinor/radix-common v1.2.9
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
