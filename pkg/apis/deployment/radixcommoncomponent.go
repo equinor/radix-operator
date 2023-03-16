@@ -77,22 +77,34 @@ func getRadixCommonComponentNode(radixComponent v1.RadixCommonComponent, environ
 	return node
 }
 
-func getImagePath(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
-	var imageTagName string
-	if !commonUtils.IsNil(environmentSpecificConfig) {
-		imageTagName = environmentSpecificConfig.GetImageTagName()
+func getImagePath(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) (string, error) {
+	image := componentImage.ImagePath
+	if componentImage.Build {
+		return image, nil
 	}
 
-	image := componentImage.ImagePath
-	// For deploy-only images, we will replace the dynamic tag with the tag from the environment
-	// config
-	if !componentImage.Build && strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
-		if componentImage.ImageTag != "" {
-			imageTagName = componentImage.ImageTag
+	imageTagName := getImageTagName(componentImage, environmentSpecificConfig)
+	if strings.HasSuffix(image, v1.DynamicTagNameInEnvironmentConfig) {
+		if len(imageTagName) == 0 {
+			return "", fmt.Errorf("missing an expected dynamic imageTagName for a component image")
 		}
-		image = strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName)
+		// For deploy-only images, we will replace the dynamic tag with the tag from the environment config
+		return strings.ReplaceAll(image, v1.DynamicTagNameInEnvironmentConfig, imageTagName), nil
 	}
-	return image
+	if len(imageTagName) > 0 {
+		return "", fmt.Errorf("image property for a component %s does not have a dynamic imageTagName but it is provided: %s", componentImage.ImageName, imageTagName)
+	}
+	return image, nil
+}
+
+func getImageTagName(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
+	if componentImage.ImageTag != "" {
+		return componentImage.ImageTag //provided via radix-api build request
+	}
+	if !commonUtils.IsNil(environmentSpecificConfig) {
+		return environmentSpecificConfig.GetImageTagName()
+	}
+	return ""
 }
 
 func getRadixCommonComponentRadixSecretRefs(component v1.RadixCommonComponent, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) v1.RadixSecretRefs {

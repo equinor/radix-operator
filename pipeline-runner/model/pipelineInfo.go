@@ -256,7 +256,12 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 	info.BranchIsMapped = branchIsMapped
 	info.TargetEnvironments = targetEnvironments
 
-	componentImages := getComponentImages(ra, info.PipelineArguments.ContainerRegistry, info.PipelineArguments.ImageTag, maps.GetKeysFromMap(targetEnvironments), info.PipelineArguments.ImageTags)
+	componentImages := getComponentImages(
+		ra,
+		info.PipelineArguments.ContainerRegistry,
+		info.PipelineArguments.ImageTag,
+		maps.GetKeysFromMap(targetEnvironments),
+		info.PipelineArguments.ImageTags)
 	info.ComponentImages = componentImages
 }
 

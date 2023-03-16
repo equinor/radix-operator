@@ -49,7 +49,10 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		}
 
 		componentImage := componentImages[componentName]
-		deployComponent.Image = getImagePath(&componentImage, environmentSpecificConfig)
+		deployComponent.Image, err = getImagePath(&componentImage, environmentSpecificConfig)
+		if err != nil {
+			return nil, err
+		}
 		deployComponent.Node = getRadixCommonComponentNode(&radixComponent, environmentSpecificConfig)
 		deployComponent.Resources = getRadixCommonComponentResources(&radixComponent, environmentSpecificConfig)
 		deployComponent.EnvironmentVariables = getRadixCommonComponentEnvVars(&radixComponent, environmentSpecificConfig, defaultEnvVars)
