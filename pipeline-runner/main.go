@@ -88,8 +88,14 @@ func getArgs() map[string]string {
 	for _, arg := range argsWithoutProg {
 		keyValue := strings.Split(arg, "=")
 		key := keyValue[0]
-		value := keyValue[1]
-		args[key] = value
+		switch len(keyValue) {
+		case 1:
+			args[key] = ""
+		case 2:
+			args[key] = keyValue[1]
+		default: //an argument has a value with "=" chars - assemble them back to one string
+			args[key] = strings.Join(keyValue[1:], "=")
+		}
 	}
 	return args
 }

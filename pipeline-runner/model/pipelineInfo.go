@@ -160,12 +160,21 @@ func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
 }
 
 func getImageTagsMap(imageTags string) map[string]string {
-	return slice.Reduce(strings.Split(imageTags, ","), make(map[string]string), func(componentTags map[string]string, componentTagPair string) map[string]string {
+	if len(imageTags) == 0 {
+		return make(map[string]string, 0)
+	}
+	imageTagsMap := slice.Reduce(strings.Split(imageTags, ","), make(map[string]string), func(componentTags map[string]string, componentTagPair string) map[string]string {
 		if pair := strings.Split(componentTagPair, "="); len(pair) == 2 {
-			componentTags[pair[0]] = pair[1] //component-name=tag-name
+			componentTags[pair[0]] = pair[1] //component-name=image-tag
 		}
 		return componentTags
 	})
+	log.Infof("image-tags provided: %s", imageTags)
+	imageTagsCount := len(strings.Split(imageTags, ","))
+	if imageTagsCount != len(imageTagsMap) {
+		log.Infof("%d image tags provided, but %d 'component-name=image-tag' pairs recognised: %v", imageTagsCount, len(imageTagsMap), imageTagsMap)
+	}
+	return imageTagsMap
 }
 
 // InitPipeline Initialize pipeline with step implementations
