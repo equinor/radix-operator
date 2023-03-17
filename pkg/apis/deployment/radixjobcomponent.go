@@ -78,7 +78,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		return nil, commonErrors.Concat(errs)
 	}
 
-	image, err := getImagePath(&componentImage, environmentSpecificConfig)
+	image, err := getImagePath(componentName, &componentImage, environmentSpecificConfig)
 	if err != nil {
 		return nil, err
 	}
