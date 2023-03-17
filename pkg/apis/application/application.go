@@ -156,25 +156,6 @@ func (app *Application) updateRadixRegistrationStatus(rr *v1.RadixRegistration, 
 	})
 }
 
-func (app *Application) updateRadixRegistrationDeployKey(rr *v1.RadixRegistration, deployKey string) error {
-	rrInterface := app.radixclient.RadixV1().RadixRegistrations()
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		currentRR, err := rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		currentRR.Spec.DeployKey = deployKey
-		_, err = rrInterface.Update(context.TODO(), currentRR, metav1.UpdateOptions{})
-		if err == nil && rr.GetName() == app.registration.GetName() {
-			currentRR, err = rrInterface.Get(context.TODO(), rr.GetName(), metav1.GetOptions{})
-			if err == nil {
-				app.registration = currentRR
-			}
-		}
-		return err
-	})
-}
-
 // Garbage collect machine user resources
 func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 	err := app.garbageCollectMachineUserServiceAccount()
@@ -218,10 +199,7 @@ func (app Application) createGitPublicKeyConfigMap(namespace string, key string,
 }
 
 func publicKeyIsEmpty(s string) bool {
-	if len(strings.TrimSpace(s)) > 0 {
-		return false
-	}
-	return true
+	return len(strings.TrimSpace(s)) <= 0
 }
 
 // GetAdGroups Gets ad-groups from registration. If missing, gives default for cluster

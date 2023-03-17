@@ -62,11 +62,20 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 		}
 		newCm := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey, radixRegistration)
 		_, err = app.kubeutil.CreateConfigMap(namespace, newCm)
+		if k8serrors.IsAlreadyExists(err) {
+			err = app.kubeutil.ApplyConfigMap(namespace, cm, newCm)
+			if err != nil {
+				return err
+			}
+		}
 		if err != nil {
 			return err
 		}
 		// also create corresponding secret with private key
 		secret, err := app.createNewGitDeployKey(namespace, deployKey.PrivateKey, radixRegistration)
+		if err != nil {
+			return err
+		}
 		_, err = app.kubeutil.ApplySecret(namespace, secret)
 		if err != nil {
 			return err
