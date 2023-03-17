@@ -75,17 +75,18 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 	}
 
 	desiredCm := cm.DeepCopy()
+	// apply ownerReference to cm
 	desiredCm.OwnerReferences = GetOwnerReferenceOfRegistration(radixRegistration)
 	err = app.kubeutil.ApplyConfigMap(namespace, cm, desiredCm)
 	if err != nil {
 		return err
 	}
 
-	// apply ownerReference to secret and cm
 	secret, err := app.kubeutil.GetSecret(namespace, "git-ssh-keys")
 	if err != nil {
 		return err
 	}
+	// apply ownerReference to secret
 	secret.OwnerReferences = GetOwnerReferenceOfRegistration(radixRegistration)
 	_, err = app.kubeutil.ApplySecret(namespace, secret)
 
