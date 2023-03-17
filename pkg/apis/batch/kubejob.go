@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 
+	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -51,9 +52,9 @@ func (s *syncer) reconcileKubeJob(batchJob radixv1.RadixBatchJob, rd *radixv1.Ra
 }
 
 func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent, rd *radixv1.RadixDeployment) (*batchv1.Job, error) {
-	jobLabels := s.batchJobIdentifierLabel(batchJob.Name)
+	jobLabels := s.batchJobIdentifierLabel(batchJob.Name, rd.Spec.AppName)
 	podLabels := radixlabels.Merge(
-		s.batchJobIdentifierLabel(batchJob.Name),
+		jobLabels,
 		radixlabels.ForPodWithRadixIdentity(jobComponent.Identity),
 	)
 
@@ -68,7 +69,7 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 		return nil, err
 	}
 
-	timeLimitSeconds := jobComponent.GetTimeLimitSeconds()
+	timeLimitSeconds := jobComponent.TimeLimitSeconds
 	if batchJob.TimeLimitSeconds != nil {
 		timeLimitSeconds = batchJob.TimeLimitSeconds
 	}
@@ -78,9 +79,12 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 		node = batchJob.Node
 	}
 
-	backoffLimit := int32(0)
+	backoffLimit := jobComponent.BackoffLimit
 	if batchJob.BackoffLimit != nil {
-		backoffLimit = *batchJob.BackoffLimit
+		backoffLimit = batchJob.BackoffLimit
+	}
+	if backoffLimit == nil {
+		backoffLimit = numbers.Int32Ptr(0)
 	}
 
 	serviceAccountSpec := deployment.NewServiceAccountSpec(rd, jobComponent)
@@ -92,7 +96,7 @@ func (s *syncer) buildJob(batchJob radixv1.RadixBatchJob, jobComponent *radixv1.
 			OwnerReferences: ownerReference(s.batch),
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: &backoffLimit,
+			BackoffLimit: backoffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: podLabels,

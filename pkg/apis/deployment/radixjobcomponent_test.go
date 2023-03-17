@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"github.com/equinor/radix-common/utils/pointers"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -414,4 +415,91 @@ func Test_GetRadixJobComponents_TimeLimitSeconds(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, numbers.Int64Ptr(100), env1Job[0].TimeLimitSeconds)
 	assert.Equal(t, numbers.Int64Ptr(200), env2Job[0].TimeLimitSeconds)
+}
+
+func Test_GetRadixJobComponents_BackoffLimit(t *testing.T) {
+	devEnvName, prodEnvName := "dev", "prod"
+	scenarios := []struct {
+		name                        string
+		defaultBackoffLimit         *int32
+		envDevBackoffLimit          *int32
+		expectedEnvDevBackoffLimit  *int32
+		expectedEnvProdBackoffLimit *int32
+	}{
+		{name: "expect dev and prod nil", defaultBackoffLimit: nil, envDevBackoffLimit: nil, expectedEnvDevBackoffLimit: nil, expectedEnvProdBackoffLimit: nil},
+		{name: "expect dev and prod from default", defaultBackoffLimit: numbers.Int32Ptr(5), envDevBackoffLimit: nil, expectedEnvDevBackoffLimit: numbers.Int32Ptr(5), expectedEnvProdBackoffLimit: numbers.Int32Ptr(5)},
+		{name: "expect dev from envconfig and prod nil", defaultBackoffLimit: nil, envDevBackoffLimit: numbers.Int32Ptr(5), expectedEnvDevBackoffLimit: numbers.Int32Ptr(5), expectedEnvProdBackoffLimit: nil},
+		{name: "expect dev from envconfig and prod from default", defaultBackoffLimit: numbers.Int32Ptr(5), envDevBackoffLimit: numbers.Int32Ptr(10), expectedEnvDevBackoffLimit: numbers.Int32Ptr(10), expectedEnvProdBackoffLimit: numbers.Int32Ptr(5)},
+	}
+
+	for _, scenario := range scenarios {
+		scenario := scenario
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+			ra := utils.NewRadixApplicationBuilder().
+				WithJobComponents(
+					utils.NewApplicationJobComponentBuilder().
+						WithName("anyjob").
+						WithBackoffLimit(scenario.defaultBackoffLimit).
+						WithEnvironmentConfigs(
+							utils.NewJobComponentEnvironmentBuilder().
+								WithEnvironment(devEnvName).
+								WithBackoffLimit(scenario.envDevBackoffLimit),
+						),
+				).
+				BuildRA()
+
+			devBuilder := jobComponentsBuilder{ra: ra, env: devEnvName, componentImages: map[string]pipeline.ComponentImage{}}
+			devJobs, err := devBuilder.JobComponents()
+			require.NoError(t, err, "devJobs build error")
+			require.Len(t, devJobs, 1, "devJobs length")
+			assert.Equal(t, scenario.expectedEnvDevBackoffLimit, devJobs[0].BackoffLimit, "devJobs backoffLimit")
+
+			prodBuilder := jobComponentsBuilder{ra: ra, env: prodEnvName, componentImages: map[string]pipeline.ComponentImage{}}
+			prodJobs, err := prodBuilder.JobComponents()
+			require.NoError(t, err, "prodJobs build error")
+			require.Len(t, prodJobs, 1, "prodJobs length")
+			assert.Equal(t, scenario.expectedEnvProdBackoffLimit, prodJobs[0].BackoffLimit, "prodJobs bacoffLimit")
+		})
+	}
+}
+
+func Test_GetRadixJobComponents_Notifications(t *testing.T) {
+	type scenarioSpec struct {
+		name                 string
+		commonConfig         *v1.Notifications
+		configureEnvironment bool
+		environmentConfig    *v1.Notifications
+		expected             *v1.Notifications
+	}
+
+	scenarios := []scenarioSpec{
+		{name: "nil when commonConfig and environmentConfig is empty", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is nil", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is nil and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "nil when commonConfig is empty and environmentConfig is not set", commonConfig: &v1.Notifications{}, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
+		{name: "use commonConfig when environmentConfig.Webhook is empty", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: nil}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}},
+		{name: "override non-empty commonConfig with environmentConfig.Webhook", commonConfig: &v1.Notifications{Webhook: pointers.Ptr("http://api:8080")}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: &v1.Notifications{}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+		{name: "override empty commonConfig.Webhook with environmentConfig", commonConfig: &v1.Notifications{Webhook: nil}, configureEnvironment: true, environmentConfig: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}, expected: &v1.Notifications{Webhook: pointers.Ptr("http://comp1:8099")}},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			const envName = "anyenv"
+			jobComponent := utils.AnApplicationJobComponent().WithName("anyjob").WithNotifications(scenario.commonConfig)
+			if scenario.configureEnvironment {
+				jobComponent = jobComponent.WithEnvironmentConfigs(
+					utils.AJobComponentEnvironmentConfig().WithEnvironment(envName).WithNotifications(scenario.environmentConfig),
+				)
+			}
+			ra := utils.ARadixApplication().WithJobComponents(jobComponent).BuildRA()
+			sut := jobComponentsBuilder{ra: ra, env: envName, componentImages: make(map[string]pipeline.ComponentImage)}
+			jobs, err := sut.JobComponents()
+			require.NoError(t, err)
+			assert.Equal(t, scenario.expected, jobs[0].Notifications)
+		})
+	}
 }

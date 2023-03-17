@@ -203,6 +203,11 @@ spec:
                         Stop=true was reonciled.'
                       format: date-time
                       type: string
+                    failed:
+                      description: The number of times the container for the job has
+                        failed.
+                      format: int32
+                      type: integer
                     message:
                       description: A human readable message indicating details about
                         why the job is in this phase

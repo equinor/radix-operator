@@ -207,3 +207,39 @@ func getRadixCommonComponentIdentity(radixComponent v1.RadixCommonComponent, env
 
 	return identity, nil
 }
+
+func getRadixJobComponentNotification(radixComponent *v1.RadixJobComponent, environmentConfig *v1.RadixJobComponentEnvironmentConfig) (notifications *v1.Notifications, err error) {
+	// mergo uses the reflect package, and reflect use panic() when errors are detected
+	// We handle panics to prevent process termination even if the RD will be re-queued forever (until a new RD is built)
+	defer func() {
+		if r := recover(); r != nil {
+			if e, ok := r.(error); ok {
+				err = e
+			} else {
+				panic(r)
+			}
+		}
+	}()
+
+	notifications = &v1.Notifications{}
+
+	if !commonUtils.IsNil(radixComponent) {
+		if componentNotifications := radixComponent.GetNotifications(); componentNotifications != nil {
+			componentNotifications.DeepCopyInto(notifications)
+		}
+	}
+
+	if !commonUtils.IsNil(environmentConfig) {
+		if environmentNotifications := environmentConfig.GetNotifications(); environmentNotifications != nil {
+			if err := mergo.Merge(notifications, environmentNotifications, mergo.WithOverride); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if reflect.DeepEqual(notifications, &v1.Notifications{}) {
+		return nil, nil
+	}
+
+	return notifications, nil
+}

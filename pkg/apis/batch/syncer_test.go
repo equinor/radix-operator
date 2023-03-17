@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/deployment"
@@ -15,7 +16,6 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
-	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
@@ -319,11 +319,11 @@ func (s *syncerTestSuite) Test_ServiceCreated() {
 		jobServices := slice.FindAll(allServices.Items, func(svc corev1.Service) bool { return svc.Name == getKubeServiceName(batchName, jobName) })
 		s.Len(jobServices, 1)
 		service := jobServices[0]
-		expectedServiceLabels := map[string]string{kube.RadixComponentLabel: componentName, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
-		s.Equal(expectedServiceLabels, service.Labels)
+		expectedServiceLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		s.Equal(expectedServiceLabels, service.Labels, "service labels")
 		s.Equal(ownerReference(batch), service.OwnerReferences)
-		expectedSelectorLabels := map[string]string{kube.RadixComponentLabel: componentName, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
-		s.Equal(expectedSelectorLabels, service.Spec.Selector)
+		expectedSelectorLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		s.Equal(expectedSelectorLabels, service.Spec.Selector, "selector")
 		s.ElementsMatch([]corev1.ServicePort{{Name: "port1", Port: 8000, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt(8000)}, {Name: "port2", Port: 9000, Protocol: corev1.ProtocolTCP, TargetPort: intstr.FromInt(9000)}}, service.Spec.Ports)
 	}
 }
@@ -458,10 +458,10 @@ func (s *syncerTestSuite) Test_BatchStaticConfiguration() {
 		jobKubeJobs := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.Name == getKubeJobName(batchName, jobName) })
 		s.Len(jobKubeJobs, 1)
 		kubejob := jobKubeJobs[0]
-		expectedJobLabels := map[string]string{kube.RadixComponentLabel: componentName, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
-		s.Equal(expectedJobLabels, kubejob.Labels)
-		expectedPodLabels := map[string]string{kube.RadixComponentLabel: componentName, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
-		s.Equal(expectedPodLabels, kubejob.Spec.Template.Labels)
+		expectedJobLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		s.Equal(expectedJobLabels, kubejob.Labels, "job labels")
+		expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName}
+		s.Equal(expectedPodLabels, kubejob.Spec.Template.Labels, "pod labels")
 		s.Equal(ownerReference(batch), kubejob.OwnerReferences)
 		s.Equal(numbers.Int32Ptr(0), kubejob.Spec.BackoffLimit)
 		s.Equal(corev1.RestartPolicyNever, kubejob.Spec.Template.Spec.RestartPolicy)
@@ -590,7 +590,7 @@ func (s *syncerTestSuite) Test_BatchJobTimeLimitSeconds() {
 	s.Equal(numbers.Int64Ptr(234), job2.Spec.Template.Spec.ActiveDeadlineSeconds)
 }
 
-func (s *syncerTestSuite) Test_BatchJobBackoffLimit() {
+func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithJobComponentDefault() {
 	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
 	job1Name, job2Name := "job1", "job2"
 	batch := &radixv1.RadixBatch{
@@ -612,8 +612,49 @@ func (s *syncerTestSuite) Test_BatchJobBackoffLimit() {
 			AppName: appName,
 			Jobs: []radixv1.RadixDeployJobComponent{
 				{
-					Name:             componentName,
-					TimeLimitSeconds: numbers.Int64Ptr(123),
+					Name:         componentName,
+					BackoffLimit: numbers.Int32Ptr(4),
+				},
+			},
+		},
+	}
+	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	sut := s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	allJobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
+	s.Require().Len(allJobs.Items, 2)
+	job1 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job1Name) })[0]
+	s.Equal(numbers.Int32Ptr(4), job1.Spec.BackoffLimit)
+	job2 := slice.FindAll(allJobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, job2Name) })[0]
+	s.Equal(numbers.Int32Ptr(5), job2.Spec.BackoffLimit)
+}
+
+func (s *syncerTestSuite) Test_BatchJobBackoffLimit_WithoutJobComponentDefault() {
+	appName, batchName, componentName, namespace, rdName := "any-app", "any-batch", "compute", "any-ns", "any-rd"
+	job1Name, job2Name := "job1", "job2"
+	batch := &radixv1.RadixBatch{
+		ObjectMeta: metav1.ObjectMeta{Name: batchName},
+		Spec: radixv1.RadixBatchSpec{
+			RadixDeploymentJobRef: radixv1.RadixDeploymentJobComponentSelector{
+				LocalObjectReference: radixv1.LocalObjectReference{Name: rdName},
+				Job:                  componentName,
+			},
+			Jobs: []radixv1.RadixBatchJob{
+				{Name: job1Name},
+				{Name: job2Name, BackoffLimit: numbers.Int32Ptr(5)},
+			},
+		},
+	}
+	rd := &radixv1.RadixDeployment{
+		ObjectMeta: metav1.ObjectMeta{Name: rdName},
+		Spec: radixv1.RadixDeploymentSpec{
+			AppName: appName,
+			Jobs: []radixv1.RadixDeployJobComponent{
+				{
+					Name: componentName,
 				},
 			},
 		},
@@ -666,7 +707,7 @@ func (s *syncerTestSuite) Test_JobWithIdentity() {
 	s.Require().NoError(sut.OnSync())
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
-	expectedPodLabels := map[string]string{kube.RadixComponentLabel: componentName, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
+	expectedPodLabels := map[string]string{kube.RadixAppLabel: appName, kube.RadixComponentLabel: componentName, kube.RadixJobTypeLabel: kube.RadixJobTypeJobSchedule, kube.RadixBatchNameLabel: batchName, kube.RadixBatchJobNameLabel: jobName, "azure.workload.identity/use": "true"}
 	s.Equal(expectedPodLabels, jobs.Items[0].Spec.Template.Labels)
 	s.Equal(utils.GetComponentServiceAccountName(componentName), jobs.Items[0].Spec.Template.Spec.ServiceAccountName)
 	s.Equal(utils.BoolPtr(false), jobs.Items[0].Spec.Template.Spec.AutomountServiceAccountToken)
@@ -1182,6 +1223,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseWaiting, batch.Status.JobStatuses[0].Phase)
+	s.Equal(int32(0), batch.Status.JobStatuses[0].Failed)
 	s.Empty(batch.Status.JobStatuses[0].Reason)
 	s.Empty(batch.Status.JobStatuses[0].Message)
 	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
@@ -1198,6 +1240,24 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
+	s.Equal(int32(0), batch.Status.JobStatuses[0].Failed)
+	s.Empty(batch.Status.JobStatuses[0].Reason)
+	s.Empty(batch.Status.JobStatuses[0].Message)
+	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
+	s.Equal(&jobStartTime, batch.Status.JobStatuses[0].StartTime)
+	s.Nil(batch.Status.JobStatuses[0].EndTime)
+
+	// Set job status.failed to 2
+	s.updateKubeJobStatus(getKubeJobName(batchName, jobName), namespace)(func(status *batchv1.JobStatus) {
+		status.Failed = 2
+		status.StartTime = &jobStartTime
+	})
+	sut = s.createSyncer(batch)
+	s.Require().NoError(sut.OnSync())
+	s.Require().Len(batch.Status.JobStatuses, 1)
+	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
+	s.Equal(radixv1.BatchJobPhaseActive, batch.Status.JobStatuses[0].Phase)
+	s.Equal(int32(2), batch.Status.JobStatuses[0].Failed)
 	s.Empty(batch.Status.JobStatuses[0].Reason)
 	s.Empty(batch.Status.JobStatuses[0].Message)
 	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
@@ -1217,6 +1277,7 @@ func (s *syncerTestSuite) Test_BatchJobStatusWaitingToSucceeded() {
 	s.Require().Len(batch.Status.JobStatuses, 1)
 	s.Equal(jobName, batch.Status.JobStatuses[0].Name)
 	s.Equal(radixv1.BatchJobPhaseSucceeded, batch.Status.JobStatuses[0].Phase)
+	s.Equal(int32(2), batch.Status.JobStatuses[0].Failed)
 	s.Empty(batch.Status.JobStatuses[0].Reason)
 	s.Empty(batch.Status.JobStatuses[0].Message)
 	s.Equal(&allJobs.Items[0].CreationTimestamp, batch.Status.JobStatuses[0].CreationTime)
