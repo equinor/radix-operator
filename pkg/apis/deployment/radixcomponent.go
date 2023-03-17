@@ -49,7 +49,7 @@ func GetRadixComponentsForEnv(radixApplication *v1.RadixApplication, env string,
 		}
 
 		componentImage := componentImages[componentName]
-		deployComponent.Image, err = getImagePath("", &componentImage, environmentSpecificConfig)
+		deployComponent.Image, err = getImagePath(componentName, &componentImage, environmentSpecificConfig)
 		if err != nil {
 			return nil, err
 		}

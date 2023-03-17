@@ -799,128 +799,90 @@ func Test_GetRadixComponentsForEnv_Identity(t *testing.T) {
 
 func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	const (
-		dynamicImageName = "custom-image-name:{imageTagName}"
-		staticImageName  = "custom-image-name:latest"
-		environment      = "dev"
+		dynamicImageName1 = "custom-image-name1:{imageTagName}"
+		dynamicImageName2 = "custom-image-name2:{imageTagName}"
+		staticImageName1  = "custom-image-name1:latest"
+		staticImageName2  = "custom-image-name2:latest"
+		environment       = "dev"
 	)
 	type scenario struct {
-		name                              string
-		componentNames                    []string
-		jobComponentNames                 []string
-		componentImages                   map[string]string
-		externalImageTags                 map[string]string //map[component-name]image-tag
-		environmentConfigImageTagNames    map[string]string //map[component-name]image-tag
-		jobEnvironmentConfigImageTagNames map[string]string //map[job-component-name]image-tag
-		expectedComponentImage            map[string]string //map[component-name]image
-		expectedJobComponentImage         map[string]string //map[job-component-name]image
-		expectedError                     error
+		name                           string
+		componentImages                map[string]string
+		externalImageTags              map[string]string //map[component-name]image-tag
+		environmentConfigImageTagNames map[string]string //map[component-name]image-tag
+		expectedComponentImage         map[string]string //map[component-name]image
+		expectedError                  error
 	}
+	componentName1 := "componentA"
+	componentName2 := "componentB"
 	scenarios := []scenario{
 		{
-			name:              "image has no tagName, no tags provided",
-			componentNames:    []string{"componentA"},
-			jobComponentNames: []string{"jobA"},
+			name: "image has no tagName",
 			componentImages: map[string]string{
-				"componentA": staticImageName,
-				"jobA":       staticImageName,
-			},
-			externalImageTags:                 nil,
-			environmentConfigImageTagNames:    nil,
-			jobEnvironmentConfigImageTagNames: nil,
-			expectedComponentImage: map[string]string{
-				"componentA": staticImageName,
-			},
-			expectedJobComponentImage: map[string]string{
-				"jobA": staticImageName,
-			},
-		},
-		{
-			name:              "image has tagName, but no tags provided",
-			componentNames:    []string{"componentA"},
-			jobComponentNames: []string{"jobA"},
-			componentImages: map[string]string{
-				"componentA": dynamicImageName,
-				"jobA":       dynamicImageName,
-			},
-			externalImageTags:                 nil,
-			environmentConfigImageTagNames:    nil,
-			jobEnvironmentConfigImageTagNames: nil,
-			expectedError:                     errorMissingExpectedDynamicImageTagName(""),
-		},
-		{
-			name:              "with env-config imageTagName",
-			componentNames:    []string{"componentA"},
-			jobComponentNames: []string{"jobA"},
-			componentImages: map[string]string{
-				"componentA": dynamicImageName,
-				"jobA":       dynamicImageName,
-			},
-			externalImageTags: map[string]string{
-				"componentA": "",
-				"jobA":       "",
-			},
-			environmentConfigImageTagNames: map[string]string{
-				"componentA": "tag-comp-a",
-			},
-			jobEnvironmentConfigImageTagNames: map[string]string{
-				"jobA": "tag-job-a",
-			},
-		},
-		{
-			name:              "static image name, but component env config image-tags provided",
-			componentNames:    []string{"componentA"},
-			jobComponentNames: []string{"jobA"},
-			componentImages: map[string]string{
-				"componentA": staticImageName,
-				"jobA":       staticImageName,
-			},
-			environmentConfigImageTagNames: map[string]string{
-				"componentA": "tag-comp-a",
-			},
-			jobEnvironmentConfigImageTagNames: map[string]string{
-				"jobA": "",
-			},
-			expectedError: errorNotExpectedImageTagNameInImage("componentA", "tag-comp-a"),
-		},
-		{
-			name:              "static image name, but job env config image-tags provided",
-			componentNames:    []string{"componentA"},
-			jobComponentNames: []string{"jobA"},
-			componentImages: map[string]string{
-				"componentA": staticImageName,
-				"jobA":       staticImageName,
-			},
-			environmentConfigImageTagNames: map[string]string{
-				"componentA": "",
-			},
-			jobEnvironmentConfigImageTagNames: map[string]string{
-				"jobA": "tag-job-a",
-			},
-			expectedError: errorNotExpectedImageTagNameInImage("jobA", "tag-job-a"),
-		},
-		{
-			name:              "with external image-tags",
-			componentNames:    []string{"componentA"},
-			jobComponentNames: []string{"jobA"},
-			componentImages: map[string]string{
-				"componentA": dynamicImageName,
-				"jobA":       dynamicImageName,
-			},
-			externalImageTags: map[string]string{
-				"componentA": "external-tag-comp-a",
-				"jobA":       "external-tag-job-a",
-			},
-			environmentConfigImageTagNames: map[string]string{
-				"componentA": "tag-comp-a",
-			},
-			jobEnvironmentConfigImageTagNames: map[string]string{
-				"jobA": "tag-job-a",
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
 			},
 			expectedComponentImage: map[string]string{
-				"componentA": "custom-image-name:external-tag-comp-a",
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
 			},
-			expectedJobComponentImage: map[string]string{
-				"jobA": "custom-image-name:external-tag-job-a",
+		},
+		{
+			name: "image has tagName, but no tags provided",
+			componentImages: map[string]string{
+				componentName1: dynamicImageName1,
+				componentName2: staticImageName2,
+			},
+			expectedError: errorMissingExpectedDynamicImageTagName(componentName1),
+		},
+		{
+			name: "static image name, but component env config image-tags provided",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
+			},
+			environmentConfigImageTagNames: map[string]string{
+				componentName2: "tag-component-a",
+			},
+			expectedError: errorNotExpectedImageTagNameInImage(componentName2, "tag-component-a"),
+		},
+		{
+			name: "static image name, but external image-tags provided",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
+			},
+			externalImageTags: map[string]string{
+				componentName1: "tag-component-a",
+			},
+			expectedError: errorNotExpectedImageTagNameInImage(componentName1, "tag-component-a"),
+		},
+		{
+			name: "with image-tags",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			environmentConfigImageTagNames: map[string]string{
+				componentName2: "tag-component-b",
+			},
+			expectedComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:tag-component-b",
+			},
+		},
+		{
+			name: "external image-tags is used when missing component env imageTagName",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			externalImageTags: map[string]string{
+				componentName2: "external-tag-component-b",
+			},
+			expectedComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:external-tag-component-b",
 			},
 		},
 	}
@@ -928,24 +890,16 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
 			componentImages := make(map[string]pipeline.ComponentImage)
-			componentBuilder := utils.NewApplicationComponentBuilder()
-			for _, componentName := range ts.componentNames {
+			var componentBuilders []utils.RadixApplicationComponentBuilder
+			for _, componentName := range []string{componentName1, componentName2} {
 				componentImages[componentName] = pipeline.ComponentImage{ImageName: ts.componentImages[componentName], ImagePath: ts.componentImages[componentName], ImageTag: ts.externalImageTags[componentName]}
+				componentBuilder := utils.NewApplicationComponentBuilder()
 				componentBuilder.WithName(componentName).WithImage(ts.componentImages[componentName]).
 					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.environmentConfigImageTagNames[componentName]))
-			}
-			jobComponentBuilder := utils.NewApplicationJobComponentBuilder()
-			for _, jobComponentName := range ts.jobComponentNames {
-				componentImages[jobComponentName] = pipeline.ComponentImage{ImageName: ts.componentImages[jobComponentName], ImagePath: ts.componentImages[jobComponentName], ImageTag: ts.externalImageTags[jobComponentName]}
-				jobComponentBuilder.WithName(jobComponentName).WithImage(ts.componentImages[jobComponentName]).
-					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.jobEnvironmentConfigImageTagNames[jobComponentName]))
+				componentBuilders = append(componentBuilders, componentBuilder)
 			}
 
-			ra := utils.ARadixApplication().
-				WithEnvironment(environment, "master").
-				WithComponents(componentBuilder).
-				WithJobComponents(jobComponentBuilder).
-				BuildRA()
+			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithComponents(componentBuilders...).BuildRA()
 
 			deployComponents, err := GetRadixComponentsForEnv(ra, environment, componentImages, make(v1.EnvVarsMap))
 			if err != nil && ts.expectedError == nil {
@@ -964,11 +918,9 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			assert.Equal(t, 1, len(deployComponents))
+
+			assert.Equal(t, 2, len(deployComponents))
 			assert.Equal(t, ts.expectedComponentImage[deployComponents[0].Name], deployComponents[0].Image)
-			deployJobComponents, _ := NewJobComponentsBuilder(ra, environment, componentImages, make(v1.EnvVarsMap)).JobComponents()
-			assert.Equal(t, 1, len(deployJobComponents))
-			assert.Equal(t, ts.expectedJobComponentImage[deployJobComponents[0].Name], deployJobComponents[0].Image)
 		})
 	}
 }
