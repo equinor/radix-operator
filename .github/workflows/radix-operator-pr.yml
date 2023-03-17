@@ -3,7 +3,6 @@ on:
   pull_request:
     branches:
     - master
-    - 846-more-efficient-multistage-build
 jobs:
   build-operator:
     name: Build-operator
