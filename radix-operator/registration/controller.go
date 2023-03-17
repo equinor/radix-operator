@@ -2,6 +2,8 @@ package registration
 
 import (
 	"context"
+	"fmt"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -33,7 +35,7 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
 }
 
-//NewController creates a new controller that handles RadixRegistrations
+// NewController creates a new controller that handles RadixRegistrations
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -131,9 +133,20 @@ func NewController(client kubernetes.Interface,
 		DeleteFunc: func(obj interface{}) {
 			cm, converted := obj.(*corev1.ConfigMap)
 			if !converted {
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+					metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object")
+					return
+				}
+				cm, ok = tombstone.Obj.(*corev1.ConfigMap)
+				if !ok {
+					utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
+					metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object_tombstone")
+					return
+				}
+				controller.Log.Infof("Recovered deleted object %s from tombstone", cm.GetName())
 				logger.Errorf("corev1.ConfigMap object cast failed during deleted event received.")
-				// TODO: Configmap was deleted, but not recreated.
-				return
 			}
 			if isPublicKeyConfigMap(cm) {
 				// Resync, as configmap is deleted.
