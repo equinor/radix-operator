@@ -12,6 +12,7 @@ jobs:
     - name: Build operator image
       env:
         REF: ${{ github. sha }}
+        DOCKER_BUILDKIT: 1
       run: docker build -t radix-operator:${REF##*/} -f operator.Dockerfile .
   build-pipeline:
     name: Build-pipeline
@@ -21,4 +22,5 @@ jobs:
     - name: Build pipeline image
       env:
         REF: ${{ github. sha }}
+        DOCKER_BUILDKIT: 1
       run: docker build -t radix-operator:${REF##*/} -f pipeline.Dockerfile .
