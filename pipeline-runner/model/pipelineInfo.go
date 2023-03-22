@@ -230,7 +230,7 @@ func getRadixJobComponentImageSources(ra *v1.RadixApplication, environments []st
 	return imageSources
 }
 
-func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag string, environments []string, imageTags map[string]string) map[string]pipeline.ComponentImage {
+func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag string, environments []string, imageTagNames map[string]string) map[string]pipeline.ComponentImage {
 	// Combine components and jobComponents
 	componentSource := make([]pipeline.ComponentImageSource, 0)
 	componentSource = append(componentSource, getRadixComponentImageSources(ra, environments)...)
@@ -268,8 +268,8 @@ func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag str
 			continue
 		}
 		componentImage := pipeline.ComponentImage{Build: false, ImageName: c.Image, ImagePath: c.Image}
-		if imageTags != nil {
-			componentImage.ImageTag = imageTags[c.Name]
+		if imageTagNames != nil {
+			componentImage.ImageTagName = imageTagNames[c.Name]
 		}
 		componentImages[c.Name] = componentImage
 	}

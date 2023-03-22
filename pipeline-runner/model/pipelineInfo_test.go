@@ -62,13 +62,13 @@ func Test_BuildAndDefaultNoPushOnlyPipeline(t *testing.T) {
 	assert.Equal(t, "run pipelines completed", p.Steps[3].SucceededMsg())
 }
 
-func Test_GetImageTagsFromArgs(t *testing.T) {
+func Test_GetImageTagNamesFromArgs(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Deploy))
 	type scenario struct {
 		name                  string
 		pipelineArguments     PipelineArguments
 		expectedToEnvironment string
-		expectedImageTags     map[string]string
+		expectedImageTagNames map[string]string
 	}
 
 	scenarios := []scenario{
@@ -79,7 +79,7 @@ func Test_GetImageTagsFromArgs(t *testing.T) {
 				ImageTagNames: map[string]string{},
 			},
 			expectedToEnvironment: "env1",
-			expectedImageTags:     map[string]string{},
+			expectedImageTagNames: map[string]string{},
 		},
 		{
 			name: "all correct image-tag pairs",
@@ -88,7 +88,7 @@ func Test_GetImageTagsFromArgs(t *testing.T) {
 				ImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"},
 			},
 			expectedToEnvironment: "env1",
-			expectedImageTags:     map[string]string{"component1": "tag1", "component2": "tag22"},
+			expectedImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"},
 		},
 	}
 
@@ -98,7 +98,7 @@ func Test_GetImageTagsFromArgs(t *testing.T) {
 			p, _ := InitPipeline(pipelineType, &ts.pipelineArguments, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 			assert.Equal(t, v1.Deploy, p.Definition.Type)
 			assert.Equal(t, ts.expectedToEnvironment, p.PipelineArguments.ToEnvironment)
-			assert.Equal(t, ts.expectedImageTags, p.PipelineArguments.ImageTagNames)
+			assert.Equal(t, ts.expectedImageTagNames, p.PipelineArguments.ImageTagNames)
 		})
 	}
 }
@@ -144,7 +144,7 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 		name                  string
 		pipelineArguments     PipelineArguments
 		expectedToEnvironment string
-		expectedImageTags     map[string]string
+		expectedImageTagNames map[string]string
 	}
 
 	scenarios := []scenario{
@@ -157,7 +157,7 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 			name:                  "target environment with image tags",
 			pipelineArguments:     PipelineArguments{ToEnvironment: "target", ImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"}},
 			expectedToEnvironment: "target",
-			expectedImageTags:     map[string]string{"component1": "tag1", "component2": "tag22"},
+			expectedImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"},
 		},
 	}
 
@@ -166,7 +166,7 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 			p, _ := InitPipeline(pipelineType, &ts.pipelineArguments, prepareTektonPipelineStep, applyConfigStep, runTektonPipelineStep, deployStep)
 			assert.Equal(t, v1.Deploy, p.Definition.Type)
 			assert.Equal(t, ts.expectedToEnvironment, p.PipelineArguments.ToEnvironment)
-			assert.Equal(t, ts.expectedImageTags, p.PipelineArguments.ImageTagNames)
+			assert.Equal(t, ts.expectedImageTagNames, p.PipelineArguments.ImageTagNames)
 			assert.Equal(t, 4, len(p.Steps))
 			assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 			assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())

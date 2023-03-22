@@ -808,7 +808,7 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	type scenario struct {
 		name                           string
 		componentImages                map[string]string
-		externalImageTags              map[string]string //map[component-name]image-tag
+		externalImageTagNames          map[string]string //map[component-name]image-tag
 		environmentConfigImageTagNames map[string]string //map[component-name]image-tag
 		expectedComponentImage         map[string]string //map[component-name]image
 		expectedError                  error
@@ -852,7 +852,7 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 				componentName1: staticImageName1,
 				componentName2: staticImageName2,
 			},
-			externalImageTags: map[string]string{
+			externalImageTagNames: map[string]string{
 				componentName1: "tag-component-a",
 			},
 			expectedError: errorNotExpectedImageTagNameInImage(componentName1, "tag-component-a"),
@@ -877,7 +877,7 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 				componentName1: staticImageName1,
 				componentName2: dynamicImageName2,
 			},
-			externalImageTags: map[string]string{
+			externalImageTagNames: map[string]string{
 				componentName2: "external-tag-component-b",
 			},
 			expectedComponentImage: map[string]string{
@@ -892,7 +892,7 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			componentImages := make(map[string]pipeline.ComponentImage)
 			var componentBuilders []utils.RadixApplicationComponentBuilder
 			for _, componentName := range []string{componentName1, componentName2} {
-				componentImages[componentName] = pipeline.ComponentImage{ImageName: ts.componentImages[componentName], ImagePath: ts.componentImages[componentName], ImageTag: ts.externalImageTags[componentName]}
+				componentImages[componentName] = pipeline.ComponentImage{ImageName: ts.componentImages[componentName], ImagePath: ts.componentImages[componentName], ImageTagName: ts.externalImageTagNames[componentName]}
 				componentBuilder := utils.NewApplicationComponentBuilder()
 				componentBuilder.WithName(componentName).WithImage(ts.componentImages[componentName]).
 					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.environmentConfigImageTagNames[componentName]))

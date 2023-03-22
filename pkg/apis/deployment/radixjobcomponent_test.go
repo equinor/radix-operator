@@ -516,7 +516,7 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	type scenario struct {
 		name                           string
 		componentImages                map[string]string
-		externalImageTags              map[string]string //map[component-name]image-tag
+		externalImageTagNames          map[string]string //map[component-name]image-tag
 		environmentConfigImageTagNames map[string]string //map[component-name]image-tag
 		expectedJobComponentImage      map[string]string //map[component-name]image
 		expectedError                  error
@@ -560,7 +560,7 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 				componentName1: staticImageName1,
 				componentName2: staticImageName2,
 			},
-			externalImageTags: map[string]string{
+			externalImageTagNames: map[string]string{
 				componentName1: "tag-component-a",
 			},
 			expectedError: errorNotExpectedImageTagNameInImage(componentName1, "tag-component-a"),
@@ -585,7 +585,7 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 				componentName1: staticImageName1,
 				componentName2: dynamicImageName2,
 			},
-			externalImageTags: map[string]string{
+			externalImageTagNames: map[string]string{
 				componentName2: "external-tag-component-b",
 			},
 			expectedJobComponentImage: map[string]string{
@@ -600,7 +600,7 @@ func TestGetRadixJobComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 			componentImages := make(map[string]pipeline.ComponentImage)
 			var componentBuilders []utils.RadixApplicationJobComponentBuilder
 			for _, jobComponentName := range []string{componentName1, componentName2} {
-				componentImages[jobComponentName] = pipeline.ComponentImage{ImageName: ts.componentImages[jobComponentName], ImagePath: ts.componentImages[jobComponentName], ImageTag: ts.externalImageTags[jobComponentName]}
+				componentImages[jobComponentName] = pipeline.ComponentImage{ImageName: ts.componentImages[jobComponentName], ImagePath: ts.componentImages[jobComponentName], ImageTagName: ts.externalImageTagNames[jobComponentName]}
 				componentBuilder := utils.NewApplicationJobComponentBuilder()
 				componentBuilder.WithName(jobComponentName).WithImage(ts.componentImages[jobComponentName]).
 					WithEnvironmentConfig(utils.NewJobComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.environmentConfigImageTagNames[jobComponentName]))
