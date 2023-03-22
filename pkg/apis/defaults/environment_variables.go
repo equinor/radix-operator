@@ -94,8 +94,8 @@ const (
 	// RadixPromoteSourceDeploymentBranchEnvironmentVariable Git branch of source deployment in promote jobs
 	RadixPromoteSourceDeploymentBranchEnvironmentVariable = "SOURCE_DEPLOYMENT_GIT_BRANCH"
 
-	// RadixImageTagsEnvironmentVariable Image tags for Radix application components
-	RadixImageTagsEnvironmentVariable = "IMAGE_TAGS"
+	// RadixImageTagNameEnvironmentVariable Image tag name for Radix application components
+	RadixImageTagNameEnvironmentVariable = "IMAGE_TAG_NAME"
 
 	// RadixGithubWebhookCommitId Value of the git commit hash sent from GitHub webhook
 	RadixGithubWebhookCommitId = "RADIX_GITHUB_WEBHOOK_COMMIT_ID"

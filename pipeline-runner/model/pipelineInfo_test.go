@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -26,7 +25,7 @@ var (
 
 func Test_DefaultPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName("")
-	p, _ := InitPipeline(pipelineType, PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := InitPipeline(pipelineType, &PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -39,7 +38,7 @@ func Test_DefaultPipeType(t *testing.T) {
 
 func Test_BuildDeployPipeType(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.BuildDeploy))
-	p, _ := InitPipeline(pipelineType, PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := InitPipeline(pipelineType, &PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 
 	assert.Equal(t, v1.BuildDeploy, p.Definition.Type)
 	assert.Equal(t, 5, len(p.Steps))
@@ -50,13 +49,12 @@ func Test_BuildDeployPipeType(t *testing.T) {
 	assert.Equal(t, "deployed", p.Steps[4].SucceededMsg())
 }
 
-func Test_BuildAndDefaultPushOnlyPipeline(t *testing.T) {
+func Test_BuildAndDefaultNoPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	pipelineArgs := GetPipelineArgsFromArguments(make(map[string]string))
-	p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+	p, _ := InitPipeline(pipelineType, &PipelineArguments{}, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 	assert.Equal(t, v1.Build, p.Definition.Type)
-	assert.True(t, p.PipelineArguments.PushImage)
+	assert.False(t, p.PipelineArguments.PushImage)
 	assert.Equal(t, 4, len(p.Steps))
 	assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 	assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
@@ -68,7 +66,7 @@ func Test_GetImageTagsFromArgs(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Deploy))
 	type scenario struct {
 		name                  string
-		params                map[string]string
+		pipelineArguments     PipelineArguments
 		expectedToEnvironment string
 		expectedImageTags     map[string]string
 	}
@@ -76,27 +74,18 @@ func Test_GetImageTagsFromArgs(t *testing.T) {
 	scenarios := []scenario{
 		{
 			name: "no image tags",
-			params: map[string]string{
-				defaults.RadixPromoteToEnvironmentEnvironmentVariable: "env1",
-				defaults.RadixImageTagsEnvironmentVariable:            "",
+			pipelineArguments: PipelineArguments{
+				ToEnvironment: "env1",
+				ImageTagNames: map[string]string{},
 			},
 			expectedToEnvironment: "env1",
 			expectedImageTags:     map[string]string{},
 		},
 		{
-			name: "only one correct image-tag pair",
-			params: map[string]string{
-				defaults.RadixPromoteToEnvironmentEnvironmentVariable: "env1",
-				defaults.RadixImageTagsEnvironmentVariable:            "component1,component2=tag22",
-			},
-			expectedToEnvironment: "env1",
-			expectedImageTags:     map[string]string{"component2": "tag22"},
-		},
-		{
 			name: "all correct image-tag pairs",
-			params: map[string]string{
-				defaults.RadixPromoteToEnvironmentEnvironmentVariable: "env1",
-				defaults.RadixImageTagsEnvironmentVariable:            "component1=tag1,component2=tag22",
+			pipelineArguments: PipelineArguments{
+				ToEnvironment: "env1",
+				ImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"},
 			},
 			expectedToEnvironment: "env1",
 			expectedImageTags:     map[string]string{"component1": "tag1", "component2": "tag22"},
@@ -106,11 +95,10 @@ func Test_GetImageTagsFromArgs(t *testing.T) {
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
 
-			pipelineArgs := GetPipelineArgsFromArguments(ts.params)
-			p, _ := InitPipeline(pipelineType, pipelineArgs, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
+			p, _ := InitPipeline(pipelineType, &ts.pipelineArguments, prepareTektonPipelineStep, applyConfigStep, buildStep, runTektonPipelineStep, deployStep)
 			assert.Equal(t, v1.Deploy, p.Definition.Type)
 			assert.Equal(t, ts.expectedToEnvironment, p.PipelineArguments.ToEnvironment)
-			assert.Equal(t, ts.expectedImageTags, p.PipelineArguments.ImageTags)
+			assert.Equal(t, ts.expectedImageTags, p.PipelineArguments.ImageTagNames)
 		})
 	}
 }
@@ -118,7 +106,7 @@ func Test_GetImageTagsFromArgs(t *testing.T) {
 func Test_BuildOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	pipelineArgs := PipelineArguments{
+	pipelineArgs := &PipelineArguments{
 		PushImage: false,
 	}
 
@@ -135,7 +123,7 @@ func Test_BuildOnlyPipeline(t *testing.T) {
 func Test_BuildAndPushOnlyPipeline(t *testing.T) {
 	pipelineType, _ := pipeline.GetPipelineFromName(string(v1.Build))
 
-	pipelineArgs := PipelineArguments{
+	pipelineArgs := &PipelineArguments{
 		PushImage: true,
 	}
 
@@ -167,7 +155,7 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 		},
 		{
 			name:                  "target environment with image tags",
-			pipelineArguments:     PipelineArguments{ToEnvironment: "target", ImageTags: map[string]string{"component1": "tag1", "component2": "tag22"}},
+			pipelineArguments:     PipelineArguments{ToEnvironment: "target", ImageTagNames: map[string]string{"component1": "tag1", "component2": "tag22"}},
 			expectedToEnvironment: "target",
 			expectedImageTags:     map[string]string{"component1": "tag1", "component2": "tag22"},
 		},
@@ -175,10 +163,10 @@ func Test_DeployOnlyPipeline(t *testing.T) {
 
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
-			p, _ := InitPipeline(pipelineType, ts.pipelineArguments, prepareTektonPipelineStep, applyConfigStep, runTektonPipelineStep, deployStep)
+			p, _ := InitPipeline(pipelineType, &ts.pipelineArguments, prepareTektonPipelineStep, applyConfigStep, runTektonPipelineStep, deployStep)
 			assert.Equal(t, v1.Deploy, p.Definition.Type)
 			assert.Equal(t, ts.expectedToEnvironment, p.PipelineArguments.ToEnvironment)
-			assert.Equal(t, ts.expectedImageTags, p.PipelineArguments.ImageTags)
+			assert.Equal(t, ts.expectedImageTags, p.PipelineArguments.ImageTagNames)
 			assert.Equal(t, 4, len(p.Steps))
 			assert.Equal(t, "pipelines prepared", p.Steps[0].SucceededMsg())
 			assert.Equal(t, "config applied", p.Steps[1].SucceededMsg())
@@ -522,24 +510,24 @@ func Test_dockerfile_from_folder_and_file(t *testing.T) {
 
 func Test_IsDeployOnlyPipeline(t *testing.T) {
 	toEnvironment := "prod"
-	pipelineArguments := PipelineArguments{
+	pipelineArguments := &PipelineArguments{
 		ToEnvironment: toEnvironment,
 	}
 
 	pipelineInfo := PipelineInfo{
-		PipelineArguments: pipelineArguments,
+		PipelineArguments: *pipelineArguments,
 	}
 
 	assert.True(t, pipelineInfo.IsDeployOnlyPipeline())
 
 	fromEnvironment := "dev"
-	pipelineArguments = PipelineArguments{
+	pipelineArguments = &PipelineArguments{
 		ToEnvironment:   toEnvironment,
 		FromEnvironment: fromEnvironment,
 	}
 
 	pipelineInfo = PipelineInfo{
-		PipelineArguments: pipelineArguments,
+		PipelineArguments: *pipelineArguments,
 	}
 
 	assert.False(t, pipelineInfo.IsDeployOnlyPipeline())

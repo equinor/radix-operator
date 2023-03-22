@@ -2,14 +2,11 @@ package model
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-common/utils/slice"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
@@ -96,90 +93,15 @@ type PipelineArguments struct {
 	SubscriptionId string
 	// Used to indicate debugging session
 	Debug bool
-	// Image tags for components: component-name:image-tag
-	ImageTags map[string]string
-}
-
-// GetPipelineArgsFromArguments Gets pipeline arguments from arg string
-func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
-	radixConfigFile := args[defaults.RadixConfigFileEnvironmentVariable]
-	branch := args[defaults.RadixBranchEnvironmentVariable]
-	commitID := args[defaults.RadixCommitIdEnvironmentVariable]
-	imageTag := args[defaults.RadixImageTagEnvironmentVariable]
-	jobName := args[defaults.RadixPipelineJobEnvironmentVariable]
-	useCache, _ := strconv.ParseBool(args[defaults.RadixUseCacheEnvironmentVariable])
-	pipelineType := args[defaults.RadixPipelineTypeEnvironmentVariable] // string(model.Build)
-	pushImage := args[defaults.RadixPushImageEnvironmentVariable]       // "0"
-
-	// promote pipeline
-	deploymentName := args[defaults.RadixPromoteDeploymentEnvironmentVariable]       // For promotion pipeline
-	fromEnvironment := args[defaults.RadixPromoteFromEnvironmentEnvironmentVariable] // For promotion
-	toEnvironment := args[defaults.RadixPromoteToEnvironmentEnvironmentVariable]     // For promotion and deploy
-	imageTags := args[defaults.RadixImageTagsEnvironmentVariable]
-	imageTagsMap := getImageTagsMap(imageTags) // For deploy
-
-	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
-	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
-	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
-	clusterName := args[defaults.ClusternameEnvironmentVariable]
-	containerRegistry := args[defaults.ContainerRegistryEnvironmentVariable]
-	subscriptionId := args[defaults.AzureSubscriptionIdEnvironmentVariable]
-	radixZone := args[defaults.RadixZoneEnvironmentVariable]
-
-	// Indicates that we are debugging the application
-	debug, _ := strconv.ParseBool(args["DEBUG"])
-
-	if imageTag == "" {
-		imageTag = "latest"
-	}
-
-	pushImageBool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
-
-	return PipelineArguments{
-		PipelineType:      pipelineType,
-		JobName:           jobName,
-		Branch:            branch,
-		CommitID:          commitID,
-		ImageTag:          imageTag,
-		UseCache:          useCache,
-		PushImage:         pushImageBool,
-		DeploymentName:    deploymentName,
-		FromEnvironment:   fromEnvironment,
-		ToEnvironment:     toEnvironment,
-		ImageTags:         imageTagsMap,
-		TektonPipeline:    tektonPipeline,
-		ImageBuilder:      imageBuilder,
-		Clustertype:       clusterType,
-		Clustername:       clusterName,
-		ContainerRegistry: containerRegistry,
-		SubscriptionId:    subscriptionId,
-		RadixZone:         radixZone,
-		RadixConfigFile:   radixConfigFile,
-		Debug:             debug,
-	}
-}
-
-func getImageTagsMap(imageTags string) map[string]string {
-	if len(imageTags) == 0 {
-		return make(map[string]string, 0)
-	}
-	imageTagsMap := slice.Reduce(strings.Split(imageTags, ","), make(map[string]string), func(componentTags map[string]string, componentTagPair string) map[string]string {
-		if pair := strings.Split(componentTagPair, "="); len(pair) == 2 {
-			componentTags[pair[0]] = pair[1] //component-name=image-tag
-		}
-		return componentTags
-	})
-	log.Infof("image-tags provided: %s", imageTags)
-	imageTagsCount := len(strings.Split(imageTags, ","))
-	if imageTagsCount != len(imageTagsMap) {
-		log.Infof("%d image tags provided, but %d 'component-name=image-tag' pairs recognised: %v", imageTagsCount, len(imageTagsMap), imageTagsMap)
-	}
-	return imageTagsMap
+	// Image tag names for components: component-name:image-tag
+	ImageTagNames map[string]string
+	LogLevel      string
+	AppName       string
 }
 
 // InitPipeline Initialize pipeline with step implementations
 func InitPipeline(pipelineType *pipeline.Definition,
-	pipelineArguments PipelineArguments,
+	pipelineArguments *PipelineArguments,
 	stepImplementations ...Step) (*PipelineInfo, error) {
 
 	timestamp := time.Now().Format("20060102150405")
@@ -204,7 +126,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	return &PipelineInfo{
 		Definition:         pipelineType,
-		PipelineArguments:  pipelineArguments,
+		PipelineArguments:  *pipelineArguments,
 		Steps:              stepImplementationsForType,
 		RadixConfigMapName: radixConfigMapName,
 		GitConfigMapName:   gitConfigFileName,
@@ -261,7 +183,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 		info.PipelineArguments.ContainerRegistry,
 		info.PipelineArguments.ImageTag,
 		maps.GetKeysFromMap(targetEnvironments),
-		info.PipelineArguments.ImageTags)
+		info.PipelineArguments.ImageTagNames)
 	info.ComponentImages = componentImages
 }
 
