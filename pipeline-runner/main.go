@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipe "github.com/equinor/radix-operator/pipeline-runner/pipelines"
@@ -94,21 +95,29 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	cmd.Flags().StringVar(&pipelineArgs.RadixConfigFile, defaults.RadixConfigFileEnvironmentVariable, "", "Radix config file name. Example: /workspace/radixconfig.yaml")
 	cmd.Flags().StringVar(&pipelineArgs.ImageTag, defaults.RadixImageTagEnvironmentVariable, "latest", "Docker image tag")
 	cmd.Flags().StringVar(&pipelineArgs.LogLevel, defaults.LogLevel, "INFO", "Log level: ERROR, INFO (default), DEBUG")
-	cmd.Flags().BoolVar(&pipelineArgs.UseCache, defaults.RadixUseCacheEnvironmentVariable, false, "Use cache")
-	cmd.Flags().BoolVar(&pipelineArgs.PushImage, defaults.RadixPushImageEnvironmentVariable, false, "Push docker image to a repository")
-	cmd.Flags().BoolVar(&pipelineArgs.Debug, "DEBUG", false, "Debug information")
+	var useCache string
+	cmd.Flags().StringVar(&useCache, defaults.RadixUseCacheEnvironmentVariable, "0", "Use cache")
+	var pushImage string
+	cmd.Flags().StringVar(&pushImage, defaults.RadixPushImageEnvironmentVariable, "0", "Push docker image to a repository")
+	var debug string
+	cmd.Flags().StringVar(&debug, "DEBUG", "false", "Debug information")
 	cmd.Flags().StringToStringVar(&pipelineArgs.ImageTagNames, defaults.RadixImageTagNameEnvironmentVariable, make(map[string]string), "Image tag names for components (optional)")
 
-	cmd.Flags().Parse(arguments)
+	err := cmd.Flags().Parse(arguments)
+	if err != nil {
+		log.Errorf("failed to parse command arguments. Error: %v", err)
+	}
 
+	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
+	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(v1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
+	pipelineArgs.UseCache, _ = strconv.ParseBool(useCache)
+	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
 	if pipelineArgs.ImageTagNames == nil || len(pipelineArgs.ImageTagNames) == 0 {
 		log.Infoln("Image tag names provided:")
 		for componentName, imageTagName := range pipelineArgs.ImageTagNames {
 			log.Infof("- %s:%s", componentName, imageTagName)
 		}
 	}
-
-	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(v1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
 }
 
 func setLogLevel(logLevel string) {

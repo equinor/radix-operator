@@ -5,21 +5,19 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
-
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -87,7 +85,6 @@ func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
 							Name:            defaults.RadixPipelineJobPipelineContainerName,
 							Image:           imageTag,
 							ImagePullPolicy: corev1.PullAlways,
-							Command:         []string{"run"},
 							Args:            containerArguments,
 							SecurityContext: securitycontext.Container(
 								securitycontext.WithContainerDropAllCapabilities(),
