@@ -112,7 +112,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 	pipelineArgs.PushImage = pipelineArgs.PipelineType == string(v1.BuildDeploy) || pipelineArgs.PushImage // build and deploy require push
 	pipelineArgs.UseCache, _ = strconv.ParseBool(useCache)
 	pipelineArgs.Debug, _ = strconv.ParseBool(debug)
-	if pipelineArgs.ImageTagNames == nil || len(pipelineArgs.ImageTagNames) == 0 {
+	if pipelineArgs.ImageTagNames != nil && len(pipelineArgs.ImageTagNames) > 0 {
 		log.Infoln("Image tag names provided:")
 		for componentName, imageTagName := range pipelineArgs.ImageTagNames {
 			log.Infof("- %s:%s", componentName, imageTagName)
