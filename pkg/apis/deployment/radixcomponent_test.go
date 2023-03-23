@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -21,7 +22,6 @@ const (
 
 	anyImage     = componentName
 	anyImagePath = anyImage
-	anyImageTag  = "latest"
 )
 
 type scenarioDef struct {
@@ -793,6 +793,134 @@ func Test_GetRadixComponentsForEnv_Identity(t *testing.T) {
 			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
 			require.NoError(t, err)
 			assert.Equal(t, scenario.expected, components[0].Identity)
+		})
+	}
+}
+
+func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
+	const (
+		dynamicImageName1 = "custom-image-name1:{imageTagName}"
+		dynamicImageName2 = "custom-image-name2:{imageTagName}"
+		staticImageName1  = "custom-image-name1:latest"
+		staticImageName2  = "custom-image-name2:latest"
+		environment       = "dev"
+	)
+	type scenario struct {
+		name                           string
+		componentImages                map[string]string
+		externalImageTagNames          map[string]string //map[component-name]image-tag
+		environmentConfigImageTagNames map[string]string //map[component-name]image-tag
+		expectedComponentImage         map[string]string //map[component-name]image
+		expectedError                  error
+	}
+	componentName1 := "componentA"
+	componentName2 := "componentB"
+	scenarios := []scenario{
+		{
+			name: "image has no tagName",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
+			},
+			expectedComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
+			},
+		},
+		{
+			name: "image has tagName, but no tags provided",
+			componentImages: map[string]string{
+				componentName1: dynamicImageName1,
+				componentName2: staticImageName2,
+			},
+			expectedError: errorMissingExpectedDynamicImageTagName(componentName1),
+		},
+		{
+			name: "static image name, but component env config image-tags provided",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
+			},
+			environmentConfigImageTagNames: map[string]string{
+				componentName2: "tag-component-a",
+			},
+			expectedError: errorNotExpectedImageTagNameInImage(componentName2, "tag-component-a"),
+		},
+		{
+			name: "static image name, but external image-tags provided",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: staticImageName2,
+			},
+			externalImageTagNames: map[string]string{
+				componentName1: "tag-component-a",
+			},
+			expectedError: errorNotExpectedImageTagNameInImage(componentName1, "tag-component-a"),
+		},
+		{
+			name: "with image-tags",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			environmentConfigImageTagNames: map[string]string{
+				componentName2: "tag-component-b",
+			},
+			expectedComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:tag-component-b",
+			},
+		},
+		{
+			name: "external image-tags is used when missing component env imageTagName",
+			componentImages: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: dynamicImageName2,
+			},
+			externalImageTagNames: map[string]string{
+				componentName2: "external-tag-component-b",
+			},
+			expectedComponentImage: map[string]string{
+				componentName1: staticImageName1,
+				componentName2: "custom-image-name2:external-tag-component-b",
+			},
+		},
+	}
+
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			componentImages := make(map[string]pipeline.ComponentImage)
+			var componentBuilders []utils.RadixApplicationComponentBuilder
+			for _, componentName := range []string{componentName1, componentName2} {
+				componentImages[componentName] = pipeline.ComponentImage{ImageName: ts.componentImages[componentName], ImagePath: ts.componentImages[componentName], ImageTagName: ts.externalImageTagNames[componentName]}
+				componentBuilder := utils.NewApplicationComponentBuilder()
+				componentBuilder.WithName(componentName).WithImage(ts.componentImages[componentName]).
+					WithEnvironmentConfig(utils.NewComponentEnvironmentBuilder().WithEnvironment(environment).WithImageTagName(ts.environmentConfigImageTagNames[componentName]))
+				componentBuilders = append(componentBuilders, componentBuilder)
+			}
+
+			ra := utils.ARadixApplication().WithEnvironment(environment, "master").WithComponents(componentBuilders...).BuildRA()
+
+			deployComponents, err := GetRadixComponentsForEnv(ra, environment, componentImages, make(v1.EnvVarsMap))
+			if err != nil && ts.expectedError == nil {
+				assert.Fail(t, fmt.Sprintf("unexpected error %v", err))
+				return
+			}
+			if err == nil && ts.expectedError != nil {
+				assert.Fail(t, fmt.Sprintf("missing an expected error %s", ts.expectedError))
+				return
+			}
+			if err != nil && err.Error() != ts.expectedError.Error() {
+				assert.Fail(t, fmt.Sprintf("expected error '%s', but got '%s'", ts.expectedError, err.Error()))
+				return
+			}
+			if ts.expectedError != nil {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.Equal(t, 2, len(deployComponents))
+			assert.Equal(t, ts.expectedComponentImage[deployComponents[0].Name], deployComponents[0].Image)
 		})
 	}
 }

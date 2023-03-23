@@ -2,16 +2,14 @@ package model
 
 import (
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-common/utils/maps"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
@@ -95,67 +93,15 @@ type PipelineArguments struct {
 	SubscriptionId string
 	// Used to indicate debugging session
 	Debug bool
-}
-
-// GetPipelineArgsFromArguments Gets pipeline arguments from arg string
-func GetPipelineArgsFromArguments(args map[string]string) PipelineArguments {
-	radixConfigFile := args[defaults.RadixConfigFileEnvironmentVariable]
-	branch := args[defaults.RadixBranchEnvironmentVariable]
-	commitID := args[defaults.RadixCommitIdEnvironmentVariable]
-	imageTag := args[defaults.RadixImageTagEnvironmentVariable]
-	jobName := args[defaults.RadixPipelineJobEnvironmentVariable]
-	useCache, _ := strconv.ParseBool(args[defaults.RadixUseCacheEnvironmentVariable])
-	pipelineType := args[defaults.RadixPipelineTypeEnvironmentVariable] // string(model.Build)
-	pushImage := args[defaults.RadixPushImageEnvironmentVariable]       // "0"
-
-	// promote pipeline
-	deploymentName := args[defaults.RadixPromoteDeploymentEnvironmentVariable]       // For promotion pipeline
-	fromEnvironment := args[defaults.RadixPromoteFromEnvironmentEnvironmentVariable] // For promotion
-	toEnvironment := args[defaults.RadixPromoteToEnvironmentEnvironmentVariable]     // For promotion and deploy
-
-	tektonPipeline := args[defaults.RadixTektonPipelineImageEnvironmentVariable]
-	imageBuilder := args[defaults.RadixImageBuilderEnvironmentVariable]
-	clusterType := args[defaults.RadixClusterTypeEnvironmentVariable]
-	clusterName := args[defaults.ClusternameEnvironmentVariable]
-	containerRegistry := args[defaults.ContainerRegistryEnvironmentVariable]
-	subscriptionId := args[defaults.AzureSubscriptionIdEnvironmentVariable]
-	radixZone := args[defaults.RadixZoneEnvironmentVariable]
-
-	// Indicates that we are debugging the application
-	debug, _ := strconv.ParseBool(args["DEBUG"])
-
-	if imageTag == "" {
-		imageTag = "latest"
-	}
-
-	pushImageBool := pipelineType == string(v1.BuildDeploy) || !(pushImage == "false" || pushImage == "0") // build and deploy require push
-
-	return PipelineArguments{
-		PipelineType:      pipelineType,
-		JobName:           jobName,
-		Branch:            branch,
-		CommitID:          commitID,
-		ImageTag:          imageTag,
-		UseCache:          useCache,
-		PushImage:         pushImageBool,
-		DeploymentName:    deploymentName,
-		FromEnvironment:   fromEnvironment,
-		ToEnvironment:     toEnvironment,
-		TektonPipeline:    tektonPipeline,
-		ImageBuilder:      imageBuilder,
-		Clustertype:       clusterType,
-		Clustername:       clusterName,
-		ContainerRegistry: containerRegistry,
-		SubscriptionId:    subscriptionId,
-		RadixZone:         radixZone,
-		RadixConfigFile:   radixConfigFile,
-		Debug:             debug,
-	}
+	// Image tag names for components: component-name:image-tag
+	ImageTagNames map[string]string
+	LogLevel      string
+	AppName       string
 }
 
 // InitPipeline Initialize pipeline with step implementations
 func InitPipeline(pipelineType *pipeline.Definition,
-	pipelineArguments PipelineArguments,
+	pipelineArguments *PipelineArguments,
 	stepImplementations ...Step) (*PipelineInfo, error) {
 
 	timestamp := time.Now().Format("20060102150405")
@@ -180,7 +126,7 @@ func InitPipeline(pipelineType *pipeline.Definition,
 
 	return &PipelineInfo{
 		Definition:         pipelineType,
-		PipelineArguments:  pipelineArguments,
+		PipelineArguments:  *pipelineArguments,
 		Steps:              stepImplementationsForType,
 		RadixConfigMapName: radixConfigMapName,
 		GitConfigMapName:   gitConfigFileName,
@@ -237,7 +183,7 @@ func (info *PipelineInfo) SetApplicationConfig(applicationConfig *application.Ap
 		info.PipelineArguments.ContainerRegistry,
 		info.PipelineArguments.ImageTag,
 		maps.GetKeysFromMap(targetEnvironments),
-	)
+		info.PipelineArguments.ImageTagNames)
 	info.ComponentImages = componentImages
 }
 
@@ -284,7 +230,7 @@ func getRadixJobComponentImageSources(ra *v1.RadixApplication, environments []st
 	return imageSources
 }
 
-func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag string, environments []string) map[string]pipeline.ComponentImage {
+func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag string, environments []string, imageTagNames map[string]string) map[string]pipeline.ComponentImage {
 	// Combine components and jobComponents
 	componentSource := make([]pipeline.ComponentImageSource, 0)
 	componentSource = append(componentSource, getRadixComponentImageSources(ra, environments)...)
@@ -318,9 +264,14 @@ func getComponentImages(ra *v1.RadixApplication, containerRegistry, imageTag str
 
 	// Gather pre-built or public images
 	for _, c := range componentSource {
-		if c.Image != "" {
-			componentImages[c.Name] = pipeline.ComponentImage{Build: false, ImageName: c.Image, ImagePath: c.Image}
+		if c.Image == "" {
+			continue
 		}
+		componentImage := pipeline.ComponentImage{Build: false, ImageName: c.Image, ImagePath: c.Image}
+		if imageTagNames != nil {
+			componentImage.ImageTagName = imageTagNames[c.Name]
+		}
+		componentImages[c.Name] = componentImage
 	}
 
 	// Gather build containers
