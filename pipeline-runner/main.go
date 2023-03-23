@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -50,7 +51,11 @@ func main() {
 		},
 	}
 
-	setPipelineArgsFromArguments(cmd, pipelineArgs, os.Args[1:])
+	err := setPipelineArgsFromArguments(cmd, pipelineArgs, os.Args[1:])
+	if err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
 
 	setLogLevel(pipelineArgs.LogLevel)
 
@@ -76,7 +81,7 @@ func prepareRunner(pipelineArgs *model.PipelineArguments) (*pipe.PipelineRunner,
 	return &pipelineRunner, err
 }
 
-func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.PipelineArguments, arguments []string) {
+func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.PipelineArguments, arguments []string) error {
 	cmd.Flags().StringVar(&pipelineArgs.AppName, defaults.RadixAppEnvironmentVariable, "", "Radix application name")
 	cmd.Flags().StringVar(&pipelineArgs.JobName, defaults.RadixPipelineJobEnvironmentVariable, "", "Pipeline job name")
 	cmd.Flags().StringVar(&pipelineArgs.PipelineType, defaults.RadixPipelineTypeEnvironmentVariable, "", "Pipeline type")
@@ -105,7 +110,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 
 	err := cmd.Flags().Parse(arguments)
 	if err != nil {
-		log.Errorf("failed to parse command arguments. Error: %v", err)
+		return fmt.Errorf("failed to parse command arguments. Error: %v", err)
 	}
 
 	pipelineArgs.PushImage, _ = strconv.ParseBool(pushImage)
@@ -118,6 +123,7 @@ func setPipelineArgsFromArguments(cmd *cobra.Command, pipelineArgs *model.Pipeli
 			log.Infof("- %s:%s", componentName, imageTagName)
 		}
 	}
+	return nil
 }
 
 func setLogLevel(logLevel string) {
