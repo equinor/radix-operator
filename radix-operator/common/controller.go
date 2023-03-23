@@ -254,6 +254,13 @@ func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn 
 	}
 }
 
+func SelfOrObjFromDeletedFinalStateUnknown(obj interface{}) interface{} {
+	if staleObj, stale := obj.(cache.DeletedFinalStateUnknown); stale {
+		return staleObj.Obj
+	}
+	return obj
+}
+
 func (c *Controller) hasSynced() bool {
 	return c.Informer.HasSynced()
 }

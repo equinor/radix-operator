@@ -131,22 +131,11 @@ func NewController(client kubernetes.Interface,
 	configMapInformer := kubeInformerFactory.Core().V1().ConfigMaps()
 	configMapInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			cm, converted := obj.(*corev1.ConfigMap)
+			cm, converted := common.SelfOrObjFromDeletedFinalStateUnknown(obj).(*corev1.ConfigMap)
 			if !converted {
-				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
-				if !ok {
-					utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-					metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object")
-					return
-				}
-				cm, ok = tombstone.Obj.(*corev1.ConfigMap)
-				if !ok {
-					utilruntime.HandleError(fmt.Errorf("error decoding object tombstone, invalid type"))
-					metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object_tombstone")
-					return
-				}
-				controller.Log.Infof("Recovered deleted object %s from tombstone", cm.GetName())
-				logger.Errorf("corev1.ConfigMap object cast failed during deleted event received.")
+				utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+				metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object")
+				return
 			}
 			if isPublicKeyConfigMap(cm) {
 				// Resync, as configmap is deleted.
