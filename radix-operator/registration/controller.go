@@ -2,6 +2,8 @@ package registration
 
 import (
 	"context"
+	"fmt"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -33,7 +35,7 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
 }
 
-//NewController creates a new controller that handles RadixRegistrations
+// NewController creates a new controller that handles RadixRegistrations
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -129,10 +131,10 @@ func NewController(client kubernetes.Interface,
 	configMapInformer := kubeInformerFactory.Core().V1().ConfigMaps()
 	configMapInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		DeleteFunc: func(obj interface{}) {
-			cm, converted := obj.(*corev1.ConfigMap)
+			cm, converted := common.SelfOrObjFromDeletedFinalStateUnknown(obj).(*corev1.ConfigMap)
 			if !converted {
-				logger.Errorf("corev1.ConfigMap object cast failed during deleted event received.")
-				// TODO: Configmap was deleted, but not recreated.
+				utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+				metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object")
 				return
 			}
 			if isPublicKeyConfigMap(cm) {
