@@ -5,21 +5,19 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-	"github.com/equinor/radix-operator/pkg/apis/utils/git"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	pipelineJob "github.com/equinor/radix-operator/pkg/apis/pipeline"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
-	"sigs.k8s.io/yaml"
-
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -124,20 +122,20 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 
 	// Base arguments for all types of pipeline
 	args := []string{
-		fmt.Sprintf("%s=%s", defaults.RadixAppEnvironmentVariable, appName),
-		fmt.Sprintf("%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
-		fmt.Sprintf("%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
+		fmt.Sprintf("--%s=%s", defaults.RadixAppEnvironmentVariable, appName),
+		fmt.Sprintf("--%s=%s", defaults.RadixPipelineJobEnvironmentVariable, jobName),
+		fmt.Sprintf("--%s=%s", defaults.RadixPipelineTypeEnvironmentVariable, pipeline.Type),
 
 		// Pass tekton and builder images
-		fmt.Sprintf("%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),
-		fmt.Sprintf("%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", defaults.RadixTektonPipelineImageEnvironmentVariable, os.Getenv(defaults.RadixTektonPipelineImageEnvironmentVariable)),
+		fmt.Sprintf("--%s=%s", defaults.RadixImageBuilderEnvironmentVariable, os.Getenv(defaults.RadixImageBuilderEnvironmentVariable)),
 
 		// Used for tagging source of image
-		fmt.Sprintf("%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
-		fmt.Sprintf("%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
-		fmt.Sprintf("%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
-		fmt.Sprintf("%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
-		fmt.Sprintf("%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
+		fmt.Sprintf("--%s=%s", defaults.RadixClusterTypeEnvironmentVariable, clusterType),
+		fmt.Sprintf("--%s=%s", defaults.RadixZoneEnvironmentVariable, radixZone),
+		fmt.Sprintf("--%s=%s", defaults.ClusternameEnvironmentVariable, clusterName),
+		fmt.Sprintf("--%s=%s", defaults.ContainerRegistryEnvironmentVariable, containerRegistry),
+		fmt.Sprintf("--%s=%s", defaults.AzureSubscriptionIdEnvironmentVariable, subscriptionId),
 	}
 
 	radixConfigFullName := jobSpec.RadixConfigFullName
@@ -146,20 +144,23 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	}
 	switch pipeline.Type {
 	case v1.BuildDeploy, v1.Build:
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixImageTagEnvironmentVariable, jobSpec.Build.ImageTag))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixBranchEnvironmentVariable, jobSpec.Build.Branch))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixCommitIdEnvironmentVariable, jobSpec.Build.CommitID))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPushImageEnvironmentVariable, getPushImageTag(jobSpec.Build.PushImage)))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixUseCacheEnvironmentVariable, useImageBuilderCache))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	case v1.Promote:
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteDeploymentEnvironmentVariable, jobSpec.Promote.DeploymentName))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteFromEnvironmentEnvironmentVariable, jobSpec.Promote.FromEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Promote.ToEnvironment))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	case v1.Deploy:
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
-		args = append(args, fmt.Sprintf("%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixPromoteToEnvironmentEnvironmentVariable, jobSpec.Deploy.ToEnvironment))
+		for componentName, imageTagName := range jobSpec.Deploy.ImageTagNames {
+			args = append(args, fmt.Sprintf("--%s=%s=%s", defaults.RadixImageTagNameEnvironmentVariable, componentName, imageTagName))
+		}
+		args = append(args, fmt.Sprintf("--%s=%s", defaults.RadixConfigFileEnvironmentVariable, radixConfigFullName))
 	}
 
 	return args, nil

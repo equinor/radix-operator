@@ -88,7 +88,11 @@ type RadixPromoteSpec struct {
 
 //RadixDeploySpec is the spec for a deploy job
 type RadixDeploySpec struct {
+	// Target environment for deploy
 	ToEnvironment string `json:"toEnvironment" yaml:"toEnvironment"`
+	// Image tags names for components - if empty will use default logic
+	// Example: component1: tag1,component2: tag2
+	ImageTagNames map[string]string `json:"imageTagNames" yaml:"imageTagNames"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

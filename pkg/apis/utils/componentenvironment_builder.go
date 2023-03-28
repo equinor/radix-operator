@@ -19,6 +19,7 @@ type RadixEnvironmentConfigBuilder interface {
 	WithSecretRefs(v1.RadixSecretRefs) RadixEnvironmentConfigBuilder
 	WithEnabled(bool) RadixEnvironmentConfigBuilder
 	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
+	WithImageTagName(string) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -34,6 +35,7 @@ type radixEnvironmentConfigBuilder struct {
 	authentication          *v1.Authentication
 	enabled                 *bool
 	identity                *v1.Identity
+	imageTagName            string
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -103,6 +105,11 @@ func (ceb *radixEnvironmentConfigBuilder) WithIdentity(identity *v1.Identity) Ra
 	return ceb
 }
 
+func (ceb *radixEnvironmentConfigBuilder) WithImageTagName(imageTagName string) RadixEnvironmentConfigBuilder {
+	ceb.imageTagName = imageTagName
+	return ceb
+}
+
 func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvironmentConfig {
 	return v1.RadixEnvironmentConfig{
 		Environment:             ceb.environment,
@@ -117,6 +124,7 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		Authentication:          ceb.authentication,
 		Enabled:                 ceb.enabled,
 		Identity:                ceb.identity,
+		ImageTagName:            ceb.imageTagName,
 	}
 }
 

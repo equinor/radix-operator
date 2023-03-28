@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/model/env"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -12,8 +11,7 @@ import (
 
 // Step Generic interface for any Step implementation
 type Step interface {
-	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface,
-		*v1.RadixRegistration, env.Env)
+	Init(kubernetes.Interface, radixclient.Interface, *kube.Kube, monitoring.Interface, *v1.RadixRegistration)
 
 	ImplementationForType() pipeline.StepType
 	ErrorMsg(error) string
@@ -26,7 +24,6 @@ type Step interface {
 	GetRadixclient() radixclient.Interface
 	GetKubeutil() *kube.Kube
 	GetPrometheusOperatorClient() monitoring.Interface
-	GetEnv() env.Env
 }
 
 // DefaultStepImplementation Struct to hold the data common to all step implementations
@@ -40,19 +37,15 @@ type DefaultStepImplementation struct {
 	ErrorMessage             string
 	SuccessMessage           string
 	Error                    error
-	env                      env.Env
 }
 
 // Init Initialize step
-func (step *DefaultStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface,
-	kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface,
-	rr *v1.RadixRegistration, env env.Env) {
+func (step *DefaultStepImplementation) Init(kubeclient kubernetes.Interface, radixclient radixclient.Interface, kubeutil *kube.Kube, prometheusOperatorClient monitoring.Interface, rr *v1.RadixRegistration) {
 	step.rr = rr
 	step.kubeclient = kubeclient
 	step.radixclient = radixclient
 	step.kubeutil = kubeutil
 	step.prometheusOperatorClient = prometheusOperatorClient
-	step.env = env
 }
 
 // ImplementationForType Default implementation
@@ -103,9 +96,4 @@ func (step *DefaultStepImplementation) GetKubeutil() *kube.Kube {
 // GetPrometheusOperatorClient Default implementation
 func (step *DefaultStepImplementation) GetPrometheusOperatorClient() monitoring.Interface {
 	return step.prometheusOperatorClient
-}
-
-// GetEnv Environment
-func (step *DefaultStepImplementation) GetEnv() env.Env {
-	return step.env
 }
