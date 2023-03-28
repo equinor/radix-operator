@@ -16,11 +16,13 @@ import (
 )
 
 const (
-	azureSecureStorageProvider                    = "azure"
-	csiSecretProviderClassParameterUsePodIdentity = "usePodIdentity"
-	csiSecretProviderClassParameterTenantId       = "tenantId"
-	csiSecretProviderClassParameterCloudName      = "cloudName"
-	csiSecretProviderClassParameterObjects        = "objects"
+	azureSecureStorageProvider                          = "azure"
+	csiSecretProviderClassParameterUsePodIdentity       = "usePodIdentity"
+	csiSecretProviderClassParameterUseVMManagedIdentity = "useVMManagedIdentity"
+	csiSecretProviderClassParameterClientID             = "clientID"
+	csiSecretProviderClassParameterTenantId             = "tenantId"
+	csiSecretProviderClassParameterCloudName            = "cloudName"
+	csiSecretProviderClassParameterObjects              = "objects"
 )
 
 type stringArray struct {
@@ -48,6 +50,13 @@ func (kubeutil *Kube) GetSecretProviderClass(namespace string, className string)
 	return kubeutil.secretProviderClient.SecretsstoreV1().SecretProviderClasses(namespace).Get(context.Background(), className, metav1.GetOptions{})
 }
 
+// SecretProviderClassUsesAzureIdentity Indicates if
+func SecretProviderClassUsesAzureIdentity(s *secretsstorev1.SecretProviderClass) bool {
+	return s.Spec.Parameters[csiSecretProviderClassParameterUsePodIdentity] == "false" &&
+		len(s.Spec.Parameters[csiSecretProviderClassParameterClientID]) > 0 &&
+		s.Spec.Parameters[csiSecretProviderClassParameterUseVMManagedIdentity] == "false"
+}
+
 // CreateSecretProviderClass Creates secret provider class to namespace
 func (kubeutil *Kube) CreateSecretProviderClass(namespace string, secretProviderClass *secretsstorev1.SecretProviderClass) (savedSecret *secretsstorev1.SecretProviderClass, err error) {
 	log.Debugf("Create secret provider class %s in namespace %s", secretProviderClass.GetName(), namespace)
@@ -65,8 +74,8 @@ func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployCompone
 }
 
 // BuildAzureKeyVaultSecretProviderClass Build a SecretProviderClass for Azure Key vault secret-ref
-func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radixDeploymentName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
-	parameters, err := getAzureKeyVaultSecretProviderClassParameters(azureKeyVault, tenantId)
+func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radixDeploymentName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault, identity *radixv1.Identity) (*secretsstorev1.SecretProviderClass, error) {
+	parameters, err := getAzureKeyVaultSecretProviderClassParameters(azureKeyVault, tenantId, identity)
 	if err != nil {
 		return nil, err
 	}
@@ -77,11 +86,15 @@ func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radi
 	return secretProviderClass, nil
 }
 
-func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault, tenantId string) (map[string]string, error) {
+func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault, tenantId string, identity *radixv1.Identity) (map[string]string, error) {
 	parameterMap := make(map[string]string)
-	parameterMap[csiSecretProviderClassParameterUsePodIdentity] = "false"
-	parameterMap["clientID"] = "7ef841f8-a263-45ea-8993-683cc6817ae2"
-	parameterMap["useVMManagedIdentity"] = "false"
+	if identity != nil && identity.Azure != nil && (*identity).Azure.ClientId != "" && radixAzureKeyVault.UseIdentity != nil && *radixAzureKeyVault.UseIdentity {
+		parameterMap[csiSecretProviderClassParameterUsePodIdentity] = "false"
+		parameterMap[csiSecretProviderClassParameterClientID] = (*identity).Azure.ClientId
+		parameterMap[csiSecretProviderClassParameterUseVMManagedIdentity] = "false"
+	} else {
+		parameterMap[csiSecretProviderClassParameterUsePodIdentity] = "true"
+	}
 	parameterMap[defaults.CsiSecretProviderClassParameterKeyVaultName] = radixAzureKeyVault.Name
 	parameterMap[csiSecretProviderClassParameterTenantId] = tenantId
 	parameterMap[csiSecretProviderClassParameterCloudName] = ""
