@@ -648,45 +648,45 @@ type RadixVolumeMount struct {
 
 	// Deprecated. Only required by the deprecated type: blob.
 	// +optional
-	Container string `json:"container,omitempty"` //Outdated. Use Storage instead
+	Container string `json:"container,omitempty"` // Outdated. Use Storage instead
 
 	// Storage defines the name of the container in the external storage resource.
 	// +optional
-	Storage string `json:"storage"` //Container name, file Share name, etc.
+	Storage string `json:"storage"` // Container name, file Share name, etc.
 
 	// Path defines in which directory the external storage is mounted.
 	// +kubebuilder:validation:MinLength=1
-	Path string `json:"path"` //Path within the pod (replica), where the volume mount has been mounted to
+	Path string `json:"path"` // Path within the pod (replica), where the volume mount has been mounted to
 
 	// GID defines the group ID (number) which will be set as owner of the mounted volume.
 	// +optional
-	GID string `json:"gid,omitempty"` //Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
+	GID string `json:"gid,omitempty"` // Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
 
 	// UID defines the user ID (number) which will be set as owner of the mounted volume.
 	// +optional
-	UID string `json:"uid,omitempty"` //Optional. Volume mount owner UserID. Used instead of GID.
+	UID string `json:"uid,omitempty"` // Optional. Volume mount owner UserID. Used instead of GID.
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +optional
-	SkuName string `json:"skuName,omitempty"` //Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +optional
-	RequestsStorage string `json:"requestsStorage,omitempty"` //Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
+	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
-	AccessMode string `json:"accessMode,omitempty"` //Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
+	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
 	// +optional
-	BindingMode string `json:"bindingMode,omitempty"` //Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
+	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 }
 
 // MountType Holds types of mount
@@ -774,7 +774,7 @@ type MonitoringConfig struct {
 type RadixSecretRefType string
 
 const (
-	//RadixSecretRefTypeAzureKeyVault Radix secret-ref of type Azure Key vault
+	// RadixSecretRefTypeAzureKeyVault Radix secret-ref of type Azure Key vault
 	RadixSecretRefTypeAzureKeyVault RadixSecretRefType = "az-keyvault"
 )
 
@@ -806,11 +806,11 @@ type RadixAzureKeyVault struct {
 type RadixAzureKeyVaultObjectType string
 
 const (
-	//RadixAzureKeyVaultObjectTypeSecret Azure Key Vault item of type secret
+	// RadixAzureKeyVaultObjectTypeSecret Azure Key Vault item of type secret
 	RadixAzureKeyVaultObjectTypeSecret RadixAzureKeyVaultObjectType = "secret"
-	//RadixAzureKeyVaultObjectTypeKey Azure Key Vault item of type key
+	// RadixAzureKeyVaultObjectTypeKey Azure Key Vault item of type key
 	RadixAzureKeyVaultObjectTypeKey RadixAzureKeyVaultObjectType = "key"
-	//RadixAzureKeyVaultObjectTypeCert Azure Key Vault item of type certificate
+	// RadixAzureKeyVaultObjectTypeCert Azure Key Vault item of type certificate
 	RadixAzureKeyVaultObjectTypeCert RadixAzureKeyVaultObjectType = "cert"
 )
 
@@ -818,9 +818,9 @@ const (
 type RadixAzureKeyVaultK8sSecretType string
 
 const (
-	//RadixAzureKeyVaultK8sSecretTypeOpaque Azure Key Vault secret item Kubernetes type Opaque
+	// RadixAzureKeyVaultK8sSecretTypeOpaque Azure Key Vault secret item Kubernetes type Opaque
 	RadixAzureKeyVaultK8sSecretTypeOpaque RadixAzureKeyVaultK8sSecretType = "opaque"
-	//RadixAzureKeyVaultK8sSecretTypeTls Azure Key Vault secret item Kubernetes type kubernetes.io/tls
+	// RadixAzureKeyVaultK8sSecretTypeTls Azure Key Vault secret item Kubernetes type kubernetes.io/tls
 	RadixAzureKeyVaultK8sSecretTypeTls RadixAzureKeyVaultK8sSecretType = "tls"
 )
 
@@ -868,6 +868,12 @@ type RadixAzureKeyVaultItem struct {
 	// +kubebuilder:validation:Enum=opaque;tls
 	// +optional
 	K8sSecretType *RadixAzureKeyVaultK8sSecretType `json:"k8sSecretType,omitempty"`
+
+	// UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity.
+	// Default is "false"
+	// +kubebuilder:validation:Boolean
+	// +optional
+	UseIdentity *bool `json:"useIdentity,omitempty"`
 }
 
 // Authentication describes authentication options.
@@ -910,13 +916,13 @@ const (
 type VerificationType string
 
 const (
-	//VerificationTypeOff Certificate verification is off
+	// VerificationTypeOff Certificate verification is off
 	VerificationTypeOff VerificationType = "off"
-	//VerificationTypeOn Certificate verification is on
+	// VerificationTypeOn Certificate verification is on
 	VerificationTypeOn VerificationType = "on"
-	//VerificationTypeOptional Certificate verification is optional
+	// VerificationTypeOptional Certificate verification is optional
 	VerificationTypeOptional VerificationType = "optional"
-	//VerificationTypeOptionalNoCa Certificate verification is optional no certificate authority
+	// VerificationTypeOptionalNoCa Certificate verification is optional no certificate authority
 	VerificationTypeOptionalNoCa VerificationType = "optional_no_ca"
 )
 
@@ -1070,37 +1076,37 @@ type Notifications struct {
 
 // RadixCommonComponent defines a common component interface for Radix components
 type RadixCommonComponent interface {
-	//GetName Gets component name
+	// GetName Gets component name
 	GetName() string
-	//GetSourceFolder Gets component source folder
+	// GetSourceFolder Gets component source folder
 	GetSourceFolder() string
-	//GetImage Gets component image
+	// GetImage Gets component image
 	GetImage() string
-	//GetNode Gets component node parameters
+	// GetNode Gets component node parameters
 	GetNode() *RadixNode
-	//GetVariables Gets component environment variables
+	// GetVariables Gets component environment variables
 	GetVariables() EnvVarsMap
-	//GetPorts Gets component ports
+	// GetPorts Gets component ports
 	GetPorts() []ComponentPort
-	//GetMonitoringConfig Gets component monitoring configuration
+	// GetMonitoringConfig Gets component monitoring configuration
 	GetMonitoringConfig() MonitoringConfig
-	//GetSecrets Gets component secrets
+	// GetSecrets Gets component secrets
 	GetSecrets() []string
-	//GetSecretRefs Gets component secret-refs
+	// GetSecretRefs Gets component secret-refs
 	GetSecretRefs() RadixSecretRefs
-	//GetResources Gets component resources
+	// GetResources Gets component resources
 	GetResources() ResourceRequirements
-	//GetIdentity Get component identity
+	// GetIdentity Get component identity
 	GetIdentity() *Identity
-	//GetEnvironmentConfig Gets component environment configuration
+	// GetEnvironmentConfig Gets component environment configuration
 	GetEnvironmentConfig() []RadixCommonEnvironmentConfig
-	//GetEnvironmentConfigsMap Get component environment configuration as map by names
+	// GetEnvironmentConfigsMap Get component environment configuration as map by names
 	GetEnvironmentConfigsMap() map[string]RadixCommonEnvironmentConfig
-	//getEnabled Gets the component status if it is enabled in the application
+	// getEnabled Gets the component status if it is enabled in the application
 	getEnabled() bool
-	//GetEnabledForEnv Gets the component status if it is enabled in the application for an environment
+	// GetEnabledForEnv Gets the component status if it is enabled in the application for an environment
 	GetEnabledForEnv(RadixCommonEnvironmentConfig) bool
-	//GetEnvironmentConfigByName  Gets component environment configuration by its name
+	// GetEnvironmentConfigByName  Gets component environment configuration by its name
 	GetEnvironmentConfigByName(environment string) RadixCommonEnvironmentConfig
 	GetEnabledForAnyEnvironment(environments []string) bool
 }

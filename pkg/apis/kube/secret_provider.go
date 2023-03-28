@@ -64,7 +64,7 @@ func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployCompone
 		hash))
 }
 
-//BuildAzureKeyVaultSecretProviderClass Build a SecretProviderClass for Azure Key vault secret-ref
+// BuildAzureKeyVaultSecretProviderClass Build a SecretProviderClass for Azure Key vault secret-ref
 func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radixDeploymentName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
 	parameters, err := getAzureKeyVaultSecretProviderClassParameters(azureKeyVault, tenantId)
 	if err != nil {
@@ -80,6 +80,8 @@ func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radi
 func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault, tenantId string) (map[string]string, error) {
 	parameterMap := make(map[string]string)
 	parameterMap[csiSecretProviderClassParameterUsePodIdentity] = "false"
+	parameterMap["clientID"] = "7ef841f8-a263-45ea-8993-683cc6817ae2"
+	parameterMap["useVMManagedIdentity"] = "false"
 	parameterMap[defaults.CsiSecretProviderClassParameterKeyVaultName] = radixAzureKeyVault.Name
 	parameterMap[csiSecretProviderClassParameterTenantId] = tenantId
 	parameterMap[csiSecretProviderClassParameterCloudName] = ""
@@ -145,7 +147,7 @@ func getSecretProviderClassSecretObjects(componentName, radixDeploymentName stri
 	return secretObjects
 }
 
-//GetSecretRefAzureKeyVaultItemDataKey Get item data key for the Azure Key vault secret-ref
+// GetSecretRefAzureKeyVaultItemDataKey Get item data key for the Azure Key vault secret-ref
 func GetSecretRefAzureKeyVaultItemDataKey(keyVaultItem *radixv1.RadixAzureKeyVaultItem) string {
 	if len(keyVaultItem.EnvVar) > 0 {
 		return keyVaultItem.EnvVar

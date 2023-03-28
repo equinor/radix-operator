@@ -863,6 +863,11 @@ func (in *RadixAzureKeyVaultItem) DeepCopyInto(out *RadixAzureKeyVaultItem) {
 		*out = new(RadixAzureKeyVaultK8sSecretType)
 		**out = **in
 	}
+	if in.UseIdentity != nil {
+		in, out := &in.UseIdentity, &out.UseIdentity
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

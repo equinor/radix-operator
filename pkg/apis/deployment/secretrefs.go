@@ -18,16 +18,16 @@ func (deploy *Deployment) createSecretRefs(namespace string, radixDeployComponen
 	for _, radixAzureKeyVault := range radixDeployComponent.GetSecretRefs().AzureKeyVaults {
 		azureKeyVaultName := radixAzureKeyVault.Name
 
-		credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, azureKeyVaultName)
-		if err != nil {
-			return nil, err
-		}
-		secretNames = append(secretNames, credsSecret.Name)
+		// credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, azureKeyVaultName)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// secretNames = append(secretNames, credsSecret.Name)
 
 		className := kube.GetComponentSecretProviderClassName(radixDeploymentName, radixDeployComponentName, radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVaultName)
 		secretProviderClass, err := deploy.kubeutil.GetSecretProviderClass(namespace, className)
 		if err == nil && secretProviderClass != nil {
-			continue //SecretProviderClass already exists for this deployment and Azure Key vault
+			continue // SecretProviderClass already exists for this deployment and Azure Key vault
 		}
 		if !errors.IsNotFound(err) {
 			return nil, err
@@ -36,13 +36,13 @@ func (deploy *Deployment) createSecretRefs(namespace string, radixDeployComponen
 		if err != nil {
 			return nil, err
 		}
-		if !isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
-			credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
-			_, err = deploy.kubeutil.ApplySecret(namespace, credsSecret)
-			if err != nil {
-				return nil, err
-			}
-		}
+		// if !isOwnerReference(credsSecret.ObjectMeta, secretProviderClass.ObjectMeta) {
+		// 	credsSecret.ObjectMeta.OwnerReferences = append(credsSecret.ObjectMeta.OwnerReferences, getOwnerReferenceOfSecretProviderClass(secretProviderClass))
+		// 	_, err = deploy.kubeutil.ApplySecret(namespace, credsSecret)
+		// 	if err != nil {
+		// 		return nil, err
+		// 	}
+		// }
 	}
 	return secretNames, nil
 }
