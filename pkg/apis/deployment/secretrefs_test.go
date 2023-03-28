@@ -2,20 +2,23 @@ package deployment
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/test"
-	corev1 "k8s.io/api/core/v1"
 	"os"
-	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
+	"sort"
 	"strings"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	secretsstorev1 "sigs.k8s.io/secrets-store-csi-driver/apis/v1"
 )
 
 func teardownSecretRefsTest() {
@@ -166,7 +169,11 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 
 			for _, azureKeyVault := range scenario.radixSecretRefs.AzureKeyVaults {
 				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(scenario.componentName, azureKeyVault.Name)
-				assert.True(t, secretByNameExists(credsSecretName, secrets), "Missing credentials secret for Azure Key vault")
+				if azureKeyVault.UseIdentity != nil && *azureKeyVault.UseIdentity {
+					assert.False(t, secretByNameExists(credsSecretName, secrets), "Not expected credentials secret for Azure Key vault")
+				} else {
+					assert.True(t, secretByNameExists(credsSecretName, secrets), "Missing credentials secret for Azure Key vault")
+				}
 			}
 		}
 	})
@@ -233,6 +240,93 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 			assert.Equal(t, validatedSecretProviderClassesCount, len(secretProviderClasses), "Not all secretProviderClasses where validated")
 		}
 	})
+}
+
+func Test_GetRadixComponentsForEnv_AzureKeyVault(t *testing.T) {
+	type scenarioSpec struct {
+		name                 string
+		commonConfig         []v1.RadixAzureKeyVault
+		configureEnvironment bool
+		environmentConfig    []v1.RadixAzureKeyVault
+		expected             []v1.RadixAzureKeyVault
+	}
+
+	scenarios := []scenarioSpec{
+		{name: "empty when commonConfig is empty and environmentConfig is empty", commonConfig: nil, configureEnvironment: true, environmentConfig: nil, expected: nil},
+		{name: "empty when commonConfig is empty and environmentConfig is not set", commonConfig: nil, configureEnvironment: false, environmentConfig: nil, expected: nil},
+		{name: "use commonConfig when environmentConfig is empty", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-1", EnvVar: "var1"}}}}, configureEnvironment: true, environmentConfig: nil, expected: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-1", EnvVar: "var1"}}}}},
+		{name: "use commonConfig when environmentConfig.AzureKeyVaults is empty", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-1", EnvVar: "var1"}}}}, configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{}}}, expected: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-1", EnvVar: "var1"}}}}},
+		{name: "override non-empty commonConfig with environmentConfig.AzureKeyVaults",
+			commonConfig:         []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-1", EnvVar: "var1"}}}},
+			configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-2", EnvVar: "var1"}}}},
+			expected: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-2", EnvVar: "var1"}}}}},
+		{name: "override empty commonConfig with environmentConfig", commonConfig: nil, configureEnvironment: true,
+			environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-2", EnvVar: "var1"}}}},
+			expected:          []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-2", EnvVar: "var1"}}}}},
+		{name: "override empty commonConfig.AzureKeyVaults with environmentConfig", commonConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{}}},
+			configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-2", EnvVar: "var1"}}}},
+			expected: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-2", EnvVar: "var1"}}}}},
+		{name: "adds secret to non-empty commonConfig from environmentConfig.AzureKeyVaults",
+			commonConfig:         []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-1", EnvVar: "var1"}}}},
+			configureEnvironment: true, environmentConfig: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-2", EnvVar: "var2"}}}},
+			expected: []v1.RadixAzureKeyVault{{Name: "key-vault-1", Items: []v1.RadixAzureKeyVaultItem{{Name: "secret-value-1", EnvVar: "var1"}, {Name: "secret-value-2", EnvVar: "var2"}}}}},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			const envName = "anyenv"
+			component := utils.AnApplicationComponent().WithName("anycomponent").WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.commonConfig})
+			if scenario.configureEnvironment {
+				component = component.WithEnvironmentConfigs(
+					utils.AnEnvironmentConfig().WithEnvironment(envName).WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: scenario.environmentConfig}),
+				)
+			}
+			ra := utils.ARadixApplication().WithComponents(component).BuildRA()
+			sut := GetRadixComponentsForEnv
+			components, err := sut(ra, envName, make(map[string]pipeline.ComponentImage), make(v1.EnvVarsMap))
+			require.NoError(t, err)
+			azureKeyVaults := components[0].SecretRefs.AzureKeyVaults
+			assert.EqualValues(t, sortAzureKeyVaults(scenario.expected), sortAzureKeyVaults(azureKeyVaults))
+		})
+	}
+}
+
+func sortAzureKeyVaults(azureKeyVaults []v1.RadixAzureKeyVault) []v1.RadixAzureKeyVault {
+	sort.Slice(azureKeyVaults, func(i, j int) bool {
+		if len(azureKeyVaults) == 0 {
+			return false
+		}
+		x := azureKeyVaults[i]
+		y := azureKeyVaults[j]
+		return x.Name < y.Name
+	})
+	for _, azureKeyVault := range azureKeyVaults {
+		azureKeyVault.Items = sortAzureKeyVaultItems(azureKeyVault.Items)
+	}
+	return azureKeyVaults
+}
+func sortAzureKeyVaultItems(items []v1.RadixAzureKeyVaultItem) []v1.RadixAzureKeyVaultItem {
+	sort.Slice(items, func(i, j int) bool {
+		if len(items) == 0 {
+			return false
+		}
+		x := items[i]
+		y := items[j]
+		if x.Name != y.Name {
+			return x.Name < y.Name
+		}
+		if x.EnvVar != y.EnvVar {
+			return x.EnvVar < y.EnvVar
+		}
+		if x.Alias == nil {
+			return false
+		}
+		if y.Alias == nil {
+			return true
+		}
+		return *(x.Alias) < *(y.Alias)
+	})
+	return items
 }
 
 func getSecretProviderClassByName(className string, classes []secretsstorev1.SecretProviderClass) *secretsstorev1.SecretProviderClass {

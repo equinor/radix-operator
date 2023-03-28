@@ -817,6 +817,11 @@ func (in *RadixAzureKeyVault) DeepCopyInto(out *RadixAzureKeyVault) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.UseIdentity != nil {
+		in, out := &in.UseIdentity, &out.UseIdentity
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -861,11 +866,6 @@ func (in *RadixAzureKeyVaultItem) DeepCopyInto(out *RadixAzureKeyVaultItem) {
 	if in.K8sSecretType != nil {
 		in, out := &in.K8sSecretType, &out.K8sSecretType
 		*out = new(RadixAzureKeyVaultK8sSecretType)
-		**out = **in
-	}
-	if in.UseIdentity != nil {
-		in, out := &in.UseIdentity, &out.UseIdentity
-		*out = new(bool)
 		**out = **in
 	}
 	return

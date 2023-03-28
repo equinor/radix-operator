@@ -507,10 +507,6 @@
                                       ],
                                       "type": "string"
                                     },
-                                    "useIdentity": {
-                                      "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
-                                      "type": "boolean"
-                                    },
                                     "version": {
                                       "description": "Defines that a specific version of a keyvault item should be loaded. The latest version is loaded when this field is not set.",
                                       "type": "string"
@@ -534,6 +530,10 @@
                                 "description": "Path where secrets from the keyvault is mounted.",
                                 "minLength": 1,
                                 "type": "string"
+                              },
+                              "useIdentity": {
+                                "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -833,10 +833,6 @@
                                 ],
                                 "type": "string"
                               },
-                              "useIdentity": {
-                                "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
-                                "type": "boolean"
-                              },
                               "version": {
                                 "description": "Defines that a specific version of a keyvault item should be loaded. The latest version is loaded when this field is not set.",
                                 "type": "string"
@@ -860,6 +856,10 @@
                           "description": "Path where secrets from the keyvault is mounted.",
                           "minLength": 1,
                           "type": "string"
+                        },
+                        "useIdentity": {
+                          "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
+                          "type": "boolean"
                         }
                       },
                       "required": [
@@ -1246,10 +1246,6 @@
                                       ],
                                       "type": "string"
                                     },
-                                    "useIdentity": {
-                                      "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
-                                      "type": "boolean"
-                                    },
                                     "version": {
                                       "description": "Defines that a specific version of a keyvault item should be loaded. The latest version is loaded when this field is not set.",
                                       "type": "string"
@@ -1273,6 +1269,10 @@
                                 "description": "Path where secrets from the keyvault is mounted.",
                                 "minLength": 1,
                                 "type": "string"
+                              },
+                              "useIdentity": {
+                                "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
+                                "type": "boolean"
                               }
                             },
                             "required": [
@@ -1592,10 +1592,6 @@
                                 ],
                                 "type": "string"
                               },
-                              "useIdentity": {
-                                "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
-                                "type": "boolean"
-                              },
                               "version": {
                                 "description": "Defines that a specific version of a keyvault item should be loaded. The latest version is loaded when this field is not set.",
                                 "type": "string"
@@ -1619,6 +1615,10 @@
                           "description": "Path where secrets from the keyvault is mounted.",
                           "minLength": 1,
                           "type": "string"
+                        },
+                        "useIdentity": {
+                          "description": "UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity. Default is \"false\"",
+                          "type": "boolean"
                         }
                       },
                       "required": [
