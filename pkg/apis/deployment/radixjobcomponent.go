@@ -42,7 +42,7 @@ func (c *jobComponentsBuilder) JobComponents() ([]v1.RadixDeployJobComponent, er
 		if err != nil {
 			return nil, err
 		}
-		jobs = append(jobs, deployJob)
+		jobs = append(jobs, *deployJob)
 	}
 
 	return jobs, nil
@@ -61,11 +61,11 @@ func (c *jobComponentsBuilder) getEnvironmentConfig(appJob v1.RadixJobComponent)
 	return nil
 }
 
-func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) (v1.RadixDeployJobComponent, error) {
+func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig, defaultEnvVars v1.EnvVarsMap) (*v1.RadixDeployJobComponent, error) {
 	componentName := radixJobComponent.Name
 	componentImage := c.componentImages[componentName]
-	
-  var errs []error
+
+	var errs []error
 	identity, err := getRadixCommonComponentIdentity(&radixJobComponent, environmentSpecificConfig)
 	if err != nil {
 		errs = append(errs, err)
@@ -75,9 +75,13 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
-		return v1.RadixDeployJobComponent{}, commonErrors.Concat(errs)
+		return nil, commonErrors.Concat(errs)
 	}
 
+	image, err := getImagePath(componentName, &componentImage, environmentSpecificConfig)
+	if err != nil {
+		return nil, err
+	}
 	deployJob := v1.RadixDeployJobComponent{
 		Name:                 componentName,
 		Ports:                radixJobComponent.Ports,
@@ -86,7 +90,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		MonitoringConfig:     radixJobComponent.MonitoringConfig,
 		Payload:              radixJobComponent.Payload,
 		SchedulerPort:        radixJobComponent.SchedulerPort,
-		Image:                getImagePath(&componentImage, environmentSpecificConfig),
+		Image:                image,
 		EnvironmentVariables: getRadixCommonComponentEnvVars(&radixJobComponent, environmentSpecificConfig, defaultEnvVars),
 		Resources:            getRadixCommonComponentResources(&radixJobComponent, environmentSpecificConfig),
 		Node:                 getRadixCommonComponentNode(&radixJobComponent, environmentSpecificConfig),
@@ -94,7 +98,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		BackoffLimit:         getRadixJobComponentBackoffLimit(radixJobComponent, environmentSpecificConfig),
 		TimeLimitSeconds:     getRadixJobComponentTimeLimitSeconds(radixJobComponent, environmentSpecificConfig),
 		Identity:             identity,
-    Notifications:        notifications,
+		Notifications:        notifications,
 	}
 
 	if environmentSpecificConfig != nil {
@@ -102,7 +106,7 @@ func (c *jobComponentsBuilder) buildJobComponent(radixJobComponent v1.RadixJobCo
 		deployJob.VolumeMounts = environmentSpecificConfig.VolumeMounts
 	}
 
-	return deployJob, nil
+	return &deployJob, nil
 }
 
 func getRadixJobComponentTimeLimitSeconds(radixJobComponent v1.RadixJobComponent, environmentSpecificConfig *v1.RadixJobComponentEnvironmentConfig) *int64 {

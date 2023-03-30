@@ -5,14 +5,11 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/model/env"
-	"github.com/equinor/radix-operator/pipeline-runner/model/mock"
 	application "github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	commonTest "github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/golang/mock/gomock"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,10 +17,7 @@ import (
 	secretproviderfake "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned/fake"
 )
 
-func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils, env.Env) {
-	mockCtrl := gomock.NewController(t)
-	mockEnv := mock.NewMockEnv(mockCtrl)
-	mockEnv.EXPECT().GetLogLevel().Return(string(env.LogLevelInfo)).AnyTimes()
+func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientset, commonTest.Utils) {
 	// Setup
 	kubeclient := kubernetes.NewSimpleClientset()
 	radixclient := radix.NewSimpleClientset()
@@ -32,11 +26,11 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *kube.Kube, *radix.Clientse
 	testUtils.CreateClusterPrerequisites(anyClusterName, anyContainerRegistry, egressIps)
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 
-	return kubeclient, kubeUtil, radixclient, testUtils, mockEnv
+	return kubeclient, kubeUtil, radixclient, testUtils
 }
 
 func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
-	kubeclient, kube, radixclient, _, env := setupTest(t)
+	kubeclient, kube, radixclient, _ := setupTest(t)
 
 	anyBranch := "master"
 	anyEnvironment := "dev"
@@ -57,7 +51,7 @@ func TestBuild_BranchIsNotMapped_ShouldSkip(t *testing.T) {
 
 	// Prometheus doesn´t contain any fake
 	cli := NewBuildStep()
-	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, env)
+	cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
 
 	applicationConfig, _ := application.NewApplicationConfig(kubeclient, kube, radixclient, rr, ra)
 	branchIsMapped, targetEnvs := applicationConfig.IsThereAnythingToDeploy(anyNoMappedBranch)

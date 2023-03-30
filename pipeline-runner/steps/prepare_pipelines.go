@@ -21,7 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// PreparePipelinesStepImplementation Step to prepare radixconfig and Tektone pipelines
+// PreparePipelinesStepImplementation Step to prepare radixconfig and Tekton pipelines
 type PreparePipelinesStepImplementation struct {
 	stepType pipeline.StepType
 	model.DefaultStepImplementation
@@ -155,7 +155,7 @@ func (cli *PreparePipelinesStepImplementation) getPreparePipelinesJobConfig(pipe
 		},
 		{
 			Name:  defaults.LogLevel,
-			Value: cli.GetEnv().GetLogLevel(),
+			Value: pipelineInfo.PipelineArguments.LogLevel,
 		},
 		{
 			Name:  defaults.RadixGithubWebhookCommitId,

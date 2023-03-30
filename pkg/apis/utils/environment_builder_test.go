@@ -24,7 +24,6 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 
 	// ObjectMeta
 	assert.Len(t, re.ObjectMeta.Annotations, 0)
-	assert.Equal(t, "", re.ObjectMeta.ClusterName)
 	assert.Equal(t, minTime, re.ObjectMeta.CreationTimestamp)
 	assert.Equal(t, (*int64)(nil), re.ObjectMeta.DeletionGracePeriodSeconds)
 	assert.Equal(t, nilTime, re.ObjectMeta.DeletionTimestamp)
@@ -37,7 +36,6 @@ func Test_RadixEnvironment_Defaults(t *testing.T) {
 	assert.Equal(t, "", re.ObjectMeta.Namespace)
 	assert.Len(t, re.ObjectMeta.OwnerReferences, 0)
 	assert.Equal(t, "", re.ObjectMeta.ResourceVersion)
-	assert.Equal(t, "", re.ObjectMeta.SelfLink)
 	assert.Equal(t, (types.UID)(""), re.ObjectMeta.UID)
 
 	// Spec

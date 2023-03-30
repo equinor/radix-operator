@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/equinor/radix-operator/pipeline-runner/model"
-	"github.com/equinor/radix-operator/pipeline-runner/model/env"
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	jobs "github.com/equinor/radix-operator/pkg/apis/job"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -31,11 +30,10 @@ type PipelineRunner struct {
 	prometheusOperatorClient monitoring.Interface
 	appName                  string
 	pipelineInfo             *model.PipelineInfo
-	env                      env.Env
 }
 
 // InitRunner constructor
-func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string, environment env.Env) PipelineRunner {
+func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interface, prometheusOperatorClient monitoring.Interface, secretsstorevclient secretsstorevclient.Interface, definition *pipeline.Definition, appName string) PipelineRunner {
 
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretsstorevclient)
 	handler := PipelineRunner{
@@ -45,14 +43,13 @@ func InitRunner(kubeclient kubernetes.Interface, radixclient radixclient.Interfa
 		radixclient:              radixclient,
 		prometheusOperatorClient: prometheusOperatorClient,
 		appName:                  appName,
-		env:                      environment,
 	}
 
 	return handler
 }
 
 // PrepareRun Runs preparations before build
-func (cli *PipelineRunner) PrepareRun(pipelineArgs model.PipelineArguments) error {
+func (cli *PipelineRunner) PrepareRun(pipelineArgs *model.PipelineArguments) error {
 	radixRegistration, err := cli.radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), cli.appName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Failed to get RR for app %s. Error: %v", cli.appName, err)
@@ -118,7 +115,7 @@ func (cli *PipelineRunner) initStepImplementations(registration *v1.RadixRegistr
 
 	for _, stepImplementation := range stepImplementations {
 		stepImplementation.
-			Init(cli.kubeclient, cli.radixclient, cli.kubeUtil, cli.prometheusOperatorClient, registration, cli.env)
+			Init(cli.kubeclient, cli.radixclient, cli.kubeUtil, cli.prometheusOperatorClient, registration)
 	}
 
 	return stepImplementations

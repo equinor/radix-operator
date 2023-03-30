@@ -39,7 +39,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 	nonExistingJobComponent := "non-existing-job"
 
 	// Setup
-	kubeclient, kube, radixclient, commonTestUtils, env := setupTest(t)
+	kubeclient, kube, radixclient, commonTestUtils := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(utils.
 		ARadixDeployment().
@@ -111,7 +111,7 @@ func TestPromote_ErrorScenarios_ErrorIsReturned(t *testing.T) {
 			rr, _ := radixclient.RadixV1().RadixRegistrations().Get(context.TODO(), scenario.appName, metav1.GetOptions{})
 
 			cli := NewPromoteStep()
-			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr, env)
+			cli.Init(kubeclient, radixclient, kube, &monitoring.Clientset{}, rr)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{
@@ -146,7 +146,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	prodNode := v1.RadixNode{Gpu: "prod-gpu", GpuCount: "2"}
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils, env := setupTest(t)
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
 	secretType := v1.RadixAzureKeyVaultObjectTypeSecret
 	keyType := v1.RadixAzureKeyVaultObjectTypeKey
@@ -255,7 +255,7 @@ func TestPromote_PromoteToOtherEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -332,7 +332,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils, env := setupTest(t)
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
@@ -379,7 +379,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_NoOverride(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -426,7 +426,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils, dev := setupTest(t)
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
 	verification := v1.VerificationTypeOptional
 	commonTestUtils.ApplyDeployment(
@@ -471,7 +471,7 @@ func TestPromote_PromoteToOtherEnvironment_Authentication(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, dev)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -516,7 +516,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils, dev := setupTest(t)
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
@@ -586,7 +586,7 @@ func TestPromote_PromoteToOtherEnvironment_Resources_WithOverride(t *testing.T) 
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, dev)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -632,7 +632,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	anyDevEnvironment := "dev"
 
 	// Setup
-	kubeclient, kubeUtil, radixclient, commonTestUtils, dev := setupTest(t)
+	kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 
 	commonTestUtils.ApplyDeployment(
 		utils.ARadixDeployment().
@@ -646,7 +646,7 @@ func TestPromote_PromoteToSameEnvironment_NewStateIsExpected(t *testing.T) {
 	ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 	cli := NewPromoteStep()
-	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, dev)
+	cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 	pipelineInfo := &model.PipelineInfo{
 		PipelineArguments: model.PipelineArguments{
@@ -707,7 +707,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			kubeclient, kubeUtil, radixclient, commonTestUtils, env := setupTest(t)
+			kubeclient, kubeUtil, radixclient, commonTestUtils := setupTest(t)
 			var componentEnvironmentConfigs []utils.RadixEnvironmentConfigBuilder
 			var jobEnvironmentConfigs []utils.RadixJobComponentEnvironmentConfigBuilder
 
@@ -763,7 +763,7 @@ func TestPromote_PromoteToOtherEnvironment_Identity(t *testing.T) {
 			ra, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(anyApp)).Get(context.TODO(), anyApp, metav1.GetOptions{})
 
 			cli := NewPromoteStep()
-			cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr, env)
+			cli.Init(kubeclient, radixclient, kubeUtil, &monitoring.Clientset{}, rr)
 
 			pipelineInfo := &model.PipelineInfo{
 				PipelineArguments: model.PipelineArguments{

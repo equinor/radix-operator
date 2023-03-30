@@ -125,7 +125,7 @@ func (cli *RunPipelinesStepImplementation) getRunTektonPipelinesJobConfig(pipeli
 		},
 		{
 			Name:  defaults.LogLevel,
-			Value: cli.GetEnv().GetLogLevel(),
+			Value: pipelineInfo.PipelineArguments.LogLevel,
 		},
 	}
 	return pipelineUtils.CreateActionPipelineJob(defaults.RadixPipelineJobRunPipelinesContainerName, action, pipelineInfo, appName, nil, &envVars)
