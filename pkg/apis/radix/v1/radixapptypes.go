@@ -801,11 +801,11 @@ type RadixAzureKeyVault struct {
 	// +kubebuilder:validation:MinItems=1
 	Items []RadixAzureKeyVaultItem `json:"items"`
 
-	// UseIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity.
+	// UseAzureIdentity defines if access to an Azure Key Vault will be configured not with Azure Service Principal ClientID and Secret, but with Azure AD workload identity.
 	// Default is "false"
 	// +kubebuilder:validation:Boolean
 	// +optional
-	UseIdentity *bool `json:"useIdentity,omitempty"`
+	UseAzureIdentity *bool `json:"useAzureIdentity,omitempty"`
 }
 
 // RadixAzureKeyVaultObjectType Azure Key Vault item type

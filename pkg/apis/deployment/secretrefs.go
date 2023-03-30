@@ -24,7 +24,7 @@ func (deploy *Deployment) createSecretRefs(namespace string, radixDeployComponen
 			return nil, err
 		}
 		var credsSecret *v1.Secret
-		useAzureIdentity := kube.SecretProviderClassUsesAzureIdentity(secretProviderClass)
+		useAzureIdentity := radixAzureKeyVault.UseAzureIdentity != nil && *radixAzureKeyVault.UseAzureIdentity
 		if !useAzureIdentity {
 			credsSecret, err := deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, azureKeyVaultName)
 			if err != nil {

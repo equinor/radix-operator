@@ -169,7 +169,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 
 			for _, azureKeyVault := range scenario.radixSecretRefs.AzureKeyVaults {
 				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(scenario.componentName, azureKeyVault.Name)
-				if azureKeyVault.UseIdentity != nil && *azureKeyVault.UseIdentity {
+				if azureKeyVault.UseAzureIdentity != nil && *azureKeyVault.UseAzureIdentity {
 					assert.False(t, secretByNameExists(credsSecretName, secrets), "Not expected credentials secret for Azure Key vault")
 				} else {
 					assert.True(t, secretByNameExists(credsSecretName, secrets), "Missing credentials secret for Azure Key vault")
