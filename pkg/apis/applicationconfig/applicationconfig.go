@@ -170,7 +170,7 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
-	err = GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
+	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		log.Warnf("failed to grant access to private image hub secret %v", err)
 		return err

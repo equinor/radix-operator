@@ -2,8 +2,6 @@ package registration
 
 import (
 	"context"
-	"fmt"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"reflect"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -125,30 +123,35 @@ func NewController(client kubernetes.Interface,
 				// secret
 				controller.HandleObject(namespace, "RadixRegistration", getObject)
 			}
+			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
+				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
+				// secret
+				controller.HandleObject(namespace, "RadixRegistration", getObject)
+			}
 		},
 	})
 
-	configMapInformer := kubeInformerFactory.Core().V1().ConfigMaps()
-	configMapInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
-			cm, converted := common.SelfOrObjFromDeletedFinalStateUnknown(obj).(*corev1.ConfigMap)
-			if !converted {
-				utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-				metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object")
-				return
-			}
-			if isPublicKeyConfigMap(cm) {
-				// Resync, as configmap is deleted.
-				controller.HandleObject(cm, "RadixRegistration", getObject)
-			}
-		},
-	})
+	//configMapInformer := kubeInformerFactory.Core().V1().ConfigMaps()
+	//configMapInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	//	DeleteFunc: func(obj interface{}) {
+	//		cm, converted := common.SelfOrObjFromDeletedFinalStateUnknown(obj).(*corev1.ConfigMap)
+	//		if !converted {
+	//			utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
+	//			metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object")
+	//			return
+	//		}
+	//		if isPublicKeyConfigMap(cm) {
+	//			// Resync, as configmap is deleted.
+	//			controller.HandleObject(cm, "RadixRegistration", getObject)
+	//		}
+	//	},
+	//})
 
 	return controller
 }
 
-func isPublicKeyConfigMap(cm *corev1.ConfigMap) bool {
-	return cm.Name == defaults.GitPublicKeyConfigMapName
+func isGitDeployKey(secret *corev1.Secret) bool {
+	return secret.Name == defaults.GitPrivateKeySecretName
 }
 
 func isMachineUserToken(appName string, secret *corev1.Secret) bool {

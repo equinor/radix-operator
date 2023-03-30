@@ -2,9 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"os"
 	"strings"
 	"time"
 
@@ -97,7 +94,7 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		return err
 	}
 
-	err = applicationconfig.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
+	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
 	if err != nil {
 		logger.Errorf("Failed to grant access to git private key secret. %v", err)
 		return err
@@ -187,7 +184,7 @@ func (app Application) gitPrivateKeyExists(secret *corev1.Secret) bool {
 	if secret == nil {
 		return false
 	}
-	return len(strings.TrimSpace(string(secret.Data[defaults.GitPrivateKeySecretKey]))) <= 0
+	return len(strings.TrimSpace(string(secret.Data[defaults.GitPrivateKeySecretKey]))) > 0
 }
 func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
 	// Create a configmap with the public key
@@ -199,19 +196,4 @@ func (app Application) createGitPublicKeyConfigMap(namespace string, key string,
 		}, Data: map[string]string{defaults.GitPublicKeyConfigMapKey: key}}
 
 	return cm
-}
-
-// GetAdGroups Gets ad-groups from registration. If missing, gives default for cluster
-func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
-	if registration.Spec.AdGroups == nil || len(registration.Spec.AdGroups) <= 0 {
-		defaultGroup := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
-		if defaultGroup == "" {
-			err := fmt.Errorf("cannot obtain ad-group as %s has not been set for the operator", defaults.OperatorDefaultUserGroupEnvironmentVariable)
-			return []string{}, err
-		}
-
-		return []string{defaultGroup}, nil
-	}
-
-	return registration.Spec.AdGroups, nil
 }

@@ -39,7 +39,7 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 	privateKeyExists := app.gitPrivateKeyExists(secret) // checking if private key exists
 	if !privateKeyExists {
 		var deployKey *utils.DeployKey
-		// if private key cm does not exist, check if RR has private key
+		// if private key secret does not exist, check if RR has private key
 		deployKeyString := radixRegistration.Spec.DeployKey
 		if deployKeyString == "" {
 			// if RR does not have private key, generate new key pair

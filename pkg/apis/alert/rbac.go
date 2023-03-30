@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -78,7 +77,7 @@ func (syncer *alertSyncer) grantAccessToAlertConfigSecret(rr *radixv1.RadixRegis
 	}
 
 	// create rolebinding
-	adGroups, err := application.GetAdGroups(rr)
+	adGroups, err := utils.GetAdGroups(rr)
 	if err != nil {
 		return err
 	}
