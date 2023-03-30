@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"os"
 	"strings"
 	"time"
@@ -96,6 +97,12 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		return err
 	}
 
+	err = applicationconfig.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
+	if err != nil {
+		logger.Errorf("Failed to grant access to git private key secret. %v", err)
+		return err
+	}
+
 	logger.Debugf("Applied secrets needed by pipelines")
 
 	err = app.applyRbacOnRadixTekton()
@@ -176,16 +183,12 @@ func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 	return nil
 }
 
-func (app Application) gitPublicKeyExists(cm *corev1.ConfigMap) (bool, error) {
-	if cm == nil {
-		return false, nil
+func (app Application) gitPrivateKeyExists(secret *corev1.Secret) bool {
+	if secret == nil {
+		return false
 	}
-	if publicKeyIsEmpty(cm.Data[defaults.GitPublicKeyConfigMapKey]) {
-		return false, nil
-	}
-	return true, nil
+	return len(strings.TrimSpace(string(secret.Data[defaults.GitPrivateKeySecretKey]))) <= 0
 }
-
 func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
 	// Create a configmap with the public key
 	cm := &corev1.ConfigMap{
@@ -196,10 +199,6 @@ func (app Application) createGitPublicKeyConfigMap(namespace string, key string,
 		}, Data: map[string]string{defaults.GitPublicKeyConfigMapKey: key}}
 
 	return cm
-}
-
-func publicKeyIsEmpty(s string) bool {
-	return len(strings.TrimSpace(s)) <= 0
 }
 
 // GetAdGroups Gets ad-groups from registration. If missing, gives default for cluster

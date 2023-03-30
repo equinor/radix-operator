@@ -34,15 +34,13 @@ func rolebindingPipelineToBuildSecrets(registration *radixv1.RadixRegistration, 
 	return kube.GetRolebindingToRoleForServiceAccountWithLabels(roleName, defaults.PipelineServiceAccountName, role.Namespace, role.Labels)
 }
 
-func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
-	registration := app.registration
+// GrantAppAdminAccessToSecret grants access to a secret for app-admin groups
+func GrantAppAdminAccessToSecret(kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
 	namespace := utils.GetAppNamespace(registration.Name)
-	roleName := defaults.PrivateImageHubSecretName
-	secretName := defaults.PrivateImageHubSecretName
 
 	// create role
 	role := kube.CreateManageSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
-	err := app.kubeutil.ApplyRole(namespace, role)
+	err := kubeutil.ApplyRole(namespace, role)
 	if err != nil {
 		return err
 	}
@@ -65,5 +63,5 @@ func (app *ApplicationConfig) grantAccessToPrivateImageHubSecret() error {
 	}
 
 	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
-	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
+	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }

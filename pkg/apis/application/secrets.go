@@ -30,28 +30,25 @@ func (app Application) applySecretsForPipelines() error {
 
 func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error {
 	radixRegistration := app.registration
-	cm, err := app.kubeutil.GetConfigMap(namespace, defaults.GitPublicKeyConfigMapName)
+	secret, err := app.kubeutil.GetSecret(namespace, defaults.GitPrivateKeySecretName)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return err
 		}
 	}
-	publicKeyExists, err := app.gitPublicKeyExists(cm) // checking if public key exists
-	if err != nil {
-		return err
-	}
-	if !publicKeyExists {
+	privateKeyExists := app.gitPrivateKeyExists(secret) // checking if private key exists
+	if !privateKeyExists {
 		var deployKey *utils.DeployKey
-		// if public key cm does not exist, check if RR has public key
-		deployKeyString := radixRegistration.Spec.DeployKeyPublic
+		// if private key cm does not exist, check if RR has private key
+		deployKeyString := radixRegistration.Spec.DeployKey
 		if deployKeyString == "" {
-			// if RR does not have public key, generate new key pair
+			// if RR does not have private key, generate new key pair
 			deployKey, err = utils.GenerateDeployKey()
 			if err != nil {
 				return err
 			}
 		} else {
-			// if RR has public key, retrieve both public and private key from RR
+			// if RR has private key, retrieve both public and private key from RR
 			deployKey = &utils.DeployKey{
 				PrivateKey: radixRegistration.Spec.DeployKey,
 				PublicKey:  radixRegistration.Spec.DeployKeyPublic,
@@ -63,7 +60,11 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 		newCm := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey, radixRegistration)
 		_, err = app.kubeutil.CreateConfigMap(namespace, newCm)
 		if k8serrors.IsAlreadyExists(err) {
-			err = app.kubeutil.ApplyConfigMap(namespace, cm, newCm)
+			existingCm, err := app.kubeutil.GetConfigMap(namespace, defaults.GitPublicKeyConfigMapName)
+			if err != nil {
+				return err
+			}
+			err = app.kubeutil.ApplyConfigMap(namespace, existingCm, newCm)
 			if err != nil {
 				return err
 			}
@@ -83,18 +84,6 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 		return nil
 	}
 
-	desiredCm := cm.DeepCopy()
-	// apply ownerReference to cm
-	desiredCm.OwnerReferences = GetOwnerReferenceOfRegistration(radixRegistration)
-	err = app.kubeutil.ApplyConfigMap(namespace, cm, desiredCm)
-	if err != nil {
-		return err
-	}
-
-	secret, err := app.kubeutil.GetSecret(namespace, "git-ssh-keys")
-	if err != nil {
-		return err
-	}
 	// apply ownerReference to secret
 	secret.OwnerReferences = GetOwnerReferenceOfRegistration(radixRegistration)
 	_, err = app.kubeutil.ApplySecret(namespace, secret)

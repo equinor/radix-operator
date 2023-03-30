@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"reflect"
 	"strings"
 
@@ -169,7 +170,7 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
-	err = app.grantAccessToPrivateImageHubSecret()
+	err = GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		log.Warnf("failed to grant access to private image hub secret %v", err)
 		return err
