@@ -86,7 +86,6 @@ func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.Ra
 			return nil, fmt.Errorf("missing Azure identity when using Azure Key Vault %s with Azure identity", radixAzureKeyVault.Name)
 		}
 		parameterMap[csiSecretProviderClassParameterClientID] = (*identity).Azure.ClientId
-		parameterMap[csiSecretProviderClassParameterUseVMManagedIdentity] = "false"
 	}
 	parameterMap[csiSecretProviderClassParameterUsePodIdentity] = "false"
 	parameterMap[defaults.CsiSecretProviderClassParameterKeyVaultName] = radixAzureKeyVault.Name
