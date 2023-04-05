@@ -40,6 +40,7 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 		componentName      string
 		radixSecretRefs    v1.RadixSecretRefs
 		expectedObjectName map[string]map[string]string
+		componentIdentity  *v1.Identity
 	}{
 		{
 			componentName: "componentName1",
@@ -144,6 +145,45 @@ func TestSecretDeployed_SecretRefsCredentialsSecrets(t *testing.T) {
 					},
 				},
 			},
+			expectedObjectName: map[string]map[string]string{
+				"azureKeyVaultName5": {
+					"secret1": "some-secret1-alias1",
+				},
+				"azureKeyVaultName6": {
+					"secret1": "some-secret1-alias2",
+				},
+			},
+		},
+		{
+			componentName: "componentName6",
+			radixSecretRefs: v1.RadixSecretRefs{
+				AzureKeyVaults: []v1.RadixAzureKeyVault{
+					{
+						Name: "azureKeyVaultName5",
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:  "secret1",
+								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: commonUtils.StringPtr("some-secret1-alias1"),
+							},
+						},
+						UseAzureIdentity: commonUtils.BoolPtr(true),
+					},
+					{
+						Name: "azureKeyVaultName6",
+						Path: commonUtils.StringPtr("/mnt/kv2"),
+						Items: []v1.RadixAzureKeyVaultItem{
+							{
+								Name:  "secret1",
+								Type:  test.GetRadixAzureKeyVaultObjectTypePtr(v1.RadixAzureKeyVaultObjectTypeSecret),
+								Alias: commonUtils.StringPtr("some-secret1-alias2"),
+							},
+						},
+						UseAzureIdentity: commonUtils.BoolPtr(true),
+					},
+				},
+			},
+			componentIdentity: &v1.Identity{Azure: &v1.AzureIdentity{ClientId: "some-client-id"}},
 			expectedObjectName: map[string]map[string]string{
 				"azureKeyVaultName5": {
 					"secret1": "some-secret1-alias1",
@@ -342,6 +382,7 @@ func applyRadixDeployWithSyncForSecretRefs(testEnv *testEnvProps, appName string
 	componentName      string
 	radixSecretRefs    v1.RadixSecretRefs
 	expectedObjectName map[string]map[string]string
+	componentIdentity  *v1.Identity
 }) (*v1.RadixDeployment, error) {
 	radixDeployment, err := applyDeploymentWithSyncForTestEnv(testEnv, utils.ARadixDeployment().
 		WithAppName(appName).
@@ -350,7 +391,8 @@ func applyRadixDeployWithSyncForSecretRefs(testEnv *testEnvProps, appName string
 			utils.NewDeployComponentBuilder().
 				WithName(scenario.componentName).
 				WithPort("http", 8080).
-				WithSecretRefs(scenario.radixSecretRefs),
+				WithSecretRefs(scenario.radixSecretRefs).
+				WithIdentity(scenario.componentIdentity),
 		),
 	)
 	return radixDeployment, err
