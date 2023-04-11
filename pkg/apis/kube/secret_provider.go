@@ -70,7 +70,7 @@ func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployCompone
 func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radixDeploymentName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault, identity *radixv1.Identity) (*secretsstorev1.SecretProviderClass, error) {
 	parameters, err := getAzureKeyVaultSecretProviderClassParameters(azureKeyVault, tenantId, identity)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build secret provider class parameters for application %s, component %s: %v", appName, radixDeployComponentName, err)
+		return nil, fmt.Errorf("failed to build secret provider class parameters for application %s, component %s: %w", appName, radixDeployComponentName, err)
 	}
 	secretProviderClass := buildSecretProviderClass(appName, radixDeploymentName, radixDeployComponentName,
 		radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
