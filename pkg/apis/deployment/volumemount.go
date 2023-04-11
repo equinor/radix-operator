@@ -35,16 +35,19 @@ const (
 	csiStorageClassNameTemplate          = "sc-%s-%s"          // sc-<namespace>-<volumename>
 	csiVolumeNodeMountPathTemplate       = "%s/%s/%s/%s/%s/%s" // <volumeRootMount>/<namespace>/<radixvolumeid>/<componentname>/<radixvolumename>/<storage>
 
-	csiStorageClassProvisionerSecretNameParameter      = "csi.storage.k8s.io/provisioner-secret-name"      //Secret name, containing storage account name and key
-	csiStorageClassProvisionerSecretNamespaceParameter = "csi.storage.k8s.io/provisioner-secret-namespace" //Namespace of the secret
-	csiStorageClassNodeStageSecretNameParameter        = "csi.storage.k8s.io/node-stage-secret-name"       //Usually equal to csiStorageClassProvisionerSecretNameParameter
-	csiStorageClassNodeStageSecretNamespaceParameter   = "csi.storage.k8s.io/node-stage-secret-namespace"  //Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
-	csiAzureStorageClassSkuNameParameter               = "skuName"                                         //Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-	csiStorageClassContainerNameParameter              = "containerName"                                   //Container name - foc container storages
-	csiStorageClassShareNameParameter                  = "shareName"                                       //File Share name - for file storages
-	csiStorageClassTmpPathMountOption                  = "tmp-path"                                        //Path within the node, where the volume mount has been mounted to
-	csiStorageClassGidMountOption                      = "gid"                                             //Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
-	csiStorageClassUidMountOption                      = "uid"                                             //Volume mount owner UserID. Used instead of GroupID
+	csiStorageClassProvisionerSecretNameParameter      = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
+	csiStorageClassProvisionerSecretNamespaceParameter = "csi.storage.k8s.io/provisioner-secret-namespace" // Namespace of the secret
+	csiStorageClassNodeStageSecretNameParameter        = "csi.storage.k8s.io/node-stage-secret-name"       // Usually equal to csiStorageClassProvisionerSecretNameParameter
+	csiStorageClassNodeStageSecretNamespaceParameter   = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
+	csiAzureStorageClassSkuNameParameter               = "skuName"                                         // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	csiStorageClassContainerNameParameter              = "containerName"                                   // Container name - foc container storages
+	csiStorageClassFsTypeParameter                     = "fsType"                                          // File system type
+	csiStorageClassFsTypeBlobFuseParameterValue        = "blobfuse"                                        // File system type "blobfuse"
+	csiStorageClassFsTypeBlobFuse2ParameterValue       = "blobfuse2"                                       // File system type "blobfuse2"
+	csiStorageClassShareNameParameter                  = "shareName"                                       // File Share name - for file storages
+	csiStorageClassTmpPathMountOption                  = "tmp-path"                                        // Path within the node, where the volume mount has been mounted to
+	csiStorageClassGidMountOption                      = "gid"                                             // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
+	csiStorageClassUidMountOption                      = "uid"                                             // Volume mount owner UserID. Used instead of GroupID
 
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
@@ -80,7 +83,7 @@ func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDe
 				Name:      getBlobFuseVolumeMountName(radixVolumeMount, componentName),
 				MountPath: radixVolumeMount.Path,
 			})
-		case radixv1.MountTypeFileCsiAzure, radixv1.MountTypeBlobCsiAzure:
+		case radixv1.MountTypeFileCsiAzure, radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure:
 			volumeMountName, err := getCsiAzureVolumeMountName(componentName, &radixVolumeMount)
 			if err != nil {
 				return nil, err
@@ -230,7 +233,7 @@ func getExternalVolumes(kubeclient kubernetes.Interface, namespace string, envir
 		switch volumeMount.Type {
 		case radixv1.MountTypeBlob:
 			volumes = append(volumes, getBlobFuseVolume(namespace, environment, deployComponent.GetName(), volumeMount))
-		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
+		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure, radixv1.MountTypeFileCsiAzure:
 			volume, err := getCsiAzureVolume(kubeclient, namespace, deployComponent.GetName(), &volumeMount)
 			if err != nil {
 				return nil, err
@@ -297,12 +300,12 @@ func createCsiAzurePersistentVolumeClaimName(componentName string, radixVolumeMo
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(5))), nil //volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
+	return fmt.Sprintf(csiPersistentVolumeClaimNameTemplate, volumeName, strings.ToLower(commonUtils.RandString(5))), nil // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
 // GetCsiAzureStorageClassName hold a name of CSI volume storage class
 func GetCsiAzureStorageClassName(namespace, volumeName string) string {
-	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, volumeName) //volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
+	return fmt.Sprintf(csiStorageClassNameTemplate, namespace, volumeName) // volumeName: <component-name>-<csi-volume-type-dashed>-<radix-volume-name>-<storage-name>
 }
 
 func getBlobFuseVolume(namespace, environment, componentName string, volumeMount radixv1.RadixVolumeMount) corev1.Volume {
@@ -409,15 +412,15 @@ func (deploy *Deployment) getPersistentVolumesForPvc() (*corev1.PersistentVolume
 }
 
 func getLabelSelectorForCsiAzureStorageClass(namespace, componentName string) string {
-	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeFileCsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaim(componentName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeFileCsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMountName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeFileCsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeFileCsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
 }
 
 func (deploy *Deployment) createPersistentVolumeClaim(appName, namespace, componentName, pvcName, storageClassName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
@@ -440,7 +443,7 @@ func (deploy *Deployment) createPersistentVolumeClaim(appName, namespace, compon
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{volumeAccessMode},
 			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{corev1.ResourceStorage: requestsVolumeMountSize}, //it seems correct number is not needed for CSI driver
+				Requests: corev1.ResourceList{corev1.ResourceStorage: requestsVolumeMountSize}, // it seems correct number is not needed for CSI driver
 			},
 			StorageClassName: &storageClassName,
 		},
@@ -449,7 +452,7 @@ func (deploy *Deployment) createPersistentVolumeClaim(appName, namespace, compon
 }
 
 func populateCsiAzureStorageClass(storageClass *storagev1.StorageClass, appName string, volumeRootMount string, namespace string, componentName string, storageClassName string, radixVolumeMount *radixv1.RadixVolumeMount, secretName string, provisioner string) {
-	reclaimPolicy := corev1.PersistentVolumeReclaimRetain //Using only PersistentVolumeReclaimPolicy. PersistentVolumeReclaimPolicy deletes volume on unmount.
+	reclaimPolicy := corev1.PersistentVolumeReclaimRetain // Using only PersistentVolumeReclaimPolicy. PersistentVolumeReclaimPolicy deletes volume on unmount.
 	bindingMode := getBindingMode(radixVolumeMount.BindingMode)
 	storageClass.ObjectMeta.Name = storageClassName
 	storageClass.ObjectMeta.Labels = getCsiAzureStorageClassLabels(appName, namespace, componentName, radixVolumeMount)
@@ -490,6 +493,10 @@ func getCsiAzureStorageClassParameters(secretName string, namespace string, radi
 	switch radixVolumeMount.Type {
 	case radixv1.MountTypeBlobCsiAzure:
 		parameters[csiStorageClassContainerNameParameter] = radixVolumeMount.Storage
+		parameters[csiStorageClassFsTypeParameter] = csiStorageClassFsTypeBlobFuseParameterValue
+	case radixv1.MountTypeBlob2CsiAzure:
+		parameters[csiStorageClassContainerNameParameter] = radixVolumeMount.Storage
+		parameters[csiStorageClassFsTypeParameter] = csiStorageClassFsTypeBlobFuse2ParameterValue
 	case radixv1.MountTypeFileCsiAzure:
 		parameters[csiStorageClassShareNameParameter] = radixVolumeMount.Storage
 	}
@@ -546,7 +553,7 @@ func (deploy *Deployment) deletePersistentVolume(pvName string) error {
 // GetRadixVolumeMountStorage get RadixVolumeMount storage property, depend on volume type
 func GetRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) string {
 	if radixVolumeMount.Type == radixv1.MountTypeBlob {
-		return radixVolumeMount.Container //Outdated
+		return radixVolumeMount.Container // Outdated
 	}
 	return radixVolumeMount.Storage
 }
@@ -582,7 +589,7 @@ func (deploy *Deployment) createOrUpdateCsiAzureVolumeResources(desiredDeploymen
 	namespace := deploy.radixDeployment.GetNamespace()
 	appName := deploy.radixDeployment.Spec.AppName
 	componentName := desiredDeployment.ObjectMeta.Name
-	volumeRootMount := "/tmp" //TODO: add to environment variable, so this volume can be mounted to external disk
+	volumeRootMount := "/tmp" // TODO: add to environment variable, so this volume can be mounted to external disk
 	scList, err := deploy.getCsiAzureStorageClasses(namespace, componentName)
 	if err != nil {
 		return err
@@ -754,7 +761,7 @@ func getVolumeAccessMode(modeValue string) corev1.PersistentVolumeAccessMode {
 	case strings.ToLower(string(corev1.ReadOnlyMany)):
 		return corev1.ReadOnlyMany
 	}
-	return corev1.ReadWriteMany //default access mode
+	return corev1.ReadWriteMany // default access mode
 }
 
 func sortPvcsByCreatedTimestampDesc(persistentVolumeClaims []corev1.PersistentVolumeClaim) []corev1.PersistentVolumeClaim {

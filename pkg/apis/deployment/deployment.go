@@ -518,7 +518,7 @@ func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComp
 }
 
 func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure), string(v1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure), string(v1.MountTypeBlob2CsiAzure), string(v1.MountTypeFileCsiAzure))
 }
 
 func (deploy *Deployment) maintainHistoryLimit() {
