@@ -43,6 +43,15 @@ func RequireConfigurationItem(rr *v1.RadixRegistration) error {
 	return nil
 }
 
+// RequireAdGroups validates that AdGroups contains minimum one item
+func RequireAdGroups(rr *v1.RadixRegistration) error {
+	if len(rr.Spec.AdGroups) == 0 {
+		return ResourceNameCannotBeEmptyError("AD groups")
+	}
+
+	return nil
+}
+
 // CanRadixRegistrationBeInserted Validates RR
 func CanRadixRegistrationBeInserted(client radixclient.Interface, radixRegistration *v1.RadixRegistration, additionalValidators ...RadixRegistrationValidator) error {
 	// cannot be used from admission control - returns the same radix reg that we try to validate
@@ -135,13 +144,6 @@ func validateRadixRegistrationAdGroups(rr *v1.RadixRegistration) error {
 
 func validateAdGroups(groups []string) error {
 	re := regexp.MustCompile("^([A-Za-z0-9]{8})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{4})-([A-Za-z0-9]{12})$")
-
-	if groups == nil || len(groups) <= 0 {
-		// If Ad-group is missing from spec the operator will
-		// set a default ad-group provided for the cluster
-		return nil
-	}
-
 	for _, group := range groups {
 		isValid := re.MatchString(group)
 		if !isValid {

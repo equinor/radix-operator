@@ -21,7 +21,6 @@ func Test_valid_rr_returns_true(t *testing.T) {
 	_, client := validRRSetup()
 	validRR := createValidRR()
 	err := radixvalidators.CanRadixRegistrationBeInserted(client, validRR)
-
 	assert.Nil(t, err)
 }
 
@@ -42,9 +41,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		updateRR             updateRRFunc
 		additionalValidators []radixvalidators.RadixRegistrationValidator
 	}{
-		{"to long app name", func(rr *v1.RadixRegistration) {
-			rr.Name = "way.toooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.long-app-name"
-		}, nil},
+		{"to long app name", func(rr *v1.RadixRegistration) { rr.Name = strings.Repeat("a", 254) }, nil},
 		{"invalid app name", func(rr *v1.RadixRegistration) { rr.Name = "invalid,char.appname" }, nil},
 		{"empty app name", func(rr *v1.RadixRegistration) { rr.Name = "" }, nil},
 		{"empty ConfigurationItem", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireConfigurationItem}},
@@ -58,6 +55,7 @@ func TestCanRadixApplicationBeInserted(t *testing.T) {
 		{"empty ad group", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = []string{""} }, nil},
 		{"empty configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "" }, nil},
 		{"invalid configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "main.." }, nil},
+		{"empty ad groups", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = nil }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups}},
 	}
 
 	_, client := validRRSetup()
@@ -101,9 +99,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		updateRR             updateRRFunc
 		additionalValidators []radixvalidators.RadixRegistrationValidator
 	}{
-		{"to long app name", func(rr *v1.RadixRegistration) {
-			rr.Name = "way.toooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.long-app-name"
-		}, nil},
+		{"to long app name", func(rr *v1.RadixRegistration) { rr.Name = strings.Repeat("a", 254) }, nil},
 		{"invalid app name", func(rr *v1.RadixRegistration) { rr.Name = "invalid,char.appname" }, nil},
 		{"empty app name", func(rr *v1.RadixRegistration) { rr.Name = "" }, nil},
 		{"empty ConfigurationItem", func(rr *v1.RadixRegistration) { rr.Spec.ConfigurationItem = "" }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireConfigurationItem}},
@@ -117,6 +113,7 @@ func TestCanRadixApplicationBeUpdated(t *testing.T) {
 		{"empty ad group", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = []string{""} }, nil},
 		{"empty configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "" }, nil},
 		{"invalid configBranch", func(rr *v1.RadixRegistration) { rr.Spec.ConfigBranch = "main.." }, nil},
+		{"empty ad groups", func(rr *v1.RadixRegistration) { rr.Spec.AdGroups = nil }, []radixvalidators.RadixRegistrationValidator{radixvalidators.RequireAdGroups}},
 	}
 
 	_, client := validRRSetup()
