@@ -638,7 +638,7 @@ type RadixPrivateImageHubCredential struct {
 type RadixVolumeMount struct {
 	// Type defines the storage type.
 	// blob is deprecated, use azure-blob instead.
-	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file
+	// +kubebuilder:validation:Enum=blob;azure-blob;azure-blob2;azure-nfs;azure-file
 	Type MountType `json:"type"`
 
 	// User-defined name of the volume mount.
@@ -700,6 +700,8 @@ const (
 	MountTypeBlobCsiAzure MountType = "azure-blob"
 	// MountTypeBlob2CsiAzure Use of azure/csi driver for blobfuse2 in Azure storage account
 	MountTypeBlob2CsiAzure MountType = "azure-blob2"
+	// MountTypeNfsCsiAzure Use of azure/csi driver for NFS in Azure storage account
+	MountTypeNfsCsiAzure MountType = "azure-nfs"
 	// MountTypeFileCsiAzure Use of azure/csi driver for files in Azure storage account
 	MountTypeFileCsiAzure MountType = "azure-file"
 )

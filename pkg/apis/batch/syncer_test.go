@@ -848,7 +848,9 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 					VolumeMounts: []radixv1.RadixVolumeMount{
 						{Type: "blob", Name: "blobname", Container: "blobcontainer", Path: "/blobpath"},
 						{Type: "azure-blob", Name: "azureblobname", Storage: "azureblobcontainer", Path: "/azureblobpath"},
+						{Type: "azure-blob2", Name: "azurefilename", Storage: "azureblob2container", Path: "/azureblob2path"},
 						{Type: "azure-file", Name: "azurefilename", Storage: "azurefilecontainer", Path: "/azurefilepath"},
+						{Type: "azure-nfs", Name: "azurefilename", Storage: "azurenfscontainer", Path: "/azurenfspath"},
 					},
 				},
 			},
@@ -871,7 +873,9 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	s.Equal(job.Spec.Template.Spec.Volumes[2].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name)
 	s.Equal("/blobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
 	s.Equal("/azureblobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[1].MountPath)
-	s.Equal("/azurefilepath", job.Spec.Template.Spec.Containers[0].VolumeMounts[2].MountPath)
+	s.Equal("/azureblob2path", job.Spec.Template.Spec.Containers[0].VolumeMounts[2].MountPath)
+	s.Equal("/azurefilepath", job.Spec.Template.Spec.Containers[0].VolumeMounts[3].MountPath)
+	s.Equal("/azurenfspath", job.Spec.Template.Spec.Containers[0].VolumeMounts[4].MountPath)
 }
 
 func (s *syncerTestSuite) Test_JobWithAzureSecretRefs() {
