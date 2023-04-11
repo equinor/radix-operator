@@ -16,13 +16,12 @@ import (
 )
 
 const (
-	azureSecureStorageProvider                          = "azure"
-	csiSecretProviderClassParameterUsePodIdentity       = "usePodIdentity"
-	csiSecretProviderClassParameterUseVMManagedIdentity = "useVMManagedIdentity"
-	csiSecretProviderClassParameterClientID             = "clientID"
-	csiSecretProviderClassParameterTenantId             = "tenantId"
-	csiSecretProviderClassParameterCloudName            = "cloudName"
-	csiSecretProviderClassParameterObjects              = "objects"
+	azureSecureStorageProvider                    = "azure"
+	csiSecretProviderClassParameterUsePodIdentity = "usePodIdentity"
+	csiSecretProviderClassParameterClientID       = "clientID"
+	csiSecretProviderClassParameterTenantId       = "tenantId"
+	csiSecretProviderClassParameterCloudName      = "cloudName"
+	csiSecretProviderClassParameterObjects        = "objects"
 )
 
 type stringArray struct {
