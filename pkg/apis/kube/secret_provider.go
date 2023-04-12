@@ -18,6 +18,7 @@ import (
 const (
 	azureSecureStorageProvider                    = "azure"
 	csiSecretProviderClassParameterUsePodIdentity = "usePodIdentity"
+	csiSecretProviderClassParameterClientID       = "clientID"
 	csiSecretProviderClassParameterTenantId       = "tenantId"
 	csiSecretProviderClassParameterCloudName      = "cloudName"
 	csiSecretProviderClassParameterObjects        = "objects"
@@ -64,11 +65,11 @@ func GetComponentSecretProviderClassName(radixDeploymentName, radixDeployCompone
 		hash))
 }
 
-//BuildAzureKeyVaultSecretProviderClass Build a SecretProviderClass for Azure Key vault secret-ref
-func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radixDeploymentName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
-	parameters, err := getAzureKeyVaultSecretProviderClassParameters(azureKeyVault, tenantId)
+// BuildAzureKeyVaultSecretProviderClass Build a SecretProviderClass for Azure Key vault secret-ref
+func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radixDeploymentName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault, identity *radixv1.Identity) (*secretsstorev1.SecretProviderClass, error) {
+	parameters, err := getAzureKeyVaultSecretProviderClassParameters(azureKeyVault, tenantId, identity)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build secret provider class parameters for application %s, component %s: %w", appName, radixDeployComponentName, err)
 	}
 	secretProviderClass := buildSecretProviderClass(appName, radixDeploymentName, radixDeployComponentName,
 		radixv1.RadixSecretRefTypeAzureKeyVault, azureKeyVault.Name)
@@ -77,8 +78,14 @@ func BuildAzureKeyVaultSecretProviderClass(tenantId string, appName string, radi
 	return secretProviderClass, nil
 }
 
-func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault, tenantId string) (map[string]string, error) {
+func getAzureKeyVaultSecretProviderClassParameters(radixAzureKeyVault radixv1.RadixAzureKeyVault, tenantId string, identity *radixv1.Identity) (map[string]string, error) {
 	parameterMap := make(map[string]string)
+	if radixAzureKeyVault.UseAzureIdentity != nil && *radixAzureKeyVault.UseAzureIdentity {
+		if identity == nil || identity.Azure == nil || (*identity).Azure.ClientId == "" {
+			return nil, fmt.Errorf("missing Azure identity when using Azure Key Vault %s with Azure identity", radixAzureKeyVault.Name)
+		}
+		parameterMap[csiSecretProviderClassParameterClientID] = (*identity).Azure.ClientId
+	}
 	parameterMap[csiSecretProviderClassParameterUsePodIdentity] = "false"
 	parameterMap[defaults.CsiSecretProviderClassParameterKeyVaultName] = radixAzureKeyVault.Name
 	parameterMap[csiSecretProviderClassParameterTenantId] = tenantId
@@ -145,7 +152,7 @@ func getSecretProviderClassSecretObjects(componentName, radixDeploymentName stri
 	return secretObjects
 }
 
-//GetSecretRefAzureKeyVaultItemDataKey Get item data key for the Azure Key vault secret-ref
+// GetSecretRefAzureKeyVaultItemDataKey Get item data key for the Azure Key vault secret-ref
 func GetSecretRefAzureKeyVaultItemDataKey(keyVaultItem *radixv1.RadixAzureKeyVaultItem) string {
 	if len(keyVaultItem.EnvVar) > 0 {
 		return keyVaultItem.EnvVar
