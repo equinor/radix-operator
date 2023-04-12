@@ -1454,8 +1454,12 @@ func createExpectedStorageClass(props expectedPvcScProperties, modify func(class
 
 func setStorageClassStorageParameter(radixVolumeMountType v1.MountType, storageName string, sc *storagev1.StorageClass) {
 	switch radixVolumeMountType {
-	case v1.MountTypeBlobCsiAzure, v1.MountTypeBlob2CsiAzure:
+	case v1.MountTypeBlobCsiAzure:
 		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
+		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse
+	case v1.MountTypeBlob2CsiAzure:
+		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
+		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse2
 	case v1.MountTypeFileCsiAzure:
 		sc.Parameters[csiStorageClassShareNameParameter] = storageName
 	}

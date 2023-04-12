@@ -151,8 +151,12 @@ func getCsiAzureVolumeMountName(componentName string, radixVolumeMount *radixv1.
 
 func getRadixVolumeTypeIdForName(radixVolumeMountType radixv1.MountType) (string, error) {
 	switch radixVolumeMountType {
-	case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure:
+	case radixv1.MountTypeBlobCsiAzure:
 		return "csi-az-blob", nil
+	case radixv1.MountTypeBlob2CsiAzure:
+		return "csi-az-blob2", nil
+	case radixv1.MountTypeNfsCsiAzure:
+		return "csi-az-nfs", nil
 	case radixv1.MountTypeFileCsiAzure:
 		return "csi-az-file", nil
 	}
@@ -237,7 +241,7 @@ func getExternalVolumes(kubeclient kubernetes.Interface, namespace string, envir
 		switch volumeMount.Type {
 		case radixv1.MountTypeBlob:
 			volumes = append(volumes, getBlobFuseVolume(namespace, environment, deployComponent.GetName(), volumeMount))
-		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure, radixv1.MountTypeFileCsiAzure:
+		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure, radixv1.MountTypeFileCsiAzure, radixv1.MountTypeNfsCsiAzure:
 			volume, err := getCsiAzureVolume(kubeclient, namespace, deployComponent.GetName(), &volumeMount)
 			if err != nil {
 				return nil, err
