@@ -613,6 +613,8 @@
                             "enum": [
                               "blob",
                               "azure-blob",
+                              "azure-blob2",
+                              "azure-nfs",
                               "azure-file"
                             ],
                             "type": "string"
@@ -1357,6 +1359,8 @@
                             "enum": [
                               "blob",
                               "azure-blob",
+                              "azure-blob2",
+                              "azure-nfs",
                               "azure-file"
                             ],
                             "type": "string"

@@ -617,6 +617,8 @@ spec:
                                   enum:
                                   - blob
                                   - azure-blob
+                                  - azure-blob2
+                                  - azure-nfs
                                   - azure-file
                                   type: string
                                 uid:
@@ -1303,6 +1305,8 @@ spec:
                                   enum:
                                   - blob
                                   - azure-blob
+                                  - azure-blob2
+                                  - azure-nfs
                                   - azure-file
                                   type: string
                                 uid:

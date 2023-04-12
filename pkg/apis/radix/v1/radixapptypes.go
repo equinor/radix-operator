@@ -717,7 +717,7 @@ const (
 // GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
 func GetStorageClassProvisionerByVolumeMountType(volumeMountType MountType) (string, bool) {
 	switch volumeMountType {
-	case MountTypeBlobCsiAzure:
+	case MountTypeBlobCsiAzure, MountTypeBlob2CsiAzure, MountTypeNfsCsiAzure:
 		return ProvisionerBlobCsiAzure, true
 	case MountTypeFileCsiAzure:
 		return ProvisionerFileCsiAzure, true
