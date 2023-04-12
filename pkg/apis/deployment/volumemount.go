@@ -41,14 +41,14 @@ const (
 	csiStorageClassNodeStageSecretNamespaceParameter   = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
 	csiAzureStorageClassSkuNameParameter               = "skuName"                                         // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 	csiStorageClassContainerNameParameter              = "containerName"                                   // Container name - foc container storages
-	csiStorageClassProtocolParameter                   = "protocol"                                        // Protocol
-	csiStorageClassProtocolParameterFuse               = "fuse"                                            // Protocol "blobfuse"
-	csiStorageClassProtocolParameterFuse2              = "fuse2"                                           // Protocol "blobfuse2"
-	csiStorageClassProtocolParameterNfs                = "nfs"                                             // Protocol "nfs"
 	csiStorageClassShareNameParameter                  = "shareName"                                       // File Share name - for file storages
 	csiStorageClassTmpPathMountOption                  = "tmp-path"                                        // Path within the node, where the volume mount has been mounted to
 	csiStorageClassGidMountOption                      = "gid"                                             // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
 	csiStorageClassUidMountOption                      = "uid"                                             // Volume mount owner UserID. Used instead of GroupID
+	csiStorageClassProtocolParameter                   = "protocol"                                        // Protocol
+	csiStorageClassProtocolParameterFuse               = "fuse"                                            // Protocol "blobfuse"
+	csiStorageClassProtocolParameterFuse2              = "fuse2"                                           // Protocol "blobfuse2"
+	csiStorageClassProtocolParameterNfs                = "nfs"                                             // Protocol "nfs"
 
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
@@ -214,16 +214,20 @@ func getStorageRefsAzureKeyVaultVolumes(kubeutil *kube.Kube, namespace string, d
 			provider := string(secretProviderClass.Spec.Provider)
 			switch provider {
 			case "azure":
-				azKeyVaultName, azKeyVaultNameExists := secretProviderClass.Spec.Parameters[defaults.CsiSecretProviderClassParameterKeyVaultName]
-				if !azKeyVaultNameExists {
-					return nil, fmt.Errorf("missing Azure Key vault name in the secret provider class %s", secretProviderClass.Name)
-				}
-				credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(deployComponent.GetName(), azKeyVaultName)
 				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{
-					Driver:               csiSecretStoreDriver,
-					ReadOnly:             commonUtils.BoolPtr(true),
-					VolumeAttributes:     map[string]string{csiVolumeSourceVolumeAttrSecretProviderClassName: secretProviderClass.Name},
-					NodePublishSecretRef: &corev1.LocalObjectReference{Name: credsSecretName},
+					Driver:           csiSecretStoreDriver,
+					ReadOnly:         commonUtils.BoolPtr(true),
+					VolumeAttributes: map[string]string{csiVolumeSourceVolumeAttrSecretProviderClassName: secretProviderClass.Name},
+				}
+
+				useAzureIdentity := azureKeyVault.UseAzureIdentity != nil && *azureKeyVault.UseAzureIdentity
+				if !useAzureIdentity {
+					azKeyVaultName, azKeyVaultNameExists := secretProviderClass.Spec.Parameters[defaults.CsiSecretProviderClassParameterKeyVaultName]
+					if !azKeyVaultNameExists {
+						return nil, fmt.Errorf("missing Azure Key vault name in the secret provider class %s", secretProviderClass.Name)
+					}
+					credsSecretName := defaults.GetCsiAzureKeyVaultCredsSecretName(deployComponent.GetName(), azKeyVaultName)
+					volume.VolumeSource.CSI.NodePublishSecretRef = &corev1.LocalObjectReference{Name: credsSecretName}
 				}
 			default:
 				log.Errorf("not supported provider %s in the secret provider class %s", provider, secretProviderClass.Name)

@@ -804,6 +804,10 @@ type RadixAzureKeyVault struct {
 	// List of keyvault items (secrets, keys and certificates).
 	// +kubebuilder:validation:MinItems=1
 	Items []RadixAzureKeyVaultItem `json:"items"`
+
+	// UseAzureIdentity defines that credentials for accessing Azure Key Vault will be acquired using Azure Workload Identity instead of using a ClientID and Secret.
+	// +optional
+	UseAzureIdentity *bool `json:"useAzureIdentity,omitempty"`
 }
 
 // RadixAzureKeyVaultObjectType Azure Key Vault item type

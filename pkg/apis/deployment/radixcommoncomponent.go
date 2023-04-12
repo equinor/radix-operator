@@ -107,7 +107,7 @@ func errorMissingExpectedDynamicImageTagName(componentName string) error {
 
 func getImageTagName(componentImage *pipeline.ComponentImage, environmentSpecificConfig v1.RadixCommonEnvironmentConfig) string {
 	if componentImage.ImageTagName != "" {
-		return componentImage.ImageTagName //provided via radix-api build request
+		return componentImage.ImageTagName // provided via radix-api build request
 	}
 	if !commonUtils.IsNil(environmentSpecificConfig) {
 		return environmentSpecificConfig.GetImageTagName()
@@ -146,23 +146,28 @@ func getRadixCommonComponentAzureKeyVaultSecretRefs(radixComponent v1.RadixCommo
 			continue
 		}
 		envAzureKeyVault, existsEnvAzureKeyVault := envAzureKeyVaultsMap[commonAzureKeyVault.Name]
-		if !existsEnvAzureKeyVault { //Azure key vault, which configuration exists only in component, but not in environment
+		if !existsEnvAzureKeyVault { // Azure key vault, which configuration exists only in component, but not in environment
 			keyVaultItems := getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(&commonAzureKeyVault, envSecretRefsExistingEnvVarsMap)
 			envAzureKeyVaultsMap[commonAzureKeyVault.Name] = v1.RadixAzureKeyVault{
-				Name:  commonAzureKeyVault.Name,
-				Path:  commonAzureKeyVault.Path,
-				Items: keyVaultItems,
+				Name:             commonAzureKeyVault.Name,
+				Path:             commonAzureKeyVault.Path,
+				UseAzureIdentity: commonAzureKeyVault.UseAzureIdentity,
+				Items:            keyVaultItems,
 			}
 			continue
 		}
 
 		composedAzureKeyVault := v1.RadixAzureKeyVault{
-			Name:  envAzureKeyVault.Name,
-			Path:  commonAzureKeyVault.Path,
-			Items: append(envAzureKeyVault.Items, getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(&commonAzureKeyVault, envSecretRefsExistingEnvVarsMap)...),
+			Name:             envAzureKeyVault.Name,
+			Path:             commonAzureKeyVault.Path,
+			UseAzureIdentity: commonAzureKeyVault.UseAzureIdentity,
+			Items:            append(envAzureKeyVault.Items, getAzureKeyVaultItemsWithEnvVarsNotExistingInEnvSecretRefs(&commonAzureKeyVault, envSecretRefsExistingEnvVarsMap)...),
 		}
-		if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { //override common path by env-path, if specified in env, or set non-empty env path
+		if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { // override common path by env-path, if specified in env, or set non-empty env path
 			composedAzureKeyVault.Path = envAzureKeyVault.Path
+		}
+		if envAzureKeyVault.UseAzureIdentity != nil { // override common useAzureIdentity by env, if specified in env
+			composedAzureKeyVault.UseAzureIdentity = envAzureKeyVault.UseAzureIdentity
 		}
 
 		envAzureKeyVaultsMap[commonAzureKeyVault.Name] = composedAzureKeyVault

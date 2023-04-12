@@ -429,3 +429,7 @@ func getWebhookError(message, jobComponentName, environment string) error {
 	}
 	return fmt.Errorf("%s %s", message, fmt.Sprintf("%s in environment %s", componentAndEnvironmentNames, environment))
 }
+
+func missingIdentityError(keyVaultName, componentName string) error {
+	return fmt.Errorf("missing Azure identity for Azure Key Vault %s in the component %s", keyVaultName, componentName)
+}

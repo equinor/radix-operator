@@ -800,12 +800,12 @@ func validateSecretNames(resourceName string, secrets []string) error {
 }
 
 func validateRadixComponentSecretRefs(radixComponent radixv1.RadixCommonComponent) error {
-	err := validateSecretRefs(radixComponent.GetName(), radixComponent.GetSecretRefs())
+	err := validateSecretRefs(radixComponent, radixComponent.GetSecretRefs())
 	if err != nil {
 		return err
 	}
 	for _, envConfig := range radixComponent.GetEnvironmentConfig() {
-		err := validateSecretRefs(radixComponent.GetName(), envConfig.GetSecretRefs())
+		err := validateSecretRefs(radixComponent, envConfig.GetSecretRefs())
 		if err != nil {
 			return err
 		}
@@ -813,7 +813,7 @@ func validateRadixComponentSecretRefs(radixComponent radixv1.RadixCommonComponen
 	return validateSecretRefsPath(radixComponent)
 }
 
-func validateSecretRefs(componentName string, secretRefs radixv1.RadixSecretRefs) error {
+func validateSecretRefs(commonComponent radixv1.RadixCommonComponent, secretRefs radixv1.RadixSecretRefs) error {
 	existingVariableName := make(map[string]bool)
 	existingAlias := make(map[string]bool)
 	existingAzureKeyVaultName := make(map[string]bool)
@@ -826,9 +826,16 @@ func validateSecretRefs(componentName string, secretRefs radixv1.RadixSecretRefs
 		path := azureKeyVault.Path
 		if path != nil && len(*path) > 0 {
 			if _, exists := existingAzureKeyVaultPath[*path]; exists {
-				return duplicatePathForAzureKeyVault(*path, azureKeyVault.Name, componentName)
+				return duplicatePathForAzureKeyVault(*path, azureKeyVault.Name, commonComponent.GetName())
 			}
 			existingAzureKeyVaultPath[*path] = true
+		}
+		useAzureIdentity := azureKeyVault.UseAzureIdentity
+		if useAzureIdentity != nil && *useAzureIdentity {
+			if !azureIdentityIsSet(commonComponent) {
+				return missingIdentityError(azureKeyVault.Name, commonComponent.GetName())
+			}
+			// TODO: validate for env-chain
 		}
 		for _, keyVaultItem := range azureKeyVault.Items {
 			if len(keyVaultItem.EnvVar) > 0 {
@@ -857,11 +864,28 @@ func validateSecretRefs(componentName string, secretRefs radixv1.RadixSecretRefs
 	return nil
 }
 
+func azureIdentityIsSet(commonComponent radixv1.RadixCommonComponent) bool {
+	identity := commonComponent.GetIdentity()
+	if identity != nil && identity.Azure != nil && validateExpectedAzureIdentity(*identity.Azure) == nil {
+		return true
+	}
+	for _, envConfig := range commonComponent.GetEnvironmentConfig() {
+		if !commonComponent.GetEnabledForEnv(envConfig) {
+			continue
+		}
+		envIdentity := envConfig.GetIdentity()
+		if envIdentity != nil && envIdentity.Azure != nil && validateExpectedAzureIdentity(*envIdentity.Azure) == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func validateSecretRefsPath(radixComponent radixv1.RadixCommonComponent) error {
 	commonAzureKeyVaultPathMap := make(map[string]string)
 	for _, azureKeyVault := range radixComponent.GetSecretRefs().AzureKeyVaults {
 		path := azureKeyVault.Path
-		if path != nil && len(*path) > 0 { //set only non-empty common path
+		if path != nil && len(*path) > 0 { // set only non-empty common path
 			commonAzureKeyVaultPathMap[azureKeyVault.Name] = *path
 		}
 	}
@@ -871,7 +895,7 @@ func validateSecretRefsPath(radixComponent radixv1.RadixCommonComponent) error {
 			envAzureKeyVaultPathMap[commonAzureKeyVaultName] = path
 		}
 		for _, envAzureKeyVault := range environmentConfig.GetSecretRefs().AzureKeyVaults {
-			if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { //override common path by non-empty env-path, or set non-empty env path
+			if envAzureKeyVault.Path != nil && len(*envAzureKeyVault.Path) > 0 { // override common path by non-empty env-path, or set non-empty env path
 				envAzureKeyVaultPathMap[envAzureKeyVault.Name] = *envAzureKeyVault.Path
 			}
 		}
@@ -1269,14 +1293,16 @@ func validateAzureIdentity(azureIdentity *radixv1.AzureIdentity) error {
 		return nil
 	}
 
+	return validateExpectedAzureIdentity(*azureIdentity)
+}
+
+func validateExpectedAzureIdentity(azureIdentity radixv1.AzureIdentity) error {
 	if len(strings.TrimSpace(azureIdentity.ClientId)) == 0 {
 		return ResourceNameCannotBeEmptyError(azureClientIdResourceName)
 	}
-
 	if _, err := uuid.Parse(azureIdentity.ClientId); err != nil {
 		return InvalidUUIDError(azureClientIdResourceName, azureIdentity.ClientId)
 	}
-
 	return nil
 }
 
