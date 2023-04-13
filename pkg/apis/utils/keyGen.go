@@ -5,11 +5,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-
+	"fmt"
 	"golang.org/x/crypto/ssh"
 )
 
-// DeployKey Represention of a deploy key pair
+// DeployKey Representation of a deploy key pair
 type DeployKey struct {
 	PrivateKey string
 	PublicKey  string
@@ -24,7 +24,7 @@ func GenerateDeployKey() (*DeployKey, error) {
 		return nil, err
 	}
 
-	publicKeyBytes, err := generatePublicKey(&privateKey.PublicKey)
+	publicKeyBytes, err := GeneratePublicKey(&privateKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -74,14 +74,31 @@ func encodePrivateKeyToPEM(privateKey *rsa.PrivateKey) []byte {
 	return privatePEM
 }
 
-// generatePublicKey take a rsa.PublicKey and return bytes suitable for writing to .pub file
+// GeneratePublicKey takes a rsa.PublicKey and return bytes suitable for writing to .pub file
 // returns in the format "ssh-rsa ..."
-func generatePublicKey(privatekey *rsa.PublicKey) ([]byte, error) {
-	publicRsaKey, err := ssh.NewPublicKey(privatekey)
+func GeneratePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
+	publicRsaKey, err := ssh.NewPublicKey(publicKey)
 	if err != nil {
 		return nil, err
 	}
 
 	pubKeyBytes := ssh.MarshalAuthorizedKey(publicRsaKey)
 	return pubKeyBytes, nil
+}
+
+func DerivePublicKeyFromPrivateKey(privateKey string) (string, error) {
+	privateKeyBytes := []byte(privateKey)
+	block, _ := pem.Decode(privateKeyBytes)
+	if block == nil {
+		return "", fmt.Errorf("failed to parse PEM block containing the key")
+	}
+	privateKeyParsed, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return "", err
+	}
+	publicKeyBytes, err := GeneratePublicKey(&privateKeyParsed.PublicKey)
+	if err != nil {
+		return "", err
+	}
+	return string(publicKeyBytes), nil
 }

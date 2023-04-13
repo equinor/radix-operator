@@ -36,9 +36,16 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 			return err
 		}
 	}
+
+	deployKey := &utils.DeployKey{}
+
 	privateKeyExists := app.gitPrivateKeyExists(secret) // checking if private key exists
-	if !privateKeyExists {
-		var deployKey *utils.DeployKey
+	if privateKeyExists {
+		deployKey, err = deriveKeyPairFromSecret(secret) // if private key exists, retrieve public key from secret
+		if err != nil {
+			return err
+		}
+	} else {
 		// if private key secret does not exist, check if RR has private key
 		deployKeyString := radixRegistration.Spec.DeployKey
 		if deployKeyString == "" {
@@ -49,16 +56,24 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 			}
 		} else {
 			// if RR has private key, retrieve both public and private key from RR
-			deployKey = &utils.DeployKey{
-				PrivateKey: radixRegistration.Spec.DeployKey,
-				PublicKey:  radixRegistration.Spec.DeployKeyPublic,
-			}
-			if err != nil {
-				return err
-			}
+			deployKey.PublicKey = radixRegistration.Spec.DeployKeyPublic
+			deployKey.PrivateKey = radixRegistration.Spec.DeployKey
 		}
-		newCm := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey, radixRegistration)
-		_, err = app.kubeutil.CreateConfigMap(namespace, newCm)
+	}
+
+	// create corresponding secret with private key
+	secret, err = app.createNewGitDeployKey(namespace, deployKey.PrivateKey, radixRegistration)
+	if err != nil {
+		return err
+	}
+	_, err = app.kubeutil.ApplySecret(namespace, secret)
+	if err != nil {
+		return err
+	}
+
+	newCm := app.createGitPublicKeyConfigMap(namespace, deployKey.PublicKey, radixRegistration)
+	_, err = app.kubeutil.CreateConfigMap(namespace, newCm)
+	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			existingCm, err := app.kubeutil.GetConfigMap(namespace, defaults.GitPublicKeyConfigMapName)
 			if err != nil {
@@ -68,27 +83,23 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 			if err != nil {
 				return err
 			}
-		}
-		if err != nil {
+		} else {
 			return err
 		}
-		// also create corresponding secret with private key
-		secret, err := app.createNewGitDeployKey(namespace, deployKey.PrivateKey, radixRegistration)
-		if err != nil {
-			return err
-		}
-		_, err = app.kubeutil.ApplySecret(namespace, secret)
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 
-	// apply ownerReference to secret
-	secret.OwnerReferences = GetOwnerReferenceOfRegistration(radixRegistration)
-	_, err = app.kubeutil.ApplySecret(namespace, secret)
+	return nil
+}
 
-	return err
+func deriveKeyPairFromSecret(secret *corev1.Secret) (*utils.DeployKey, error) {
+	deployKey := &utils.DeployKey{}
+	deployKey.PrivateKey = string(secret.Data[defaults.GitPrivateKeySecretKey])
+	publicKey, err := utils.DerivePublicKeyFromPrivateKey(deployKey.PrivateKey)
+	deployKey.PublicKey = publicKey
+	if err != nil {
+		return nil, err
+	}
+	return deployKey, nil
 }
 
 func (app Application) applyServicePrincipalACRSecretToBuildNamespace(buildNamespace string) error {
