@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"os"
 	"strconv"
 	"strings"
@@ -31,7 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -318,7 +318,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
 				t.Parallel()
-				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
+				hpas, _ := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
 			})
 
@@ -572,7 +572,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
 				t.Parallel()
-				hpas, _ := kubeclient.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
+				hpas, _ := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
 			})
 
@@ -2524,7 +2524,7 @@ func TestHPAConfig(t *testing.T) {
 
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 	t.Run("validate hpas", func(t *testing.T) {
-		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		hpas, _ := client.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 2, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
@@ -2558,7 +2558,7 @@ func TestHPAConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("validate hpas after reconfiguration", func(t *testing.T) {
-		hpas, _ := client.AutoscalingV1().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
+		hpas, _ := client.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(hpas.Items), "Number of horizontal pod autoscalers wasn't as expected")
 		assert.False(t, hpaByNameExists(componentOneName, hpas), "componentOneName horizontal pod autoscaler should not exist")
 		assert.True(t, hpaByNameExists(componentTwoName, hpas), "componentTwoName horizontal pod autoscaler should exist")
@@ -3954,11 +3954,11 @@ func getEnvVariableByName(name string, envVars []corev1.EnvVar, envVarsConfigMap
 	return ""
 }
 
-func hpaByNameExists(name string, hpas *autoscalingv1.HorizontalPodAutoscalerList) bool {
+func hpaByNameExists(name string, hpas *autoscalingv2.HorizontalPodAutoscalerList) bool {
 	return getHPAByName(name, hpas) != nil
 }
 
-func getHPAByName(name string, hpas *autoscalingv1.HorizontalPodAutoscalerList) *autoscalingv1.HorizontalPodAutoscaler {
+func getHPAByName(name string, hpas *autoscalingv2.HorizontalPodAutoscalerList) *autoscalingv2.HorizontalPodAutoscaler {
 	for _, hpa := range hpas.Items {
 		if hpa.Name == name {
 			return &hpa
