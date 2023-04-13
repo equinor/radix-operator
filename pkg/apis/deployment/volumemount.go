@@ -529,38 +529,13 @@ func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentNa
 		return nil, err
 	}
 	tmpPath := fmt.Sprintf(csiVolumeNodeMountPathTemplate, volumeRootMount, namespace, csiVolumeTypeId, componentName, radixVolumeMount.Name, radixVolumeMount.Storage)
-	switch radixVolumeMount.Type {
-	case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
-		return getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath, radixVolumeMount)
-	}
-	return getCsiAzureStorageClassMountOptionsForAzureBlob2(tmpPath, radixVolumeMount)
+	return getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath, radixVolumeMount)
 }
 
 func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
 	mountOptions := []string{
 		fmt.Sprintf("--%s=%s", csiStorageClassTmpPathMountOption, tmpPath),
 		"--file-cache-timeout-in-seconds=120",
-		"--use-attr-cache=true",
-		"-o allow_other",
-		"-o attr_timeout=120",
-		"-o entry_timeout=120",
-		"-o negative_timeout=120",
-	}
-	if len(radixVolumeMount.GID) > 0 {
-		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassGidMountOption, radixVolumeMount.GID))
-	} else if len(radixVolumeMount.UID) > 0 {
-		mountOptions = append(mountOptions, fmt.Sprintf("-o %s=%s", csiStorageClassUidMountOption, radixVolumeMount.UID))
-	}
-	if radixVolumeMount.AccessMode == string(corev1.ReadOnlyMany) {
-		mountOptions = append(mountOptions, "-o ro")
-	}
-	return mountOptions, nil
-}
-
-func getCsiAzureStorageClassMountOptionsForAzureBlob2(tmpPath string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
-	mountOptions := []string{
-		fmt.Sprintf("--%s=%s", csiStorageClassTmpPathMountOption, tmpPath),
-		"--file-cache-timeout=120",
 		"--use-attr-cache=true",
 		"-o allow_other",
 		"-o attr_timeout=120",
