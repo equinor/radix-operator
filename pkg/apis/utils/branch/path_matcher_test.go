@@ -46,4 +46,9 @@ func TestMatchesPattern(t *testing.T) {
 	assert.True(t, MatchesPattern("test/**/tull", "test/test1/test2/tull"))
 	assert.True(t, MatchesPattern("release/**/*", "release/0.1.3"))
 	assert.True(t, MatchesPattern("release/**/*", "release/q3/0.1.3"))
+	assert.True(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1.0.2"))
+	assert.True(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v123.033.2112"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1q.0.2"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1..2"))
+	assert.False(t, MatchesPattern("v\\d+\\.\\d+\\.\\d+", "v1.2"))
 }

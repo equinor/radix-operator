@@ -5,10 +5,8 @@ import (
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -808,9 +806,9 @@ func TestGetRadixComponentsForEnv_ImageWithImageTagName(t *testing.T) {
 	type scenario struct {
 		name                           string
 		componentImages                map[string]string
-		externalImageTagNames          map[string]string //map[component-name]image-tag
-		environmentConfigImageTagNames map[string]string //map[component-name]image-tag
-		expectedComponentImage         map[string]string //map[component-name]image
+		externalImageTagNames          map[string]string // map[component-name]image-tag
+		environmentConfigImageTagNames map[string]string // map[component-name]image-tag
+		expectedComponentImage         map[string]string // map[component-name]image
 		expectedError                  error
 	}
 	componentName1 := "componentA"

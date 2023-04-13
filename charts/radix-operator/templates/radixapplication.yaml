@@ -542,6 +542,12 @@ spec:
                                         is mounted.
                                       minLength: 1
                                       type: string
+                                    useAzureIdentity:
+                                      description: UseAzureIdentity defines that credentials
+                                        for accessing Azure Key Vault will be acquired
+                                        using Azure Workload Identity instead of using
+                                        a ClientID and Secret.
+                                      type: boolean
                                   required:
                                   - items
                                   - name
@@ -833,6 +839,12 @@ spec:
                                   is mounted.
                                 minLength: 1
                                 type: string
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Key Vault will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
+                                type: boolean
                             required:
                             - items
                             - name
@@ -1212,6 +1224,12 @@ spec:
                                         is mounted.
                                       minLength: 1
                                       type: string
+                                    useAzureIdentity:
+                                      description: UseAzureIdentity defines that credentials
+                                        for accessing Azure Key Vault will be acquired
+                                        using Azure Workload Identity instead of using
+                                        a ClientID and Secret.
+                                      type: boolean
                                   required:
                                   - items
                                   - name
@@ -1521,6 +1539,12 @@ spec:
                                   is mounted.
                                 minLength: 1
                                 type: string
+                              useAzureIdentity:
+                                description: UseAzureIdentity defines that credentials
+                                  for accessing Azure Key Vault will be acquired using
+                                  Azure Workload Identity instead of using a ClientID
+                                  and Secret.
+                                type: boolean
                             required:
                             - items
                             - name

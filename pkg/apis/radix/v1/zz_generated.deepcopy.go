@@ -817,6 +817,11 @@ func (in *RadixAzureKeyVault) DeepCopyInto(out *RadixAzureKeyVault) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.UseAzureIdentity != nil {
+		in, out := &in.UseAzureIdentity, &out.UseAzureIdentity
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
