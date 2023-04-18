@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const targetCPUUtilizationPercentage = 80
-const memoryUtilizationPercentage = 80
+const targetCPUUtilizationPercentage int32 = 80
+const memoryUtilizationPercentage int32 = 80
 
 func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
@@ -33,7 +33,27 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 		return nil
 	}
 
-	hpa := deploy.getHPAConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas)
+	cpuTarget := targetCPUUtilizationPercentage
+
+	if horizontalScaling.RadixHorizontalScalingResources != nil {
+		if horizontalScaling.RadixHorizontalScalingResources.Cpu != nil {
+			if horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
+				cpuTarget = *horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
+			}
+		}
+	}
+
+	memoryTarget := memoryUtilizationPercentage
+
+	if horizontalScaling.RadixHorizontalScalingResources != nil {
+		if horizontalScaling.RadixHorizontalScalingResources.Memory != nil {
+			if horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
+				memoryTarget = *horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
+			}
+		}
+	}
+
+	hpa := deploy.getHPAConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
 
 	log.Debugf("Creating HorizontalPodAutoscaler object %s in namespace %s", componentName, namespace)
 	createdHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(context.TODO(), hpa, metav1.CreateOptions{})
@@ -78,13 +98,11 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32) *autoscalingv2.HorizontalPodAutoscaler {
+func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget int32, memoryTarget int32) *autoscalingv2.HorizontalPodAutoscaler {
 	appName := deploy.radixDeployment.Spec.AppName
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
-	cpuTarget := int32(targetCPUUtilizationPercentage)
-	memoryTarget := int32(memoryUtilizationPercentage)
 
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
