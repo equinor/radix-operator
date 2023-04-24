@@ -13,12 +13,12 @@ jobs:
       target_configs: ${{ steps.get-target-configs.outputs.target_configs }}
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Get target configs
         id: get-target-configs
         run: |
           configs=$(ls $GITHUB_WORKSPACE/.github/workflows/config/${GITHUB_REF_NAME} | jq -Rsc '. / "\n" - [""]')
-          echo ::set-output name=target_configs::${configs}
+          echo "target_configs=${configs}" >> $GITHUB_OUTPUT
 
   build-deploy-pipeline-and-operator:
     name: " "
@@ -31,7 +31,7 @@ jobs:
         config: ${{ fromJson(needs.get-target-configs.outputs.target_configs) }}
         script: [build-push-operator.sh, build-push-pipeline.sh]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Persist environment from ${{ matrix.config }} across steps
       run: |
         $GITHUB_WORKSPACE/.github/workflows/scripts/persist-env.sh ${{ matrix.config }}
