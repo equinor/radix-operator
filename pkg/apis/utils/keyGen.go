@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -88,18 +87,15 @@ func generatePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
 
 func DeriveDeployKeyFromPrivateKey(privateKey string) (*DeployKey, error) {
 	privateKeyBytes := []byte(privateKey)
-	block, _ := pem.Decode(privateKeyBytes)
-	if block == nil {
-		return nil, fmt.Errorf("failed to parse PEM block containing the key")
-	}
-	privateKeyParsed, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	sign, err := ssh.ParsePrivateKey(privateKeyBytes)
+
 	if err != nil {
 		return nil, err
 	}
-	publicKeyBytes, err := generatePublicKey(&privateKeyParsed.PublicKey)
-	if err != nil {
-		return nil, err
-	}
+
+	publicKeyBytes := ssh.MarshalAuthorizedKey(sign.PublicKey())
+
 	return &DeployKey{
 		PrivateKey: privateKey,
 		PublicKey:  string(publicKeyBytes),
