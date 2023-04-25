@@ -2,6 +2,9 @@ package utils
 
 import (
 	"fmt"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"k8s.io/api/rbac/v1"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -67,4 +70,36 @@ func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 			},
 		},
 	}
+}
+
+// GrantAppAdminAccessToSecret grants access to a secret for app-admin groups
+func GrantAppAdminAccessToSecret(kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
+	namespace := GetAppNamespace(registration.Name)
+
+	// create role
+	role := kube.CreateManageSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
+	err := kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	// create rolebinding
+	adGroups, err := GetAdGroups(registration)
+	if err != nil {
+		return err
+	}
+
+	subjects := kube.GetRoleBindingGroups(adGroups)
+
+	// Add machine user to subjects
+	if registration.Spec.MachineUser {
+		subjects = append(subjects, v1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(registration.Name),
+			Namespace: GetAppNamespace(registration.Name),
+		})
+	}
+
+	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
+	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
