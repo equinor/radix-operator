@@ -16,8 +16,7 @@ func (deploy *Deployment) createSecretRefs(namespace string, radixDeployComponen
 	radixDeploymentName := deploy.radixDeployment.GetName()
 	var secretNames []string
 	for _, radixAzureKeyVault := range radixDeployComponent.GetSecretRefs().AzureKeyVaults {
-		useAzureIdentity := radixAzureKeyVault.UseAzureIdentity != nil && *radixAzureKeyVault.UseAzureIdentity
-		credsSecret, err := deploy.getAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, radixAzureKeyVault.Name, useAzureIdentity)
+		credsSecret, err := deploy.getAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, radixAzureKeyVault)
 		if err != nil {
 			return nil, err
 		}
@@ -51,11 +50,11 @@ func (deploy *Deployment) getOrCreateSecretProviderClass(namespace, appName, rad
 	return secretProviderClass, nil
 }
 
-func (deploy *Deployment) getAzureKeyVaultCredsSecret(namespace string, appName string, radixDeployComponentName string, azureKeyVaultName string, useAzureIdentity bool) (*v1.Secret, error) {
-	if useAzureIdentity {
+func (deploy *Deployment) getAzureKeyVaultCredsSecret(namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*v1.Secret, error) {
+	if azureKeyVault.UseAzureIdentity != nil && *azureKeyVault.UseAzureIdentity {
 		return nil, nil
 	}
-	return deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, azureKeyVaultName)
+	return deploy.getOrCreateAzureKeyVaultCredsSecret(namespace, appName, radixDeployComponentName, azureKeyVault.Name)
 }
 
 func (deploy *Deployment) createAzureKeyVaultSecretProviderClassForRadixDeployment(namespace string, appName string, radixDeployComponentName string, azureKeyVault radixv1.RadixAzureKeyVault) (*secretsstorev1.SecretProviderClass, error) {
