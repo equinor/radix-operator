@@ -10,7 +10,7 @@ const (
 	// RadixGitChangedChangedRadixConfig Indicates if Radix config file is changed in the GitHub source
 	RadixGitChangedChangedRadixConfig = "git-changed-radixconfig"
 	GitPublicKeyConfigMapName         = "git-ssh-public-key"
-	GitPublicKeyConfigMapKey          = "public-key"
+	GitPublicKeyConfigMapKey          = "public_key"
 	GitPrivateKeySecretName           = "git-ssh-keys"
 	GitPrivateKeySecretKey            = "id-rsa"
 )
