@@ -64,7 +64,7 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.Equal(t, expected, ns.GetLabels())
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(rolebindings.Items))
+	assert.Equal(t, 3, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
@@ -121,7 +121,7 @@ func TestOnSync_PodSecurityStandardLabelsSetOnNamespace(t *testing.T) {
 	assert.Equal(t, expected, ns.GetLabels())
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(rolebindings.Items))
+	assert.Equal(t, 3, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
@@ -180,7 +180,7 @@ func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 		WithAdGroups([]string{}))
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 4, len(rolebindings.Items))
+	assert.Equal(t, 3, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))

@@ -79,7 +79,7 @@ func GrantAppAdminAccessToMachineUserToken(kubeutil *kube.Kube, app *v1.RadixReg
 		return err
 	}
 
-	adGroups, _ := utils.GetAdGroups(app)
+	adGroups, _ := GetAdGroups(app)
 	rolebinding := rolebindingAppAdminToMachineUserToken(app.Name, adGroups, role)
 	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
