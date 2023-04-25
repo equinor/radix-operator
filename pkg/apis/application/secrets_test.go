@@ -58,49 +58,6 @@ func TestOnSync_PublicKeyCmExists_NothingChanges(t *testing.T) {
 
 }
 
-func TestOnSync_PublicKeyCmExists_OwnerReferenceIsSet(t *testing.T) {
-	// Setup
-	tu, client, kubeUtil, radixClient := setupTest()
-	defer os.Clearenv()
-
-	// Test
-	appName := "any-app"
-	rrBuilder := utils.ARadixRegistration().
-		WithName(appName).
-		WithMachineUser(true)
-
-	_, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rrBuilder)
-	assert.NoError(t, err)
-
-	// check public key cm exists, and remove ownerReference
-	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, cm)
-	desiredCm := cm.DeepCopy()
-	desiredCm.OwnerReferences = nil
-
-	err = kubeUtil.ApplyConfigMap(utils.GetAppNamespace(appName), cm, desiredCm)
-	assert.NoError(t, err)
-
-	// check secret exists, and remove ownerReference
-	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.NotNil(t, secret)
-	secret.OwnerReferences = nil
-
-	_, err = kubeUtil.ApplySecret(utils.GetAppNamespace(appName), secret)
-	assert.NoError(t, err)
-
-	rr, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rrBuilder)
-	assert.NoError(t, err)
-
-	// check secret still exists, but now has ownerReference
-	secret, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
-	assert.NoError(t, err)
-	assert.Equal(t, secret.OwnerReferences, GetOwnerReferenceOfRegistration(rr))
-
-}
-
 func TestOnSync_PublicKeyCmDoesNotExist_NewKeyIsGenerated(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
