@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -147,7 +146,7 @@ func (env *Environment) ApplyNamespace(name string) error {
 // ApplyAdGroupRoleBinding grants access to environment namespace
 func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 
-	adGroups, err := application.GetAdGroups(env.regConfig)
+	adGroups, err := utils.GetAdGroups(env.regConfig)
 	if err != nil {
 		return err
 	}

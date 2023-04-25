@@ -33,7 +33,7 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
 }
 
-//NewController creates a new controller that handles RadixRegistrations
+// NewController creates a new controller that handles RadixRegistrations
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -123,10 +123,19 @@ func NewController(client kubernetes.Interface,
 				// secret
 				controller.HandleObject(namespace, "RadixRegistration", getObject)
 			}
+			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
+				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
+				// secret
+				controller.HandleObject(namespace, "RadixRegistration", getObject)
+			}
 		},
 	})
 
 	return controller
+}
+
+func isGitDeployKey(secret *corev1.Secret) bool {
+	return secret.Name == defaults.GitPrivateKeySecretName
 }
 
 func isMachineUserToken(appName string, secret *corev1.Secret) bool {
