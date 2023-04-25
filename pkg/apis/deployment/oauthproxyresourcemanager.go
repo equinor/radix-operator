@@ -8,7 +8,6 @@ import (
 
 	commonutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
-	"github.com/equinor/radix-operator/pkg/apis/application"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -517,7 +516,7 @@ func (o *oauthProxyResourceManager) grantAccessToSecret(component v1.RadixCommon
 	}
 
 	// create rolebinding
-	adGroups, err := application.GetAdGroups(o.rr)
+	adGroups, err := utils.GetAdGroups(o.rr)
 	if err != nil {
 		return err
 	}
