@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 // ApplySecretsForPipelines creates secrets needed by pipeline to run
@@ -92,10 +93,8 @@ func (app Application) applyGitDeployKeyToBuildNamespace(namespace string) error
 }
 
 func deriveKeyPairFromSecret(secret *corev1.Secret) (*utils.DeployKey, error) {
-	deployKey := &utils.DeployKey{}
-	deployKey.PrivateKey = string(secret.Data[defaults.GitPrivateKeySecretKey])
-	publicKey, err := utils.DerivePublicKeyFromPrivateKey(deployKey.PrivateKey)
-	deployKey.PublicKey = publicKey
+	privateKey := string(secret.Data[defaults.GitPrivateKeySecretKey])
+	deployKey, err := utils.DeriveDeployKeyFromPrivateKey(privateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -151,4 +150,22 @@ func (app Application) createNewServicePrincipalACRSecret(namespace string) (*co
 		},
 	}
 	return &secret, nil
+}
+
+func (app Application) gitPrivateKeyExists(secret *corev1.Secret) bool {
+	if secret == nil {
+		return false
+	}
+	return len(strings.TrimSpace(string(secret.Data[defaults.GitPrivateKeySecretKey]))) > 0
+}
+func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
+	// Create a configmap with the public key
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            defaults.GitPublicKeyConfigMapName,
+			Namespace:       namespace,
+			OwnerReferences: GetOwnerReferenceOfRegistration(registration),
+		}, Data: map[string]string{defaults.GitPublicKeyConfigMapKey: key}}
+
+	return cm
 }

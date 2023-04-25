@@ -131,22 +131,6 @@ func NewController(client kubernetes.Interface,
 		},
 	})
 
-	//configMapInformer := kubeInformerFactory.Core().V1().ConfigMaps()
-	//configMapInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-	//	DeleteFunc: func(obj interface{}) {
-	//		cm, converted := common.SelfOrObjFromDeletedFinalStateUnknown(obj).(*corev1.ConfigMap)
-	//		if !converted {
-	//			utilruntime.HandleError(fmt.Errorf("error decoding object, invalid type"))
-	//			metrics.OperatorError(controller.HandlerOf, "handle_object", "error_decoding_object")
-	//			return
-	//		}
-	//		if isPublicKeyConfigMap(cm) {
-	//			// Resync, as configmap is deleted.
-	//			controller.HandleObject(cm, "RadixRegistration", getObject)
-	//		}
-	//	},
-	//})
-
 	return controller
 }
 

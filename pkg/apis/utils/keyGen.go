@@ -24,7 +24,7 @@ func GenerateDeployKey() (*DeployKey, error) {
 		return nil, err
 	}
 
-	publicKeyBytes, err := GeneratePublicKey(&privateKey.PublicKey)
+	publicKeyBytes, err := generatePublicKey(&privateKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -74,9 +74,9 @@ func encodePrivateKeyToPEM(privateKey *rsa.PrivateKey) []byte {
 	return privatePEM
 }
 
-// GeneratePublicKey takes a rsa.PublicKey and return bytes suitable for writing to .pub file
-// returns in the format "ssh-rsa ..."
-func GeneratePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
+// generatePublicKey takes a rsa.PublicKey and return bytes suitable for writing to .pub file
+// returns to the format "ssh-rsa ..."
+func generatePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
 	publicRsaKey, err := ssh.NewPublicKey(publicKey)
 	if err != nil {
 		return nil, err
@@ -86,19 +86,22 @@ func GeneratePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
 	return pubKeyBytes, nil
 }
 
-func DerivePublicKeyFromPrivateKey(privateKey string) (string, error) {
+func DeriveDeployKeyFromPrivateKey(privateKey string) (*DeployKey, error) {
 	privateKeyBytes := []byte(privateKey)
 	block, _ := pem.Decode(privateKeyBytes)
 	if block == nil {
-		return "", fmt.Errorf("failed to parse PEM block containing the key")
+		return nil, fmt.Errorf("failed to parse PEM block containing the key")
 	}
 	privateKeyParsed, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	publicKeyBytes, err := GeneratePublicKey(&privateKeyParsed.PublicKey)
+	publicKeyBytes, err := generatePublicKey(&privateKeyParsed.PublicKey)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(publicKeyBytes), nil
+	return &DeployKey{
+		PrivateKey: privateKey,
+		PublicKey:  string(publicKeyBytes),
+	}, nil
 }

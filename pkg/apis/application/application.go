@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"k8s.io/client-go/util/retry"
@@ -178,22 +177,4 @@ func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 		return err
 	}
 	return nil
-}
-
-func (app Application) gitPrivateKeyExists(secret *corev1.Secret) bool {
-	if secret == nil {
-		return false
-	}
-	return len(strings.TrimSpace(string(secret.Data[defaults.GitPrivateKeySecretKey]))) > 0
-}
-func (app Application) createGitPublicKeyConfigMap(namespace string, key string, registration *v1.RadixRegistration) *corev1.ConfigMap {
-	// Create a configmap with the public key
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            defaults.GitPublicKeyConfigMapName,
-			Namespace:       namespace,
-			OwnerReferences: GetOwnerReferenceOfRegistration(registration),
-		}, Data: map[string]string{defaults.GitPublicKeyConfigMapKey: key}}
-
-	return cm
 }
