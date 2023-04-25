@@ -12,5 +12,5 @@ const (
 	GitPublicKeyConfigMapName         = "git-ssh-public-key"
 	GitPublicKeyConfigMapKey          = "public_key"
 	GitPrivateKeySecretName           = "git-ssh-keys"
-	GitPrivateKeySecretKey            = "id-rsa"
+	GitPrivateKeySecretKey            = "id_rsa"
 )
