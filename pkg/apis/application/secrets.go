@@ -121,9 +121,8 @@ func (app Application) createNewGitDeployKey(namespace, deployKey string, regist
 	secret := corev1.Secret{
 		Type: "Opaque",
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            defaults.GitPrivateKeySecretName,
-			Namespace:       namespace,
-			OwnerReferences: GetOwnerReferenceOfRegistration(registration),
+			Name:      defaults.GitPrivateKeySecretName,
+			Namespace: namespace,
 		},
 		Data: map[string][]byte{
 			defaults.GitPrivateKeySecretKey: []byte(deployKey),
@@ -162,9 +161,8 @@ func (app Application) createGitPublicKeyConfigMap(namespace string, key string,
 	// Create a configmap with the public key
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            defaults.GitPublicKeyConfigMapName,
-			Namespace:       namespace,
-			OwnerReferences: GetOwnerReferenceOfRegistration(registration),
+			Name:      defaults.GitPublicKeyConfigMapName,
+			Namespace: namespace,
 		}, Data: map[string]string{defaults.GitPublicKeyConfigMapKey: key}}
 
 	return cm
