@@ -2506,19 +2506,19 @@ func TestHPAConfig(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(0)).
-				WithHorizontalScaling(&minReplicas, maxReplicas),
+				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(&minReplicas, maxReplicas),
+				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(&minReplicas, maxReplicas)))
+				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil)))
 
 	assert.NoError(t, err)
 
@@ -2542,13 +2542,13 @@ func TestHPAConfig(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(0)).
-				WithHorizontalScaling(&minReplicas, maxReplicas),
+				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(&minReplicas, maxReplicas),
+				WithHorizontalScaling(&minReplicas, maxReplicas, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 6379).

@@ -13,7 +13,6 @@ import (
 )
 
 const targetCPUUtilizationPercentage int32 = 80
-const memoryUtilizationPercentage int32 = 80
 
 func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
@@ -43,12 +42,12 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 		}
 	}
 
-	memoryTarget := memoryUtilizationPercentage
+	var memoryTarget *int32
 
 	if horizontalScaling.RadixHorizontalScalingResources != nil {
 		if horizontalScaling.RadixHorizontalScalingResources.Memory != nil {
 			if horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
-				memoryTarget = *horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
+				memoryTarget = horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
 			}
 		}
 	}
@@ -98,11 +97,13 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget int32, memoryTarget int32) *autoscalingv2.HorizontalPodAutoscaler {
+func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget int32, memoryTarget *int32) *autoscalingv2.HorizontalPodAutoscaler {
 	appName := deploy.radixDeployment.Spec.AppName
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
+
+	metrics := getHpaMetrics(cpuTarget, memoryTarget)
 
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
@@ -116,29 +117,7 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
 			MinReplicas: minReplicas,
 			MaxReplicas: maxReplicas,
-			Metrics: []autoscalingv2.MetricSpec{
-				{
-					Type: autoscalingv2.ResourceMetricSourceType,
-					Resource: &autoscalingv2.ResourceMetricSource{
-						Name: corev1.ResourceCPU,
-						Target: autoscalingv2.MetricTarget{
-							Type:               autoscalingv2.UtilizationMetricType,
-							AverageUtilization: &cpuTarget,
-						},
-					},
-				},
-				{
-					Type: autoscalingv2.ResourceMetricSourceType,
-					Resource: &autoscalingv2.ResourceMetricSource{
-						Name: corev1.ResourceMemory,
-						Target: autoscalingv2.MetricTarget{
-							Type:               autoscalingv2.UtilizationMetricType,
-							AverageUtilization: &memoryTarget,
-						},
-					},
-				},
-			},
-
+			Metrics:     metrics,
 			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
 				Kind:       "Deployment",
 				Name:       componentName,
@@ -148,6 +127,34 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 	}
 
 	return hpa
+}
+
+func getHpaMetrics(cpuTarget int32, memoryTarget *int32) []autoscalingv2.MetricSpec {
+	metrics := []autoscalingv2.MetricSpec{
+		{
+			Type: autoscalingv2.ResourceMetricSourceType,
+			Resource: &autoscalingv2.ResourceMetricSource{
+				Name: corev1.ResourceCPU,
+				Target: autoscalingv2.MetricTarget{
+					Type:               autoscalingv2.UtilizationMetricType,
+					AverageUtilization: &cpuTarget,
+				},
+			},
+		},
+	}
+	if memoryTarget != nil {
+		metrics = append(metrics, autoscalingv2.MetricSpec{
+			Type: autoscalingv2.ResourceMetricSourceType,
+			Resource: &autoscalingv2.ResourceMetricSource{
+				Name: corev1.ResourceMemory,
+				Target: autoscalingv2.MetricTarget{
+					Type:               autoscalingv2.UtilizationMetricType,
+					AverageUtilization: memoryTarget,
+				},
+			},
+		})
+	}
+	return metrics
 }
 
 func (deploy *Deployment) deleteHPAIfExists(componentName string) error {
