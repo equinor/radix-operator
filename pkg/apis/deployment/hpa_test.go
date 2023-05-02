@@ -29,6 +29,7 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 	assert.Nil(t, rd.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources.Memory)
 
 	hpa, err := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
+	assert.NoError(t, err)
 	memoryMetric := getHpaMetric(hpa, corev1.ResourceMemory)
 	assert.Nil(t, memoryMetric)
 
@@ -47,6 +48,7 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 	require.NoError(t, err)
 
 	hpa, err = kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
+	assert.NoError(t, err)
 	memoryMetric = getHpaMetric(hpa, corev1.ResourceMemory)
 	assert.NotNil(t, memoryMetric)
 	assert.Equal(t, int32(memoryTarget), *memoryMetric.Resource.Target.AverageUtilization)
@@ -64,6 +66,7 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 	require.NoError(t, err)
 
 	hpa, err = kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
+	assert.NoError(t, err)
 	memoryMetric = getHpaMetric(hpa, corev1.ResourceMemory)
 	assert.Nil(t, memoryMetric)
 
