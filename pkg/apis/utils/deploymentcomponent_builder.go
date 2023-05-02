@@ -28,7 +28,7 @@ type DeployComponentBuilder interface {
 	WithSecretRefs(v1.RadixSecretRefs) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
-	WithHorizontalScaling(*int32, int32) DeployComponentBuilder
+	WithHorizontalScaling(*int32, int32, *int32, *int32) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
 	WithIdentity(*v1.Identity) DeployComponentBuilder
@@ -190,10 +190,29 @@ func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration
 	return dcb
 }
 
-func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32) DeployComponentBuilder {
+func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder {
+	var cpuScalingResource *v1.RadixHorizontalScalingResource
+	var memoryScalingResource *v1.RadixHorizontalScalingResource
+
+	if cpu != nil {
+		cpuScalingResource = &v1.RadixHorizontalScalingResource{
+			AverageUtilization: cpu,
+		}
+	}
+
+	if memory != nil {
+		memoryScalingResource = &v1.RadixHorizontalScalingResource{
+			AverageUtilization: memory,
+		}
+	}
+
 	dcb.horizontalScaling = &v1.RadixHorizontalScaling{
 		MinReplicas: minReplicas,
 		MaxReplicas: maxReplicas,
+		RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
+			Cpu:    cpuScalingResource,
+			Memory: memoryScalingResource,
+		},
 	}
 	return dcb
 }
