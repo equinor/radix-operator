@@ -417,9 +417,6 @@ spec:
                                     required:
                                     - averageUtilization
                                     type: object
-                                required:
-                                - cpu
-                                - memory
                                 type: object
                             required:
                             - maxReplicas
