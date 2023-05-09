@@ -619,7 +619,7 @@ type RadixHorizontalScaling struct {
 
 	// Defines the resource usage parameters for the horizontal pod autoscaler.
 	// +optional
-	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources"`
+	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"`
 }
 
 type RadixHorizontalScalingResource struct {
@@ -630,10 +630,12 @@ type RadixHorizontalScalingResource struct {
 
 type RadixHorizontalScalingResources struct {
 	// Defines the CPU usage parameters for the horizontal pod autoscaler.
-	Cpu *RadixHorizontalScalingResource `json:"cpu"`
+	// +optional
+	Cpu *RadixHorizontalScalingResource `json:"cpu,omitempty"`
 
 	// Defines the memory usage parameters for the horizontal pod autoscaler.
-	Memory *RadixHorizontalScalingResource `json:"memory"`
+	// +optional
+	Memory *RadixHorizontalScalingResource `json:"memory,omitempty"`
 }
 
 // PrivateImageHubEntries defines authentication information for private image registries.

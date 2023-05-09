@@ -409,10 +409,6 @@
                               "type": "object"
                             }
                           },
-                          "required": [
-                            "cpu",
-                            "memory"
-                          ],
                           "type": "object"
                         }
                       },
