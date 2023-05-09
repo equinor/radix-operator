@@ -201,12 +201,15 @@ func TestOnSync_PrivateKeySecretIsUpdatedManually_PublicKeyIsUpdated(t *testing.
 	assert.NoError(t, err)
 
 	deployKey, err := utils.GenerateDeployKey()
+	assert.NoError(t, err)
 
 	newSecret := secret.DeepCopy()
 	newSecret.Data[defaults.GitPrivateKeySecretKey] = []byte(deployKey.PrivateKey)
 
 	_, err = client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
+	assert.NoError(t, err)
 	_, err = applyRegistrationWithSync(tu, client, kubeUtil, radixClient, rr)
+	assert.NoError(t, err)
 	// check that the public key cm is updated
 	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
