@@ -1389,6 +1389,18 @@ func Test_ValidHPA_NoError(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"custom resource scaling for HPA is set, but no resource thresholds are defined",
+			func(ra *v1.RadixApplication) {
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling = &v1.RadixHorizontalScaling{}
+				minReplica := int32(2)
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MinReplicas = &minReplica
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.MaxReplicas = 4
+				ra.Spec.Components[0].EnvironmentConfig[0].HorizontalScaling.RadixHorizontalScalingResources = &v1.RadixHorizontalScalingResources{}
+			},
+			false,
+			false,
+		},
 	}
 
 	_, client := validRASetup()
