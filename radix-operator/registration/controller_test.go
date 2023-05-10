@@ -2,6 +2,7 @@ package registration
 
 import (
 	"context"
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -100,7 +101,31 @@ func Test_Controller_Calls_Handler(t *testing.T) {
 	assert.Equal(t, "test", updatedApp.Annotations["update"])
 
 	// Delete namespace should sync
-	client.CoreV1().Namespaces().Delete(context.TODO(), utils.GetAppNamespace("testapp"), metav1.DeleteOptions{})
+	err = client.CoreV1().Namespaces().Delete(context.TODO(), utils.GetAppNamespace("testapp"), metav1.DeleteOptions{})
+	assert.NoError(t, err)
+
+	op, ok = <-synced
+	assert.True(t, ok)
+	assert.True(t, op)
+
+	// Delete private key secret should sync
+	err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Delete(context.TODO(), defaults.GitPrivateKeySecretName, metav1.DeleteOptions{})
+	assert.NoError(t, err)
+
+	op, ok = <-synced
+	assert.True(t, ok)
+	assert.True(t, op)
+
+	// Update private key secret should sync
+	existingSecret, err := client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	deployKey, err := utils.GenerateDeployKey()
+	assert.NoError(t, err)
+	existingSecret.Data[defaults.GitPrivateKeySecretKey] = []byte(deployKey.PrivateKey)
+	newSecret := existingSecret.DeepCopy()
+	newSecret.ResourceVersion = "1"
+	_, err = client.CoreV1().Secrets(utils.GetAppNamespace("testapp")).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
+	assert.NoError(t, err)
 
 	op, ok = <-synced
 	assert.True(t, ok)
