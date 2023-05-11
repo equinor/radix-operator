@@ -534,7 +534,7 @@ func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentNa
 
 func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolumeMount *radixv1.RadixVolumeMount) ([]string, error) {
 	mountOptions := []string{
-		fmt.Sprintf("--%s=%s", csiStorageClassTmpPathMountOption, tmpPath),
+		// fmt.Sprintf("--%s=%s", csiStorageClassTmpPathMountOption, tmpPath),
 		"--file-cache-timeout-in-seconds=120",
 		"--use-attr-cache=true",
 		"-o allow_other",
