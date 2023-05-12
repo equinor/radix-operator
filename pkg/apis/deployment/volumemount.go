@@ -35,20 +35,25 @@ const (
 	csiStorageClassNameTemplate          = "sc-%s-%s"          // sc-<namespace>-<volumename>
 	csiVolumeNodeMountPathTemplate       = "%s/%s/%s/%s/%s/%s" // <volumeRootMount>/<namespace>/<radixvolumeid>/<componentname>/<radixvolumename>/<storage>
 
-	csiStorageClassProvisionerSecretNameParameter      = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
-	csiStorageClassProvisionerSecretNamespaceParameter = "csi.storage.k8s.io/provisioner-secret-namespace" // Namespace of the secret
-	csiStorageClassNodeStageSecretNameParameter        = "csi.storage.k8s.io/node-stage-secret-name"       // Usually equal to csiStorageClassProvisionerSecretNameParameter
-	csiStorageClassNodeStageSecretNamespaceParameter   = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
-	csiAzureStorageClassSkuNameParameter               = "skuName"                                         // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
-	csiStorageClassContainerNameParameter              = "containerName"                                   // Container name - foc container storages
-	csiStorageClassShareNameParameter                  = "shareName"                                       // File Share name - for file storages
-	csiStorageClassTmpPathMountOption                  = "tmp-path"                                        // Path within the node, where the volume mount has been mounted to
-	csiStorageClassGidMountOption                      = "gid"                                             // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
-	csiStorageClassUidMountOption                      = "uid"                                             // Volume mount owner UserID. Used instead of GroupID
-	csiStorageClassProtocolParameter                   = "protocol"                                        // Protocol
-	csiStorageClassProtocolParameterFuse               = "fuse"                                            // Protocol "blobfuse"
-	csiStorageClassProtocolParameterFuse2              = "fuse2"                                           // Protocol "blobfuse2"
-	csiStorageClassProtocolParameterNfs                = "nfs"                                             // Protocol "nfs"
+	csiStorageClassProvisionerSecretNameParameter       = "csi.storage.k8s.io/provisioner-secret-name"      // Secret name, containing storage account name and key
+	csiStorageClassProvisionerSecretNamespaceParameter  = "csi.storage.k8s.io/provisioner-secret-namespace" // Namespace of the secret
+	csiStorageClassNodeStageSecretNameParameter         = "csi.storage.k8s.io/node-stage-secret-name"       // Usually equal to csiStorageClassProvisionerSecretNameParameter
+	csiStorageClassNodeStageSecretNamespaceParameter    = "csi.storage.k8s.io/node-stage-secret-namespace"  // Usually equal to csiStorageClassProvisionerSecretNamespaceParameter
+	csiAzureStorageClassSkuNameParameter                = "skuName"                                         // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
+	csiStorageClassContainerNameParameter               = "containerName"                                   // Container name - foc container storages
+	csiStorageClassShareNameParameter                   = "shareName"                                       // File Share name - for file storages
+	csiStorageClassTmpPathMountOption                   = "tmp-path"                                        // Path within the node, where the volume mount has been mounted to
+	csiStorageClassGidMountOption                       = "gid"                                             // Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting
+	csiStorageClassUidMountOption                       = "uid"                                             // Volume mount owner UserID. Used instead of GroupID
+	csiStorageClassStreamingEnabledMountOption          = "streaming"                                       // Enable Streaming
+	csiStorageClassStreamingCacheMountOption            = "stream-cache-mb"                                 // Limit total amount of data being cached in memory to conserve memory
+	csiStorageClassStreamingMaxBlocksPerFileMountOption = "max-blocks-per-file"                             // Maximum number of blocks to be cached in memory for streaming
+	csiStorageClassStreamingMaxBuffersMountOption       = "max-buffers"                                     // Maximum number of blocks to be cached in memory for streaming
+	csiStorageClassStreamingBlockSizeMountOption        = "block-size-mb"                                   // Maximum number of blocks to be cached in memory for streaming
+	csiStorageClassProtocolParameter                    = "protocol"                                        // Protocol
+	csiStorageClassProtocolParameterFuse                = "fuse"                                            // Protocol "blobfuse"
+	csiStorageClassProtocolParameterFuse2               = "fuse2"                                           // Protocol "blobfuse2"
+	csiStorageClassProtocolParameterNfs                 = "nfs"                                             // Protocol "nfs"
 
 	csiSecretStoreDriver                             = "secrets-store.csi.k8s.io"
 	csiVolumeSourceVolumeAttrSecretProviderClassName = "secretProviderClass"
@@ -549,6 +554,23 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 	}
 	if radixVolumeMount.AccessMode == string(corev1.ReadOnlyMany) {
 		mountOptions = append(mountOptions, "-o ro")
+	}
+	if radixVolumeMount.Streaming != nil {
+		if radixVolumeMount.Streaming.Enabled == nil || *radixVolumeMount.Streaming.Enabled {
+			mountOptions = append(mountOptions, fmt.Sprintf("--%s=%t", csiStorageClassStreamingEnabledMountOption, true))
+			if radixVolumeMount.Streaming.StreamCache != nil {
+				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingCacheMountOption, *radixVolumeMount.Streaming.StreamCache))
+			}
+			if radixVolumeMount.Streaming.BlockSize != nil {
+				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *radixVolumeMount.Streaming.BlockSize))
+			}
+			if radixVolumeMount.Streaming.MaxBuffers != nil {
+				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *radixVolumeMount.Streaming.MaxBuffers))
+			}
+			if radixVolumeMount.Streaming.MaxBlocksPerFile != nil {
+				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *radixVolumeMount.Streaming.MaxBlocksPerFile))
+			}
+		}
 	}
 	return mountOptions, nil
 }

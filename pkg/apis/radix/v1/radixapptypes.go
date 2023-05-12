@@ -696,17 +696,50 @@ type RadixVolumeMount struct {
 	// +optional
 	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
-	// TODO: describe
+	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
-	// TODO: describe
+	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
+
+	// Configure Streaming mode. Used for blobfuse2.
+	// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
+	// +optional
+	Streaming *RadixVolumeMountStreaming `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
+}
+
+// RadixVolumeMountStreaming configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.
+// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
+type RadixVolumeMountStreaming struct {
+	// Enable streaming mode. Default true.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// Optional. The size of each block to be cached in memory (in MB).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BlockSize *uint64 `json:"blockSize,omitempty"`
+	// Optional. The total number of buffers to be cached in memory (in MB).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	MaxBuffers *uint64 `json:"maxBuffers,omitempty"`
+	// Optional. The size of each buffer to be cached in memory (in MB).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BufferSize *uint64 `json:"bufferSize,omitempty"`
+	// Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	StreamCache *uint64 `json:"streamCache,omitempty"`
+	// Optional. The maximum number of blocks to be cached in memory.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	MaxBlocksPerFile *uint64 `json:"maxBlocksPerFile,omitempty"`
 }
 
 // MountType Holds types of mount
