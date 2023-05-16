@@ -33,7 +33,7 @@ func init() {
 	logger = log.WithFields(log.Fields{"radixOperatorComponent": "registration-controller"})
 }
 
-//NewController creates a new controller that handles RadixRegistrations
+// NewController creates a new controller that handles RadixRegistrations
 func NewController(client kubernetes.Interface,
 	radixClient radixclient.Interface, handler common.Handler,
 	kubeInformerFactory kubeinformers.SharedInformerFactory,
@@ -100,6 +100,25 @@ func NewController(client kubernetes.Interface,
 
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
 	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldSecret := oldObj.(*corev1.Secret)
+			newSecret := newObj.(*corev1.Secret)
+			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), oldSecret.Namespace, metav1.GetOptions{})
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			if oldSecret.ResourceVersion == newSecret.ResourceVersion {
+				// Periodic resync will send update events for all known Secrets.
+				// Two different versions of the same Secret will always have different RVs.
+				return
+			}
+			if isGitDeployKey(newSecret) && newSecret.Namespace != "" {
+				// Resync, as deploy key is updated. Resync is triggered on namespace, since RR not directly own the
+				// secret
+				controller.HandleObject(namespace, "RadixRegistration", getObject)
+			}
+		},
 		DeleteFunc: func(obj interface{}) {
 			secret, converted := obj.(*corev1.Secret)
 			if !converted {
@@ -123,10 +142,19 @@ func NewController(client kubernetes.Interface,
 				// secret
 				controller.HandleObject(namespace, "RadixRegistration", getObject)
 			}
+			if isGitDeployKey(secret) && namespace.Labels[kube.RadixAppLabel] != "" {
+				// Resync, as deploy key is deleted. Resync is triggered on namespace, since RR not directly own the
+				// secret
+				controller.HandleObject(namespace, "RadixRegistration", getObject)
+			}
 		},
 	})
 
 	return controller
+}
+
+func isGitDeployKey(secret *corev1.Secret) bool {
+	return secret.Name == defaults.GitPrivateKeySecretName
 }
 
 func isMachineUserToken(appName string, secret *corev1.Secret) bool {
