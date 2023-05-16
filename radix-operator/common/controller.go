@@ -214,7 +214,7 @@ func (c *Controller) Enqueue(obj interface{}) (requeued bool, err error) {
 }
 
 // HandleObject ensures that when anything happens to object which any
-// custom resouce is owner of, that custom resource is synced
+// custom resource is owner of, that custom resource is synced
 func (c *Controller) HandleObject(obj interface{}, ownerKind string, getOwnerFn GetOwner) {
 	var object metav1.Object
 	var ok bool

@@ -616,6 +616,26 @@ type RadixHorizontalScaling struct {
 	// Defines the maximum number of replicas.
 	// +kubebuilder:validation:Minimum=1
 	MaxReplicas int32 `json:"maxReplicas"`
+
+	// Defines the resource usage parameters for the horizontal pod autoscaler.
+	// +optional
+	RadixHorizontalScalingResources *RadixHorizontalScalingResources `json:"resources,omitempty"`
+}
+
+type RadixHorizontalScalingResource struct {
+	// Defines the resource usage which triggers scaling for the horizontal pod autoscaler.
+	// +kubebuilder:validation:Minimum=1
+	AverageUtilization *int32 `json:"averageUtilization"`
+}
+
+type RadixHorizontalScalingResources struct {
+	// Defines the CPU usage parameters for the horizontal pod autoscaler.
+	// +optional
+	Cpu *RadixHorizontalScalingResource `json:"cpu,omitempty"`
+
+	// Defines the memory usage parameters for the horizontal pod autoscaler.
+	// +optional
+	Memory *RadixHorizontalScalingResource `json:"memory,omitempty"`
 }
 
 // PrivateImageHubEntries defines authentication information for private image registries.

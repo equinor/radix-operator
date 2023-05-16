@@ -33,7 +33,7 @@ func TestHorizontalScalerChangePDB(t *testing.T) {
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithReplicas(test.IntPtr(4)).
-				WithHorizontalScaling(numbers.Int32Ptr(2), 4),
+				WithHorizontalScaling(numbers.Int32Ptr(2), 4, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
@@ -42,7 +42,7 @@ func TestHorizontalScalerChangePDB(t *testing.T) {
 			utils.NewDeployComponentBuilder().
 				WithName(componentThreeName).
 				WithPort("http", 3000).
-				WithPublicPort("http").WithHorizontalScaling(nil, 2)))
+				WithPublicPort("http").WithHorizontalScaling(nil, 2, nil, nil)))
 
 	assert.NoError(t, err)
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
@@ -324,7 +324,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithPort("http", 8080).
 				WithPublicPort("http").
 				WithReplicas(test.IntPtr(4)).
-				WithHorizontalScaling(numbers.Int32Ptr(4), 6),
+				WithHorizontalScaling(numbers.Int32Ptr(4), 6, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
@@ -353,7 +353,7 @@ func TestObjectSynced_HorizontalScalingReplicas_HandlesChange(t *testing.T) {
 				WithPublicPort("http").
 				WithDNSAppAlias(true).
 				WithReplicas(test.IntPtr(1)).
-				WithHorizontalScaling(numbers.Int32Ptr(1), 6),
+				WithHorizontalScaling(numbers.Int32Ptr(1), 6, nil, nil),
 			utils.NewDeployComponentBuilder().
 				WithName(componentTwoName).
 				WithPort("http", 6379).
