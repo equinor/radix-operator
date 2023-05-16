@@ -100,6 +100,25 @@ func NewController(client kubernetes.Interface,
 
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
 	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldSecret := oldObj.(*corev1.Secret)
+			newSecret := newObj.(*corev1.Secret)
+			namespace, err := client.CoreV1().Namespaces().Get(context.TODO(), oldSecret.Namespace, metav1.GetOptions{})
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			if oldSecret.ResourceVersion == newSecret.ResourceVersion {
+				// Periodic resync will send update events for all known Secrets.
+				// Two different versions of the same Secret will always have different RVs.
+				return
+			}
+			if isGitDeployKey(newSecret) && newSecret.Namespace != "" {
+				// Resync, as deploy key is updated. Resync is triggered on namespace, since RR not directly own the
+				// secret
+				controller.HandleObject(namespace, "RadixRegistration", getObject)
+			}
+		},
 		DeleteFunc: func(obj interface{}) {
 			secret, converted := obj.(*corev1.Secret)
 			if !converted {
