@@ -76,7 +76,7 @@ ifeq (, $(shell which controller-gen))
 	set -e ;\
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0 ;\
 	}
-CONTROLLER_GEN=${GOPATH}/controller-gen
+CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif

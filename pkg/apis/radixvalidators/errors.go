@@ -132,11 +132,6 @@ func MinReplicasGreaterThanMaxReplicasError(component, environment string) error
 	return fmt.Errorf("minReplicas is greater than maxReplicas for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-// NoScalingResourceSetError Indicates that no scaling resource is set for horizontal scaling
-func NoScalingResourceSetError(component, environment string) error {
-	return fmt.Errorf("no scaling resource is set for component %s in environment %s. See documentation for more info", component, environment)
-}
-
 func emptyVolumeMountTypeContainerNameOrTempPathError(component, environment string) error {
 	return fmt.Errorf("volume mount type, name, containers and temp-path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
 }

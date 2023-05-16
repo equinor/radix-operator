@@ -20,7 +20,6 @@ type RadixEnvironmentConfigBuilder interface {
 	WithEnabled(bool) RadixEnvironmentConfigBuilder
 	WithIdentity(*v1.Identity) RadixEnvironmentConfigBuilder
 	WithImageTagName(string) RadixEnvironmentConfigBuilder
-	WithHorizontalScaling(*int32, int32, *int32, *int32) RadixEnvironmentConfigBuilder
 }
 
 type radixEnvironmentConfigBuilder struct {
@@ -37,34 +36,6 @@ type radixEnvironmentConfigBuilder struct {
 	enabled                 *bool
 	identity                *v1.Identity
 	imageTagName            string
-	horizontalScaling       *v1.RadixHorizontalScaling
-}
-
-func (ceb *radixEnvironmentConfigBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) RadixEnvironmentConfigBuilder {
-	var cpuScalingResource *v1.RadixHorizontalScalingResource
-	var memoryScalingResource *v1.RadixHorizontalScalingResource
-
-	if cpu != nil {
-		cpuScalingResource = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: cpu,
-		}
-	}
-
-	if memory != nil {
-		memoryScalingResource = &v1.RadixHorizontalScalingResource{
-			AverageUtilization: memory,
-		}
-	}
-
-	ceb.horizontalScaling = &v1.RadixHorizontalScaling{
-		MinReplicas: minReplicas,
-		MaxReplicas: maxReplicas,
-		RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
-			Cpu:    cpuScalingResource,
-			Memory: memoryScalingResource,
-		},
-	}
-	return ceb
 }
 
 func (ceb *radixEnvironmentConfigBuilder) WithResource(request map[string]string, limit map[string]string) RadixEnvironmentConfigBuilder {
@@ -154,7 +125,6 @@ func (ceb *radixEnvironmentConfigBuilder) BuildEnvironmentConfig() v1.RadixEnvir
 		Enabled:                 ceb.enabled,
 		Identity:                ceb.identity,
 		ImageTagName:            ceb.imageTagName,
-		HorizontalScaling:       ceb.horizontalScaling,
 	}
 }
 

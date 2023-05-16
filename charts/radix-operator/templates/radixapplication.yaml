@@ -385,39 +385,6 @@ spec:
                                 format: int32
                                 minimum: 0
                                 type: integer
-                              resources:
-                                description: Defines the resource usage parameters
-                                  for the horizontal pod autoscaler.
-                                properties:
-                                  cpu:
-                                    description: Defines the CPU usage parameters
-                                      for the horizontal pod autoscaler.
-                                    properties:
-                                      averageUtilization:
-                                        description: Defines the resource usage which
-                                          triggers scaling for the horizontal pod
-                                          autoscaler.
-                                        format: int32
-                                        minimum: 1
-                                        type: integer
-                                    required:
-                                    - averageUtilization
-                                    type: object
-                                  memory:
-                                    description: Defines the memory usage parameters
-                                      for the horizontal pod autoscaler.
-                                    properties:
-                                      averageUtilization:
-                                        description: Defines the resource usage which
-                                          triggers scaling for the horizontal pod
-                                          autoscaler.
-                                        format: int32
-                                        minimum: 1
-                                        type: integer
-                                    required:
-                                    - averageUtilization
-                                    type: object
-                                type: object
                             required:
                             - maxReplicas
                             type: object

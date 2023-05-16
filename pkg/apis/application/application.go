@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"time"
 
 	"k8s.io/client-go/util/retry"
@@ -93,12 +95,6 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 		return err
 	}
 
-	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.GitPrivateKeySecretName, defaults.GitPrivateKeySecretName)
-	if err != nil {
-		logger.Errorf("Failed to grant access to git private key secret. %v", err)
-		return err
-	}
-
 	logger.Debugf("Applied secrets needed by pipelines")
 
 	err = app.applyRbacOnRadixTekton()
@@ -177,4 +173,19 @@ func (app Application) garbageCollectMachineUserNoLongerInSpec() error {
 		return err
 	}
 	return nil
+}
+
+// GetAdGroups Gets ad-groups from registration. If missing, gives default for cluster
+func GetAdGroups(registration *v1.RadixRegistration) ([]string, error) {
+	if registration.Spec.AdGroups == nil || len(registration.Spec.AdGroups) <= 0 {
+		defaultGroup := os.Getenv(defaults.OperatorDefaultUserGroupEnvironmentVariable)
+		if defaultGroup == "" {
+			err := fmt.Errorf("cannot obtain ad-group as %s has not been set for the operator", defaults.OperatorDefaultUserGroupEnvironmentVariable)
+			return []string{}, err
+		}
+
+		return []string{defaultGroup}, nil
+	}
+
+	return registration.Spec.AdGroups, nil
 }

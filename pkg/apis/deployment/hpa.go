@@ -3,16 +3,16 @@ package deployment
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
-	corev1 "k8s.io/api/core/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const targetCPUUtilizationPercentage int32 = 80
+const targetCPUUtilizationPercentage = 80
 
 func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
@@ -32,33 +32,13 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 		return nil
 	}
 
-	cpuTarget := targetCPUUtilizationPercentage
-
-	if horizontalScaling.RadixHorizontalScalingResources != nil {
-		if horizontalScaling.RadixHorizontalScalingResources.Cpu != nil {
-			if horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
-				cpuTarget = *horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
-			}
-		}
-	}
-
-	var memoryTarget *int32
-
-	if horizontalScaling.RadixHorizontalScalingResources != nil {
-		if horizontalScaling.RadixHorizontalScalingResources.Memory != nil {
-			if horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
-				memoryTarget = horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
-			}
-		}
-	}
-
-	hpa := deploy.getHPAConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
+	hpa := deploy.getHPAConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas)
 
 	log.Debugf("Creating HorizontalPodAutoscaler object %s in namespace %s", componentName, namespace)
-	createdHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Create(context.TODO(), hpa, metav1.CreateOptions{})
+	createdHPA, err := deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Create(context.TODO(), hpa, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
 		log.Debugf("HorizontalPodAutoscaler object %s already exists in namespace %s, updating the object now", componentName, namespace)
-		updatedHPA, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
+		updatedHPA, err := deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Update(context.TODO(), hpa, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to update HorizontalPodAutoscaler object: %v", err)
 		}
@@ -74,7 +54,7 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 
 func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	namespace := deploy.radixDeployment.GetNamespace()
-	hpas, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{})
+	hpas, err := deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(context.TODO(), metav1.ListOptions{})
 
 	if err != nil {
 		return err
@@ -87,7 +67,7 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 		}
 
 		if !componentName.ExistInDeploymentSpecComponentList(deploy.radixDeployment) {
-			err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), hpa.Name, metav1.DeleteOptions{})
+			err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), hpa.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return err
 			}
@@ -97,15 +77,14 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget int32, memoryTarget *int32) *autoscalingv2.HorizontalPodAutoscaler {
+func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32) *autoscalingv1.HorizontalPodAutoscaler {
 	appName := deploy.radixDeployment.Spec.AppName
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
 	}
+	cpuTarget := int32(targetCPUUtilizationPercentage)
 
-	metrics := getHpaMetrics(cpuTarget, memoryTarget)
-
-	hpa := &autoscalingv2.HorizontalPodAutoscaler{
+	hpa := &autoscalingv1.HorizontalPodAutoscaler{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: componentName,
 			Labels: map[string]string{
@@ -114,11 +93,11 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 			},
 			OwnerReferences: ownerReference,
 		},
-		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
-			MinReplicas: minReplicas,
-			MaxReplicas: maxReplicas,
-			Metrics:     metrics,
-			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+		Spec: autoscalingv1.HorizontalPodAutoscalerSpec{
+			MinReplicas:                    minReplicas,
+			MaxReplicas:                    maxReplicas,
+			TargetCPUUtilizationPercentage: &cpuTarget,
+			ScaleTargetRef: autoscalingv1.CrossVersionObjectReference{
 				Kind:       "Deployment",
 				Name:       componentName,
 				APIVersion: "apps/v1",
@@ -129,44 +108,16 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 	return hpa
 }
 
-func getHpaMetrics(cpuTarget int32, memoryTarget *int32) []autoscalingv2.MetricSpec {
-	metrics := []autoscalingv2.MetricSpec{
-		{
-			Type: autoscalingv2.ResourceMetricSourceType,
-			Resource: &autoscalingv2.ResourceMetricSource{
-				Name: corev1.ResourceCPU,
-				Target: autoscalingv2.MetricTarget{
-					Type:               autoscalingv2.UtilizationMetricType,
-					AverageUtilization: &cpuTarget,
-				},
-			},
-		},
-	}
-	if memoryTarget != nil {
-		metrics = append(metrics, autoscalingv2.MetricSpec{
-			Type: autoscalingv2.ResourceMetricSourceType,
-			Resource: &autoscalingv2.ResourceMetricSource{
-				Name: corev1.ResourceMemory,
-				Target: autoscalingv2.MetricTarget{
-					Type:               autoscalingv2.UtilizationMetricType,
-					AverageUtilization: memoryTarget,
-				},
-			},
-		})
-	}
-	return metrics
-}
-
 func (deploy *Deployment) deleteHPAIfExists(componentName string) error {
 	namespace := deploy.radixDeployment.GetNamespace()
-	_, err := deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Get(context.TODO(), componentName, metav1.GetOptions{})
+	_, err := deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(context.TODO(), componentName, metav1.GetOptions{})
 	if err != nil && errors.IsNotFound(err) {
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("failed to get hpa: %v", err)
 	}
-	err = deploy.kubeclient.AutoscalingV2().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), componentName, metav1.DeleteOptions{})
+	err = deploy.kubeclient.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(context.TODO(), componentName, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete existing hpa: %v", err)
 	}
