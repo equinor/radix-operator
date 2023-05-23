@@ -17,7 +17,7 @@ func (app Application) grantAccessToCICDLogs() error {
 
 	appNamespace := utils.GetAppNamespace(registration.Name)
 
-	adGroups, err := GetAdGroups(registration)
+	adGroups, err := utils.GetAdGroups(registration)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth
 
 	ownerReference := app.getOwnerReference()
 
-	adGroups, _ := GetAdGroups(registration)
+	adGroups, _ := utils.GetAdGroups(registration)
 	subjects := kube.GetRoleBindingGroups(adGroups)
 
 	if app.registration.Spec.MachineUser {

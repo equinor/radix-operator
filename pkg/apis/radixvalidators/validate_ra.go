@@ -1136,6 +1136,9 @@ func validateHPAConfigForRA(app *radixv1.RadixApplication) error {
 			if minReplicas != nil && *minReplicas > maxReplicas {
 				return MinReplicasGreaterThanMaxReplicasError(componentName, environment)
 			}
+			if envConfig.HorizontalScaling.RadixHorizontalScalingResources != nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Cpu == nil && envConfig.HorizontalScaling.RadixHorizontalScalingResources.Memory == nil {
+				return NoScalingResourceSetError(componentName, environment)
+			}
 		}
 	}
 
