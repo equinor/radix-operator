@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	podAppArmorAnnotation                   = "container.apparmor.security.beta.kubernetes.io/%s"
 	azureWorkloadIdentityClientIdAnnotation = "azure.workload.identity/client-id"
 )
 
