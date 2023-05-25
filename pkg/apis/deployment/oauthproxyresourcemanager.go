@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	oauthutil "github.com/equinor/radix-operator/pkg/apis/utils/oauth"
 	appsv1 "k8s.io/api/apps/v1"
@@ -657,9 +658,6 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: o.getLabelsForAuxComponent(component),
-					Annotations: map[string]string{
-						"apparmor.security.beta.kubernetes.io/pod": "runtime/default",
-					},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -674,14 +672,11 @@ func (o *oauthProxyResourceManager) getDesiredDeployment(component v1.RadixCommo
 									ContainerPort: oauthProxyPortNumber,
 								},
 							},
-							ReadinessProbe: readinessProbe,
+							ReadinessProbe:  readinessProbe,
+							SecurityContext: securitycontext.Container(securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 						},
 					},
-					SecurityContext: &corev1.PodSecurityContext{
-						SeccompProfile: &corev1.SeccompProfile{
-							Type: "RuntimeDefault",
-						},
-					},
+					SecurityContext: securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault)),
 				},
 			},
 		},
