@@ -156,11 +156,7 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 
 func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	branch, _ := deploy.getRadixBranchAndCommitId()
-
-	annotations := radixlabels.Merge(
-		radixannotations.ForPodAppArmorRuntimeDefault(),
-		radixannotations.ForRadixBranch(branch),
-	)
+	annotations := radixannotations.ForRadixBranch(branch)
 
 	if deployComponent.IsAlwaysPullImageOnDeploy() {
 		annotations = radixlabels.Merge(annotations, radixannotations.ForRadixDeploymentName(deploy.radixDeployment.Name))
@@ -202,12 +198,12 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
-	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
+	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
 	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 
 	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
 	if err != nil {
