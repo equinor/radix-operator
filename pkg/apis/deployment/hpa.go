@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	log "github.com/sirupsen/logrus"
@@ -12,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const targetCPUUtilizationPercentage int32 = 80
+const TargetCPUUtilizationPercentage int32 = 80
 
 func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
@@ -32,22 +33,27 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 		return nil
 	}
 
-	cpuTarget := targetCPUUtilizationPercentage
-
-	if horizontalScaling.RadixHorizontalScalingResources != nil {
-		if horizontalScaling.RadixHorizontalScalingResources.Cpu != nil {
-			if horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
-				cpuTarget = *horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
-			}
-		}
-	}
-
 	var memoryTarget *int32
 
 	if horizontalScaling.RadixHorizontalScalingResources != nil {
 		if horizontalScaling.RadixHorizontalScalingResources.Memory != nil {
 			if horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
 				memoryTarget = horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
+			}
+		}
+	}
+
+	var cpuTarget *int32
+	if memoryTarget == nil {
+		cpuTarget = numbers.Int32Ptr(TargetCPUUtilizationPercentage)
+	} else {
+		cpuTarget = nil
+	}
+
+	if horizontalScaling.RadixHorizontalScalingResources != nil {
+		if horizontalScaling.RadixHorizontalScalingResources.Cpu != nil {
+			if horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
+				cpuTarget = horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
 			}
 		}
 	}
@@ -97,7 +103,7 @@ func (deploy *Deployment) garbageCollectHPAsNoLongerInSpec() error {
 	return nil
 }
 
-func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget int32, memoryTarget *int32) *autoscalingv2.HorizontalPodAutoscaler {
+func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32, maxReplicas int32, cpuTarget *int32, memoryTarget *int32) *autoscalingv2.HorizontalPodAutoscaler {
 	appName := deploy.radixDeployment.Spec.AppName
 	ownerReference := []metav1.OwnerReference{
 		getOwnerReferenceOfDeployment(deploy.radixDeployment),
@@ -129,19 +135,23 @@ func (deploy *Deployment) getHPAConfig(componentName string, minReplicas *int32,
 	return hpa
 }
 
-func getHpaMetrics(cpuTarget int32, memoryTarget *int32) []autoscalingv2.MetricSpec {
-	metrics := []autoscalingv2.MetricSpec{
-		{
-			Type: autoscalingv2.ResourceMetricSourceType,
-			Resource: &autoscalingv2.ResourceMetricSource{
-				Name: corev1.ResourceCPU,
-				Target: autoscalingv2.MetricTarget{
-					Type:               autoscalingv2.UtilizationMetricType,
-					AverageUtilization: &cpuTarget,
+func getHpaMetrics(cpuTarget *int32, memoryTarget *int32) []autoscalingv2.MetricSpec {
+	var metrics []autoscalingv2.MetricSpec
+	if cpuTarget != nil {
+		metrics = []autoscalingv2.MetricSpec{
+			{
+				Type: autoscalingv2.ResourceMetricSourceType,
+				Resource: &autoscalingv2.ResourceMetricSource{
+					Name: corev1.ResourceCPU,
+					Target: autoscalingv2.MetricTarget{
+						Type:               autoscalingv2.UtilizationMetricType,
+						AverageUtilization: cpuTarget,
+					},
 				},
 			},
-		},
+		}
 	}
+
 	if memoryTarget != nil {
 		metrics = append(metrics, autoscalingv2.MetricSpec{
 			Type: autoscalingv2.ResourceMetricSourceType,
