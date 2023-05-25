@@ -17,18 +17,16 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 		WithRadixRegistration(rrBuilder)
 
 	var testScenarios = []struct {
-		name                         string
-		cpuTarget                    *int32
-		expectedCpuTarget            int32
-		memoryTarget                 *int32
-		cpuTargetShouldBeDefined     bool
-		cpuTargetShouldBeDefinedInRd bool
-		memoryTargetShouldBeDefined  bool
+		name                 string
+		cpuTarget            *int32
+		expectedCpuTarget    *int32
+		memoryTarget         *int32
+		expectedMemoryTarget *int32
 	}{
-		{"cpu and memory are nil, cpu defaults to 80", nil, 80, nil, true, false, false},
-		{"cpu is nil and memory is non-nil", nil, -3, numbers.Int32Ptr(70), false, false, true},
-		{"cpu is non-nil and memory is nil", numbers.Int32Ptr(68), 68, nil, true, true, false},
-		{"cpu and memory are non-nil", numbers.Int32Ptr(68), 68, numbers.Int32Ptr(70), true, true, true},
+		{"cpu and memory are nil, cpu defaults to 80", nil, numbers.Int32Ptr(80), nil, nil},
+		{"cpu is nil and memory is non-nil", nil, nil, numbers.Int32Ptr(70), numbers.Int32Ptr(70)},
+		{"cpu is non-nil and memory is nil", numbers.Int32Ptr(68), numbers.Int32Ptr(68), nil, nil},
+		{"cpu and memory are non-nil", numbers.Int32Ptr(68), numbers.Int32Ptr(68), numbers.Int32Ptr(70), numbers.Int32Ptr(70)},
 	}
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
@@ -42,25 +40,17 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 			assert.NoError(t, err)
 			hpa, err := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
 			assert.NoError(t, err)
-			memoryMetric := utils.GetHpaMetric(hpa, corev1.ResourceMemory)
-			cpuMetric := utils.GetHpaMetric(hpa, corev1.ResourceCPU)
-			assert.Equal(t, testcase.memoryTargetShouldBeDefined, memoryMetric != nil)
-			assert.Equal(t, testcase.cpuTargetShouldBeDefined, cpuMetric != nil)
-			if testcase.memoryTargetShouldBeDefined {
-				assert.Equal(t, testcase.memoryTarget, rd.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization)
-				assert.Equal(t, testcase.memoryTarget, memoryMetric.Resource.Target.AverageUtilization)
-			} else {
-				assert.Nil(t, rd.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources.Memory)
+
+			var actualCpuTarget, actualMemoryTarget *int32
+			if memoryMetric := utils.GetHpaMetric(hpa, corev1.ResourceMemory); memoryMetric != nil {
+				actualMemoryTarget = memoryMetric.Resource.Target.AverageUtilization
 			}
-			if testcase.cpuTargetShouldBeDefinedInRd {
-				assert.Equal(t, testcase.expectedCpuTarget, *rd.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization)
+			if cpuMetric := utils.GetHpaMetric(hpa, corev1.ResourceCPU); cpuMetric != nil {
+				actualCpuTarget = cpuMetric.Resource.Target.AverageUtilization
 			}
-			if testcase.cpuTargetShouldBeDefined {
-				assert.Equal(t, testcase.expectedCpuTarget, *cpuMetric.Resource.Target.AverageUtilization)
-			} else {
-				assert.Nil(t, rd.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources.Cpu)
-			}
+
+			assert.Equal(t, testcase.expectedCpuTarget, actualCpuTarget)
+			assert.Equal(t, testcase.expectedMemoryTarget, actualMemoryTarget)
 		})
 	}
-
 }

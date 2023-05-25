@@ -33,29 +33,19 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 		return nil
 	}
 
-	var memoryTarget *int32
-
+	var memoryTarget, cpuTarget *int32
 	if horizontalScaling.RadixHorizontalScalingResources != nil {
 		if horizontalScaling.RadixHorizontalScalingResources.Memory != nil {
-			if horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization != nil {
-				memoryTarget = horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
-			}
+			memoryTarget = horizontalScaling.RadixHorizontalScalingResources.Memory.AverageUtilization
 		}
-	}
 
-	var cpuTarget *int32
-	if memoryTarget == nil {
-		cpuTarget = numbers.Int32Ptr(targetCPUUtilizationPercentage)
-	} else {
-		cpuTarget = nil
-	}
-
-	if horizontalScaling.RadixHorizontalScalingResources != nil {
 		if horizontalScaling.RadixHorizontalScalingResources.Cpu != nil {
-			if horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization != nil {
-				cpuTarget = horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
-			}
+			cpuTarget = horizontalScaling.RadixHorizontalScalingResources.Cpu.AverageUtilization
 		}
+	}
+
+	if memoryTarget == nil && cpuTarget == nil {
+		cpuTarget = numbers.Int32Ptr(targetCPUUtilizationPercentage)
 	}
 
 	hpa := deploy.getHPAConfig(componentName, horizontalScaling.MinReplicas, horizontalScaling.MaxReplicas, cpuTarget, memoryTarget)
