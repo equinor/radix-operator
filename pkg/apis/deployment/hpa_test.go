@@ -25,13 +25,10 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 		cpuTargetShouldBeDefinedInRd bool
 		memoryTargetShouldBeDefined  bool
 	}{
-		{"cpuTarget is present when configured, and memoryTarget is not", numbers.Int32Ptr(68), 68, nil, true, true, false},
-		// Test that memory scaling is enabled when configured
-		{"memory defined when configured", numbers.Int32Ptr(68), 68, numbers.Int32Ptr(70), true, true, true},
-		// Test that cpu defaults to 80 if not specified, and that memory disappears if not specified
-		{"cpu defaults to 80 if not specified", nil, 80, nil, true, false, false},
-		// Test that cpu disappears if memory is specified while cpu is not
-		{"cpu disappears if memory is specified while cpu is not", nil, -3, numbers.Int32Ptr(70), false, false, true},
+		{"cpu and memory are nil, cpu defaults to 80", nil, 80, nil, true, false, false},
+		{"cpu is nil and memory is non-nil", nil, -3, numbers.Int32Ptr(70), false, false, true},
+		{"cpu is non-nil and memory is nil", numbers.Int32Ptr(68), 68, nil, true, true, false},
+		{"cpu and memory are non-nil", numbers.Int32Ptr(68), 68, numbers.Int32Ptr(70), true, true, true},
 	}
 	for _, testcase := range testScenarios {
 		t.Run(testcase.name, func(t *testing.T) {
