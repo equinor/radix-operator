@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const TargetCPUUtilizationPercentage int32 = 80
+const targetCPUUtilizationPercentage int32 = 80
 
 func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
@@ -45,7 +45,7 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 
 	var cpuTarget *int32
 	if memoryTarget == nil {
-		cpuTarget = numbers.Int32Ptr(TargetCPUUtilizationPercentage)
+		cpuTarget = numbers.Int32Ptr(targetCPUUtilizationPercentage)
 	} else {
 		cpuTarget = nil
 	}
