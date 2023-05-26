@@ -191,28 +191,31 @@ func (dcb *deployComponentBuilder) WithIngressConfiguration(ingressConfiguration
 }
 
 func (dcb *deployComponentBuilder) WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder {
-	var cpuScalingResource *v1.RadixHorizontalScalingResource
-	var memoryScalingResource *v1.RadixHorizontalScalingResource
+	radixHorizontalScalingResources := &v1.RadixHorizontalScalingResources{}
 
-	if cpu != nil {
-		cpuScalingResource = &v1.RadixHorizontalScalingResource{
+	// if memory is nil, then memory is omitted while cpu is set to provided value
+	if memory == nil {
+		radixHorizontalScalingResources.Cpu = &v1.RadixHorizontalScalingResource{
 			AverageUtilization: cpu,
 		}
 	}
 
+	// if cpu and memory are non-nil, then memory and cpu are set to provided values
 	if memory != nil {
-		memoryScalingResource = &v1.RadixHorizontalScalingResource{
+		radixHorizontalScalingResources.Memory = &v1.RadixHorizontalScalingResource{
 			AverageUtilization: memory,
+		}
+		if cpu != nil {
+			radixHorizontalScalingResources.Cpu = &v1.RadixHorizontalScalingResource{
+				AverageUtilization: cpu,
+			}
 		}
 	}
 
 	dcb.horizontalScaling = &v1.RadixHorizontalScaling{
-		MinReplicas: minReplicas,
-		MaxReplicas: maxReplicas,
-		RadixHorizontalScalingResources: &v1.RadixHorizontalScalingResources{
-			Cpu:    cpuScalingResource,
-			Memory: memoryScalingResource,
-		},
+		MinReplicas:                     minReplicas,
+		MaxReplicas:                     maxReplicas,
+		RadixHorizontalScalingResources: radixHorizontalScalingResources,
 	}
 	return dcb
 }
