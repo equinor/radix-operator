@@ -20,7 +20,9 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -620,4 +622,34 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) createOrUpdateJobStub(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobStubDeployment, err := deploy.kubeutil.GetDeployment(desiredDeployment.Namespace, getJobStubName(desiredDeployment.Name))
+	var desiredJobStubDeployment *appsv1.Deployment
+	if err != nil {
+		if !k8sErrors.IsNotFound(err) {
+			return nil, nil, err
+		}
+		currentJobStubDeployment = nil
+		if desiredDeployment == nil {
+			return nil, nil, nil
+		}
+		desiredJobStubDeployment, err = deploy.createJobStubDeployment(deployComponent)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		desiredJobStubDeployment = currentJobStubDeployment.DeepCopy()
+	}
+	if desiredDeployment == nil {
+		return currentJobStubDeployment, nil, nil
+	}
+	desiredJobStubDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
+	desiredDeployment.Spec.Template.Spec.Volumes = nil
+	return currentJobStubDeployment, desiredJobStubDeployment, nil
+}
+
+func getJobStubName(jobName string) string {
+	return fmt.Sprintf("%s-stub", jobName)
 }

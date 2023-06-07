@@ -78,6 +78,13 @@ func ForPodIsJobScheduler() kubelabels.Set {
 	}
 }
 
+// ForPodIsJobStub returns labels indicating that a pod is a job stub,
+func ForPodIsJobStub() kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixPodIsJobStubLabel: "true",
+	}
+}
+
 // ForServiceAccountIsForComponent returns labels indicating that a service account is used by a component or job
 func ForServiceAccountIsForComponent() kubelabels.Set {
 	return kubelabels.Set{

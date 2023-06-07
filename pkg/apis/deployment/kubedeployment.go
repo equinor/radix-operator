@@ -42,8 +42,26 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 	if err != nil {
 		return err
 	}
+	err = deploy.handleJobStub(deployComponent, desiredDeployment)
+	if err != nil {
+		return err
+	}
 
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
+}
+
+func (deploy *Deployment) handleJobStub(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+	if !isDeployComponentJobSchedulerDeployment(deployComponent) {
+		return nil
+	}
+	currentJobStubDeployment, desiredJobStubDeployment, err := deploy.createOrUpdateJobStub(deployComponent, desiredDeployment)
+	if err != nil {
+		return err
+	}
+	if currentJobStubDeployment != nil && desiredJobStubDeployment == nil {
+		return deploy.kubeutil.KubeClient().AppsV1().Deployments(deploy.radixDeployment.Namespace).Delete(context.Background(), currentJobStubDeployment.Name, metav1.DeleteOptions{})
+	}
+	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentJobStubDeployment, desiredJobStubDeployment)
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
@@ -118,6 +136,41 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 
 	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
+func (deploy *Deployment) createJobStubDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
+	jobStubName := getJobStubName(deployComponent.GetName())
+	desiredDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            jobStubName,
+			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)},
+			Labels:          deploy.getJobStubDeploymentLabels(deployComponent),
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: int32Ptr(1),
+			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: jobStubName}}},
+			},
+		},
+	}
+	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(jobStubName)
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
+	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
+
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "nginxinc/nginx-unprivileged"
+	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{{ContainerPort: 8080, Name: "http"}}
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullNever
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
+
+	deploymentStrategy, err := getDeploymentStrategy()
+	if err != nil {
+		return nil, err
+	}
+	desiredDeployment.Spec.Strategy = deploymentStrategy
+
+	return desiredDeployment, nil
+}
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
@@ -154,6 +207,15 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 	return labels
 }
 
+func (deploy *Deployment) getJobStubDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	return radixlabels.Merge(
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForComponentName(deployComponent.GetName()),
+		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
+		radixlabels.ForPodIsJobStub(),
+	)
+}
+
 func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	branch, _ := deploy.getRadixBranchAndCommitId()
 
@@ -180,6 +242,15 @@ func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDepl
 	)
 
 	return labels
+}
+
+func (deploy *Deployment) getJobStubDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	return radixlabels.Merge(
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForComponentName(deployComponent.GetName()),
+		radixlabels.ForComponentType(deployComponent.GetType()),
+		radixlabels.ForPodIsJobStub(),
+	)
 }
 
 func (deploy *Deployment) getDeploymentAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
