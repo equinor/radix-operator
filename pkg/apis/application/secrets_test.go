@@ -2,11 +2,13 @@ package application
 
 import (
 	"context"
-	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +35,7 @@ func TestOnSync_PublicKeyCmExists_NothingChanges(t *testing.T) {
 	secret, err := client.CoreV1().Secrets(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPrivateKeySecretName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
+	assert.Equal(t, map[string]string(labels.ForApplicationName(appName)), secret.Labels)
 
 	// check public key cm exists
 	cm, err := client.CoreV1().ConfigMaps(utils.GetAppNamespace(appName)).Get(context.TODO(), defaults.GitPublicKeyConfigMapName, metav1.GetOptions{})
