@@ -5,8 +5,6 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/numbers"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
@@ -18,68 +16,41 @@ func TestHpa_DefaultConfigurationDoesNotHaveMemoryScaling(t *testing.T) {
 	raBuilder := utils.ARadixApplication().
 		WithRadixRegistration(rrBuilder)
 
-	// Test that memory scaling is not enabled by default
-	cpuTarget := 68
-	rdBuilder := utils.ARadixDeployment().
-		WithRadixApplication(raBuilder).
-		WithComponents(utils.NewDeployComponentBuilder().WithHorizontalScaling(numbers.Int32Ptr(1), 3, numbers.Int32Ptr(int32(cpuTarget)), nil))
-
-	rd, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, rdBuilder)
-	require.NoError(t, err)
-	assert.Nil(t, rd.Spec.Components[0].HorizontalScaling.RadixHorizontalScalingResources.Memory)
-
-	hpa, err := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
-	assert.NoError(t, err)
-	memoryMetric := getHpaMetric(hpa, corev1.ResourceMemory)
-	assert.Nil(t, memoryMetric)
-
-	cpuMetric := getHpaMetric(hpa, corev1.ResourceCPU)
-	assert.NotNil(t, cpuMetric)
-	assert.Equal(t, int32(cpuTarget), *cpuMetric.Resource.Target.AverageUtilization)
-
-	// Test that memory scaling is enabled when configured
-	cpuTarget = 70
-	memoryTarget := 75
-	rdBuilder = utils.ARadixDeployment().
-		WithRadixApplication(raBuilder).
-		WithComponents(utils.NewDeployComponentBuilder().WithHorizontalScaling(numbers.Int32Ptr(1), 3, numbers.Int32Ptr(int32(cpuTarget)), numbers.Int32Ptr(int32(memoryTarget))))
-
-	rd, err = applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, rdBuilder)
-	require.NoError(t, err)
-
-	hpa, err = kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
-	assert.NoError(t, err)
-	memoryMetric = getHpaMetric(hpa, corev1.ResourceMemory)
-	assert.NotNil(t, memoryMetric)
-	assert.Equal(t, int32(memoryTarget), *memoryMetric.Resource.Target.AverageUtilization)
-
-	cpuMetric = getHpaMetric(hpa, corev1.ResourceCPU)
-	assert.NotNil(t, cpuMetric)
-	assert.Equal(t, int32(cpuTarget), *cpuMetric.Resource.Target.AverageUtilization)
-
-	// Test that cpu defaults to 80 if not specified, and that memory disappears if not specified
-	rdBuilder = utils.ARadixDeployment().
-		WithRadixApplication(raBuilder).
-		WithComponents(utils.NewDeployComponentBuilder().WithHorizontalScaling(numbers.Int32Ptr(1), 3, nil, nil))
-
-	rd, err = applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, rdBuilder)
-	require.NoError(t, err)
-
-	hpa, err = kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
-	assert.NoError(t, err)
-	memoryMetric = getHpaMetric(hpa, corev1.ResourceMemory)
-	assert.Nil(t, memoryMetric)
-
-	cpuMetric = getHpaMetric(hpa, corev1.ResourceCPU)
-	assert.NotNil(t, cpuMetric)
-	assert.Equal(t, targetCPUUtilizationPercentage, *cpuMetric.Resource.Target.AverageUtilization)
-}
-
-func getHpaMetric(hpa *autoscalingv2.HorizontalPodAutoscaler, resourceName corev1.ResourceName) *autoscalingv2.MetricSpec {
-	for _, metric := range hpa.Spec.Metrics {
-		if metric.Resource != nil && metric.Resource.Name == resourceName {
-			return &metric
-		}
+	var testScenarios = []struct {
+		name                 string
+		cpuTarget            *int32
+		expectedCpuTarget    *int32
+		memoryTarget         *int32
+		expectedMemoryTarget *int32
+	}{
+		{"cpu and memory are nil, cpu defaults to 80", nil, numbers.Int32Ptr(80), nil, nil},
+		{"cpu is nil and memory is non-nil", nil, nil, numbers.Int32Ptr(70), numbers.Int32Ptr(70)},
+		{"cpu is non-nil and memory is nil", numbers.Int32Ptr(68), numbers.Int32Ptr(68), nil, nil},
+		{"cpu and memory are non-nil", numbers.Int32Ptr(68), numbers.Int32Ptr(68), numbers.Int32Ptr(70), numbers.Int32Ptr(70)},
 	}
-	return nil
+	for _, testcase := range testScenarios {
+		t.Run(testcase.name, func(t *testing.T) {
+			// Test that memory scaling is not enabled by default
+			rdBuilder := utils.ARadixDeployment().
+				WithRadixApplication(raBuilder).
+				WithComponents(utils.NewDeployComponentBuilder().
+					WithHorizontalScaling(numbers.Int32Ptr(1), 3, testcase.cpuTarget, testcase.memoryTarget))
+
+			rd, err := applyDeploymentWithSync(tu, kubeclient, kubeUtil, radixclient, prometheusclient, rdBuilder)
+			assert.NoError(t, err)
+			hpa, err := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(rd.GetNamespace()).Get(context.TODO(), rd.Spec.Components[0].GetName(), metav1.GetOptions{})
+			assert.NoError(t, err)
+
+			var actualCpuTarget, actualMemoryTarget *int32
+			if memoryMetric := utils.GetHpaMetric(hpa, corev1.ResourceMemory); memoryMetric != nil {
+				actualMemoryTarget = memoryMetric.Resource.Target.AverageUtilization
+			}
+			if cpuMetric := utils.GetHpaMetric(hpa, corev1.ResourceCPU); cpuMetric != nil {
+				actualCpuTarget = cpuMetric.Resource.Target.AverageUtilization
+			}
+
+			assert.Equal(t, testcase.expectedCpuTarget, actualCpuTarget)
+			assert.Equal(t, testcase.expectedMemoryTarget, actualMemoryTarget)
+		})
+	}
 }

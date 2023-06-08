@@ -1,14 +1,16 @@
 package application
 
 import (
+	"strings"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 )
 
 // ApplySecretsForPipelines creates secrets needed by pipeline to run
@@ -123,6 +125,8 @@ func (app Application) createNewGitDeployKey(namespace, deployKey string, regist
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      defaults.GitPrivateKeySecretName,
 			Namespace: namespace,
+			// Required when restoring with Velero. We only restore secrets with the "radix-app" label
+			Labels: labels.ForApplicationName(registration.GetName()),
 		},
 		Data: map[string][]byte{
 			defaults.GitPrivateKeySecretKey: []byte(deployKey),

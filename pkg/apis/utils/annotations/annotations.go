@@ -7,19 +7,12 @@ import (
 )
 
 const (
-	podAppArmorAnnotation                   = "apparmor.security.beta.kubernetes.io/pod"
 	azureWorkloadIdentityClientIdAnnotation = "azure.workload.identity/client-id"
 )
 
 // Merge multiple maps into one
 func Merge(labels ...map[string]string) map[string]string {
 	return maputils.MergeMaps(labels...)
-}
-
-// ForPodAppArmorRuntimeDefault returns annotations for configuring a pod
-// to run with AppArmor profile "runtime/default"
-func ForPodAppArmorRuntimeDefault() map[string]string {
-	return map[string]string{podAppArmorAnnotation: "runtime/default"}
 }
 
 // ForRadixBranch returns annotations describing a branch name

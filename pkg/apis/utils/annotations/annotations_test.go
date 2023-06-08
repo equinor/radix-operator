@@ -17,12 +17,6 @@ func Test_Merge(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func Test_ForPodAppArmorRuntimeDefault(t *testing.T) {
-	actual := ForPodAppArmorRuntimeDefault()
-	expected := map[string]string{"apparmor.security.beta.kubernetes.io/pod": "runtime/default"}
-	assert.Equal(t, expected, actual)
-}
-
 func Test_ForRadixBranch(t *testing.T) {
 	actual := ForRadixBranch("anybranch")
 	expected := map[string]string{kube.RadixBranchAnnotation: "anybranch"}
