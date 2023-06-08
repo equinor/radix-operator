@@ -646,7 +646,9 @@ func (deploy *Deployment) createOrUpdateJobStub(deployComponent v1.RadixCommonDe
 		return currentJobStubDeployment, nil, nil
 	}
 	desiredJobStubDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
+	desiredJobStubDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
 	desiredDeployment.Spec.Template.Spec.Volumes = nil
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
 	return currentJobStubDeployment, desiredJobStubDeployment, nil
 }
 

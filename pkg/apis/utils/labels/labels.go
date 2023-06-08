@@ -31,6 +31,14 @@ func ForComponentName(componentName string) kubelabels.Set {
 	}
 }
 
+// ForJobStub returns labels describing the job stub,
+func ForJobStub(jobName string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixComponentLabel:    jobName,
+		kube.RadixPodIsJobStubLabel: "true",
+	}
+}
+
 // ForComponentType returns labels describing the component type,
 // e.g. "radix-component-type": "job"
 func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {

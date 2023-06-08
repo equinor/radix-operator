@@ -137,7 +137,8 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
 func (deploy *Deployment) createJobStubDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	jobStubName := getJobStubName(deployComponent.GetName())
+	jobName := deployComponent.GetName()
+	jobStubName := getJobStubName(jobName)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            jobStubName,
@@ -146,21 +147,20 @@ func (deploy *Deployment) createJobStubDeployment(deployComponent v1.RadixCommon
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(1),
-			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
+			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobStub(jobName)},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
+				ObjectMeta: metav1.ObjectMeta{Labels: deploy.getJobStubDeploymentPodLabels(deployComponent), Annotations: make(map[string]string)},
 				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: jobStubName}}},
 			},
 		},
 	}
-	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(jobStubName)
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "nginxinc/nginx-unprivileged"
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{{ContainerPort: 8080, Name: "http"}}
-	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullNever
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
 
 	deploymentStrategy, err := getDeploymentStrategy()
