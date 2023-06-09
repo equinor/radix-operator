@@ -17,7 +17,7 @@ import (
 // ApplyDeployment Create or update deployment in provided namespace
 func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv1.Deployment, desiredDeployment *appsv1.Deployment) error {
 	if currentDeployment == nil {
-		createdDeployment, err := kubeutil.kubeClient.AppsV1().Deployments(namespace).Create(context.TODO(), desiredDeployment, metav1.CreateOptions{})
+		createdDeployment, err := kubeutil.CreateDeployment(namespace, desiredDeployment)
 		if err != nil {
 			return fmt.Errorf("failed to create Deployment object: %v", err)
 		}
@@ -54,9 +54,19 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 	return nil
 }
 
+// CreateDeployment Created deployment
+func (kubeutil *Kube) CreateDeployment(namespace string, deployment *appsv1.Deployment) (*appsv1.Deployment, error) {
+	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Create(context.TODO(), deployment, metav1.CreateOptions{})
+}
+
 // DeleteDeployment Delete deployment
 func (kubeutil *Kube) DeleteDeployment(namespace, name string) error {
-	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	propagationPolicy := metav1.DeletePropagationBackground
+	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Delete(context.Background(),
+		name,
+		metav1.DeleteOptions{
+			PropagationPolicy: &propagationPolicy,
+		})
 }
 
 // ListDeployments List deployments

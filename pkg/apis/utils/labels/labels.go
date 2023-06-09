@@ -31,11 +31,11 @@ func ForComponentName(componentName string) kubelabels.Set {
 	}
 }
 
-// ForJobStub returns labels describing the job stub,
-func ForJobStub(jobName string) kubelabels.Set {
+// ForJobAuxObject returns labels describing the job aux object,
+func ForJobAuxObject(jobName string) kubelabels.Set {
 	return kubelabels.Set{
-		kube.RadixComponentLabel:    jobName,
-		kube.RadixPodIsJobStubLabel: "true",
+		kube.RadixComponentLabel:         jobName,
+		kube.RadixPodIsJobAuxObjectLabel: "true",
 	}
 }
 
@@ -86,10 +86,10 @@ func ForPodIsJobScheduler() kubelabels.Set {
 	}
 }
 
-// ForPodIsJobStub returns labels indicating that a pod is a job stub,
-func ForPodIsJobStub() kubelabels.Set {
+// ForIsJobAuxObject returns labels indicating that an object is a job auxiliary object,
+func ForIsJobAuxObject() kubelabels.Set {
 	return kubelabels.Set{
-		kube.RadixPodIsJobStubLabel: "true",
+		kube.RadixPodIsJobAuxObjectLabel: "true",
 	}
 }
 

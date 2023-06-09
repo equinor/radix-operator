@@ -445,6 +445,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	err = deploy.garbageCollectRadixBatchesNoLongerInSpec()
 	if err != nil {
 		return err
@@ -624,34 +629,35 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	return nil
 }
 
-func (deploy *Deployment) createOrUpdateJobStub(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
-	currentJobStubDeployment, err := deploy.kubeutil.GetDeployment(desiredDeployment.Namespace, getJobStubName(desiredDeployment.Name))
-	var desiredJobStubDeployment *appsv1.Deployment
+func (deploy *Deployment) createOrUpdateJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(deployComponent, desiredDeployment)
 	if err != nil {
-		if !k8sErrors.IsNotFound(err) {
-			return nil, nil, err
-		}
-		currentJobStubDeployment = nil
-		if desiredDeployment == nil {
-			return nil, nil, nil
-		}
-		desiredJobStubDeployment, err = deploy.createJobStubDeployment(deployComponent)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		desiredJobStubDeployment = currentJobStubDeployment.DeepCopy()
+		return nil, nil, err
 	}
-	if desiredDeployment == nil {
-		return currentJobStubDeployment, nil, nil
-	}
-	desiredJobStubDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
-	desiredJobStubDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	desiredJobAuxDeployment.ObjectMeta.Labels = deploy.getJobAuxDeploymentLabels(deployComponent)
+	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
+	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
+	// Copy volumes and volume mounts from desired deployment to job aux deployment
+	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
+	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	// Remove volumes and volume mounts from job scheduler deployment
 	desiredDeployment.Spec.Template.Spec.Volumes = nil
 	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
-	return currentJobStubDeployment, desiredJobStubDeployment, nil
+
+	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
 }
 
-func getJobStubName(jobName string) string {
-	return fmt.Sprintf("%s-stub", jobName)
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return nil, deploy.createJobAuxDeployment(deployComponent), nil
+		}
+		return nil, nil, err
+	}
+	return currentJobAuxDeployment, currentJobAuxDeployment.DeepCopy(), nil
+}
+
+func getJobAuxObjectName(jobName string) string {
+	return fmt.Sprintf("%s-aux", jobName)
 }

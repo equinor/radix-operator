@@ -62,7 +62,7 @@ const (
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
 	RadixPodIsJobSchedulerLabel        = "is-job-scheduler-pod"
-	RadixPodIsJobStubLabel             = "is-job-stub-pod"
+	RadixPodIsJobAuxObjectLabel        = "is-job-aux-object"
 	IsServiceAccountForComponent       = "is-service-account-for-component"
 	RadixBatchNameLabel                = "radix-batch-name"
 	RadixBatchJobNameLabel             = "radix-batch-job-name"
