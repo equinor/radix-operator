@@ -54,6 +54,11 @@ func (kubeutil *Kube) ApplyDeployment(namespace string, currentDeployment *appsv
 	return nil
 }
 
+// DeleteDeployment Delete deployment
+func (kubeutil *Kube) DeleteDeployment(namespace, name string) error {
+	return kubeutil.KubeClient().AppsV1().Deployments(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+}
+
 // ListDeployments List deployments
 func (kubeutil *Kube) ListDeployments(namespace string) ([]*appsv1.Deployment, error) {
 	return kubeutil.ListDeploymentsWithSelector(namespace, "")

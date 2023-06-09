@@ -59,7 +59,7 @@ func (deploy *Deployment) handleJobStub(deployComponent v1.RadixCommonDeployComp
 		return err
 	}
 	if currentJobStubDeployment != nil && desiredJobStubDeployment == nil {
-		return deploy.kubeutil.KubeClient().AppsV1().Deployments(deploy.radixDeployment.Namespace).Delete(context.Background(), currentJobStubDeployment.Name, metav1.DeleteOptions{})
+		return deploy.kubeutil.DeleteDeployment(deploy.radixDeployment.Namespace, currentJobStubDeployment.Name)
 	}
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentJobStubDeployment, desiredJobStubDeployment)
 }
@@ -157,6 +157,8 @@ func (deploy *Deployment) createJobStubDeployment(deployComponent v1.RadixCommon
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.ServiceAccountName = utils.GetComponentServiceAccountName(jobName)
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "nginxinc/nginx-unprivileged"
 	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = []corev1.ContainerPort{{ContainerPort: 8080, Name: "http"}}
