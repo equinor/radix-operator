@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func TestHorizontalScalerChangePDB(t *testing.T) {
+func TestHorizontalScaleChangePDB(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
 	anyAppName := "anyappname"
@@ -48,7 +48,7 @@ func TestHorizontalScalerChangePDB(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+	expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 	assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 	assert.Equal(t, componentOneName, deployments.Items[0].Name, "app deployment not there")
 
@@ -76,12 +76,12 @@ func TestHorizontalScalerChangePDB(t *testing.T) {
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
 
-	//Check PDB is removed
+	// Check PDB is removed
 	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(pdbs.Items))
 }
@@ -121,7 +121,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+	expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 	assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 	assert.Equal(t, componentOneName, deployments.Items[0].Name, "app deployment not there")
 
@@ -149,12 +149,12 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesPdbChange(t *testing.T
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
 
-	//Check PDB is removed
+	// Check PDB is removed
 	pdbs, _ = client.PolicyV1().PodDisruptionBudgets(utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 0, len(pdbs.Items))
 }
