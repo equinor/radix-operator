@@ -1249,16 +1249,17 @@ func createRandomPvc(props expectedPvcScProperties, namespace, componentName str
 	})
 }
 
-func setStorageClassMountOption(sc *storagev1.StorageClass, key, value string) {
-	mountOptions := sc.MountOptions
-	for i, option := range mountOptions {
-		if strings.Contains(option, key) {
-			mountOptions[i] = fmt.Sprintf("%s=%s", key, value)
-			return
-		}
-	}
-	fmt.Printf("MountOption %s not found for the storage class", key)
-}
+// TODO: this option does not work with blobfuse2 in some reason - investigate to make use separate disk volume for csi volumes
+// func setStorageClassMountOption(sc *storagev1.StorageClass, key, value string) {
+// 	mountOptions := sc.MountOptions
+// 	for i, option := range mountOptions {
+// 		if strings.Contains(option, key) {
+// 			mountOptions[i] = fmt.Sprintf("%s=%s", key, value)
+// 			return
+// 		}
+// 	}
+// 	fmt.Printf("MountOption %s not found for the storage class", key)
+// }
 
 func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expectedPvcScProperties {
 	appName := "any-app"
