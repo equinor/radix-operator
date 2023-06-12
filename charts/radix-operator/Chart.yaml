@@ -1,7 +1,7 @@
 apiVersion: v2
 name: radix-operator
-version: 1.17.5
-appVersion: 1.37.5
+version: 1.17.6
+appVersion: 1.37.6
 kubeVersion: ">=1.22.0"
 description: Radix Operator
 keywords:
