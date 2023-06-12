@@ -847,7 +847,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
 						sc.ObjectMeta.Name = scenarioProps.expectedNewStorageClassName
 						sc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-						// setStorageClassMountOption(sc, "--tmp-path", scenarioProps.expectedNewScTmpPath)
+						// setStorageClassMountOption(sc, "--tmp-path", scenarioProps.expectedNewScTmpPath) //TODO: this option does not work with blobfuse2 in some reason - investigate to make use separate disk volume for csi volumes
 						setStorageClassStorageParameter(props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName, sc)
 						sc.Parameters[csiStorageClassProvisionerSecretNameParameter] = scenarioProps.expectedNewSecretName
 						sc.Parameters[csiStorageClassNodeStageSecretNameParameter] = scenarioProps.expectedNewSecretName
@@ -1415,7 +1415,7 @@ func createExpectedStorageClass(props expectedPvcScProperties, modify func(class
 		"-o attr_timeout=120",
 		"-o entry_timeout=120",
 		"-o negative_timeout=120",
-		// fmt.Sprintf("--tmp-path=%s", props.scTmpPath),
+		// fmt.Sprintf("--tmp-path=%s", props.scTmpPath), //TODO: this option does not work with blobfuse2 in some reason - investigate
 	}
 	idOption := getStorageClassIdMountOption(props)
 	if len(idOption) > 0 {

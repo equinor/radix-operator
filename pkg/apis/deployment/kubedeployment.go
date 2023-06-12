@@ -153,9 +153,7 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 		},
 	}
 	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
-	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
-	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = utils.BoolPtr(false)
 
 	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "bitnami/bitnami-shell:latest"
 	desiredDeployment.Spec.Template.Spec.Containers[0].Command = []string{"sh"}
