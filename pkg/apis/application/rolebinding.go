@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -40,15 +41,29 @@ func (app Application) grantAccessToCICDLogs() error {
 func (app Application) applyRbacRadixRegistration() error {
 	k := app.kubeutil
 
-	clusterrole := app.rrUserClusterRole()
-	clusterrolebinding := app.rrClusterroleBinding(clusterrole)
+	registration := app.registration
+	appName := registration.Name
 
-	err := k.ApplyClusterRole(clusterrole)
-	if err != nil {
-		return err
+	var clusterRoles []*auth.ClusterRole
+	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
+	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
+
+	clusterRoles = append(clusterRoles, app.rrUserClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"}))
+	clusterRoles = append(clusterRoles, app.rrUserClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"}))
+
+	for _, clusterRole := range clusterRoles {
+		err := k.ApplyClusterRole(clusterRole)
+		if err != nil {
+			return err
+		}
+		clusterRoleBinding := app.rrClusterroleBinding(clusterRole)
+		err = k.ApplyClusterRoleBinding(clusterRoleBinding)
+		if err != nil {
+			return err
+		}
+
 	}
-
-	return k.ApplyClusterRoleBinding(clusterrolebinding)
+	return nil
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline

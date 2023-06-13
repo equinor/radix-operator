@@ -10,11 +10,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app Application) rrUserClusterRole() *auth.ClusterRole {
-	registration := app.registration
-	appName := registration.Name
-	clusterroleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
-	return app.rrClusterrole(clusterroleName, []string{"get", "list", "watch", "update", "patch", "delete"})
+func (app Application) rrUserClusterRole(clusterRoleName string, verbs []string) *auth.ClusterRole {
+	return app.rrClusterrole(clusterRoleName, verbs)
 }
 
 func (app Application) rrPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {

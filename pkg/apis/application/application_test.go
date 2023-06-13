@@ -55,7 +55,12 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-any-app", clusterRolebindings))
 	assert.True(t, clusterRoleBindingByNameExists("radix-pipeline-rr-any-app", clusterRolebindings))
 	assert.True(t, clusterRoleBindingByNameExists("radix-tekton-rr-any-app", clusterRolebindings))
-	// TODO: check for RR reader clusterrole
+
+	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-any-app", clusterRoles))
+	assert.True(t, clusterRoleByNameExists("radix-pipeline-rr-any-app", clusterRoles))
+	assert.True(t, clusterRoleByNameExists("radix-tekton-rr-any-app", clusterRoles))
+	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-reader-any-app", clusterRoles))
 
 	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -273,9 +278,20 @@ func getClusterRoleBindingByName(name string, clusterRoleBindings *rbacv1.Cluste
 
 	return nil
 }
+func getClusterRoleByName(name string, clusterRoles *rbacv1.ClusterRoleList) *rbacv1.ClusterRole {
+	for _, clusterRole := range clusterRoles.Items {
+		if clusterRole.Name == name {
+			return &clusterRole
+		}
+	}
 
+	return nil
+}
 func clusterRoleBindingByNameExists(name string, clusterRoleBindings *rbacv1.ClusterRoleBindingList) bool {
 	return getClusterRoleBindingByName(name, clusterRoleBindings) != nil
+}
+func clusterRoleByNameExists(name string, clusterRoles *rbacv1.ClusterRoleList) bool {
+	return getClusterRoleByName(name, clusterRoles) != nil
 }
 
 func getServiceAccountByName(name string, serviceAccounts *corev1.ServiceAccountList) *corev1.ServiceAccount {
