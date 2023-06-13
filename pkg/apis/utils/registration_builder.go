@@ -28,6 +28,7 @@ type RegistrationBuilder interface {
 	WithRadixConfigFullName(string) RegistrationBuilder
 	WithConfigurationItem(string) RegistrationBuilder
 	WithRadixRegistration(*v1.RadixRegistration) RegistrationBuilder
+	WithReaderAdGroups([]string) RegistrationBuilder
 	BuildRR() *v1.RadixRegistration
 }
 
@@ -116,6 +117,12 @@ func (rb *RegistrationBuilderStruct) WithAdGroups(adGroups []string) Registratio
 	return rb
 }
 
+// WithReaderAdGroups Sets reader ad group
+func (rb *RegistrationBuilderStruct) WithReaderAdGroups(readerAdGroups []string) RegistrationBuilder {
+	rb.adGroups = readerAdGroups
+	return rb
+}
+
 // WithPublicKey Sets public key
 func (rb *RegistrationBuilderStruct) WithPublicKey(publicKey string) RegistrationBuilder {
 	rb.publicKey = strings.TrimSuffix(publicKey, "\n")
@@ -199,7 +206,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			WBS:                 rb.wbs,
 			ConfigBranch:        rb.configBranch,
 			RadixConfigFullName: rb.radixConfigFullName,
-			ConfigurationItem: rb.configurationItem,
+			ConfigurationItem:   rb.configurationItem,
 		},
 		Status: status,
 	}
@@ -219,6 +226,7 @@ func ARadixRegistration() RegistrationBuilder {
 		WithSharedSecret("NotSoSecret").
 		WithUID("1234-5678").
 		WithAdGroups([]string{"604bad73-c53b-4a95-ab17-d7953f75c8c3"}).
+		WithReaderAdGroups([]string{"40edc80d-0047-450d-b71a-970e6bb61d64"}).
 		WithOwner("radix@equinor.com").
 		WithCreator("radix@equinor.com").
 		WithWBS("A.BCD.00.999").

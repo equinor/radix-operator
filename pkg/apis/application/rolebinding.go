@@ -56,6 +56,7 @@ func (app Application) applyRbacRadixRegistration() error {
 		if err != nil {
 			return err
 		}
+
 		clusterRoleBinding := app.rrClusterroleBinding(clusterRole)
 		err = k.ApplyClusterRoleBinding(clusterRoleBinding)
 		if err != nil {

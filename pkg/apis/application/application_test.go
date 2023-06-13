@@ -39,6 +39,39 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	return handlerTestUtils, client, kubeUtil, radixClient
 }
 
+func TestOnSync_CorrectSubjectsOfClusterRoleBindings(t *testing.T) {
+	// Setup
+	tu, client, kubeUtil, radixClient := setupTest()
+	defer os.Clearenv()
+
+	// Test
+	appName := "any-app"
+	rr, err := applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
+		WithName(appName).
+		WithMachineUser(true))
+	assert.NoError(t, err)
+
+	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-any-app", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-pipeline-rr-any-app", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-tekton-rr-any-app", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-reader-any-app", clusterRoleBindings))
+
+	assert.Equal(t, getClusterRoleBindingByName("any-app-machine-user", clusterRoleBindings).Subjects[0].Name, defaults.GetMachineUserRoleName(appName))
+	assert.Equal(t, getClusterRoleBindingByName("radix-pipeline-rr-any-app", clusterRoleBindings).Subjects[0].Name, defaults.PipelineServiceAccountName)
+	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.AdGroups[0])
+	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects[1].Name, defaults.GetMachineUserRoleName(appName))
+	assert.Equal(t, getClusterRoleBindingByName("radix-tekton-rr-any-app", clusterRoleBindings).Subjects[0].Name, defaults.RadixTektonServiceAccountName)
+	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-reader-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.ReaderAdGroups[0])
+
+	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-any-app", clusterRoles))
+	assert.True(t, clusterRoleByNameExists("radix-pipeline-rr-any-app", clusterRoles))
+	assert.True(t, clusterRoleByNameExists("radix-tekton-rr-any-app", clusterRoles))
+	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-reader-any-app", clusterRoles))
+}
+
 func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
@@ -50,11 +83,12 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 		WithName(appName).
 		WithMachineUser(true))
 
-	clusterRolebindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRolebindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-any-app", clusterRolebindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-pipeline-rr-any-app", clusterRolebindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-tekton-rr-any-app", clusterRolebindings))
+	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-any-app", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-pipeline-rr-any-app", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-tekton-rr-any-app", clusterRoleBindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-reader-any-app", clusterRoleBindings))
 
 	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-any-app", clusterRoles))
