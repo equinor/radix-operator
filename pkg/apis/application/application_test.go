@@ -52,6 +52,10 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 
 	clusterRolebindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
 	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRolebindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-any-app", clusterRolebindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-pipeline-rr-any-app", clusterRolebindings))
+	assert.True(t, clusterRoleBindingByNameExists("radix-tekton-rr-any-app", clusterRolebindings))
+	// TODO: check for RR reader clusterrole
 
 	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
