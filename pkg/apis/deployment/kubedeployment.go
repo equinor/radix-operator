@@ -3,24 +3,22 @@ package deployment
 import (
 	"context"
 
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/numbers"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
-	log "github.com/sirupsen/logrus"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent) error {
@@ -148,7 +146,12 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
-				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: jobAuxDeploymentName}}},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{
+					{
+						Name:      jobAuxDeploymentName,
+						Resources: getJobAuxResources(),
+					}},
+				},
 			},
 		},
 	}
@@ -162,6 +165,15 @@ func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonD
 	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
 
 	return desiredDeployment
+}
+
+func getJobAuxResources() corev1.ResourceRequirements {
+	cpu, _ := resource.ParseQuantity("50m")
+	memory, _ := resource.ParseQuantity("50M")
+	return corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
+		Limits:   corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
+	}
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
