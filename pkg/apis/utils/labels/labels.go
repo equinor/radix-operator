@@ -31,6 +31,14 @@ func ForComponentName(componentName string) kubelabels.Set {
 	}
 }
 
+// ForJobAuxObject returns labels describing the job aux object,
+func ForJobAuxObject(jobName string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixComponentLabel:         jobName,
+		kube.RadixPodIsJobAuxObjectLabel: "true",
+	}
+}
+
 // ForComponentType returns labels describing the component type,
 // e.g. "radix-component-type": "job"
 func ForComponentType(componentType v1.RadixComponentType) kubelabels.Set {
@@ -75,6 +83,13 @@ func ForCommitId(commitId string) kubelabels.Set {
 func ForPodIsJobScheduler() kubelabels.Set {
 	return kubelabels.Set{
 		kube.RadixPodIsJobSchedulerLabel: "true",
+	}
+}
+
+// ForIsJobAuxObject returns labels indicating that an object is a job auxiliary object,
+func ForIsJobAuxObject() kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixPodIsJobAuxObjectLabel: "true",
 	}
 }
 

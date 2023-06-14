@@ -206,9 +206,9 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 
 			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
 				t.Parallel()
-				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
-				assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
+				allDeployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+				deployments := getDeploymentsForRadixComponents(allDeployments.Items)
+				assert.Equal(t, 3, len(deployments), "Number of deployments wasn't as expected")
 				assert.Equal(t, componentNameApp, getDeploymentByName(componentNameApp, deployments).Name, "app deployment not there")
 
 				if !componentsExist {
@@ -516,14 +516,16 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			envNamespace := utils.GetEnvironmentNamespace(appName, environment)
 
 			t.Run(fmt.Sprintf("%s: validate deploy", testScenario), func(t *testing.T) {
-				t.Parallel()
-				deployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-				expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
-
+				allDeployments, _ := kubeclient.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
+				deployments := getDeploymentsForRadixComponents(allDeployments.Items)
+				jobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
 				if jobsExist {
-					assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
+					assert.Equal(t, 1, len(deployments), "Number of deployments wasn't as expected")
+					assert.Equal(t, 1, len(jobAuxDeployments), "Unexpected job aux deployments component amount")
+
 				} else {
-					assert.Equal(t, 2, len(expectedDeployments), "Number of deployments wasn't as expected")
+					assert.Equal(t, 2, len(deployments), "Number of deployments wasn't as expected")
+					assert.Equal(t, 2, len(jobAuxDeployments), "Unexpected job aux deployments component amount")
 				}
 
 				assert.Equal(t, jobName, getDeploymentByName(jobName, deployments).Name, "app deployment not there")
@@ -571,13 +573,11 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("%s: validate hpa", testScenario), func(t *testing.T) {
-				t.Parallel()
 				hpas, _ := kubeclient.AutoscalingV2().HorizontalPodAutoscalers(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 0, len(hpas.Items), "Number of horizontal pod autoscaler wasn't as expected")
 			})
 
 			t.Run(fmt.Sprintf("%s: validate service", testScenario), func(t *testing.T) {
-				t.Parallel()
 				services, _ := kubeclient.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				expectedServices := getServicesForRadixComponents(&services.Items)
 				var jobNames []string
@@ -598,7 +598,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("%s: validate secrets", testScenario), func(t *testing.T) {
-				t.Parallel()
 				secrets, _ := kubeclient.CoreV1().Secrets(envNamespace).List(context.TODO(), metav1.ListOptions{})
 
 				if !jobsExist {
@@ -621,7 +620,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("%s: validate service accounts", testScenario), func(t *testing.T) {
-				t.Parallel()
 				serviceAccounts, _ := kubeclient.CoreV1().ServiceAccounts(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 			})
@@ -634,7 +632,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("%s validate rolebindings", testScenario), func(t *testing.T) {
-				t.Parallel()
 				rolebindings, _ := kubeclient.RbacV1().RoleBindings(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 2, len(rolebindings.Items), "Number of rolebindings was not expected")
 
@@ -647,7 +644,6 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 			})
 
 			t.Run(fmt.Sprintf("%s: validate networkpolicy", testScenario), func(t *testing.T) {
-				t.Parallel()
 				np, _ := kubeclient.NetworkingV1().NetworkPolicies(envNamespace).List(context.TODO(), metav1.ListOptions{})
 				assert.Equal(t, 4, len(np.Items), "Number of networkpolicy was not expected")
 			})
@@ -665,11 +661,26 @@ func getServicesForRadixComponents(services *[]corev1.Service) []corev1.Service 
 	return result
 }
 
-func getDeploymentsForRadixComponents(deployments *[]appsv1.Deployment) []appsv1.Deployment {
+func getDeploymentsForRadixComponents(deployments []appsv1.Deployment) []appsv1.Deployment {
 	var result []appsv1.Deployment
-	for _, depl := range *deployments {
+	for _, depl := range deployments {
 		if _, ok := depl.Labels[kube.RadixComponentLabel]; ok {
+			if _, ok := depl.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
+				continue
+			}
 			result = append(result, depl)
+		}
+	}
+	return result
+}
+
+func getDeploymentsForRadixJobAux(deployments []appsv1.Deployment) []appsv1.Deployment {
+	var result []appsv1.Deployment
+	for _, depl := range deployments {
+		if _, ok := depl.Labels[kube.RadixComponentLabel]; ok {
+			if _, ok := depl.Labels[kube.RadixPodIsJobAuxObjectLabel]; ok {
+				result = append(result, depl)
+			}
 		}
 	}
 	return result
@@ -833,7 +844,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
@@ -861,7 +872,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
 
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
@@ -885,7 +896,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, map[string]string{kube.RadixComponentLabel: componentName, kube.IsServiceAccountForComponent: "true", "azure.workload.identity/use": "true"}, sa.Labels)
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, utils.GetComponentServiceAccountName(componentName), expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		assert.Equal(t, "true", expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"])
@@ -901,7 +912,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
 
 		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace(appName, envName)).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments = getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 		_, hasLabel := expectedDeployments[0].Spec.Template.Labels["azure.workload.identity/use"]
@@ -1010,7 +1021,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
@@ -1023,15 +1034,15 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		// Initial deployment, app is a component
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
-				utils.NewDeployComponentBuilder().WithName("app")).
+				utils.NewDeployComponentBuilder().WithName("comp1")).
 			WithJobComponents().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 0, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		allDeployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
@@ -1039,30 +1050,35 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents().
 			WithJobComponents(
-				utils.NewDeployJobComponentBuilder().WithName("app")).
+				utils.NewDeployJobComponentBuilder().WithName("job1")).
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
-		assert.Equal(t, 1, len(expectedDeployments))
-		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
-		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		allDeployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(),
+			metav1.ListOptions{})
+		expectedJobDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
+		assert.Equal(t, 1, len(expectedJobDeployments))
+		assert.Equal(t, utils.BoolPtr(true), expectedJobDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, defaults.RadixJobSchedulerServiceName, expectedJobDeployments[0].Spec.Template.Spec.ServiceAccountName)
+		expectedJobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
+		assert.Equal(t, 1, len(expectedJobAuxDeployments))
+		assert.Equal(t, utils.BoolPtr(false), expectedJobAuxDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
+		assert.Equal(t, defaultServiceAccountName, expectedJobAuxDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
 		// And change app back to a component
 		applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
 			WithComponents(
-				utils.NewDeployComponentBuilder().WithName("app")).
+				utils.NewDeployComponentBuilder().WithName("comp1")).
 			WithJobComponents().
 			WithAppName("any-other-app").
 			WithEnvironment("test"))
 
 		serviceAccounts, _ = client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
-		deployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments = getDeploymentsForRadixComponents(&deployments.Items)
+		allDeployments, _ = client.AppsV1().Deployments(utils.GetEnvironmentNamespace("any-other-app", "test")).List(context.TODO(), metav1.ListOptions{})
+		expectedDeployments = getDeploymentsForRadixComponents(allDeployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments))
 		assert.Equal(t, utils.BoolPtr(false), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaultServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
@@ -1078,7 +1094,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-github-webhook", "test")).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixGithubWebhookServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 
@@ -1094,7 +1110,7 @@ func TestObjectSynced_ServiceAccountSettingsAndRbac(t *testing.T) {
 		serviceAccounts, _ := client.CoreV1().ServiceAccounts(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.TODO(), metav1.ListOptions{})
 		assert.Equal(t, 1, len(serviceAccounts.Items), "Number of service accounts was not expected")
 		deployments, _ := client.AppsV1().Deployments(utils.GetEnvironmentNamespace("radix-api", "test")).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, utils.BoolPtr(true), expectedDeployments[0].Spec.Template.Spec.AutomountServiceAccountToken)
 		assert.Equal(t, defaults.RadixAPIServiceAccountName, expectedDeployments[0].Spec.Template.Spec.ServiceAccountName)
 	})
@@ -1123,7 +1139,7 @@ func TestObjectSynced_MultiComponentWithSameName_ContainsOneComponent(t *testing
 
 	envNamespace := utils.GetEnvironmentNamespace("app", "test")
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+	expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 	assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 
 	services, _ := client.CoreV1().Services(envNamespace).List(context.TODO(), metav1.ListOptions{})
@@ -1374,9 +1390,9 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 	envNamespace := utils.GetEnvironmentNamespace("anyapp1", "test")
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	firstDeployment := getDeploymentByName("first", deployments)
+	firstDeployment := getDeploymentByName("first", deployments.Items)
 	assert.Equal(t, "first_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
-	secondDeployment := getDeploymentByName("second", deployments)
+	secondDeployment := getDeploymentByName("second", deployments.Items)
 	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 
 	// Test second deployment
@@ -1393,9 +1409,9 @@ func Test_UpdateAndAddDeployment_DeploymentAnnotationIsCorrectlyUpdated(t *testi
 				WithAlwaysPullImageOnDeploy(false)))
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	firstDeployment = getDeploymentByName("first", deployments)
+	firstDeployment = getDeploymentByName("first", deployments.Items)
 	assert.Equal(t, "second_deployment", firstDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
-	secondDeployment = getDeploymentByName("second", deployments)
+	secondDeployment = getDeploymentByName("second", deployments.Items)
 	assert.Empty(t, secondDeployment.Spec.Template.Annotations[kube.RadixDeploymentNameAnnotation])
 }
 
@@ -1580,7 +1596,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	envNamespace := utils.GetEnvironmentNamespace(anyAppName, anyEnvironmentName)
 
 	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-	expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+	expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 	assert.Equal(t, 3, len(expectedDeployments), "Number of deployments wasn't as expected")
 	assert.Equal(t, componentOneName, deployments.Items[0].Name, "app deployment not there")
 
@@ -1601,7 +1617,7 @@ func TestObjectSynced_MultiComponentToOneComponent_HandlesChange(t *testing.T) {
 	t.Run("validate deploy", func(t *testing.T) {
 		t.Parallel()
 		deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
-		expectedDeployments := getDeploymentsForRadixComponents(&deployments.Items)
+		expectedDeployments := getDeploymentsForRadixComponents(deployments.Items)
 		assert.Equal(t, 1, len(expectedDeployments), "Number of deployments wasn't as expected")
 		assert.Equal(t, componentTwoName, deployments.Items[0].Name, "app deployment not there")
 	})
@@ -2426,7 +2442,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 	teardownTest()
 }
 
-//func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T) {
+// func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T) {
 //	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 //
 //	// Setup
@@ -2483,7 +2499,7 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 //	assert.Equal(t, 4, len(clusterSpecificIngress.ObjectMeta.Annotations))
 //	assert.Equal(t, 4, len(activeClusterIngress.ObjectMeta.Annotations))
 //
-//}
+// }
 
 func TestHPAConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
@@ -2672,11 +2688,11 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 
 	assert.Nil(t, err)
 	deployments, _ := kubeclient.AppsV1().Deployments("app-env").List(context.TODO(), metav1.ListOptions{})
-	comp := getDeploymentByName("comp", deployments)
+	comp := getDeploymentByName("comp", deployments.Items)
 	assert.Len(t, comp.Spec.Template.Spec.Containers[0].Ports, 2)
 	portTestFunc("port1", 8001, comp.Spec.Template.Spec.Containers[0].Ports)
 	portTestFunc("port2", 8002, comp.Spec.Template.Spec.Containers[0].Ports)
-	job := getDeploymentByName("job", deployments)
+	job := getDeploymentByName("job", deployments.Items)
 	assert.Len(t, job.Spec.Template.Spec.Containers[0].Ports, 1)
 	portTestFunc("scheduler-port", 8080, job.Spec.Template.Spec.Containers[0].Ports)
 
@@ -2695,10 +2711,10 @@ func TestObjectUpdated_UpdatePort_DeploymentPodPortSpecIsCorrect(t *testing.T) {
 
 	assert.Nil(t, err)
 	deployments, _ = kubeclient.AppsV1().Deployments("app-env").List(context.TODO(), metav1.ListOptions{})
-	comp = getDeploymentByName("comp", deployments)
+	comp = getDeploymentByName("comp", deployments.Items)
 	assert.Len(t, comp.Spec.Template.Spec.Containers[0].Ports, 1)
 	portTestFunc("port2", 9002, comp.Spec.Template.Spec.Containers[0].Ports)
-	job = getDeploymentByName("job", deployments)
+	job = getDeploymentByName("job", deployments.Items)
 	assert.Len(t, job.Spec.Template.Spec.Containers[0].Ports, 1)
 	portTestFunc("scheduler-port", 9090, job.Spec.Template.Spec.Containers[0].Ports)
 }
@@ -3636,8 +3652,9 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-	deployment, _ := client.AppsV1().Deployments(envNamespace).Get(context.Background(), jobName, metav1.GetOptions{})
-	require.NotNil(t, deployment)
+	deploymentList, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: radixlabels.ForJobAuxObject(jobName).String()})
+	require.Len(t, deploymentList.Items, 1)
+	deployment := deploymentList.Items[0]
 	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3, "incorrect number of volumes")
 	assert.Len(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts, 0, "incorrect number of volumemounts")
 }
@@ -3678,8 +3695,8 @@ func Test_ComponentSynced_SecretRefs(t *testing.T) {
 	require.Equal(t, compName, deployments.Items[0].Name)
 	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Volumes, 2, "incorrect number of volumes")
 	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 2, "incorrect number of volumemounts")
-	assert.True(t, envVariableByNameExistOnDeployment("SECRET1", compName, deployments), "SECRET1 does not exist")
-	assert.True(t, envVariableByNameExistOnDeployment("SECRET2", compName, deployments), "SECRET2 does not exist")
+	assert.True(t, envVariableByNameExistOnDeployment("SECRET1", compName, deployments.Items), "SECRET1 does not exist")
+	assert.True(t, envVariableByNameExistOnDeployment("SECRET2", compName, deployments.Items), "SECRET2 does not exist")
 }
 
 func Test_JobSynced_SecretRefs(t *testing.T) {
@@ -3712,13 +3729,17 @@ func Test_JobSynced_SecretRefs(t *testing.T) {
 	require.NoError(t, err)
 
 	envNamespace := utils.GetEnvironmentNamespace(appName, environment)
-	deployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
-	require.NotNil(t, deployments)
-	require.Equal(t, jobName, deployments.Items[0].Name)
-	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Volumes, 2, "number of volumes")
-	assert.Len(t, deployments.Items[0].Spec.Template.Spec.Containers[0].VolumeMounts, 2, "number of volumemounts")
-	assert.False(t, envVariableByNameExistOnDeployment("SECRET1", jobName, deployments), "SECRET1 exist")
-	assert.False(t, envVariableByNameExistOnDeployment("SECRET2", jobName, deployments), "SECRET2 exist")
+	allDeployments, _ := client.AppsV1().Deployments(envNamespace).List(context.Background(), metav1.ListOptions{})
+	jobDeployments := getDeploymentsForRadixComponents(allDeployments.Items)
+	jobAuxDeployments := getDeploymentsForRadixJobAux(allDeployments.Items)
+	require.Len(t, jobDeployments, 1)
+	require.Len(t, jobAuxDeployments, 1)
+	require.Equal(t, "job", jobDeployments[0].Name)
+	require.Equal(t, "job-aux", jobAuxDeployments[0].Name)
+	assert.Len(t, jobAuxDeployments[0].Spec.Template.Spec.Volumes, 2, "number of volumes")
+	assert.Len(t, jobAuxDeployments[0].Spec.Template.Spec.Containers[0].VolumeMounts, 2, "number of volume mounts")
+	assert.False(t, envVariableByNameExistOnDeployment("SECRET1", jobName, jobDeployments), "SECRET1 exist")
+	assert.False(t, envVariableByNameExistOnDeployment("SECRET2", jobName, jobDeployments), "SECRET2 exist")
 }
 
 func TestRadixBatch_IsGarbageCollected(t *testing.T) {
@@ -3879,11 +3900,11 @@ func applyDeploymentUpdateWithSync(tu *test.Utils, client kubernetes.Interface, 
 	return nil
 }
 
-func envVariableByNameExistOnDeployment(name, deploymentName string, deployments *appsv1.DeploymentList) bool {
+func envVariableByNameExistOnDeployment(name, deploymentName string, deployments []appsv1.Deployment) bool {
 	return envVariableByNameExist(name, getContainerByName(deploymentName, getDeploymentByName(deploymentName, deployments).Spec.Template.Spec.Containers).Env)
 }
 
-func getEnvVariableByNameOnDeployment(kubeclient kubernetes.Interface, name, deploymentName string, deployments *appsv1.DeploymentList) string {
+func getEnvVariableByNameOnDeployment(kubeclient kubernetes.Interface, name, deploymentName string, deployments []appsv1.Deployment) string {
 	deployment := getDeploymentByName(deploymentName, deployments)
 	container := getContainerByName(deploymentName, deployment.Spec.Template.Spec.Containers)
 	envVarsConfigMapName := kube.GetEnvVarsConfigMapName(container.Name)
@@ -3905,13 +3926,13 @@ func getRadixDeploymentByName(name string, deployments *v1.RadixDeploymentList) 
 	return nil
 }
 
-func deploymentByNameExists(name string, deployments *appsv1.DeploymentList) bool {
+func deploymentByNameExists(name string, deployments []appsv1.Deployment) bool {
 	return getDeploymentByName(name, deployments) != nil
 }
 
-func getDeploymentByName(name string, deployments *appsv1.DeploymentList) *appsv1.Deployment {
-	for _, deployment := range deployments.Items {
-		if deployment.Name == name {
+func getDeploymentByName(name string, deployments []appsv1.Deployment) *appsv1.Deployment {
+	for _, deployment := range deployments {
+		if deployment.GetName() == name {
 			return &deployment
 		}
 	}

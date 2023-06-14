@@ -20,7 +20,9 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	monitoring "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	log "github.com/sirupsen/logrus"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
@@ -443,6 +445,11 @@ func (deploy *Deployment) garbageCollectComponentsNoLongerInSpec() error {
 		return err
 	}
 
+	err = deploy.garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec()
+	if err != nil {
+		return err
+	}
+
 	err = deploy.garbageCollectRadixBatchesNoLongerInSpec()
 	if err != nil {
 		return err
@@ -518,7 +525,7 @@ func getLabelSelectorForBlobVolumeMountSecret(component v1.RadixCommonDeployComp
 }
 
 func getLabelSelectorForCsiAzureVolumeMountSecret(component v1.RadixCommonDeployComponent) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure), string(v1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s)", kube.RadixComponentLabel, component.GetName(), kube.RadixMountTypeLabel, string(v1.MountTypeBlobCsiAzure), string(v1.MountTypeBlob2CsiAzure), string(v1.MountTypeFileCsiAzure))
 }
 
 func (deploy *Deployment) maintainHistoryLimit() {
@@ -620,4 +627,37 @@ func (deploy *Deployment) syncDeploymentForRadixComponent(component v1.RadixComm
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) createOrUpdateJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.getCurrentAndDesiredJobAuxDeployment(deployComponent, desiredDeployment)
+	if err != nil {
+		return nil, nil, err
+	}
+	desiredJobAuxDeployment.ObjectMeta.Labels = deploy.getJobAuxDeploymentLabels(deployComponent)
+	desiredJobAuxDeployment.Spec.Template.Labels = deploy.getJobAuxDeploymentPodLabels(deployComponent)
+	desiredJobAuxDeployment.Spec.Template.Spec.ServiceAccountName = (&radixComponentServiceAccountSpec{component: deployComponent}).ServiceAccountName()
+	// Copy volumes and volume mounts from desired deployment to job aux deployment
+	desiredJobAuxDeployment.Spec.Template.Spec.Volumes = desiredDeployment.Spec.Template.Spec.Volumes
+	desiredJobAuxDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	// Remove volumes and volume mounts from job scheduler deployment
+	desiredDeployment.Spec.Template.Spec.Volumes = nil
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
+
+	return currentJobAuxDeployment, desiredJobAuxDeployment, nil
+}
+
+func (deploy *Deployment) getCurrentAndDesiredJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) (*appsv1.Deployment, *appsv1.Deployment, error) {
+	currentJobAuxDeployment, err := deploy.kubeutil.GetDeployment(desiredDeployment.Namespace, getJobAuxObjectName(desiredDeployment.Name))
+	if err != nil {
+		if k8sErrors.IsNotFound(err) {
+			return nil, deploy.createJobAuxDeployment(deployComponent), nil
+		}
+		return nil, nil, err
+	}
+	return currentJobAuxDeployment, currentJobAuxDeployment.DeepCopy(), nil
+}
+
+func getJobAuxObjectName(jobName string) string {
+	return fmt.Sprintf("%s-aux", jobName)
 }

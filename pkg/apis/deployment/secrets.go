@@ -152,7 +152,7 @@ func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentN
 					return nil, err
 				}
 			}
-		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
+		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure, radixv1.MountTypeFileCsiAzure:
 			{
 				secretName, accountKey, accountName := deploy.getCsiAzureVolumeMountCredsSecrets(namespace, componentName, volumeMount.Name)
 				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
@@ -374,7 +374,7 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 				kube.RadixComponentLabel:           componentName,
 				kube.RadixSecretRefTypeLabel:       string(radixv1.RadixSecretRefTypeAzureKeyVault),
 				kube.RadixSecretRefNameLabel:       strings.ToLower(azKeyVaultName),
-				secretUsedBySecretStoreDriverLabel: "true", //used by CSI Azure Key vault secret store driver for secret rotation
+				secretUsedBySecretStoreDriverLabel: "true", // used by CSI Azure Key vault secret store driver for secret rotation
 			},
 		},
 	}
@@ -446,7 +446,7 @@ func IsSecretRequiredForClientCertificate(clientCertificate *radixv1.ClientCerti
 	return false
 }
 
-//GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
+// GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
 func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSecretNames []string) error {
 	for _, secret := range secrets {
 		if slice.ContainsString(excludeSecretNames, secret.Name) {

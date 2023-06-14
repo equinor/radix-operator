@@ -3,6 +3,8 @@ package deployment
 import (
 	"context"
 
+	"github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,4 +41,27 @@ func (deploy *Deployment) garbageCollectScheduledJobsNoLongerInSpec() error {
 	}
 
 	return nil
+}
+
+func (deploy *Deployment) garbageCollectScheduledJobAuxDeploymentsNoLongerInSpec() error {
+	jobAuxDeployments, err := deploy.kubeutil.ListDeploymentsWithSelector(deploy.radixDeployment.GetNamespace(), labels.ForIsJobAuxObject().String())
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, deployment := range jobAuxDeployments {
+		componentName, ok := RadixComponentNameFromComponentLabel(deployment)
+		if !ok {
+			continue
+		}
+
+		// Delete job aux deployment if a job is no longed defined in RD job section
+		if !componentName.ExistInDeploymentSpecJobList(deploy.radixDeployment) {
+			err = deploy.kubeutil.DeleteDeployment(deploy.radixDeployment.GetNamespace(), deployment.Name)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Concat(errs)
 }

@@ -62,6 +62,7 @@ const (
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
 	RadixPodIsJobSchedulerLabel        = "is-job-scheduler-pod"
+	RadixPodIsJobAuxObjectLabel        = "is-job-aux-object"
 	IsServiceAccountForComponent       = "is-service-account-for-component"
 	RadixBatchNameLabel                = "radix-batch-name"
 	RadixBatchJobNameLabel             = "radix-batch-job-name"
@@ -71,7 +72,7 @@ const (
 	// Pods required to run on nodes with this taint must add a toleration with effect NoSchedule
 	NodeTaintGpuCountKey = "radix-node-gpu-count"
 
-	//RadixBranchDeprecated Only for backward compatibility
+	// RadixBranchDeprecated Only for backward compatibility
 	RadixBranchDeprecated = "radix-branch"
 )
 
@@ -87,9 +88,9 @@ const (
 type RadixConfigMapType string
 
 const (
-	//EnvVarsConfigMap ConfigMap contains environment variables
+	// EnvVarsConfigMap ConfigMap contains environment variables
 	EnvVarsConfigMap RadixConfigMapType = "env-vars"
-	//EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
+	// EnvVarsMetadataConfigMap ConfigMap contains environment variables metadata
 	EnvVarsMetadataConfigMap RadixConfigMapType = "env-vars-metadata"
 	// RadixPipelineResultConfigMap Label of a ConfigMap, which keeps a Radix pipeline result
 	RadixPipelineResultConfigMap RadixConfigMapType = "radix-pipeline-result"
@@ -120,7 +121,7 @@ type Kube struct {
 	ServiceAccountLister     coreListers.ServiceAccountLister
 	LimitRangeLister         coreListers.LimitRangeLister
 	JobLister                batchListers.JobLister
-	//Do not use ConfigMapLister as it were cases it return outdated data
+	// Do not use ConfigMapLister as it were cases it return outdated data
 }
 
 var logger *log.Entry

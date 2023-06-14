@@ -272,7 +272,7 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	})
 }
 
-//Blobfuse support has been deprecated, this test to be deleted, when Blobfuse logic is deleted
+// Blobfuse support has been deprecated, this test to be deleted, when Blobfuse logic is deleted
 func (suite *VolumeMountTestSuite) Test_BlobfuseAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
@@ -847,7 +847,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 					createExpectedStorageClass(props, func(sc *storagev1.StorageClass) {
 						sc.ObjectMeta.Name = scenarioProps.expectedNewStorageClassName
 						sc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = scenarioProps.changedNewRadixVolumeName
-						setStorageClassMountOption(sc, "--tmp-path", scenarioProps.expectedNewScTmpPath)
+						// setStorageClassMountOption(sc, "--tmp-path", scenarioProps.expectedNewScTmpPath) //TODO: this option does not work with blobfuse2 in some reason - investigate to make use separate disk volume for csi volumes
 						setStorageClassStorageParameter(props.radixVolumeMountType, scenarioProps.changedNewRadixVolumeStorageName, sc)
 						sc.Parameters[csiStorageClassProvisionerSecretNameParameter] = scenarioProps.expectedNewSecretName
 						sc.Parameters[csiStorageClassNodeStageSecretNameParameter] = scenarioProps.expectedNewSecretName
@@ -1028,7 +1028,7 @@ func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureResources() {
 				putExistingDeploymentVolumesScenarioDataToFakeCluster(&scenario, deployment)
 				desiredDeployment := getDesiredDeployment(componentName, scenario.volumes)
 
-				//action
+				// action
 				err := deployment.createOrUpdateCsiAzureVolumeResources(desiredDeployment)
 				assert.Nil(t, err)
 
@@ -1249,16 +1249,17 @@ func createRandomPvc(props expectedPvcScProperties, namespace, componentName str
 	})
 }
 
-func setStorageClassMountOption(sc *storagev1.StorageClass, key, value string) {
-	mountOptions := sc.MountOptions
-	for i, option := range mountOptions {
-		if strings.Contains(option, key) {
-			mountOptions[i] = fmt.Sprintf("%s=%s", key, value)
-			return
-		}
-	}
-	fmt.Printf("MountOption %s not found for the storage class", key)
-}
+// TODO: this option does not work with blobfuse2 in some reason - investigate to make use separate disk volume for csi volumes
+// func setStorageClassMountOption(sc *storagev1.StorageClass, key, value string) {
+// 	mountOptions := sc.MountOptions
+// 	for i, option := range mountOptions {
+// 		if strings.Contains(option, key) {
+// 			mountOptions[i] = fmt.Sprintf("%s=%s", key, value)
+// 			return
+// 		}
+// 	}
+// 	fmt.Printf("MountOption %s not found for the storage class", key)
+// }
 
 func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expectedPvcScProperties {
 	appName := "any-app"
@@ -1275,7 +1276,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-blob-some-component-volume1-storage1",
 		radixVolumeMountType:    v1.MountTypeBlobCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadWriteMany, //default access mode
+		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
 		volumeName:              "csi-az-blob-some-component-volume1-storage1",
 		scProvisioner:           v1.ProvisionerBlobCsiAzure,
 		scSecretName:            "some-component-volume1-csiazurecreds",
@@ -1304,7 +1305,7 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 		storageClassName:        "sc-any-app-some-env-csi-az-file-some-component-volume2-storage2",
 		radixVolumeMountType:    v1.MountTypeFileCsiAzure,
 		requestsVolumeMountSize: "1Mi",
-		volumeAccessMode:        corev1.ReadWriteMany, //default access mode
+		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
 		volumeName:              "csi-az-file-some-component-volume2-storage2",
 		scProvisioner:           v1.ProvisionerFileCsiAzure,
 		scSecretName:            "some-component-volume2-csiazurecreds",
@@ -1383,13 +1384,13 @@ func buildRd(appName string, environment string, componentName string, radixVolu
 func createPvc(namespace, componentName string, mountType v1.MountType, modify func(*corev1.PersistentVolumeClaim)) corev1.PersistentVolumeClaim {
 	pvc := corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      utils.RandString(10), //Set in test scenario
+			Name:      utils.RandString(10), // Set in test scenario
 			Namespace: namespace,
 			Labels: map[string]string{
 				kube.RadixAppLabel:             appName,
 				kube.RadixComponentLabel:       componentName,
 				kube.RadixMountTypeLabel:       string(mountType),
-				kube.RadixVolumeMountNameLabel: utils.RandString(10), //Set in test scenario
+				kube.RadixVolumeMountNameLabel: utils.RandString(10), // Set in test scenario
 			},
 		},
 	}
@@ -1415,7 +1416,7 @@ func createExpectedStorageClass(props expectedPvcScProperties, modify func(class
 		"-o attr_timeout=120",
 		"-o entry_timeout=120",
 		"-o negative_timeout=120",
-		fmt.Sprintf("--tmp-path=%s", props.scTmpPath),
+		// fmt.Sprintf("--tmp-path=%s", props.scTmpPath), //TODO: this option does not work with blobfuse2 in some reason - investigate
 	}
 	idOption := getStorageClassIdMountOption(props)
 	if len(idOption) > 0 {
@@ -1456,6 +1457,10 @@ func setStorageClassStorageParameter(radixVolumeMountType v1.MountType, storageN
 	switch radixVolumeMountType {
 	case v1.MountTypeBlobCsiAzure:
 		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
+		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse
+	case v1.MountTypeBlob2CsiAzure:
+		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
+		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse2
 	case v1.MountTypeFileCsiAzure:
 		sc.Parameters[csiStorageClassShareNameParameter] = storageName
 	}
@@ -1487,7 +1492,7 @@ func createExpectedPvc(props expectedPvcScProperties, modify func(*corev1.Persis
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{props.volumeAccessMode},
 			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)}, //it seems correct number is not needed for CSI driver
+				Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(props.requestsVolumeMountSize)}, // it seems correct number is not needed for CSI driver
 			},
 			StorageClassName: utils.StringPtr(props.storageClassName),
 		},
