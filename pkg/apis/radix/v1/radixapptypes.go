@@ -792,7 +792,7 @@ func IsKnownVolumeMount(volumeMount string) bool {
 // IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
 func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
-	case string(MountTypeBlobCsiAzure), string(MountTypeBlob2CsiAzure), string(MountTypeFileCsiAzure):
+	case string(MountTypeBlobCsiAzure), string(MountTypeBlob2CsiAzure), string(MountTypeNfsCsiAzure), string(MountTypeFileCsiAzure):
 		return true
 	}
 	return false
