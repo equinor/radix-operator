@@ -161,7 +161,7 @@ func Test_Create_RoleBinding(t *testing.T) {
 
 	rolebindings, _ := client.RbacV1().RoleBindings(namespaceName).List(context.TODO(), meta.ListOptions{})
 
-	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env")
+	commonAsserts(t, env, roleBindingsAsMeta(rolebindings.Items), "radix-tekton-env", "radix-app-admin-envs", "radix-pipeline-env", "radix-app-reader")
 
 	adGroupName := rr.Spec.AdGroups[0]
 	t.Run("It contains the correct AD groups", func(t *testing.T) {
@@ -170,6 +170,12 @@ func Test_Create_RoleBinding(t *testing.T) {
 		assert.Equal(t, adGroupName, subjects[0].Name)
 	})
 
+	readerAdGroupName := rr.Spec.ReaderAdGroups[0]
+	t.Run("It contains the correct reader AD groups", func(t *testing.T) {
+		subjects := rolebindings.Items[1].Subjects
+		assert.Len(t, subjects, 1)
+		assert.Equal(t, readerAdGroupName, subjects[0].Name)
+	})
 	t.Run("It contains machine-user", func(t *testing.T) {
 		rr.Spec.MachineUser = true
 		sync(t, &env)

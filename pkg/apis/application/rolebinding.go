@@ -5,26 +5,23 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	corev1 "k8s.io/api/core/v1"
 	auth "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GrantAccessToCICDLogs Grants access to pipeline logs
-func (app Application) grantAccessToCICDLogs() error {
+func (app Application) applyRbacAppNamespace() error {
 	k := app.kubeutil
 	registration := app.registration
 
 	appNamespace := utils.GetAppNamespace(registration.Name)
-
 	adGroups, err := utils.GetAdGroups(registration)
 	if err != nil {
 		return err
 	}
-
 	subjects := kube.GetRoleBindingGroups(adGroups)
-
 	if app.registration.Spec.MachineUser {
 		subjects = append(subjects, auth.Subject{
 			Kind:      "ServiceAccount",
@@ -32,39 +29,67 @@ func (app Application) grantAccessToCICDLogs() error {
 			Namespace: appNamespace,
 		})
 	}
+	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
 
-	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppAdminRoleName, subjects)
-	return k.ApplyRoleBinding(appNamespace, roleBinding)
+	readerAdGroups := registration.Spec.ReaderAdGroups
+	readerSubjects := kube.GetRoleBindingGroups(readerAdGroups)
+	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(registration.Name, defaults.AppReaderRoleName, readerSubjects)
+
+	for _, roleBinding := range []*auth.RoleBinding{adminRoleBinding, readerRoleBinding} {
+		err = k.ApplyRoleBinding(appNamespace, roleBinding)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ApplyRbacRadixRegistration Grants access to radix registration
 func (app Application) applyRbacRadixRegistration() error {
 	k := app.kubeutil
 
-	registration := app.registration
-	appName := registration.Name
+	rr := app.registration
+	appName := rr.Name
 
-	var clusterRoles []*auth.ClusterRole
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
 	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
 
-	clusterRoles = append(clusterRoles, app.rrUserClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"}))
-	clusterRoles = append(clusterRoles, app.rrUserClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"}))
+	adminClusterRole := app.rrUserClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
+	appAdminSubjects := getAppAdminSubjects(rr)
+	adminClusterRoleBinding := app.rrClusterroleBinding(adminClusterRole, appAdminSubjects)
 
-	for _, clusterRole := range clusterRoles {
+	readerClusterRole := app.rrUserClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"})
+	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
+	readerClusterRoleBinding := app.rrClusterroleBinding(readerClusterRole, appReaderSubjects)
+
+	for _, clusterRole := range []*auth.ClusterRole{adminClusterRole, readerClusterRole} {
 		err := k.ApplyClusterRole(clusterRole)
 		if err != nil {
 			return err
 		}
+	}
 
-		clusterRoleBinding := app.rrClusterroleBinding(clusterRole)
-		err = k.ApplyClusterRoleBinding(clusterRoleBinding)
+	for _, clusterRoleBindings := range []*auth.ClusterRoleBinding{adminClusterRoleBinding, readerClusterRoleBinding} {
+		err := k.ApplyClusterRoleBinding(clusterRoleBindings)
 		if err != nil {
 			return err
 		}
-
 	}
+
 	return nil
+}
+
+func getAppAdminSubjects(rr *v1.RadixRegistration) []auth.Subject {
+	subjects := kube.GetRoleBindingGroups(rr.Spec.AdGroups)
+
+	if rr.Spec.MachineUser {
+		subjects = append(subjects, auth.Subject{
+			Kind:      "ServiceAccount",
+			Name:      defaults.GetMachineUserRoleName(rr.Name),
+			Namespace: utils.GetAppNamespace(rr.Name),
+		})
+	}
+	return subjects
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline
@@ -242,24 +267,12 @@ func (app Application) rrClusterRoleBinding(serviceAccount *corev1.ServiceAccoun
 	return clusterrolebinding
 }
 
-func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole) *auth.ClusterRoleBinding {
+func (app Application) rrClusterroleBinding(clusterrole *auth.ClusterRole, subjects []auth.Subject) *auth.ClusterRoleBinding {
 	registration := app.registration
 	appName := registration.Name
 	clusterroleBindingName := clusterrole.Name
 	logger.Debugf("Create clusterrolebinding config %s", clusterroleBindingName)
-
 	ownerReference := app.getOwnerReference()
-
-	adGroups, _ := utils.GetAdGroups(registration)
-	subjects := kube.GetRoleBindingGroups(adGroups)
-
-	if app.registration.Spec.MachineUser {
-		subjects = append(subjects, auth.Subject{
-			Kind:      "ServiceAccount",
-			Name:      defaults.GetMachineUserRoleName(registration.Name),
-			Namespace: utils.GetAppNamespace(registration.Name),
-		})
-	}
 
 	clusterrolebinding := &auth.ClusterRoleBinding{
 		TypeMeta: metav1.TypeMeta{

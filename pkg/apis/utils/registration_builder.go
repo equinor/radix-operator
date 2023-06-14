@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// RegistrationBuilder Handles construction of RR or applicationRegistation
+// RegistrationBuilder Handles construction of RR or applicationRegistration
 type RegistrationBuilder interface {
 	WithUID(types.UID) RegistrationBuilder
 	WithName(name string) RegistrationBuilder
@@ -50,6 +50,7 @@ type RegistrationBuilderStruct struct {
 	configBranch        string
 	radixConfigFullName string
 	configurationItem   string
+	readerAdGroups      []string
 }
 
 // WithRadixRegistration Re-enginers a builder from a registration
@@ -58,6 +59,7 @@ func (rb *RegistrationBuilderStruct) WithRadixRegistration(radixRegistration *v1
 	rb.WithCloneURL(radixRegistration.Spec.CloneURL)
 	rb.WithSharedSecret(radixRegistration.Spec.SharedSecret)
 	rb.WithAdGroups(radixRegistration.Spec.AdGroups)
+	rb.WithReaderAdGroups(radixRegistration.Spec.ReaderAdGroups)
 	rb.WithPublicKey(radixRegistration.Spec.DeployKeyPublic)
 	rb.WithPrivateKey(radixRegistration.Spec.DeployKey)
 	rb.WithOwner(radixRegistration.Spec.Owner)
@@ -119,7 +121,7 @@ func (rb *RegistrationBuilderStruct) WithAdGroups(adGroups []string) Registratio
 
 // WithReaderAdGroups Sets reader ad group
 func (rb *RegistrationBuilderStruct) WithReaderAdGroups(readerAdGroups []string) RegistrationBuilder {
-	rb.adGroups = readerAdGroups
+	rb.readerAdGroups = readerAdGroups
 	return rb
 }
 
@@ -200,6 +202,7 @@ func (rb *RegistrationBuilderStruct) BuildRR() *v1.RadixRegistration {
 			DeployKey:           rb.privateKey,
 			DeployKeyPublic:     rb.publicKey,
 			AdGroups:            rb.adGroups,
+			ReaderAdGroups:      rb.readerAdGroups,
 			Owner:               rb.owner,
 			Creator:             rb.creator,
 			MachineUser:         rb.machineUser,

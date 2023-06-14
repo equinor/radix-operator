@@ -18,6 +18,9 @@ const (
 	// AppAdminRoleName Name of role which grants access to manage the CI/CD of their applications
 	AppAdminRoleName = "radix-app-admin"
 
+	// AppReaderRoleName Name of role which grants read access to manage the CI/CD of their applications
+	AppReaderRoleName = "radix-app-reader"
+
 	// AppAdminEnvironmentRoleName Name of role which grants access to manage their running Radix applications
 	AppAdminEnvironmentRoleName = "radix-app-admin-envs"
 
