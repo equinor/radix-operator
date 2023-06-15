@@ -89,7 +89,7 @@ func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDe
 				Name:      getBlobFuseVolumeMountName(radixVolumeMount, componentName),
 				MountPath: radixVolumeMount.Path,
 			})
-		case radixv1.MountTypeFileCsiAzure, radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure:
+		case radixv1.MountTypeFileCsiAzure, radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure, radixv1.MountTypeNfsCsiAzure:
 			volumeMountName, err := getCsiAzureVolumeMountName(componentName, &radixVolumeMount)
 			if err != nil {
 				return nil, err
@@ -250,7 +250,7 @@ func getExternalVolumes(kubeclient kubernetes.Interface, namespace string, envir
 		switch volumeMount.Type {
 		case radixv1.MountTypeBlob:
 			volumes = append(volumes, getBlobFuseVolume(namespace, environment, deployComponent.GetName(), volumeMount))
-		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure, radixv1.MountTypeFileCsiAzure, radixv1.MountTypeNfsCsiAzure:
+		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeBlob2CsiAzure, radixv1.MountTypeNfsCsiAzure, radixv1.MountTypeFileCsiAzure:
 			volume, err := getCsiAzureVolume(kubeclient, namespace, deployComponent.GetName(), &volumeMount)
 			if err != nil {
 				return nil, err
@@ -429,15 +429,15 @@ func (deploy *Deployment) getPersistentVolumesForPvc() (*corev1.PersistentVolume
 }
 
 func getLabelSelectorForCsiAzureStorageClass(namespace, componentName string) string {
-	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s, %s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeNfsCsiAzure), string(radixv1.MountTypeFileCsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaim(componentName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeNfsCsiAzure), string(radixv1.MountTypeFileCsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMountName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeFileCsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobCsiAzure), string(radixv1.MountTypeBlob2CsiAzure), string(radixv1.MountTypeNfsCsiAzure), string(radixv1.MountTypeFileCsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
 }
 
 func (deploy *Deployment) createPersistentVolumeClaim(appName, namespace, componentName, pvcName, storageClassName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
@@ -513,15 +513,15 @@ func getCsiAzureStorageClassParameters(secretName string, namespace string, radi
 		parameters[csiAzureStorageClassSkuNameParameter] = radixVolumeMount.SkuName
 	}
 	switch radixVolumeMount.Type {
-	case radixv1.MountTypeNfsCsiAzure:
-		parameters[csiStorageClassContainerNameParameter] = radixVolumeMount.Storage
-		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterNfs
 	case radixv1.MountTypeBlobCsiAzure:
 		parameters[csiStorageClassContainerNameParameter] = radixVolumeMount.Storage
 		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse
 	case radixv1.MountTypeBlob2CsiAzure:
 		parameters[csiStorageClassContainerNameParameter] = radixVolumeMount.Storage
 		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse2
+	case radixv1.MountTypeNfsCsiAzure:
+		parameters[csiStorageClassContainerNameParameter] = radixVolumeMount.Storage
+		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterNfs
 	case radixv1.MountTypeFileCsiAzure:
 		parameters[csiStorageClassShareNameParameter] = radixVolumeMount.Storage
 	}
