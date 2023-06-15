@@ -3,6 +3,8 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-operator/pkg/apis/utils/conditions"
 	"strings"
 	"time"
 
@@ -34,6 +36,13 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 
 	componentImagesAnnotation, _ := json.Marshal(pipelineInfo.ComponentImages)
 	hash := strings.ToLower(utils.RandStringStrSeed(5, pipelineInfo.PipelineArguments.JobName))
+	annotations := map[string]string{}
+	for _, buildContainer := range buildContainers {
+		annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
+	}
+
+	//debug
+	pipelineInfo.PipelineArguments.PodSecurityContext.RunAsNonRoot = conditions.BoolPtr(false)
 
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -57,6 +66,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 					Labels: map[string]string{
 						kube.RadixJobNameLabel: jobName,
 					},
+					Annotations: annotations,
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:   "Never",
@@ -95,8 +105,18 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
+	// imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
+	imageBuilder := "quay.io/buildah/stable:v1.30.0"
+	// debug
+	securityContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SYS_ADMIN")
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID")
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID")
+	securityContext.Privileged = conditions.BoolPtr(true)
+	securityContext.AllowPrivilegeEscalation = conditions.BoolPtr(true)
+	securityContext.RunAsUser = numbers.Int64Ptr(0)
+	securityContext.RunAsNonRoot = conditions.BoolPtr(false)
 
-	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
 	containerRegistry := pipelineInfo.PipelineArguments.ContainerRegistry
@@ -211,16 +231,35 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 				Name:  defaults.RadixGitTagsEnvironmentVariable,
 				Value: gitTags,
 			},
+			// debug
+			//{
+			//	Name: "BUILDAH_USERNAME",
+			//	ValueFrom: &corev1.EnvVarSource{
+			//		SecretKeyRef: &corev1.SecretKeySelector{
+			//			LocalObjectReference: corev1.LocalObjectReference{Name: "radix-sp-buildah-azure"},
+			//			Key:                  "username",
+			//		},
+			//	},
+			//},
+			//{
+			//	Name: "BUILDAH_PASSWORD",
+			//	ValueFrom: &corev1.EnvVarSource{
+			//		SecretKeyRef: &corev1.SecretKeySelector{
+			//			LocalObjectReference: corev1.LocalObjectReference{Name: "radix-sp-buildah-azure"},
+			//			Key:                  "password",
+			//		},
+			//	},
+			//},
 		}
 
 		envVars = append(envVars, buildSecrets...)
-		imageBuilder := fmt.Sprintf("%s/%s", containerRegistry, imageBuilder)
 
 		container := corev1.Container{
 			Name:            componentImage.ContainerName,
 			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
+			Command:         []string{"/bin/buildah", "build", "--isolation=chroot", "--jobs", "0", "--file", componentImage.Dockerfile, componentImage.Context},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,
