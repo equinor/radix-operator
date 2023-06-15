@@ -602,7 +602,9 @@ spec:
                                 resource.
                               properties:
                                 accessMode:
-                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
+                                  description: 'Access mode from a container to an
+                                    external storage. ReadOnlyMany (default), ReadWriteOnce,
+                                    ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - ReadOnlyMany
                                   - ReadWriteOnce
@@ -610,7 +612,9 @@ spec:
                                   - ""
                                   type: string
                                 bindingMode:
-                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
+                                  description: 'Binding mode from a container to an
+                                    external storage. Immediate (default), WaitForFirstConsumer.
+                                    More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - Immediate
                                   - WaitForFirstConsumer
@@ -644,12 +648,54 @@ spec:
                                   description: Storage defines the name of the container
                                     in the external storage resource.
                                   type: string
+                                streaming:
+                                  description: 'Configure Streaming mode. Used for
+                                    blobfuse2. More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md'
+                                  properties:
+                                    blockSize:
+                                      description: Optional. The size of each block
+                                        to be cached in memory (in MB).
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    bufferSize:
+                                      description: Optional. The size of each buffer
+                                        to be cached in memory (in MB).
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    enabled:
+                                      description: Enable streaming mode. Default
+                                        true.
+                                      type: boolean
+                                    maxBlocksPerFile:
+                                      description: Optional. The maximum number of
+                                        blocks to be cached in memory.
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    maxBuffers:
+                                      description: Optional. The total number of buffers
+                                        to be cached in memory (in MB).
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    streamCache:
+                                      description: Optional. Limit total amount of
+                                        data being cached in memory to conserve memory
+                                        footprint of blobfuse.
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                  type: object
                                 type:
                                   description: Type defines the storage type. blob
                                     is deprecated, use azure-blob instead.
                                   enum:
                                   - blob
                                   - azure-blob
+                                  - azure-blob2
+                                  - azure-nfs
                                   - azure-file
                                   type: string
                                 uid:
@@ -1288,7 +1334,9 @@ spec:
                                 resource.
                               properties:
                                 accessMode:
-                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
+                                  description: 'Access mode from a container to an
+                                    external storage. ReadOnlyMany (default), ReadWriteOnce,
+                                    ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - ReadOnlyMany
                                   - ReadWriteOnce
@@ -1296,7 +1344,9 @@ spec:
                                   - ""
                                   type: string
                                 bindingMode:
-                                  description: 'TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
+                                  description: 'Binding mode from a container to an
+                                    external storage. Immediate (default), WaitForFirstConsumer.
+                                    More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/'
                                   enum:
                                   - Immediate
                                   - WaitForFirstConsumer
@@ -1330,12 +1380,54 @@ spec:
                                   description: Storage defines the name of the container
                                     in the external storage resource.
                                   type: string
+                                streaming:
+                                  description: 'Configure Streaming mode. Used for
+                                    blobfuse2. More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md'
+                                  properties:
+                                    blockSize:
+                                      description: Optional. The size of each block
+                                        to be cached in memory (in MB).
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    bufferSize:
+                                      description: Optional. The size of each buffer
+                                        to be cached in memory (in MB).
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    enabled:
+                                      description: Enable streaming mode. Default
+                                        true.
+                                      type: boolean
+                                    maxBlocksPerFile:
+                                      description: Optional. The maximum number of
+                                        blocks to be cached in memory.
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    maxBuffers:
+                                      description: Optional. The total number of buffers
+                                        to be cached in memory (in MB).
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                    streamCache:
+                                      description: Optional. Limit total amount of
+                                        data being cached in memory to conserve memory
+                                        footprint of blobfuse.
+                                      format: int64
+                                      minimum: 1
+                                      type: integer
+                                  type: object
                                 type:
                                   description: Type defines the storage type. blob
                                     is deprecated, use azure-blob instead.
                                   enum:
                                   - blob
                                   - azure-blob
+                                  - azure-blob2
+                                  - azure-nfs
                                   - azure-file
                                   type: string
                                 uid:

@@ -658,7 +658,7 @@ type RadixPrivateImageHubCredential struct {
 type RadixVolumeMount struct {
 	// Type defines the storage type.
 	// blob is deprecated, use azure-blob instead.
-	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file
+	// +kubebuilder:validation:Enum=blob;azure-blob;azure-blob2;azure-nfs;azure-file
 	Type MountType `json:"type"`
 
 	// User-defined name of the volume mount.
@@ -696,17 +696,50 @@ type RadixVolumeMount struct {
 	// +optional
 	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
-	// TODO: describe
+	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
-	// TODO: describe
+	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
+
+	// Configure Streaming mode. Used for blobfuse2.
+	// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
+	// +optional
+	Streaming *RadixVolumeMountStreaming `json:"streaming,omitempty"` // Optional. Streaming configuration. Used for blobfuse2.
+}
+
+// RadixVolumeMountStreaming configure streaming to read and write large files that will not fit in the file cache on the local disk. Used for blobfuse2.
+// More info: https://github.com/Azure/azure-storage-fuse/blob/main/STREAMING.md
+type RadixVolumeMountStreaming struct {
+	// Enable streaming mode. Default true.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// Optional. The size of each block to be cached in memory (in MB).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BlockSize *uint64 `json:"blockSize,omitempty"`
+	// Optional. The total number of buffers to be cached in memory (in MB).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	MaxBuffers *uint64 `json:"maxBuffers,omitempty"`
+	// Optional. The size of each buffer to be cached in memory (in MB).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	BufferSize *uint64 `json:"bufferSize,omitempty"`
+	// Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	StreamCache *uint64 `json:"streamCache,omitempty"`
+	// Optional. The maximum number of blocks to be cached in memory.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	MaxBlocksPerFile *uint64 `json:"maxBlocksPerFile,omitempty"`
 }
 
 // MountType Holds types of mount
@@ -716,8 +749,12 @@ type MountType string
 const (
 	// MountTypeBlob Use of azure/blobfuse flexvolume
 	MountTypeBlob MountType = "blob"
-	// MountTypeBlobCsiAzure Use of azure/csi driver for blob in Azure storage account
+	// MountTypeBlobCsiAzure Use of azure/csi driver for blobfuse in Azure storage account
 	MountTypeBlobCsiAzure MountType = "azure-blob"
+	// MountTypeBlob2CsiAzure Use of azure/csi driver for blobfuse2 in Azure storage account
+	MountTypeBlob2CsiAzure MountType = "azure-blob2"
+	// MountTypeNfsCsiAzure Use of azure/csi driver for NFS in Azure storage account
+	MountTypeNfsCsiAzure MountType = "azure-nfs"
 	// MountTypeFileCsiAzure Use of azure/csi driver for files in Azure storage account
 	MountTypeFileCsiAzure MountType = "azure-file"
 )
@@ -733,7 +770,7 @@ const (
 // GetStorageClassProvisionerByVolumeMountType convert volume mount type to Storage Class provisioner
 func GetStorageClassProvisionerByVolumeMountType(volumeMountType MountType) (string, bool) {
 	switch volumeMountType {
-	case MountTypeBlobCsiAzure:
+	case MountTypeBlobCsiAzure, MountTypeBlob2CsiAzure, MountTypeNfsCsiAzure:
 		return ProvisionerBlobCsiAzure, true
 	case MountTypeFileCsiAzure:
 		return ProvisionerFileCsiAzure, true
@@ -755,7 +792,7 @@ func IsKnownVolumeMount(volumeMount string) bool {
 // IsKnownCsiAzureVolumeMount Supported volume mount type CSI Azure Blob volume
 func IsKnownCsiAzureVolumeMount(volumeMount string) bool {
 	switch volumeMount {
-	case string(MountTypeBlobCsiAzure), string(MountTypeFileCsiAzure):
+	case string(MountTypeBlobCsiAzure), string(MountTypeBlob2CsiAzure), string(MountTypeFileCsiAzure):
 		return true
 	}
 	return false
