@@ -50,6 +50,7 @@ const (
 	csiStorageClassStreamingMaxBlocksPerFileMountOption = "max-blocks-per-file"                             // Maximum number of blocks to be cached in memory for streaming
 	csiStorageClassStreamingMaxBuffersMountOption       = "max-buffers"                                     // Maximum number of blocks to be cached in memory for streaming
 	csiStorageClassStreamingBlockSizeMountOption        = "block-size-mb"                                   // Maximum number of blocks to be cached in memory for streaming
+	csiStorageClassStreamingBufferSizeMountOption       = "buffer-size-mb"                                  // Maximum number of blocks to be cached in memory for streaming
 	csiStorageClassProtocolParameter                    = "protocol"                                        // Protocol
 	csiStorageClassProtocolParameterFuse                = "fuse"                                            // Protocol "blobfuse"
 	csiStorageClassProtocolParameterFuse2               = "fuse2"                                           // Protocol "blobfuse2"
@@ -563,6 +564,9 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 			}
 			if radixVolumeMount.Streaming.BlockSize != nil {
 				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *radixVolumeMount.Streaming.BlockSize))
+			}
+			if radixVolumeMount.Streaming.BufferSize != nil {
+				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBufferSizeMountOption, *radixVolumeMount.Streaming.BufferSize))
 			}
 			if radixVolumeMount.Streaming.MaxBuffers != nil {
 				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *radixVolumeMount.Streaming.MaxBuffers))
