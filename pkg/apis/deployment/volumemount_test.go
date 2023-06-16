@@ -1461,6 +1461,9 @@ func setStorageClassStorageParameter(radixVolumeMountType v1.MountType, storageN
 	case v1.MountTypeBlob2CsiAzure:
 		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
 		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse2
+	case v1.MountTypeNfsCsiAzure:
+		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
+		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterNfs
 	case v1.MountTypeFileCsiAzure:
 		sc.Parameters[csiStorageClassShareNameParameter] = storageName
 	}
