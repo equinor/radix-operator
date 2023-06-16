@@ -732,7 +732,7 @@ type RadixVolumeMountStreaming struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	BufferSize *uint64 `json:"bufferSize,omitempty"`
-	// Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse.
+	// Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse (in MB).
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	StreamCache *uint64 `json:"streamCache,omitempty"`
@@ -740,6 +740,9 @@ type RadixVolumeMountStreaming struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MaxBlocksPerFile *uint64 `json:"maxBlocksPerFile,omitempty"`
+	// Optional. File name based caching. Default is false which specifies file handle based caching.
+	// +optional
+	FileCaching *bool `json:"fileCaching,omitempty"`
 }
 
 // MountType Holds types of mount

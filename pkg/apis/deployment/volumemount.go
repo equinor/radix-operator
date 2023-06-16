@@ -48,8 +48,10 @@ const (
 	csiStorageClassStreamingEnabledMountOption          = "streaming"                                       // Enable Streaming
 	csiStorageClassStreamingCacheMountOption            = "stream-cache-mb"                                 // Limit total amount of data being cached in memory to conserve memory
 	csiStorageClassStreamingMaxBlocksPerFileMountOption = "max-blocks-per-file"                             // Maximum number of blocks to be cached in memory for streaming
-	csiStorageClassStreamingMaxBuffersMountOption       = "max-buffers"                                     // Maximum number of blocks to be cached in memory for streaming
-	csiStorageClassStreamingBlockSizeMountOption        = "block-size-mb"                                   // Maximum number of blocks to be cached in memory for streaming
+	csiStorageClassStreamingMaxBuffersMountOption       = "max-buffers"                                     // The total number of buffers to be cached in memory (in MB).
+	csiStorageClassStreamingBlockSizeMountOption        = "block-size-mb"                                   // The size of each block to be cached in memory (in MB).
+	csiStorageClassStreamingBufferSizeMountOption       = "buffer-size-mb"                                  // The size of each buffer to be cached in memory (in MB).
+	csiStorageClassStreamingFileCachingMountOption      = "file-caching"                                    // File name based caching. Default is false which specifies file handle based caching.
 	csiStorageClassProtocolParameter                    = "protocol"                                        // Protocol
 	csiStorageClassProtocolParameterFuse                = "fuse"                                            // Protocol "blobfuse"
 	csiStorageClassProtocolParameterFuse2               = "fuse2"                                           // Protocol "blobfuse2"
@@ -564,11 +566,17 @@ func getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath string, radixVolume
 			if radixVolumeMount.Streaming.BlockSize != nil {
 				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBlockSizeMountOption, *radixVolumeMount.Streaming.BlockSize))
 			}
+			if radixVolumeMount.Streaming.BufferSize != nil {
+				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingBufferSizeMountOption, *radixVolumeMount.Streaming.BufferSize))
+			}
 			if radixVolumeMount.Streaming.MaxBuffers != nil {
 				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBuffersMountOption, *radixVolumeMount.Streaming.MaxBuffers))
 			}
 			if radixVolumeMount.Streaming.MaxBlocksPerFile != nil {
 				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingMaxBlocksPerFileMountOption, *radixVolumeMount.Streaming.MaxBlocksPerFile))
+			}
+			if radixVolumeMount.Streaming.FileCaching != nil {
+				mountOptions = append(mountOptions, fmt.Sprintf("--%s=%v", csiStorageClassStreamingFileCachingMountOption, *radixVolumeMount.Streaming.FileCaching))
 			}
 		}
 	}
