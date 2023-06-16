@@ -663,6 +663,10 @@
                                 "description": "Enable streaming mode. Default true.",
                                 "type": "boolean"
                               },
+                              "fileCaching": {
+                                "description": "Optional. File name based caching. Default is false which specifies file handle based caching.",
+                                "type": "boolean"
+                              },
                               "maxBlocksPerFile": {
                                 "description": "Optional. The maximum number of blocks to be cached in memory.",
                                 "format": "int64",
@@ -676,7 +680,7 @@
                                 "type": "integer"
                               },
                               "streamCache": {
-                                "description": "Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse.",
+                                "description": "Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse (in MB).",
                                 "format": "int64",
                                 "minimum": 1,
                                 "type": "integer"
@@ -1449,6 +1453,10 @@
                                 "description": "Enable streaming mode. Default true.",
                                 "type": "boolean"
                               },
+                              "fileCaching": {
+                                "description": "Optional. File name based caching. Default is false which specifies file handle based caching.",
+                                "type": "boolean"
+                              },
                               "maxBlocksPerFile": {
                                 "description": "Optional. The maximum number of blocks to be cached in memory.",
                                 "format": "int64",
@@ -1462,7 +1470,7 @@
                                 "type": "integer"
                               },
                               "streamCache": {
-                                "description": "Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse.",
+                                "description": "Optional. Limit total amount of data being cached in memory to conserve memory footprint of blobfuse (in MB).",
                                 "format": "int64",
                                 "minimum": 1,
                                 "type": "integer"
