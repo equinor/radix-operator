@@ -92,7 +92,7 @@ func getRadixComponentExternalVolumeMounts(deployComponent radixv1.RadixCommonDe
 				Name:      getBlobFuseVolumeMountName(radixVolumeMount, componentName),
 				MountPath: radixVolumeMount.Path,
 			})
-		case radixv1.MountTypeFileCsiAzure, radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure:
+		case radixv1.MountTypeAzureFileCsiAzure, radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure:
 			volumeMountName, err := getCsiAzureVolumeMountName(componentName, &radixVolumeMount)
 			if err != nil {
 				return nil, err
@@ -148,7 +148,7 @@ func getCsiAzureVolumeMountName(componentName string, radixVolumeMount *radixv1.
 	if len(radixVolumeMount.Name) == 0 {
 		return "", fmt.Errorf("name is empty for volume mount in the component %s", componentName)
 	}
-	csiAzureVolumeStorageName := getCsiAzureVolumeStorageName(radixVolumeMount)
+	csiAzureVolumeStorageName := GetRadixVolumeMountStorage(radixVolumeMount)
 	if len(csiAzureVolumeStorageName) == 0 {
 		return "", fmt.Errorf("storage is empty for volume mount %s in the component %s", radixVolumeMount.Name, componentName)
 	}
@@ -170,15 +170,10 @@ func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radi
 			return radixv1.MountTypeBlobFuse2NfsCsiAzure
 		}
 	}
-	return radixVolumeMount.Type
-}
-
-func getCsiAzureVolumeStorageName(radixVolumeMount *radixv1.RadixVolumeMount) string {
-	blobFuse2VolumeMountContainer := getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
-	if len(blobFuse2VolumeMountContainer) != 0 {
-		return blobFuse2VolumeMountContainer
+	if radixVolumeMount.AzureFile != nil {
+		return radixv1.MountTypeAzureFileCsiAzure
 	}
-	return radixVolumeMount.Storage
+	return radixVolumeMount.Type
 }
 
 func getCsiRadixVolumeTypeIdForName(radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
@@ -192,10 +187,13 @@ func getCsiRadixVolumeTypeIdForName(radixVolumeMount *radixv1.RadixVolumeMount) 
 			return "csi-blobfuse2-nfs", nil
 		}
 	}
+	if radixVolumeMount.AzureFile != nil {
+		return "csi-az-file", nil
+	}
 	switch radixVolumeMount.Type {
 	case radixv1.MountTypeBlobFuse2FuseCsiAzure:
 		return "csi-az-blob", nil
-	case radixv1.MountTypeFileCsiAzure:
+	case radixv1.MountTypeAzureFileCsiAzure:
 		return "csi-az-file", nil
 	}
 	return "", fmt.Errorf("unknown volume mount type %s", radixVolumeMount.Type)
@@ -284,7 +282,7 @@ func getExternalVolumes(kubeclient kubernetes.Interface, namespace string, envir
 		switch volumeMountType {
 		case radixv1.MountTypeBlob:
 			volumes = append(volumes, getBlobFuseVolume(namespace, environment, deployComponent.GetName(), volumeMount))
-		case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure, radixv1.MountTypeFileCsiAzure:
+		case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
 			volume, err := getCsiAzureVolume(kubeclient, namespace, deployComponent.GetName(), &volumeMount)
 			if err != nil {
 				return nil, err
@@ -463,15 +461,15 @@ func (deploy *Deployment) getPersistentVolumesForPvc() (*corev1.PersistentVolume
 }
 
 func getLabelSelectorForCsiAzureStorageClass(namespace, componentName string) string {
-	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s, %s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s=%s, %s in (%s, %s, %s, %s)", kube.RadixNamespace, namespace, kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaim(componentName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeFileCsiAzure))
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s)", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure))
 }
 
 func getLabelSelectorForCsiAzurePersistenceVolumeClaimForComponentStorage(componentName, radixVolumeMountName string) string {
-	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeFileCsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
+	return fmt.Sprintf("%s=%s, %s in (%s, %s, %s, %s), %s = %s", kube.RadixComponentLabel, componentName, kube.RadixMountTypeLabel, string(radixv1.MountTypeBlobFuse2FuseCsiAzure), string(radixv1.MountTypeBlobFuse2Fuse2CsiAzure), string(radixv1.MountTypeBlobFuse2NfsCsiAzure), string(radixv1.MountTypeAzureFileCsiAzure), kube.RadixVolumeMountNameLabel, radixVolumeMountName)
 }
 
 func (deploy *Deployment) createPersistentVolumeClaim(appName, namespace, componentName, pvcName, storageClassName string, radixVolumeMount *radixv1.RadixVolumeMount) (*corev1.PersistentVolumeClaim, error) {
@@ -557,7 +555,7 @@ func getCsiAzureStorageClassParameters(secretName string, namespace string, radi
 	case radixv1.MountTypeBlobFuse2NfsCsiAzure:
 		parameters[csiStorageClassContainerNameParameter] = getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
 		parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterNfs
-	case radixv1.MountTypeFileCsiAzure:
+	case radixv1.MountTypeAzureFileCsiAzure:
 		parameters[csiStorageClassShareNameParameter] = getRadixAzureFileVolumeMountShareName(radixVolumeMount)
 	}
 	return parameters
@@ -568,7 +566,7 @@ func getCsiAzureStorageClassMountOptions(volumeRootMount, namespace, componentNa
 	if err != nil {
 		return nil, err
 	}
-	tmpPath := fmt.Sprintf(csiVolumeNodeMountPathTemplate, volumeRootMount, namespace, csiVolumeTypeId, componentName, radixVolumeMount.Name, getCsiAzureVolumeStorageName(radixVolumeMount))
+	tmpPath := fmt.Sprintf(csiVolumeNodeMountPathTemplate, volumeRootMount, namespace, csiVolumeTypeId, componentName, radixVolumeMount.Name, GetRadixVolumeMountStorage(radixVolumeMount))
 	return getCsiAzureStorageClassMountOptionsForAzureBlob(tmpPath, radixVolumeMount)
 }
 
@@ -660,6 +658,9 @@ func getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount *radixv1.RadixVo
 }
 
 func getRadixAzureFileVolumeMountShareName(radixVolumeMount *radixv1.RadixVolumeMount) string {
+	if radixVolumeMount.AzureFile != nil {
+		return radixVolumeMount.AzureFile.Share
+	}
 	return radixVolumeMount.Storage
 }
 
@@ -706,8 +707,15 @@ func GetRadixVolumeMountStorage(radixVolumeMount *radixv1.RadixVolumeMount) stri
 	if radixVolumeMount.Type == radixv1.MountTypeBlob {
 		return radixVolumeMount.Container // Outdated
 	}
-	// TODO add AzureDisk
-	return getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
+	blobFuse2VolumeMountContainer := getRadixBlobFuse2VolumeMountContainerName(radixVolumeMount)
+	if len(blobFuse2VolumeMountContainer) != 0 {
+		return blobFuse2VolumeMountContainer
+	}
+	azureFileVolumeMountShare := getRadixAzureFileVolumeMountShareName(radixVolumeMount)
+	if len(azureFileVolumeMountShare) != 0 {
+		return azureFileVolumeMountShare
+	}
+	return radixVolumeMount.Storage
 }
 
 func (deploy *Deployment) garbageCollectOrphanedCsiAzurePersistentVolumes(excludePvcNames []string) error {

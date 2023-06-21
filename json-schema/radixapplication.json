@@ -605,6 +605,51 @@
                             ],
                             "type": "string"
                           },
+                          "azureFile": {
+                            "description": "AzureFile settings for Azure File CSI driver",
+                            "properties": {
+                              "accessMode": {
+                                "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "enum": [
+                                  "ReadOnlyMany",
+                                  "ReadWriteOnce",
+                                  "ReadWriteMany",
+                                  ""
+                                ],
+                                "type": "string"
+                              },
+                              "bindingMode": {
+                                "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "enum": [
+                                  "Immediate",
+                                  "WaitForFirstConsumer",
+                                  ""
+                                ],
+                                "type": "string"
+                              },
+                              "gid": {
+                                "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.",
+                                "type": "string"
+                              },
+                              "requestsStorage": {
+                                "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
+                                "type": "string"
+                              },
+                              "share": {
+                                "description": "Share. Name of the file share in the external storage resource.",
+                                "type": "string"
+                              },
+                              "skuName": {
+                                "description": "SKU Type of Azure storage. More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
+                                "type": "string"
+                              },
+                              "uid": {
+                                "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          },
                           "bindingMode": {
                             "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
                             "enum": [
@@ -615,7 +660,7 @@
                             "type": "string"
                           },
                           "blobFuse2": {
-                            "description": "BlobFuse2 settings for Azure Storage FUSE driver",
+                            "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver",
                             "properties": {
                               "accessMode": {
                                 "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
@@ -1454,6 +1499,51 @@
                             ],
                             "type": "string"
                           },
+                          "azureFile": {
+                            "description": "AzureFile settings for Azure File CSI driver",
+                            "properties": {
+                              "accessMode": {
+                                "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "enum": [
+                                  "ReadOnlyMany",
+                                  "ReadWriteOnce",
+                                  "ReadWriteMany",
+                                  ""
+                                ],
+                                "type": "string"
+                              },
+                              "bindingMode": {
+                                "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",
+                                "enum": [
+                                  "Immediate",
+                                  "WaitForFirstConsumer",
+                                  ""
+                                ],
+                                "type": "string"
+                              },
+                              "gid": {
+                                "description": "GID defines the group ID (number) which will be set as owner of the mounted volume.",
+                                "type": "string"
+                              },
+                              "requestsStorage": {
+                                "description": "Requested size (opens new window)of allocated mounted volume. Default value is set to \"1Mi\" (1 megabyte). Current version of the driver does not affect mounted volume size More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim",
+                                "type": "string"
+                              },
+                              "share": {
+                                "description": "Share. Name of the file share in the external storage resource.",
+                                "type": "string"
+                              },
+                              "skuName": {
+                                "description": "SKU Type of Azure storage. More info: https://learn.microsoft.com/en-us/rest/api/storagerp/srp_sku_types",
+                                "type": "string"
+                              },
+                              "uid": {
+                                "description": "UID defines the user ID (number) which will be set as owner of the mounted volume.",
+                                "type": "string"
+                              }
+                            },
+                            "type": "object"
+                          },
                           "bindingMode": {
                             "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
                             "enum": [
@@ -1464,7 +1554,7 @@
                             "type": "string"
                           },
                           "blobFuse2": {
-                            "description": "BlobFuse2 settings for Azure Storage FUSE driver",
+                            "description": "BlobFuse2 settings for Azure Storage FUSE CSI driver",
                             "properties": {
                               "accessMode": {
                                 "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/",

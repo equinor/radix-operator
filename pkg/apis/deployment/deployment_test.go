@@ -3610,7 +3610,7 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 					WithVolumeMounts(
 						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
 						v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)
@@ -3645,7 +3645,7 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 					WithVolumeMounts(
 						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
 						v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)

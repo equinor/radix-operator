@@ -849,7 +849,7 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 						{Name: "azureblobname", Path: "/azureblobpath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: radixv1.BlobFuse2ProtocolFuse, Container: "azureblobcontainer"}},
 						{Name: "azureblob2name", Path: "/azureblob2path", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: radixv1.BlobFuse2ProtocolFuse2, Container: "azureblob2container"}},
 						{Name: "azurenfsname", Path: "/azurenfspath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: radixv1.BlobFuse2ProtocolNfs, Container: "azurenfscontainer"}},
-						{Type: "azure-file", Name: "azurefilename", Storage: "azurefilecontainer", Path: "/azurefilepath"},
+						{Name: "azurefilename", Path: "/azurefilepath", AzureFile: &radixv1.RadixAzureFileVolumeMount{Share: "azurefilecontainer"}},
 					},
 				},
 			},
