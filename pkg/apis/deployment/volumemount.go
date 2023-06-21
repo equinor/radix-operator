@@ -907,7 +907,7 @@ func findCsiAzureVolumeForComponent(volumeMountMap map[string]*radixv1.RadixVolu
 		return false
 	}
 	for _, radixVolumeMount := range volumeMounts {
-		if radixVolumeMount.BlobFuse2 == nil && !radixv1.IsKnownCsiAzureVolumeMount(string(GetCsiAzureVolumeMountType(&radixVolumeMount))) {
+		if radixVolumeMount.BlobFuse2 == nil && radixVolumeMount.AzureFile == nil && !radixv1.IsKnownCsiAzureVolumeMount(string(GetCsiAzureVolumeMountType(&radixVolumeMount))) {
 			continue
 		}
 		radixVolumeMount := radixVolumeMount
