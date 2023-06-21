@@ -596,7 +596,7 @@
                         "description": "RadixVolumeMount defines an external storage resource.",
                         "properties": {
                           "accessMode": {
-                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "enum": [
                               "ReadOnlyMany",
                               "ReadWriteOnce",
@@ -651,7 +651,7 @@
                             "type": "object"
                           },
                           "bindingMode": {
-                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "enum": [
                               "Immediate",
                               "WaitForFirstConsumer",
@@ -769,7 +769,7 @@
                             "type": "string"
                           },
                           "gid": {
-                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 instead.",
+                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "name": {
@@ -783,35 +783,35 @@
                             "type": "string"
                           },
                           "requestsStorage": {
-                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "skuName": {
-                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "storage": {
-                            "description": "Storage defines the name of the container in the external storage resource. Deprecated, use BlobFuse2 instead.",
+                            "description": "Storage defines the name of the container in the external storage resource. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "type": {
-                            "description": "Type defines the storage type. Deprecated, use BlobFuse2 instead.",
+                            "description": "Type defines the storage type. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "enum": [
                               "blob",
                               "azure-blob",
-                              "azure-file"
+                              "azure-file",
+                              ""
                             ],
                             "type": "string"
                           },
                           "uid": {
-                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 instead.",
+                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           }
                         },
                         "required": [
                           "name",
-                          "path",
-                          "type"
+                          "path"
                         ],
                         "type": "object"
                       },
@@ -1490,7 +1490,7 @@
                         "description": "RadixVolumeMount defines an external storage resource.",
                         "properties": {
                           "accessMode": {
-                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "enum": [
                               "ReadOnlyMany",
                               "ReadWriteOnce",
@@ -1545,7 +1545,7 @@
                             "type": "object"
                           },
                           "bindingMode": {
-                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer. More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "enum": [
                               "Immediate",
                               "WaitForFirstConsumer",
@@ -1663,7 +1663,7 @@
                             "type": "string"
                           },
                           "gid": {
-                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 instead.",
+                            "description": "GID defines the group ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "name": {
@@ -1677,35 +1677,35 @@
                             "type": "string"
                           },
                           "requestsStorage": {
-                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "skuName": {
-                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 instead.",
+                            "description": "TODO: describe More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/ Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "storage": {
-                            "description": "Storage defines the name of the container in the external storage resource. Deprecated, use BlobFuse2 instead.",
+                            "description": "Storage defines the name of the container in the external storage resource. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           },
                           "type": {
-                            "description": "Type defines the storage type. Deprecated, use BlobFuse2 instead.",
+                            "description": "Type defines the storage type. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "enum": [
                               "blob",
                               "azure-blob",
-                              "azure-file"
+                              "azure-file",
+                              ""
                             ],
                             "type": "string"
                           },
                           "uid": {
-                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 instead.",
+                            "description": "UID defines the user ID (number) which will be set as owner of the mounted volume. Deprecated, use BlobFuse2 or AzureFile instead.",
                             "type": "string"
                           }
                         },
                         "required": [
                           "name",
-                          "path",
-                          "type"
+                          "path"
                         ],
                         "type": "object"
                       },

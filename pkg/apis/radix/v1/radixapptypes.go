@@ -657,8 +657,9 @@ type RadixPrivateImageHubCredential struct {
 // RadixVolumeMount defines an external storage resource.
 type RadixVolumeMount struct {
 	// Type defines the storage type.
-	// Deprecated, use BlobFuse2 instead.
-	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file
+	// Deprecated, use BlobFuse2 or AzureFile instead.
+	// +kubebuilder:validation:Enum=blob;azure-blob;azure-file;""
+	// +optional
 	Type MountType `json:"type"`
 
 	// User-defined name of the volume mount.
@@ -671,7 +672,7 @@ type RadixVolumeMount struct {
 	Container string `json:"container,omitempty"` // Outdated. Use Storage instead
 
 	// Storage defines the name of the container in the external storage resource.
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated, use BlobFuse2 or AzureFile instead.
 	// +optional
 	Storage string `json:"storage"` // Container name, file Share name, etc.
 
@@ -680,37 +681,37 @@ type RadixVolumeMount struct {
 	Path string `json:"path"` // Path within the pod (replica), where the volume mount has been mounted to
 
 	// GID defines the group ID (number) which will be set as owner of the mounted volume.
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated, use BlobFuse2 or AzureFile instead.
 	// +optional
 	GID string `json:"gid,omitempty"` // Optional. Volume mount owner GroupID. Used when drivers do not honor fsGroup securityContext setting. https://github.com/kubernetes-sigs/blob-csi-driver/blob/master/docs/driver-parameters.md
 
 	// UID defines the user ID (number) which will be set as owner of the mounted volume.
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated, use BlobFuse2 or AzureFile instead.
 	// +optional
 	UID string `json:"uid,omitempty"` // Optional. Volume mount owner UserID. Used instead of GID.
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated, use BlobFuse2 or AzureFile instead.
 	// +optional
 	SkuName string `json:"skuName,omitempty"` // Available values: Standard_LRS (default), Premium_LRS, Standard_GRS, Standard_RAGRS. https://docs.microsoft.com/en-us/rest/api/storagerp/srp_sku_types
 
 	// TODO: describe
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated, use BlobFuse2 or AzureFile instead.
 	// +optional
 	RequestsStorage string `json:"requestsStorage,omitempty"` // Requests resource storage size. Default "1Mi". https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim
 
 	// Access mode from a container to an external storage. ReadOnlyMany (default), ReadWriteOnce, ReadWriteMany.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated, use BlobFuse2 or AzureFile instead.
 	// +kubebuilder:validation:Enum=ReadOnlyMany;ReadWriteOnce;ReadWriteMany;""
 	// +optional
 	AccessMode string `json:"accessMode,omitempty"` // Available values: ReadOnlyMany (default) - read-only by many nodes, ReadWriteOnce - read-write by a single node, ReadWriteMany - read-write by many nodes. https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 
 	// Binding mode from a container to an external storage. Immediate (default), WaitForFirstConsumer.
 	// More info: https://www.radix.equinor.com/guides/volume-mounts/optional-settings/
-	// Deprecated, use BlobFuse2 instead.
+	// Deprecated, use BlobFuse2 or AzureFile instead.
 	// +kubebuilder:validation:Enum=Immediate;WaitForFirstConsumer;""
 	// +optional
 	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
