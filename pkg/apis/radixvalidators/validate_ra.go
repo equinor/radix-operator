@@ -1249,7 +1249,7 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 	mountsInComponent := make(map[string]volumeMountConfigMaps)
 
 	for _, volumeMount := range volumeMounts {
-		volumeMountType := strings.TrimSpace(string(volumeMount.Type))
+		volumeMountType := string(deployment.GetCsiAzureVolumeMountType(&volumeMount))
 		volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
 		switch {
 		case volumeMountType == "" ||
