@@ -188,7 +188,7 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 									Path:      "some-path",
 								},
 								v1.RadixVolumeMount{
-									Type:    v1.MountTypeBlobCsiAzure,
+									Type:    v1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
 									Storage: "some-storage",
 									Path:    "some-path2",
@@ -494,7 +494,7 @@ func TestObjectSynced_MultiJob_ContainsAllElements(t *testing.T) {
 									Path:      "some-path",
 								},
 								v1.RadixVolumeMount{
-									Type:    v1.MountTypeBlobCsiAzure,
+									Type:    v1.MountTypeBlobFuse2FuseCsiAzure,
 									Name:    blobCsiAzureVolumeName,
 									Storage: "some-storage",
 									Path:    "some-path",
@@ -1759,7 +1759,7 @@ func TestConstructForTargetEnvironment_PicksTheCorrectEnvironmentConfig(t *testi
 								Path:      "some-path",
 							},
 							{
-								Type:    v1.MountTypeBlobCsiAzure,
+								Type:    v1.MountTypeBlobFuse2FuseCsiAzure,
 								Storage: "some-storage",
 								Path:    "some-path",
 								GID:     "1000",
@@ -3609,8 +3609,8 @@ func Test_ComponentSynced_VolumeAndMounts(t *testing.T) {
 					WithName(compName).
 					WithVolumeMounts(
 						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)
@@ -3644,8 +3644,8 @@ func Test_JobSynced_VolumeAndMounts(t *testing.T) {
 					WithName(jobName).
 					WithVolumeMounts(
 						v1.RadixVolumeMount{Type: v1.MountTypeBlob, Name: "blob", Container: "blobcontainer", Path: "blobpath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
-						v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blobcsi", Storage: "blobcsistorage", Path: "blobcsipath"},
+						v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "filecsi", Storage: "filecsistorage", Path: "filecsipath"},
 					),
 			),
 	)

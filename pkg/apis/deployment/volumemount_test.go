@@ -114,15 +114,15 @@ func (suite *VolumeMountTestSuite) Test_NoVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
 			expectedVolumeName: "csi-az-file-app-volume1-storageName1",
 		},
 		{
-			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
 		},
 		{
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath3"},
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath3"},
 			expectedVolumeName:         "csi-az-file-app-volume-with-long-name-storageName-with-lo-",
 			expectedVolumeNameIsPrefix: true,
 		},
@@ -177,15 +177,15 @@ func (suite *VolumeMountTestSuite) Test_ValidFileCsiAzureVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_ValidBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
-			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
 			expectedVolumeName: "csi-az-blob-app-volume1-storageName1",
 		},
 		{
-			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-blob-app-volume2-storageName2",
 		},
 		{
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath2"},
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath2"},
 			expectedVolumeName:         "csi-az-blob-app-volume-with-long-name-storageName-with-lo-",
 			expectedVolumeNameIsPrefix: true,
 		},
@@ -240,17 +240,17 @@ func (suite *VolumeMountTestSuite) Test_FailBlobCsiAzureVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:             "Missed volume mount name",
-			radixVolumeMount: v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Storage: "storageName1", Path: "TestPath1"},
+			radixVolumeMount: v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Storage: "storageName1", Path: "TestPath1"},
 			expectedError:    "name is empty for volume mount in the component app",
 		},
 		{
 			name:             "Missed volume mount storage",
-			radixVolumeMount: v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Path: "TestPath1"},
+			radixVolumeMount: v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Path: "TestPath1"},
 			expectedError:    "storage is empty for volume mount volume1 in the component app",
 		},
 		{
 			name:             "Missed volume mount path",
-			radixVolumeMount: v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Storage: "storageName1"},
+			radixVolumeMount: v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storageName1"},
 			expectedError:    "path is empty for volume mount volume1 in the component app",
 		},
 	}
@@ -328,26 +328,26 @@ func (suite *VolumeMountTestSuite) Test_GetNewVolumes() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:                  "Blob CSI Azure volume",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
 			expectedVolumeName:    "csi-az-blob-some-component-volume1-storage1",
 			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-volume1-storage1",
 		},
 		{
 			name:                  "File CSI Azure volume",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
 			expectedVolumeName:    "csi-az-file-some-component-volume1-storage1",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-volume1-storage1",
 		},
 		{
 			name:                       "Blob CSI Azure volume",
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
 			expectedVolumeName:         "csi-az-blob-some-component-volume-with-long-name-storageN-",
 			expectedVolumeNameIsPrefix: true,
 			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-volume-with-long-name-storageN-",
 		},
 		{
 			name:                       "File CSI Azure volume",
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "path1", GID: "1000"},
 			expectedVolumeName:         "csi-az-file-some-component-volume-with-long-name-storageN-",
 			expectedVolumeNameIsPrefix: true,
 			expectedPvcNamePrefix:      "pvc-csi-az-file-some-component-volume-with-long-name-storageN-",
@@ -435,11 +435,11 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, PVS phase: Bound",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume1", Storage: "storage1", Path: "path1", GID: "1000"},
 				expectedVolumeName:    "csi-az-blob-some-component-volume1-storage1",
 				expectedPvcNamePrefix: "existing-blob-pvc-name1",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeBlobCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
+			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
 				pvc.Name = "existing-blob-pvc-name1"
 				pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = "volume1"
 				pvc.Status.Phase = corev1.ClaimBound
@@ -448,11 +448,11 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, PVS phase: Pending",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "volume2", Storage: "storage2", Path: "path2", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "volume2", Storage: "storage2", Path: "path2", GID: "1000"},
 				expectedVolumeName:    "csi-az-blob-some-component-volume2-storage2",
 				expectedPvcNamePrefix: "existing-blob-pvc-name2",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeBlobCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
+			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
 				pvc.Name = "existing-blob-pvc-name2"
 				pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = "volume2"
 				pvc.Status.Phase = corev1.ClaimPending
@@ -461,11 +461,11 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, PVS phase: Bound",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume3", Storage: "storage3", Path: "path3", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume3", Storage: "storage3", Path: "path3", GID: "1000"},
 				expectedVolumeName:    "csi-az-file-some-component-volume3-storage3",
 				expectedPvcNamePrefix: "existing-file-pvc-name1",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
+			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
 				pvc.Name = "existing-file-pvc-name1"
 				pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = "volume3"
 				pvc.Status.Phase = corev1.ClaimBound
@@ -474,11 +474,11 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, PVS phase: Pending",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume4", Storage: "storage4", Path: "path4", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume4", Storage: "storage4", Path: "path4", GID: "1000"},
 				expectedVolumeName:    "csi-az-file-some-component-volume4-storage4",
 				expectedPvcNamePrefix: "existing-file-pvc-name2",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
+			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) {
 				pvc.Name = "existing-file-pvc-name2"
 				pvc.ObjectMeta.Labels[kube.RadixVolumeMountNameLabel] = "volume4"
 				pvc.Status.Phase = corev1.ClaimBound
@@ -490,7 +490,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
-			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
+			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
 			_, _ = testEnv.kubeclient.CoreV1().PersistentVolumeClaims(namespace).Create(context.TODO(), &scenario.pvc, metav1.CreateOptions{})
 
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
@@ -507,7 +507,7 @@ func (suite *VolumeMountTestSuite) Test_GetCsiVolumesWithExistingPvcs() {
 		t.Parallel()
 		testEnv := getTestEnv()
 		for _, scenario := range scenarios {
-			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(scenario.radixVolumeMount.Type), scenario.pvc.Status.Phase)
+			t.Logf("Scenario %s for volume mount type %s, PVC status phase '%v'", scenario.name, string(GetCsiAzureVolumeMountType(&scenario.radixVolumeMount)), scenario.pvc.Status.Phase)
 
 			component := utils.NewDeployComponentBuilder().WithName(componentName).WithVolumeMounts(scenario.radixVolumeMount).BuildComponent()
 			volumes, err := GetVolumes(testEnv.kubeclient, testEnv.kubeUtil, namespace, environment, &component, "")
@@ -530,38 +530,38 @@ func (suite *VolumeMountTestSuite) Test_GetVolumesForComponent() {
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, Status phase: Bound",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
 				expectedVolumeName:    "csi-az-blob-some-component-blob-volume1-storage1",
 				expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume1-storage1",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeBlobCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
+			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
 		},
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "Blob CSI Azure volume, Status phase: Pending",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
 				expectedVolumeName:    "csi-az-blob-some-component-blob-volume2-storage2",
 				expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume2-storage2",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeBlobCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
+			pvc: createPvc(namespace, componentName, v1.MountTypeBlobFuse2FuseCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
 		},
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, Status phase: Bound",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "file-volume1", Storage: "storage3", Path: "path3", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume1", Storage: "storage3", Path: "path3", GID: "1000"},
 				expectedVolumeName:    "csi-az-file-some-component-file-volume1-storage3",
 				expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume1-storage3",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
+			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimBound }),
 		},
 		{
 			volumeMountTestScenario: volumeMountTestScenario{
 				name:                  "File CSI Azure volume, Status phase: Pending",
-				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "file-volume2", Storage: "storage4", Path: "path4", GID: "1000"},
+				radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume2", Storage: "storage4", Path: "path4", GID: "1000"},
 				expectedVolumeName:    "csi-az-file-some-component-file-volume2-storage4",
 				expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume2-storage4",
 			},
-			pvc: createPvc(namespace, componentName, v1.MountTypeFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
+			pvc: createPvc(namespace, componentName, v1.MountTypeAzureFileCsiAzure, func(pvc *corev1.PersistentVolumeClaim) { pvc.Status.Phase = corev1.ClaimPending }),
 		},
 	}
 
@@ -631,38 +631,38 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 	scenarios := []volumeMountTestScenario{
 		{
 			name:                  "Blob CSI Azure volume, Status phase: Bound",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
+			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume1", Storage: "storage1", Path: "path1", GID: "1000"},
 			expectedVolumeName:    "csi-az-blob-some-component-blob-volume1-storage1",
 			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume1-storage1",
 		},
 		{
 			name:                  "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
+			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume2", Storage: "storage2", Path: "path2", GID: "1000"},
 			expectedVolumeName:    "csi-az-blob-some-component-blob-volume2-storage2",
 			expectedPvcNamePrefix: "pvc-csi-az-blob-some-component-blob-volume2-storage2",
 		},
 		{
 			name:                  "File CSI Azure volume, Status phase: Bound",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "file-volume1", Storage: "storage3", Path: "path3", GID: "1000"},
+			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume1", Storage: "storage3", Path: "path3", GID: "1000"},
 			expectedVolumeName:    "csi-az-file-some-component-file-volume1-storage3",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume1-storage3",
 		},
 		{
 			name:                  "File CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "file-volume2", Storage: "storage4", Path: "path4", GID: "1000"},
+			radixVolumeMount:      v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume2", Storage: "storage4", Path: "path4", GID: "1000"},
 			expectedVolumeName:    "csi-az-file-some-component-file-volume2-storage4",
 			expectedPvcNamePrefix: "pvc-csi-az-file-some-component-file-volume2-storage4",
 		},
 		{
 			name:                       "Blob CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeBlobFuse2FuseCsiAzure, Name: "blob-volume-with-long-name", Storage: "storage-with-long-name", Path: "path2", GID: "1000"},
 			expectedVolumeName:         "csi-az-blob-some-component-blob-volume-with-long-name-sto-",
 			expectedVolumeNameIsPrefix: true,
 			expectedPvcNamePrefix:      "pvc-csi-az-blob-some-component-blob-volume-with-long-name-",
 		},
 		{
 			name:                       "File CSI Azure volume, Status phase: Pending",
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "file-volume-with-long-name", Storage: "storage-with-long-name", Path: "path4", GID: "1000"},
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "file-volume-with-long-name", Storage: "storage-with-long-name", Path: "path4", GID: "1000"},
 			expectedVolumeName:         "csi-az-file-some-component-file-volume-with-long-name-sto-",
 			expectedVolumeNameIsPrefix: true,
 			expectedPvcNamePrefix:      "pvc-csi-az-file-some-component-file-volume-with-long-name-",
@@ -715,15 +715,15 @@ func (suite *VolumeMountTestSuite) Test_GetRadixDeployComponentVolumeMounts() {
 func (suite *VolumeMountTestSuite) Test_CreateOrUpdateCsiAzureBlobVolumeResources() {
 	scenarios := []volumeMountTestScenario{
 		{
-			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume1", Storage: "storageName1", Path: "TestPath1"},
 			expectedVolumeName: "csi-az-file-app-volume1-storageName1",
 		},
 		{
-			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
+			radixVolumeMount:   v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume2", Storage: "storageName2", Path: "TestPath2"},
 			expectedVolumeName: "csi-az-file-app-volume2-storageName2",
 		},
 		{
-			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath3"},
+			radixVolumeMount:           v1.RadixVolumeMount{Type: v1.MountTypeAzureFileCsiAzure, Name: "volume-with-long-name", Storage: "storageName-with-long-name", Path: "TestPath3"},
 			expectedVolumeName:         "csi-az-file-app-volume-with-long-name-storageName-with-lo-",
 			expectedVolumeNameIsPrefix: true,
 		},
@@ -1274,7 +1274,7 @@ func getPropsCsiBlobVolume1Storage1(modify func(*expectedPvcScProperties)) expec
 		radixStorageName:        "storage1",
 		pvcName:                 "pvc-csi-az-blob-some-component-volume1-storage1-12345",
 		storageClassName:        "sc-any-app-some-env-csi-az-blob-some-component-volume1-storage1",
-		radixVolumeMountType:    v1.MountTypeBlobCsiAzure,
+		radixVolumeMountType:    v1.MountTypeBlobFuse2FuseCsiAzure,
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
 		volumeName:              "csi-az-blob-some-component-volume1-storage1",
@@ -1303,7 +1303,7 @@ func getPropsCsiFileVolume2Storage2(modify func(*expectedPvcScProperties)) expec
 		radixStorageName:        "storage2",
 		pvcName:                 "pvc-csi-az-file-some-component-volume2-storage2-12345",
 		storageClassName:        "sc-any-app-some-env-csi-az-file-some-component-volume2-storage2",
-		radixVolumeMountType:    v1.MountTypeFileCsiAzure,
+		radixVolumeMountType:    v1.MountTypeAzureFileCsiAzure,
 		requestsVolumeMountSize: "1Mi",
 		volumeAccessMode:        corev1.ReadWriteMany, // default access mode
 		volumeName:              "csi-az-file-some-component-volume2-storage2",
@@ -1455,16 +1455,16 @@ func createExpectedStorageClass(props expectedPvcScProperties, modify func(class
 
 func setStorageClassStorageParameter(radixVolumeMountType v1.MountType, storageName string, sc *storagev1.StorageClass) {
 	switch radixVolumeMountType {
-	case v1.MountTypeBlobCsiAzure:
+	case v1.MountTypeBlobFuse2FuseCsiAzure:
 		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
 		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse
-	case v1.MountTypeBlob2CsiAzure:
+	case v1.MountTypeBlobFuse2Fuse2CsiAzure:
 		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
 		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterFuse2
-	case v1.MountTypeNfsCsiAzure:
+	case v1.MountTypeBlobFuse2NfsCsiAzure:
 		sc.Parameters[csiStorageClassContainerNameParameter] = storageName
 		sc.Parameters[csiStorageClassProtocolParameter] = csiStorageClassProtocolParameterNfs
-	case v1.MountTypeFileCsiAzure:
+	case v1.MountTypeAzureFileCsiAzure:
 		sc.Parameters[csiStorageClassShareNameParameter] = storageName
 	}
 }
