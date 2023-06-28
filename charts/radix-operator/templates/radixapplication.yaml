@@ -778,7 +778,7 @@ spec:
                                         DataLake storage account. When set to false,
                                         blobfuse will access Azure Block Blob storage
                                         account, hierarchical file system is not supported.
-                                        Default true. This must be turned on when
+                                        Default false. This must be turned on when
                                         HNS enabled account is mounted.
                                       type: boolean
                                   required:
@@ -1637,7 +1637,7 @@ spec:
                                         DataLake storage account. When set to false,
                                         blobfuse will access Azure Block Blob storage
                                         account, hierarchical file system is not supported.
-                                        Default true. This must be turned on when
+                                        Default false. This must be turned on when
                                         HNS enabled account is mounted.
                                       type: boolean
                                   required:

@@ -137,10 +137,33 @@ func NoScalingResourceSetError(component, environment string) error {
 	return fmt.Errorf("no scaling resource is set for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-func emptyVolumeMountTypeContainerNameOrTempPathError(component, environment string) error {
-	return fmt.Errorf("volume mount type, name, containers and temp-path of volumeMount for component %s in environment %s cannot be empty. See documentation for more info", component, environment)
+func emptyVolumeMountTypeOrDriverSectionError(component, environment string) error {
+	return fmt.Errorf("non of volume mount type, blobfuse2 or azureFile options are defined in the volumeMount for component %s in environment %s. See documentation for more info", component, environment)
 }
 
+func multipleVolumeMountTypesDefinedError(component, environment string) error {
+	return fmt.Errorf("multiple volume mount types defined in the volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+func emptyVolumeMountNameOrPathError(component, environment string) error {
+	return fmt.Errorf("missing volume mount name and path of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+func emptyVolumeMountStorageError(component, environment string) error {
+	return fmt.Errorf("missing volume mount storage of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+func emptyBlobFuse2VolumeMountContainerError(component, environment string) error {
+	return fmt.Errorf("missing BlobFuse2 volume mount container of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+func emptyBlobFuse2VolumeMountProtocolError(component, environment string) error {
+	return fmt.Errorf("missing BlobFuse2 volume mount protocol of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+}
+
+func emptyAzureFileVolumeMountContainerError(component, environment string) error {
+	return fmt.Errorf("missing Azure File volume mount share of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+}
 func duplicatePathForVolumeMountType(path, volumeMountType, component, environment string) error {
 	return fmt.Errorf("duplicate path %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
 		path, volumeMountType, component, environment)
