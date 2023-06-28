@@ -755,7 +755,7 @@
                                 "type": "string"
                               },
                               "useAdls": {
-                                "description": "Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported. Default true. This must be turned on when HNS enabled account is mounted.",
+                                "description": "Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported. Default false. This must be turned on when HNS enabled account is mounted.",
                                 "type": "boolean"
                               }
                             },
@@ -1649,7 +1649,7 @@
                                 "type": "string"
                               },
                               "useAdls": {
-                                "description": "Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported. Default true. This must be turned on when HNS enabled account is mounted.",
+                                "description": "Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported. Default false. This must be turned on when HNS enabled account is mounted.",
                                 "type": "boolean"
                               }
                             },

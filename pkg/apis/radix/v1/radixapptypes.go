@@ -778,7 +778,7 @@ type RadixBlobFuse2VolumeMount struct {
 	BindingMode string `json:"bindingMode,omitempty"` // Volume binding mode. Available values: Immediate (default), WaitForFirstConsumer. https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 
 	// Enables blobfuse to access Azure DataLake storage account. When set to false, blobfuse will access Azure Block Blob storage account, hierarchical file system is not supported.
-	// Default true. This must be turned on when HNS enabled account is mounted.
+	// Default false. This must be turned on when HNS enabled account is mounted.
 	// +optional
 	UseAdls *bool `json:"useAdls,omitempty"`
 
