@@ -1253,29 +1253,18 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 		volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
 		switch {
 		case len(volumeMount.Type) == 0 && volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil:
-			{
-				return emptyVolumeMountTypeOrDriverSectionError(componentName, environment)
-			}
-			fallthrough
+			return emptyVolumeMountTypeOrDriverSectionError(componentName, environment)
 		case multipleVolumeTypesDefined(&volumeMount):
 			return multipleVolumeMountTypesDefinedError(componentName, environment)
-			fallthrough
 		case strings.TrimSpace(volumeMount.Name) == "" ||
 			strings.TrimSpace(volumeMount.Path) == "":
-			{
-				return emptyVolumeMountNameOrPathError(componentName, environment)
-			}
-			fallthrough
+			return emptyVolumeMountNameOrPathError(componentName, environment)
 		case volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil && len(volumeMount.Type) > 0 && len(volumeMountStorage) == 0:
-			{
-				return emptyVolumeMountStorageError(componentName, environment)
-			}
-			fallthrough
+			return emptyVolumeMountStorageError(componentName, environment)
 		case volumeMount.BlobFuse2 != nil:
 			switch {
 			case len(volumeMount.BlobFuse2.Container) == 0:
 				return emptyBlobFuse2VolumeMountContainerError(componentName, environment)
-				fallthrough
 			case len(string(volumeMount.BlobFuse2.Protocol)) == 0:
 				return emptyBlobFuse2VolumeMountProtocolError(componentName, environment)
 			}

@@ -161,9 +161,6 @@ func emptyBlobFuse2VolumeMountProtocolError(component, environment string) error
 	return fmt.Errorf("missing BlobFuse2 volume mount protocol of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-func emptyAzureFileVolumeMountContainerError(component, environment string) error {
-	return fmt.Errorf("missing Azure File volume mount share of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
-}
 func duplicatePathForVolumeMountType(path, volumeMountType, component, environment string) error {
 	return fmt.Errorf("duplicate path %s for volume mount type %s, for component %s in environment %s. See documentation for more info",
 		path, volumeMountType, component, environment)
