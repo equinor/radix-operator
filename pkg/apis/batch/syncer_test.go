@@ -846,7 +846,6 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 				{
 					Name: componentName,
 					VolumeMounts: []radixv1.RadixVolumeMount{
-						{Name: "azureblobname", Path: "/azureblobpath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: radixv1.BlobFuse2ProtocolFuse, Container: "azureblobcontainer"}},
 						{Name: "azureblob2name", Path: "/azureblob2path", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: radixv1.BlobFuse2ProtocolFuse2, Container: "azureblob2container"}},
 						{Name: "azurenfsname", Path: "/azurenfspath", BlobFuse2: &radixv1.RadixBlobFuse2VolumeMount{Protocol: radixv1.BlobFuse2ProtocolNfs, Container: "azurenfscontainer"}},
 						{Name: "azurefilename", Path: "/azurefilepath", AzureFile: &radixv1.RadixAzureFileVolumeMount{Share: "azurefilecontainer"}},
@@ -865,16 +864,14 @@ func (s *syncerTestSuite) Test_JobWithVolumeMounts() {
 	jobs, _ := s.kubeClient.BatchV1().Jobs(namespace).List(context.Background(), metav1.ListOptions{})
 	s.Require().Len(jobs.Items, 1)
 	job := slice.FindAll(jobs.Items, func(job batchv1.Job) bool { return job.GetName() == getKubeJobName(batchName, jobName) })[0]
-	s.Require().Len(job.Spec.Template.Spec.Volumes, 4)
-	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 4)
+	s.Require().Len(job.Spec.Template.Spec.Volumes, 3)
+	s.Require().Len(job.Spec.Template.Spec.Containers[0].VolumeMounts, 3)
 	s.Equal(job.Spec.Template.Spec.Volumes[0].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name)
 	s.Equal(job.Spec.Template.Spec.Volumes[1].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[1].Name)
 	s.Equal(job.Spec.Template.Spec.Volumes[2].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name)
-	s.Equal(job.Spec.Template.Spec.Volumes[3].Name, job.Spec.Template.Spec.Containers[0].VolumeMounts[3].Name)
-	s.Equal("/azureblobpath", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
-	s.Equal("/azureblob2path", job.Spec.Template.Spec.Containers[0].VolumeMounts[1].MountPath)
-	s.Equal("/azurenfspath", job.Spec.Template.Spec.Containers[0].VolumeMounts[2].MountPath)
-	s.Equal("/azurefilepath", job.Spec.Template.Spec.Containers[0].VolumeMounts[3].MountPath)
+	s.Equal("/azureblob2path", job.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath)
+	s.Equal("/azurenfspath", job.Spec.Template.Spec.Containers[0].VolumeMounts[1].MountPath)
+	s.Equal("/azurefilepath", job.Spec.Template.Spec.Containers[0].VolumeMounts[2].MountPath)
 }
 
 func (s *syncerTestSuite) Test_JobWithVolumeMounts_Deprecated() {

@@ -162,8 +162,6 @@ func getCsiAzureVolumeMountName(componentName string, radixVolumeMount *radixv1.
 func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radixv1.MountType {
 	if radixVolumeMount.BlobFuse2 != nil {
 		switch radixVolumeMount.BlobFuse2.Protocol {
-		case radixv1.BlobFuse2ProtocolFuse:
-			return radixv1.MountTypeBlobFuse2FuseCsiAzure
 		case radixv1.BlobFuse2ProtocolFuse2:
 			return radixv1.MountTypeBlobFuse2Fuse2CsiAzure
 		case radixv1.BlobFuse2ProtocolNfs:
@@ -179,8 +177,6 @@ func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radi
 func getCsiRadixVolumeTypeIdForName(radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
 	if radixVolumeMount.BlobFuse2 != nil {
 		switch radixVolumeMount.BlobFuse2.Protocol {
-		case radixv1.BlobFuse2ProtocolFuse:
-			return "csi-az-blob", nil
 		case radixv1.BlobFuse2ProtocolFuse2:
 			return "csi-blobfuse2-fuse2", nil
 		case radixv1.BlobFuse2ProtocolNfs:

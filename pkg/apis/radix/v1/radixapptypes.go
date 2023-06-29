@@ -728,8 +728,6 @@ type BlobFuse2Protocol string
 
 // These are valid types of mount
 const (
-	// BlobFuse2ProtocolFuse - Use of fuse protocol for storage account for blobfuse2
-	BlobFuse2ProtocolFuse BlobFuse2Protocol = "fuse"
 	// BlobFuse2ProtocolFuse2 Use of fuse2 protocol for storage account for blobfuse2
 	BlobFuse2ProtocolFuse2 BlobFuse2Protocol = "fuse2"
 	// BlobFuse2ProtocolNfs Use of NFS storage account for blobfuse2
@@ -740,7 +738,7 @@ const (
 // More info: https://github.com/Azure/azure-storage-fuse
 type RadixBlobFuse2VolumeMount struct {
 	// Holds protocols of BlobFuse2 Azure Storage FUSE driver
-	// +kubebuilder:validation:Enum=fuse;fuse2;nfs
+	// +kubebuilder:validation:Enum=fuse2;nfs
 	Protocol BlobFuse2Protocol `json:"protocol"`
 
 	// Container. Name of the container in the external storage resource.
