@@ -692,7 +692,6 @@
                               "protocol": {
                                 "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver",
                                 "enum": [
-                                  "fuse",
                                   "fuse2",
                                   "nfs"
                                 ],
@@ -1586,7 +1585,6 @@
                               "protocol": {
                                 "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver",
                                 "enum": [
-                                  "fuse",
                                   "fuse2",
                                   "nfs"
                                 ],

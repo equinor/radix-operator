@@ -1298,23 +1298,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			"missing volume mount name and path of volumeMount for component",
 		},
 		{
-			"mount volume is blobfuse2 fuse",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Protocol:  v1.BlobFuse2ProtocolFuse,
-							Container: "some-container",
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, true, true, "",
-		},
-		{
 			"mount volume is blobfuse2 fuse2",
 			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
@@ -1347,22 +1330,6 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				return volumeMounts
 			},
 			setComponentAndJobsVolumeMounts, true, true, "",
-		},
-		{
-			"missing container name in mount volume blobfuse2 fuse",
-			func() []v1.RadixVolumeMount {
-				volumeMounts := []v1.RadixVolumeMount{
-					{
-						Name: "some_name",
-						Path: "some_path",
-						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
-							Protocol: v1.BlobFuse2ProtocolFuse,
-						},
-					},
-				}
-				return volumeMounts
-			},
-			setComponentAndJobsVolumeMounts, false, false, "missing BlobFuse2 volume mount container of volumeMount for component",
 		},
 		{
 			"missing container name in mount volume blobfuse2 fuse2",
