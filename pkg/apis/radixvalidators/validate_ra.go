@@ -1249,16 +1249,26 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 	mountsInComponent := make(map[string]volumeMountConfigMaps)
 
 	for _, volumeMount := range volumeMounts {
-		volumeMountType := strings.TrimSpace(string(volumeMount.Type))
+		volumeMountType := string(deployment.GetCsiAzureVolumeMountType(&volumeMount))
 		volumeMountStorage := deployment.GetRadixVolumeMountStorage(&volumeMount)
 		switch {
-		case volumeMountType == "" ||
-			strings.TrimSpace(volumeMount.Name) == "" ||
-			strings.TrimSpace(volumeMountStorage) == "" ||
+		case len(volumeMount.Type) == 0 && volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil:
+			return emptyVolumeMountTypeOrDriverSectionError(componentName, environment)
+		case multipleVolumeTypesDefined(&volumeMount):
+			return multipleVolumeMountTypesDefinedError(componentName, environment)
+		case strings.TrimSpace(volumeMount.Name) == "" ||
 			strings.TrimSpace(volumeMount.Path) == "":
-			{
-				return emptyVolumeMountTypeContainerNameOrTempPathError(componentName, environment)
+			return emptyVolumeMountNameOrPathError(componentName, environment)
+		case volumeMount.BlobFuse2 == nil && volumeMount.AzureFile == nil && len(volumeMount.Type) > 0 && len(volumeMountStorage) == 0:
+			return emptyVolumeMountStorageError(componentName, environment)
+		case volumeMount.BlobFuse2 != nil:
+			switch {
+			case len(volumeMount.BlobFuse2.Container) == 0:
+				return emptyBlobFuse2VolumeMountContainerError(componentName, environment)
+			case len(string(volumeMount.BlobFuse2.Protocol)) == 0:
+				return emptyBlobFuse2VolumeMountProtocolError(componentName, environment)
 			}
+			fallthrough
 		case radixv1.IsKnownVolumeMount(volumeMountType):
 			{
 				if _, exists := mountsInComponent[volumeMountType]; !exists {
@@ -1280,6 +1290,20 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 	}
 
 	return nil
+}
+
+func multipleVolumeTypesDefined(volumeMount *radixv1.RadixVolumeMount) bool {
+	count := 0
+	if len(volumeMount.Type) > 0 {
+		count++
+	}
+	if volumeMount.BlobFuse2 != nil {
+		count++
+	}
+	if volumeMount.AzureFile != nil {
+		count++
+	}
+	return count > 1
 }
 
 func validateIdentity(identity *radixv1.Identity) error {
