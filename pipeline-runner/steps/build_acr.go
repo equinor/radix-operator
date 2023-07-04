@@ -112,8 +112,8 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SYS_ADMIN")
 	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID")
 	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID")
-	securityContext.Privileged = conditions.BoolPtr(true)
-	securityContext.AllowPrivilegeEscalation = conditions.BoolPtr(true)
+	//securityContext.Privileged = conditions.BoolPtr(true)
+	//securityContext.AllowPrivilegeEscalation = conditions.BoolPtr(true)
 	securityContext.RunAsUser = numbers.Int64Ptr(0)
 	securityContext.RunAsNonRoot = conditions.BoolPtr(false)
 
@@ -259,7 +259,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			Command:         []string{"/bin/buildah", "build", "--isolation=chroot", "--jobs", "0", "--file", componentImage.Dockerfile, componentImage.Context},
+			Command:         []string{"/bin/buildah", "build", "--storage-driver", "overlay2", "--isolation=chroot", "--jobs", "0", "--file", componentImage.Dockerfile, componentImage.Context},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,
