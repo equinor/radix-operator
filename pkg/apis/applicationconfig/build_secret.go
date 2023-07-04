@@ -25,7 +25,10 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 		}
 
 		// Garbage collect access to build secret (RBAC)
-		err := app.garbageCollectAccessToBuildSecrets(appNamespace)
+		// TODO: garbage collect reader access to build secret
+		err := app.garbageCollectReaderAccessToBuildSecrets(appNamespace)
+		// TODO: no garbage collection of image hub secrets. why?
+		err = app.garbageCollectAccessToBuildSecrets(appNamespace)
 		if err != nil {
 			log.Warnf("Failed to perform garbage collection of access to build secret: %v", err)
 			return err
@@ -33,7 +36,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 	} else {
 		buildSecrets := app.config.Spec.Build.Secrets
 		if !isSecretExist {
-			// Create build secret and grant access to it
+			// Create build secret
 			err := app.initializeBuildSecret(appNamespace, defaults.BuildSecretsName, buildSecrets)
 			if err != nil {
 				return err

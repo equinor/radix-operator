@@ -131,6 +131,17 @@ func ManageSecretsRule(secretNames []string) RuleBuilder {
 	}
 }
 
+func ReadSecretsRule(secretNames []string) RuleBuilder {
+	return func() rbacv1.PolicyRule {
+		return rbacv1.PolicyRule{
+			APIGroups:     []string{""},
+			Resources:     []string{"secrets"},
+			ResourceNames: secretNames,
+			Verbs:         []string{"get", "list", "watch"},
+		}
+	}
+}
+
 func UpdateDeploymentsRule(deployments []string) RuleBuilder {
 	return func() rbacv1.PolicyRule {
 		return rbacv1.PolicyRule{
@@ -170,6 +181,11 @@ func CreateAppRole(appName, roleName string, customLabels map[string]string, rul
 // CreateManageSecretRole creates a role that can manage a secret with predefined set of verbs
 func CreateManageSecretRole(appName, roleName string, secretNames []string, customLabels map[string]string) *rbacv1.Role {
 	return CreateAppRole(appName, roleName, customLabels, ManageSecretsRule(secretNames))
+}
+
+// CreateReadSecretRole creates a role that can read a secret with predefined set of verbs
+func CreateReadSecretRole(appName, roleName string, secretNames []string, customLabels map[string]string) *rbacv1.Role {
+	return CreateAppRole(appName, roleName, customLabels, ReadSecretsRule(secretNames))
 }
 
 // ListRoles List roles

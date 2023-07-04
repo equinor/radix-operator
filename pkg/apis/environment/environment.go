@@ -166,7 +166,7 @@ func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
 
 	readerAdGroups := env.regConfig.Spec.ReaderAdGroups
 	readerSubjects := kube.GetRoleBindingGroups(readerAdGroups)
-	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppReaderRoleName, readerSubjects)
+	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppReaderEnvironmentsRoleName, readerSubjects)
 	readerRoleBinding.SetOwnerReferences(env.AsOwnerReference())
 
 	for _, roleBinding := range []*rbac.RoleBinding{adminRoleBinding, readerRoleBinding} {
