@@ -170,7 +170,6 @@ func (app *ApplicationConfig) OnSync() error {
 		return err
 	}
 
-	//TODO: grant readers access to the private image hub secret
 	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
 	if err != nil {
 		log.Warnf("failed to grant reader access to private image hub secret %v", err)

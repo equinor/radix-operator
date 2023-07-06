@@ -19,7 +19,8 @@ import (
 
 // SecretExists Checks if secret already exists
 func (kubeutil *Kube) SecretExists(namespace, secretName string) bool {
-	_, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secretsDeletMe, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	println(secretsDeletMe)
 	if err != nil && errors.IsNotFound(err) {
 		return false
 	}

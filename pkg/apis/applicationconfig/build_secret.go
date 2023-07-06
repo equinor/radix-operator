@@ -14,7 +14,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 	isSecretExist := app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName)
 
-	if app.config.Spec.Build == nil {
+	if app.config.Spec.Build == nil { // funker dette?
 		if isSecretExist {
 			// Delete build secret
 			err := app.kubeutil.DeleteSecret(appNamespace, defaults.BuildSecretsName)
@@ -23,11 +23,8 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 				return err
 			}
 		}
-
 		// Garbage collect access to build secret (RBAC)
-		// TODO: garbage collect reader access to build secret
 		err := app.garbageCollectReaderAccessToBuildSecrets(appNamespace)
-		// TODO: no garbage collection of image hub secrets. why?
 		err = app.garbageCollectAccessToBuildSecrets(appNamespace)
 		if err != nil {
 			log.Warnf("Failed to perform garbage collection of access to build secret: %v", err)

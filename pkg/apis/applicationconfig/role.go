@@ -16,7 +16,6 @@ func (app *ApplicationConfig) grantAccessToBuildSecrets(namespace string) error 
 		return err
 	}
 
-	//TODO: grant reader access to build secrets
 	err = app.grantAppReaderAccessToBuildSecrets(namespace)
 	if err != nil {
 		return err
