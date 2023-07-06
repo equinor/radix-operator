@@ -14,7 +14,7 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 	appNamespace := utils.GetAppNamespace(app.config.Name)
 	isSecretExist := app.kubeutil.SecretExists(appNamespace, defaults.BuildSecretsName)
 
-	if app.config.Spec.Build == nil { // funker dette?
+	if app.config.Spec.Build == nil {
 		if isSecretExist {
 			// Delete build secret
 			err := app.kubeutil.DeleteSecret(appNamespace, defaults.BuildSecretsName)
