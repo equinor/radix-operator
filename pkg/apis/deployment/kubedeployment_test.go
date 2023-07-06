@@ -4,15 +4,15 @@ import (
 	"os"
 	"testing"
 
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func teardownRollingUpdate() {
@@ -342,4 +342,19 @@ func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[
 			WithAppName("any-app").
 			WithEnvironment("test"))
 	return Deployment{radixclient: radixclient, kubeutil: kubeUtil, radixDeployment: rd}
+}
+
+func TestDeployment_createJobAuxDeployment(t *testing.T) {
+	deploy := &Deployment{radixDeployment: &v1.RadixDeployment{ObjectMeta: metav1.ObjectMeta{Name: "deployment1", UID: "uid1"}}}
+	jobDeployComponent := &v1.RadixDeployComponent{
+		Name: "job1",
+	}
+	jobAuxDeployment := deploy.createJobAuxDeployment(jobDeployComponent)
+	assert.Equal(t, "job1-aux", jobAuxDeployment.GetName())
+	resources := jobAuxDeployment.Spec.Template.Spec.Containers[0].Resources
+	s := resources.Requests.Cpu().String()
+	assert.Equal(t, "50m", s)
+	assert.Equal(t, "50M", resources.Requests.Memory().String())
+	assert.Equal(t, "50m", resources.Limits.Cpu().String())
+	assert.Equal(t, "50M", resources.Limits.Memory().String())
 }

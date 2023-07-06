@@ -68,8 +68,8 @@ func (js *jobSchedulerComponent) IsAlwaysPullImageOnDeploy() bool {
 }
 
 func (js *jobSchedulerComponent) GetNode() *v1.RadixNode {
-	//Job configuration in radixconfig.yaml contains section "node", which supposed to configure scheduled jobs by RadixDeployment
-	//"node" section settings should not be applied to the JobScheduler component itself
+	// Job configuration in radixconfig.yaml contains section "node", which supposed to configure scheduled jobs by RadixDeployment
+	// "node" section settings should not be applied to the JobScheduler component itself
 	return nil
 }
 

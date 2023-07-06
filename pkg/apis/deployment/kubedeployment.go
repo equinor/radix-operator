@@ -3,24 +3,22 @@ package deployment
 import (
 	"context"
 
-	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
-
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/numbers"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/intstr"
-
-	log "github.com/sirupsen/logrus"
-
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixannotations "github.com/equinor/radix-operator/pkg/apis/utils/annotations"
 	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
+	log "github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommonDeployComponent) error {
@@ -42,8 +40,23 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 	if err != nil {
 		return err
 	}
+	err = deploy.handleJobAuxDeployment(deployComponent, desiredDeployment)
+	if err != nil {
+		return err
+	}
 
 	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentDeployment, desiredDeployment)
+}
+
+func (deploy *Deployment) handleJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment) error {
+	if !isDeployComponentJobSchedulerDeployment(deployComponent) {
+		return nil
+	}
+	currentJobAuxDeployment, desiredJobAuxDeployment, err := deploy.createOrUpdateJobAuxDeployment(deployComponent, desiredDeployment)
+	if err != nil {
+		return err
+	}
+	return deploy.kubeutil.ApplyDeployment(deploy.radixDeployment.Namespace, currentJobAuxDeployment, desiredJobAuxDeployment)
 }
 
 func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, *appsv1.Deployment, error) {
@@ -118,6 +131,50 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 
 	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
 }
+func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
+	jobName := deployComponent.GetName()
+	jobAuxDeploymentName := getJobAuxObjectName(jobName)
+	desiredDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            jobAuxDeploymentName,
+			OwnerReferences: []metav1.OwnerReference{getOwnerReferenceOfDeployment(deploy.radixDeployment)},
+			Labels:          make(map[string]string),
+			Annotations:     make(map[string]string),
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: int32Ptr(1),
+			Selector: &metav1.LabelSelector{MatchLabels: radixlabels.ForJobAuxObject(jobName)},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{
+					{
+						Name:      jobAuxDeploymentName,
+						Resources: getJobAuxResources(),
+					}},
+				},
+			},
+		},
+	}
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = commonUtils.BoolPtr(false)
+	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod()
+
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = "bitnami/bitnami-shell:latest"
+	desiredDeployment.Spec.Template.Spec.Containers[0].Command = []string{"sh"}
+	desiredDeployment.Spec.Template.Spec.Containers[0].Args = []string{"-c", "echo 'start'; while true; do echo $(date);sleep 3600; done; echo 'exit'"}
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container()
+
+	return desiredDeployment
+}
+
+func getJobAuxResources() corev1.ResourceRequirements {
+	cpu, _ := resource.ParseQuantity("50m")
+	memory, _ := resource.ParseQuantity("50M")
+	return corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
+		Limits:   corev1.ResourceList{corev1.ResourceCPU: cpu, corev1.ResourceMemory: memory},
+	}
+}
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
 	appName := deploy.radixDeployment.Spec.AppName
@@ -154,6 +211,15 @@ func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonD
 	return labels
 }
 
+func (deploy *Deployment) getJobAuxDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	return radixlabels.Merge(
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForComponentName(deployComponent.GetName()),
+		radixlabels.ForPodWithRadixIdentity(deployComponent.GetIdentity()),
+		radixlabels.ForIsJobAuxObject(),
+	)
+}
+
 func (deploy *Deployment) getDeploymentPodAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
 	branch, _ := deploy.getRadixBranchAndCommitId()
 	annotations := radixannotations.ForRadixBranch(branch)
@@ -176,6 +242,15 @@ func (deploy *Deployment) getDeploymentLabels(deployComponent v1.RadixCommonDepl
 	)
 
 	return labels
+}
+
+func (deploy *Deployment) getJobAuxDeploymentLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
+	return radixlabels.Merge(
+		radixlabels.ForApplicationName(deploy.radixDeployment.Spec.AppName),
+		radixlabels.ForComponentName(deployComponent.GetName()),
+		radixlabels.ForComponentType(deployComponent.GetType()),
+		radixlabels.ForIsJobAuxObject(),
+	)
 }
 
 func (deploy *Deployment) getDeploymentAnnotations(deployComponent v1.RadixCommonDeployComponent) map[string]string {
