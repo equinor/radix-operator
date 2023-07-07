@@ -39,6 +39,7 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 	annotations := map[string]string{}
 	for _, buildContainer := range buildContainers {
 		annotations[fmt.Sprintf("container.apparmor.security.beta.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
+		annotations[fmt.Sprintf("container.seccomp.security.alpha.kubernetes.io/%s", buildContainer.Name)] = "unconfined"
 	}
 
 	//debug
@@ -106,16 +107,25 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 	// imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
-	imageBuilder := "quay.io/buildah/stable:v1.30.0"
+	imageBuilder := "radixdev.azurecr.io/buildah/stable:v1.30.0-strace-file"
+
+	// TODO: incrementally remove kernel capabilities, root user
+
 	// debug
-	securityContext := &pipelineInfo.PipelineArguments.ContainerSecurityContext
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SYS_ADMIN")
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID")
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID")
-	//securityContext.Privileged = conditions.BoolPtr(true)
-	//securityContext.AllowPrivilegeEscalation = conditions.BoolPtr(true)
-	securityContext.RunAsUser = numbers.Int64Ptr(0)
+	securityContext := pipelineInfo.PipelineArguments.ContainerSecurityContext.DeepCopy()
+
+	securityContext.SeccompProfile = &corev1.SeccompProfile{
+		Type: corev1.SeccompProfileTypeUnconfined, // confirmed necessary to slacken seccompprofile.
+		// we should ideally create a custom seccompprofile that allows the necessary syscalls, unshare and clone*
+		// https://github.com/containers/buildah/issues/4563#issuecomment-1576782236
+		// custom seccompprofile must be copied onto node filesystems by a daemonset we create
+		// same goes for custom apparmor profile
+	}
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID") // confirmed necessary
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID") // confirmed necessary
+	// securityContext.AllowPrivilegeEscalation = conditions.BoolPtr(true) // either AllowPrivilegeEscalation or root user is necessary
 	securityContext.RunAsNonRoot = conditions.BoolPtr(false)
+	securityContext.RunAsUser = numbers.Int64Ptr(0) // either AllowPrivilegeEscalation or root user is necessary
 
 	clusterType := pipelineInfo.PipelineArguments.Clustertype
 	clusterName := pipelineInfo.PipelineArguments.Clustername
@@ -259,7 +269,9 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			Command:         []string{"/bin/buildah", "build", "--storage-driver", "overlay2", "--isolation=chroot", "--jobs", "0", "--file", componentImage.Dockerfile, componentImage.Context},
+			// Command:         []string{"/bin/buildah", "build", "--storage-driver", "overlay2", "--isolation=chroot", "--jobs", "0", "--file", componentImage.Dockerfile, componentImage.Context},
+			// Command: []string{"/bin/sh", "-c", fmt.Sprintf("((while true; do ps -aux >> /tmp/ps_aux.txt; sleep 1; done) &) && cp -r %s /tmp/buildcontext && stat /tmp/buildcontext/ && ls -l /tmp/buildcontext/ && whoami && cat /sys/module/apparmor/parameters/enabled && /bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 --file %s /tmp/buildcontext || sleep 1800", effectiveContext, componentImage.Dockerfile)},
+			Command: []string{"/bin/sh", "-c", fmt.Sprintf("/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 --file %s %s", componentImage.Dockerfile, componentImage.Context)},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,
@@ -271,7 +283,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 					ReadOnly:  true,
 				},
 			},
-			SecurityContext: &pipelineInfo.PipelineArguments.ContainerSecurityContext,
+			SecurityContext: securityContext,
 		}
 		containers = append(containers, container)
 	}
