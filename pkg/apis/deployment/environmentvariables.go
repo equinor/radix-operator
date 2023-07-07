@@ -111,7 +111,7 @@ func getEnvironmentVariables(appName string, envVarsSource environmentVariablesS
 
 	envVars = appendDefaultEnvVars(envVars, envVarsSource, currentEnvironment, namespace, appName, deployComponent, radixDeploymentLabels)
 
-	if !isDeployComponentJobSchedulerDeployment(deployComponent) { //JobScheduler does not need env-vars for secrets and secret-refs
+	if !isDeployComponentJobSchedulerDeployment(deployComponent) { // JobScheduler does not need env-vars for secrets and secret-refs
 		envVars = append(envVars, utils.GetEnvVarsFromSecrets(deployComponent.GetName(), deployComponent.GetSecrets())...)
 		envVars = append(envVars, utils.GetEnvVarsFromAzureKeyVaultSecretRefs(radixDeployment.GetName(), deployComponent.GetName(), deployComponent.GetSecretRefs())...)
 	}
@@ -138,7 +138,7 @@ func getEnvVars(envVarConfigMap *corev1.ConfigMap, deployComponentEnvVars v1.Env
 		usedConfigMapEnvVarNames[envVarName] = true
 	}
 
-	//add env-vars, not existing in config-map
+	// add env-vars, not existing in config-map
 	for envVarName, envVarValue := range deployComponentEnvVars {
 		if _, ok := usedConfigMapEnvVarNames[envVarName]; !ok {
 			resultEnvVars = append(resultEnvVars, corev1.EnvVar{
@@ -295,25 +295,25 @@ func buildEnvVarsFromRadixConfig(radixConfigEnvVars v1.EnvVarsMap, envVarConfigM
 		envVarConfigMapValue, foundValueInEnvVarConfigMap := envVarConfigMap.Data[envVarName]
 		envVarMetadata, foundEnvVarMetadata := envVarMetadataMap[envVarName]
 
-		if !foundValueInEnvVarConfigMap || !foundEnvVarMetadata { //no such env-var, created or changed in Radix console
-			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
-			if foundEnvVarMetadata {                                  //exists metadata without config-map env-var
-				delete(envVarMetadataMap, envVarName) //remove this orphaned metadata
+		if !foundValueInEnvVarConfigMap || !foundEnvVarMetadata { // no such env-var, created or changed in Radix console
+			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue // use env-var from radixconfig
+			if foundEnvVarMetadata {                                  // exists metadata without config-map env-var
+				delete(envVarMetadataMap, envVarName) // remove this orphaned metadata
 			}
 			continue
 		}
 
-		if !foundEnvVarMetadata { //no metadata to update
+		if !foundEnvVarMetadata { // no metadata to update
 			continue
 		}
 
-		if strings.EqualFold(envVarConfigMapValue, envVarMetadata.RadixConfigValue) { //config-map env-var is the same as in metadata
-			delete(envVarMetadataMap, envVarName)                     //remove metadata (it is not necessary anymore)
-			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue //use env-var from radixconfig
+		if strings.EqualFold(envVarConfigMapValue, envVarMetadata.RadixConfigValue) { // config-map env-var is the same as in metadata
+			delete(envVarMetadataMap, envVarName)                     // remove metadata (it is not necessary anymore)
+			envVarConfigMap.Data[envVarName] = radixConfigEnvVarValue // use env-var from radixconfig
 			continue
 		}
 
-		//save radixconfig env-var value to metadata
+		// save radixconfig env-var value to metadata
 		envVarMetadata.RadixConfigValue = radixConfigEnvVarValue
 		envVarMetadataMap[envVarName] = envVarMetadata
 		log.Debugf("RadixConfig environment variable %s has been set or changed in Radix console", envVarName)

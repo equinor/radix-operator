@@ -142,7 +142,7 @@ func (deploy *Deployment) createOrUpdateSecretsForComponent(component radixv1.Ra
 func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentName string, volumeMounts []radixv1.RadixVolumeMount) ([]string, error) {
 	var volumeMountSecretsToManage []string
 	for _, volumeMount := range volumeMounts {
-		switch volumeMount.Type {
+		switch GetCsiAzureVolumeMountType(&volumeMount) {
 		case radixv1.MountTypeBlob:
 			{
 				secretName, accountKey, accountName := deploy.getBlobFuseCredsSecrets(namespace, componentName, volumeMount.Name)
@@ -152,11 +152,11 @@ func (deploy *Deployment) createOrUpdateVolumeMountSecrets(namespace, componentN
 					return nil, err
 				}
 			}
-		case radixv1.MountTypeBlobCsiAzure, radixv1.MountTypeFileCsiAzure:
+		case radixv1.MountTypeBlobFuse2FuseCsiAzure, radixv1.MountTypeBlobFuse2Fuse2CsiAzure, radixv1.MountTypeBlobFuse2NfsCsiAzure, radixv1.MountTypeAzureFileCsiAzure:
 			{
 				secretName, accountKey, accountName := deploy.getCsiAzureVolumeMountCredsSecrets(namespace, componentName, volumeMount.Name)
 				volumeMountSecretsToManage = append(volumeMountSecretsToManage, secretName)
-				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, componentName, volumeMount.Name, volumeMount.Type, secretName, accountName, accountKey)
+				err := deploy.createOrUpdateCsiAzureVolumeMountsSecrets(namespace, componentName, &volumeMount, secretName, accountName, accountKey)
 				if err != nil {
 					return nil, err
 				}
@@ -374,7 +374,7 @@ func buildAzureKeyVaultCredentialsSecret(appName, componentName, secretName, azK
 				kube.RadixComponentLabel:           componentName,
 				kube.RadixSecretRefTypeLabel:       string(radixv1.RadixSecretRefTypeAzureKeyVault),
 				kube.RadixSecretRefNameLabel:       strings.ToLower(azKeyVaultName),
-				secretUsedBySecretStoreDriverLabel: "true", //used by CSI Azure Key vault secret store driver for secret rotation
+				secretUsedBySecretStoreDriverLabel: "true", // used by CSI Azure Key vault secret store driver for secret rotation
 			},
 		},
 	}
@@ -446,7 +446,7 @@ func IsSecretRequiredForClientCertificate(clientCertificate *radixv1.ClientCerti
 	return false
 }
 
-//GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
+// GarbageCollectSecrets delete secrets, excluding with names in the excludeSecretNames
 func (deploy *Deployment) GarbageCollectSecrets(secrets []*v1.Secret, excludeSecretNames []string) error {
 	for _, secret := range secrets {
 		if slice.ContainsString(excludeSecretNames, secret.Name) {

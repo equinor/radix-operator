@@ -1136,7 +1136,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			func() []v1.RadixVolumeMount {
 				volumeMounts := []v1.RadixVolumeMount{
 					{
-						Type:    "disk",
+						Type:    "new-type",
 						Name:    "some_name",
 						Storage: "some_container_name",
 						Path:    "some_path",
@@ -1241,7 +1241,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			setComponentAndJobsVolumeMounts,
 			false,
 			false,
-			"volume mount type, name, containers and temp-path of volumeMount for component",
+			"non of volume mount type, blobfuse2 or azureFile options are defined in the volumeMount for component",
 		},
 		{
 			"mount volume name is not set",
@@ -1259,7 +1259,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			setComponentAndJobsVolumeMounts,
 			false,
 			false,
-			"volume mount type, name, containers and temp-path of volumeMount for component",
+			"missing volume mount name and path of volumeMount for component",
 		},
 		{
 			"mount volume containers is not set",
@@ -1277,7 +1277,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			setComponentAndJobsVolumeMounts,
 			false,
 			false,
-			"volume mount type, name, containers and temp-path of volumeMount for component",
+			"missing volume mount storage of volumeMount for component",
 		},
 		{
 			"mount volume path is not set",
@@ -1295,7 +1295,73 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			setComponentAndJobsVolumeMounts,
 			false,
 			false,
-			"volume mount type, name, containers and temp-path of volumeMount for component",
+			"missing volume mount name and path of volumeMount for component",
+		},
+		{
+			"mount volume is blobfuse2 fuse2",
+			func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+							Protocol:  v1.BlobFuse2ProtocolFuse2,
+							Container: "some-container",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			setComponentAndJobsVolumeMounts, true, true, "",
+		},
+		{
+			"mount volume is blobfuse2 nfs",
+			func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+							Protocol:  v1.BlobFuse2ProtocolNfs,
+							Container: "some-container",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			setComponentAndJobsVolumeMounts, true, true, "",
+		},
+		{
+			"missing container name in mount volume blobfuse2 fuse2",
+			func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+							Protocol: v1.BlobFuse2ProtocolFuse2,
+						},
+					},
+				}
+				return volumeMounts
+			},
+			setComponentAndJobsVolumeMounts, false, false, "missing BlobFuse2 volume mount container of volumeMount for component",
+		},
+		{
+			"missing container name in mount volume blobfuse2 nfs",
+			func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+							Protocol: v1.BlobFuse2ProtocolNfs,
+						},
+					},
+				}
+				return volumeMounts
+			},
+			setComponentAndJobsVolumeMounts, false, false, "missing BlobFuse2 volume mount container of volumeMount for component",
 		},
 	}
 
