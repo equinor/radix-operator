@@ -107,13 +107,13 @@ func (s *syncer) buildJobStatuses() ([]radixv1.RadixBatchJobStatus, error) {
 	}
 
 	for _, batchJob := range s.batch.Spec.Jobs {
-		jobStatuses = append(jobStatuses, s.buildBatchJobStatus(batchJob, jobs))
+		jobStatuses = append(jobStatuses, s.buildBatchJobStatus(&batchJob, jobs))
 	}
 
 	return jobStatuses, nil
 }
 
-func (s *syncer) buildBatchJobStatus(batchJob radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
+func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []*batchv1.Job) radixv1.RadixBatchJobStatus {
 	currentStatus := slice.FindAll(s.batch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
 		return jobStatus.Name == batchJob.Name
 	})
