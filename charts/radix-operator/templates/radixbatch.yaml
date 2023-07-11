@@ -154,12 +154,6 @@ spec:
                 - job
                 - name
                 type: object
-              restart:
-                description: Controls if a job in the batch should be restarted. If
-                  Restart is set to new timestamp, and - a job is stopped - the job
-                  is started again. - a job is running - the job is stopped and started
-                  again. This timestamp set to each job's status.restart.
-                type: string
             required:
             - jobs
             - radixDeploymentJobRef

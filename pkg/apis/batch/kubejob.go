@@ -78,14 +78,10 @@ func (s *syncer) handleJobToRestart(batchJob *radixv1.RadixBatchJob, existingJob
 }
 
 func (s *syncer) getJobRestartTimestamps(batchJob *radixv1.RadixBatchJob, jobStatusIdx int) (string, string) {
-	jobStatusRestartTimestamp := ""
 	if jobStatusIdx >= 0 {
-		jobStatusRestartTimestamp = s.batch.Status.JobStatuses[jobStatusIdx].Restart
+		return batchJob.Restart, s.batch.Status.JobStatuses[jobStatusIdx].Restart
 	}
-	if len(s.batch.Spec.Restart) > 0 && s.batch.Spec.Restart != jobStatusRestartTimestamp {
-		return s.batch.Spec.Restart, jobStatusRestartTimestamp // batch restart has higher priority then batchJob restart
-	}
-	return batchJob.Restart, jobStatusRestartTimestamp // fall-down to batchJob restart
+	return batchJob.Restart, ""
 }
 
 func (s *syncer) deleteJobs(jobsToDelete []*batchv1.Job) error {

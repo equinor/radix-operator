@@ -42,14 +42,6 @@ type RadixBatchSpec struct {
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=500
 	Jobs []RadixBatchJob `json:"jobs"`
-
-	// Controls if a job in the batch should be restarted.
-	// If Restart is set to new timestamp, and
-	// - a job is stopped - the job is started again.
-	// - a job is running - the job is stopped and started again.
-	// This timestamp set to each job's status.restart.
-	// +optional
-	Restart string `json:"restart,omitempty"`
 }
 
 // RadixBatchJob Spec for a batch job
