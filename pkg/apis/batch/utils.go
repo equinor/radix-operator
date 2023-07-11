@@ -37,11 +37,8 @@ func isBatchDone(batch *radixv1.RadixBatch) bool {
 	if batch.Status.Condition.Type != radixv1.BatchConditionTypeCompleted {
 		return false
 	}
-	if len(batch.Spec.Restart) == 0 {
-		return true
-	}
-	return !slice.Any(batch.Status.JobStatuses, func(jobStatus radixv1.RadixBatchJobStatus) bool {
-		return jobStatus.Restart != batch.Spec.Restart
+	return len(batch.Spec.Restart) == 0 && !slice.Any(batch.Spec.Jobs, func(batchJob radixv1.RadixBatchJob) bool {
+		return len(batchJob.Restart) > 0
 	})
 }
 

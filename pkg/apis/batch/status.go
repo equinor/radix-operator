@@ -125,6 +125,9 @@ func (s *syncer) buildBatchJobStatus(batchJob *radixv1.RadixBatchJob, allJobs []
 		Name:  batchJob.Name,
 		Phase: radixv1.BatchJobPhaseWaiting,
 	}
+	if len(currentStatus) > 0 {
+		status.Restart = currentStatus[0].Restart
+	}
 
 	if isBatchJobStopRequested(batchJob) {
 		now := metav1.Now()
