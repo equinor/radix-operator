@@ -23,6 +23,14 @@ func ForApplicationName(appName string) kubelabels.Set {
 	}
 }
 
+// ForEnvironmentName returns labels describing the application environment name,
+// e.g. "radix-env": "dev"
+func ForEnvironmentName(envName string) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixEnvLabel: envName,
+	}
+}
+
 // ForComponentName returns labels describing the component name,
 // e.g. "radix-component": "mycomponent"
 func ForComponentName(componentName string) kubelabels.Set {
