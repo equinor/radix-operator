@@ -3,7 +3,7 @@ module github.com/equinor/radix-operator
 go 1.18
 
 require (
-	github.com/equinor/radix-common v1.2.10
+	github.com/equinor/radix-common v1.3.0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.13
@@ -21,7 +21,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.25.8
 	k8s.io/apimachinery v0.25.8
 	k8s.io/client-go v0.25.8
-	sigs.k8s.io/secrets-store-csi-driver v1.3.2
+	sigs.k8s.io/secrets-store-csi-driver v1.3.3
 	sigs.k8s.io/yaml v1.3.0
 )
 
