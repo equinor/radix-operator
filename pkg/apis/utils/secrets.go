@@ -85,9 +85,6 @@ func GrantAppReaderAccessToSecret(kubeutil *kube.Kube, registration *radixv1.Rad
 
 	// create rolebinding
 	readerAdGroups := registration.Spec.ReaderAdGroups
-	if err != nil {
-		return err
-	}
 
 	subjects := kube.GetRoleBindingGroups(readerAdGroups)
 

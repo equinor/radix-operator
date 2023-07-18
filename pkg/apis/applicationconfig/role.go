@@ -63,82 +63,26 @@ func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (app *ApplicationConfig) garbageCollectReaderAccessToBuildSecrets(namespace string) error {
-	appReaderRoleName := getAppReaderRoleNameToBuildSecrets(defaults.BuildSecretsName)
-
-	// Delete role radix-app-reader-build-secrets
-	_, err := app.kubeutil.GetRole(namespace, appReaderRoleName)
+func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(namespace string, roleName string) error {
+	// Delete role
+	_, err := app.kubeutil.GetRole(namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if err == nil {
-		err = app.kubeutil.DeleteRole(namespace, appReaderRoleName)
+		err = app.kubeutil.DeleteRole(namespace, roleName)
 		if err != nil {
 			return err
 		}
 	}
 
-	// Delete rolebinding radix-app-reader-build-secrets
-	_, err = app.kubeutil.GetRoleBinding(namespace, appReaderRoleName)
+	// Delete roleBinding
+	_, err = app.kubeutil.GetRoleBinding(namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 	if err == nil {
-		err = app.kubeutil.DeleteRoleBinding(namespace, appReaderRoleName)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(namespace string) error {
-	pipelineRoleName := getPipelineRoleNameToBuildSecrets(defaults.BuildSecretsName)
-	appAdminRoleName := getAppAdminRoleNameToBuildSecrets(defaults.BuildSecretsName)
-
-	// Delete role pipeline-build-secrets
-	_, err := app.kubeutil.GetRole(namespace, pipelineRoleName)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-	if err == nil {
-		err = app.kubeutil.DeleteRole(namespace, pipelineRoleName)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Delete rolebinding pipeline-build-secrets
-	_, err = app.kubeutil.GetRoleBinding(namespace, pipelineRoleName)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-	if err == nil {
-		err = app.kubeutil.DeleteRoleBinding(namespace, pipelineRoleName)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Delete role radix-app-admin-build-secrets
-	_, err = app.kubeutil.GetRole(namespace, appAdminRoleName)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-	if err == nil {
-		err = app.kubeutil.DeleteRole(namespace, appAdminRoleName)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Delete rolebinding radix-app-admin-build-secrets
-	_, err = app.kubeutil.GetRoleBinding(namespace, appAdminRoleName)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	}
-	if err == nil {
-		err = app.kubeutil.DeleteRoleBinding(namespace, appAdminRoleName)
+		err = app.kubeutil.DeleteRoleBinding(namespace, roleName)
 		if err != nil {
 			return err
 		}
