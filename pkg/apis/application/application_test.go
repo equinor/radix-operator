@@ -52,11 +52,11 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	assert.NoError(t, err)
 
 	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-any-app", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-pipeline-rr-any-app", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-tekton-rr-any-app", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-reader-any-app", clusterRoleBindings))
+	for _, clusterRoleBindingName := range []string{
+		"any-app-machine-user", "radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
+	} {
+		assert.True(t, clusterRoleBindingByNameExists(clusterRoleBindingName, clusterRoleBindings), fmt.Sprintf("ClusterRoleBinding %s does not exist", clusterRoleBindingName))
+	}
 
 	assert.Equal(t, getClusterRoleBindingByName("any-app-machine-user", clusterRoleBindings).Subjects[0].Name, defaults.GetMachineUserRoleName(appName))
 	assert.Equal(t, getClusterRoleBindingByName("radix-pipeline-rr-any-app", clusterRoleBindings).Subjects[0].Name, defaults.PipelineServiceAccountName)
@@ -67,10 +67,11 @@ func TestOnSync_CorrectRRScopedClusterRoles_CorrectClusterRoleBindings(t *testin
 	assert.Equal(t, getClusterRoleBindingByName("radix-platform-user-rr-reader-any-app", clusterRoleBindings).Subjects[0].Name, rr.Spec.ReaderAdGroups[0])
 
 	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-any-app", clusterRoles))
-	assert.True(t, clusterRoleByNameExists("radix-pipeline-rr-any-app", clusterRoles))
-	assert.True(t, clusterRoleByNameExists("radix-tekton-rr-any-app", clusterRoles))
-	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-reader-any-app", clusterRoles))
+	for _, clusterRoleName := range []string{
+		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
+	} {
+		assert.True(t, clusterRoleByNameExists(clusterRoleName, clusterRoles), fmt.Sprintf("ClusterRole %s does not exist", clusterRoleName))
+	}
 }
 
 func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
@@ -86,11 +87,11 @@ func TestOnSync_CorrectRoleBindings_AppNamespace(t *testing.T) {
 	assert.NoError(t, err)
 
 	roleBindings, _ := client.RbacV1().RoleBindings(utils.GetAppNamespace(appName)).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, roleBindings))
-	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, roleBindings))
-	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, roleBindings))
-	assert.True(t, roleBindingByNameExists(defaults.AppReaderRoleName, roleBindings))
-	assert.True(t, roleBindingByNameExists("git-ssh-keys", roleBindings))
+	for _, roleBindingName := range []string{
+		defaults.RadixTektonAppRoleName, defaults.PipelineAppRoleName, defaults.AppAdminRoleName, defaults.AppReaderRoleName, "git-ssh-keys",
+	} {
+		assert.True(t, roleBindingByNameExists(roleBindingName, roleBindings), fmt.Sprintf("RoleBinding %s does not exist", roleBindingName))
+	}
 
 	assert.Equal(t, getRoleBindingByName(defaults.PipelineAppRoleName, roleBindings).Subjects[0].Name, defaults.PipelineServiceAccountName)
 	assert.Equal(t, getRoleBindingByName(defaults.AppAdminRoleName, roleBindings).Subjects[0].Name, rr.Spec.AdGroups[0])
@@ -114,17 +115,18 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 		WithMachineUser(true))
 
 	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, clusterRoleBindingByNameExists("any-app-machine-user", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-any-app", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-pipeline-rr-any-app", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-tekton-rr-any-app", clusterRoleBindings))
-	assert.True(t, clusterRoleBindingByNameExists("radix-platform-user-rr-reader-any-app", clusterRoleBindings))
+	for _, clusterRoleBindingName := range []string{
+		"any-app-machine-user", "radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
+	} {
+		assert.True(t, clusterRoleBindingByNameExists(clusterRoleBindingName, clusterRoleBindings), fmt.Sprintf("ClusterRoleBinding %s does not exist", clusterRoleBindingName))
+	}
 
 	clusterRoles, _ := client.RbacV1().ClusterRoles().List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-any-app", clusterRoles))
-	assert.True(t, clusterRoleByNameExists("radix-pipeline-rr-any-app", clusterRoles))
-	assert.True(t, clusterRoleByNameExists("radix-tekton-rr-any-app", clusterRoles))
-	assert.True(t, clusterRoleByNameExists("radix-platform-user-rr-reader-any-app", clusterRoles))
+	for _, clusterRoleName := range []string{
+		"radix-platform-user-rr-any-app", "radix-pipeline-rr-any-app", "radix-tekton-rr-any-app", "radix-platform-user-rr-reader-any-app",
+	} {
+		assert.True(t, clusterRoleByNameExists(clusterRoleName, clusterRoles), fmt.Sprintf("ClusterRole %s does not exist", clusterRoleName))
+	}
 
 	ns, err := client.CoreV1().Namespaces().Get(context.TODO(), utils.GetAppNamespace(appName), metav1.GetOptions{})
 	assert.NoError(t, err)
@@ -136,13 +138,15 @@ func TestOnSync_RegistrationCreated_AppNamespaceWithResourcesCreated(t *testing.
 	}
 	assert.Equal(t, expected, ns.GetLabels())
 
-	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
-	assert.Equal(t, 5, len(rolebindings.Items))
-	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
-	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
+	roleBindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.Equal(t, 5, len(roleBindings.Items))
+	for _, roleBindingName := range []string{
+		defaults.RadixTektonAppRoleName, defaults.PipelineAppRoleName, defaults.AppAdminRoleName, "git-ssh-keys", defaults.AppReaderRoleName,
+	} {
+		assert.True(t, roleBindingByNameExists(roleBindingName, roleBindings), fmt.Sprintf("RoleBinding %s does not exist", roleBindingName))
+	}
 
-	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, rolebindings)
+	appAdminRoleBinding := getRoleBindingByName(defaults.AppAdminRoleName, roleBindings)
 	assert.Equal(t, 2, len(appAdminRoleBinding.Subjects))
 	assert.Equal(t, "any-app-machine-user", appAdminRoleBinding.Subjects[1].Name)
 
