@@ -25,6 +25,9 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 		}
 		// Garbage collect access to build secret (RBAC)
 		err := app.garbageCollectReaderAccessToBuildSecrets(appNamespace)
+		if err != nil {
+			log.Warnf("Failed to perform garbage collection of reader access to build secret: %v", err)
+		}
 		err = app.garbageCollectAccessToBuildSecrets(appNamespace)
 		if err != nil {
 			log.Warnf("Failed to perform garbage collection of access to build secret: %v", err)
