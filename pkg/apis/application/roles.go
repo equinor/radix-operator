@@ -10,18 +10,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (app Application) rrUserClusterRole(clusterRoleName string, verbs []string) *auth.ClusterRole {
-	return app.rrClusterrole(clusterRoleName, verbs)
-}
-
 func (app Application) rrPipelineClusterRole(roleNamePrefix string) *auth.ClusterRole {
 	registration := app.registration
 	appName := registration.Name
 	clusterroleName := fmt.Sprintf("%s-%s", roleNamePrefix, appName)
-	return app.rrClusterrole(clusterroleName, []string{"get"})
+	return app.rrClusterRole(clusterroleName, []string{"get"})
 }
 
-func (app Application) rrClusterrole(clusterroleName string, verbs []string) *auth.ClusterRole {
+func (app Application) rrClusterRole(clusterroleName string, verbs []string) *auth.ClusterRole {
 	registration := app.registration
 	appName := registration.Name
 
