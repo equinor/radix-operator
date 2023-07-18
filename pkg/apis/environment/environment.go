@@ -65,7 +65,7 @@ func (env *Environment) OnSync(time metav1.Time) error {
 		return fmt.Errorf("failed to apply namespace %s: %v", namespaceName, err)
 	}
 
-	err = env.ApplyAdGroupRoleBinding(namespaceName) // TODO: environment specific rolebinding for read-only ad group
+	err = env.ApplyAdGroupRoleBinding(namespaceName)
 	if err != nil {
 		return fmt.Errorf("failed to apply RBAC on namespace %s: %v", namespaceName, err)
 	}
