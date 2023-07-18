@@ -54,11 +54,11 @@ func (app Application) applyRbacRadixRegistration() error {
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
 	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
 
-	adminClusterRole := app.rrUserClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
+	adminClusterRole := app.rrClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
 	appAdminSubjects := getAppAdminSubjects(rr)
 	adminClusterRoleBinding := app.rrClusterroleBinding(adminClusterRole, appAdminSubjects)
 
-	readerClusterRole := app.rrUserClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"})
+	readerClusterRole := app.rrClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"})
 	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
 	readerClusterRoleBinding := app.rrClusterroleBinding(readerClusterRole, appReaderSubjects)
 
