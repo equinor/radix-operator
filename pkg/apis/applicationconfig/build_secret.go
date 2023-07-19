@@ -23,17 +23,9 @@ func (app *ApplicationConfig) syncBuildSecrets() error {
 				return err
 			}
 		}
-		// Garbage collect access to build secret (RBAC)
-		for _, roleName := range []string{
-			getPipelineRoleNameToBuildSecrets(defaults.BuildSecretsName),
-			getAppReaderRoleNameToBuildSecrets(defaults.BuildSecretsName),
-			getAppAdminRoleNameToBuildSecrets(defaults.BuildSecretsName),
-		} {
-			err := app.garbageCollectAccessToBuildSecrets(appNamespace, roleName)
-			if err != nil {
-				log.Warnf("Failed to perform garbage collection of access to build secret: %v", err)
-				return err
-			}
+		err := garbageCollectAccessToBuildSecrets(app)
+		if err != nil {
+			return err
 		}
 	} else {
 		buildSecrets := app.config.Spec.Build.Secrets

@@ -2,6 +2,8 @@ package applicationconfig
 
 import (
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/sirupsen/logrus"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -63,7 +65,7 @@ func (app *ApplicationConfig) grantPipelineAccessToBuildSecrets(namespace string
 	return app.kubeutil.ApplyRoleBinding(namespace, rolebinding)
 }
 
-func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(namespace string, roleName string) error {
+func (app *ApplicationConfig) garbageCollectAccessToBuildSecretsForRole(namespace string, roleName string) error {
 	// Delete role
 	_, err := app.kubeutil.GetRole(namespace, roleName)
 	if err != nil && !errors.IsNotFound(err) {
@@ -88,6 +90,21 @@ func (app *ApplicationConfig) garbageCollectAccessToBuildSecrets(namespace strin
 		}
 	}
 
+	return nil
+}
+func garbageCollectAccessToBuildSecrets(app *ApplicationConfig) error {
+	appNamespace := utils.GetAppNamespace(app.config.Name)
+	for _, roleName := range []string{
+		getPipelineRoleNameToBuildSecrets(defaults.BuildSecretsName),
+		getAppReaderRoleNameToBuildSecrets(defaults.BuildSecretsName),
+		getAppAdminRoleNameToBuildSecrets(defaults.BuildSecretsName),
+	} {
+		err := app.garbageCollectAccessToBuildSecretsForRole(appNamespace, roleName)
+		if err != nil {
+			logrus.Warnf("Failed to perform garbage collection of access to build secret: %v", err)
+			return err
+		}
+	}
 	return nil
 }
 
