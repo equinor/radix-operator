@@ -122,13 +122,13 @@ func (app Application) OnSyncWithGranterToMachineUserToken(machineUserTokenGrant
 
 	logger.Debugf("Applied access permissions to RadixRegistration")
 
-	err = app.grantAccessToCICDLogs()
+	err = app.applyRbacAppNamespace()
 	if err != nil {
-		logger.Errorf("Failed to grant access to ci/cd logs: %v", err)
+		logger.Errorf("Failed to grant access to app namespace: %v", err)
 		return err
 	}
 
-	logger.Debugf("Applied access to ci/cd logs. Set registration to be reconciled")
+	logger.Debugf("Applied access to app namespace. Set registration to be reconciled")
 	err = app.updateRadixRegistrationStatus(radixRegistration, func(currStatus *v1.RadixRegistrationStatus) {
 		currStatus.Reconciled = metav1.NewTime(time.Now().UTC())
 	})

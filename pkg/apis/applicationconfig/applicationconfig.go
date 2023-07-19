@@ -99,7 +99,7 @@ func GetConfigBranch(rr *v1.RadixRegistration) string {
 	return utils.TernaryString(strings.TrimSpace(rr.Spec.ConfigBranch) == "", ConfigBranchFallback, rr.Spec.ConfigBranch)
 }
 
-// IsConfigBranch Checks if given branch is were radix config lives
+// IsConfigBranch Checks if given branch is where radix config lives
 func IsConfigBranch(branch string, rr *v1.RadixRegistration) bool {
 	return strings.EqualFold(branch, GetConfigBranch(rr))
 }
@@ -168,6 +168,11 @@ func (app *ApplicationConfig) OnSync() error {
 	if err != nil {
 		log.Errorf("Failed to create private image hub secrets. %v", err)
 		return err
+	}
+
+	err = utils.GrantAppReaderAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubReaderRoleName, defaults.PrivateImageHubSecretName)
+	if err != nil {
+		log.Warnf("failed to grant reader access to private image hub secret %v", err)
 	}
 
 	err = utils.GrantAppAdminAccessToSecret(app.kubeutil, app.registration, defaults.PrivateImageHubSecretName, defaults.PrivateImageHubSecretName)

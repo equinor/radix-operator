@@ -2216,6 +2216,11 @@ func (in *RadixRegistrationSpec) DeepCopyInto(out *RadixRegistrationSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ReaderAdGroups != nil {
+		in, out := &in.ReaderAdGroups, &out.ReaderAdGroups
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

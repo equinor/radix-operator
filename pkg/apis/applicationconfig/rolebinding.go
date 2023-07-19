@@ -8,6 +8,15 @@ import (
 	auth "k8s.io/api/rbac/v1"
 )
 
+func rolebindingAppReaderToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
+	readerAdGroups := registration.Spec.ReaderAdGroups
+
+	subjects := kube.GetRoleBindingGroups(readerAdGroups)
+
+	roleName := role.ObjectMeta.Name
+
+	return kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
+}
 func rolebindingAppAdminToBuildSecrets(registration *radixv1.RadixRegistration, role *auth.Role) *auth.RoleBinding {
 	adGroups, _ := utils.GetAdGroups(registration)
 

@@ -349,20 +349,64 @@ func Test_WithBuildSecretsDeleted_SecretsCorrectlyDeleted(t *testing.T) {
 			WithEnvironment("dev", "master").
 			WithBuildSecrets())
 
-	// Secret is left intact, for simplicity
+	// Secret is deleted
 	secrets, _ = client.CoreV1().Secrets(appNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, secretByNameExists(defaults.BuildSecretsName, secrets))
-	assert.Equal(t, 0, len(getSecretByName(defaults.BuildSecretsName, secrets).Data))
+	assert.False(t, secretByNameExists(defaults.BuildSecretsName, secrets))
 
 	roles, _ := client.RbacV1().Roles(appNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, roleByNameExists("radix-app-admin-build-secrets", roles))
-	assert.True(t, roleByNameExists("pipeline-build-secrets", roles))
+	assert.False(t, roleByNameExists("radix-app-admin-build-secrets", roles))
+	assert.False(t, roleByNameExists("radix-app-reader-build-secrets", roles))
+	assert.False(t, roleByNameExists("pipeline-build-secrets", roles))
 
 	rolebindings, _ := client.RbacV1().RoleBindings(appNamespace).List(context.TODO(), metav1.ListOptions{})
-	assert.True(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
-	assert.True(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
+	assert.False(t, roleBindingByNameExists("radix-app-admin-build-secrets", rolebindings))
+	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
+	assert.False(t, roleBindingByNameExists("pipeline-build-secrets", rolebindings))
 }
 
+func Test_AppReaderBuildSecretsRoleAndRoleBindingExists(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret1", "secret2"))
+
+	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, roleByNameExists("radix-app-reader-build-secrets", roles))
+
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
+
+	// Delete secret and verify that role and rolebinding is deleted
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master"))
+
+	roles, _ = client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.False(t, roleByNameExists("radix-app-reader-build-secrets", roles))
+
+	rolebindings, _ = client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.False(t, roleBindingByNameExists("radix-app-reader-build-secrets", rolebindings))
+}
+
+func Test_AppReaderPrivateImageHubRoleAndRoleBindingExists(t *testing.T) {
+	tu, client, kubeUtil, radixclient := setupTest()
+
+	applyApplicationWithSync(tu, client, kubeUtil, radixclient,
+		utils.ARadixApplication().
+			WithAppName("any-app").
+			WithEnvironment("dev", "master").
+			WithBuildSecrets("secret1", "secret2"))
+
+	roles, _ := client.RbacV1().Roles("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, roleByNameExists("radix-private-image-hubs-reader", roles))
+
+	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
+	assert.True(t, roleBindingByNameExists("radix-private-image-hubs-reader", rolebindings))
+}
 func Test_WithPrivateImageHubSet_SecretsCorrectly_Added(t *testing.T) {
 	client, _, _ := applyRadixAppWithPrivateImageHub(radixv1.PrivateImageHubEntries{
 		"privaterepodeleteme.azurecr.io": &radixv1.RadixPrivateImageHubCredential{
@@ -574,7 +618,13 @@ func Test_UseBuildKit(t *testing.T) {
 
 		raAfterSync, _ := radixclient.RadixV1().RadixApplications(utils.GetAppNamespace(testScenario.appName)).Get(context.TODO(), testScenario.appName, metav1.GetOptions{})
 
-		assert.Equal(t, testScenario.expectedUseBuildKit, raAfterSync.Spec.Build.UseBuildKit)
+		var useBuildKit *bool
+		if raAfterSync.Spec.Build == nil {
+			useBuildKit = nil
+		} else {
+			useBuildKit = raAfterSync.Spec.Build.UseBuildKit
+		}
+		assert.Equal(t, testScenario.expectedUseBuildKit, useBuildKit)
 	}
 }
 
