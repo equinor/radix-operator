@@ -121,8 +121,9 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		// custom seccompprofile must be copied onto node filesystems by a daemonset we create
 		// same goes for custom apparmor profile
 	}
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID") // confirmed necessary
-	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID") // confirmed necessary
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID")  // confirmed necessary
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID")  // confirmed necessary
+	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETFCAP") // confirmed necessary
 	//securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "CAP_SETUID")    // confirmed necessary
 	//securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "CAP_SETGID")    // confirmed necessary
 	//securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "CAP_SYS_ADMIN") // confirmed necessary
@@ -266,6 +267,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		}
 
 		envVars = append(envVars, buildSecrets...)
+		cmd := fmt.Sprintf("/bin/buildah login --username $BUILDAH_USERNAME --password $BUILDAH_PASSWORD %s "+
+			"&& /bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 --file %s --tag %s --tag %s --tag %s %s"+
+			"&& /bin/buildah push --storage-driver=vfs --all %s",
+			containerRegistry, componentImage.Dockerfile, strings.TrimSpace(componentImage.ImagePath), clusterTypeImage, clusterNameImage, componentImage.Context, strings.TrimSpace(componentImage.ImagePath))
 
 		container := corev1.Container{
 			Name:            componentImage.ContainerName,
@@ -274,7 +279,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 			Env:             envVars,
 			// Command:         []string{"/bin/buildah", "build", "--storage-driver", "overlay2", "--isolation=chroot", "--jobs", "0", "--file", componentImage.Dockerfile, componentImage.Context},
 			// Command: []string{"/bin/sh", "-c", fmt.Sprintf("((while true; do ps -aux >> /tmp/ps_aux.txt; sleep 1; done) &) && cp -r %s /tmp/buildcontext && stat /tmp/buildcontext/ && ls -l /tmp/buildcontext/ && whoami && cat /sys/module/apparmor/parameters/enabled && /bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 --file %s /tmp/buildcontext || sleep 1800", effectiveContext, componentImage.Dockerfile)},
-			Command: []string{"/bin/sh", "-c", fmt.Sprintf("/bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 --file %s %s && sleep 240", componentImage.Dockerfile, componentImage.Context)},
+			Command: []string{"/bin/sh", "-c", cmd},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,
