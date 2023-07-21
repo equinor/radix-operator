@@ -2,6 +2,8 @@ package batch
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
@@ -198,9 +200,10 @@ func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv
 	ports := getContainerPorts(jobComponent)
 	resources := s.getContainerResources(batchJob, jobComponent)
 
+	image := getJobImage(jobComponent, batchJob)
 	container := corev1.Container{
 		Name:            jobComponent.Name,
-		Image:           jobComponent.Image,
+		Image:           image,
 		ImagePullPolicy: corev1.PullAlways,
 		Env:             environmentVariables,
 		Ports:           ports,
@@ -210,6 +213,19 @@ func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv
 	}
 
 	return []corev1.Container{container}, nil
+}
+
+func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) string {
+	image := jobComponent.Image
+	if batchJob.ImageTagName == "" {
+		return image
+	}
+	tagSeparatorIndex := strings.LastIndex(image, ":")
+	lastSlashIndex := strings.LastIndex(image, "/")
+	if tagSeparatorIndex > 0 && (lastSlashIndex < 0 || lastSlashIndex < tagSeparatorIndex) {
+		image = image[:tagSeparatorIndex]
+	}
+	return fmt.Sprintf("%s:%s", image, batchJob.ImageTagName)
 }
 
 func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, kubeJobName string) ([]corev1.EnvVar, error) {
