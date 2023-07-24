@@ -107,7 +107,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
 	// imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
-	imageBuilder := "radixdev.azurecr.io/buildah/stable:v1.30.0-strace-file"
+	imageBuilder := "radixdev.azurecr.io/radix-buildah-image-builder:buildah-latest"
 
 	// TODO: incrementally remove kernel capabilities, root user
 
@@ -124,10 +124,6 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETUID")  // confirmed necessary
 	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETGID")  // confirmed necessary
 	securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "SETFCAP") // confirmed necessary
-	//securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "CAP_SETUID")    // confirmed necessary
-	//securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "CAP_SETGID")    // confirmed necessary
-	//securityContext.Capabilities.Add = append(securityContext.Capabilities.Add, "CAP_SYS_ADMIN") // confirmed necessary
-	// securityContext.AllowPrivilegeEscalation = conditions.BoolPtr(true)                          // either AllowPrivilegeEscalation or root user is necessary
 	securityContext.RunAsNonRoot = conditions.BoolPtr(false)
 	securityContext.RunAsUser = numbers.Int64Ptr(0) // either AllowPrivilegeEscalation or root user is necessary
 
@@ -267,19 +263,13 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 		}
 
 		envVars = append(envVars, buildSecrets...)
-		cmd := fmt.Sprintf("/bin/buildah login --username $BUILDAH_USERNAME --password $BUILDAH_PASSWORD %s "+
-			"&& /bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 --file %s --tag %s --tag %s --tag %s %s"+
-			"&& /bin/buildah push --storage-driver=vfs --all %s",
-			containerRegistry, componentImage.Dockerfile, strings.TrimSpace(componentImage.ImagePath), clusterTypeImage, clusterNameImage, componentImage.Context, strings.TrimSpace(componentImage.ImagePath))
 
 		container := corev1.Container{
 			Name:            componentImage.ContainerName,
 			Image:           imageBuilder,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
-			// Command:         []string{"/bin/buildah", "build", "--storage-driver", "overlay2", "--isolation=chroot", "--jobs", "0", "--file", componentImage.Dockerfile, componentImage.Context},
-			// Command: []string{"/bin/sh", "-c", fmt.Sprintf("((while true; do ps -aux >> /tmp/ps_aux.txt; sleep 1; done) &) && cp -r %s /tmp/buildcontext && stat /tmp/buildcontext/ && ls -l /tmp/buildcontext/ && whoami && cat /sys/module/apparmor/parameters/enabled && /bin/buildah build --storage-driver=vfs --isolation=chroot --jobs 0 --file %s /tmp/buildcontext || sleep 1800", effectiveContext, componentImage.Dockerfile)},
-			Command: []string{"/bin/sh", "-c", cmd},
+			// Command:         []string{"/bin/sh", "-c", "sleep infinity"},
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      git.BuildContextVolumeName,
