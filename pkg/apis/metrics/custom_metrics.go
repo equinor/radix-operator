@@ -55,7 +55,7 @@ var (
 	radixJobProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_radix_job_processed",
 		Help: "The number of radix jobs processed with status",
-	}, []string{"application", "pipeline_type", "status", "docker_registry", "pipeline_image"})
+	}, []string{"application", "pipeline_type", "status", "pipeline_image"})
 )
 
 func init() {
