@@ -35,6 +35,7 @@ func (kubeutil *Kube) GetClusterActiveEgressIps() (string, error) {
 }
 
 func (kubeutil *Kube) getRadixConfigFromMap(config string) (string, error) {
+	// TODO: get value from OS env var
 	radixconfigmap, err := kubeutil.GetConfigMap(corev1.NamespaceDefault, configMapName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get radix config map: %v", err)

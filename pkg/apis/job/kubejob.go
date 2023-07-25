@@ -48,7 +48,11 @@ func (job *Job) createPipelineJob() error {
 }
 
 func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
-	imageTag := fmt.Sprintf("%s/%s:%s", job.radixJob.Spec.DockerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
+	containerRegistry, err := job.kubeutil.GetContainerRegistry()
+	if err != nil {
+		return nil, err
+	}
+	imageTag := fmt.Sprintf("%s/%s:%s", containerRegistry, workerImage, job.radixJob.Spec.PipelineImage)
 	log.Infof("Using image: %s", imageTag)
 
 	backOffLimit := int32(0)
