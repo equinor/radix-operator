@@ -14,12 +14,3 @@ const RadixCacheLayerNamePrefix = "radix-cache"
 
 // DefaultRadixConfigFileName Default name for the radix configuration file
 const DefaultRadixConfigFileName = "radixconfig.yaml"
-
-// GetContainerRegistry Gets the container registry from environment variable
-func GetContainerRegistry() (string, error) {
-	containerRegistry, err := GetEnvVar(ContainerRegistryEnvironmentVariable)
-	if err != nil {
-		return "", err
-	}
-	return containerRegistry, nil
-}

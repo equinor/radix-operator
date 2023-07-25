@@ -7,11 +7,10 @@ import (
 )
 
 const (
-	configMapName           = "radix-config"
-	clusterNameConfig       = "clustername"
-	containerRegistryConfig = "containerRegistry"
-	subscriptionIdConfig    = "subscriptionId"
-	clusterActiveEgressIps  = "clusterActiveEgressIps"
+	configMapName          = "radix-config"
+	clusterNameConfig      = "clustername"
+	subscriptionIdConfig   = "subscriptionId"
+	clusterActiveEgressIps = "clusterActiveEgressIps"
 )
 
 // GetClusterName Gets the global name of the cluster from config map in default namespace

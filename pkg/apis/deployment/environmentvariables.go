@@ -56,7 +56,7 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContainerRegistry() (string, error) {
-	containerRegistry, err := defaults.GetContainerRegistry()
+	containerRegistry, err := defaults.GetEnvVar(defaults.ContainerRegistryEnvironmentVariable)
 	if err != nil {
 		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
 	}

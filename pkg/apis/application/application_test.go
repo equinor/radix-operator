@@ -23,10 +23,9 @@ import (
 )
 
 const (
-	clusterName       = "AnyClusterName"
-	dnsZone           = "dev.radix.equinor.com"
-	containerRegistry = "any.container.registry"
-	egressIps         = "0.0.0.0"
+	clusterName = "AnyClusterName"
+	dnsZone     = "dev.radix.equinor.com"
+	egressIps   = "0.0.0.0"
 )
 
 func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Interface) {
@@ -35,7 +34,7 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(client, radixClient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(client, radixClient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
 	return handlerTestUtils, client, kubeUtil, radixClient
 }
 
