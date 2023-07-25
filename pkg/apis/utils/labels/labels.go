@@ -168,3 +168,11 @@ func forAzureWorkloadUseIdentity() kubelabels.Set {
 func RequirementRadixBatchNameLabelExists() (*kubelabels.Requirement, error) {
 	return kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
 }
+
+// ForRadixSecretType returns labels describing the radix secret type,
+// e.g. "radix-secret-type": "scheduler-job-payload"
+func ForRadixSecretType(secretType kube.RadixSecretType) kubelabels.Set {
+	return kubelabels.Set{
+		kube.RadixSecretTypeLabel: string(secretType),
+	}
+}
