@@ -56,7 +56,7 @@ func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getCluste
 }
 
 func (envVarsSource *radixOperatorEnvironmentVariablesSourceDecorator) getContainerRegistry() (string, error) {
-	containerRegistry, err := envVarsSource.kubeutil.GetContainerRegistry()
+	containerRegistry, err := defaults.GetContainerRegistry()
 	if err != nil {
 		return "", fmt.Errorf("failed to get container registry from ConfigMap: %v", err)
 	}

@@ -48,7 +48,7 @@ func (job *Job) createPipelineJob() error {
 }
 
 func (job *Job) getPipelineJobConfig() (*batchv1.Job, error) {
-	containerRegistry, err := job.kubeutil.GetContainerRegistry()
+	containerRegistry, err := defaults.GetContainerRegistry()
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (job *Job) getPipelineJobArguments(appName, jobName string, jobSpec v1.Radi
 	if err != nil {
 		return nil, err
 	}
-	containerRegistry, err := job.kubeutil.GetContainerRegistry()
+	containerRegistry, err := defaults.GetContainerRegistry()
 	if err != nil {
 		return nil, err
 	}

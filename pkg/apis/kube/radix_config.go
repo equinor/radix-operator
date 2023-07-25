@@ -19,11 +19,6 @@ func (kubeutil *Kube) GetClusterName() (string, error) {
 	return kubeutil.getRadixConfigFromMap(clusterNameConfig)
 }
 
-// GetContainerRegistry Gets the container registry from config map in default namespace
-func (kubeutil *Kube) GetContainerRegistry() (string, error) {
-	return kubeutil.getRadixConfigFromMap(containerRegistryConfig)
-}
-
 //GetSubscriptionId Gets the subscription-id from config map in default namespace
 func (kubeutil *Kube) GetSubscriptionId() (string, error) {
 	return kubeutil.getRadixConfigFromMap(subscriptionIdConfig)
@@ -35,7 +30,6 @@ func (kubeutil *Kube) GetClusterActiveEgressIps() (string, error) {
 }
 
 func (kubeutil *Kube) getRadixConfigFromMap(config string) (string, error) {
-	// TODO: get value from OS env var
 	radixconfigmap, err := kubeutil.GetConfigMap(corev1.NamespaceDefault, configMapName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get radix config map: %v", err)
