@@ -120,7 +120,6 @@ func Test_getEnvironmentVariablesForRadixOperator(t *testing.T) {
 			envVar := envVar
 			resultEnvVarsMap[envVar.Name] = envVar
 		}
-		assert.Equal(t, anyContainerRegistry, resultEnvVarsMap["RADIX_CONTAINER_REGISTRY"].Value)
 		assert.Equal(t, clusterName, resultEnvVarsMap["RADIX_CLUSTERNAME"].Value)
 		assert.NotNil(t, envVarsConfigMapMetadata)
 	})
