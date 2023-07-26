@@ -1,7 +1,6 @@
 package labels
 
 import (
-	"k8s.io/apimachinery/pkg/selection"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -108,7 +107,7 @@ func Test_ForJobScheduleJobType(t *testing.T) {
 }
 
 func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
-	actual, _ := RequirementRadixBatchNameLabelExists()
-	expected, _ := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
-	assert.Equal(t, expected, actual)
+	actual := RequirementRadixBatchNameLabelExists()
+	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}
+	assert.True(t, actual.Matches(expected))
 }

@@ -165,8 +165,12 @@ func forAzureWorkloadUseIdentity() kubelabels.Set {
 }
 
 // RequirementRadixBatchNameLabelExists returns a requirement that the label RadixBatchNameLabel exists
-func RequirementRadixBatchNameLabelExists() (*kubelabels.Requirement, error) {
-	return kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
+func RequirementRadixBatchNameLabelExists() *kubelabels.Requirement {
+	requirement, err := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
+	if err != nil {
+		panic(err)
+	}
+	return requirement
 }
 
 // ForRadixSecretType returns labels describing the radix secret type,
