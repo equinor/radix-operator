@@ -164,8 +164,13 @@ func forAzureWorkloadUseIdentity() kubelabels.Set {
 	}
 }
 
-// RequirementRadixBatchNameLabelExists returns a requirement that the label RadixBatchNameLabel exists
-func RequirementRadixBatchNameLabelExists() *kubelabels.Requirement {
+// GetRadixBatchDescendantsSelector returns selector for radix batch descendants - jobs, secrets, etc.
+func GetRadixBatchDescendantsSelector(componentName string) kubelabels.Selector {
+	return kubelabels.SelectorFromSet(Merge(ForJobScheduleJobType(), ForComponentName(componentName))).
+		Add(*requirementRadixBatchNameLabelExists())
+}
+
+func requirementRadixBatchNameLabelExists() *kubelabels.Requirement {
 	requirement, err := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
 	if err != nil {
 		panic(err)
