@@ -1,10 +1,10 @@
 package defaults
 
 import (
+	"dario.cat/mergo"
 	commonUtils "github.com/equinor/radix-common/utils"
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/imdario/mergo"
 )
 
 // OAuth2Config is implemented by any value that has as MergeWith method
