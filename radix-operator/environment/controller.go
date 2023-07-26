@@ -130,6 +130,7 @@ func NewController(client kubernetes.Interface,
 			// If neither ad group did change, nor the machine user, this
 			// does not affect the deployment
 			if radixutils.ArrayEqualElements(newRr.Spec.AdGroups, oldRr.Spec.AdGroups) &&
+				radixutils.ArrayEqualElements(newRr.Spec.ReaderAdGroups, oldRr.Spec.ReaderAdGroups) &&
 				newRr.Spec.MachineUser == oldRr.Spec.MachineUser {
 				return
 			}
