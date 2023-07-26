@@ -27,7 +27,6 @@ const (
 	sampleRegistration = "./testdata/sampleregistration.yaml"
 	sampleApp          = "./testdata/radixconfig.yaml"
 	clusterName        = "AnyClusterName"
-	containerRegistry  = "any.container.registry"
 	egressIps          = "0.0.0.0"
 )
 
@@ -41,7 +40,7 @@ func setupTest() (*test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Int
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(kubeclient, radixclient, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(kubeclient, radixclient, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
 	return &handlerTestUtils, kubeclient, kubeUtil, radixclient
 }
 
