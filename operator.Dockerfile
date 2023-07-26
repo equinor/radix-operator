@@ -14,7 +14,7 @@ COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
 
 FROM base as run-staticcheck
-RUN go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
+RUN go install honnef.co/go/tools/cmd/staticcheck@2023.1.3
 RUN staticcheck `go list ./... | grep -v "pkg/client"` && touch /staticcheck.done
 
 FROM base as tester
