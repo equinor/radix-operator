@@ -54,7 +54,7 @@ func NewEnvironment(
 }
 
 // OnSync is called by the handler when changes are applied and must be
-// reconceliated with current state.
+// reconciled with current state.
 func (env *Environment) OnSync(time metav1.Time) error {
 
 	// create a globally unique namespace name
