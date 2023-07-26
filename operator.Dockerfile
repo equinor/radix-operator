@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine3.18 as base
+FROM golang:1.18-alpine3.17 as base
 ENV GO111MODULE=on
 RUN apk update && \
     apk add git ca-certificates curl && \
