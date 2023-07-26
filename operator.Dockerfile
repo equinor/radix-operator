@@ -1,4 +1,4 @@
-FROM golang:1.18-alpine3.17 as base
+FROM golang:1.20-alpine3.18 as base
 ENV GO111MODULE=on
 RUN apk update && \
     apk add git ca-certificates curl && \
@@ -14,7 +14,7 @@ COPY ./radix-operator ./radix-operator
 COPY ./pkg ./pkg
 
 FROM base as run-staticcheck
-RUN go install honnef.co/go/tools/cmd/staticcheck@2023.1.3
+RUN go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
 RUN staticcheck `go list ./... | grep -v "pkg/client"` && touch /staticcheck.done
 
 FROM base as tester
