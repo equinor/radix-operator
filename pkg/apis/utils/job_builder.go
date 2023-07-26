@@ -129,7 +129,6 @@ func (jb *JobBuilderStruct) GetApplicationBuilder() ApplicationBuilder {
 // BuildRJ Builds RJ structure based on set variables
 func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 	anyPipelineImageVersion := "any-latest"
-	anyDockerRegistry := "any.azurecr.io"
 
 	radixJob := &v1.RadixJob{
 		TypeMeta: metav1.TypeMeta{
@@ -149,12 +148,11 @@ func (jb *JobBuilderStruct) BuildRJ() *v1.RadixJob {
 			CreationTimestamp: metav1.Time{Time: jb.created},
 		},
 		Spec: v1.RadixJobSpec{
-			AppName:        jb.appName,
-			PipeLineType:   jb.pipeline,
-			PipelineImage:  anyPipelineImageVersion,
-			DockerRegistry: anyDockerRegistry,
-			Build:          jb.buildSpec,
-			Promote:        jb.promoteSpec,
+			AppName:       jb.appName,
+			PipeLineType:  jb.pipeline,
+			PipelineImage: anyPipelineImageVersion,
+			Build:         jb.buildSpec,
+			Promote:       jb.promoteSpec,
 		},
 	}
 
