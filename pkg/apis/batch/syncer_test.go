@@ -756,6 +756,7 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 		},
 		Data: map[string][]byte{secretKey: []byte("any-payload")},
 	}
+
 	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &secret, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
