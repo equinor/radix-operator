@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 
+	"dario.cat/mergo"
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/google/uuid"
-	"github.com/imdario/mergo"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -17,7 +17,6 @@ import (
 const (
 	deployTestFilePath = "./testdata/radixconfig.variable.yaml"
 	clusterName        = "AnyClusterName"
-	containerRegistry  = "any.container.registry"
 	egressIps          = "0.0.0.0"
 )
 
@@ -27,7 +26,7 @@ func setupTest(t *testing.T) (*kubernetes.Clientset, *radix.Clientset, *secretpr
 	radixclient := radix.NewSimpleClientset()
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	testUtils := commonTest.NewTestUtils(kubeclient, radixclient, secretproviderclient)
-	testUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
+	testUtils.CreateClusterPrerequisites(clusterName, egressIps)
 	return kubeclient, radixclient, secretproviderclient, testUtils
 }
 

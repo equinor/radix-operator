@@ -264,10 +264,11 @@ func SetRequiredEnvironmentVariables() {
 	os.Setenv(defaults.OperatorRadixJobSchedulerEnvironmentVariable, "radix-job-scheduler:main-latest")
 	os.Setenv(defaults.OperatorClusterTypeEnvironmentVariable, "development")
 	os.Setenv(defaults.OperatorTenantIdEnvironmentVariable, "01234567-8901-2345-6789-012345678901")
+	os.Setenv(defaults.ContainerRegistryEnvironmentVariable, "any.container.registry")
 }
 
 // CreateClusterPrerequisites Will do the needed setup which is part of radix boot
-func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry, egressIps string) {
+func (tu *Utils) CreateClusterPrerequisites(clustername, egressIps string) {
 	SetRequiredEnvironmentVariables()
 
 	tu.client.CoreV1().Secrets(corev1.NamespaceDefault).Create(
@@ -293,7 +294,6 @@ func (tu *Utils) CreateClusterPrerequisites(clustername, containerRegistry, egre
 			},
 			Data: map[string]string{
 				"clustername":            clustername,
-				"containerRegistry":      containerRegistry,
 				"clusterActiveEgressIps": egressIps,
 			},
 		},

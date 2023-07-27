@@ -50,7 +50,6 @@ type RadixJobSpec struct {
 	AppName             string            `json:"appName" yaml:"appName"`
 	CloneURL            string            `json:"cloneURL" yaml:"cloneURL"`
 	PipeLineType        RadixPipelineType `json:"pipeLineType" yaml:"pipeLineType"`
-	DockerRegistry      string            `json:"dockerRegistry" yaml:"dockerRegistry"`
 	PipelineImage       string            `json:"pipelineImage" yaml:"pipelineImage"`
 	Build               RadixBuildSpec    `json:"build" yaml:"build"`
 	Promote             RadixPromoteSpec  `json:"promote" yaml:"promote"`

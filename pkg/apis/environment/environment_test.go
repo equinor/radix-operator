@@ -27,7 +27,6 @@ import (
 
 const (
 	clusterName                 = "AnyClusterName"
-	containerRegistry           = "any.container.registry"
 	envConfigFileName           = "./testdata/re.yaml"
 	egressRuleEnvConfigFileName = "./testdata/re_egress.yaml"
 	regConfigFileName           = "./testdata/rr.yaml"
@@ -46,7 +45,7 @@ func setupTest() (test.Utils, kubernetes.Interface, *kube.Kube, radixclient.Inte
 	secretproviderclient := secretproviderfake.NewSimpleClientset()
 	kubeUtil, _ := kube.New(fakekube, fakeradix, secretproviderclient)
 	handlerTestUtils := test.NewTestUtils(fakekube, fakeradix, secretproviderclient)
-	handlerTestUtils.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
+	handlerTestUtils.CreateClusterPrerequisites(clusterName, egressIps)
 
 	os.Setenv(defaults.OperatorEnvLimitDefaultCPUEnvironmentVariable, limitDefaultCPU)
 	os.Setenv(defaults.OperatorEnvLimitDefaultReqestCPUEnvironmentVariable, limitDefaultReqestCPU)

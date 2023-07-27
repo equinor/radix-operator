@@ -7,21 +7,15 @@ import (
 )
 
 const (
-	configMapName           = "radix-config"
-	clusterNameConfig       = "clustername"
-	containerRegistryConfig = "containerRegistry"
-	subscriptionIdConfig    = "subscriptionId"
-	clusterActiveEgressIps  = "clusterActiveEgressIps"
+	configMapName          = "radix-config"
+	clusterNameConfig      = "clustername"
+	subscriptionIdConfig   = "subscriptionId"
+	clusterActiveEgressIps = "clusterActiveEgressIps"
 )
 
 // GetClusterName Gets the global name of the cluster from config map in default namespace
 func (kubeutil *Kube) GetClusterName() (string, error) {
 	return kubeutil.getRadixConfigFromMap(clusterNameConfig)
-}
-
-// GetContainerRegistry Gets the container registry from config map in default namespace
-func (kubeutil *Kube) GetContainerRegistry() (string, error) {
-	return kubeutil.getRadixConfigFromMap(containerRegistryConfig)
 }
 
 //GetSubscriptionId Gets the subscription-id from config map in default namespace

@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -40,6 +41,10 @@ func (s *syncer) reconcileKubeJob(batchJob *radixv1.RadixBatchJob, rd *radixv1.R
 		slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })) {
 		return nil
 	}
+	err = s.validatePayloadSecretReference(batchJob, jobComponent)
+	if err != nil {
+		return err
+	}
 	job, err := s.buildJob(batchJob, jobComponent, rd)
 	if err != nil {
 		return err
@@ -48,6 +53,26 @@ func (s *syncer) reconcileKubeJob(batchJob *radixv1.RadixBatchJob, rd *radixv1.R
 		_, err = s.kubeclient.BatchV1().Jobs(s.batch.GetNamespace()).Create(context.TODO(), job, metav1.CreateOptions{})
 		return err
 	})
+}
+
+func (s *syncer) validatePayloadSecretReference(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) error {
+	if batchJob.PayloadSecretRef == nil {
+		return nil
+	}
+	payloadSecret, err := s.kubeclient.CoreV1().Secrets(s.batch.GetNamespace()).Get(context.Background(), batchJob.PayloadSecretRef.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if !radixlabels.GetRadixBatchDescendantsSelector(jobComponent.GetName()).Matches(labels.Set(payloadSecret.GetLabels())) {
+		return fmt.Errorf("secret %s, referenced in the job %s of the batch %s is not valid payload secret", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName())
+	}
+	if payloadSecret.Data == nil || len(payloadSecret.Data) == 0 {
+		return fmt.Errorf("payload secret %s, in the job %s of the batch %s is empty", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName())
+	}
+	if _, ok := payloadSecret.Data[batchJob.PayloadSecretRef.Key]; !ok {
+		return fmt.Errorf("payload secret %s, in the job %s of the batch %s has no entry %s for the job", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName(), batchJob.PayloadSecretRef.Key)
+	}
+	return nil
 }
 
 func (s *syncer) handleJobToRestart(batchJob *radixv1.RadixBatchJob, existingJobs []*batchv1.Job) (bool, error) {
