@@ -18,8 +18,14 @@ const (
 	// AppAdminRoleName Name of role which grants access to manage the CI/CD of their applications
 	AppAdminRoleName = "radix-app-admin"
 
+	// AppReaderRoleName Name of role which grants read access to the CI/CD of their applications
+	AppReaderRoleName = "radix-app-reader"
+
 	// AppAdminEnvironmentRoleName Name of role which grants access to manage their running Radix applications
 	AppAdminEnvironmentRoleName = "radix-app-admin-envs"
+
+	// AppReaderEnvironmentsRoleName Name of role which grants read access to their running Radix applications
+	AppReaderEnvironmentsRoleName = "radix-app-reader-envs"
 
 	// PipelineServiceAccountName Service account name for the pipeline
 	PipelineServiceAccountName = "radix-pipeline"

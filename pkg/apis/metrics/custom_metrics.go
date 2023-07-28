@@ -55,7 +55,7 @@ var (
 	radixJobProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "radix_operator_radix_job_processed",
 		Help: "The number of radix jobs processed with status",
-	}, []string{"application", "pipeline_type", "status", "docker_registry", "pipeline_image"})
+	}, []string{"application", "pipeline_type", "status", "pipeline_image"})
 )
 
 func init() {
@@ -109,17 +109,17 @@ func InitiateRadixJobStatusChanged(rj *v1.RadixJob) {
 	}
 
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
-		"status": string(v1.JobWaiting), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Add(0)
+		"status": string(v1.JobWaiting), "pipeline_image": rj.Spec.PipelineImage}).Add(0)
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
-		"status": string(v1.JobQueued), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Add(0)
+		"status": string(v1.JobQueued), "pipeline_image": rj.Spec.PipelineImage}).Add(0)
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
-		"status": string(v1.JobRunning), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Add(0)
+		"status": string(v1.JobRunning), "pipeline_image": rj.Spec.PipelineImage}).Add(0)
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
-		"status": string(v1.JobFailed), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Add(0)
+		"status": string(v1.JobFailed), "pipeline_image": rj.Spec.PipelineImage}).Add(0)
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
-		"status": string(v1.JobStopped), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Add(0)
+		"status": string(v1.JobStopped), "pipeline_image": rj.Spec.PipelineImage}).Add(0)
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
-		"status": string(v1.JobSucceeded), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Add(0)
+		"status": string(v1.JobSucceeded), "pipeline_image": rj.Spec.PipelineImage}).Add(0)
 }
 
 // RadixJobStatusChanged increments metric to count the number of radix jobs processed
@@ -128,7 +128,7 @@ func RadixJobStatusChanged(rj *v1.RadixJob) {
 		return
 	}
 	radixJobProcessed.With(prometheus.Labels{"application": rj.Spec.AppName, "pipeline_type": string(rj.Spec.PipeLineType),
-		"status": string(rj.Status.Condition), "docker_registry": rj.Spec.DockerRegistry, "pipeline_image": rj.Spec.PipelineImage}).Inc()
+		"status": string(rj.Status.Condition), "pipeline_image": rj.Spec.PipelineImage}).Inc()
 }
 
 // DefaultBuckets Holds the buckets used as default

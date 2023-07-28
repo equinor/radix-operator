@@ -44,7 +44,7 @@ type RadixBatchSpec struct {
 	Jobs []RadixBatchJob `json:"jobs"`
 }
 
-// Spec for a batch job
+// RadixBatchJob Spec for a batch job
 type RadixBatchJob struct {
 	// Defines the unique name of the job in a RadixBatch.
 	// +kubebuilder:validation:MaxLength:=63
@@ -84,6 +84,19 @@ type RadixBatchJob struct {
 	// A job that is stopped cannot be started again by setting Stop to false.
 	// +optional
 	Stop *bool `json:"stop,omitempty"`
+
+	// Controls if a job should be restarted.
+	// If Restart is set to new timestamp, and
+	// - the job is stopped - the job is started again.
+	// - the job is running - the job is stopped and started again.
+	// This timestamp set to the job's status.restart.
+	// +optional
+	Restart string `json:"restart,omitempty"`
+
+	// ImageTagName defines the image tag name to use for the job image
+	//
+	// required: false
+	ImageTagName string `json:"imageTagName,omitempty"`
 }
 
 // PayloadSecretKeySelector selects a key of a Secret.
@@ -210,6 +223,10 @@ type RadixBatchJobStatus struct {
 	// The number of times the container for the job has failed.
 	// +optional
 	Failed int32 `json:"failed,omitempty"`
+
+	// Timestamp of the job restart, if applied.
+	// +optional
+	Restart string `json:"restart,omitempty"`
 }
 
 // LocalObjectReference contains enough information to let you locate the

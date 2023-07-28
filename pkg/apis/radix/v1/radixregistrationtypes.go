@@ -28,6 +28,7 @@ type RadixRegistrationSpec struct {
 	DeployKey           string   `json:"deployKey" yaml:"deployKey"`
 	DeployKeyPublic     string   `json:"deployKeyPublic" yaml:"deployKeyPublic"`
 	AdGroups            []string `json:"adGroups" yaml:"adGroups"`
+	ReaderAdGroups      []string `json:"readerAdGroups" yaml:"readerAdGroups"`
 	Creator             string   `json:"creator" yaml:"creator"`
 	Owner               string   `json:"owner" yaml:"owner"`
 	MachineUser         bool     `json:"machineUser" yaml:"machineUser"`

@@ -1,7 +1,6 @@
 package labels
 
 import (
-	"k8s.io/apimachinery/pkg/selection"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -108,7 +107,42 @@ func Test_ForJobScheduleJobType(t *testing.T) {
 }
 
 func Test_RequirementRadixBatchNameLabelExists(t *testing.T) {
-	actual, _ := RequirementRadixBatchNameLabelExists()
-	expected, _ := kubelabels.NewRequirement(kube.RadixBatchNameLabel, selection.Exists, []string{})
-	assert.Equal(t, expected, actual)
+	actual := requirementRadixBatchNameLabelExists()
+	expected := kubelabels.Set{kube.RadixBatchNameLabel: "anyname"}
+	assert.True(t, actual.Matches(expected))
+}
+
+func TestGetRadixBatchDescendantsSelector(t *testing.T) {
+	type args struct {
+		componentName string
+		labels        kubelabels.Set
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "No labels", args: args{componentName: "anycomponentname", labels: kubelabels.Set{}}, want: false},
+		{name: "Wrong component name", args: args{componentName: "different-comp",
+			labels: Merge(ForComponentName("comp1"), ForJobScheduleJobType(), ForBatchName("somebatch"))},
+			want: false},
+		{name: "No batch name", args: args{componentName: "comp1",
+			labels: Merge(ForComponentName("comp1"), ForJobScheduleJobType())},
+			want: false},
+		{name: "No job type job schedule", args: args{componentName: "different-comp",
+			labels: Merge(ForComponentName("comp1"), ForBatchName("somebatch"))},
+			want: false},
+		{name: "Wrong job type job schedule", args: args{componentName: "different-comp",
+			labels: Merge(ForComponentName("comp1"), ForBatchName("somebatch"), kubelabels.Set{
+				kube.RadixJobTypeLabel: "other-type"})},
+			want: false},
+		{name: "Correct component name and all labels exist", args: args{componentName: "comp1",
+			labels: Merge(ForComponentName("comp1"), ForJobScheduleJobType(), ForBatchName("somebatch"))},
+			want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, GetRadixBatchDescendantsSelector(tt.args.componentName).Matches(tt.args.labels), "GetRadixBatchDescendantsSelector(%v)", tt.args.componentName)
+		})
+	}
 }

@@ -50,7 +50,7 @@ spec:
               jobs:
                 description: List of batch jobs to run.
                 items:
-                  description: Spec for a batch job
+                  description: RadixBatchJob Spec for a batch job
                   properties:
                     backoffLimit:
                       description: Specifies the number of retries before marking
@@ -58,6 +58,10 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    imageTagName:
+                      description: "ImageTagName defines the image tag name to use
+                        for the job image \n required: false"
+                      type: string
                     jobId:
                       description: Defines a user defined ID of the job.
                       type: string
@@ -112,6 +116,12 @@ spec:
                             otherwise to an implementation-defined value.
                           type: object
                       type: object
+                    restart:
+                      description: Controls if a job should be restarted. If Restart
+                        is set to new timestamp, and - the job is stopped - the job
+                        is started again. - the job is running - the job is stopped
+                        and started again. This timestamp set to the job's status.restart.
+                      type: string
                     stop:
                       description: Controls if a job should be stopped. If Stop is
                         set to true, the underlying Kubernetes Job is deleted. A job
@@ -228,6 +238,9 @@ spec:
                     reason:
                       description: A brief CamelCase message indicating details about
                         why the job is in this phase
+                      type: string
+                    restart:
+                      description: Timestamp of the job restart, if applied.
                       type: string
                     startTime:
                       description: The time at which the Kubernetes job was started.

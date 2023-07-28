@@ -54,7 +54,7 @@ func NewEnvironment(
 }
 
 // OnSync is called by the handler when changes are applied and must be
-// reconceliated with current state.
+// reconciled with current state.
 func (env *Environment) OnSync(time metav1.Time) error {
 
 	// create a globally unique namespace name
@@ -145,29 +145,37 @@ func (env *Environment) ApplyNamespace(name string) error {
 
 // ApplyAdGroupRoleBinding grants access to environment namespace
 func (env *Environment) ApplyAdGroupRoleBinding(namespace string) error {
-
 	adGroups, err := utils.GetAdGroups(env.regConfig)
 	if err != nil {
 		return err
 	}
 
-	subjects := kube.GetRoleBindingGroups(adGroups)
+	adminSubjects := kube.GetRoleBindingGroups(adGroups)
 
 	// Add machine user to subjects
 	if env.regConfig.Spec.MachineUser {
-		subjects = append(subjects, rbac.Subject{
+		adminSubjects = append(adminSubjects, rbac.Subject{
 			Kind:      k8s.KindServiceAccount,
 			Name:      defaults.GetMachineUserRoleName(env.config.Spec.AppName),
 			Namespace: utils.GetAppNamespace(env.regConfig.Name),
 		})
 	}
 
-	roleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, subjects)
-	roleBinding.SetOwnerReferences(env.AsOwnerReference())
-	err = env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
-	if err != nil {
-		return err
+	adminRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppAdminEnvironmentRoleName, adminSubjects)
+	adminRoleBinding.SetOwnerReferences(env.AsOwnerReference())
+
+	readerAdGroups := env.regConfig.Spec.ReaderAdGroups
+	readerSubjects := kube.GetRoleBindingGroups(readerAdGroups)
+	readerRoleBinding := kube.GetRolebindingToClusterRoleForSubjects(env.config.Spec.AppName, defaults.AppReaderEnvironmentsRoleName, readerSubjects)
+	readerRoleBinding.SetOwnerReferences(env.AsOwnerReference())
+
+	for _, roleBinding := range []*rbac.RoleBinding{adminRoleBinding, readerRoleBinding} {
+		err = env.kubeutil.ApplyRoleBinding(namespace, roleBinding)
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 

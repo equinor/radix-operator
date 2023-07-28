@@ -15,7 +15,7 @@ func isResourceLabeledWithBatchJobName(batchJobName string, resource metav1.Obje
 	return kubelabels.SelectorFromSet(radixlabels.ForBatchJobName(batchJobName)).Matches(kubelabels.Set(resource.GetLabels()))
 }
 
-func isBatchJobStopRequested(batchJob radixv1.RadixBatchJob) bool {
+func isBatchJobStopRequested(batchJob *radixv1.RadixBatchJob) bool {
 	return batchJob.Stop != nil && *batchJob.Stop
 }
 
@@ -34,7 +34,12 @@ func isBatchJobPhaseDone(phase radixv1.RadixBatchJobPhase) bool {
 }
 
 func isBatchDone(batch *radixv1.RadixBatch) bool {
-	return batch.Status.Condition.Type == radixv1.BatchConditionTypeCompleted
+	if batch.Status.Condition.Type != radixv1.BatchConditionTypeCompleted {
+		return false
+	}
+	return !slice.Any(batch.Spec.Jobs, func(batchJob radixv1.RadixBatchJob) bool {
+		return len(batchJob.Restart) > 0
+	})
 }
 
 func isBatchJobDone(batch *radixv1.RadixBatch, batchJobName string) bool {

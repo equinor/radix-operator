@@ -169,6 +169,15 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 	for _, comp := range ap.jobComponents {
 		jobComponents = append(jobComponents, comp.BuildJobComponent())
 	}
+	var build *v1.BuildSpec
+	if ap.useBuildKit == nil && ap.buildSecrets == nil {
+		build = nil
+	} else {
+		build = &v1.BuildSpec{
+			Secrets:     ap.buildSecrets,
+			UseBuildKit: ap.useBuildKit,
+		}
+	}
 
 	radixApplication := &v1.RadixApplication{
 		TypeMeta: metav1.TypeMeta{
@@ -180,10 +189,7 @@ func (ap *ApplicationBuilderStruct) BuildRA() *v1.RadixApplication {
 			Namespace: GetAppNamespace(ap.appName),
 		},
 		Spec: v1.RadixApplicationSpec{
-			Build: &v1.BuildSpec{
-				Secrets:     ap.buildSecrets,
-				UseBuildKit: ap.useBuildKit,
-			},
+			Build:            build,
 			Components:       components,
 			Jobs:             jobComponents,
 			Environments:     ap.environments,

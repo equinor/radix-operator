@@ -72,6 +72,26 @@ func createEnvVarWithSecretRef(secretName, envVarName string) corev1.EnvVar {
 	}
 }
 
+// GrantAppReaderAccessToSecret grants access to a secret for app-reader groups
+func GrantAppReaderAccessToSecret(kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
+	namespace := GetAppNamespace(registration.Name)
+
+	// create role
+	role := kube.CreateReadSecretRole(registration.GetName(), roleName, []string{secretName}, nil)
+	err := kubeutil.ApplyRole(namespace, role)
+	if err != nil {
+		return err
+	}
+
+	// create rolebinding
+	readerAdGroups := registration.Spec.ReaderAdGroups
+
+	subjects := kube.GetRoleBindingGroups(readerAdGroups)
+
+	rolebinding := kube.GetRolebindingToRoleWithLabelsForSubjects(roleName, subjects, role.Labels)
+	return kubeutil.ApplyRoleBinding(namespace, rolebinding)
+}
+
 // GrantAppAdminAccessToSecret grants access to a secret for app-admin groups
 func GrantAppAdminAccessToSecret(kubeutil *kube.Kube, registration *radixv1.RadixRegistration, roleName string, secretName string) error {
 	namespace := GetAppNamespace(registration.Name)
