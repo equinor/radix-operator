@@ -58,6 +58,10 @@ spec:
                       format: int32
                       minimum: 0
                       type: integer
+                    imageTagName:
+                      description: "ImageTagName defines the image tag name to use
+                        for the job image \n required: false"
+                      type: string
                     jobId:
                       description: Defines a user defined ID of the job.
                       type: string

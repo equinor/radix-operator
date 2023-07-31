@@ -2,6 +2,8 @@ package batch
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-common/utils/pointers"
@@ -16,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -38,6 +41,10 @@ func (s *syncer) reconcileKubeJob(batchJob *radixv1.RadixBatchJob, rd *radixv1.R
 		slice.Any(existingJobs, func(job *batchv1.Job) bool { return isResourceLabeledWithBatchJobName(batchJob.Name, job) })) {
 		return nil
 	}
+	err = s.validatePayloadSecretReference(batchJob, jobComponent)
+	if err != nil {
+		return err
+	}
 	job, err := s.buildJob(batchJob, jobComponent, rd)
 	if err != nil {
 		return err
@@ -46,6 +53,26 @@ func (s *syncer) reconcileKubeJob(batchJob *radixv1.RadixBatchJob, rd *radixv1.R
 		_, err = s.kubeclient.BatchV1().Jobs(s.batch.GetNamespace()).Create(context.TODO(), job, metav1.CreateOptions{})
 		return err
 	})
+}
+
+func (s *syncer) validatePayloadSecretReference(batchJob *radixv1.RadixBatchJob, jobComponent *radixv1.RadixDeployJobComponent) error {
+	if batchJob.PayloadSecretRef == nil {
+		return nil
+	}
+	payloadSecret, err := s.kubeclient.CoreV1().Secrets(s.batch.GetNamespace()).Get(context.Background(), batchJob.PayloadSecretRef.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if !radixlabels.GetRadixBatchDescendantsSelector(jobComponent.GetName()).Matches(labels.Set(payloadSecret.GetLabels())) {
+		return fmt.Errorf("secret %s, referenced in the job %s of the batch %s is not valid payload secret", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName())
+	}
+	if payloadSecret.Data == nil || len(payloadSecret.Data) == 0 {
+		return fmt.Errorf("payload secret %s, in the job %s of the batch %s is empty", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName())
+	}
+	if _, ok := payloadSecret.Data[batchJob.PayloadSecretRef.Key]; !ok {
+		return fmt.Errorf("payload secret %s, in the job %s of the batch %s has no entry %s for the job", batchJob.PayloadSecretRef.Name, batchJob.Name, s.batch.GetName(), batchJob.PayloadSecretRef.Key)
+	}
+	return nil
 }
 
 func (s *syncer) handleJobToRestart(batchJob *radixv1.RadixBatchJob, existingJobs []*batchv1.Job) (bool, error) {
@@ -198,9 +225,10 @@ func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv
 	ports := getContainerPorts(jobComponent)
 	resources := s.getContainerResources(batchJob, jobComponent)
 
+	image := getJobImage(jobComponent, batchJob)
 	container := corev1.Container{
 		Name:            jobComponent.Name,
-		Image:           jobComponent.Image,
+		Image:           image,
 		ImagePullPolicy: corev1.PullAlways,
 		Env:             environmentVariables,
 		Ports:           ports,
@@ -210,6 +238,19 @@ func (s *syncer) getContainers(rd *radixv1.RadixDeployment, jobComponent *radixv
 	}
 
 	return []corev1.Container{container}, nil
+}
+
+func getJobImage(jobComponent *radixv1.RadixDeployJobComponent, batchJob *radixv1.RadixBatchJob) string {
+	image := jobComponent.Image
+	if batchJob.ImageTagName == "" {
+		return image
+	}
+	tagSeparatorIndex := strings.LastIndex(image, ":")
+	lastSlashIndex := strings.LastIndex(image, "/")
+	if tagSeparatorIndex > 0 && (lastSlashIndex < 0 || lastSlashIndex < tagSeparatorIndex) {
+		image = image[:tagSeparatorIndex]
+	}
+	return fmt.Sprintf("%s:%s", image, batchJob.ImageTagName)
 }
 
 func (s *syncer) getContainerEnvironmentVariables(rd *radixv1.RadixDeployment, jobComponent *radixv1.RadixDeployJobComponent, kubeJobName string) ([]corev1.EnvVar, error) {

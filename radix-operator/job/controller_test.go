@@ -25,9 +25,8 @@ import (
 )
 
 const (
-	clusterName       = "AnyClusterName"
-	containerRegistry = "any.container.registry"
-	egressIps         = "0.0.0.0"
+	clusterName = "AnyClusterName"
+	egressIps   = "0.0.0.0"
 )
 
 type jobTestSuite struct {
@@ -50,7 +49,7 @@ func (s *jobTestSuite) SetupTest() {
 	s.kubeUtil, _ = kube.New(fake.NewSimpleClientset(), fakeradix.NewSimpleClientset(), secretProviderClient)
 	s.promClient = prometheusfake.NewSimpleClientset()
 	s.tu = test.NewTestUtils(s.kubeUtil.KubeClient(), s.kubeUtil.RadixClient(), secretProviderClient)
-	s.tu.CreateClusterPrerequisites(clusterName, containerRegistry, egressIps)
+	s.tu.CreateClusterPrerequisites(clusterName, egressIps)
 }
 
 func (s *jobTestSuite) TearDownTest() {
