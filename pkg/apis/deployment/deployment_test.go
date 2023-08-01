@@ -1522,6 +1522,7 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
 			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
 			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp7").WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
 		))
 
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
@@ -1536,6 +1537,8 @@ func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
 	assert.Equal(t, int32(10), *comp5.Spec.Replicas)
 	comp6, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp6", metav1.GetOptions{})
 	assert.Equal(t, int32(0), *comp6.Spec.Replicas)
+	comp7, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp7", metav1.GetOptions{})
+	assert.Equal(t, int32(5), *comp7.Spec.Replicas)
 }
 
 func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *testing.T) {
@@ -1549,19 +1552,16 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
-			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
 		))
 	require.NoError(t, err)
 
 	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
 	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
-	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
-	assert.Equal(t, int32(1), *comp2.Spec.Replicas)
 
-	// Simulate HPA scaling up comp2 to 2 replicas
-	comp2.Spec.Replicas = pointers.Ptr[int32](3)
-	client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp2, metav1.UpdateOptions{})
+	// Simulate HPA scaling up comp1 to 3 replicas
+	comp1.Spec.Replicas = pointers.Ptr[int32](3)
+	client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp1, metav1.UpdateOptions{})
 
 	// Resync existing RD should use replicas from current deployment for HPA enabled component
 	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1569,15 +1569,12 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(5)),
-			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
 		))
 	require.NoError(t, err)
 
 	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
-	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
-	comp2, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
-	assert.Equal(t, int32(3), *comp2.Spec.Replicas)
+	assert.Equal(t, int32(3), *comp1.Spec.Replicas)
 
 	// Resync new RD should use replicas from current deployment for HPA enabled component
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1585,15 +1582,12 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(5)),
-			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
 		))
 	require.NoError(t, err)
 
 	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
-	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
-	comp2, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
-	assert.Equal(t, int32(3), *comp2.Spec.Replicas)
+	assert.Equal(t, int32(3), *comp1.Spec.Replicas)
 
 	// Resync new RD with HPA removed should use replicas from RD spec
 	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
@@ -1601,15 +1595,12 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 		WithAppName("anyapp").
 		WithEnvironment("test").
 		WithComponents(
-			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(5)),
-			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
 		))
 	require.NoError(t, err)
 
 	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
-	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
-	comp2, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
-	assert.Equal(t, int32(1), *comp2.Spec.Replicas)
+	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
 }
 
 func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
