@@ -5,15 +5,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+
 	radixutils "github.com/equinor/radix-common/utils"
 	radixmaps "github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -40,6 +42,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	secretProvider "sigs.k8s.io/secrets-store-csi-driver/pkg/client/clientset/versioned"
@@ -313,6 +316,17 @@ func TestObjectSynced_MultiComponent_ContainsAllElements(t *testing.T) {
 				for _, componentName := range []string{componentNameApp, componentNameRedis, componentNameRadixQuote} {
 					deploy := getDeploymentByName(componentName, deployments)
 					assert.Equal(t, componentName, deploy.Spec.Template.Labels[kube.RadixComponentLabel], "invalid/missing value for label component-name")
+				}
+
+				expectedStartegy := appsv1.DeploymentStrategy{
+					Type: appsv1.RollingUpdateDeploymentStrategyType,
+					RollingUpdate: &appsv1.RollingUpdateDeployment{
+						MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
+						MaxSurge:       &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
+					},
+				}
+				for _, deployment := range deployments {
+					assert.Equal(t, expectedStartegy, deployment.Spec.Strategy)
 				}
 			})
 
@@ -1489,6 +1503,134 @@ func TestObjectUpdated_ZeroReplicasExistsAndNotSpecifiedReplicas_SetsDefaultRepl
 
 	deployments, _ = client.AppsV1().Deployments(envNamespace).List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, int32(1), *deployments.Items[0].Spec.Replicas)
+}
+
+func TestObjectSynced_DeploymentReplicasSetAccordingToSpec(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Test
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1"),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(2)),
+			utils.NewDeployComponentBuilder().WithName("comp3").WithReplicas(pointers.Ptr(4)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp4").WithReplicas(pointers.Ptr(6)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp5").WithReplicas(pointers.Ptr(11)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
+			utils.NewDeployComponentBuilder().WithName("comp6").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr(int32(5)), int32(10), nil, nil),
+		))
+
+	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
+	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
+	assert.Equal(t, int32(2), *comp2.Spec.Replicas)
+	comp3, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp3", metav1.GetOptions{})
+	assert.Equal(t, int32(5), *comp3.Spec.Replicas)
+	comp4, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp4", metav1.GetOptions{})
+	assert.Equal(t, int32(6), *comp4.Spec.Replicas)
+	comp5, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp5", metav1.GetOptions{})
+	assert.Equal(t, int32(10), *comp5.Spec.Replicas)
+	comp6, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp6", metav1.GetOptions{})
+	assert.Equal(t, int32(0), *comp6.Spec.Replicas)
+}
+
+func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Initial sync creating deployments should use replicas from spec
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+		))
+	require.NoError(t, err)
+
+	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
+	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp2.Spec.Replicas)
+
+	// Simulate HPA scaling up comp2 to 2 replicas
+	comp2.Spec.Replicas = pointers.Ptr[int32](3)
+	client.AppsV1().Deployments(envNamespace).Update(context.Background(), comp2, metav1.UpdateOptions{})
+
+	// Resync existing RD should use replicas from current deployment for HPA enabled component
+	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(5)),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
+	comp2, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
+	assert.Equal(t, int32(3), *comp2.Spec.Replicas)
+
+	// Resync new RD should use replicas from current deployment for HPA enabled component
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("deployment2").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(5)),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
+	comp2, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
+	assert.Equal(t, int32(3), *comp2.Spec.Replicas)
+
+	// Resync new RD with HPA removed should use replicas from RD spec
+	_, err = applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("deployment3").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(5)),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithReplicas(pointers.Ptr(1)),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(5), *comp1.Spec.Replicas)
+	comp2, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
+	assert.Equal(t, int32(1), *comp2.Spec.Replicas)
+}
+
+func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Test
+	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("a_deployment_name").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1"),
+			utils.NewDeployComponentBuilder().WithName("comp2").WithSecretRefs(v1.RadixSecretRefs{AzureKeyVaults: []v1.RadixAzureKeyVault{{}}}),
+		))
+
+	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Nil(t, comp1.Spec.RevisionHistoryLimit)
+	comp2, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp2", metav1.GetOptions{})
+	assert.Equal(t, pointers.Ptr(int32(0)), comp2.Spec.RevisionHistoryLimit)
 }
 
 func TestObjectUpdated_MultipleReplicasExistsAndNotSpecifiedReplicas_SetsDefaultReplicaCount(t *testing.T) {
