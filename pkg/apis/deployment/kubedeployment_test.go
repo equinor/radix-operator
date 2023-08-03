@@ -9,16 +9,9 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/test"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/stretchr/testify/assert"
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
-
-func teardownRollingUpdate() {
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxUnavailable)
-	os.Unsetenv(defaults.OperatorRollingUpdateMaxSurge)
-}
 
 func teardownReadinessProbe() {
 	os.Unsetenv(defaults.OperatorReadinessProbeInitialDelaySeconds)
@@ -296,40 +289,6 @@ func Test_UpdateResourcesInDeployment(t *testing.T) {
 		assert.Equal(t, parseQuantity(expectedLimits["cpu"]), desiredRes.Limits["cpu"])
 		assert.Equal(t, parseQuantity(expectedLimits["memory"]), desiredRes.Limits["memory"])
 	})
-}
-
-func TestSetDeploymentStrategy_Default(t *testing.T) {
-	teardownRollingUpdate()
-	deploymentStrategy := createDeploymentStrategy()
-	err := setDeploymentStrategy(deploymentStrategy)
-	assert.NotNil(t, err)
-}
-
-func TestSetDeploymentStrategy_Custom(t *testing.T) {
-	test.SetRequiredEnvironmentVariables()
-
-	deploymentStrategy := createDeploymentStrategy()
-	setDeploymentStrategy(deploymentStrategy)
-
-	assert.Equal(t, "25%", deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal)
-	assert.Equal(t, "25%", deploymentStrategy.RollingUpdate.MaxSurge.StrVal)
-
-	teardownRollingUpdate()
-}
-func createDeploymentStrategy() *appsv1.DeploymentStrategy {
-	deploymentStrategy := appsv1.DeploymentStrategy{
-		RollingUpdate: &appsv1.RollingUpdateDeployment{
-			MaxUnavailable: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: "none",
-			},
-			MaxSurge: &intstr.IntOrString{
-				Type:   intstr.String,
-				StrVal: "none",
-			},
-		},
-	}
-	return &deploymentStrategy
 }
 
 func applyDeploymentWithSyncWithComponentResources(origRequests, origLimits map[string]string) Deployment {

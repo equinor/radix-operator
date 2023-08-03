@@ -28,7 +28,7 @@ type DeployComponentBuilder interface {
 	WithSecretRefs(v1.RadixSecretRefs) DeployComponentBuilder
 	WithDNSAppAlias(bool) DeployComponentBuilder
 	WithDNSExternalAlias(string) DeployComponentBuilder
-	WithHorizontalScaling(*int32, int32, *int32, *int32) DeployComponentBuilder
+	WithHorizontalScaling(minReplicas *int32, maxReplicas int32, cpu *int32, memory *int32) DeployComponentBuilder
 	WithRunAsNonRoot(bool) DeployComponentBuilder
 	WithAuthentication(*v1.Authentication) DeployComponentBuilder
 	WithIdentity(*v1.Identity) DeployComponentBuilder
