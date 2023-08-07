@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+
 	"github.com/equinor/radix-common/utils/numbers"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -18,7 +19,6 @@ const targetCPUUtilizationPercentage int32 = 80
 func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeployComponent) error {
 	namespace := deploy.radixDeployment.Namespace
 	componentName := deployComponent.GetName()
-	replicas := deployComponent.GetReplicas()
 	horizontalScaling := deployComponent.GetHorizontalScaling()
 
 	// Check if hpa config exists
@@ -27,9 +27,7 @@ func (deploy *Deployment) createOrUpdateHPA(deployComponent v1.RadixCommonDeploy
 		return nil
 	}
 
-	// Check if replicas == 0
-	if replicas != nil && *replicas == 0 {
-		log.Debugf("Skip creating HorizontalPodAutoscaler %s in namespace %s: replicas is 0", componentName, namespace)
+	if isComponentStopped(deployComponent) {
 		return nil
 	}
 
