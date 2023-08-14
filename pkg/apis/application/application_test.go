@@ -14,6 +14,7 @@ import (
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -247,21 +248,27 @@ func TestOnSync_RegistrationCreated_AppNamespaceReconciled(t *testing.T) {
 func TestOnSync_NoUserGroupDefined_DefaultUserGroupSet(t *testing.T) {
 	// Setup
 	tu, client, kubeUtil, radixClient := setupTest()
+	defaultRole := "9876-54321-09876"
 	defer os.Clearenv()
-	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, "9876-54321-09876")
+	os.Setenv(defaults.OperatorDefaultUserGroupEnvironmentVariable, defaultRole)
 
 	// Test
 	applyRegistrationWithSync(tu, client, kubeUtil, radixClient, utils.ARadixRegistration().
 		WithName("any-app").
-		WithAdGroups([]string{}))
+		WithAdGroups([]string{}).
+		WithReaderAdGroups([]string{}))
 
 	rolebindings, _ := client.RbacV1().RoleBindings("any-app-app").List(context.TODO(), metav1.ListOptions{})
 	assert.Equal(t, 5, len(rolebindings.Items))
 	assert.True(t, roleBindingByNameExists(defaults.AppAdminRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.PipelineAppRoleName, rolebindings))
 	assert.True(t, roleBindingByNameExists(defaults.RadixTektonAppRoleName, rolebindings))
-	assert.Equal(t, "9876-54321-09876", getRoleBindingByName(defaults.AppAdminRoleName, rolebindings).Subjects[0].Name)
+	assert.Equal(t, defaultRole, getRoleBindingByName(defaults.AppAdminRoleName, rolebindings).Subjects[0].Name)
 
+	clusterRoleBindings, _ := client.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
+	require.Len(t, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects, 1)
+	assert.Equal(t, defaultRole, getClusterRoleBindingByName("radix-platform-user-rr-any-app", clusterRoleBindings).Subjects[0].Name)
+	assert.Len(t, getClusterRoleBindingByName("radix-platform-user-rr-reader-any-app", clusterRoleBindings).Subjects, 0)
 }
 
 func TestOnSync_LimitsDefined_LimitsSet(t *testing.T) {
