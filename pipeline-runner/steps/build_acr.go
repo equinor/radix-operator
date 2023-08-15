@@ -19,6 +19,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const buildSecretsMountPath = "/build-secrets"
+
 type void struct{}
 
 var member void
@@ -92,6 +94,14 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 							VolumeSource: corev1.VolumeSource{
 								Secret: &corev1.SecretVolumeSource{
 									SecretName: defaults.AzureACRServicePrincipleSecretName,
+								},
+							},
+						},
+						{
+							Name: defaults.BuildSecretsName,
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: defaults.BuildSecretsName,
 								},
 							},
 						},
@@ -260,6 +270,10 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 					},
 				},
 			},
+			{
+				Name:  "SECRET_ARGS",
+				Value: getSecretArgs(buildSecrets),
+			},
 		}
 
 		envVars = append(envVars, buildSecrets...)
@@ -280,6 +294,11 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 					MountPath: azureServicePrincipleContext,
 					ReadOnly:  true,
 				},
+				{
+					Name:      defaults.BuildSecretsName,
+					MountPath: buildSecretsMountPath,
+					ReadOnly:  true,
+				},
 			},
 			SecurityContext: securityContext,
 		}
@@ -287,6 +306,14 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	}
 
 	return containers
+}
+
+func getSecretArgs(buildSecrets []corev1.EnvVar) string {
+	var secretArgs []string
+	for _, envVar := range buildSecrets {
+		secretArgs = append(secretArgs, fmt.Sprintf("--secret id=%s,src=%s/%s", envVar.ValueFrom.SecretKeyRef.Key, buildSecretsMountPath, envVar.ValueFrom.SecretKeyRef.Key))
+	}
+	return strings.Join(secretArgs, " ")
 }
 
 func getTargetEnvsToBuild(pipelineInfo *model.PipelineInfo) []string {
