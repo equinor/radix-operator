@@ -163,9 +163,12 @@ func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.R
 	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
 
 	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
-	// We must keep this value
-	if hs := deployComponent.GetHorizontalScaling(); hs != nil {
-		desiredDeployment.Spec.Replicas = currentDeployment.Spec.Replicas
+	// We must keep this value as long as replicas >= 0.
+	// Current replicas will be 0 if the component was previously stopped (replicas set explicitly to 0)
+	if hs := deployComponent.GetHorizontalScaling(); hs != nil && !isComponentStopped(deployComponent) {
+		if replicas := currentDeployment.Spec.Replicas; replicas != nil && *replicas > 0 {
+			desiredDeployment.Spec.Replicas = currentDeployment.Spec.Replicas
+		}
 	}
 
 	return desiredDeployment, err
