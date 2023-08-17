@@ -1603,6 +1603,52 @@ func TestObjectSynced_DeploymentReplicasFromCurrentDeploymentWhenHPAEnabled(t *t
 	assert.Equal(t, int32(1), *comp1.Spec.Replicas)
 }
 
+func TestObjectSynced_StopAndStartDeploymentWhenHPAEnabled(t *testing.T) {
+	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
+	defer teardownTest()
+	envNamespace := utils.GetEnvironmentNamespace("anyapp", "test")
+
+	// Initial sync creating deployments should use replicas from spec
+	_, err := applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(2)), int32(4), nil, nil),
+		))
+	require.NoError(t, err)
+
+	comp1, _ := client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(2), *comp1.Spec.Replicas)
+
+	// Resync existing RD with replicas 0 (stop) should set deployment replicas to 0
+	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(0)).WithHorizontalScaling(pointers.Ptr(int32(1)), int32(4), nil, nil),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(0), *comp1.Spec.Replicas)
+
+	// Resync existing RD with replicas set back to original value (start) should use replicas from spec
+	err = applyDeploymentUpdateWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
+		WithDeploymentName("deployment1").
+		WithAppName("anyapp").
+		WithEnvironment("test").
+		WithComponents(
+			utils.NewDeployComponentBuilder().WithName("comp1").WithReplicas(pointers.Ptr(1)).WithHorizontalScaling(pointers.Ptr(int32(2)), int32(4), nil, nil),
+		))
+	require.NoError(t, err)
+
+	comp1, _ = client.AppsV1().Deployments(envNamespace).Get(context.TODO(), "comp1", metav1.GetOptions{})
+	assert.Equal(t, int32(2), *comp1.Spec.Replicas)
+
+}
+
 func TestObjectSynced_DeploymentRevisionHistoryLimit(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
 	defer teardownTest()
@@ -2574,65 +2620,6 @@ func TestHistoryLimit_IsBroken_FixedAmountOfDeployments(t *testing.T) {
 
 	teardownTest()
 }
-
-// func TestObjectUpdated_WithIngressConfig_AnnotationIsPutOnIngresses(t *testing.T) {
-//	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
-//
-//	// Setup
-//	client.CoreV1().ConfigMaps(corev1.NamespaceDefault).Create(
-//		context.TODO(),
-//		&corev1.ConfigMap{
-//			ObjectMeta: metav1.ObjectMeta{
-//				Name:      ingressConfigurationMap,
-//				Namespace: corev1.NamespaceDefault,
-//			},
-//			Data: map[string]string{
-//				"ingressConfiguration": testIngressConfiguration,
-//			},
-//		},
-//		metav1.CreateOptions{})
-//
-//	os.Setenv(defaults.ActiveClusternameEnvironmentVariable, clusterName)
-//	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-//		WithAppName("any-app").
-//		WithEnvironment("dev").
-//		WithComponents(
-//			utils.NewDeployComponentBuilder().
-//				WithName("frontend").
-//				WithPort("http", 8080).
-//				WithPublicPort("http").
-//				WithDNSAppAlias(true).
-//				WithIngressConfiguration("non-existing")))
-//
-//	applyDeploymentWithSync(tu, client, kubeUtil, radixclient, prometheusclient, utils.ARadixDeployment().
-//		WithAppName("any-app-2").
-//		WithEnvironment("dev").
-//		WithComponents(
-//			utils.NewDeployComponentBuilder().
-//				WithName("frontend").
-//				WithPort("http", 8080).
-//				WithPublicPort("http").
-//				WithDNSAppAlias(true).
-//				WithIngressConfiguration("socket")))
-//
-//	// Test
-//	ingresses, _ := client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app", "dev")).List(context.TODO(), metav1.ListOptions{})
-//	appAliasIngress := getIngressByName("any-app-url-alias", ingresses)
-//	clusterSpecificIngress := getIngressByName("frontend", ingresses)
-//	activeClusterIngress := getIngressByName("frontend-active-cluster-url-alias", ingresses)
-//	assert.Equal(t, 1, len(appAliasIngress.ObjectMeta.Annotations))
-//	assert.Equal(t, 1, len(clusterSpecificIngress.ObjectMeta.Annotations))
-//	assert.Equal(t, 1, len(activeClusterIngress.ObjectMeta.Annotations))
-//
-//	ingresses, _ = client.NetworkingV1().Ingresses(utils.GetEnvironmentNamespace("any-app-2", "dev")).List(context.TODO(), metav1.ListOptions{})
-//	appAliasIngress = getIngressByName("any-app-2-url-alias", ingresses)
-//	clusterSpecificIngress = getIngressByName("frontend", ingresses)
-//	activeClusterIngress = getIngressByName("frontend-active-cluster-url-alias", ingresses)
-//	assert.Equal(t, 4, len(appAliasIngress.ObjectMeta.Annotations))
-//	assert.Equal(t, 4, len(clusterSpecificIngress.ObjectMeta.Annotations))
-//	assert.Equal(t, 4, len(activeClusterIngress.ObjectMeta.Annotations))
-//
-// }
 
 func TestHPAConfig(t *testing.T) {
 	tu, client, kubeUtil, radixclient, prometheusclient, _ := setupTest()
