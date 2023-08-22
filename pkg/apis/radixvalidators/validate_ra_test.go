@@ -1363,6 +1363,39 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 			},
 			setComponentAndJobsVolumeMounts, false, false, "missing BlobFuse2 volume mount container of volumeMount for component",
 		},
+		{
+			"default empty protocol is fuse2 in mount volume blobfuse2 fuse2",
+			func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+							Container: "some-container",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			setComponentAndJobsVolumeMounts, true, true, "",
+		},
+		{
+			"failed unsupported protocol in mount volume blobfuse2 fuse2",
+			func() []v1.RadixVolumeMount {
+				volumeMounts := []v1.RadixVolumeMount{
+					{
+						Name: "some_name",
+						Path: "some_path",
+						BlobFuse2: &v1.RadixBlobFuse2VolumeMount{
+							Container: "some-container",
+							Protocol:  "some-text",
+						},
+					},
+				}
+				return volumeMounts
+			},
+			setComponentAndJobsVolumeMounts, false, false, "unsupported BlobFuse2 volume mount protocol of volumeMount for component",
+		},
 	}
 
 	_, client := validRASetup()
@@ -1387,6 +1420,7 @@ func Test_ValidationOfVolumeMounts_Errors(t *testing.T) {
 				assert.Equal(t, testcase.isErrorNil, isErrorNil)
 				if !isErrorNil {
 					assert.Contains(t, err.Error(), testcase.testContainedByError)
+					continue
 				}
 			}
 		})

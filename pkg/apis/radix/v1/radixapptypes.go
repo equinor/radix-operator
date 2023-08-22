@@ -737,8 +737,9 @@ const (
 // RadixBlobFuse2VolumeMount defines an external storage resource, configured to use Blobfuse2 - A Microsoft supported Azure Storage FUSE driver.
 // More info: https://github.com/Azure/azure-storage-fuse
 type RadixBlobFuse2VolumeMount struct {
-	// Holds protocols of BlobFuse2 Azure Storage FUSE driver
-	// +kubebuilder:validation:Enum=fuse2;nfs
+	// Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.
+	// +kubebuilder:validation:Enum=fuse2;nfs;""
+	// +optional
 	Protocol BlobFuse2Protocol `json:"protocol"`
 
 	// Container. Name of the container in the external storage resource.
