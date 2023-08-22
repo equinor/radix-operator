@@ -161,10 +161,10 @@ func getCsiAzureVolumeMountName(componentName string, radixVolumeMount *radixv1.
 // GetCsiAzureVolumeMountType Gets the CSI Azure volume mount type
 func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radixv1.MountType {
 	if radixVolumeMount.BlobFuse2 != nil {
-		switch string(radixVolumeMount.BlobFuse2.Protocol) {
-		case string(radixv1.BlobFuse2ProtocolFuse2), "": // default protocol if not set
+		switch radixVolumeMount.BlobFuse2.Protocol {
+		case radixv1.BlobFuse2ProtocolFuse2, "": // default protocol if not set
 			return radixv1.MountTypeBlobFuse2Fuse2CsiAzure
-		case string(radixv1.BlobFuse2ProtocolNfs):
+		case radixv1.BlobFuse2ProtocolNfs:
 			return radixv1.MountTypeBlobFuse2NfsCsiAzure
 		default:
 			return "unsupported"
@@ -178,10 +178,10 @@ func GetCsiAzureVolumeMountType(radixVolumeMount *radixv1.RadixVolumeMount) radi
 
 func getCsiRadixVolumeTypeIdForName(radixVolumeMount *radixv1.RadixVolumeMount) (string, error) {
 	if radixVolumeMount.BlobFuse2 != nil {
-		switch string(radixVolumeMount.BlobFuse2.Protocol) {
-		case string(radixv1.BlobFuse2ProtocolFuse2), "":
+		switch radixVolumeMount.BlobFuse2.Protocol {
+		case radixv1.BlobFuse2ProtocolFuse2, "":
 			return "csi-blobfuse2-fuse2", nil
-		case string(radixv1.BlobFuse2ProtocolNfs):
+		case radixv1.BlobFuse2ProtocolNfs:
 			return "csi-blobfuse2-nfs", nil
 		default:
 			return "", fmt.Errorf("unknown blobfuse2 protocol %s", radixVolumeMount.BlobFuse2.Protocol)
