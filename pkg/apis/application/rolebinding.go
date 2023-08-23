@@ -2,6 +2,7 @@ package application
 
 import (
 	"fmt"
+
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults/k8s"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -46,31 +47,34 @@ func (app Application) applyRbacAppNamespace() error {
 
 // ApplyRbacRadixRegistration Grants access to radix registration
 func (app Application) applyRbacRadixRegistration() error {
-	k := app.kubeutil
-
 	rr := app.registration
 	appName := rr.Name
 
+	// Admin RBAC
 	clusterRoleName := fmt.Sprintf("radix-platform-user-rr-%s", appName)
-	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
-
 	adminClusterRole := app.rrClusterRole(clusterRoleName, []string{"get", "list", "watch", "update", "patch", "delete"})
-	appAdminSubjects := getAppAdminSubjects(rr)
+	appAdminSubjects, err := getAppAdminSubjects(rr)
+	if err != nil {
+		return err
+	}
 	adminClusterRoleBinding := app.rrClusterroleBinding(adminClusterRole, appAdminSubjects)
 
+	// Reader RBAC
+	clusterRoleReaderName := fmt.Sprintf("radix-platform-user-rr-reader-%s", appName)
 	readerClusterRole := app.rrClusterRole(clusterRoleReaderName, []string{"get", "list", "watch"})
 	appReaderSubjects := kube.GetRoleBindingGroups(rr.Spec.ReaderAdGroups)
 	readerClusterRoleBinding := app.rrClusterroleBinding(readerClusterRole, appReaderSubjects)
 
+	// Apply roles and bindings
 	for _, clusterRole := range []*auth.ClusterRole{adminClusterRole, readerClusterRole} {
-		err := k.ApplyClusterRole(clusterRole)
+		err := app.kubeutil.ApplyClusterRole(clusterRole)
 		if err != nil {
 			return err
 		}
 	}
 
 	for _, clusterRoleBindings := range []*auth.ClusterRoleBinding{adminClusterRoleBinding, readerClusterRoleBinding} {
-		err := k.ApplyClusterRoleBinding(clusterRoleBindings)
+		err := app.kubeutil.ApplyClusterRoleBinding(clusterRoleBindings)
 		if err != nil {
 			return err
 		}
@@ -79,9 +83,12 @@ func (app Application) applyRbacRadixRegistration() error {
 	return nil
 }
 
-func getAppAdminSubjects(rr *v1.RadixRegistration) []auth.Subject {
-	subjects := kube.GetRoleBindingGroups(rr.Spec.AdGroups)
-
+func getAppAdminSubjects(rr *v1.RadixRegistration) ([]auth.Subject, error) {
+	adGroups, err := utils.GetAdGroups(rr)
+	if err != nil {
+		return nil, err
+	}
+	subjects := kube.GetRoleBindingGroups(adGroups)
 	if rr.Spec.MachineUser {
 		subjects = append(subjects, auth.Subject{
 			Kind:      "ServiceAccount",
@@ -89,7 +96,7 @@ func getAppAdminSubjects(rr *v1.RadixRegistration) []auth.Subject {
 			Namespace: utils.GetAppNamespace(rr.Name),
 		})
 	}
-	return subjects
+	return subjects, nil
 }
 
 // ApplyRbacOnPipelineRunner Grants access to radix pipeline

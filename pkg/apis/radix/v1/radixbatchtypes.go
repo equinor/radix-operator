@@ -92,6 +92,11 @@ type RadixBatchJob struct {
 	// This timestamp set to the job's status.restart.
 	// +optional
 	Restart string `json:"restart,omitempty"`
+
+	// ImageTagName defines the image tag name to use for the job image
+	//
+	// required: false
+	ImageTagName string `json:"imageTagName,omitempty"`
 }
 
 // PayloadSecretKeySelector selects a key of a Secret.

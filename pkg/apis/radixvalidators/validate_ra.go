@@ -36,6 +36,7 @@ const (
 var (
 	validOAuthSessionStoreTypes = []string{string(radixv1.SessionStoreCookie), string(radixv1.SessionStoreRedis)}
 	validOAuthCookieSameSites   = []string{string(radixv1.SameSiteStrict), string(radixv1.SameSiteLax), string(radixv1.SameSiteNone), string(radixv1.SameSiteEmpty)}
+	blobFuse2Protocols          = []string{string(radixv1.BlobFuse2ProtocolFuse2), string(radixv1.BlobFuse2ProtocolNfs)}
 )
 
 // CanRadixApplicationBeInserted Checks if application config is valid. Returns a single error, if this is the case
@@ -1265,8 +1266,8 @@ func validateVolumeMounts(componentName, environment string, volumeMounts []radi
 			switch {
 			case len(volumeMount.BlobFuse2.Container) == 0:
 				return emptyBlobFuse2VolumeMountContainerError(componentName, environment)
-			case len(string(volumeMount.BlobFuse2.Protocol)) == 0:
-				return emptyBlobFuse2VolumeMountProtocolError(componentName, environment)
+			case len(string(volumeMount.BlobFuse2.Protocol)) > 0 && !commonUtils.ContainsString(blobFuse2Protocols, string(volumeMount.BlobFuse2.Protocol)):
+				return unsupportedBlobFuse2VolumeMountProtocolError(componentName, environment)
 			}
 			fallthrough
 		case radixv1.IsKnownVolumeMount(volumeMountType):

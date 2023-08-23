@@ -4,7 +4,7 @@ import (
 	"context"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/numbers"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -27,9 +27,8 @@ func (deploy *Deployment) createOrUpdateDeployment(deployComponent v1.RadixCommo
 		return err
 	}
 
-	// If Replicas == 0 or HorizontalScaling is nil then delete hpa if exists before updating deployment
-	deployReplicas := desiredDeployment.Spec.Replicas
-	if deployReplicas != nil && *deployReplicas == 0 || deployComponent.GetHorizontalScaling() == nil {
+	// If component is stopped or HorizontalScaling is nil then delete hpa if exists before updating deployment
+	if isComponentStopped(deployComponent) || deployComponent.GetHorizontalScaling() == nil {
 		err = deploy.deleteHPAIfExists(deployComponent.GetName())
 		if err != nil {
 			return err
@@ -67,7 +66,6 @@ func (deploy *Deployment) getCurrentAndDesiredDeployment(deployComponent v1.Radi
 		return nil, nil, err
 	}
 
-	deploy.configureDeploymentServiceAccountSettings(desiredDeployment, deployComponent)
 	return currentDeployment, desiredDeployment, err
 }
 
@@ -95,16 +93,8 @@ func (deploy *Deployment) getDesiredDeployment(namespace string, deployComponent
 	return currentDeployment, desiredDeployment, nil
 }
 
-func (deploy *Deployment) configureDeploymentServiceAccountSettings(deployment *appsv1.Deployment, deployComponent v1.RadixCommonDeployComponent) {
-	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)
-	deployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
-	deployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
-}
-
 func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent) (*appsv1.Deployment, error) {
-	appName := deploy.radixDeployment.Spec.AppName
-	componentName := deployComponent.GetName()
-	log.Debugf("Get desired created deployment config for application: %s.", appName)
+	log.Debugf("Get desired created deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
@@ -113,23 +103,13 @@ func (deploy *Deployment) getDesiredCreatedDeploymentConfig(deployComponent v1.R
 			Selector: &metav1.LabelSelector{MatchLabels: make(map[string]string)},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: make(map[string]string), Annotations: make(map[string]string)},
-				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: componentName}}},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: deployComponent.GetName()}}},
 			},
 		},
 	}
 
 	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
-	if err != nil {
-		return nil, err
-	}
-
-	deploymentStrategy, err := getDeploymentStrategy()
-	if err != nil {
-		return nil, err
-	}
-	desiredDeployment.Spec.Strategy = deploymentStrategy
-
-	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
+	return desiredDeployment, err
 }
 func (deploy *Deployment) createJobAuxDeployment(deployComponent v1.RadixCommonDeployComponent) *appsv1.Deployment {
 	jobName := deployComponent.GetName()
@@ -177,21 +157,21 @@ func getJobAuxResources() corev1.ResourceRequirements {
 }
 
 func (deploy *Deployment) getDesiredUpdatedDeploymentConfig(deployComponent v1.RadixCommonDeployComponent, currentDeployment *appsv1.Deployment) (*appsv1.Deployment, error) {
-	appName := deploy.radixDeployment.Spec.AppName
-	log.Debugf("Get desired updated deployment config for application: %s.", appName)
+	log.Debugf("Get desired updated deployment config for application: %s.", deploy.radixDeployment.Spec.AppName)
 
 	desiredDeployment := currentDeployment.DeepCopy()
 	err := deploy.setDesiredDeploymentProperties(deployComponent, desiredDeployment)
-	if err != nil {
-		return nil, err
+
+	// When HPA is enabled for a component, the HPA controller will scale the Deployment up/down by changing Replicas
+	// We must keep this value as long as replicas >= 0.
+	// Current replicas will be 0 if the component was previously stopped (replicas set explicitly to 0)
+	if hs := deployComponent.GetHorizontalScaling(); hs != nil && !isComponentStopped(deployComponent) {
+		if replicas := currentDeployment.Spec.Replicas; replicas != nil && *replicas > 0 {
+			desiredDeployment.Spec.Replicas = currentDeployment.Spec.Replicas
+		}
 	}
 
-	err = setDeploymentStrategy(&desiredDeployment.Spec.Strategy)
-	if err != nil {
-		return nil, err
-	}
-
-	return deploy.updateDeploymentByComponent(deployComponent, desiredDeployment, appName)
+	return desiredDeployment, err
 }
 
 func (deploy *Deployment) getDeploymentPodLabels(deployComponent v1.RadixCommonDeployComponent) map[string]string {
@@ -267,6 +247,14 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.ObjectMeta.Annotations = deploy.getDeploymentAnnotations(deployComponent)
 
 	desiredDeployment.Spec.Selector.MatchLabels = radixlabels.ForComponentName(componentName)
+	desiredDeployment.Spec.Replicas = getDesiredComponentReplicas(deployComponent)
+	desiredDeployment.Spec.RevisionHistoryLimit = getRevisionHistoryLimit(deployComponent)
+
+	deploymentStrategy, err := getDeploymentStrategy()
+	if err != nil {
+		return err
+	}
+	desiredDeployment.Spec.Strategy = deploymentStrategy
 
 	desiredDeployment.Spec.Template.ObjectMeta.Labels = deploy.getDeploymentPodLabels(deployComponent)
 	desiredDeployment.Spec.Template.ObjectMeta.Annotations = deploy.getDeploymentPodAnnotations(deployComponent)
@@ -275,16 +263,11 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	desiredDeployment.Spec.Template.Spec.ImagePullSecrets = deploy.radixDeployment.Spec.ImagePullSecrets
 	desiredDeployment.Spec.Template.Spec.SecurityContext = securitycontext.Pod(securitycontext.WithPodSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
 
-	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
-	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
-	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
-
-	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
-	if err != nil {
-		return err
-	}
-	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+	spec := NewServiceAccountSpec(deploy.radixDeployment, deployComponent)
+	desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken = spec.AutomountServiceAccountToken()
+	desiredDeployment.Spec.Template.Spec.ServiceAccountName = spec.ServiceAccountName()
+	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode(), appName, componentName)
+	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetPodSpecTolerations(deployComponent.GetNode())
 
 	volumes, err := deploy.GetVolumesForComponent(deployComponent)
 	if err != nil {
@@ -292,14 +275,29 @@ func (deploy *Deployment) setDesiredDeploymentProperties(deployComponent v1.Radi
 	}
 	desiredDeployment.Spec.Template.Spec.Volumes = volumes
 
+	desiredDeployment.Spec.Template.Spec.Containers[0].Image = deployComponent.GetImage()
+	desiredDeployment.Spec.Template.Spec.Containers[0].Ports = getContainerPorts(deployComponent)
+	desiredDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
+	desiredDeployment.Spec.Template.Spec.Containers[0].SecurityContext = securitycontext.Container(securitycontext.WithContainerSeccompProfile(corev1.SeccompProfileTypeRuntimeDefault))
+	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
+
+	volumeMounts, err := GetRadixDeployComponentVolumeMounts(deployComponent, deploy.radixDeployment.GetName())
+	if err != nil {
+		return err
+	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
 	readinessProbe, err := getReadinessProbeForComponent(deployComponent)
 	if err != nil {
 		return err
 	}
 	desiredDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = readinessProbe
 
-	desiredDeployment.Spec.Template.Spec.Affinity = utils.GetPodSpecAffinity(deployComponent.GetNode(), appName, componentName)
-	desiredDeployment.Spec.Template.Spec.Tolerations = utils.GetPodSpecTolerations(deployComponent.GetNode())
+	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(deploy.kubeutil, appName, deploy.radixDeployment, deployComponent)
+	if err != nil {
+		return err
+	}
+	desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
 
 	return nil
 }
@@ -317,44 +315,42 @@ func (deploy *Deployment) getRadixBranchAndCommitId() (string, string) {
 	return branch, commitID
 }
 
-func (deploy *Deployment) updateDeploymentByComponent(deployComponent v1.RadixCommonDeployComponent, desiredDeployment *appsv1.Deployment, appName string) (*appsv1.Deployment, error) {
-	replicas := deployComponent.GetReplicas()
-	if replicas != nil && *replicas >= 0 {
-		desiredDeployment.Spec.Replicas = int32Ptr(int32(*replicas))
-	} else {
-		desiredDeployment.Spec.Replicas = int32Ptr(int32(DefaultReplicas))
+func isComponentStopped(deployComponent v1.RadixCommonDeployComponent) bool {
+	if replicas := deployComponent.GetReplicas(); replicas != nil {
+		return *replicas == 0
 	}
 
-	// Override Replicas with horizontalScaling.minReplicas if exists
-	horizontalScaling := deployComponent.GetHorizontalScaling()
-	if replicas != nil && *replicas != 0 && horizontalScaling != nil {
-		desiredDeployment.Spec.Replicas = horizontalScaling.MinReplicas
-	}
-
-	radixDeployment := deploy.radixDeployment
-
-	environmentVariables, err := GetEnvironmentVariablesForRadixOperator(deploy.kubeutil, appName, radixDeployment, deployComponent)
-	if err != nil {
-		return nil, err
-	}
-
-	if environmentVariables != nil {
-		desiredDeployment.Spec.Template.Spec.Containers[0].Env = environmentVariables
-	}
-
-	desiredDeployment.Spec.Template.Spec.Containers[0].Resources = utils.GetResourceRequirements(deployComponent)
-
-	if hasRadixSecretRefs(deployComponent) {
-		desiredDeployment.Spec.RevisionHistoryLimit = numbers.Int32Ptr(0)
-	} else {
-		desiredDeployment.Spec.RevisionHistoryLimit = nil
-	}
-
-	return desiredDeployment, nil
+	return false
 }
 
-func hasRadixSecretRefs(deployComponent v1.RadixCommonDeployComponent) bool {
-	return len(deployComponent.GetSecretRefs().AzureKeyVaults) > 0
+func getDesiredComponentReplicas(deployComponent v1.RadixCommonDeployComponent) *int32 {
+	if isComponentStopped(deployComponent) {
+		return pointers.Ptr[int32](0)
+	}
+
+	componentReplicas := int32(DefaultReplicas)
+	if replicas := deployComponent.GetReplicas(); replicas != nil {
+		componentReplicas = int32(*replicas)
+	}
+
+	if hs := deployComponent.GetHorizontalScaling(); hs != nil {
+		if hs.MinReplicas != nil && *hs.MinReplicas > componentReplicas {
+			componentReplicas = *hs.MinReplicas
+		}
+		if hs.MaxReplicas < componentReplicas {
+			componentReplicas = hs.MaxReplicas
+		}
+	}
+
+	return pointers.Ptr(componentReplicas)
+}
+
+func getRevisionHistoryLimit(deployComponent v1.RadixCommonDeployComponent) *int32 {
+	if len(deployComponent.GetSecretRefs().AzureKeyVaults) > 0 {
+		return pointers.Ptr(int32(0))
+	}
+
+	return nil
 }
 
 func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
@@ -369,6 +365,7 @@ func getDeploymentStrategy() (appsv1.DeploymentStrategy, error) {
 	}
 
 	deploymentStrategy := appsv1.DeploymentStrategy{
+		Type: appsv1.RollingUpdateDeploymentStrategyType,
 		RollingUpdate: &appsv1.RollingUpdateDeployment{
 			MaxUnavailable: &intstr.IntOrString{
 				Type:   intstr.String,
@@ -463,22 +460,6 @@ func getReadinessProbe(componentPort, initialDelaySeconds, periodSeconds int32) 
 		InitialDelaySeconds: initialDelaySeconds,
 		PeriodSeconds:       periodSeconds,
 	}
-}
-
-func setDeploymentStrategy(deploymentStrategy *appsv1.DeploymentStrategy) error {
-	rollingUpdateMaxUnavailable, err := defaults.GetDefaultRollingUpdateMaxUnavailable()
-	if err != nil {
-		return err
-	}
-
-	rollingUpdateMaxSurge, err := defaults.GetDefaultRollingUpdateMaxSurge()
-	if err != nil {
-		return err
-	}
-
-	deploymentStrategy.RollingUpdate.MaxUnavailable.StrVal = rollingUpdateMaxUnavailable
-	deploymentStrategy.RollingUpdate.MaxSurge.StrVal = rollingUpdateMaxSurge
-	return nil
 }
 
 func getContainerPorts(deployComponent v1.RadixCommonDeployComponent) []corev1.ContainerPort {

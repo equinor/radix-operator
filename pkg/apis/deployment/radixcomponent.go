@@ -1,10 +1,10 @@
 package deployment
 
 import (
+	"dario.cat/mergo"
 	mergoutils "github.com/equinor/radix-common/utils/mergo"
 	"github.com/equinor/radix-operator/pkg/apis/pipeline"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/imdario/mergo"
 )
 
 var (

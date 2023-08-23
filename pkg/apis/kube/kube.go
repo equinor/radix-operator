@@ -58,6 +58,7 @@ const (
 	RadixGpuCountLabel                 = "radix-node-gpu-count"
 	RadixNamespace                     = "radix-namespace"
 	RadixConfigMapTypeLabel            = "radix-config-map-type"
+	RadixSecretTypeLabel               = "radix-secret-type"
 	RadixSecretRefTypeLabel            = "radix-secret-ref-type"
 	RadixSecretRefNameLabel            = "radix-secret-ref-name"
 	RadixUserDefinedNetworkPolicyLabel = "is-user-defined"
@@ -82,6 +83,13 @@ type RadixBatchType string
 const (
 	RadixBatchTypeJob   RadixBatchType = "job"
 	RadixBatchTypeBatch RadixBatchType = "batch"
+)
+
+// RadixSecretType defines value for use with label RadixSecretTypeLabel
+type RadixSecretType string
+
+const (
+	RadixSecretJobPayload RadixSecretType = "scheduler-job-payload"
 )
 
 // RadixConfigMapType Purpose of ConfigMap

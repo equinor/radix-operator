@@ -16,6 +16,7 @@ import (
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/securitycontext"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixlabels "github.com/equinor/radix-operator/pkg/apis/utils/labels"
 	fakeradix "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	prometheusfake "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/fake"
 	"github.com/stretchr/testify/suite"
@@ -746,7 +747,19 @@ func (s *syncerTestSuite) Test_JobWithPayload() {
 			},
 		},
 	}
-	batch, err := s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
+	secret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: secretName,
+			Labels: radixlabels.Merge(radixlabels.ForJobScheduleJobType(),
+				radixlabels.ForApplicationName(appName),
+				radixlabels.ForComponentName(componentName), radixlabels.ForBatchName(batchName)),
+		},
+		Data: map[string][]byte{secretKey: []byte("any-payload")},
+	}
+
+	_, err := s.kubeClient.CoreV1().Secrets(namespace).Create(context.Background(), &secret, metav1.CreateOptions{})
+	s.Require().NoError(err)
+	batch, err = s.radixClient.RadixV1().RadixBatches(namespace).Create(context.Background(), batch, metav1.CreateOptions{})
 	s.Require().NoError(err)
 	_, err = s.radixClient.RadixV1().RadixDeployments(namespace).Create(context.Background(), rd, metav1.CreateOptions{})
 	s.Require().NoError(err)
