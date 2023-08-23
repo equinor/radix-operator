@@ -690,10 +690,11 @@
                                 "type": "string"
                               },
                               "protocol": {
-                                "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver",
+                                "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.",
                                 "enum": [
                                   "fuse2",
-                                  "nfs"
+                                  "nfs",
+                                  ""
                                 ],
                                 "type": "string"
                               },
@@ -758,9 +759,6 @@
                                 "type": "boolean"
                               }
                             },
-                            "required": [
-                              "protocol"
-                            ],
                             "type": "object"
                           },
                           "container": {
@@ -1583,10 +1581,11 @@
                                 "type": "string"
                               },
                               "protocol": {
-                                "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver",
+                                "description": "Holds protocols of BlobFuse2 Azure Storage FUSE driver. Default is fuse2.",
                                 "enum": [
                                   "fuse2",
-                                  "nfs"
+                                  "nfs",
+                                  ""
                                 ],
                                 "type": "string"
                               },
@@ -1651,9 +1650,6 @@
                                 "type": "boolean"
                               }
                             },
-                            "required": [
-                              "protocol"
-                            ],
                             "type": "object"
                           },
                           "container": {

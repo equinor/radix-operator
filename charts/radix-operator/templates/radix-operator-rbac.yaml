@@ -155,6 +155,7 @@ rules:
     - tekton.dev
   resources:
     - pipelineruns
+    - taskruns
   verbs:
     - create
     - get
