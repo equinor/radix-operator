@@ -116,8 +116,9 @@ func createACRBuildJob(rr *v1.RadixRegistration, pipelineInfo *model.PipelineInf
 func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, buildSecrets []corev1.EnvVar) []corev1.Container {
 	imageTag := pipelineInfo.PipelineArguments.ImageTag
 	pushImage := pipelineInfo.PipelineArguments.PushImage
-	// imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
-	imageBuilder := "radixdev.azurecr.io/radix-buildah-image-builder:buildah-latest"
+
+	imageBuilder := pipelineInfo.PipelineArguments.ImageBuilder
+	// imageBuilder := "radixdev.azurecr.io/radix-buildah-image-builder:buildah-latest"
 
 	// TODO: incrementally remove kernel capabilities, root user
 

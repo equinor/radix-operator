@@ -81,6 +81,8 @@ type PipelineArguments struct {
 	TektonPipeline string
 	// ImageBuilder Points to the image builder
 	ImageBuilder string
+	// BuildKitImageBuilder Points to the BuildKit compliant image builder
+	BuildKitImageBuilder string
 	// Used for tagging meta-information
 	Clustertype string
 	// RadixZone  The radix zone.
