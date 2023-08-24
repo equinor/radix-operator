@@ -135,6 +135,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 	subscriptionId := pipelineInfo.PipelineArguments.SubscriptionId
 	branch := pipelineInfo.PipelineArguments.Branch
 	targetEnvs := strings.Join(getTargetEnvsToBuild(pipelineInfo), ",")
+	imageBuilderFullName := fmt.Sprintf("%s/%s", containerRegistry, imageBuilder)
 
 	gitCommitHash := pipelineInfo.GitCommitHash
 	gitTags := pipelineInfo.GitTags
@@ -269,7 +270,7 @@ func createACRBuildContainers(appName string, pipelineInfo *model.PipelineInfo, 
 
 		container := corev1.Container{
 			Name:            componentImage.ContainerName,
-			Image:           imageBuilder,
+			Image:           imageBuilderFullName,
 			ImagePullPolicy: corev1.PullAlways,
 			Env:             envVars,
 			VolumeMounts: []corev1.VolumeMount{
