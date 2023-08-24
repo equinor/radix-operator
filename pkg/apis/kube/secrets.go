@@ -54,12 +54,12 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 		savedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 		return savedSecret, err
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to get Secret object: %v", err)
+		return nil, fmt.Errorf("failed to get Secret object: %w", err)
 	}
 
 	oldSecretJSON, err := json.Marshal(oldSecret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal old secret object: %v", err)
+		return nil, fmt.Errorf("failed to marshal old secret object: %w", err)
 	}
 
 	// Avoid unnecessary patching
@@ -71,19 +71,19 @@ func (kubeutil *Kube) ApplySecret(namespace string, secret *corev1.Secret) (save
 
 	newSecretJSON, err := json.Marshal(newSecret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal new secret object: %v", err)
+		return nil, fmt.Errorf("failed to marshal new secret object: %w", err)
 	}
 
 	patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldSecretJSON, newSecretJSON, corev1.Secret{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create two way merge patch secret objects: %v", err)
+		return nil, fmt.Errorf("failed to create two way merge patch secret objects: %w", err)
 	}
 
 	if !IsEmptyPatch(patchBytes) {
 		// Will perform update as patching not properly remove secret data entries
 		patchedSecret, err := kubeutil.kubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), newSecret, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to update secret object: %v", err)
+			return nil, fmt.Errorf("failed to update secret object: %w", err)
 		}
 
 		log.Debugf("Updated secret: %s ", patchedSecret.Name)

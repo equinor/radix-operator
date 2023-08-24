@@ -157,8 +157,8 @@ func emptyBlobFuse2VolumeMountContainerError(component, environment string) erro
 	return fmt.Errorf("missing BlobFuse2 volume mount container of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
 }
 
-func emptyBlobFuse2VolumeMountProtocolError(component, environment string) error {
-	return fmt.Errorf("missing BlobFuse2 volume mount protocol of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
+func unsupportedBlobFuse2VolumeMountProtocolError(component, environment string) error {
+	return fmt.Errorf("unsupported BlobFuse2 volume mount protocol of volumeMount for component %s in environment %s. See documentation for more info", component, environment)
 }
 
 func duplicatePathForVolumeMountType(path, volumeMountType, component, environment string) error {
